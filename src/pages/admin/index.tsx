@@ -8,11 +8,12 @@ import { withRouteGuard } from '@/components/RouteGuard'
 type Stats = { merchants: number; products: number; withdrawals: number; ugc: number }
 
 function AdminPage() {
-  const { profile } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const [stats, setStats] = useState<Stats>({ merchants: 0, products: 0, withdrawals: 0, ugc: 0 })
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
+    if (authLoading) return
     if (profile?.role !== 'admin') {
       Taro.showToast({ title: '无权限', icon: 'none' })
       Taro.reLaunch({ url: '/pages/index/index' })
@@ -22,7 +23,7 @@ function AdminPage() {
     const s = await getAdminStats()
     setStats(s)
     setLoading(false)
-  }, [profile])
+  }, [profile, authLoading])
 
   useEffect(() => { load() }, [load])
 

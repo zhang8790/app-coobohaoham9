@@ -8,7 +8,7 @@ import { withRouteGuard } from '@/components/RouteGuard'
 import type { Product } from '@/db/types'
 
 function AdminProductsPage() {
-  const { profile } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const [list, setList] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
@@ -16,12 +16,13 @@ function AdminProductsPage() {
   const [rejectReason, setRejectReason] = useState('')
 
   const load = useCallback(async () => {
+    if (authLoading) return
     if (profile?.role !== 'admin') { Taro.reLaunch({ url: '/pages/index/index' }); return }
     setLoading(true)
     const data = await getAdminPendingProducts()
     setList(data)
     setLoading(false)
-  }, [profile])
+  }, [profile, authLoading])
 
   useEffect(() => { load() }, [load])
 

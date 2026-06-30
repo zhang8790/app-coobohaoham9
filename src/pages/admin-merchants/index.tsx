@@ -12,21 +12,21 @@ type App = {
 }
 
 function AdminMerchantsPage() {
-  const { profile } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const [list, setList] = useState<App[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
-  // 驳回弹窗
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
 
   const load = useCallback(async () => {
+    if (authLoading) return
     if (profile?.role !== 'admin') { Taro.reLaunch({ url: '/pages/index/index' }); return }
     setLoading(true)
     const data = await getAdminMerchantApplications()
     setList(data)
     setLoading(false)
-  }, [profile])
+  }, [profile, authLoading])
 
   useEffect(() => { load() }, [load])
 

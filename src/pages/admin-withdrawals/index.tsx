@@ -15,18 +15,19 @@ type Withdrawal = {
 const METHOD_LABELS: Record<string, string> = { bank: '银行转账', alipay: '支付宝', wechat: '微信零钱' }
 
 function AdminWithdrawalsPage() {
-  const { profile } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const [list, setList] = useState<Withdrawal[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (authLoading) return
     if (profile?.role !== 'admin') { Taro.reLaunch({ url: '/pages/index/index' }); return }
     setLoading(true)
     const data = await getAdminWithdrawals()
     setList(data)
     setLoading(false)
-  }, [profile])
+  }, [profile, authLoading])
 
   useEffect(() => { load() }, [load])
 

@@ -10,19 +10,20 @@ import type { Article } from '@/db/types'
 type Tab = 'all' | 'published' | 'hidden'
 
 function AdminUgcPage() {
-  const { profile } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const [tab, setTab] = useState<Tab>('all')
   const [list, setList] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (authLoading) return
     if (profile?.role !== 'admin') { Taro.reLaunch({ url: '/pages/index/index' }); return }
     setLoading(true)
     const data = await getAdminArticles()
     setList(data)
     setLoading(false)
-  }, [profile])
+  }, [profile, authLoading])
 
   useEffect(() => { load() }, [load])
 
