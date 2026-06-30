@@ -1,0 +1,50 @@
+@use 'tailwindcss/base';
+@use 'tailwindcss/components';
+@use 'tailwindcss/utilities';
+
+@layer base {
+  :root {
+    /* 来店有喜：朱砂墨迹·武侠国潮 */
+    --background: 33 100% 99%;
+    --foreground: 20 9% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 9% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 9% 11%;
+    --primary: 17 87% 41%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 25 68% 28%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 28 57% 94%;
+    --muted-foreground: 20 14% 43%;
+    --accent: 25 55% 36%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 29 36% 87%;
+    --input: 29 36% 87%;
+    --ring: 17 87% 41%;
+    --radius: 0.75rem;
+    --chart-1: 17 87% 41%;
+    --chart-2: 43 96% 56%;
+    --chart-3: 173 58% 39%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer utilities {
+  .ink-dot::after {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: hsl(var(--primary));
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .emotion-bg {
+    background-color: #FFF0E8;
+  }
+}

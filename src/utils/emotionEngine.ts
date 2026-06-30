@@ -1,0 +1,376 @@
+/**
+ * 情绪引擎 - 将用户输入文本解析为情绪标签，并计算商品匹配度
+ *
+ * 核心逻辑：
+ * 1. 将用户输入按关键词拆解为标准情绪标签集合
+ * 2. 对每个商品的 mood_tags 做交集，计算匹配分
+ * 3. 按匹配分降序排列，优先展示高匹配商品
+ */
+
+// =====================
+// 情绪关键词 -> 标准情绪标签 映射字典
+// =====================
+export const EMOTION_KEYWORD_MAP: Record<string, string[]> = {
+  // 疲惫 / 需要放松
+  '累': ['治愈', '放松', '安静'],
+  '好累': ['治愈', '放松', '安静'],
+  '疲惫': ['治愈', '放松', '安静'],
+  '疲劳': ['治愈', '放松'],
+  '没精神': ['治愈', '放松'],
+  '想休息': ['治愈', '放松', '安静'],
+  '太累了': ['治愈', '放松', '安静'],
+  '心好累': ['治愈', '孤独', '安静'],
+  '筋疲力尽': ['治愈', '放松'],
+
+  // 开心 / 愉悦
+  '开心': ['愉悦', '快乐', '甜蜜'],
+  '高兴': ['愉悦', '快乐'],
+  '心情不错': ['愉悦', '快乐', '活泼'],
+  '心情好': ['愉悦', '快乐', '活泼'],
+  '心情棒': ['愉悦', '快乐', '活泼'],
+  '好心情': ['愉悦', '快乐'],
+  '快乐': ['快乐', '愉悦', '活泼'],
+  '愉快': ['愉悦', '快乐'],
+  '爽': ['愉悦', '满足', '刺激'],
+  '嗨': ['愉悦', '活泼', '刺激'],
+  '兴奋': ['愉悦', '活泼', '刺激'],
+  '高兴极了': ['愉悦', '快乐', '甜蜜'],
+
+  // 犒劳 / 满足
+  '犒劳': ['满足', '幸福', '品质'],
+  '犒赏': ['满足', '幸福', '品质'],
+  '奖励自己': ['满足', '幸福', '品质'],
+  '好好吃一顿': ['满足', '用餐时光'],
+  '放纵一下': ['满足', '刺激'],
+  '吃好的': ['满足', '幸福', '用餐时光'],
+  '要享受': ['满足', '幸福'],
+  '庆祝': ['满足', '幸福', '分享'],
+
+  // 孤独 / 需要陪伴
+  '孤独': ['孤独', '治愈', '安静'],
+  '寂寞': ['孤独', '治愈'],
+  '一个人': ['孤独', '安静', '治愈'],
+  '想找人陪': ['孤独', '分享'],
+  '独处': ['孤独', '安静', '治愈'],
+  '空虚': ['孤独', '治愈'],
+
+  // 焦虑 / 压力
+  '焦虑': ['治愈', '放松', '安静'],
+  '压力大': ['治愈', '放松'],
+  '好烦': ['放松', '治愈'],
+  '烦躁': ['放松', '治愈'],
+  '心烦': ['放松', '治愈', '安静'],
+  '压抑': ['治愈', '放松', '安静'],
+  '难受': ['治愈', '安静'],
+
+  // 思考 / 学习
+  '想专注': ['专注', '安静', '学习空间'],
+  '想学习': ['专注', '安静', '学习空间'],
+  '需要安静': ['安静', '专注', '学习空间'],
+  '工作': ['专注', '安静'],
+  '学习': ['专注', '安静', '学习空间'],
+  '认真': ['专注', '品质'],
+  '思考': ['安静', '专注', '沉浸'],
+  '沉浸': ['沉浸', '专注', '安静'],
+
+  // 甜蜜 / 浪漫
+  '甜': ['甜蜜', '治愈', '幸福'],
+  '想吃甜的': ['甜蜜', '治愈', '幸福'],
+  '甜蜜': ['甜蜜', '幸福', '治愈'],
+  '浪漫': ['甜蜜', '幸福'],
+  '想恋爱': ['甜蜜', '幸福'],
+  '少女心': ['甜蜜', '活泼', '开心'],
+
+  // 分享 / 社交
+  '想分享': ['分享', '快乐', '愉悦'],
+  '和朋友': ['分享', '快乐'],
+  '聚会': ['分享', '快乐', '满足'],
+  '送礼': ['送礼', '品质', '分享'],
+  '礼物': ['送礼', '品质'],
+  '送给': ['送礼', '品质'],
+
+  // 怀旧 / 温暖
+  '怀旧': ['怀旧', '温暖', '治愈'],
+  '想家': ['怀旧', '温暖', '治愈'],
+  '温暖': ['温暖', '治愈', '幸福'],
+  '回忆': ['怀旧', '温暖'],
+  '童年': ['怀旧', '温暖'],
+
+  // 无聊 / 随便
+  '无聊': ['快乐', '活泼', '刺激'],
+  '没事干': ['快乐', '活泼'],
+  '随便逛逛': ['愉悦', '快乐'],
+  '逛逛': ['愉悦', '快乐'],
+  '闲逛': ['愉悦', '放松'],
+
+  // 仪式感
+  '仪式感': ['仪式感', '品质', '满足'],
+  '精致': ['仪式感', '品质'],
+  '好物': ['品质', '实用'],
+  '实用': ['实用', '品质'],
+
+  // 场景化
+  '早上': ['专注', '愉悦'],
+  '早晨': ['专注', '愉悦'],
+  '午后': ['放松', '治愈', '甜蜜'],
+  '下午茶': ['甜蜜', '治愈', '放松'],
+  '傍晚': ['放松', '温暖'],
+  '晚上': ['放松', '治愈'],
+  '夜晚': ['安静', '放松', '治愈'],
+  '深夜': ['安静', '孤独', '治愈'],
+  '周末': ['放松', '愉悦', '分享'],
+  '假期': ['愉悦', '放松', '分享'],
+  '工作日': ['专注', '实用'],
+}
+
+// 所有已知情绪标签（与数据库 mood_tags 对齐）
+export const ALL_MOOD_TAGS = [
+  '治愈', '放松', '安静', '孤独', '思考', '沉浸',
+  '愉悦', '快乐', '活泼', '甜蜜', '幸福', '开心',
+  '满足', '幸福', '品质', '刺激', '创意',
+  '分享', '送礼', '实用', '仪式感',
+  '怀旧', '温暖', '专注',
+]
+
+// =====================
+// IP气泡情绪回应文案
+// =====================
+const EMOTION_IP_RESPONSES: Record<string, string[]> = {
+  '治愈': [
+    '侠客，寻一处僻静，让身心得到片刻安宁吧~',
+    '此刻，放下剑，让自己歇息一番也无妨。',
+    '江湖路漫漫，但好物可以抚慰疲惫的心。',
+  ],
+  '放松': [
+    '放剑入鞘，今日不问江湖恩怨，好好享受~',
+    '偷得浮生半日闲，来，挑几样好物解乏！',
+  ],
+  '愉悦': [
+    '侠客今日神采飞扬，必有好事！趁此良机，犒劳自己~',
+    '心情好时，一切都值得！去探索好物吧！',
+  ],
+  '快乐': [
+    '哈哈，侠客笑口常开，喜事连连！来，挑个好物庆贺！',
+    '快乐的侠客最吸引好运，去逛逛吧~',
+  ],
+  '满足': [
+    '丰衣足食，侠客之道！不过，再添一件好物岂不美哉？',
+    '知足常乐，但偶尔的小奢侈更增滋味~',
+  ],
+  '孤独': [
+    '独行侠也需要温暖，好物是最好的伴侣。',
+    '一个人的旅途，用心选一件好物陪伴你。',
+  ],
+  '甜蜜': [
+    '甜蜜如蜜，生活如此美好！来点甜的犒劳自己~',
+    '少女心大发？去挑几件可爱的小物吧！',
+  ],
+  '送礼': [
+    '送礼送到心坎上，这里有精选好礼等你~',
+    '千里送鹅毛，礼轻情意重。挑一份好礼表心意！',
+  ],
+  '怀旧': [
+    '岁月如歌，那些熟悉的味道最抚人心。',
+    '旧时光最是温柔，来寻几件唤醒记忆的好物~',
+  ],
+  '专注': [
+    '心无旁骛，专注当下。好的工具能让效率翻倍！',
+    '沉浸其中，忘却尘嚣，这里有助你专注的好物~',
+  ],
+  'default': [
+    '侠客，今日有喜，好物相候！',
+    '来店有喜，愿汝所求皆如意~',
+    '江湖有你，才更有趣！去发现好物吧~',
+    '此刻心情如何？让好物为你解忧！',
+  ],
+}
+
+// =====================
+// 情绪分析结果
+// =====================
+export interface EmotionAnalysisResult {
+  detectedTags: string[]      // 解析出的情绪标签（去重）
+  tagScores: Record<string, number>  // 每个标签的权重分
+  ipBubble: string            // IP气泡回应文案
+  intensity: 'low' | 'medium' | 'high'  // 情绪强度
+}
+
+// =====================
+// 核心：分析用户输入，提取情绪标签
+// =====================
+export function analyzeEmotion(input: string): EmotionAnalysisResult {
+  if (!input.trim()) {
+    return {
+      detectedTags: [],
+      tagScores: {},
+      ipBubble: pickRandom(EMOTION_IP_RESPONSES['default']),
+      intensity: 'low',
+    }
+  }
+
+  const tagScores: Record<string, number> = {}
+
+  // 按关键词长度降序排，优先匹配长词（避免"好"匹配"好累"之前先匹配单字）
+  const keywords = Object.keys(EMOTION_KEYWORD_MAP).sort((a, b) => b.length - a.length)
+
+  for (const keyword of keywords) {
+    if (input.includes(keyword)) {
+      const tags = EMOTION_KEYWORD_MAP[keyword]
+      // 第一个标签权重最高（主情绪），后续递减
+      tags.forEach((tag, idx) => {
+        const weight = Math.max(3 - idx, 1)
+        tagScores[tag] = (tagScores[tag] || 0) + weight
+      })
+    }
+  }
+
+  // 情绪强度：根据匹配到的关键词总分
+  const totalScore = Object.values(tagScores).reduce((a, b) => a + b, 0)
+  const intensity: 'low' | 'medium' | 'high' =
+    totalScore >= 10 ? 'high' : totalScore >= 4 ? 'medium' : 'low'
+
+  // 排序标签，高分优先
+  const detectedTags = Object.entries(tagScores)
+    .sort((a, b) => b[1] - a[1])
+    .map(([tag]) => tag)
+    .slice(0, 6) // 最多取6个标签参与匹配
+
+  // 选择最匹配的 IP 回应文案
+  const ipBubble = selectIpBubble(detectedTags)
+
+  return { detectedTags, tagScores, ipBubble, intensity }
+}
+
+// =====================
+// 计算商品与情绪标签的匹配分
+// =====================
+export function calcProductMatchScore(
+  productMoodTags: string[],
+  emotionTagScores: Record<string, number>
+): number {
+  if (!productMoodTags || productMoodTags.length === 0) return 0
+  if (Object.keys(emotionTagScores).length === 0) return 0
+
+  let score = 0
+  for (const tag of productMoodTags) {
+    if (emotionTagScores[tag]) {
+      score += emotionTagScores[tag]
+    }
+  }
+  return score
+}
+
+// =====================
+// 对商品列表按情绪匹配度排序
+// =====================
+export interface ScoredProduct<T> {
+  product: T
+  matchScore: number
+  matchLabel: string | null  // "完美契合" / "较好匹配" / null
+}
+
+export function rankProductsByEmotion<T extends { mood_tags?: string[] }>(
+  products: T[],
+  tagScores: Record<string, number>
+): ScoredProduct<T>[] {
+  if (Object.keys(tagScores).length === 0) {
+    return products.map(p => ({ product: p, matchScore: 0, matchLabel: null }))
+  }
+
+  const scored = products.map(p => {
+    const score = calcProductMatchScore(p.mood_tags || [], tagScores)
+    const matchLabel =
+      score >= 8 ? '完美契合' :
+      score >= 4 ? '较好匹配' :
+      score >= 1 ? '有点匹配' :
+      null
+    return { product: p, matchScore: score, matchLabel }
+  })
+
+  // 有分的在前（按分降序），无分的保持原序追加在后
+  const withScore = scored.filter(s => s.matchScore > 0).sort((a, b) => b.matchScore - a.matchScore)
+  const noScore = scored.filter(s => s.matchScore === 0)
+  return [...withScore, ...noScore]
+}
+
+// =====================
+// 情绪强度对应的武侠风翻译文案
+// =====================
+export function getEmotionPoetry(detectedTags: string[], intensity: 'low' | 'medium' | 'high'): string {
+  if (detectedTags.length === 0) return '侠客，此刻的心情如江湖浮云，去寻一处称心之地，好好犒赏自己吧。'
+
+  const primaryTag = detectedTags[0]
+  const poetryMap: Record<string, string[]> = {
+    '治愈': [
+      '劳心劳力，侠客也需休憩，寻觅一处清幽之所，方可再续征途。',
+      '心若浮萍，当觅一处安静之地，让灵魂得以安放。',
+    ],
+    '放松': [
+      '放剑入鞘，偷得浮生半日闲，好好享受当下之乐。',
+      '武林事了，今日不问恩怨，只管犒赏自己。',
+    ],
+    '愉悦': [
+      '风和日丽，江湖路宽，今日诸事皆宜，不妨犒赏自己一番。',
+      '心情如此之好，定是有好事将至，去寻几样好物庆贺！',
+    ],
+    '快乐': [
+      '哈哈大笑，笑傲江湖！好心情配好物，方为人生赢家。',
+      '侠客今日开颜，好运当头，去犒赏自己！',
+    ],
+    '满足': [
+      '奋斗已久，该是饮酒吃肉、欢庆功德之时。',
+      '功成身退，犒劳自己，此乃侠客之道！',
+    ],
+    '孤独': [
+      '独行侠也有柔软之处，好物最能抚慰孤独的心。',
+      '一个人的江湖，用心选一件好物陪伴自己。',
+    ],
+    '甜蜜': [
+      '生活需要一抹甜意，方能抚慰那些奔波的岁月。',
+      '甜甜的心情，配上甜甜的好物，幸福加倍！',
+    ],
+    '安静': [
+      '繁华落尽见真淳，寻一处僻静，方能听见内心之声。',
+      '闹中取静，侠客之心，当在宁静处寻得答案。',
+    ],
+    '专注': [
+      '心如止水，方能剑指苍穹。好的工具，助你事半功倍。',
+      '专注当下，心无旁骛，好物相助，事成！',
+    ],
+  }
+
+  const lines = poetryMap[primaryTag]
+  if (lines) return pickRandom(lines)
+
+  return `侠客此刻感受颇深，${primaryTag}之情油然而生。去寻几样称心好物，慰藉心灵吧。`
+}
+
+// =====================
+// 辅助：选择 IP 文案
+// =====================
+function selectIpBubble(detectedTags: string[]): string {
+  for (const tag of detectedTags) {
+    if (EMOTION_IP_RESPONSES[tag]) {
+      return pickRandom(EMOTION_IP_RESPONSES[tag])
+    }
+  }
+  return pickRandom(EMOTION_IP_RESPONSES['default'])
+}
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+// =====================
+// 快捷情绪词 -> 预设分析结果（点击即触发）
+// =====================
+export const QUICK_MOOD_PRESETS: Array<{ label: string; emoji: string; tags: string[] }> = [
+  { label: '今天好累', emoji: '😴', tags: ['治愈', '放松', '安静'] },
+  { label: '心情不错', emoji: '😊', tags: ['愉悦', '快乐', '活泼'] },
+  { label: '想犒劳自己', emoji: '🍖', tags: ['满足', '幸福', '品质'] },
+  { label: '需要安静', emoji: '🍃', tags: ['安静', '专注', '治愈'] },
+  { label: '来点甜的', emoji: '🧁', tags: ['甜蜜', '治愈', '幸福'] },
+  { label: '随便逛逛', emoji: '🛍️', tags: ['愉悦', '快乐'] },
+  { label: '送个礼物', emoji: '🎁', tags: ['送礼', '品质', '分享'] },
+  { label: '想念旧时光', emoji: '🕯️', tags: ['怀旧', '温暖', '治愈'] },
+]
