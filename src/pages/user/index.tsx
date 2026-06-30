@@ -91,6 +91,8 @@ function UserPage() {
     }})
   }
 
+  const isAdmin = profile?.role === 'admin'
+
   const merchantStatusNode = useMemo(() => {
     const status = profile?.merchant_status || application?.status || 'none'
     if (status === 'none') return (
@@ -296,6 +298,21 @@ function UserPage() {
           ))}
         </div>
       ))}
+
+      {/* 武林盟管理后台入口（仅 admin 可见） */}
+      {user && isAdmin && (
+        <div className="mx-4 mt-4 px-4 py-4 rounded-2xl border-2 border-primary bg-primary/5 flex items-center justify-between"
+          onClick={() => Taro.navigateTo({ url: '/pages/admin/index' })}>
+          <div className="flex items-center gap-3">
+            <div className="i-mdi-shield-crown text-3xl text-primary" />
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold text-primary">武林盟</span>
+              <span className="text-xl text-muted-foreground">超级管理后台</span>
+            </div>
+          </div>
+          <div className="i-mdi-chevron-right text-2xl text-primary" />
+        </div>
+      )}
 
       {/* 退出登录 */}
       {user && (

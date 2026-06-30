@@ -409,6 +409,103 @@ export async function deleteProduct(id: string): Promise<boolean> {
   return !error
 }
 
+// =====================
+// 管理员专用 API
+// =====================
+export async function getAdminStats(): Promise<{ merchants: number; products: number; withdrawals: number; ugc: number }> {
+  const [{ count: m }, { count: p }, { count: w }, { count: u }] = await Promise.all([
+    supabase.from('merchant_applications').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('products').select('*', { count: 'exact', head: true }).eq('review_status', 'pending'),
+    supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('articles').select('*', { count: 'exact', head: true }),
+  ])
+  return { merchants: m ?? 0, products: p ?? 0, withdrawals: w ?? 0, ugc: u ?? 0 }
+}
+
+export async function getAdminMerchantApplications(): Promise<MerchantApplication[]> {
+  const { data } = await supabase.from('merchant_applications').select('*')
+    .eq('status', 'pending').order('created_at', { ascending: true })
+  return (data ?? []) as MerchantApplication[]
+}
+
+export async function adminApproveApplication(id: string): Promise<boolean> {
+  const app = await supabase.from('merchant_applications').select('user_id, store_name, business_type').eq('id', id).maybeSingle()
+  if (!app.data) return false
+  const { error } = await supabase.from('merchant_applications').update({ status: 'approved' }).eq('id', id)
+  if (error) return false
+  // 同步 profiles.merchant_status
+  await supabase.from('profiles').update({ merchant_status: 'approved' }).eq('id', app.data.user_id)
+  return true
+}
+
+export async function adminRejectApplication(id: string, reason: string): Promise<boolean> {
+  const app = await supabase.from('merchant_applications').select('user_id').eq('id', id).maybeSingle()
+  if (!app.data) return false
+  const { error } = await supabase.from('merchant_applications').update({ status: 'rejected', reject_reason: reason }).eq('id', id)
+  if (error) return false
+  await supabase.from('profiles').update({ merchant_status: 'rejected' }).eq('id', app.data.user_id)
+  return true
+}
+
+export async function getAdminPendingProducts(): Promise<Product[]> {
+  const { data } = await supabase.from('products').select('*')
+    .eq('review_status', 'pending').order('created_at', { ascending: true })
+  return (data ?? []) as Product[]
+}
+
+export async function adminApproveProduct(id: string): Promise<boolean> {
+  const { error } = await supabase.from('products').update({ review_status: 'approved' }).eq('id', id)
+  return !error
+}
+
+export async function adminRejectProduct(id: string, reason: string): Promise<boolean> {
+  const { error } = await supabase.from('products').update({ review_status: 'rejected', description: `[驳回] ${reason}` }).eq('id', id)
+  return !error
+}
+
+export async function getAdminWithdrawals(): Promise<any[]> {
+  const { data } = await supabase.from('withdrawals')
+    .select('*, profiles(nickname, phone)')
+    .eq('status', 'pending').order('created_at', { ascending: true })
+  return data ?? []
+}
+
+export async function adminApproveWithdrawal(id: string): Promise<boolean> {
+  const { error } = await supabase.from('withdrawals').update({ status: 'paid', updated_at: new Date().toISOString() }).eq('id', id)
+  return !error
+}
+
+export async function adminRejectWithdrawal(id: string): Promise<boolean> {
+  // 驳回时退还余额
+  const w = await supabase.from('withdrawals').select('user_id, amount').eq('id', id).maybeSingle()
+  if (!w.data) return false
+  const { error } = await supabase.from('withdrawals').update({ status: 'rejected', updated_at: new Date().toISOString() }).eq('id', id)
+  if (error) return false
+  // 退还余额至 profiles.balance（单位：金豆，1元=100金豆，但 withdrawal.amount 是元，balance 存金豆）
+  // 查当前余额
+  const { data: prof } = await supabase.from('profiles').select('balance').eq('id', w.data.user_id).maybeSingle()
+  const cur = prof?.balance ?? 0
+  const refundBeans = Math.round(Number(w.data.amount) / 0.01) // 元→金豆
+  await supabase.from('profiles').update({ balance: cur + refundBeans }).eq('id', w.data.user_id)
+  return true
+}
+
+export async function getAdminArticles(): Promise<Article[]> {
+  const { data } = await supabase.from('articles').select('*, profiles(id, nickname, avatar_url)')
+    .order('created_at', { ascending: false }).limit(100)
+  return (data ?? []) as Article[]
+}
+
+export async function adminToggleArticlePublish(id: string, publish: boolean): Promise<boolean> {
+  const { error } = await supabase.from('articles').update({ is_published: publish }).eq('id', id)
+  return !error
+}
+
+export async function adminDeleteArticle(id: string): Promise<boolean> {
+  const { error } = await supabase.from('articles').delete().eq('id', id)
+  return !error
+}
+
 // 商家订单
 export async function getMerchantOrders(storeId: string, page = 0, limit = 20): Promise<any[]> {
   const { data } = await supabase.from('order_items')

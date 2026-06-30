@@ -26,6 +26,11 @@ const pages = [
   'pages/settings/index',
   'pages/review/index',
   'pages/commission-detail/index',
+  'pages/admin/index',
+  'pages/admin-merchants/index',
+  'pages/admin-products/index',
+  'pages/admin-withdrawals/index',
+  'pages/admin-ugc/index',
 ]
 
 export default defineAppConfig({
