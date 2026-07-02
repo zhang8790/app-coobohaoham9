@@ -4,7 +4,7 @@ import Taro from '@tarojs/taro'
 import { Image } from '@tarojs/components'
 import { getAdminPendingProducts, adminApproveProduct, adminRejectProduct } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 import type { Product } from '@/db/types'
 
 function AdminProductsPage() {
@@ -45,7 +45,7 @@ function AdminProductsPage() {
     else Taro.showToast({ title: '操作失败', icon: 'none' })
   }
 
-  return (
+  return (<RouteGuard>
     <div className="min-h-screen bg-background pb-10">
       <div className="px-4 py-4">
         {loading ? (
@@ -130,7 +130,8 @@ function AdminProductsPage() {
         </div>
       )}
     </div>
-  )
+  </RouteGuard>)
 }
 
-export default withRouteGuard(AdminProductsPage)
+/* wrapped by RouteGuard - see render */
+export default AdminProductsPage

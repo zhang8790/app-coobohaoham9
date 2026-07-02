@@ -44,26 +44,39 @@ function navigateToLogin(currentPath: string): void {
 
 /**
  * Route guard component for authentication protection
- * @warning DO NOT use this component in app.tsx! Wrap pages with withRouteGuard HOC
+ * Use inline in JSX: <RouteGuard><YourContent /></RouteGuard>
+ *
+ * @warning DO NOT use the old HOC pattern "export default withRouteGuard(Page)" —
+ *   it causes "withRouteGuard is not defined" errors after Taro/Rollup compilation.
+ *   Always use this as a JSX component instead.
  */
-function RouteGuard({children}: {children: React.ReactNode}) {
+export function RouteGuard({children}: {children: React.ReactNode}) {
   const {user, loading} = useAuth()
   const [shouldRender, setShouldRender] = useState(false)
 
   const checkAuth = useCallback(() => {
+    const currentPath: string = Taro.getCurrentInstance()?.router?.path || ''
+
+    // Always allow public pages to render (even during loading)
+    const isPublic = PUBLIC_PAGE_PATHS.some((publicPath) => currentPath?.includes(publicPath))
+    if (isPublic) {
+      setShouldRender(true)
+      return
+    }
+
+    // During loading, don't render anything (prevent flash of unauthenticated content)
     if (loading) {
       setShouldRender(false)
       return
     }
 
-    const currentPath: string = Taro.getCurrentInstance()?.router?.path || ''
-
-    // Allow access if user is authenticated or page is public
-    const isPublic = PUBLIC_PAGE_PATHS.some((publicPath) => currentPath?.includes(publicPath))
-    if (user || isPublic) {
+    // Allow access if user is authenticated
+    if (user) {
       setShouldRender(true)
       return
     }
+
+    // Not authenticated and not a public page -> redirect to login
     if (currentPath && !currentPath?.includes(LOGIN_PAGE_PATH)) {
       navigateToLogin(currentPath)
       setShouldRender(false)
@@ -90,8 +103,9 @@ function RouteGuard({children}: {children: React.ReactNode}) {
 }
 
 /**
- * HOC to wrap a component with route guard
- * Usage: export default withRouteGuard(PageComponent)
+ * @deprecated Use <RouteGuard> as JSX component instead.
+ * This HOC pattern causes "withRouteGuard is not defined" after Taro/Rollup build.
+ * Kept only for backward compatibility — do NOT use in new code.
  */
 export function withRouteGuard<P extends object>(Component: React.ComponentType<P>) {
   return function GuardedComponent(props: P) {

@@ -1,6 +1,7 @@
 // @title 帮助中心
 import { useState } from 'react'
-import Taro from '@tarojs/taro'
+import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 
 const FAQ_GROUPS = [
   {

@@ -1,7 +1,7 @@
 import {createContext, useContext, useEffect, useState, type ReactNode} from 'react'
 import Taro from '@tarojs/taro'
 import {supabase} from '@/client/supabase'
-import type {User} from '@supabase/supabase-js'
+import type {User, Session, AuthChangeEvent} from '@supabase/supabase-js'
 
 import type { Profile } from '@/db/types'
 export type { Profile } from '@/db/types'
@@ -50,14 +50,14 @@ export function AuthProvider({children}: {children: ReactNode}) {
   useEffect(() => {
     supabase.auth
       .getSession()
-      .then(({data: {session}}) => {
+      .then(({data: {session}}: { data: { session: Session | null } }) => {
         setUser(session?.user ?? null)
         if (session?.user) {
           getProfile(session.user.id).then(setProfile)
         }
         setLoading(false)
       })
-      .catch((error) => {
+      .catch((error: Error) => {
         console.warn('Failed to get session:', error)
         setUser(null)
         setProfile(null)
@@ -67,7 +67,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
     // In this function, do NOT use any await calls. Use `.then()` instead to avoid deadlocks.
     const {
       data: {subscription}
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setUser(session?.user ?? null)
       if (session?.user) {
         getProfile(session.user.id).then(setProfile)
@@ -126,36 +126,43 @@ export function AuthProvider({children}: {children: ReactNode}) {
 
   const signInWithPhone = async (phone: string) => {
     try {
-      const {error} = await supabase.auth.signInWithOtp({phone})
+      // 本地测试模式：测试账号直接发送固定验证码
+      if (phone === '+8618701410500' || phone === '+8612345678901') {
+        // 测试账号，不真正发送短信，而是提示用户使用固定验证码
+        return { error: null }
+      }
+
+      const { error } = await supabase.auth.signInWithOtp({ phone })
 
       if (error) throw error
-      return {error: null}
+      return { error: null }
     } catch (error) {
-      return {error: error as Error}
+      return { error: error as Error }
     }
   }
 
   const verifyPhoneOtp = async (phone: string, code: string) => {
     try {
-      // 测试账号走 password 通道（绕过真实短信 OTP）
-      if (phone === '+8618701410500' && code === '123456') {
-        const {error} = await supabase.auth.signInWithPassword({
+      // 本地测试模式：测试账号绕过真实短信验证
+      if ((phone === '+8618701410500' || phone === '+8612345678901') && code === '123456') {
+        const { error } = await supabase.auth.signInWithPassword({
           email: 'test_18701410500@laidianyouxi.com',
           password: 'Test123456!'
         })
         if (error) throw error
-        return {error: null}
+        return { error: null }
       }
 
-      const {error} = await supabase.auth.verifyOtp({
+      // 生产模式：真实短信验证
+      const { error } = await supabase.auth.verifyOtp({
         phone,
         token: code,
         type: 'sms'
       })
       if (error) throw error
-      return {error: null}
+      return { error: null }
     } catch (error) {
-      return {error: error as Error}
+      return { error: error as Error }
     }
   }
 

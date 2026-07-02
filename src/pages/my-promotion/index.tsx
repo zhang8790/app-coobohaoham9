@@ -2,22 +2,18 @@
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { Button, Image } from '@tarojs/components'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
 import { generateQrcode } from '@/db/api'
+import { getRankByDynamicScore, calculateDynamicScore } from '@/utils/commission-calculator-v4'
 
 const RANK_ORDER = ['江湖散修', '外门弟子', '内门弟子', '核心弟子', '长老', '掌门']
 const RANK_COLORS: Record<string, string> = {
   '江湖散修': '#78350F', '外门弟子': '#B45309', '内门弟子': '#92400E',
   '核心弟子': '#C2410C', '长老': '#9333EA', '掌门': '#DC2626',
 }
-const RANK_L1_RATIO: Record<string, number> = {
-  '江湖散修': 30, '外门弟子': 35, '内门弟子': 40, '核心弟子': 50, '长老': 55, '掌门': 60,
-}
-const RANK_L2_RATIO: Record<string, number> = {
-  '江湖散修': 12, '外门弟子': 14, '内门弟子': 16, '核心弟子': 20, '长老': 24, '掌门': 27,
-}
+// 段位配置从V4算法动态获取（不再硬编码）
 
 interface RankProgress {
   current_rank: string; next_rank: string; direct_count: number
@@ -46,6 +42,22 @@ function MyPromotionPage() {
   const sharePath = `/pages/index/index?ref=${referralCode}`
   useShareAppMessage(() => ({ title: shareTitle, path: sharePath }))
   useShareTimeline(() => ({ title: shareTitle }))
+
+  // 根据用户信息计算段位（前端V4算法）
+  const userRankInfo = useMemo(() => {
+    if (!profile) return null
+    const totalConsumption = profile.total_consumption || 0
+    const teamPerformance = profile.team_performance || 0
+    const dynamicScore = calculateDynamicScore(totalConsumption, teamPerformance)
+    const rank = getRankByDynamicScore(dynamicScore)
+    return {
+      rankName: rank.rankName,
+      dynamicScore,
+      l1Ratio: Math.round(rank.l1Ratio * 100),
+      l2Ratio: Math.round(rank.l2Ratio * 100),
+      pointsRatio: Math.round(rank.pointsRatio * 100),
+    }
+  }, [profile])
 
   const load = useCallback(async () => {
     if (!user) return
@@ -135,7 +147,7 @@ function MyPromotionPage() {
     </div>
   )
 
-  return (
+  return (<RouteGuard>
     <div className="min-h-screen bg-background pb-8">
       {/* 段位英雄卡 */}
       <div className="mx-4 mt-6 rounded-3xl overflow-hidden"
@@ -150,7 +162,7 @@ function MyPromotionPage() {
               <p className="text-xl text-white/80">直推: {rankData?.direct_count || 0}人  |  累计GMV: ¥{Number(rankData?.total_gmv || 0).toFixed(0)}</p>
             </div>
             <div className="flex flex-col items-center">
-              <div className="text-4xl font-bold text-white">{RANK_L1_RATIO[rankData?.current_rank || '江湖散修']}%</div>
+              <div className="text-4xl font-bold text-white">{rankData?.l1_ratio || 15}%</div>
               <div className="text-base text-white/70">L1佣金比</div>
             </div>
           </div>
@@ -174,10 +186,10 @@ function MyPromotionPage() {
                   </div>
                 ))}
               </div>
-              <p className="text-base text-white/80 mt-2 text-center">
-                再邀请 {(rankData?.target_count || 0) - (rankData?.direct_count || 0)} 人可晋升 {rankData?.next_rank}
-                ，L1佣金提升至 {RANK_L1_RATIO[rankData?.next_rank || '外门弟子'] || 0}%
-              </p>
+                <p className="text-base text-white/80 mt-2 text-center">
+                  再邀请 {(rankData?.target_count || 0) - (rankData?.direct_count || 0)} 人可晋升 {rankData?.next_rank}
+                  ，L1佣金提升至 {rankData?.next_l1_ratio || 18}%
+                </p>
             </div>
           )}
           {rankData?.next_rank === '已是最高段位' && (
@@ -266,11 +278,11 @@ function MyPromotionPage() {
         <div className="flex items-center gap-4 px-4 pb-4">
           <div className="flex-1 p-3 bg-muted rounded-xl flex flex-col items-center gap-1">
             <span className="text-xl font-bold text-foreground">{commSummary?.l1_count || 0}</span>
-            <span className="text-base text-muted-foreground">L1佣金 ({RANK_L1_RATIO[rankData?.current_rank || '江湖散修']}%)</span>
+            <span className="text-base text-muted-foreground">L1佣金 ({userRankInfo?.l1Ratio || 15}%)</span>
           </div>
           <div className="flex-1 p-3 bg-muted rounded-xl flex flex-col items-center gap-1">
             <span className="text-xl font-bold text-foreground">{commSummary?.l2_count || 0}</span>
-            <span className="text-base text-muted-foreground">L2佣金 ({RANK_L2_RATIO[rankData?.current_rank || '江湖散修']}%)</span>
+            <span className="text-base text-muted-foreground">L2佣金 ({userRankInfo?.l2Ratio || 6}%)</span>
           </div>
         </div>
       </div>
@@ -297,8 +309,8 @@ function MyPromotionPage() {
         </div>
         <div className="flex flex-col gap-2">
           {[
-            { icon: 'i-mdi-account-plus', text: `L1：好友用你的推广码注册，你获得其消费 ${RANK_L1_RATIO[rankData?.current_rank || '江湖散修']}% 佣金` },
-            { icon: 'i-mdi-account-group', text: `L2：L1下线再邀请好友，你获得新好友消费 ${RANK_L2_RATIO[rankData?.current_rank || '江湖散修']}% 佣金` },
+            { icon: 'i-mdi-account-plus', text: `L1：好友用你的推广码注册，你获得其消费 ${userRankInfo?.l1Ratio || 15}% 佣金` },
+            { icon: 'i-mdi-account-group', text: `L2：L1下线再邀请好友，你获得新好友消费 ${userRankInfo?.l2Ratio || 6}% 佣金` },
             { icon: 'i-mdi-trending-up', text: '段位越高，佣金比例越大，升段永久生效' },
             { icon: 'i-mdi-lock', text: '推广链条永久绑定，分享文章也可锁定下线' },
           ].map((item, i) => (
@@ -338,7 +350,8 @@ function MyPromotionPage() {
         </div>
       )}
     </div>
-  )
+  </RouteGuard>)
 }
 
-export default withRouteGuard(MyPromotionPage)
+/* wrapped by RouteGuard - see render */
+export default MyPromotionPage

@@ -1,8 +1,9 @@
 // @title 探索
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { Image } from '@tarojs/components'
+import { Image, View, Text } from '@tarojs/components'
 import { getProducts, getCartCount, addToCart } from '@/db/api'
+import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import type { Product } from '@/db/types'
 
 const CATEGORIES = ['全部', '图书', '美食', '饮品', '零食', '日用', '礼品']
@@ -11,12 +12,26 @@ const STORE_CATEGORY_MAP: Record<string, string> = {
   '图书': '图书', '美食': '美食', '饮品': '饮品', '零食': '零食', '日用': '日用', '礼品': '礼品'
 }
 
+// 图片加载失败时的占位组件
+function ProductImagePlaceholder({ name }: { name: string }) {
+  return (
+    <View className="w-full flex items-center justify-center bg-muted"
+      style={{ height: '120px' }}>
+      <View className="flex flex-col items-center gap-1">
+        <View className="i-mdi-image-off text-3xl text-muted-foreground" />
+        <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
+      </View>
+    </View>
+  )
+}
+
 export default function ExplorePage() {
   const [activeCat, setActiveCat] = useState('全部')
   const [products, setProducts] = useState<Product[]>([])
   const [cartCount, setCartCount] = useState(0)
   const [addingId, setAddingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
   const page = useRef(0)
   const hasMore = useRef(true)
 
@@ -44,8 +59,19 @@ export default function ExplorePage() {
     setCartCount(c)
   }, [])
 
-  useEffect(() => { loadProducts('全部'); refreshCart() }, [refreshCart])
+  useEffect(() => {
+    loadProducts('全部')
+    refreshCart()
+  }, [refreshCart])
+
   useDidShow(() => { refreshCart() })
+
+  // 分享配置：携带推广码
+  useShareWithReferral({
+    title: '来店有喜 · 探索江湖好物',
+    path: '/pages/explore/index',
+    timelineTitle: '来店有喜 · 发现品质好物',
+  })
 
   const handleCatSelect = (cat: string) => {
     setActiveCat(cat)
@@ -65,6 +91,10 @@ export default function ExplorePage() {
 
   const handleLoadMore = () => {
     if (!loading && hasMore.current) loadProducts(activeCat, false)
+  }
+
+  const handleImageError = (id: string) => {
+    setFailedImages(prev => new Set(prev).add(id))
   }
 
   return (
@@ -114,9 +144,21 @@ export default function ExplorePage() {
               {products.map(p => (
                 <div key={p.id} className="bg-card rounded-2xl overflow-hidden border border-border relative"
                   onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}>
-                  <Image src={p.image_url || ''} mode="aspectFill" className="w-full" style={{ height: '120px' }} />
+                  {failedImages.has(p.id) || !p.image_url ? (
+                    <ProductImagePlaceholder name={p.name} />
+                  ) : (
+                    <Image src={p.image_url || ''} mode="aspectFill" className="w-full" style={{ height: '120px' }}
+                      onError={() => handleImageError(p.id)} />
+                  )}
                   <div className="p-3">
                     <p className="text-xl font-bold text-foreground leading-tight line-clamp-2">{p.name}</p>
+                    {p.mood_tags && p.mood_tags.length > 0 && (
+                      <div className="flex gap-1 mt-1 flex-wrap">
+                        {p.mood_tags.slice(0, 3).map(t => (
+                          <span key={t} className="px-2 py-0.5 rounded-full text-base bg-primary/10 text-primary">{t}</span>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xl font-bold text-primary">¥{p.price}</span>
                       {p.original_price && <span className="text-base text-muted-foreground line-through">¥{p.original_price}</span>}

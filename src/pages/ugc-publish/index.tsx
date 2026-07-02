@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Taro from '@tarojs/taro'
 import { createArticle } from '@/db/api'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 
 const TAG_OPTIONS = ['美食', '购物', '治愈', '分享', '推荐', '好物', '打卡', '日记']
 
@@ -20,13 +20,13 @@ function UGCPublishPage() {
     if (!title.trim()) { Taro.showToast({ title: '请输入标题', icon: 'none' }); return }
     if (!content.trim()) { Taro.showToast({ title: '请输入内容', icon: 'none' }); return }
     setSubmitting(true)
-    await createArticle(title.trim(), content.trim(), [], selectedTags)
+    await createArticle(title.trim(), content.trim(), [], selectedTags, { status: 'published' })
     setSubmitting(false)
     Taro.showToast({ title: '发布成功！', icon: 'success' })
-    setTimeout(() => Taro.navigateBack(), 1500)
+    setTimeout(() => Taro.navigateTo({ url: '/pages/content-center/my-articles/index?tab=published' }), 1500)
   }
 
-  return (
+  return (<RouteGuard>
     <div className="min-h-screen bg-background pb-24">
       {/* 顶部返回 */}
       <div className="flex items-center px-4 pt-4 pb-2">
@@ -105,7 +105,8 @@ function UGCPublishPage() {
         </button>
       </div>
     </div>
-  )
+  </RouteGuard>)
 }
 
-export default withRouteGuard(UGCPublishPage)
+/* wrapped by RouteGuard - see render */
+export default UGCPublishPage

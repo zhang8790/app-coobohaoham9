@@ -1,29 +1,35 @@
 // @title 首页
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
-import { Image } from '@tarojs/components'
-import { getProductsByEmotion, getProducts, getAnnouncements, addToCart } from '@/db/api'
+import { View, Text, ScrollView, Image, Input } from '@tarojs/components'
+import { getProductsByEmotion, getProducts, getAnnouncements, addToCart, getProductByBarcode } from '@/db/api'
 import type { Product, Announcement } from '@/db/types'
 import {
   analyzeEmotion, rankProductsByEmotion, getEmotionPoetry,
   QUICK_MOOD_PRESETS, type ScoredProduct, type EmotionAnalysisResult
 } from '@/utils/emotionEngine'
+import { useAuth } from '@/contexts/AuthContext'
 
 const SCENES = [
-  { name: '治愈空间', icon: 'i-mdi-leaf', color: '#4CAF50' },
-  { name: '用餐时光', icon: 'i-mdi-food', color: '#FF7043' },
-  { name: '购物时刻', icon: 'i-mdi-shopping', color: '#7B1FA2' },
-  { name: '学习空间', icon: 'i-mdi-book-open', color: '#1976D2' },
+  { name: '治愈空间', emoji: '🌿', color: '#4CAF50' },
+  { name: '用餐时光', emoji: '🍜', color: '#FF7043' },
+  { name: '购物时刻', emoji: '🛍️', color: '#7B1FA2' },
+  { name: '学习空间', emoji: '📖', color: '#1976D2' },
 ]
 
 // 匹配标签样式
-const MATCH_LABEL_STYLE: Record<string, string> = {
-  '完美契合': 'bg-primary text-white',
-  '较好匹配': 'bg-accent text-white',
-  '有点匹配': 'bg-muted text-secondary',
+const MATCH_LABEL_MAP: Record<string, { bg: string; color: string }> = {
+  '完美契合': { bg: '#C2410C', color: '#FFF' },
+  '较好匹配': { bg: '#EA580C', color: '#FFF' },
+  '有点匹配': { bg: '#FFF7ED', color: '#9A3412' },
 }
 
 export default function IndexPage() {
+  const { profile } = useAuth()
+  const myRef = profile?.referral_code || ''
+  const shareProductRef = useRef<{ id: string; name: string; imageUrl: string } | null>(null)
+  const feedRef = useRef<number>(0)
+
   const [mood, setMood] = useState('')
   const [analysis, setAnalysis] = useState<EmotionAnalysisResult | null>(null)
   const [ipBubble, setIpBubble] = useState('侠客，今日有喜，好物相候！')
@@ -36,69 +42,60 @@ export default function IndexPage() {
   const [addingId, setAddingId] = useState<string | null>(null)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // 小程序启动时捕获 scene：ref=推广码 或 s=门店短码&r=推广码
-  const routeParams = useMemo(() => Taro.getCurrentInstance().router?.params as any || {}, [])
-  useEffect(() => {
-    // 直接 URL 参数（H5 / 普通跳转）
-    const refDirect = routeParams.ref as string || ''
-    const storeShortDirect = routeParams.s as string || ''
-
-    // scene 参数（小程序码扫码进入）
-    let refFromScene = ''
-    let storeShortFromScene = ''
-    if (routeParams.scene) {
-      try {
-        const scene = decodeURIComponent(routeParams.scene as string)
-        const refMatch = scene.match(/ref=([A-Z0-9]{6})/i)
-        const sMatch = scene.match(/[?&]?r=([A-Z0-9]{6})/i) || scene.match(/^r=([A-Z0-9]{6})/i)
-        const storeMatch = scene.match(/s=([A-Z0-9]{8})/i)
-        if (refMatch) refFromScene = refMatch[1].toUpperCase()
-        if (sMatch) refFromScene = sMatch[1].toUpperCase()
-        if (storeMatch) storeShortFromScene = storeMatch[1].toUpperCase()
-      } catch { /* ignore */ }
+  // 分享
+  useShareAppMessage(() => {
+    const p = shareProductRef.current
+    if (p) return {
+      title: `${p.name} · 来店有喜江湖好物`,
+      path: `/pages/product/index?id=${encodeURIComponent(p.id)}${myRef ? `&ref=${myRef}` : ''}`,
+      imageUrl: p.imageUrl || undefined,
     }
-
-    const finalRef = (refDirect || refFromScene).toUpperCase()
-    const finalStore = (storeShortDirect || storeShortFromScene).toUpperCase()
-
-    // 保存推广码到 Storage，登录后自动绑定
-    if (finalRef) Taro.setStorageSync('pendingReferralCode', finalRef)
-
-    // 若有门店短码，查询门店 ID 并跳转
-    if (finalStore) {
-      import('@/client/supabase').then(({ supabase }) => {
-        supabase.from('stores').select('id').eq('short_code', finalStore).maybeSingle()
-          .then(({ data }) => {
-            if (data?.id) {
-              Taro.navigateTo({ url: `/pages/store-home/index?id=${data.id}` })
-            }
-          })
-      })
+    return {
+      title: '来店有喜 · 武侠生活平台，好物相候！',
+      path: `/pages/index/index${myRef ? `?ref=${myRef}` : ''}`,
     }
-  }, [routeParams])
-
-  // 首页分享
-  useShareAppMessage(() => ({ title: '来店有喜 · 武侠生活平台，好物相候！', path: '/pages/index/index' }))
+  })
   useShareTimeline(() => ({ title: '来店有喜 · 武侠江湖，有喜相逢' }))
 
   // 加载公告
   const loadAnnouncements = useCallback(async () => {
-    const data = await getAnnouncements()
-    setAnnouncements(data)
+    try {
+      const data = await getAnnouncements()
+      if (Array.isArray(data)) setAnnouncements(data)
+    } catch { /* 不阻塞 */ }
   }, [])
 
-  // 加载 Feed（默认无情绪时展示全量，有情绪时用情绪查询）
+  // 加载 Feed
   const loadFeed = useCallback(async (emotionResult?: EmotionAnalysisResult) => {
     setLoading(true)
-    let raw: Product[]
-    if (emotionResult && emotionResult.detectedTags.length > 0) {
-      raw = await getProductsByEmotion(emotionResult.detectedTags, 40)
-    } else {
-      raw = await getProducts({ limit: 30 })
+    try {
+      let raw: Product[] = []
+      if (emotionResult && emotionResult.detectedTags.length > 0) {
+        raw = await getProductsByEmotion(emotionResult.detectedTags, 40)
+      } else {
+        raw = await getProducts({ limit: 30 })
+      }
+      if (Array.isArray(raw)) {
+        // 前端精确打分（mock 模式下 supabase 查不到，这里直接前端算）
+        const { calcProductMatchScore } = await import('@/utils/emotionEngine')
+        const scored = raw
+          .filter((p: any) => p && p.id)
+          .map((p: any) => {
+            const score = emotionResult ? calcProductMatchScore(p.mood_tags || [], emotionResult.tagScores || {}) : 0
+            const matchLabel =
+              score >= 8 ? '完美契合' :
+              score >= 4 ? '较好匹配' :
+              score >= 1 ? '有点匹配' : ''
+            return { product: p, matchScore: score, matchLabel, score, tagScores: {} } as ScoredProduct<Product>
+          })
+          .sort((a, b) => b.matchScore - a.matchScore)
+        setFeedItems(scored)
+      }
+    } catch (e) {
+      console.error('[首页] loadFeed 失败', e)
+    } finally {
+      setLoading(false)
     }
-    const scored = rankProductsByEmotion(raw, emotionResult?.tagScores ?? {})
-    setFeedItems(scored)
-    setLoading(false)
   }, [])
 
   useEffect(() => { loadAnnouncements(); loadFeed() }, [loadAnnouncements, loadFeed])
@@ -154,318 +151,633 @@ export default function IndexPage() {
     loadFeed()
   }
 
-  const handleAddCart = async (product: Product) => {
-    const uid = (await import('@/client/supabase').then(m => m.supabase.auth.getUser())).data.user
-    if (!uid) { Taro.navigateTo({ url: '/pages/login/index' }); return }
+  const handleAddCart = async (product: Product, e?: any) => {
+    if (e) { try { e.stopPropagation() } catch {} }
+    if (!profile) { Taro.navigateTo({ url: '/pages/login/index' }); return }
     setAddingId(product.id)
-    await addToCart(product.id, product.store_id)
-    setAddingId(null)
-    Taro.showToast({ title: '已加入行囊', icon: 'success' })
+    try {
+      await addToCart(product.id, product.store_id)
+      Taro.showToast({ title: '已加入行囊', icon: 'success' })
+    } catch {
+      Taro.showToast({ title: '加购失败', icon: 'error' })
+    } finally {
+      setAddingId(null)
+    }
   }
 
   // 有情绪时的匹配商品数
   const matchedCount = feedItems.filter(f => f.matchScore > 0).length
 
-  return (
-    <div className="min-h-screen bg-background pb-6">
-      {/* 顶部导航 */}
-      <div className="sticky top-0 z-10 bg-background px-4 py-3 flex items-center gap-3" style={{ borderBottom: '1px solid #E7DDD0' }}>
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-white font-bold text-base">喜</span>
-          </div>
-          <span className="text-2xl font-bold text-foreground">来店有喜</span>
-        </div>
-        <div className="flex-1 flex items-center gap-2 bg-muted rounded-full px-4 py-2"
-          onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}>
-          <div className="i-mdi-magnify text-xl text-muted-foreground" />
-          <span className="text-xl text-muted-foreground">搜索好物、门店...</span>
-        </div>
-      </div>
+  // 滚动到商品区
+  const scrollToFeed = () => {
+    const query = Taro.createSelectorQuery()
+    query.select('#feed-section').boundingClientRect()
+    query.exec((res: any) => {
+      if (res && res[0]) {
+        Taro.pageScrollTo({ scrollTop: res[0].top, duration: 300 })
+      }
+    })
+  }
 
-      {/* IP伴侣气泡 —— 随情绪动态变化 */}
-      <div className="mx-4 mt-4 p-4 rounded-2xl flex items-start gap-3 transition"
-        style={{ background: emotionActive ? '#FFEEDD' : '#FFF0E8', border: emotionActive ? '1.5px solid #C2410C' : '1.5px solid transparent' }}>
-        <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center flex-shrink-0"
-          style={{ boxShadow: emotionActive ? '0 0 0 4px rgba(194,65,12,0.15)' : 'none' }}>
-          <span className="text-white text-2xl">🦊</span>
-        </div>
-        <div className="flex-1">
-          <p className="text-xl text-foreground leading-relaxed">{ipBubble}</p>
+  return (
+    <ScrollView scrollY enhanced showScrollbar={false}
+      style={{ height: '100vh', background: '#FFF8F4' }}>
+
+      {/* ══════════════════════════════════════════
+          顶部导航
+         ══════════════════════════════════════════ */}
+      <View style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        background: '#FFF',
+        padding: '12px 14px',
+        display: 'flex', alignItems: 'center', gap: '10px',
+        borderBottom: '1px solid #E7DDD0',
+      }}>
+        {/* Logo */}
+        <View style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <View style={{
+            width: '32px', height: '32px', borderRadius: '16px',
+            background: 'linear-gradient(135deg, #FF8A65, #FF5722)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: '14px' }}>喜</Text>
+          </View>
+          <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>来店有喜</Text>
+        </View>
+        {/* 搜索框 */}
+        <View
+          onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}
+          style={{
+            flex: 1,
+            display: 'flex', alignItems: 'center', gap: '6px',
+            background: '#F5F0EB',
+            borderRadius: '999px',
+            padding: '8px 14px',
+          }}>
+          <Text style={{ fontSize: '16px' }}>🔍</Text>
+          <Text style={{ fontSize: '14px', color: '#BBB' }}>搜索好物、门店...</Text>
+        </View>
+      </View>
+
+      {/* ══════════════════════════════════════════
+          IP伴侣气泡
+         ══════════════════════════════════════════ */}
+      <View style={{
+        margin: '12px 14px 0',
+        padding: '14px 16px',
+        borderRadius: '18px',
+        display: 'flex', alignItems: 'flex-start', gap: '12px',
+        background: emotionActive ? '#FFEEDD' : '#FFF0E8',
+        border: emotionActive ? '1.5px solid #C2410C' : '1.5px solid transparent',
+        transition: 'all 0.3s',
+      }}>
+        {/* 头像 */}
+        <View style={{
+          width: '48px', height: '48px', borderRadius: '24px',
+          background: 'linear-gradient(135deg, #FF8A65, #FF5722)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+          boxShadow: emotionActive ? '0 0 0 4px rgba(194,65,12,0.15)' : 'none',
+        }}>
+          <Text style={{ fontSize: '24px' }}>🦊</Text>
+        </View>
+        {/* 文案 + 情绪强度 */}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontSize: '14px', color: '#5D4037', lineHeight: '1.6' }}>{ipBubble}</Text>
           {/* 情绪强度指示 */}
           {analysis && analysis.intensity !== 'low' && (
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-base text-muted-foreground">情绪强度</span>
+            <View style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
+              <Text style={{ fontSize: '12px', color: '#999' }}>情绪强度</Text>
               {[1, 2, 3].map(i => (
-                <div key={i} className="w-3 h-3 rounded-full"
-                  style={{ background: i <= (analysis.intensity === 'high' ? 3 : 2) ? '#C2410C' : '#E7DDD0' }} />
+                <View key={i} style={{
+                  width: '10px', height: '10px', borderRadius: '5px',
+                  background: i <= (analysis.intensity === 'high' ? 3 : 2) ? '#C2410C' : '#E7DDD0',
+                }} />
               ))}
-            </div>
+            </View>
           )}
-        </div>
-      </div>
+        </View>
+      </View>
 
-      {/* 情绪输入区 */}
-      <div className="mx-4 mt-4 p-4 rounded-2xl" style={{ background: '#FFF0E8' }}>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xl font-bold text-foreground">此刻心情如何？</p>
-          {emotionActive && (
-            <div className="flex items-center gap-1 text-primary text-xl" onClick={clearEmotion}>
-              <div className="i-mdi-close-circle text-xl" />
-              <span>清空</span>
-            </div>
+      {/* ══════════════════════════════════════════
+          情绪输入区
+         ══════════════════════════════════════════ */}
+      <View style={{ padding: '12px 14px 0' }}>
+        <View style={{
+          borderRadius: '18px',
+          background: '#FFF',
+          border: '1px solid #F0E6D8',
+          padding: '16px 14px',
+        }}>
+          {/* 标题行 */}
+          <View style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: '12px',
+          }}>
+            <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#333' }}>此刻心情如何？</Text>
+            {emotionActive && (
+              <View onClick={clearEmotion} style={{
+                display: 'flex', alignItems: 'center', gap: '2px',
+              }}>
+                <Text style={{ fontSize: '14px', color: '#C2410C' }}>❌ 清空</Text>
+              </View>
+            )}
+          </View>
+
+          {/* 快捷情绪词（横向滚动） */}
+          <ScrollView scrollX showScrollbar={false} style={{ marginBottom: '12px', whiteSpace: 'nowrap' }}>
+            <View style={{ display: 'flex', flexDirection: 'row', gap: '8px', padding: '2px 0 8px' }}>
+              {QUICK_MOOD_PRESETS.map(preset => {
+                const isActive = mood === preset.label
+                return (
+                  <View key={preset.label}
+                    onClick={() => handleQuickMood(preset)}
+                    style={{
+                      flexShrink: 0,
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      padding: '8px 16px',
+                      borderRadius: '999px',
+                      border: '1.5px solid',
+                      borderColor: isActive ? '#C2410C' : '#E7DDD0',
+                      background: isActive ? '#FFF3EE' : '#FFF',
+                    }}>
+                    <Text style={{ fontSize: '16px' }}>{preset.emoji}</Text>
+                    <Text style={{
+                      fontSize: '13px',
+                      color: isActive ? '#C2410C' : '#555',
+                      fontWeight: isActive ? 'bold' : '400',
+                    }}>{preset.label}</Text>
+                  </View>
+                )
+              })}
+            </View>
+          </ScrollView>
+
+          {/* 输入框 */}
+          <View style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+          }}>
+            <View style={{
+              flex: 1,
+              borderWidth: '2px',
+              borderRadius: '14px',
+              padding: '12px 16px',
+              background: '#FFF',
+              borderColor: emotionActive ? '#C2410C' : '#EDE8DD',
+            }}>
+              <Input
+                style={{ width: '100%', fontSize: '14px', color: '#333' }}
+                placeholder="直接说心情，自动为你匹配好物..."
+                placeholderStyle="color:#BBB;font-size:14px"
+                value={mood}
+                confirmType="search"
+                maxlength={50}
+                onInput={(e: any) => handleMoodInput(e.detail?.value ?? '')}
+                onConfirm={() => {
+                  if (mood.trim()) {
+                    const result = analyzeEmotion(mood)
+                    setAnalysis(result)
+                    setIpBubble(result.ipBubble)
+                    setPoetry(getEmotionPoetry(result.detectedTags, result.intensity))
+                    setEmotionActive(result.detectedTags.length > 0)
+                    loadFeed(result)
+                  }
+                }}
+              />
+            </View>
+            {loading && <Text style={{ fontSize: '18px' }}>⏳</Text>}
+          </View>
+
+          {/* 情绪分析结果 —— 识别到的标签 */}
+          {analysis && analysis.detectedTags.length > 0 && (
+            <View style={{ marginTop: '12px' }}>
+              <View style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Text style={{ fontSize: '14px' }}>🏷️</Text>
+                <Text style={{ fontSize: '13px', color: '#999' }}>识别到情绪：</Text>
+              </View>
+              <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {analysis.detectedTags.map(tag => (
+                  <Text key={tag} style={{
+                    padding: '4px 12px',
+                    borderRadius: '999px',
+                    fontSize: '13px',
+                    background: '#FFF3EE',
+                    color: '#C2410C',
+                    border: '1px solid #FDD9C3',
+                  }}>#{tag}</Text>
+                ))}
+              </View>
+            </View>
           )}
-        </div>
 
-        {/* 快捷情绪词 */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-3" style={{ whiteSpace: 'nowrap' }}>
-          {QUICK_MOOD_PRESETS.map(preset => (
-            <div key={preset.label}
-              onClick={() => handleQuickMood(preset)}
-              className={`flex-shrink-0 flex items-center gap-1 px-3 py-1 rounded-full text-xl border transition ${mood === preset.label ? 'bg-primary text-white border-primary' : 'bg-white text-foreground border-border'}`}>
-              <span>{preset.emoji}</span>
-              <span>{preset.label}</span>
-            </div>
-          ))}
-        </div>
+          {/* 武侠诗意翻译 */}
+          {poetry && (
+            <View style={{
+              marginTop: '12px',
+              padding: '12px 14px',
+              borderRadius: '14px',
+              background: '#FFFDF7',
+              border: '1px solid #F0E6D8',
+            }}>
+              <Text style={{
+                fontSize: '13px', color: '#5D4037', lineHeight: '1.7', fontStyle: 'italic',
+              }}>「{poetry}」</Text>
+              <View style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginTop: '8px',
+              }}>
+                {emotionActive && matchedCount > 0 && (
+                  <Text style={{ fontSize: '13px', color: '#C2410C', fontWeight: 'bold' }}>
+                    已为你筛选 {matchedCount} 件好物 ↓
+                  </Text>
+                )}
+                <Text
+                  onClick={scrollToFeed}
+                  style={{
+                    fontSize: '13px', color: '#C2410C', fontWeight: '500', marginLeft: 'auto',
+                  }}
+                >去探索 →</Text>
+              </View>
+            </View>
+          )}
+        </View>
+      </View>
 
-        {/* 输入框 */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 border-2 rounded-xl px-4 py-3 bg-white transition"
-            style={{ borderColor: emotionActive ? '#C2410C' : 'var(--color-input)' }}>
-            <input className="w-full text-xl text-foreground bg-transparent outline-none"
-              placeholder="直接说心情，自动为你匹配好物..."
-              value={mood}
-              onInput={(e) => { const ev = e as any; handleMoodInput(ev.detail?.value ?? ev.target?.value ?? '') }}
-            />
-          </div>
-          {loading && <div className="i-mdi-loading text-2xl text-primary animate-spin flex-shrink-0" />}
-        </div>
-
-        {/* 情绪分析结果 —— 识别到的标签 */}
-        {analysis && analysis.detectedTags.length > 0 && (
-          <div className="mt-3">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="i-mdi-tag-multiple text-xl text-primary" />
-              <span className="text-xl text-muted-foreground">识别到情绪：</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {analysis.detectedTags.map(tag => (
-                <span key={tag} className="px-3 py-1 rounded-full text-xl bg-primary/10 text-primary border border-primary/20">
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 武侠诗意翻译 */}
-        {poetry && (
-          <div className="mt-3 p-3 bg-white rounded-xl border border-border">
-            <p className="text-xl text-secondary leading-relaxed italic">「{poetry}」</p>
-            <div className="flex items-center justify-between mt-2">
-              {emotionActive && matchedCount > 0 && (
-                <span className="text-xl text-primary font-bold">已为你筛选 {matchedCount} 件好物 ↓</span>
-              )}
-              <div onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}
-                className="flex items-center gap-1 text-primary text-xl ml-auto">
-                <span>去探索</span>
-                <div className="i-mdi-arrow-right text-xl" />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 公告栏 */}
+      {/* ══════════════════════════════════════════
+          公告栏
+         ══════════════════════════════════════════ */}
       {announcements.length > 0 && (
-        <div className="mx-4 mt-4 px-4 py-2 rounded-xl bg-card border border-border flex items-center gap-2">
-          <div className="i-mdi-bullhorn text-xl text-primary flex-shrink-0" />
-          <span className="text-xl text-foreground flex-1 truncate">{announcements[annIdx]?.content}</span>
-        </div>
+        <View style={{ padding: '12px 14px 0' }}>
+          <View style={{
+            overflow: 'hidden',
+            borderRadius: '12px',
+            background: '#FFFBF0',
+            border: '1px dashed #FFD54F',
+            height: '40px', display: 'flex', alignItems: 'center',
+          }}>
+            {announcements.slice(0, 3).map((a, i) => (
+              <View key={a.id} style={{
+                position: i === annIdx ? 'relative' : 'absolute',
+                opacity: i === annIdx ? 1 : 0,
+                width: '100%', height: '100%',
+                display: 'flex', alignItems: 'center',
+                paddingHorizontal: '14px', gap: '8px',
+              }}>
+                <Text style={{ fontSize: '14px', flexShrink: 0 }}>📢</Text>
+                <Text style={{
+                  fontSize: '13px', color: '#6D4C00',
+                  flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                }}>{a.content}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
       )}
 
-      {/* 场景卡片 */}
-      <div className="mt-4 px-4">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-2xl font-bold text-foreground">选个场景</span>
-          <span className="text-xl text-primary" onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}>查看全部</span>
-        </div>
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {SCENES.map(scene => (
-            <div key={scene.name}
-              onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}
-              className="flex-shrink-0 flex flex-col items-center gap-2 px-5 py-4 rounded-2xl bg-card border border-border"
-              style={{ minWidth: 88 }}>
-              <div className={`${scene.icon} text-3xl`} style={{ color: scene.color }} />
-              <span className="text-xl text-foreground">{scene.name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* ══════════════════════════════════════════
+          场景卡片
+         ══════════════════════════════════════════ */}
+      <View style={{ padding: '16px 14px 0' }}>
+        <View style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: '12px',
+        }}>
+          <Text style={{ fontSize: '17px', fontWeight: 'bold', color: '#333' }}>🌸 选个场景</Text>
+          <Text
+            onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}
+            style={{ fontSize: '13px', color: '#C2410C', fontWeight: '500' }}
+          >全部 →</Text>
+        </View>
+        <ScrollView scrollX showScrollbar={false}>
+          <View style={{ display: 'flex', flexDirection: 'row', gap: '10px', padding: '2px 0 8px' }}>
+            {SCENES.map(scene => (
+              <View key={scene.name}
+                onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}
+                style={{
+                  flexShrink: 0,
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', gap: '8px',
+                  padding: '16px 22px',
+                  borderRadius: '16px',
+                  background: '#FFF',
+                  border: '1px solid #F0E6D8',
+                  minWidth: '88px',
+                }}>
+                <View style={{
+                  width: '44px', height: '44px', borderRadius: '22px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: scene.color + '15',
+                }}>
+                  <Text style={{ fontSize: '22px' }}>{scene.emoji}</Text>
+                </View>
+                <Text style={{ fontSize: '13px', color: '#444', fontWeight: '600' }}>{scene.name}</Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
 
-      {/* Feed流 */}
-      <div className="mt-4 px-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-foreground">
-              {emotionActive ? '情绪专属推荐' : '为你推荐'}
-            </span>
+      {/* ══════════════════════════════════════════
+          Feed流（双列瀑布流）
+         ══════════════════════════════════════════ */}
+      <View id="feed-section" style={{ padding: '16px 14px 120px' }}>
+        {/* 标题 */}
+        <View style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: '12px',
+        }}>
+          <View style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Text style={{ fontSize: '17px', fontWeight: 'bold', color: '#333' }}>
+              {emotionActive ? '🎯 情绪专属推荐' : '🔥 为你推荐'}
+            </Text>
             {emotionActive && matchedCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-base bg-primary text-white">{matchedCount}件契合</span>
+              <Text style={{
+                padding: '2px 10px',
+                borderRadius: '999px',
+                fontSize: '12px',
+                background: '#C2410C', color: '#FFF', fontWeight: 'bold',
+              }}>{matchedCount}件契合</Text>
             )}
-          </div>
+          </View>
           {emotionActive && (
-            <div className="flex items-center gap-1 text-muted-foreground text-xl" onClick={clearEmotion}>
-              <span>全部商品</span>
-            </div>
+            <Text onClick={clearEmotion} style={{ fontSize: '13px', color: '#999' }}>全部商品</Text>
           )}
-        </div>
+        </View>
 
         {/* 加载中骨架 */}
         {loading && feedItems.length === 0 && (
-          <div className="flex gap-3">
+          <View style={{ display: 'flex', gap: '12px' }}>
             {[0, 1].map(col => (
-              <div key={col} className="flex flex-col gap-3" style={{ width: 'calc(50% - 6px)' }}>
+              <View key={col} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {[0, 1, 2].map(i => (
-                  <div key={i} className="bg-card rounded-2xl overflow-hidden border border-border animate-pulse">
-                    <div className="w-full bg-muted" style={{ height: '140px' }} />
-                    <div className="p-3 flex flex-col gap-2">
-                      <div className="h-5 bg-muted rounded w-3/4" />
-                      <div className="h-4 bg-muted rounded w-1/2" />
-                    </div>
-                  </div>
+                  <View key={i} style={{
+                    background: '#FFF', borderRadius: '16px', overflow: 'hidden',
+                    border: '1px solid #F0E6D8',
+                  }}>
+                    <View style={{ width: '100%', height: '140px', background: '#F5F0EB' }} />
+                    <View style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <View style={{ height: '16px', width: '75%', background: '#F5F0EB', borderRadius: '4px' }} />
+                      <View style={{ height: '14px', width: '50%', background: '#F5F0EB', borderRadius: '4px' }} />
+                    </View>
+                  </View>
                 ))}
-              </div>
+              </View>
             ))}
-          </div>
+          </View>
         )}
 
         {/* 双列瀑布流 */}
-        {!loading || feedItems.length > 0 ? (
-          <div className="flex gap-3">
-            <div className="flex flex-col gap-3" style={{ width: 'calc(50% - 6px)' }}>
+        {(!loading || feedItems.length > 0) && (
+          <View style={{ display: 'flex', gap: '12px' }}>
+            {/* 左列 */}
+            <View style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {feedItems.filter((_, i) => i % 2 === 0).map(item => (
-                <FeedCard key={item.product.id} item={item} addingId={addingId} onAddCart={handleAddCart} />
+                <FeedCard
+                  key={item.product.id}
+                  item={item}
+                  addingId={addingId}
+                  onAddCart={handleAddCart}
+                  onShareClick={p => { shareProductRef.current = { id: p.id, name: p.name, imageUrl: (p as any).image_url || '' } }}
+                />
               ))}
-            </div>
-            <div className="flex flex-col gap-3" style={{ width: 'calc(50% - 6px)' }}>
+            </View>
+            {/* 右列 */}
+            <View style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {feedItems.filter((_, i) => i % 2 === 1).map(item => (
-                <FeedCard key={item.product.id} item={item} addingId={addingId} onAddCart={handleAddCart} />
+                <FeedCard
+                  key={item.product.id}
+                  item={item}
+                  addingId={addingId}
+                  onAddCart={handleAddCart}
+                  onShareClick={p => { shareProductRef.current = { id: p.id, name: p.name, imageUrl: (p as any).image_url || '' } }}
+                />
               ))}
-            </div>
-          </div>
-        ) : null}
-
-        {feedItems.length === 0 && !loading && (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <div className="i-mdi-store-search text-6xl text-muted-foreground" />
-            <p className="text-xl text-muted-foreground">暂无匹配好物，换个心情词试试~</p>
-          </div>
+            </View>
+          </View>
         )}
-      </div>
 
-      {/* 悬浮按钮 */}
-      <div className="fixed bottom-24 right-4 flex flex-col gap-3 z-50">
+        {/* 空状态 */}
+        {feedItems.length === 0 && !loading && (
+          <View style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: '48px 0', gap: '12px',
+          }}>
+            <Text style={{ fontSize: '48px' }}>🏪</Text>
+            <Text style={{ fontSize: '14px', color: '#999' }}>暂无匹配好物，换个心情词试试~</Text>
+          </View>
+        )}
+      </View>
+
+      {/* ══════════════════════════════════════════
+          悬浮按钮组（固定在右下角）
+         ══════════════════════════════════════════ */}
+      <View style={{
+        position: 'fixed',
+        bottom: '96px',
+        right: '16px',
+        display: 'flex', flexDirection: 'column',
+        gap: '12px',
+        zIndex: 50,
+      }}>
         {/* 创作按钮 */}
-        <button type="button"
-          className="flex items-center gap-1 rounded-full bg-card border border-border"
-          style={{ boxShadow: '0 4px 16px rgba(194,65,12,0.18)', animation: 'fabGlow 2.5s ease-in-out infinite' }}
-          onClick={() => Taro.navigateTo({ url: '/pages/content-center/make/index' })}>
-          <div className="py-2 px-4 flex items-center gap-1">
-            <span className="text-xl">✍️</span>
-            <span className="text-xl text-foreground font-bold">创作</span>
-          </div>
-        </button>
-        {/* UGC游记 */}
-        <button type="button"
-          className="w-12 h-12 rounded-full bg-card flex items-center justify-center border border-border"
-          style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-          onClick={() => Taro.navigateTo({ url: '/pages/ugc-publish/index' })}>
-          <div className="i-mdi-camera text-2xl text-foreground" />
-        </button>
+        <View
+          onClick={() => Taro.navigateTo({ url: '/pages/content-center/make/index' })}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '4px',
+            borderRadius: '999px',
+            background: '#FFF',
+            border: '1px solid #F0E6D8',
+            padding: '8px 16px',
+            boxShadow: '0 4px 16px rgba(194,65,12,0.18)',
+          }}
+        >
+          <Text style={{ fontSize: '16px' }}>✍️</Text>
+          <Text style={{ fontSize: '13px', color: '#333', fontWeight: 'bold' }}>创作</Text>
+        </View>
+
+        {/* UGC 游记 */}
+        <View
+          onClick={() => Taro.navigateTo({ url: '/pages/ugc-publish/index' })}
+          style={{
+            width: '48px', height: '48px', borderRadius: '24px',
+            background: '#FFF',
+            border: '1px solid #F0E6D8',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
+          }}
+        >
+          <Text style={{ fontSize: '20px' }}>📷</Text>
+        </View>
+
         {/* 扫码购物 */}
-        <button type="button"
-          className="w-12 h-12 rounded-full bg-primary flex items-center justify-center"
-          style={{ boxShadow: '0 4px 12px rgba(194,65,12,0.35)' }}
+        <View
           onClick={() => {
             Taro.scanCode({
               scanType: ['barCode', 'qrCode'],
               success: async (res) => {
-                const code = res.result
-                // 尝试按条形码查找商品
-                const { getProductByBarcode } = await import('@/db/api')
-                const prod = await getProductByBarcode(code)
-                if (prod) {
-                  Taro.navigateTo({ url: `/pages/product/index?id=${encodeURIComponent(prod.id)}` })
-                } else {
-                  Taro.showToast({ title: '未找到对应商品', icon: 'none' })
+                const code = String(res.result || '').trim()
+                console.log('[首页扫码] 原始结果:', JSON.stringify(res.result), '→ trim后:', code)
+                if (!code) { Taro.showToast({ title: '扫码结果为空', icon: 'none' }); return }
+                try {
+                  console.log('[首页扫码] 开始查询条形码:', code)
+                  const prod = await getProductByBarcode(code)
+                  console.log('[首页扫码] 查询结果:', prod ? `${prod.name} (id=${prod.id})` : '未找到')
+                  if (prod && prod.store_id) {
+                    console.log('[首页扫码] 准备加入购物车:', prod.id, prod.store_id)
+                    await addToCart(prod.id, prod.store_id)
+                    console.log('[首页扫码] 已加入购物车')
+                    Taro.showModal({
+                      title: '已加入行囊',
+                      content: `「${prod.name}」已加入购物车`,
+                      confirmText: '去结算',
+                      cancelText: '继续购物',
+                      success: (r) => {
+                        if (r.confirm) Taro.switchTab({ url: '/pages/cart/index' })
+                      },
+                    })
+                  } else if (prod) {
+                    Taro.navigateTo({ url: `/pages/product/index?id=${encodeURIComponent(prod.id)}` })
+                  } else {
+                    Taro.showToast({ title: '未找到对应商品', icon: 'none' })
+                  }
+                } catch (e) {
+                  console.error('[首页扫码] 查询失败:', e)
+                  Taro.showToast({ title: '扫码失败: ' + ((e as any)?.message || '未知错误'), icon: 'none' })
                 }
               },
               fail: () => {},
             })
-          }}>
-          <div className="i-mdi-barcode-scan text-2xl text-white" />
-        </button>
-      </div>
-    </div>
+          }}
+          style={{
+            width: '48px', height: '48px', borderRadius: '24px',
+            background: 'linear-gradient(135deg, #FF8A65, #FF5722)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(194,65,12,0.35)',
+          }}
+        >
+          <Text style={{ fontSize: '20px' }}>📷</Text>
+        </View>
+      </View>
+
+    </ScrollView>
   )
 }
 
-// ====== FeedCard —— 支持情绪匹配度展示 ======
+// ====== FeedCard 组件 ======
 function FeedCard({
-  item, addingId, onAddCart
+  item, addingId, onAddCart, onShareClick,
 }: {
   item: ScoredProduct<Product>
   addingId: string | null
-  onAddCart: (p: Product) => void
+  onAddCart: (p: Product, e?: any) => void
+  onShareClick: (p: Product) => void
 }) {
   const { product, matchScore, matchLabel } = item
-  return (
-    <div className="bg-card rounded-2xl overflow-hidden border border-border relative"
-      style={{ borderColor: matchScore > 0 ? 'rgba(194,65,12,0.3)' : undefined }}
-      onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })}>
+  const matchStyle = MATCH_LABEL_MAP[matchLabel || ''] || { bg: '#F5F0EB', color: '#999' }
 
+  // 防御：image_url 可能不存在
+  const imgUrl = (product as any).image_url || ''
+  const productName = product.name || '未命名商品'
+  const productPrice = product.price ?? 0
+  const originalPrice = product.original_price ?? null
+
+  return (
+    <View
+      onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })}
+      style={{
+        background: '#FFF',
+        borderRadius: '16px',
+        overflow: 'hidden',
+        border: '1px solid ' + (matchScore > 0 ? 'rgba(194,65,12,0.30)' : '#F0E6D8'),
+        position: 'relative',
+      }}
+    >
       {/* 匹配徽标 */}
       {matchLabel && (
-        <div className={`absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full text-base font-bold ${MATCH_LABEL_STYLE[matchLabel] ?? 'bg-muted text-secondary'}`}>
-          {matchLabel}
-        </div>
+        <View style={{
+          position: 'absolute', top: '8px', left: '8px', zIndex: 10,
+          padding: '2px 10px',
+          borderRadius: '999px',
+          background: matchStyle.bg,
+        }}>
+          <Text style={{ fontSize: '11px', color: matchStyle.color, fontWeight: 'bold' }}>{matchLabel}</Text>
+        </View>
       )}
 
-      <Image src={product.image_url || ''} mode="aspectFill" className="w-full" style={{ height: '140px' }} />
+      {/* 分享按钮（右上角）*/}
+      <View
+        onClick={(e: any) => { try { e.stopPropagation() } catch {}; onShareClick(product) }}
+        style={{
+          position: 'absolute', top: '8px', right: '8px', zIndex: 10,
+          width: '32px', height: '32px', borderRadius: '16px',
+          background: 'rgba(0,0,0,0.40)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Text style={{ fontSize: '14px', color: '#FFF' }}>↗</Text>
+      </View>
 
-      <div className="p-3">
-        <p className="text-xl font-bold text-foreground leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          {product.name}
-        </p>
-        <div className="flex items-center justify-between mt-2">
-          <span className="text-xl font-bold text-primary">¥{product.price}</span>
-          {product.original_price && (
-            <span className="text-base text-muted-foreground line-through">¥{product.original_price}</span>
+      {/* 商品图片 */}
+      <Image
+        src={imgUrl}
+        mode="aspectFill"
+        style={{ width: '100%', height: '140px' }}
+        fallbackSrc=""
+      />
+
+      {/* 商品信息 */}
+      <View style={{ padding: '12px' }}>
+        <Text style={{
+          fontSize: '14px', fontWeight: 'bold', color: '#333', lineHeight: '1.4',
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        }}>{productName}</Text>
+
+        <View style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginTop: '8px',
+        }}>
+          <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#C2410C' }}>
+            ¥{productPrice}
+          </Text>
+          {originalPrice && (
+            <Text style={{
+              fontSize: '12px', color: '#BBB', textDecorationLine: 'line-through',
+            }}>¥{originalPrice}</Text>
           )}
-        </div>
+        </View>
 
-        {/* 情绪标签 —— 匹配到的高亮显示 */}
+        {/* 情绪标签 */}
         {product.mood_tags && product.mood_tags.length > 0 && (
-          <div className="flex gap-1 mt-2 flex-wrap">
-            {product.mood_tags.slice(0, 3).map(t => (
-              <span key={t}
-                className={`px-2 py-0.5 rounded-full text-base ${matchScore > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-secondary'}`}>
-                {t}
-              </span>
+          <View style={{ display: 'flex', gap: '4px', marginTop: '8px', flexWrap: 'wrap' }}>
+            {product.mood_tags.slice(0, 3).map((t: string) => (
+              <Text key={t} style={{
+                padding: '2px 8px',
+                borderRadius: '999px',
+                fontSize: '11px',
+                background: matchScore > 0 ? '#FFF3EE' : '#F5F0EB',
+                color: matchScore > 0 ? '#C2410C' : '#999',
+              }}>{t}</Text>
             ))}
-          </div>
+          </View>
         )}
-      </div>
+      </View>
 
-      <button type="button"
-        className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center"
-        onClick={e => { e.stopPropagation(); onAddCart(product) }}>
+      {/* 加购按钮 */}
+      <View
+        onClick={(e: any) => { try { e.stopPropagation() } catch {}; onAddCart(product, e) }}
+        style={{
+          position: 'absolute', bottom: '12px', right: '12px',
+          width: '32px', height: '32px', borderRadius: '16px',
+          background: 'linear-gradient(135deg, #FF8A65, #FF5722)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 6px rgba(255,87,34,0.30)',
+        }}
+      >
         {addingId === product.id
-          ? <div className="i-mdi-loading text-white text-xl animate-spin" />
-          : <div className="i-mdi-plus text-white text-xl" />}
-      </button>
-    </div>
+          ? <Text style={{ fontSize: '14px', color: '#FFF' }}>⏳</Text>
+          : <Text style={{ fontSize: '16px', color: '#FFF' }}>+</Text>
+        }
+      </View>
+    </View>
   )
 }

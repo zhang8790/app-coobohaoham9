@@ -1,10 +1,10 @@
 // @title 订单中心
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { Image } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import { getOrders } from '@/db/api'
 import type { Order, OrderStatus } from '@/db/types'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 
 const TABS: { key: OrderStatus | 'all'; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -40,109 +40,110 @@ function OrderCenterPage() {
   useEffect(() => { loadOrders(activeTab) }, [loadOrders, activeTab])
   useDidShow(() => { loadOrders(activeTab) })
 
-  return (
-    <div className="h-screen flex flex-col bg-background">
+  return (<RouteGuard>
+    <View className="h-screen flex flex-col bg-background">
       {/* Tab栏 */}
-      <div className="flex bg-card border-b border-border overflow-x-auto">
+      <View className="flex bg-card border-b border-border overflow-x-auto">
         {TABS.map(tab => (
-          <div key={tab.key}
-            className={`flex-shrink-0 py-3 px-4 text-xl font-bold border-b-2 transition ${activeTab === tab.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+          <View key={tab.key}
+            className={`flex-shrink-0 py-3 px-4 text-base font-bold border-b-2 transition ${activeTab === tab.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
             onClick={() => setActiveTab(tab.key)}>
             {tab.label}
-          </div>
+          </View>
         ))}
-      </div>
+      </View>
 
       {/* 订单列表 */}
-      <div className="flex-1 overflow-y-auto px-4 pt-4">
+      <View className="flex-1 overflow-y-auto px-4 pt-4">
         {loading ? (
-          <div className="flex items-center justify-center pt-20">
-            <div className="i-mdi-loading text-4xl text-primary animate-spin" />
-          </div>
+          <View className="flex items-center justify-center pt-20">
+            <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+          </View>
         ) : orders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center pt-24 gap-4">
-            <div className="i-mdi-clipboard-list-outline text-8xl text-muted-foreground" />
-            <p className="text-2xl text-muted-foreground">暂无订单</p>
-          </div>
+          <View className="flex flex-col items-center justify-center pt-24 gap-4">
+            <View className="i-mdi-clipboard-list-outline text-8xl text-muted-foreground" />
+            <Text className="text-2xl text-muted-foreground">暂无订单</Text>
+          </View>
         ) : (
           orders.map(order => (
-            <div key={order.id} className="bg-card rounded-2xl border border-border mb-4 overflow-hidden">
+            <View key={order.id} className="bg-card rounded-2xl border border-border mb-4 overflow-hidden">
               {/* 订单头 */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <span className="text-base text-muted-foreground">订单号：{order.order_no}</span>
-                <span className="text-xl font-bold" style={{ color: STATUS_COLOR[order.status] || '#9A8070' }}>
+              <View className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <Text className="text-base text-muted-foreground">订单号：{order.order_no}</Text>
+                <Text className="text-base font-bold" style={{ color: STATUS_COLOR[order.status] || '#9A8070' }}>
                   {STATUS_TEXT[order.status] || order.status}
-                </span>
-              </div>
+                </Text>
+              </View>
               {/* 商品列表 */}
               {order.order_items?.map(item => (
-                <div key={item.id} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-0">
+                <View key={item.id} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-0">
                   {item.product_image && (
                     <Image src={item.product_image} mode="aspectFill" style={{ width: '60px', height: '60px', borderRadius: '8px', flexShrink: 0 }} />
                   )}
-                  <div className="flex-1">
-                    <p className="text-xl text-foreground font-bold line-clamp-1">{item.product_name}</p>
-                    <p className="text-base text-muted-foreground mt-1">{item.store_name}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-xl font-bold text-primary">¥{item.price}</span>
-                      <span className="text-base text-muted-foreground">×{item.quantity}</span>
-                    </div>
-                  </div>
-                </div>
+                  <View className="flex-1">
+                    <Text className="text-base text-foreground font-bold line-clamp-1">{item.product_name}</Text>
+                    <Text className="text-base text-muted-foreground mt-1">{item.store_name}</Text>
+                    <View className="flex items-center justify-between mt-1">
+                      <Text className="text-base font-bold text-primary">¥{item.price}</Text>
+                      <Text className="text-base text-muted-foreground">×{item.quantity}</Text>
+                    </View>
+                  </View>
+                </View>
               ))}
               {/* 底部金额+操作 */}
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-xl text-muted-foreground">
-                  共{order.order_items?.reduce((s, i) => s + i.quantity, 0) || 0}件
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl text-muted-foreground">合计：</span>
-                  <span className="text-xl font-bold text-primary">¥{Number(order.total_amount).toFixed(2)}</span>
-                </div>
-              </div>
+              <View className="flex items-center justify-between px-4 py-3">
+                <Text className="text-base text-muted-foreground">
+                  共{order.order_items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0}件
+                </Text>
+                <View className="flex items-center gap-2">
+                  <Text className="text-base text-muted-foreground">合计：</Text>
+                  <Text className="text-base font-bold text-primary">¥{Number(order.total_amount).toFixed(2)}</Text>
+                </View>
+              </View>
               {/* 操作按钮 */}
-              <div className="flex justify-end gap-2 px-4 pb-3">
+              <View className="flex justify-end gap-2 px-4 pb-3">
                 {order.status === 'pending_pay' && (
-                  <button type="button"
+                  <View
                     className="flex items-center justify-center leading-none rounded-xl bg-primary"
                     onClick={() => Taro.navigateTo({ url: `/pages/payment/index?total=${order.total_amount}` })}>
-                    <div className="py-2 px-4 text-xl text-white font-bold">去付款</div>
-                  </button>
+                    <View className="py-2 px-4 text-base text-white font-bold">去付款</View>
+                  </View>
                 )}
                 {(order.status === 'pending_ship' || order.status === 'pending_receive') && (
-                  <button type="button"
+                  <View
                     className="flex items-center justify-center leading-none rounded-xl border-2 border-red-400 bg-card"
                     onClick={() => Taro.navigateTo({ url: `/pages/refund-apply/index?orderId=${encodeURIComponent(order.id)}` })}>
-                    <div className="py-2 px-4 text-xl text-red-500 font-bold">申请退款</div>
-                  </button>
+                    <View className="py-2 px-4 text-base text-red-500 font-bold">申请退款</View>
+                  </View>
                 )}
                 {order.status === 'pending_receive' && (
-                  <button type="button"
+                  <View
                     className="flex items-center justify-center leading-none rounded-xl border-2 border-primary bg-card"
                     onClick={() => Taro.showToast({ title: '已确认收货', icon: 'success' })}>
-                    <div className="py-2 px-4 text-xl text-primary font-bold">确认收货</div>
-                  </button>
+                    <View className="py-2 px-4 text-base text-primary font-bold">确认收货</View>
+                  </View>
                 )}
                 {order.status === 'pending_review' && (
-                  <button type="button"
+                  <View
                     className="flex items-center justify-center leading-none rounded-xl border-2 border-primary bg-card"
                     onClick={() => Taro.navigateTo({ url: `/pages/review/index?orderId=${encodeURIComponent(order.id)}` })}>
-                    <div className="py-2 px-4 text-xl text-primary font-bold">去评价</div>
-                  </button>
+                    <View className="py-2 px-4 text-base text-primary font-bold">去评价</View>
+                  </View>
                 )}
                 {order.status === 'after_sale' && (
-                  <div className="flex items-center gap-1 px-3 py-2 rounded-xl bg-muted">
-                    <div className="i-mdi-check-circle text-xl text-green-500" />
-                    <span className="text-xl text-muted-foreground">退款处理中</span>
-                  </div>
+                  <View className="flex items-center gap-1 px-3 py-2 rounded-xl bg-muted">
+                    <View className="i-mdi-check-circle text-base text-green-500" />
+                    <Text className="text-base text-muted-foreground">退款处理中</Text>
+                  </View>
                 )}
-              </div>
-            </div>
+              </View>
+            </View>
           ))
         )}
-      </div>
-    </div>
-  )
+      </View>
+    </View>
+  </RouteGuard>)
 }
 
-export default withRouteGuard(OrderCenterPage)
+/* wrapped by RouteGuard - see render */
+export default OrderCenterPage

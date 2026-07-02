@@ -1,14 +1,17 @@
 // @title 支付
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Taro from '@tarojs/taro'
-import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid } from '@/db/api'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { View, Text, Input, Button } from '@tarojs/components'
+import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile } from '@/db/api'
+import { RouteGuard } from '@/components/RouteGuard'
 import type { PayMode } from '@/db/types'
+import { calculateCommissionV4, getRankByDynamicScore, RANK_TABLE } from '@/utils/commission-calculator-v4'
+import { updateUserConsumptionAfterPayment } from '@/utils/commission-helpers'
 
 // 万分位精度
 function toFixed4(n: number) { return Math.round(n * 10000) / 10000 }
-// 金豆换算比例：1金豆 = 0.01元
-const GOLD_BEAN_RATE = 0.01
+// 金豆换算比例：1金豆 = 1元（金豆:积分:元 = 1:1:1）
+const GOLD_BEAN_RATE = 1
 
 function PaymentPage() {
   const params = useMemo(() => Taro.getCurrentInstance().router?.params || {}, [])
@@ -20,22 +23,42 @@ function PaymentPage() {
   const productIdParam = useMemo(() => (params as any).productId ? decodeURIComponent((params as any).productId) : '', [params])
 
   const [payMode, setPayMode] = useState<PayMode>('wxpay')
-  const [goldBeansToUse, setGoldBeansToUse] = useState(0)   // 用户选择使用的金豆
-  const [balance, setBalance] = useState(0)                  // 金豆余额
+  const [goldBeansToUse, setGoldBeansToUse] = useState(0)
+  const [balance, setBalance] = useState(0)
   const [countdown, setCountdown] = useState(30 * 60)
   const [paying, setPaying] = useState(false)
   const [orderNo, setOrderNo] = useState('')
   const [items, setItems] = useState<any[]>([])
   const [totalAmount, setTotalAmount] = useState(totalParam)
+  const [userTotalConsumption, setUserTotalConsumption] = useState(0) // 用户个人累计消费
+  const [userTeamPerformance, setUserTeamPerformance] = useState(0)   // 用户团队业绩（新增）
+  const [userRankInfo, setUserRankInfo] = useState<any>(null) // 用户段位信息
 
   // 防重复支付双重锁
   const _payLock = useRef(false)
   const _pendingOrderNo = useRef('')
 
-  // 加载购物车商品 + 金豆余额
+  // 加载购物车商品 + 金豆余额 + 用户消费数据
   const loadData = useCallback(async () => {
-    const [bal] = await Promise.all([getMyBalance()])
+    const [bal, profile] = await Promise.all([
+      getMyBalance(),
+      getMyProfile().catch(() => null) // 获取用户资料（包含累计消费和团队业绩）
+    ])
+
     setBalance(bal.balance)
+
+    // 个人累计消费
+    const totalConsumption = profile?.total_consumption || 0
+    setUserTotalConsumption(totalConsumption)
+
+    // 团队业绩（新增）
+    const teamPerformance = profile?.team_performance || 0
+    setUserTeamPerformance(teamPerformance)
+
+    // 获取用户段位信息（基于个人消费 + 团队业绩）
+    const totalScore = totalConsumption + teamPerformance
+    const rankInfo = getRankInfo(totalScore)
+    setUserRankInfo(rankInfo)
 
     if (cartIds.length > 0) {
       const cartItems = await getCartItems()
@@ -49,7 +72,6 @@ function PaymentPage() {
       setItems(mapped)
       setTotalAmount(toFixed4(mapped.reduce((s, i) => s + toFixed4(i.price * i.quantity), 0)))
     } else if (productIdParam) {
-      // 从商品详情页"立即购买"跳转：用 productId 加载单个商品
       const { getProductById } = await import('@/db/api')
       const prod = await getProductById(productIdParam)
       if (prod) {
@@ -138,8 +160,16 @@ function PaymentPage() {
 
       // 2. 纯金豆：已在服务端完成，直接跳转
       if (payMode === 'pure_gold') {
-        Taro.showToast({ title: '金豆支付成功！', icon: 'success' })
-        setTimeout(() => Taro.redirectTo({ url: '/pages/order-center/index?tab=pending_receive' }), 1500)
+      Taro.showToast({ title: '金豆支付成功！', icon: 'success' })
+      
+      // V4算法：更新用户消费数据（用于段位判定）
+      try {
+        await updateUserConsumptionAfterPayment(user?.id || '', totalAmount)
+      } catch (err) {
+        console.error('[V4] 更新消费数据失败', err)
+      }
+      
+      setTimeout(() => Taro.redirectTo({ url: '/pages/order-center/index?tab=pending_receive' }), 1500)
         return
       }
 
@@ -168,6 +198,14 @@ function PaymentPage() {
       })
 
       Taro.showToast({ title: '支付成功！', icon: 'success' })
+      
+      // V4算法：更新用户消费数据（用于段位判定）
+      try {
+        await updateUserConsumptionAfterPayment(user?.id || '', totalAmount)
+      } catch (err) {
+        console.error('[V4] 更新消费数据失败', err)
+      }
+      
       setTimeout(() => Taro.redirectTo({ url: '/pages/order-center/index?tab=pending_receive' }), 1500)
 
     } catch (err: any) {
@@ -203,154 +241,170 @@ function PaymentPage() {
     { key: 'pure_gold', icon: 'i-mdi-star-circle', label: '纯金豆支付', color: '#D97706', desc: `余额 ${balance} 金豆`, disabled: balance < Math.ceil(totalAmount / GOLD_BEAN_RATE) },
   ]
 
-  return (
-    <div className="min-h-screen bg-background pb-8">
+  return (<RouteGuard>
+    <View className="min-h-screen bg-background pb-8">
       {/* 顶部返回键 */}
-      <div className="flex items-center px-4 pt-4 pb-2">
-        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
+      <View className="flex items-center px-4 pt-4 pb-2">
+        <View className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
           onClick={handleCancel}>
-          <div className="i-mdi-arrow-left text-2xl text-foreground" />
-        </button>
-        <span className="flex-1 text-center text-xl font-bold text-foreground pr-10">确认支付</span>
-      </div>
+          <View className="i-mdi-arrow-left text-2xl text-foreground" />
+        </View>
+        <Text className="flex-1 text-center text-xl font-bold text-foreground pr-10">确认支付</Text>
+      </View>
+
       {/* 倒计时 */}
-      <div className="mx-4 mt-6 p-5 rounded-2xl bg-card border border-border flex flex-col items-center">
-        <div className="i-mdi-clock-outline text-4xl text-primary mb-2" />
-        <p className="text-xl text-muted-foreground">请在以下时间内完成支付</p>
-        <p className="text-4xl font-bold text-primary mt-2" style={{ fontVariantNumeric: 'tabular-nums' }}>{countdownDisplay}</p>
-        {orderNo && <p className="text-base text-muted-foreground mt-2">订单号：{orderNo}</p>}
-      </div>
+      <View className="mx-4 mt-6 p-5 rounded-2xl bg-card border border-border flex flex-col items-center">
+        <View className="i-mdi-clock-outline text-4xl text-primary mb-2" />
+        <Text className="text-xl text-muted-foreground">请在以下时间内完成支付</Text>
+        <Text className="text-4xl font-bold text-primary mt-2" style={{ fontVariantNumeric: 'tabular-nums' }}>{countdownDisplay}</Text>
+        {orderNo && <Text className="text-base text-muted-foreground mt-2">订单号：{orderNo}</Text>}
+      </View>
 
       {/* 金额汇总卡 */}
-      <div className="mx-4 mt-4 p-4 rounded-2xl bg-card border-2 border-primary/30">
-        <div className="flex items-center justify-between">
-          <span className="text-xl font-bold text-foreground">订单金额</span>
-          <span className="text-2xl font-bold text-foreground">¥{totalAmount.toFixed(2)}</span>
-        </div>
+      <View className="mx-4 mt-4 p-4 rounded-2xl bg-card border-2 border-primary/30">
+        <View className="flex items-center justify-between">
+          <Text className="text-xl font-bold text-foreground">订单金额</Text>
+          <Text className="text-2xl font-bold text-foreground">¥{totalAmount.toFixed(2)}</Text>
+        </View>
         {deductYuan > 0 && (
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-xl text-muted-foreground">金豆抵扣（{actualGoldBeansUsed}豆）</span>
-            <span className="text-xl font-bold text-primary">-¥{deductYuan.toFixed(2)}</span>
-          </div>
+          <View className="flex items-center justify-between mt-2">
+            <Text className="text-xl text-muted-foreground">金豆抵扣（{actualGoldBeansUsed}豆）</Text>
+            <Text className="text-xl font-bold text-primary">-¥{deductYuan.toFixed(2)}</Text>
+          </View>
         )}
-        <div className="h-px bg-border mt-3 mb-3" />
-        <div className="flex items-center justify-between">
-          <span className="text-xl font-bold text-foreground">实付金额</span>
-          <span className="text-3xl font-bold text-primary">
+        <View className="h-px bg-border mt-3 mb-3" />
+        <View className="flex items-center justify-between">
+          <Text className="text-xl font-bold text-foreground">实付金额</Text>
+          <Text className="text-3xl font-bold text-primary">
             {payMode === 'pure_gold' ? `${actualGoldBeansUsed} 金豆` : `¥${wxpayAmount.toFixed(2)}`}
-          </span>
-        </div>
+          </Text>
+        </View>
         {balance > 0 && (
-          <div className="flex items-center gap-2 mt-2">
-            <div className="i-mdi-star-circle text-xl" style={{ color: '#D97706' }} />
-            <span className="text-xl text-muted-foreground">金豆余额：<span className="font-bold text-foreground">{balance} 豆</span></span>
-          </div>
+          <View className="flex items-center gap-2 mt-2">
+            <View className="i-mdi-star-circle text-xl" style={{ color: '#D97706' }} />
+            <Text className="text-xl text-muted-foreground">金豆余额：<Text className="font-bold text-foreground">{balance} 豆</Text></Text>
+          </View>
         )}
-      </div>
+      </View>
 
       {/* 服务方式选择 */}
-      <div className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-border">
-          <span className="text-xl font-bold text-foreground">用餐方式</span>
-        </div>
-        <div className="flex gap-0">
+      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+        <View className="px-4 py-3 border-b border-border">
+          <Text className="text-xl font-bold text-foreground">用餐方式</Text>
+        </View>
+        <View className="flex gap-0">
           {([
             { key: 'dine_in', label: '堂食', icon: 'i-mdi-silverware-fork-knife' },
             { key: 'self_pickup', label: '自取', icon: 'i-mdi-walk' },
             { key: 'delivery', label: '外卖配送', icon: 'i-mdi-moped' },
           ] as const).map((m, i, arr) => (
-            <div key={m.key}
+            <View key={m.key}
               className={`flex-1 flex flex-col items-center gap-1 py-4 ${i < arr.length - 1 ? 'border-r border-border' : ''} ${serviceType === m.key ? 'bg-primary/5' : ''}`}
               onClick={() => setServiceType(m.key)}>
-              <div className={`${m.icon} text-3xl ${serviceType === m.key ? 'text-primary' : 'text-muted-foreground'}`} />
-              <span className={`text-xl font-bold ${serviceType === m.key ? 'text-primary' : 'text-muted-foreground'}`}>{m.label}</span>
-              {serviceType === m.key && <div className="w-5 h-1 rounded-full bg-primary" />}
-            </div>
+              <View className={`${m.icon} text-3xl ${serviceType === m.key ? 'text-primary' : 'text-muted-foreground'}`} />
+              <Text className={`text-xl font-bold ${serviceType === m.key ? 'text-primary' : 'text-muted-foreground'}`}>{m.label}</Text>
+              {serviceType === m.key && <View className="w-5 h-1 rounded-full bg-primary" />}
+            </View>
           ))}
-        </div>
-      </div>
+        </View>
+      </View>
 
       {/* 支付方式选择 */}
-      <div className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-border">
-          <span className="text-xl font-bold text-foreground">选择支付方式</span>
-        </div>
+      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+        <View className="px-4 py-3 border-b border-border">
+          <Text className="text-xl font-bold text-foreground">选择支付方式</Text>
+        </View>
         {payModes.map(m => (
-          <div key={m.key}
+          <View key={m.key}
             className={`flex items-center gap-4 px-4 py-4 border-b border-border last:border-0 ${m.disabled ? 'opacity-40' : ''} ${payMode === m.key ? 'bg-primary/5' : ''}`}
             onClick={() => !m.disabled && handleModeChange(m.key)}>
-            <div className={`${m.icon} text-3xl flex-shrink-0`} style={{ color: m.color }} />
-            <div className="flex-1">
-              <p className="text-xl font-bold text-foreground">{m.label}</p>
-              <p className="text-base text-muted-foreground">{m.desc}</p>
-            </div>
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${payMode === m.key ? 'border-primary bg-primary' : 'border-border'}`}>
-              {payMode === m.key && <div className="i-mdi-check text-white text-xs" />}
-            </div>
-          </div>
+            <View className={`${m.icon} text-3xl flex-shrink-0`} style={{ color: m.color }} />
+            <View className="flex-1">
+              <Text className="text-xl font-bold text-foreground">{m.label}</Text>
+              <Text className="text-base text-muted-foreground">{m.desc}</Text>
+            </View>
+            <View className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${payMode === m.key ? 'border-primary bg-primary' : 'border-border'}`}>
+              {payMode === m.key && <View className="i-mdi-check text-white text-xs" />}
+            </View>
+          </View>
         ))}
-      </div>
+      </View>
 
       {/* 混合支付：金豆抵扣输入 */}
       {payMode === 'hybrid' && balance > 0 && (
-        <div className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xl font-bold text-foreground">金豆抵扣数量</span>
-            <span className="text-xl text-muted-foreground">可用 {maxGoldBeans} 豆</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <button type="button"
+        <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
+          <View className="flex items-center justify-between mb-3">
+            <Text className="text-xl font-bold text-foreground">金豆抵扣数量</Text>
+            <Text className="text-xl text-muted-foreground">可用 {maxGoldBeans} 豆</Text>
+          </View>
+          <View className="flex items-center gap-3">
+            <View
               className="w-10 h-10 rounded-full bg-muted flex items-center justify-center"
               onClick={() => setGoldBeansToUse(Math.max(0, goldBeansToUse - 10))}>
-              <div className="i-mdi-minus text-xl text-foreground" />
-            </button>
-            <div className="flex-1 border-2 border-input rounded-xl px-4 py-2 bg-background overflow-hidden">
-              <input
+              <View className="i-mdi-minus text-xl text-foreground" />
+            </View>
+            <View className="flex-1 border-2 border-input rounded-xl px-4 py-2 bg-background overflow-hidden">
+              <Input
                 type="number"
                 className="w-full text-2xl font-bold text-center text-foreground bg-transparent outline-none"
-                value={goldBeansToUse}
+                value={String(goldBeansToUse)}
                 onInput={(e) => { const ev = e as any; const v = parseInt(ev.detail?.value ?? ev.target?.value ?? '0') || 0; setGoldBeansToUse(Math.min(maxGoldBeans, Math.max(0, v))) }}
               />
-            </div>
-            <button type="button"
+            </View>
+            <View
               className="w-10 h-10 rounded-full bg-muted flex items-center justify-center"
               onClick={() => setGoldBeansToUse(Math.min(maxGoldBeans, goldBeansToUse + 10))}>
-              <div className="i-mdi-plus text-xl text-foreground" />
-            </button>
-            <button type="button"
+              <View className="i-mdi-plus text-xl text-foreground" />
+            </View>
+            <View
               className="flex items-center justify-center leading-none rounded-xl bg-primary/10"
               onClick={() => setGoldBeansToUse(maxGoldBeans)}>
-              <div className="py-2 px-3 text-xl text-primary font-bold">全用</div>
-            </button>
-          </div>
-        </div>
+              <View className="py-2 px-3 text-xl text-primary font-bold">全用</View>
+            </View>
+          </View>
+        </View>
       )}
 
-      {/* 分润提示 */}
-      <div className="mx-4 mt-4 p-3 rounded-xl bg-muted flex items-center gap-2">
-        <div className="i-mdi-gift-outline text-2xl text-primary flex-shrink-0" />
-        <p className="text-base text-muted-foreground">支付成功后，将为您获得 <span className="font-bold text-primary">约{Math.floor(totalAmount * 0.0225)}积分</span> 奖励</p>
-      </div>
+      {/* 分润提示 - 动态积分预览 */}
+      <View className="mx-4 mt-4 p-3 rounded-xl bg-muted flex items-center gap-2">
+        <View className="i-mdi-gift-outline text-2xl text-primary flex-shrink-0" />
+        <View className="flex-1">
+          <Text className="text-base text-muted-foreground">
+            支付成功后将获得积分奖励
+          </Text>
+          {userRankInfo && (
+            <View className="flex items-center gap-1 mt-1">
+              <Text className="text-xl" style={{ color: userRankInfo.color }}>
+                {userRankInfo.icon} {userRankInfo.rankName}
+              </Text>
+              <Text className="text-base text-primary font-bold">
+                预计获得 {Math.round(calculatePointsPreview(totalAmount, userTotalConsumption))} 积分
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
 
       {/* 操作按钮 */}
-      <div className="mx-4 mt-4 flex flex-col gap-3">
-        <button type="button"
+      <View className="mx-4 mt-4 flex flex-col gap-3">
+        <View
           className={`w-full flex items-center justify-center leading-none rounded-2xl ${paying ? 'bg-primary/50' : 'bg-primary'}`}
           onClick={handlePay}>
-          <div className="py-4 text-2xl font-bold text-white">{payBtnText}</div>
-        </button>
-        <button type="button"
+          <View className="py-4 text-2xl font-bold text-white">{payBtnText}</View>
+        </View>
+        <View
           className="w-full flex items-center justify-center leading-none rounded-2xl border-2 border-border bg-card"
           onClick={handleCancel}>
-          <div className="py-4 text-xl text-muted-foreground">取消支付</div>
-        </button>
-      </div>
+          <View className="py-4 text-xl text-muted-foreground">取消支付</View>
+        </View>
+      </View>
 
-      <div className="mx-4 mt-4 pb-6">
-        <p className="text-base text-muted-foreground text-center">支付即视为同意《来店有喜交易规则》</p>
-      </div>
-    </div>
-  )
+      <View className="mx-4 mt-4 pb-6">
+        <Text className="text-base text-muted-foreground text-center">支付即视为同意《来店有喜交易规则》</Text>
+      </View>
+    </View>
+  </RouteGuard>)
 }
 
-export default withRouteGuard(PaymentPage)
+/* wrapped by RouteGuard - see render */
+export default PaymentPage

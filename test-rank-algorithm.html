@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>六段位算法测试</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #f5f5f5; }
+    h1 { color: #333; margin-bottom: 20px; }
+    h2 { color: #555; margin: 20px 0 10px; }
+    .test-section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .result { background: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 10px; white-space: pre-wrap; font-family: monospace; font-size: 14px; line-height: 1.6; }
+    button { background: #007aff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+    button:hover { background: #0051a2; }
+    .success { color: #34c759; }
+    .error { color: #ff3b30; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+    th { background: #f8f9fa; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>六段位算法测试</h1>
+  
+  <div class="test-section">
+    <h2>测试1：段位判定</h2>
+    <p>验证不同动态分数对应的段位</p>
+    <button onclick="testRankJudgment()">运行测试1</button>
+    <div id="test1-result" class="result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>测试2：分佣计算</h2>
+    <p>验证完整分佣计算逻辑</p>
+    <button onclick="testCommissionCalculation()">运行测试2</button>
+    <div id="test2-result" class="result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>测试3：平台盈利验证</h2>
+    <p>验证不同场景下平台是否盈利</p>
+    <button onclick="testPlatformProfit()">运行测试3</button>
+    <div id="test3-result" class="result"></div>
+  </div>
+
+  <script>
+    // 六段位配置表
+    const RANK_CONFIG_TABLE = [
+      { rank: '掌门', minDynamicScore: 50000, l1CommissionRate: 0.28, l2CommissionRate: 0.16, pointsRate: 0.20, icon: '👑' },
+      { rank: '长老', minDynamicScore: 15000, l1CommissionRate: 0.25, l2CommissionRate: 0.14, pointsRate: 0.18, icon: '🏯' },
+      { rank: '核心弟子', minDynamicScore: 5000, l1CommissionRate: 0.23, l2CommissionRate: 0.12, pointsRate: 0.16, icon: '⚔️' },
+      { rank: '内门弟子', minDynamicScore: 2000, l1CommissionRate: 0.20, l2CommissionRate: 0.10, pointsRate: 0.14, icon: '📚' },
+      { rank: '外门弟子', minDynamicScore: 500, l1CommissionRate: 0.18, l2CommissionRate: 0.08, pointsRate: 0.12, icon: '🌟' },
+      { rank: '江湖散修', minDynamicScore: 0, l1CommissionRate: 0.15, l2CommissionRate: 0.06, pointsRate: 0.10, icon: '🍃' },
+    ]
+
+    // 计算动态分数
+    function calculateDynamicScore(personalTotalConsumption, teamPerformance) {
+      const weights = { personal: 0.3, team: 0.7 }
+      const score = 
+        (personalTotalConsumption || 0) * weights.personal +
+        (teamPerformance || 0) * weights.team
+      return Math.round(score * 100) / 100
+    }
+
+    // 根据动态分数判定段位
+    function getRankByDynamicScore(dynamicScore) {
+      const score = Math.max(0, dynamicScore || 0)
+      for (let i = 0; i < RANK_CONFIG_TABLE.length; i++) {
+        if (score >= RANK_CONFIG_TABLE[i].minDynamicScore) {
+          return RANK_CONFIG_TABLE[i]
+        }
+      }
+      return RANK_CONFIG_TABLE[RANK_CONFIG_TABLE.length - 1]
+    }
+
+    // 简化版分佣计算（用于测试）
+    function calculateCommissionV4(input) {
+      const { orderAmount, discountRate = 0.09 } = input
+      const discountPool = Math.round(orderAmount * discountRate * 10000) / 10000
+
+      // L1
+      const l1DynamicScore = calculateDynamicScore(input.referrer1TotalConsumption, input.referrer1TeamPerformance)
+      const l1Rank = getRankByDynamicScore(l1DynamicScore)
+      const l1Commission = Math.round(discountPool * l1Rank.l1CommissionRate * 10000) / 10000
+
+      // L2
+      const l2DynamicScore = calculateDynamicScore(input.referrer2TotalConsumption || 0, input.referrer2TeamPerformance || 0)
+      const l2Rank = getRankByDynamicScore(l2DynamicScore)
+      const l2Commission = Math.round(discountPool * l2Rank.l2CommissionRate * 10000) / 10000
+
+      // 买家积分
+      const buyerDynamicScore = calculateDynamicScore(input.buyerTotalConsumption, input.buyerTeamPerformance)
+      const buyerRank = getRankByDynamicScore(buyerDynamicScore)
+      const buyerPoints = Math.round(discountPool * buyerRank.pointsRate * 10000) / 10000
+
+      // 平台收入
+      const platformIncome = Math.round((discountPool - l1Commission - l2Commission - buyerPoints) * 10000) / 10000
+
+      return {
+        orderAmount,
+        discountPool,
+        l1Rank: l1Rank.rank,
+        l1Commission,
+        l2Rank: l2Rank.rank,
+        l2Commission,
+        buyerRank: buyerRank.rank,
+        buyerPoints,
+        platformIncome,
+      }
+    }
+
+    // 测试1：段位判定
+    function testRankJudgment() {
+      const output = document.getElementById('test1-result')
+      const testScores = [0, 300, 800, 2500, 6000, 16000, 55000]
+      
+      let html = '<table><tr><th>动态分数</th><th>段位</th><th>L1分佣</th><th>L2分佣</th><th>积分返还</th></tr>'
+      
+      testScores.forEach(score => {
+        const rank = getRankByDynamicScore(score)
+        html += `<tr>
+          <td>${score}</td>
+          <td>${rank.icon} ${rank.rank}</td>
+          <td>${(rank.l1CommissionRate * 100).toFixed(0)}%</td>
+          <td>${(rank.l2CommissionRate * 100).toFixed(0)}%</td>
+          <td>${(rank.pointsRate * 100).toFixed(0)}%</td>
+        </tr>`
+      })
+      
+      html += '</table>'
+      output.innerHTML = html
+      output.className = 'result success'
+    }
+
+    // 测试2：分佣计算
+    function testCommissionCalculation() {
+      const output = document.getElementById('test2-result')
+      
+      const result = calculateCommissionV4({
+        orderAmount: 100,
+        discountRate: 0.09,
+        referrer1TotalConsumption: 3000,
+        referrer1TeamPerformance: 5000,
+        referrer2TotalConsumption: 500,
+        referrer2TeamPerformance: 1000,
+        buyerTotalConsumption: 1000,
+        buyerTeamPerformance: 0,
+      })
+
+      let html = ''
+      html += `订单金额：¥${result.orderAmount.toFixed(2)}\n`
+      html += `让利池：¥${result.discountPool.toFixed(2)}（9%）\n\n`
+      html += `👤 L1段位：${result.l1Rank}\n`
+      html += `   L1佣金：¥${result.l1Commission.toFixed(2)}\n\n`
+      html += `👤 L2段位：${result.l2Rank}\n`
+      html += `   L2佣金：¥${result.l2Commission.toFixed(2)}\n\n`
+      html += `👤 买家段位：${result.buyerRank}\n`
+      html += `   买家积分：${result.buyerPoints.toFixed(2)}\n\n`
+      html += `🏢 平台收入：¥${result.platformIncome.toFixed(2)}\n`
+      html += `\n合计：${(result.l1Commission + result.l2Commission + result.buyerPoints + result.platformIncome).toFixed(2)}`
+
+      output.textContent = html
+      output.className = 'result success'
+    }
+
+    // 测试3：平台盈利验证
+    function testPlatformProfit() {
+      const output = document.getElementById('test3-result')
+      
+      const testCases = [
+        { name: '正常场景', data: { orderAmount: 100, referrer1TotalConsumption: 3000, referrer1TeamPerformance: 5000, buyerTotalConsumption: 1000 } },
+        { name: '躺平不消费', data: { orderAmount: 100, referrer1TotalConsumption: 100, referrer1TeamPerformance: 50000, buyerTotalConsumption: 100 } },
+        { name: '团队流水低', data: { orderAmount: 100, referrer1TotalConsumption: 500, referrer1TeamPerformance: 500, buyerTotalConsumption: 50 } },
+      ]
+
+      let html = '<table><tr><th>场景</th><th>平台收入</th><th>验证</th></tr>'
+      
+      testCases.forEach(tc => {
+        const result = calculateCommissionV4({
+          ...tc.data,
+          discountRate: 0.09,
+          referrer2TotalConsumption: 0,
+          referrer2TeamPerformance: 0,
+          buyerTeamPerformance: 0,
+        })
+        
+        const isProfit = result.platformIncome >= 0
+        html += `<tr>
+          <td>${tc.name}</td>
+          <td>¥${result.platformIncome.toFixed(2)}</td>
+          <td class="${isProfit ? 'success' : 'error'}">${isProfit ? '✅ 平台盈利' : '❌ 平台亏损'}</td>
+        </tr>`
+      })
+      
+      html += '</table>'
+      output.innerHTML = html
+      output.className = 'result'
+    }
+  </script>
+</body>
+</html>

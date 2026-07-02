@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { getAdminWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 
 type Withdrawal = {
   id: string; user_id: string; amount: number; status: string
@@ -61,7 +61,7 @@ function AdminWithdrawalsPage() {
     })
   }
 
-  return (
+  return (<RouteGuard>
     <div className="min-h-screen bg-background pb-10">
       <div className="px-4 py-4">
         {loading ? (
@@ -129,7 +129,8 @@ function AdminWithdrawalsPage() {
         )}
       </div>
     </div>
-  )
+  </RouteGuard>)
 }
 
-export default withRouteGuard(AdminWithdrawalsPage)
+/* wrapped by RouteGuard - see render */
+export default AdminWithdrawalsPage

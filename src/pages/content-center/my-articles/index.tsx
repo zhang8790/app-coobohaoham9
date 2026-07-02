@@ -1,7 +1,9 @@
 // @title 我的文章
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import { View, Button } from '@tarojs/components'
 import { getMyArticles, deleteArticle, getMyProfile } from '@/db/api'
+import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import type { Article } from '@/db/types'
 
 type Tab = 'all' | 'published' | 'draft'
@@ -19,10 +21,20 @@ export default function MyArticlesPage() {
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(false)
   const [myCode, setMyCode] = useState('')
+  const [shareArticle, setShareArticle] = useState<Article | null>(null)
 
-  // 分享到朋友圈：携带推广码锁定下线
-  useShareAppMessage(() => ({ title: '我在来店有喜发现了好内容，快来看看！', path: `/pages/content-center/my-articles/index?ref=${myCode}` }))
-  useShareTimeline(() => ({ title: '来店有喜 · 武侠生活平台' }))
+  // 分享：携带推广码锁定下线，动态返回文章标题
+  useShareAppMessage(() => ({
+    title: shareArticle
+      ? `【来店有喜】${shareArticle.title}`
+      : '我在来店有喜发现了好内容，快来看看！',
+    path: `/pages/content-center/my-articles/index${shareArticle ? `?articleId=${shareArticle.id}` : ''}`,
+  }))
+  useShareTimeline(() => ({
+    title: shareArticle
+      ? `【来店有喜】${shareArticle.title}`
+      : '来店有喜 · 武侠生活平台',
+  }))
 
   const loadArticles = useCallback(async () => {
     setLoading(true)
@@ -136,8 +148,20 @@ export default function MyArticlesPage() {
 
                 {/* 操作按钮 */}
                 <div className="flex gap-2 mt-4">
+                  {/* 分享按钮 — 已发布的文章才能分享锁客 */}
+                  {article.status === 'published' && (
+                    <Button
+                      openType="share"
+                      data-id={article.id}
+                      className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-green-300 bg-green-50"
+                      style={{ lineHeight: 'normal', padding: '8px 0', fontSize: '20px', color: '#16A34A', fontWeight: 'bold' }}
+                      onClick={() => setShareArticle(article)}
+                    >
+                      分享赚佣
+                    </Button>
+                  )}
                   <button type="button"
-                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-primary/30 bg-primary/5"
+                    className={`flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-primary/30 bg-primary/5 ${article.status === 'published' ? 'flex-1' : 'flex-1'}`}
                     onClick={() => handleEdit(article)}>
                     <div className="i-mdi-pencil text-xl text-primary" />
                     <span className="text-xl text-primary">编辑</span>

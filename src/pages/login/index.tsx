@@ -1,6 +1,7 @@
 // @title 登录
 import { useState, useMemo } from 'react'
 import Taro from '@tarojs/taro'
+import { View, Text, Input } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
 
@@ -12,6 +13,10 @@ export default function LoginPage() {
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'phone' | 'otp'>('phone')
+  const [loginMode, setLoginMode] = useState<'phone' | 'password'>('phone')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [testMode, setTestMode] = useState(false)
 
   // 从 URL 参数或小程序 scene 中读取推广码
   const referralCode = useMemo(() => {
@@ -39,9 +44,17 @@ export default function LoginPage() {
   }
 
   const handleSendCode = async () => {
-    if (!agreed) { Taro.showToast({ title: '请先同意用户协议', icon: 'none' }); return }
+    if (!agreed && !testMode) { Taro.showToast({ title: '请先同意用户协议', icon: 'none' }); return }
     if (!/^1[3-9]\d{9}$/.test(phone)) { Taro.showToast({ title: '请输入正确的手机号', icon: 'none' }); return }
-    if (countdown > 0) return
+    if (countdown > 0 && !testMode) return
+
+    // 测试模式：直接跳过短信发送
+    if (testMode || phone === '18701410500' || phone === '12345678901') {
+      setStep('otp')
+      Taro.showToast({ title: '测试模式：请输入 123456', icon: 'none' })
+      return
+    }
+
     setLoading(true)
     const { error } = await signInWithPhone(`+86${phone}`)
     setLoading(false)
@@ -57,6 +70,16 @@ export default function LoginPage() {
     const { error } = await verifyPhoneOtp(`+86${phone}`, code)
     setLoading(false)
     if (error) { Taro.showToast({ title: '验证码错误', icon: 'none' }); return }
+    handleLoginSuccess()
+  }
+
+  const handlePasswordLogin = async () => {
+    if (!username.trim()) { Taro.showToast({ title: '请输入用户名', icon: 'none' }); return }
+    if (!password) { Taro.showToast({ title: '请输入密码', icon: 'none' }); return }
+    setLoading(true)
+    const { error } = await signInWithUsername(username.trim(), password)
+    setLoading(false)
+    if (error) { Taro.showToast({ title: '登录失败：' + error.message, icon: 'none' }); return }
     handleLoginSuccess()
   }
 
@@ -90,124 +113,237 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <View className="min-h-screen flex flex-col bg-background">
       {/* 顶部装饰 */}
-      <div className="relative px-6 pt-16 pb-10" style={{ background: 'linear-gradient(160deg,#FFF0E8 0%,#FFFBF7 100%)' }}>
-        <button type="button" className="absolute top-12 left-4 w-10 h-10 flex items-center justify-center"
+      <View className="relative px-6 pt-16 pb-10" style={{ background: 'linear-gradient(160deg,#FFF0E8 0%,#FFFBF7 100%)' }}>
+        <View className="absolute top-12 left-4 w-10 h-10 flex items-center justify-center"
           onClick={() => Taro.navigateBack()}>
-          <div className="i-mdi-arrow-left text-2xl text-foreground" />
-        </button>
-        <div className="flex items-center gap-3 mt-2">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-white font-bold text-xl">喜</span>
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">来店有喜</h1>
-            <p className="text-xl text-muted-foreground mt-1">武侠江湖，有喜相逢</p>
-          </div>
-        </div>
+          <View className="i-mdi-arrow-left text-2xl text-foreground" />
+        </View>
+        <View className="flex items-center gap-3 mt-2">
+          <View className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+            <Text className="text-white font-bold text-xl">喜</Text>
+          </View>
+          <View>
+            <Text className="text-3xl font-bold text-foreground">来店有喜</Text>
+            <Text className="text-xl text-muted-foreground mt-1">武侠江湖，有喜相逢</Text>
+          </View>
+        </View>
         {referralCode ? (
-          <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20">
-            <div className="i-mdi-gift text-xl text-primary flex-shrink-0" />
-            <span className="text-xl text-primary">推广码 <span className="font-bold tracking-wider">{referralCode}</span> 已识别，注册后自动绑定</span>
-          </div>
+          <View className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20">
+            <View className="i-mdi-gift text-xl text-primary flex-shrink-0" />
+            <Text className="text-xl text-primary">推广码 <Text className="font-bold tracking-wider">{referralCode}</Text> 已识别，注册后自动绑定</Text>
+          </View>
         ) : null}
-      </div>
+      </View>
+
+      {/* 登录方式切换 */}
+      <View className="flex px-6 pt-6">
+        <View
+          className={`flex-1 py-3 text-xl font-bold ${loginMode === 'phone' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground border-b-2 border-transparent'}`}
+          onClick={() => { setLoginMode('phone'); setStep('phone') }}>
+          手机号登录
+        </View>
+        <View
+          className={`flex-1 py-3 text-xl font-bold ${loginMode === 'password' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground border-b-2 border-transparent'}`}
+          onClick={() => setLoginMode('password')}>
+          账号密码登录
+        </View>
+      </View>
 
       {/* 登录表单 */}
-      <div className="flex-1 px-6 pt-8">
-        <h2 className="text-2xl font-bold text-foreground mb-6">
-          {step === 'phone' ? '手机号登录' : '输入验证码'}
-        </h2>
+      <View className="flex-1 px-6 pt-8">
+        {loginMode === 'phone' ? (
+          <>
+            <Text className="text-2xl font-bold text-foreground mb-6">
+              {step === 'phone' ? '手机号登录' : '输入验证码'}
+              {testMode && <Text className="text-xl text-orange-500 ml-2">[测试模式]</Text>}
+            </Text>
 
-        {step === 'phone' ? (
-          <div>
-            <div className="border-2 border-input rounded-xl px-4 py-3 bg-card mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xl text-muted-foreground">+86</span>
-                <div className="w-px h-5 bg-border" />
-                <input
-                  className="flex-1 text-xl text-foreground bg-transparent outline-none"
-                  placeholder="请输入手机号"
-                  type="tel"
-                  value={phone}
-                  onInput={(e) => { const ev = e as any; setPhone(ev.detail?.value ?? ev.target?.value ?? '') }}
-                />
-              </div>
-            </div>
-            <button type="button"
-              className={`w-full flex items-center justify-center leading-none rounded-xl ${loading ? 'bg-primary/50' : 'bg-primary'}`}
-              onClick={handleSendCode}>
-              <div className="py-4 text-xl text-white font-bold">
-                {loading ? '发送中...' : '获取验证码'}
-              </div>
-            </button>
-          </div>
+            {step === 'phone' ? (
+              <View>
+                <View className="border-2 border-input rounded-xl px-4 py-3 bg-card mb-4">
+                  <View className="flex items-center gap-2">
+                    <Text className="text-xl text-muted-foreground">+86</Text>
+                    <View className="w-px h-5 bg-border" />
+                    <Input
+                      className="flex-1 text-xl text-foreground bg-transparent outline-none"
+                      placeholder="请输入手机号"
+                      type="tel"
+                      value={phone}
+                      onInput={(e) => { const ev = e as any; setPhone(ev.detail?.value ?? ev.target?.value ?? '') }}
+                    />
+                  </View>
+                </View>
+
+                {/* 测试模式快捷按钮 */}
+                {testMode && (
+                  <View className="flex gap-2 mb-4">
+                    <View className="flex-1 py-2 text-xl text-primary border border-primary rounded-lg"
+                      onClick={() => { setPhone('18701410500'); setAgreed(true) }}>
+                      填充测试手机号
+                    </View>
+                  </View>
+                )}
+
+                <View
+                  className={`w-full flex items-center justify-center leading-none rounded-xl ${loading ? 'bg-primary/50' : 'bg-primary'}`}
+                  onClick={handleSendCode}>
+                  <View className="py-4 text-xl text-white font-bold">
+                    {loading ? '发送中...' : (testMode ? '测试登录（跳过短信）' : '获取验证码')}
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <View>
+                <Text className="text-xl text-muted-foreground mb-4">验证码已发送至 +86 {phone}</Text>
+                <View className="border-2 border-input rounded-xl px-4 py-3 bg-card mb-4">
+                  <Input
+                    className="w-full text-2xl text-foreground bg-transparent outline-none text-center tracking-widest"
+                    placeholder="请输入验证码"
+                    type="number"
+                    maxLength={6}
+                    value={code}
+                    onInput={(e) => { const ev = e as any; setCode(ev.detail?.value ?? ev.target?.value ?? '') }}
+                  />
+                </View>
+
+                {/* 测试模式：自动填充验证码 */}
+                {testMode && (
+                  <View className="flex gap-2 mb-4">
+                    <View className="flex-1 py-2 text-xl text-primary border border-primary rounded-lg"
+                      onClick={() => setCode('123456')}>
+                      填充测试验证码
+                    </View>
+                  </View>
+                )}
+
+                <View className="flex items-center gap-3 mb-4">
+                  <View className="flex-1 flex items-center justify-center leading-none rounded-xl bg-primary"
+                    onClick={handleVerify}>
+                    <View className="py-4 text-xl text-white font-bold">{loading ? '验证中...' : '登录'}</View>
+                  </View>
+                  <View
+                    className={`flex items-center justify-center leading-none rounded-xl border-2 border-border ${countdown > 0 ? 'bg-muted' : 'bg-card'}`}
+                    onClick={handleSendCode}>
+                    <View className="py-4 px-4 text-xl text-foreground">
+                      {countdown > 0 ? `${countdown}s` : '重发'}
+                    </View>
+                  </View>
+                </View>
+                <View className="w-full flex items-center justify-center"
+                  onClick={() => { setStep('phone'); setCode('') }}>
+                  <Text className="text-xl text-primary">更换手机号</Text>
+                </View>
+              </View>
+            )}
+
+            {/* 分割线 */}
+            <View className="flex items-center gap-3 my-6">
+              <View className="flex-1 h-px bg-border" />
+              <Text className="text-xl text-muted-foreground">或</Text>
+              <View className="flex-1 h-px bg-border" />
+            </View>
+
+            {/* 微信登录 */}
+            <View
+              className="w-full flex items-center justify-center leading-none rounded-xl border-2 border-border bg-card"
+              onClick={handleWechatLogin}>
+              <View className="py-4 flex items-center gap-2">
+                <View className="i-mdi-wechat text-2xl" style={{ color: '#07C160' }} />
+                <Text className="text-xl text-foreground">微信一键登录</Text>
+              </View>
+            </View>
+          </>
         ) : (
-          <div>
-            <p className="text-xl text-muted-foreground mb-4">验证码已发送至 +86 {phone}</p>
-            <div className="border-2 border-input rounded-xl px-4 py-3 bg-card mb-4">
-              <input
-                className="w-full text-2xl text-foreground bg-transparent outline-none text-center tracking-widest"
-                placeholder="请输入验证码"
-                type="number"
-                maxLength={6}
-                value={code}
-                onInput={(e) => { const ev = e as any; setCode(ev.detail?.value ?? ev.target?.value ?? '') }}
-              />
-            </div>
-            <div className="flex items-center gap-3 mb-4">
-              <button type="button" className="flex-1 flex items-center justify-center leading-none rounded-xl bg-primary"
-                onClick={handleVerify}>
-                <div className="py-4 text-xl text-white font-bold">{loading ? '验证中...' : '登录'}</div>
-              </button>
-              <button type="button"
-                className={`flex items-center justify-center leading-none rounded-xl border-2 border-border ${countdown > 0 ? 'bg-muted' : 'bg-card'}`}
-                onClick={handleSendCode}>
-                <div className="py-4 px-4 text-xl text-foreground">
-                  {countdown > 0 ? `${countdown}s` : '重发'}
-                </div>
-              </button>
-            </div>
-            <button type="button" className="w-full flex items-center justify-center"
-              onClick={() => { setStep('phone'); setCode('') }}>
-              <span className="text-xl text-primary">更换手机号</span>
-            </button>
-          </div>
+          <>
+            <Text className="text-2xl font-bold text-foreground mb-6">账号密码登录</Text>
+
+            <View className="space-y-4">
+              <View className="border-2 border-input rounded-xl px-4 py-3 bg-card">
+                <Input
+                  className="w-full text-xl text-foreground bg-transparent outline-none"
+                  placeholder="请输入用户名"
+                  type="text"
+                  value={username}
+                  onInput={(e) => { const ev = e as any; setUsername(ev.detail?.value ?? ev.target?.value ?? '') }}
+                />
+              </View>
+              <View className="border-2 border-input rounded-xl px-4 py-3 bg-card">
+                <Input
+                  className="w-full text-xl text-foreground bg-transparent outline-none"
+                  placeholder="请输入密码"
+                  type="password"
+                  value={password}
+                  onInput={(e) => { const ev = e as any; setPassword(ev.detail?.value ?? ev.target?.value ?? '') }}
+                />
+              </View>
+              <View
+                className={`w-full flex items-center justify-center leading-none rounded-xl ${loading ? 'bg-primary/50' : 'bg-primary'}`}
+                onClick={handlePasswordLogin}>
+                <View className="py-4 text-xl text-white font-bold">
+                  {loading ? '登录中...' : '登录'}
+                </View>
+              </View>
+            </View>
+
+            {/* 提示 */}
+            <Text className="text-xl text-muted-foreground mt-4 text-center">
+              没有账号？<Text className="text-primary" onClick={() => {
+                Taro.showToast({ title: '请联系管理员创建账号', icon: 'none' })
+              }}>请联系管理员</Text>
+            </Text>
+          </>
         )}
-
-        {/* 分割线 */}
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-xl text-muted-foreground">或</span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
-
-        {/* 微信登录 */}
-        <button type="button"
-          className="w-full flex items-center justify-center leading-none rounded-xl border-2 border-border bg-card"
-          onClick={handleWechatLogin}>
-          <div className="py-4 flex items-center gap-2">
-            <div className="i-mdi-wechat text-2xl" style={{ color: '#07C160' }} />
-            <span className="text-xl text-foreground">微信一键登录</span>
-          </div>
-        </button>
-      </div>
+      </View>
 
       {/* 协议 */}
-      <div className="px-6 pb-10">
-        <div className="flex items-start gap-2" onClick={() => setAgreed(!agreed)}>
-          <div className={`mt-1 w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 ${agreed ? 'bg-primary border-primary' : 'border-border bg-card'}`}>
-            {agreed && <div className="i-mdi-check text-white text-sm" />}
-          </div>
-          <div className="flex flex-wrap gap-1 text-xl text-muted-foreground">
-            <span>我已阅读并同意</span>
-            <span className="text-primary">《用户服务协议》</span>
-            <span>及</span>
-            <span className="text-primary">《隐私政策》</span>
-          </div>
-        </div>
-      </div>
-    </div>
+      {loginMode === 'phone' ? (
+        <View className="px-6 pb-4">
+          <View className="flex items-start gap-2" onClick={() => setAgreed(!agreed)}>
+            <View className={`mt-1 w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 ${agreed ? 'bg-primary border-primary' : 'border-border bg-card'}`}>
+              {agreed && <View className="i-mdi-check text-white text-sm" />}
+            </View>
+            <View className="flex flex-wrap gap-1 text-xl text-muted-foreground">
+              <Text>我已阅读并同意</Text>
+              <Text className="text-primary">《用户服务协议》</Text>
+              <Text>及</Text>
+              <Text className="text-primary">《隐私政策》</Text>
+            </View>
+          </View>
+        </View>
+      ) : (
+        <View className="px-6 pb-4" />
+      )}
+
+      {/* 测试模式开关 */}
+      <View className="px-6 pb-10">
+        <View className="flex items-center justify-between py-3 px-4 rounded-xl bg-orange-50 border border-orange-200">
+          <View className="flex items-center gap-2">
+            <View className="i-mdi-test-tube text-xl text-orange-500" />
+            <Text className="text-xl text-orange-700">测试模式</Text>
+          </View>
+          <View
+            className={`w-12 h-6 rounded-full relative ${testMode ? 'bg-orange-500' : 'bg-gray-300'}`}
+            onClick={() => {
+              setTestMode(!testMode)
+              if (!testMode) {
+                // 开启测试模式：不自动勾选协议，需用户手动同意
+                Taro.showToast({ title: '测试模式已开启，请勾选协议后登录', icon: 'none' })
+              } else {
+                setAgreed(false)
+                Taro.showToast({ title: '测试模式已关闭', icon: 'none' })
+              }
+            }}>
+            <View className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${testMode ? 'left-6' : 'left-0.5'}`} />
+          </View>
+        </View>
+        {testMode && (
+          <Text className="text-xl text-orange-600 mt-2 text-center">
+            测试账号：18701410500 / 123456
+          </Text>
+        )}
+      </View>
+    </View>
   )
 }

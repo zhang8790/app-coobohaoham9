@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { getAdminStats } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 
 type Stats = { merchants: number; products: number; withdrawals: number; ugc: number }
 
@@ -34,7 +34,7 @@ function AdminPage() {
     { label: '武林贴管理', sub: 'UGC内容管理', count: stats.ugc, icon: 'i-mdi-newspaper-variant', color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200', url: '/pages/admin-ugc/index' },
   ]
 
-  return (
+  return (<RouteGuard>
     <div className="min-h-screen bg-background">
       {/* 头部 */}
       <div className="px-4 pt-6 pb-5" style={{ background: 'linear-gradient(135deg,#7C2D12 0%,#C2410C 100%)' }}>
@@ -92,7 +92,8 @@ function AdminPage() {
         )}
       </div>
     </div>
-  )
+  </RouteGuard>)
 }
 
-export default withRouteGuard(AdminPage)
+/* wrapped by RouteGuard - see render */
+export default AdminPage

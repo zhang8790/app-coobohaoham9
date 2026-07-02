@@ -460,7 +460,10 @@ export async function getMerchantProducts(storeId: string, page = 0, limit = 20)
 }
 
 export async function getProductByBarcode(barcode: string): Promise<import('./types').Product | null> {
-  const { data } = await supabase.from('products').select('*, stores(*)').eq('barcode', barcode).maybeSingle()
+  const code = String(barcode).trim()
+  console.log('[getProductByBarcode] 查询条形码:', JSON.stringify(code))
+  const { data } = await supabase.from('products').select('*, stores(*)').eq('barcode', code).maybeSingle()
+  console.log('[getProductByBarcode] 查询结果:', data ? `找到: ${data.name} (id=${data.id})` : '未找到')
   return data ?? null
 }
 
@@ -472,6 +475,12 @@ export async function createProduct(params: {
   main_image?: string; sub_images?: string[]; detail_images?: string[]
   video_url?: string; cost_price?: number; discount_rate?: number
 }): Promise<import('./types').Product | null> {
+  // 先查门店信息，让新建商品携带 stores 关联数据
+  let storeInfo: any = null
+  if (params.store_id) {
+    const { data: s } = await supabase.from('stores').select('*').eq('id', params.store_id).maybeSingle()
+    storeInfo = s
+  }
   const { data, error } = await supabase.from('products').insert({
     ...params,
     mood_tags: params.mood_tags ?? [],
@@ -485,6 +494,10 @@ export async function createProduct(params: {
     discount_rate: params.discount_rate ?? null,
   }).select().maybeSingle()
   if (error) { console.error('[createProduct]', error); return null }
+  // 本地模式：手动补上 stores 关联（mock 层不支持嵌套查询）
+  if (data && storeInfo && !data.stores) {
+    ;(data as any).stores = storeInfo
+  }
   return data
 }
 

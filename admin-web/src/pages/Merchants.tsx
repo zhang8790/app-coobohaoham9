@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 import { getMerchantApplications, approveApplication, rejectApplication } from '@/api/admin'
+import { MOCK_MERCHANTS } from '@/mock/data'
 import type { MerchantApplication } from '@/types'
 
 const PAGE_SIZE = 10
@@ -17,6 +19,7 @@ const STATUS_BADGE: Record<string, { label: string; color: string }> = {
 }
 
 export default function Merchants() {
+  const { useMock } = useAuth()
   const [filter, setFilter] = useState('pending')
   const [page, setPage] = useState(0)
   const [list, setList] = useState<MerchantApplication[]>([])
@@ -28,9 +31,18 @@ export default function Merchants() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    if (useMock) {
+      // 演示模式：使用 mock 数据
+      let data = [...MOCK_MERCHANTS]
+      if (filter !== 'all') data = data.filter(m => m.status === filter)
+      setTotal(data.length)
+      setList(data.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE))
+      setLoading(false)
+      return
+    }
     const { data, total: t } = await getMerchantApplications(filter, page, PAGE_SIZE)
     setList(data); setTotal(t); setLoading(false)
-  }, [filter, page])
+  }, [filter, page, useMock])
 
   useEffect(() => { setPage(0) }, [filter])
   useEffect(() => { load() }, [load])

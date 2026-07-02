@@ -37,8 +37,11 @@ export interface Product {
   name: string
   description: string | null
   price: number
+  original_price: number | null
   image_url: string | null
   stock: number
+  cost_price: number | null
+  discount_rate: number          // 商品让利% (0~100)
   is_active: boolean
   review_status: ReviewStatus
   created_at: string
@@ -78,4 +81,34 @@ export interface AdminStats {
   articles: number
   users: number
   orders: number
+}
+
+export interface Announcement {
+  id: string
+  content: string
+  is_active: boolean
+  sort_order: number
+  created_at: string
+}
+
+export type RefundStatus = 'pending_review' | 'processing' | 'completed' | 'closed' | 'abnormal'
+
+export interface Refund {
+  id: string
+  refund_no: string | null
+  order_id: string
+  order_no: string
+  item_index: number
+  user_id: string
+  initiated_by: 'user' | 'admin'
+  status: RefundStatus
+  refund_quantity: number
+  refund_amount: number
+  reason: string | null
+  description: string | null
+  wechat_refund_id: string | null
+  version: number
+  completed_at: string | null
+  created_at: string
+  updated_at: string
 }

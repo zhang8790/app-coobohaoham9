@@ -1,17 +1,32 @@
 // @title 犒赏铺
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { Image } from '@tarojs/components'
+import { View, Text, Image, ScrollView } from '@tarojs/components'
 import { getStores, getCartCount } from '@/db/api'
+import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import type { Store } from '@/db/types'
 
 const CATEGORIES = ['全部', '餐饮', '购物', '娱乐', '美容', '家政', '教育']
+
+// 图片加载失败时的占位组件
+function StoreImagePlaceholder({ name }: { name: string }) {
+  return (
+    <View className="flex items-center justify-center bg-muted"
+      style={{ width: '100px', height: '100px', flexShrink: 0 }}>
+      <View className="flex flex-col items-center gap-1">
+        <View className="i-mdi-store-outline text-2xl text-muted-foreground" />
+        <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
+      </View>
+    </View>
+  )
+}
 
 export default function RewardShopPage() {
   const [activeCat, setActiveCat] = useState('全部')
   const [stores, setStores] = useState<Store[]>([])
   const [cartCount, setCartCount] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
   const page = useRef(0)
   const hasMore = useRef(true)
 
@@ -30,75 +45,97 @@ export default function RewardShopPage() {
   useEffect(() => { loadStores('全部'); refreshCart() }, [refreshCart])
   useDidShow(() => { refreshCart() })
 
-  return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* 顶部 */}
-      <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid #E7DDD0' }}>
-        <div className="flex-1 flex items-center gap-2 bg-muted rounded-full px-4 py-2"
-          onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}>
-          <div className="i-mdi-magnify text-xl text-muted-foreground" />
-          <span className="text-xl text-muted-foreground">搜索门店...</span>
-        </div>
-        <div className="relative" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
-          <div className="i-mdi-shopping-outline text-2xl text-foreground" />
-          {cartCount > 0 && (
-            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-white text-xs">{cartCount > 99 ? '99' : cartCount}</span>
-            </div>
-          )}
-        </div>
-      </div>
+  // 分享配置：携带推广码
+  useShareWithReferral({
+    title: '来店有喜 · 犒赏铺，品质门店推荐',
+    path: '/pages/reward-shop/index',
+    timelineTitle: '来店有喜 · 发现身边好店',
+  })
 
-      <div className="flex flex-1 overflow-hidden">
+  const handleImageError = (id: string) => {
+    setFailedImages(prev => new Set(prev).add(id))
+  }
+
+  return (
+    <View className="h-screen flex flex-col bg-background">
+      {/* 顶部搜索栏 */}
+      <View className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid #E7DDD0' }}>
+        <View className="flex-1 flex items-center gap-2 bg-muted rounded-full px-4 py-2"
+          onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}>
+          <View className="i-mdi-magnify text-xl text-muted-foreground" />
+          <Text className="text-xl text-muted-foreground">搜索门店...</Text>
+        </View>
+        <View className="relative" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
+          <View className="i-mdi-shopping-outline text-2xl text-foreground" />
+          {cartCount > 0 && (
+            <View className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+              <Text className="text-white text-xs">{cartCount > 99 ? '99' : cartCount}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      <View className="flex flex-1 overflow-hidden">
         {/* 左侧分类 */}
-        <div className="w-24 flex flex-col bg-muted overflow-y-auto">
+        <ScrollView scrollY className="w-24 flex flex-col bg-muted">
           {CATEGORIES.map(cat => (
-            <div key={cat}
+            <View key={cat}
               className={`py-4 flex items-center justify-center text-xl font-bold transition ${activeCat === cat ? 'bg-background text-primary border-l-4 border-primary' : 'text-foreground'}`}
               onClick={() => { setActiveCat(cat); loadStores(cat, true) }}>
-              {cat}
-            </div>
+              <Text>{cat}</Text>
+            </View>
           ))}
-        </div>
+        </ScrollView>
 
         {/* 右侧商家列表 */}
-        <div className="flex-1 overflow-y-auto px-3 py-3">
+        <ScrollView scrollY className="flex-1 px-3 py-3">
           {loading && stores.length === 0 ? (
-            <div className="flex items-center justify-center pt-20">
-              <div className="i-mdi-loading text-3xl text-primary animate-spin" />
-            </div>
+            <View className="flex items-center justify-center pt-20">
+              <View className="i-mdi-loading text-3xl text-primary animate-spin" />
+            </View>
           ) : (
             stores.map(store => (
-              <div key={store.id} className="bg-card rounded-2xl overflow-hidden border border-border mb-3 flex gap-0"
+              <View key={store.id} className="bg-card rounded-2xl overflow-hidden border border-border mb-3 flex gap-0"
                 onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${store.id}` })}>
-                <Image src={store.image_url || ''} mode="aspectFill" style={{ width: '100px', height: '100px', flexShrink: 0 }} />
-                <div className="flex-1 p-3 flex flex-col justify-between">
-                  <div>
-                    <p className="text-xl font-bold text-foreground">{store.name}</p>
-                    <p className="text-base text-muted-foreground mt-1 line-clamp-2">{store.description}</p>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="i-mdi-star text-base text-yellow-500" />
-                    <span className="text-xl text-foreground font-bold">{store.rating}</span>
-                    <span className="text-base text-muted-foreground">{store.category}</span>
-                  </div>
-                </div>
-                <div className="flex items-center pr-3">
-                  <div className="i-mdi-chevron-right text-xl text-muted-foreground" />
-                </div>
-              </div>
+                {failedImages.has(store.id) || !store.image_url ? (
+                  <StoreImagePlaceholder name={store.name} />
+                ) : (
+                  <Image src={store.image_url || ''} mode="aspectFill" style={{ width: '100px', height: '100px', flexShrink: 0 }}
+                    onError={() => handleImageError(store.id)} />
+                )}
+                <View className="flex-1 p-3 flex flex-col justify-between">
+                  <View>
+                    <Text className="text-xl font-bold text-foreground">{store.name}</Text>
+                    {store.category && (
+                      <View className="inline-flex mt-1 px-2 py-0.5 rounded-full text-base bg-primary/10 text-primary">
+                        <Text className="text-base bg-primary/10 text-primary">{store.category}</Text>
+                      </View>
+                    )}
+                    {store.description && (
+                      <Text className="text-base text-muted-foreground mt-1 line-clamp-2">{store.description}</Text>
+                    )}
+                  </View>
+                  <View className="flex items-center gap-2 mt-2">
+                    <View className="i-mdi-star text-base text-yellow-500" />
+                    <Text className="text-xl text-foreground font-bold">{store.rating}</Text>
+                  </View>
+                </View>
+                <View className="flex items-center pr-3">
+                  <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+                </View>
+              </View>
             ))
           )}
           {hasMore.current && stores.length > 0 && (
-            <div className="flex justify-center pt-2 pb-2">
-              <button type="button" className="px-6 py-2 rounded-full bg-muted text-xl text-muted-foreground"
+            <View className="flex justify-center pt-2 pb-2">
+              <View className="px-6 py-2 rounded-full bg-muted text-xl text-muted-foreground"
                 onClick={() => loadStores(activeCat, false)}>
-                {loading ? '加载中...' : '加载更多'}
-              </button>
-            </div>
+                <Text>{loading ? '加载中...' : '加载更多'}</Text>
+              </View>
+            </View>
           )}
-        </div>
-      </div>
-    </div>
+        </ScrollView>
+      </View>
+    </View>
   )
 }

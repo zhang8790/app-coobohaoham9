@@ -9,28 +9,75 @@ import {
   mockCommissions, mockPointsLogs,
 } from './mockData'
 
+// ═══ 本地存储持久化工具（微信小程序用 Taro API） ═══
+const MOCK_STORAGE_KEY = 'mock_store_data'
+
+function loadStoreFromStorage(): Record<string, any[]> {
+  try {
+    // 微信小程序环境用 wx/taro，H5 环境用 localStorage
+    let raw: string | null = null
+    if (typeof wx !== 'undefined' && wx.getStorageSync) {
+      raw = wx.getStorageSync(MOCK_STORAGE_KEY) || null
+    } else if (typeof localStorage !== 'undefined') {
+      raw = localStorage.getItem(MOCK_STORAGE_KEY)
+    }
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      console.log('[Mock] 从本地存储恢复数据', Object.keys(parsed))
+      return parsed
+    }
+  } catch (e: any) {
+    console.warn('[Mock] 本地存储读取失败，使用默认数据', e?.message || e)
+  }
+  return {}
+}
+
+function saveStoreToStorage(data: Record<string, any[]>) {
+  try {
+    const json = JSON.stringify(data)
+    if (typeof wx !== 'undefined' && wx.setStorageSync) {
+      wx.setStorageSync(MOCK_STORAGE_KEY, json)
+    } else if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(MOCK_STORAGE_KEY, json)
+    }
+  } catch (e: any) {
+    console.warn('[Mock] 本地存储写入失败', e?.message || e)
+  }
+}
+
 // ═══ 可变内存 Store（让 CRUD 操作真正持久化） ═══
 // 关键：profiles[0] 直接引用 mockProfile，保证 Edge Function 的修改能反映到查询结果里
+const persisted = loadStoreFromStorage()
 const store: Record<string, any[]> = {
-  profiles:          [mockProfile],  // 直接用引用，不用副本
-  stores:           mockStores.map(s => ({ ...s })),
-  store_categories:  mockStoreCategories.map(c => ({ ...c })),
-  products:          mockProducts.map(p => ({ ...p })),
-  cart_items:        mockCartItems.map(c => ({ ...c })),
-  orders:            mockOrders.map(o => ({ ...o })),
-  order_items:       [],
-  articles:          mockArticles.map(a => ({ ...a })),
-  merchant_applications: mockMerchantApps.map(m => ({ ...m })),
-  announcements:     mockAnnouncements.map(a => ({ ...a })),
-  commissions:       mockCommissions.map(c => ({ ...c })),
-  withdrawals:       mockWithdrawals.map(w => ({ ...w })),
-  refunds:           mockRefunds.map(r => ({ ...r })),
-  points_logs:      mockPointsLogs.map(p => ({ ...p })),
-  favorites:         mockFavorites.map(f => ({ ...f })),
-  footprints:        mockFootprints.map(f => ({ ...f })),
-  product_reviews:   [],
-  coupons:           mockCoupons.map(c => ({ ...c })),
-  user_addresses:    mockAddresses.map(a => ({ ...a })),
+  profiles:          persisted.profiles
+    ? [{ ...mockProfile, ...persisted.profiles[0] }]
+    : [mockProfile],
+  stores:           persisted.stores ?? mockStores.map(s => ({ ...s })),
+  store_categories:  persisted.store_categories ?? mockStoreCategories.map(c => ({ ...c })),
+  products:          persisted.products ?? mockProducts.map(p => ({ ...p })),
+  cart_items:        persisted.cart_items ?? mockCartItems.map(c => ({ ...c })),
+  orders:            persisted.orders ?? mockOrders.map(o => ({ ...o })),
+  order_items:       persisted.order_items ?? [],
+  articles:          persisted.articles ?? mockArticles.map(a => ({ ...a })),
+  merchant_applications: persisted.merchant_applications ?? mockMerchantApps.map(m => ({ ...m })),
+  announcements:     persisted.announcements ?? mockAnnouncements.map(a => ({ ...a })),
+  commissions:       persisted.commissions ?? mockCommissions.map(c => ({ ...c })),
+  withdrawals:       persisted.withdrawals ?? mockWithdrawals.map(w => ({ ...w })),
+  refunds:           persisted.refunds ?? mockRefunds.map(r => ({ ...r })),
+  points_logs:      persisted.points_logs ?? mockPointsLogs.map(p => ({ ...p })),
+  favorites:         persisted.favorites ?? mockFavorites.map(f => ({ ...f })),
+  footprints:        persisted.footprints ?? mockFootprints.map(f => ({ ...f })),
+  product_reviews:   persisted.product_reviews ?? [],
+  coupons:           persisted.coupons ?? mockCoupons.map(c => ({ ...c })),
+  user_addresses:    persisted.user_addresses ?? mockAddresses.map(a => ({ ...a })),
+}
+
+// 浅表同步：让直接修改 mockProfile 也能反映到 store.profiles[0]
+store.profiles[0] = { ...mockProfile, ...store.profiles[0] }
+
+// 每次 store 变更后调用，持久化到 localStorage
+function persist() {
+  saveStoreToStorage(store)
 }
 
 // 根据表名获取主键字段名
@@ -146,7 +193,9 @@ class MockQueryBuilder {
   }
 
   select(columns = '*', opts?: { count?: 'exact'; head?: boolean }) {
-    this._action = 'select'
+    // 注意：不覆盖 _action！insert/update/delete/upsert 后接 .select() 时
+    // _action 保持原值，execute() 中根据 _action 执行对应操作并返回数据。
+    this._columns = columns
     this._count = opts?.count || null
     this._head = opts?.head || false
     return this
@@ -229,6 +278,18 @@ class MockQueryBuilder {
       if (this.table === 'articles') mockArticles.push(newItem)
 
       console.log(`[Mock] INSERT ${this.table}:`, newItem.id, newItem.name || '')
+      persist()  // 立即持久化到 localStorage
+      // 支持 insert([a, b]) 数组形式
+      if (Array.isArray(this._data)) {
+        const items = this._data.map((d: any, i: number) => ({
+          id: `mock-${Date.now()}-${i}-${Math.random().toString(36).slice(2,7)}`,
+          ...d, created_at: now
+        }))
+        if (!store[this.table]) store[this.table] = []
+        store[this.table].push(...items)
+        persist()  // 立即持久化到 localStorage
+        return { data: this._single ? items[0] : items, error: null }
+      }
       return { data: this._single ? newItem : [newItem], error: null }
     }
 
@@ -239,8 +300,11 @@ class MockQueryBuilder {
       matched.forEach(item => {
         Object.assign(item, this._data, { updated_at: new Date().toISOString() })
       })
+      persist()  // 立即持久化到 localStorage
       console.log(`[Mock] UPDATE ${this.table}: ${matched.length} 条`, this._data)
-      return { data: null, error: null }
+      console.log(`[Mock] UPDATE ${this.table}: ${matched.length} 条`, this._data)
+      // 如果 .select() 被调用过（_columns 已设置），返回更新后的数据
+      return this._columns ? { data: this._single ? matched[0] : matched, error: null } : { data: null, error: null }
     }
 
     // ═══ DELETE ═══
@@ -255,6 +319,7 @@ class MockQueryBuilder {
         )
       }
       console.log(`[Mock] DELETE ${this.table}: ${matched.length} 条`, ids)
+      persist()  // 立即持久化到 localStorage
       return { data: null, error: null }
     }
 
@@ -330,46 +395,112 @@ export const mockSupabase = {
           const orderNo = `MO${Date.now().toString(36).toUpperCase()}`
           const total = body.total_amount || 0
           const payMode = body.pay_mode || 'wxpay'
+          const goldBeansToUse = body.gold_beans_to_use || 0
           const referrerId = body.referrer_id || null
+
+          // 计算金豆抵扣金额（1金豆 = 1元）
+          const goldBeanYuan = goldBeansToUse * 1
+          const wxpayAmount = Math.max(0, total - goldBeanYuan)
+
+          // 纯金豆支付：扣除金豆余额，订单状态直接为 pending_receive
+          if (payMode === 'pure_gold') {
+            mockProfile.balance = Math.max(0, (mockProfile.balance || 0) - goldBeansToUse)
+            mockProfile.points = Math.max(0, (mockProfile.points || 0) - goldBeansToUse)
+          } else if (payMode === 'hybrid') {
+            // 混合支付：扣除部分金豆
+            mockProfile.balance = Math.max(0, (mockProfile.balance || 0) - goldBeansToUse)
+            mockProfile.points = Math.max(0, (mockProfile.points || 0) - goldBeansToUse)
+          }
+
           const newOrder = {
-            id: orderId, order_no: orderNo, status: 'pending_pay',
+            id: orderId, order_no: orderNo,
+            status: payMode === 'pure_gold' ? 'pending_receive' : 'pending_pay',
             total_amount: total, pay_mode: payMode,
+            gold_beans_used: goldBeansToUse,
             referrer_id: referrerId, commission_distributed: false,
             user_id: mockUser.id,
             created_at: new Date().toISOString(),
           }
           mockOrders.push(newOrder as any)
 
-          // 模拟佣金计算（如果有推荐人）
+          // 模拟佣金计算（V4算法）
           if (referrerId) {
-            // 一级推荐：2.25%
-            const l1Amount = Math.round(total * 0.0225 * 100) / 100
-            mockCommissions.push({
-              id: `comm-mock-${Date.now()}-1`,
-              order_id: orderId, order_no: orderNo,
-              beneficiary_id: referrerId, payer_id: mockUser.id,
-              level: 1, rank_at_time: mockProfile.member_rank,
-              ratio: 0.0225, pool_amount: total, commission_amount: l1Amount,
-              b_coef: 1.0, status: 'pending', settle_at: null,
-              created_at: new Date().toISOString(),
-            } as any)
-            // 二级推荐：0.5%
-            const l2Profile = mockProfile.referrer_id ? { id: mockProfile.referrer_id } : null
-            if (l2Profile) {
-              const l2Amount = Math.round(total * 0.005 * 100) / 100
+            // 简化版V4计算（避免require()在浏览器报错）
+            const discountPool = total * 0.20  // 让利池 = 订单金额 × 20%
+            const l1Rate = 0.15  // 江湖散修L1比例
+            const l2Rate = 0.06  // 江湖散修L2比例
+            const pointsRate = 0.10  // 江湖散修积分比例
+            
+            const l1Amount = Math.round(discountPool * l1Rate * 100) / 100
+            const l2Amount = Math.round(discountPool * l2Rate * 100) / 100
+            const pointsAmount = Math.round(discountPool * pointsRate * 100) / 100
+            
+            // 写入L1佣金
+            if (l1Amount > 0) {
               mockCommissions.push({
-                id: `comm-mock-${Date.now()}-2`,
+                id: `comm-mock-${Date.now()}-1`,
                 order_id: orderId, order_no: orderNo,
-                beneficiary_id: l2Profile.id, payer_id: mockUser.id,
-                level: 2, rank_at_time: '外门弟子',
-                ratio: 0.005, pool_amount: total, commission_amount: l2Amount,
+                beneficiary_id: referrerId, payer_id: mockUser.id,
+                level: 1, rank_at_time: '江湖散修',
+                ratio: l1Rate, pool_amount: discountPool, 
+                commission_amount: l1Amount,
                 b_coef: 1.0, status: 'pending', settle_at: null,
                 created_at: new Date().toISOString(),
               } as any)
             }
+            
+            // 写入L2佣金
+            if (l2Amount > 0 && mockProfile.referrer_id) {
+              mockCommissions.push({
+                id: `comm-mock-${Date.now()}-2`,
+                order_id: orderId, order_no: orderNo,
+                beneficiary_id: mockProfile.referrer_id, payer_id: mockUser.id,
+                level: 2, rank_at_time: '江湖散修',
+                ratio: l2Rate, pool_amount: discountPool, 
+                commission_amount: l2Amount,
+                b_coef: 1.0, status: 'pending', settle_at: null,
+                created_at: new Date().toISOString(),
+              } as any)
+            }
+            
+            // 写入积分
+            mockProfile.points = (mockProfile.points || 0) + Math.round(pointsAmount * 100)
+            
+            // 写入L1佣金
+            if (v4Result.level1Commission > 0) {
+              mockCommissions.push({
+                id: `comm-mock-${Date.now()}-1`,
+                order_id: orderId, order_no: orderNo,
+                beneficiary_id: referrerId, payer_id: mockUser.id,
+                level: 1, rank_at_time: v4Result.referrer1Rank,
+                ratio: v4Result.l1Ratio, pool_amount: v4Result.discountPool, 
+                commission_amount: v4Result.level1Commission,
+                b_coef: 1.0, status: 'pending', settle_at: null,
+                created_at: new Date().toISOString(),
+              } as any)
+            }
+            
+            // 写入L2佣金
+            if (v4Result.level2Commission > 0) {
+              mockCommissions.push({
+                id: `comm-mock-${Date.now()}-2`,
+                order_id: orderId, order_no: orderNo,
+                beneficiary_id: mockProfile.referrer_id, payer_id: mockUser.id,
+                level: 2, rank_at_time: v4Result.referrer2Rank,
+                ratio: v4Result.l2Ratio, pool_amount: v4Result.discountPool, 
+                commission_amount: v4Result.level2Commission,
+                b_coef: 1.0, status: 'pending', settle_at: null,
+                created_at: new Date().toISOString(),
+              } as any)
+            }
+            
+            // 写入积分
+            if (v4Result.buyerPoints > 0) {
+              mockProfile.points = (mockProfile.points || 0) + Math.round(v4Result.buyerPoints * 100)
+            }
           }
 
-          // 模拟积分发放（消费金额的 1%，最低 1 积分）
+          // 模拟积分发放（消费金额的 1%，最低 1 积分；纯金豆支付也发积分）
           const pointsEarned = Math.max(1, Math.floor(total * 0.01))
           const oldPoints = mockProfile.points || 0
           mockProfile.points = oldPoints + pointsEarned
@@ -382,12 +513,12 @@ export const mockSupabase = {
             created_at: new Date().toISOString(),
           } as any)
 
-          console.log(`[Mock] create-order: 佣金已计算，积分 +${pointsEarned}`)
+          console.log(`[Mock] create-order: 模式=${payMode}, 金豆扣=${goldBeansToUse}, 微信付=${wxpayAmount}, 积分+${pointsEarned}`)
           return {
             data: {
               success: true, order: newOrder,
-              wxpay_amount: body.wxpay_amount || total,
-              gold_beans_used: body.gold_beans_to_use || 0,
+              wxpay_amount: wxpayAmount,
+              gold_beans_used: goldBeansToUse,
               pay_mode: payMode,
               points_earned: pointsEarned,
             },

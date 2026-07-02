@@ -4,7 +4,7 @@ import Taro from '@tarojs/taro'
 import { Image } from '@tarojs/components'
 import { getAdminArticles, adminToggleArticlePublish, adminDeleteArticle } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 import type { Article } from '@/db/types'
 
 type Tab = 'all' | 'published' | 'hidden'
@@ -64,7 +64,7 @@ function AdminUgcPage() {
     { key: 'hidden', label: '已隐藏' },
   ]
 
-  return (
+  return (<RouteGuard>
     <div className="min-h-screen bg-background pb-10">
       {/* Tab 筛选 */}
       <div className="flex flex-row px-4 py-3 gap-2 border-b border-border bg-card sticky top-0 z-10">
@@ -137,7 +137,8 @@ function AdminUgcPage() {
         )}
       </div>
     </div>
-  )
+  </RouteGuard>)
 }
 
-export default withRouteGuard(AdminUgcPage)
+/* wrapped by RouteGuard - see render */
+export default AdminUgcPage

@@ -31,6 +31,16 @@ const pages = [
   'pages/admin-products/index',
   'pages/admin-withdrawals/index',
   'pages/admin-ugc/index',
+  'pages/privacy-policy/index',
+  'pages/user-agreement/index',
+  // 商家管理中心（对齐 admin-web）
+  'pages/merchant-products/index',
+  'pages/merchant-orders/index',
+  'pages/merchant-members/index',
+  'pages/merchant-coupons/index',
+  'pages/merchant-analytics/index',
+  'pages/merchant-settings/index',
+  'pages/my-referrals/index',
 ]
 
 export default defineAppConfig({

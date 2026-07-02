@@ -126,7 +126,7 @@ function MerchantProductsPage() {
     try {
       const payload: any = {
         name: form.name, description: form.description, price,
-        stock, barcode: form.barcode || undefined,
+        stock, barcode: form.barcode && form.barcode.trim() ? form.barcode.trim() : null,
         main_image: form.main_image || undefined,
         sub_images: form.sub_images.length > 0 ? form.sub_images : undefined,
         detail_images: form.detail_images.length > 0 ? form.detail_images : undefined,
@@ -285,6 +285,11 @@ function MerchantProductsPage() {
             ? <Text style={{ fontSize: '15px', color: '#C2410C' }}>扫描中…</Text>
             : <Text style={{ color: '#C2410C', fontSize: '15px', fontWeight: 'bold' }}>📷 扫码上架</Text>}
         </View>
+      </View>
+
+      {/* 扫码规范说明 */}
+      <View style={{ padding: '6px 18px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <Text style={{ fontSize: '11px', color: '#BBB' }}>📷 仅支持摄像头扫描一维条形码，不支持相册图片识别，杜绝作弊</Text>
       </View>
 
       {/* 商品列表 */}

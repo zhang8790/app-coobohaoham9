@@ -9,12 +9,15 @@ const NAV = [
   { to: '/withdrawals', icon: '💰', label: '银票兑付' },
   { to: '/ugc', icon: '📰', label: '武林贴管理' },
   { to: '/users', icon: '👤', label: '用户管理' },
+  { to: '/refunds', icon: '↩', label: '退款管理' },
+  { to: '/announcements', icon: '📢', label: '公告管理' },
 ]
 
 export default function Layout() {
   const { profile, signOut } = useAuth()
   const nav = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
+  const useMock = import.meta.env.VITE_USE_MOCK !== 'false'
 
   const handleSignOut = async () => {
     await signOut()
@@ -44,7 +47,7 @@ export default function Layout() {
           {!collapsed && (
             <div>
               <p style={{ color: '#E5E7EB', fontWeight: 700, fontSize: 14, lineHeight: 1 }}>武林盟</p>
-              <p style={{ color: '#6B7280', fontSize: 11, marginTop: 2 }}>管理后台</p>
+              <p style={{ color: '#C2410C', fontSize: 11, marginTop: 2, fontWeight: 600 }}>总后台</p>
             </div>
           )}
         </div>
@@ -84,26 +87,45 @@ export default function Layout() {
         {/* 顶部 Header */}
         <header style={{
           height: 64, background: '#080C14', borderBottom: '1px solid #1F2937',
-          display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-          padding: '0 24px', gap: 16, position: 'sticky', top: 0, zIndex: 30,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 24px', position: 'sticky', top: 0, zIndex: 30,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 32, height: 32, background: '#1F2937', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 14 }}>👤</span>
-            </div>
-            <div>
-              <p style={{ color: '#E5E7EB', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>
-                {profile?.nickname || '管理员'}
-              </p>
-              <p style={{ color: '#6B7280', fontSize: 11, marginTop: 2 }}>超级管理员</p>
-            </div>
+          {/* 模式指示器 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{
+              padding: '4px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600,
+              background: useMock ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.15)',
+              color: useMock ? '#F59E0B' : '#22C55E',
+              border: `1px solid ${useMock ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)'}`,
+            }}>
+              {useMock ? '🧪 Mock 模式' : '🔗 真实后端'}
+            </span>
+            {!useMock && (
+              <span style={{ color: '#6B7280', fontSize: 11 }}>
+                需要禁用 RLS 才能访问数据
+              </span>
+            )}
           </div>
-          <button
-            onClick={handleSignOut}
-            style={{ padding: '6px 14px', background: 'transparent', border: '1px solid #374151', borderRadius: 6, color: '#9CA3AF', cursor: 'pointer', fontSize: 13 }}
-          >
-            退出
-          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 32, height: 32, background: '#1F2937', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 14 }}>👤</span>
+              </div>
+              <div>
+                <p style={{ color: '#E5E7EB', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>
+                  {profile?.nickname || '管理员'}
+                </p>
+                <p style={{ color: '#6B7280', fontSize: 11, marginTop: 2 }}>超级管理员</p>
+              </div>
+            </div>
+            <button
+              onClick={handleSignOut}
+              style={{ padding: '6px 14px', background: 'transparent', border: '1px solid #374151', borderRadius: 6, color: '#9CA3AF', cursor: 'pointer', fontSize: 13 }}
+            >
+              退出
+            </button>
+          </div>
         </header>
 
         {/* 页面内容 */}

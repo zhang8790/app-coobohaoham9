@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { getAdminMerchantApplications, adminApproveApplication, adminRejectApplication } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 
 type App = {
   id: string; user_id: string; store_name: string; contact_name: string
@@ -49,7 +49,7 @@ function AdminMerchantsPage() {
     else Taro.showToast({ title: '操作失败', icon: 'none' })
   }
 
-  return (
+  return (<RouteGuard>
     <div className="min-h-screen bg-background pb-10">
       <div className="px-4 py-4">
         {loading ? (
@@ -139,7 +139,8 @@ function AdminMerchantsPage() {
         </div>
       )}
     </div>
-  )
+  </RouteGuard>)
 }
 
-export default withRouteGuard(AdminMerchantsPage)
+/* wrapped by RouteGuard - see render */
+export default AdminMerchantsPage

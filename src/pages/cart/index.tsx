@@ -1,11 +1,11 @@
 // @title 行囊
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { Image } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import { getCartItems, updateCartQty, removeCartItem, updateCartSelected } from '@/db/api'
 import { updateCartBadge } from '@/utils/cartBadge'
 import type { CartItem } from '@/db/types'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
 
 function CartPage() {
@@ -83,126 +83,127 @@ function CartPage() {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="i-mdi-loading text-4xl text-primary animate-spin" />
-    </div>
+    <View className="flex items-center justify-center min-h-screen bg-background">
+      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+    </View>
   )
 
-  return (
-    <div className="h-screen flex flex-col bg-background">
+  return (<RouteGuard>
+    <View className="h-screen flex flex-col bg-background">
       {/* 顶部全选栏 */}
       {items.length > 0 && (
-        <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-card border-b border-border">
-          <div className="flex items-center gap-2" onClick={() => toggleAll(!allSelected)}>
-            <div className={`w-5 h-5 rounded flex items-center justify-center border-2 ${allSelected ? 'bg-primary border-primary' : 'border-border'}`}>
-              {allSelected && <div className="i-mdi-check text-white text-xs" />}
-            </div>
-            <span className="text-xl text-foreground">全选</span>
-          </div>
-          <span className="text-xl text-muted-foreground ml-auto">
-            共 <span className="font-bold text-foreground">{items.reduce((s, i) => s + i.quantity, 0)}</span> 件
-          </span>
-        </div>
+        <View className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-card border-b border-border">
+          <View className="flex items-center gap-2" onClick={() => toggleAll(!allSelected)}>
+            <View className={`w-5 h-5 rounded flex items-center justify-center border-2 ${allSelected ? 'bg-primary border-primary' : 'border-border'}`}>
+              {allSelected && <View className="i-mdi-check text-white text-xs" />}
+            </View>
+            <Text className="text-xl text-foreground">全选</Text>
+          </View>
+          <Text className="text-xl text-muted-foreground ml-auto">
+            共 <Text className="font-bold text-foreground">{items.reduce((s, i) => s + i.quantity, 0)}</Text> 件
+          </Text>
+        </View>
       )}
 
       {/* 内容区 */}
-      <div className="flex-1 overflow-y-auto pb-4">
+      <View className="flex-1 overflow-y-auto pb-4">
         {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center pt-32 gap-4">
-            <div className="i-mdi-bag-personal-outline text-8xl text-muted-foreground" />
-            <p className="text-2xl text-muted-foreground">行囊空空如也</p>
-            <button type="button"
+          <View className="flex flex-col items-center justify-center pt-32 gap-4">
+            <View className="i-mdi-bag-personal-outline text-8xl text-muted-foreground" />
+            <Text className="text-2xl text-muted-foreground">行囊空空如也</Text>
+            <View
               className="flex items-center justify-center leading-none rounded-2xl bg-primary"
               onClick={() => Taro.switchTab({ url: '/pages/reward-shop/index' })}>
-              <div className="py-3 px-8 text-xl text-white font-bold">去犒赏铺转转</div>
-            </button>
-          </div>
+              <View className="py-3 px-8 text-xl text-white font-bold">去犒赏铺转转</View>
+            </View>
+          </View>
         ) : (
-          <div className="px-4 pt-4">
+          <View className="px-4 pt-4">
             {Object.entries(grouped).map(([storeId, group]) => {
               const allStoreSelected = group.items.every(i => i.selected)
               const selectedStoreItems = group.items.filter(i => i.selected)
               const storeTotal = selectedStoreItems.reduce((s, i) => s + (i.products?.price || 0) * i.quantity, 0)
               const storeTotalQty = group.items.reduce((s, i) => s + i.quantity, 0)
               return (
-                <div key={storeId} className="bg-card rounded-2xl mb-4 border border-border overflow-hidden">
+                <View key={storeId} className="bg-card rounded-2xl mb-4 border border-border overflow-hidden">
                   {/* 门店头 */}
-                  <div className="flex items-center gap-3 px-4 py-3 bg-primary/5 border-b border-border">
-                    <div className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${allStoreSelected ? 'bg-primary border-primary' : 'border-border'}`}
+                  <View className="flex items-center gap-3 px-4 py-3 bg-primary/5 border-b border-border">
+                    <View className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${allStoreSelected ? 'bg-primary border-primary' : 'border-border'}`}
                       onClick={() => toggleStore(storeId, !allStoreSelected)}>
-                      {allStoreSelected && <div className="i-mdi-check text-white text-xs" />}
-                    </div>
-                    <div className="i-mdi-store text-xl text-primary" />
-                    <span className="text-xl font-bold text-foreground flex-1">{group.storeName}</span>
-                    <span className="text-base text-muted-foreground">{storeTotalQty}件</span>
-                  </div>
+                      {allStoreSelected && <View className="i-mdi-check text-white text-xs" />}
+                    </View>
+                    <View className="i-mdi-store text-xl text-primary" />
+                    <Text className="text-xl font-bold text-foreground flex-1">{group.storeName}</Text>
+                    <Text className="text-base text-muted-foreground">{storeTotalQty}件</Text>
+                  </View>
 
                   {/* 商品列表 */}
                   {group.items.map(item => (
-                    <div key={item.id} className="flex items-center gap-3 px-4 py-4 border-b border-border last:border-0">
-                      <div className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${item.selected ? 'bg-primary border-primary' : 'border-border'}`}
+                    <View key={item.id} className="flex items-center gap-3 px-4 py-4 border-b border-border last:border-0">
+                      <View className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${item.selected ? 'bg-primary border-primary' : 'border-border'}`}
                         onClick={() => toggleItem(item.id, !item.selected)}>
-                        {item.selected && <div className="i-mdi-check text-white text-xs" />}
-                      </div>
+                        {item.selected && <View className="i-mdi-check text-white text-xs" />}
+                      </View>
                       <Image src={item.products?.image_url || ''} mode="aspectFill"
                         style={{ width: '72px', height: '72px', borderRadius: '8px', flexShrink: 0 }}
                         onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${item.product_id}` })} />
-                      <div className="flex-1">
-                        <p className="text-xl text-foreground font-bold line-clamp-2">{item.products?.name}</p>
-                        <span className="text-xl font-bold text-primary mt-1">¥{item.products?.price}</span>
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-3">
-                            <button type="button"
+                      <View className="flex-1">
+                        <Text className="text-xl text-foreground font-bold line-clamp-2">{item.products?.name}</Text>
+                        <Text className="text-xl font-bold text-primary mt-1">¥{item.products?.price}</Text>
+                        <View className="flex items-center justify-between mt-2">
+                          <View className="flex items-center gap-3">
+                            <View
                               className="w-8 h-8 rounded-full border-2 border-border bg-card flex items-center justify-center leading-none"
                               onClick={() => changeQty(item.id, -1, item.quantity)}>
-                              <div className="i-mdi-minus text-xl text-foreground" />
-                            </button>
-                            <span className="text-xl text-foreground font-bold w-6 text-center">{item.quantity}</span>
-                            <button type="button"
+                              <View className="i-mdi-minus text-xl text-foreground" />
+                            </View>
+                            <Text className="text-xl text-foreground font-bold w-6 text-center">{item.quantity}</Text>
+                            <View
                               className="w-8 h-8 rounded-full bg-primary flex items-center justify-center leading-none"
                               onClick={() => changeQty(item.id, 1, item.quantity)}>
-                              <div className="i-mdi-plus text-white text-xl" />
-                            </button>
-                          </div>
-                          <button type="button"
+                              <View className="i-mdi-plus text-white text-xl" />
+                            </View>
+                          </View>
+                          <View
                             className="w-8 h-8 flex items-center justify-center"
                             onClick={() => handleRemove(item.id)}>
-                            <div className="i-mdi-delete-outline text-2xl text-muted-foreground" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                            <View className="i-mdi-delete-outline text-2xl text-muted-foreground" />
+                          </View>
+                        </View>
+                      </View>
+                    </View>
                   ))}
 
                   {/* 门店结算栏 */}
-                  <div className="flex items-center px-4 py-3 bg-background border-t border-border gap-3">
-                    <div className="flex-1">
+                  <View className="flex items-center px-4 py-3 bg-background border-t border-border gap-3">
+                    <View className="flex-1">
                       {selectedStoreItems.length > 0 ? (
-                        <span className="text-xl text-foreground">
-                          已选 <span className="font-bold text-primary">{selectedStoreItems.length}</span> 件 · 小计
-                          <span className="text-2xl font-bold text-primary ml-1">¥{storeTotal.toFixed(2)}</span>
-                        </span>
+                        <Text className="text-xl text-foreground">
+                          已选 <Text className="font-bold text-primary">{selectedStoreItems.length}</Text> 件 · 小计
+                          <Text className="text-2xl font-bold text-primary ml-1">¥{storeTotal.toFixed(2)}</Text>
+                        </Text>
                       ) : (
-                        <span className="text-xl text-muted-foreground">勾选商品后结算</span>
+                        <Text className="text-xl text-muted-foreground">勾选商品后结算</Text>
                       )}
-                    </div>
-                    <button type="button"
+                    </View>
+                    <View
                       className={`flex items-center justify-center leading-none rounded-2xl ${selectedStoreItems.length === 0 ? 'bg-primary/40' : 'bg-primary'}`}
                       onClick={() => goCheckoutStore(storeId)}>
-                      <div className="py-3 px-5 text-xl text-white font-bold">
+                      <View className="py-3 px-5 text-xl text-white font-bold">
                         结算({selectedStoreItems.length})
-                      </div>
-                    </button>
-                  </div>
-                </div>
+                      </View>
+                    </View>
+                  </View>
+                </View>
               )
             })}
-          </div>
+          </View>
         )}
-      </div>
-    </div>
-  )
+      </View>
+    </View>
+  </RouteGuard>)
 }
 
-export default withRouteGuard(CartPage)
+/* wrapped by RouteGuard - see render */
+export default CartPage
 

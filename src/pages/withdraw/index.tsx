@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { applyWithdraw, getMyWithdrawals, getMyBalance, getMerchantStore } from '@/db/api'
 import type { Withdrawal, WithdrawMethod } from '@/db/types'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 
 type Tab = 'apply' | 'records'
 type MethodKey = WithdrawMethod
@@ -94,7 +94,7 @@ function WithdrawPage() {
   // 可提余额（积分 100 = 1元，balance 字段单位为积分/金豆）
   const availableYuan = (balance / 100).toFixed(2)
 
-  return (
+  return (<RouteGuard>
     <div className="min-h-screen bg-background pb-8">
       {/* 顶部导航 */}
       <div className="flex items-center px-4 pt-4 pb-2">
@@ -259,7 +259,8 @@ function WithdrawPage() {
         </div>
       )}
     </div>
-  )
+  </RouteGuard>)
 }
 
-export default withRouteGuard(WithdrawPage)
+/* wrapped by RouteGuard - see render */
+export default WithdrawPage

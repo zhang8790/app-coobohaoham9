@@ -1,381 +1,349 @@
-// @title 商家管理中心
-import { useState, useCallback, useEffect } from 'react'
-import Taro from '@tarojs/taro'
-import { Image } from '@tarojs/components'
-import {
-  getMerchantStore, getMerchantProducts, getMerchantOrders,
-  createProduct, updateProduct, deleteProduct, getProductByBarcode,
-} from '@/db/api'
-import type { Product, Store } from '@/db/types'
-import { withRouteGuard } from '@/components/RouteGuard'
+// @title 商家管理中心（仪表盘）
+import { useState, useEffect } from 'react'
+import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import { View, Text, Button, Image } from '@tarojs/components'
+import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMyMerchantApplication, generateQrcode } from '@/db/api'
+import type { Store } from '@/db/types'
+import { RouteGuard } from '@/components/RouteGuard'
 
-type Tab = 'products' | 'orders'
-type ProductForm = {
-  name: string; price: string; stock: string; description: string
-  barcode: string; image_url: string; is_active: boolean
-}
-const emptyForm = (): ProductForm => ({ name: '', price: '', stock: '', description: '', barcode: '', image_url: '', is_active: true })
+// 仪表盘导航项
+const NAV_ITEMS = [
+  { to: '/pages/merchant-products/index', icon: 'i-mdi-package-variant', label: '商品管理', color: 'bg-orange-500', key: 'products' },
+  { to: '/pages/merchant-orders/index', icon: 'i-mdi-receipt-text-outline', label: '订单管理', color: 'bg-blue-500', key: 'orders' },
+  { to: '/pages/merchant-members/index', icon: 'i-mdi-account-group', label: '会员管理', color: 'bg-purple-500', key: 'members' },
+  { to: '/pages/merchant-coupons/index', icon: 'i-mdi-ticket-percent', label: '优惠券', color: 'bg-pink-500', key: 'coupons' },
+  { to: '/pages/merchant-analytics/index', icon: 'i-mdi-chart-line', label: '数据分析', color: 'bg-green-500', key: 'analytics' },
+  { to: '/pages/merchant-settings/index', icon: 'i-mdi-store-cog', label: '店铺设置', color: 'bg-gray-500', key: 'settings' },
+  { to: '/pages/withdraw/index', icon: 'i-mdi-cash-multiple', label: '佣金提现', color: 'bg-yellow-500', key: 'withdraw' },
+  { to: '/pages/merchant-products/index?tab=ads', icon: 'i-mdi-bullhorn', label: '广告管理', color: 'bg-red-500', key: 'ads' },
+]
 
 function MerchantCenterPage() {
-  const [tab, setTab] = useState<Tab>('products')
   const [store, setStore] = useState<Store | null>(null)
-  const [products, setProducts] = useState<Product[]>([])
-  const [orders, setOrders] = useState<any[]>([])
+  const [stats, setStats] = useState({ products: 0, online: 0, orders: 0, todayOrders: 0, members: 5, crossStore: 2 })
+  const [merchantAppStatus, setMerchantAppStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editId, setEditId] = useState<string | null>(null)
-  const [form, setForm] = useState<ProductForm>(emptyForm())
-  const [saving, setSaving] = useState(false)
-  const [scanning, setScanning] = useState(false)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const s = await getMerchantStore()
-    setStore(s)
-    if (s) {
-      const [prods, ords] = await Promise.all([
-        getMerchantProducts(s.id),
-        getMerchantOrders(s.id),
-      ])
-      setProducts(prods)
-      setOrders(ords)
-    }
-    setLoading(false)
+  // 门店二维码相关状态
+  const [showQrModal, setShowQrModal] = useState(false)
+  const [storeQrUrl, setStoreQrUrl] = useState('')
+  const [qrLoading, setQrLoading] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      getMerchantStore(),
+      getMyMerchantApplication(),
+    ]).then(async ([s, app]) => {
+      setStore(s)
+      setMerchantAppStatus(app?.status || null)
+      setLoading(false)
+
+      if (s) {
+        const [prods, ords] = await Promise.all([
+          getMerchantProducts(s.id),
+          getMerchantOrders(s.id),
+        ])
+        const online = prods.filter(p => p.is_active).length
+        const today = new Date().toISOString().slice(0, 10)
+        const todayOrders = ords.filter(o => (o.orders?.created_at || '').startsWith(today)).length
+        setStats({ products: prods.length, online, orders: ords.length, todayOrders, members: 5, crossStore: 2 })
+      }
+    })
   }, [])
 
-  useEffect(() => { load() }, [load])
-
-  // 扫条形码上架
-  const handleScanBarcode = () => {
+  // 打开门店二维码弹窗
+  const handleShowStoreQr = async () => {
     if (!store) return
-    setScanning(true)
-    Taro.scanCode({
-      scanType: ['barCode'],
-      success: async (res) => {
-        setScanning(false)
-        const code = res.result
-        // 检查是否已有该条形码商品
-        const existing = await getProductByBarcode(code)
-        if (existing) {
-          Taro.showModal({
-            title: '条形码已存在',
-            content: `商品「${existing.name}」已使用此条形码，是否编辑该商品？`,
-            confirmText: '去编辑',
-            success: (r) => { if (r.confirm) openEdit(existing) },
-          })
-        } else {
-          setForm({ ...emptyForm(), barcode: code })
-          setEditId(null)
-          setShowForm(true)
-        }
-      },
-      fail: () => { setScanning(false); Taro.showToast({ title: '扫码取消', icon: 'none' }) },
-    })
-  }
-
-  const openEdit = (p: Product) => {
-    setForm({
-      name: p.name, price: String(p.price), stock: String(p.stock),
-      description: p.description ?? '', barcode: p.barcode ?? '',
-      image_url: p.image_url ?? '', is_active: p.is_active,
-    })
-    setEditId(p.id)
-    setShowForm(true)
-  }
-
-  const handleSave = async () => {
-    if (!store) return
-    if (!form.name.trim()) { Taro.showToast({ title: '请填写商品名称', icon: 'none' }); return }
-    const price = parseFloat(form.price)
-    const stock = parseInt(form.stock)
-    if (isNaN(price) || price <= 0) { Taro.showToast({ title: '请填写正确的价格', icon: 'none' }); return }
-    if (isNaN(stock) || stock < 0) { Taro.showToast({ title: '请填写正确的库存', icon: 'none' }); return }
-    setSaving(true)
-    if (editId) {
-      await updateProduct(editId, {
-        name: form.name, description: form.description, price,
-        stock, barcode: form.barcode || undefined,
-        image_url: form.image_url || undefined, is_active: form.is_active,
+    // 已有二维码直接显示
+    if (storeQrUrl) { setShowQrModal(true); return }
+    setQrLoading(true)
+    setShowQrModal(true)
+    try {
+      const url = await generateQrcode({
+        type: 'store',
+        store_short_code: store.short_code || store.id,
       })
-      Taro.showToast({ title: '修改成功', icon: 'success' })
-    } else {
-      await createProduct({
-        store_id: store.id, name: form.name, description: form.description,
-        price, stock, barcode: form.barcode || undefined,
-        image_url: form.image_url || undefined,
-      })
-      Taro.showToast({ title: '上架成功', icon: 'success' })
+      if (url) setStoreQrUrl(url)
+      else Taro.showToast({ title: '二维码生成失败', icon: 'none' })
+    } catch (e) {
+      console.error('[MerchantCenter] generateQrcode error:', e)
+      Taro.showToast({ title: '二维码生成失败', icon: 'none' })
+    } finally {
+      setQrLoading(false)
     }
-    setSaving(false)
-    setShowForm(false)
-    load()
   }
 
-  const handleDelete = (id: string, name: string) => {
-    Taro.showModal({
-      title: '确认删除',
-      content: `确认删除商品「${name}」？删除后无法恢复`,
-      confirmText: '删除',
-      confirmColor: '#ef4444',
-      success: async (r) => {
-        if (r.confirm) {
-          await deleteProduct(id)
-          setProducts(prev => prev.filter(p => p.id !== id))
-          Taro.showToast({ title: '已删除', icon: 'success' })
-        }
+  // 保存门店二维码到相册
+  const handleSaveStoreQr = () => {
+    if (!storeQrUrl) return
+    Taro.downloadFile({
+      url: storeQrUrl,
+      success: (res) => {
+        Taro.saveImageToPhotosAlbum({
+          filePath: res.tempFilePath,
+          success: () => Taro.showToast({ title: '已保存到相册', icon: 'success' }),
+          fail: () => Taro.showToast({ title: '请授权相册权限', icon: 'none' }),
+        })
       },
+      fail: () => Taro.showToast({ title: '下载失败', icon: 'none' }),
     })
   }
 
-  const statusLabel: Record<string, string> = {
-    pending_pay: '待支付', pending_ship: '待发货', pending_receive: '待收货',
-    pending_review: '待评价', completed: '已完成', after_sale: '售后', cancelled: '已取消',
-  }
-  const statusColor: Record<string, string> = {
-    pending_pay: 'text-orange-500', pending_ship: 'text-primary', pending_receive: 'text-blue-500',
-    completed: 'text-green-600', cancelled: 'text-muted-foreground', after_sale: 'text-red-500', pending_review: 'text-primary',
-  }
+  // 分享配置：携带门店链接（用于锁客）
+  useShareAppMessage(() => ({
+    title: `${store?.name || '来店有喜'} · 扫码进店购物`,
+    path: store ? `/pages/store-home/index?id=${store.id}` : '/pages/reward-shop/index',
+    imageUrl: store?.image_url || '',
+  }))
+  useShareTimeline(() => ({
+    title: `${store?.name || '来店有喜'} · 好店推荐，扫码进店`,
+    query: store ? `id=${store.id}` : '',
+  }))
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="i-mdi-loading text-4xl text-primary animate-spin" />
-    </div>
+    <View className="flex items-center justify-center min-h-screen bg-background">
+      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+    </View>
   )
 
-  if (!store) return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
-      <div className="i-mdi-store-off text-6xl text-muted-foreground" />
-      <p className="text-xl text-muted-foreground text-center">您尚未开通门店，请先申请成为商家</p>
-      <button type="button"
-        className="flex items-center justify-center leading-none rounded-2xl bg-primary"
+  // 已通过商家入驻但还没有门店（门店尚未创建或 owner_id 不匹配）
+  if (!store && merchantAppStatus === 'approved') return (
+    <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
+      <View className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+        <View className="i-mdi-check text-4xl text-primary" />
+      </View>
+      <Text className="text-xl font-bold text-foreground text-center">入驻已通过</Text>
+      <Text className="text-base text-muted-foreground text-center">恭喜！您的商家入驻已审核通过，正在为您准备门店数据。</Text>
+      <Button className="!bg-primary !border-none !rounded-2xl !px-8 !py-3"
         onClick={() => Taro.navigateTo({ url: '/pages/merchant-apply/index' })}>
-        <div className="py-3 px-8 text-xl font-bold text-white">申请开店</div>
-      </button>
-    </div>
+        <Text className="text-base font-bold text-white">完善门店信息</Text>
+      </Button>
+      <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
+        onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
+        <Text className="text-base text-muted-foreground">返回</Text>
+      </Button>
+    </View>
   )
 
-  return (
-    <div className="min-h-screen bg-background pb-8">
-      {/* 返回 + 标题 */}
-      <div className="flex items-center px-4 pt-4 pb-2">
-        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
-          onClick={() => Taro.navigateBack()}>
-          <div className="i-mdi-arrow-left text-2xl text-foreground" />
-        </button>
-        <span className="flex-1 text-center text-xl font-bold text-foreground pr-10">商家管理中心</span>
-      </div>
+  // 审核中
+  if (!store && merchantAppStatus === 'pending') return (
+    <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
+      <View className="i-mdi-clock-outline text-6xl text-yellow-500" />
+      <Text className="text-xl font-bold text-foreground text-center">入驻申请审核中</Text>
+      <Text className="text-base text-muted-foreground text-center">您的商家入驻申请已提交，请耐心等待管理员审核。</Text>
+      <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
+        onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
+        <Text className="text-base text-muted-foreground">返回</Text>
+      </Button>
+    </View>
+  )
+
+  // 非商家 / 被拒绝
+  if (!store) return (
+    <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
+      <View className="i-mdi-store-off text-6xl text-muted-foreground" />
+      <Text className="text-xl text-muted-foreground text-center">您尚未开通门店，请先申请成为商家</Text>
+      <Button className="!bg-primary !border-none !rounded-2xl !px-8 !py-3"
+        onClick={() => Taro.navigateTo({ url: '/pages/merchant-apply/index' })}>
+        <Text className="text-base font-bold text-white">申请开店</Text>
+      </Button>
+    </View>
+  )
+
+  return (<RouteGuard>
+    <View className="min-h-screen bg-background pb-8">
+      {/* 顶部 */}
+      <View className="flex items-center px-4 pt-4 pb-2">
+        <Button className="!w-10 !h-10 !p-0 !bg-muted !rounded-full !border-none"
+          onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
+          <View className="i-mdi-arrow-left text-2xl text-foreground" />
+        </Button>
+        <Text className="flex-1 text-center text-xl font-bold text-foreground pr-10">商家管理中心</Text>
+      </View>
 
       {/* 门店信息卡 */}
-      <div className="mx-4 mt-3 p-4 rounded-2xl bg-card border border-border flex items-center gap-3">
-        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <div className="i-mdi-store text-2xl text-primary" />
-        </div>
-        <div className="flex-1">
-          <p className="text-xl font-bold text-foreground">{store.name}</p>
-          <p className="text-base text-muted-foreground">{store.address || '暂无地址'}</p>
-        </div>
-        <button type="button"
-          className="flex items-center justify-center leading-none rounded-xl bg-primary/10"
-          onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${store.id}` })}>
-          <div className="py-2 px-3 text-base text-primary font-bold">查看门店</div>
-        </button>
-      </div>
+      <View className="mx-4 mt-2 p-4 rounded-2xl bg-card border border-border">
+        <View className="flex items-center gap-3">
+          <View className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <View className="i-mdi-store text-2xl text-primary" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-xl font-bold text-foreground">{store.name}</Text>
+            <Text className="text-base text-muted-foreground">{store.address || '暂无地址'}</Text>
+          </View>
+        </View>
+        {/* 操作按钮行：查看 + 二维码 */}
+        <View className="flex gap-2 mt-3">
+          <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-xl"
+            onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${store.id}` })}>
+            <View className="py-2 flex items-center justify-center gap-1">
+              <View className="i-mdi-eye text-white" />
+              <Text className="text-base font-bold text-white">查看门店</Text>
+            </View>
+          </Button>
+          <Button className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-primary !rounded-xl"
+            onClick={handleShowStoreQr}>
+            <View className="py-2 flex items-center justify-center gap-1">
+              <View className="i-mdi-qrcode text-primary" />
+              <Text className="text-base font-bold text-primary">门店二维码</Text>
+            </View>
+          </Button>
+        </View>
+      </View>
 
-      {/* Tab 切换 */}
-      <div className="flex mx-4 mt-4 bg-muted rounded-2xl p-1">
-        {([['products', '商品管理'], ['orders', '订单管理']] as const).map(([key, label]) => (
-          <div key={key}
-            className={`flex-1 flex items-center justify-center py-2 rounded-xl text-xl font-bold transition ${tab === key ? 'bg-card text-primary' : 'text-muted-foreground'}`}
-            onClick={() => setTab(key)}>
-            {label}
-          </div>
+      {/* 统计卡片 */}
+      <View className="flex gap-3 px-4 mt-3">
+        {[
+          { label: '商品', value: stats.products, sub: `${stats.online}在售`, color: 'text-orange-500' },
+          { label: '订单', value: stats.orders, sub: `今日${stats.todayOrders}`, color: 'text-blue-500' },
+          { label: '会员', value: stats.members, sub: `${stats.crossStore}跨店`, color: 'text-purple-500' },
+        ].map(s => (
+          <View key={s.label} className="flex-1 bg-card rounded-2xl border border-border p-3 text-center">
+            <Text className={`text-2xl font-bold ${s.color}`}>{s.value}</Text>
+            <Text className="text-xs text-muted-foreground">{s.label}</Text>
+            <Text className="text-xs text-muted-foreground">{s.sub}</Text>
+          </View>
         ))}
-      </div>
+      </View>
 
-      {/* 商品管理 Tab */}
-      {tab === 'products' && (
-        <div className="px-4 mt-4">
-          {/* 操作按钮 */}
-          <div className="flex gap-3 mb-4">
-            <button type="button"
-              className="flex-1 flex items-center justify-center leading-none rounded-2xl bg-primary"
-              onClick={() => { setForm(emptyForm()); setEditId(null); setShowForm(true) }}>
-              <div className="py-3 flex items-center gap-2">
-                <div className="i-mdi-plus text-white text-2xl" />
-                <span className="text-xl font-bold text-white">手动添加</span>
-              </div>
-            </button>
-            <button type="button"
-              className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-primary bg-card"
-              onClick={handleScanBarcode}>
-              <div className="py-3 flex items-center gap-2">
-                {scanning
-                  ? <div className="i-mdi-loading text-primary text-2xl animate-spin" />
-                  : <div className="i-mdi-barcode-scan text-primary text-2xl" />}
-                <span className="text-xl font-bold text-primary">扫码上架</span>
-              </div>
-            </button>
-          </div>
+      {/* 功能导航网格 */}
+      <View className="grid grid-cols-4 gap-3 px-4 mt-4">
+        {NAV_ITEMS.map(item => (
+          <View key={item.key} className="flex flex-col items-center gap-2 py-4 px-2 bg-card rounded-2xl border border-border"
+            onClick={() => Taro.navigateTo({ url: item.to })}>
+            <View className={`w-10 h-10 rounded-2xl ${item.color} flex items-center justify-center`}>
+              <View className={`${item.icon} text-white text-xl`} />
+            </View>
+            <Text className="text-xs text-foreground text-center font-bold">{item.label}</Text>
+          </View>
+        ))}
+      </View>
 
-          {/* 商品列表 */}
-          {products.length === 0 ? (
-            <div className="flex flex-col items-center py-16 gap-3">
-              <div className="i-mdi-package-variant text-6xl text-muted-foreground/40" />
-              <p className="text-xl text-muted-foreground">暂无商品，快去上架第一件吧</p>
-            </div>
-          ) : (
-            products.map(p => (
-              <div key={p.id} className="bg-card rounded-2xl border border-border mb-3 overflow-hidden">
-                <div className="flex gap-3 p-4">
-                  <div className="w-20 h-20 rounded-xl bg-muted flex-shrink-0 overflow-hidden">
-                    {p.image_url
-                      ? <Image src={p.image_url} mode="aspectFill" style={{ width: '80px', height: '80px' }} />
-                      : <div className="w-full h-full flex items-center justify-center"><div className="i-mdi-image text-3xl text-muted-foreground/40" /></div>}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xl font-bold text-foreground flex-1 line-clamp-1">{p.name}</p>
-                      <span className={`text-base px-2 py-0.5 rounded-full ${p.is_active ? 'bg-green-100 text-green-600' : 'bg-muted text-muted-foreground'}`}>
-                        {p.is_active ? '在售' : '下架'}
-                      </span>
-                    </div>
-                    <p className="text-xl font-bold text-primary mt-1">¥{p.price}</p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-base text-muted-foreground">库存：{p.stock}</span>
-                      {p.barcode && <span className="text-base text-muted-foreground">条码：{p.barcode}</span>}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex border-t border-border">
-                  <button type="button"
-                    className="flex-1 flex items-center justify-center py-3 gap-1"
-                    onClick={() => openEdit(p)}>
-                    <div className="i-mdi-pencil text-xl text-primary" />
-                    <span className="text-xl text-primary">编辑</span>
-                  </button>
-                  <div className="w-px bg-border" />
-                  <button type="button"
-                    className="flex-1 flex items-center justify-center py-3 gap-1"
-                    onClick={() => updateProduct(p.id, { is_active: !p.is_active }).then(load)}>
-                    <div className={`${p.is_active ? 'i-mdi-eye-off' : 'i-mdi-eye'} text-xl text-muted-foreground`} />
-                    <span className="text-xl text-muted-foreground">{p.is_active ? '下架' : '上架'}</span>
-                  </button>
-                  <div className="w-px bg-border" />
-                  <button type="button"
-                    className="flex-1 flex items-center justify-center py-3 gap-1"
-                    onClick={() => handleDelete(p.id, p.name)}>
-                    <div className="i-mdi-delete-outline text-xl text-red-400" />
-                    <span className="text-xl text-red-400">删除</span>
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+      {/* 快捷操作 */}
+      <View className="px-4 mt-4">
+        <Text className="text-base font-bold text-foreground mb-2">快捷操作</Text>
+        <View className="flex gap-3">
+          <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-2xl !leading-none"
+            onClick={() => Taro.navigateTo({ url: '/pages/merchant-products/index?action=add' })}>
+            <View className="py-3 flex items-center gap-1">
+              <View className="i-mdi-plus text-white text-xl" />
+              <Text className="text-base font-bold text-white">新增商品</Text>
+            </View>
+          </Button>
+          <Button className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-primary !rounded-2xl !leading-none"
+            onClick={() => Taro.navigateTo({ url: '/pages/merchant-products/index?action=scan' })}>
+            <View className="py-3 flex items-center gap-1">
+              <View className="i-mdi-barcode-scan text-primary text-xl" />
+              <Text className="text-base font-bold text-primary">扫码上架</Text>
+            </View>
+          </Button>
+        </View>
+      </View>
+
+      {/* 最近订单预览 */}
+      <View className="px-4 mt-4">
+        <View className="flex items-center justify-between mb-2">
+          <Text className="text-base font-bold text-foreground">最近订单</Text>
+          <Button className="!p-0 !bg-transparent !border-none" onClick={() => Taro.navigateTo({ url: '/pages/merchant-orders/index' })}>
+            <Text className="text-sm text-primary">查看全部 →</Text>
+          </Button>
+        </View>
+        <View className="bg-card rounded-2xl border border-border p-4 flex items-center justify-center">
+          <Text className="text-base text-muted-foreground">加载中…</Text>
+        </View>
+      </View>
+
+      {/* ========== 门店二维码弹窗 ========== */}
+      {showQrModal && (
+        <View
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+          onClick={() => setShowQrModal(false)}>
+          <View
+            className="w-full rounded-t-3xl bg-card px-6 pt-6 pb-10"
+            style={{ maxHeight: '80vh' }}
+            onClick={(e) => e.stopPropagation()}>
+
+            {/* 标题栏 */}
+            <View className="flex items-center justify-between mb-5">
+              <Text className="text-xl font-bold text-foreground">门店二维码</Text>
+              <View
+                onClick={() => setShowQrModal(false)}
+                style={{
+                  width: '32px', height: '32px', borderRadius: '16px',
+                  backgroundColor: '#F5F5F5', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                <Text style={{ fontSize: '18px', color: '#999' }}>✕</Text>
+              </View>
+            </View>
+
+            {/* 二维码主体 */}
+            <View className="flex flex-col items-center py-3">
+              {/* 门店名称 */}
+              <Text className="text-lg font-bold text-foreground">{store?.name}</Text>
+              <Text className="text-sm text-muted-foreground mt-1">用户扫码即可进店购物</Text>
+
+              {/* 二维码图片 */}
+              <View
+                style={{
+                  width: '240px', height: '240px', borderRadius: '16px',
+                  border: '2px solid rgba(194,65,12,0.15)',
+                  backgroundColor: '#FFF', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  marginTop: '20px', overflow: 'hidden',
+                }}>
+                {qrLoading ? (
+                  <View className="flex flex-col items-center gap-3">
+                    <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+                    <Text className="text-base text-muted-foreground">生成中...</Text>
+                  </View>
+                ) : storeQrUrl ? (
+                  <Image src={storeQrUrl} mode="aspectFit" style={{ width: '224px', height: '224px' }} />
+                ) : (
+                  <View className="flex flex-col items-center gap-2">
+                    <View className="i-mdi-qrcode-scan text-5xl text-muted-foreground/30" />
+                    <Text className="text-base text-muted-foreground/50">加载失败</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* 提示文字 */}
+              <Text className="text-sm text-muted-foreground text-center mt-5 leading-relaxed"
+                style={{ maxWidth: '280px' }}>
+                扫码自动进入「{store?.name}」，新用户注册即成为您的下线，享受消费佣金
+              </Text>
+            </View>
+
+            {/* 操作按钮 */}
+            <View className="flex gap-3 mt-4">
+              {storeQrUrl && (
+                <Button
+                  className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-border !rounded-2xl"
+                  onClick={handleSaveStoreQr}>
+                  <View className="py-3 flex items-center justify-center gap-2">
+                    <View className="i-mdi-download text-xl text-muted-foreground" />
+                    <Text className="text-lg font-bold text-muted-foreground">保存图片</Text>
+                  </View>
+                </Button>
+              )}
+              <Button
+                openType="share"
+                className="!flex-1 !m-0 !p-0 !rounded-2xl"
+                style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)', border: 'none' }}>
+                <View className="py-3 flex items-center justify-center gap-2">
+                  <View className="i-mdi-share-variant text-white text-xl" />
+                  <Text className="text-lg font-bold text-white">分享二维码</Text>
+                </View>
+              </Button>
+            </View>
+          </View>
+        </View>
       )}
-
-      {/* 订单管理 Tab */}
-      {tab === 'orders' && (
-        <div className="px-4 mt-4">
-          {orders.length === 0 ? (
-            <div className="flex flex-col items-center py-16 gap-3">
-              <div className="i-mdi-receipt-text-outline text-6xl text-muted-foreground/40" />
-              <p className="text-xl text-muted-foreground">暂无订单</p>
-            </div>
-          ) : (
-            orders.map((item, i) => (
-              <div key={item.id ?? i} className="bg-card rounded-2xl border border-border mb-3 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-base text-muted-foreground">订单号：{item.orders?.order_no || '-'}</span>
-                  <span className={`text-xl font-bold ${statusColor[item.orders?.status] || 'text-foreground'}`}>
-                    {statusLabel[item.orders?.status] || item.orders?.status || '-'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  {item.product_image && (
-                    <Image src={item.product_image} mode="aspectFill"
-                      style={{ width: '56px', height: '56px', borderRadius: '8px', flexShrink: 0 }} />
-                  )}
-                  <div className="flex-1">
-                    <p className="text-xl text-foreground font-bold line-clamp-1">{item.product_name}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-xl text-muted-foreground">x{item.quantity}</span>
-                      <span className="text-xl font-bold text-primary">¥{item.price}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-2 pt-2 border-t border-border flex items-center justify-between">
-                  <span className="text-base text-muted-foreground">
-                    {item.orders?.created_at ? new Date(item.orders.created_at).toLocaleDateString('zh-CN') : ''}
-                  </span>
-                  <span className="text-xl font-bold text-foreground">
-                    合计 ¥{item.orders?.total_amount?.toFixed(2) || '-'}
-                  </span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* 商品编辑/新建弹窗 */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.5)' }}
-          onClick={() => setShowForm(false)}>
-          <div className="w-full bg-card rounded-t-3xl px-4 pt-5 pb-8" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-2xl font-bold text-foreground">{editId ? '编辑商品' : '新增商品'}</span>
-              <button type="button" onClick={() => setShowForm(false)}>
-                <div className="i-mdi-close text-2xl text-muted-foreground" />
-              </button>
-            </div>
-
-            {[
-              { label: '商品名称*', key: 'name', placeholder: '请输入商品名称' },
-              { label: '价格（元）*', key: 'price', placeholder: '如：9.90' },
-              { label: '库存数量*', key: 'stock', placeholder: '如：100' },
-              { label: '条形码', key: 'barcode', placeholder: '扫码或手动输入条形码' },
-              { label: '图片链接', key: 'image_url', placeholder: '商品图片 URL' },
-              { label: '商品描述', key: 'description', placeholder: '简短描述（可选）' },
-            ].map(f => (
-              <div key={f.key} className="mb-3">
-                <div className="flex items-center gap-1 mb-1">
-                  <span className="text-xl text-foreground">{f.label}</span>
-                </div>
-                <div className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden">
-                  <input
-                    className="w-full text-xl text-foreground bg-transparent outline-none"
-                    placeholder={f.placeholder}
-                    value={(form as any)[f.key]}
-                    onInput={e => { const ev = e as any; setForm(prev => ({ ...prev, [f.key]: ev.detail?.value ?? ev.target?.value ?? '' })) }}
-                  />
-                </div>
-              </div>
-            ))}
-
-            {/* 是否上架（仅编辑时显示） */}
-            {editId && (
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xl text-foreground">立即上架</span>
-                <div
-                  className={`w-12 h-7 rounded-full flex items-center transition ${form.is_active ? 'bg-primary justify-end' : 'bg-muted justify-start'}`}
-                  style={{ padding: '2px' }}
-                  onClick={() => setForm(prev => ({ ...prev, is_active: !prev.is_active }))}>
-                  <div className="w-6 h-6 rounded-full bg-white" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
-                </div>
-              </div>
-            )}
-
-            <button type="button"
-              className={`w-full flex items-center justify-center leading-none rounded-2xl ${saving ? 'bg-primary/50' : 'bg-primary'}`}
-              onClick={handleSave}>
-              <div className="py-4 text-xl font-bold text-white">{saving ? '保存中…' : '保存上架'}</div>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+     </View>
+   </RouteGuard>
   )
 }
 
-export default withRouteGuard(MerchantCenterPage)
+/* wrapped by RouteGuard - see render */
+export default MerchantCenterPage

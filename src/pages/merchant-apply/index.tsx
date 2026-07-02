@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { getMyMerchantApplication, submitMerchantApplication } from '@/db/api'
 import type { MerchantApplication } from '@/db/types'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
 
 const BUSINESS_TYPES = ['餐饮', '购物', '娱乐', '美容', '家政', '教育', '医疗', '其他']
@@ -165,7 +165,7 @@ function InputField({ label, required, placeholder, value, onChange, type = 'tex
   label: string; required?: boolean; placeholder: string; value: string;
   onChange: (v: string) => void; type?: string
 }) {
-  return (
+  return (<RouteGuard>
     <div>
       <div className="flex items-center gap-1 mb-2">
         <span className="text-xl font-bold text-foreground">{label}</span>
@@ -181,7 +181,8 @@ function InputField({ label, required, placeholder, value, onChange, type = 'tex
         />
       </div>
     </div>
-  )
+  </RouteGuard>)
 }
 
-export default withRouteGuard(MerchantApplyPage)
+/* wrapped by RouteGuard - see render */
+export default MerchantApplyPage

@@ -1,10 +1,10 @@
 // @title 设置
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { Image } from '@tarojs/components'
+import { View, Text, Image, Input } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
-import { updateUserProfile } from '@/db/api'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { updateUserProfile, deleteUserAccount } from '@/db/api'
+import { RouteGuard } from '@/components/RouteGuard'
 
 function SettingsPage() {
   const { user, profile: ctxProfile, signOut } = useAuth()
@@ -52,154 +52,168 @@ function SettingsPage() {
   const handleDeleteAccount = () => {
     Taro.showModal({
       title: '注销账号',
-      content: '注销后账号数据将无法恢复，确认注销？',
+      content: '注销后账号数据将无法恢复，我们将删除您的个人信息或对其进行匿名化处理。确认注销？',
       confirmText: '确认注销', confirmColor: '#ef4444',
-      success: (r) => {
-        if (r.confirm) Taro.showToast({ title: '请联系客服注销账号', icon: 'none' })
+      success: async (r) => {
+        if (r.confirm) {
+          Taro.showLoading({ title: '注销中…' })
+          const ok = await deleteUserAccount()
+          Taro.hideLoading()
+          if (ok) {
+            Taro.showToast({ title: '账号已注销', icon: 'success' })
+            await signOut()
+            Taro.reLaunch({ url: '/pages/login/index' })
+          } else {
+            Taro.showToast({ title: '注销失败，请联系客服', icon: 'none' })
+          }
+        }
       },
     })
   }
 
-  return (
-    <div className="min-h-screen bg-background pb-10">
+  return (<RouteGuard>
+    <View className="min-h-screen bg-background pb-10">
       {/* 导航 */}
-      <div className="flex items-center px-4 pt-4 pb-2">
-        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
+      <View className="flex items-center px-4 pt-4 pb-2">
+        <View className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
           onClick={() => Taro.navigateBack()}>
-          <div className="i-mdi-arrow-left text-2xl text-foreground" />
-        </button>
-        <span className="flex-1 text-center text-xl font-bold text-foreground pr-10">设置</span>
-      </div>
+          <View className="i-mdi-arrow-left text-2xl text-foreground" />
+        </View>
+        <Text className="flex-1 text-center text-xl font-bold text-foreground pr-10">设置</Text>
+      </View>
 
       {/* 个人资料卡 */}
-      <div className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <div className="i-mdi-account-circle text-2xl text-primary" />
-          <span className="text-xl font-bold text-foreground">个人资料</span>
-          <div className="flex-1" />
-          <button type="button"
+      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+        <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <View className="i-mdi-account-circle text-2xl text-primary" />
+          <Text className="text-xl font-bold text-foreground">个人资料</Text>
+          <View className="flex-1" />
+          <View
             className="flex items-center justify-center leading-none rounded-lg bg-primary/10"
             onClick={() => setEditing(e => !e)}>
-            <div className="px-3 py-1 text-xl text-primary">{editing ? '取消' : '编辑'}</div>
-          </button>
-        </div>
+            <View className="px-3 py-1 text-xl text-primary">{editing ? '取消' : '编辑'}</View>
+          </View>
+        </View>
 
         {/* 头像 */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-border">
-          <span className="text-xl text-foreground">头像</span>
-          <div className="flex items-center gap-2" onClick={editing ? handleChangeAvatar : undefined}>
-            <div className="w-14 h-14 rounded-full bg-muted overflow-hidden border-2 border-border">
+        <View className="flex items-center justify-between px-4 py-4 border-b border-border">
+          <Text className="text-xl text-foreground">头像</Text>
+          <View className="flex items-center gap-2" onClick={editing ? handleChangeAvatar : undefined}>
+            <View className="w-14 h-14 rounded-full bg-muted overflow-hidden border-2 border-border">
               {avatarUrl
                 ? <Image src={avatarUrl} mode="aspectFill" style={{ width: '56px', height: '56px' }} />
-                : <div className="w-full h-full flex items-center justify-center">
-                    <div className="i-mdi-account text-3xl text-muted-foreground" />
-                  </div>}
-            </div>
-            {editing && <div className="i-mdi-camera text-2xl text-muted-foreground" />}
-          </div>
-        </div>
+                : <View className="w-full h-full flex items-center justify-center">
+                    <View className="i-mdi-account text-3xl text-muted-foreground" />
+                  </View>}
+            </View>
+            {editing && <View className="i-mdi-camera text-2xl text-muted-foreground" />}
+          </View>
+        </View>
 
         {/* 昵称 */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-border">
-          <span className="text-xl text-foreground">昵称</span>
+        <View className="flex items-center justify-between px-4 py-4 border-b border-border">
+          <Text className="text-xl text-foreground">昵称</Text>
           {editing ? (
-            <div className="flex-1 ml-4 border-2 border-input rounded-xl px-3 py-2 bg-background overflow-hidden">
-              <input className="w-full text-xl text-foreground bg-transparent outline-none text-right"
+            <View className="flex-1 ml-4 border-2 border-input rounded-xl px-3 py-2 bg-background overflow-hidden">
+              <Input className="w-full text-xl text-foreground bg-transparent outline-none text-right"
                 value={nickname}
                 onInput={e => { const ev = e as any; setNickname(ev.detail?.value ?? ev.target?.value ?? '') }} />
-            </div>
+            </View>
           ) : (
-            <span className="text-xl text-muted-foreground">{nickname || '未设置'}</span>
+            <Text className="text-xl text-muted-foreground">{nickname || '未设置'}</Text>
           )}
-        </div>
+        </View>
 
-        {/* 手机号 */}
-        <div className="flex items-center justify-between px-4 py-4">
-          <span className="text-xl text-foreground">手机号</span>
-          <span className="text-xl text-muted-foreground">{user?.phone || '未绑定'}</span>
-        </div>
+        {/* 手机号（脱敏显示） */}
+        <View className="flex items-center justify-between px-4 py-4">
+          <Text className="text-xl text-foreground">手机号</Text>
+          <Text className="text-xl text-muted-foreground">
+            {user?.phone ? `${user.phone.slice(0,3)}****${user.phone.slice(-4)}` : '未绑定'}
+          </Text>
+        </View>
 
         {/* 保存按钮 */}
         {editing && (
-          <div className="px-4 pb-4">
-            <button type="button"
+          <View className="px-4 pb-4">
+            <View
               className={`w-full flex items-center justify-center leading-none rounded-2xl ${saving ? 'bg-primary/50' : 'bg-primary'}`}
               onClick={handleSaveProfile}>
-              <div className="py-3 text-xl font-bold text-white">{saving ? '保存中…' : '保存修改'}</div>
-            </button>
-          </div>
+              <View className="py-3 text-xl font-bold text-white">{saving ? '保存中…' : '保存修改'}</View>
+            </View>
+          </View>
         )}
-      </div>
+      </View>
 
       {/* 通知设置 */}
-      <div className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <div className="i-mdi-bell-outline text-2xl text-primary" />
-          <span className="text-xl font-bold text-foreground">通知设置</span>
-        </div>
+      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+        <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <View className="i-mdi-bell-outline text-2xl text-primary" />
+          <Text className="text-xl font-bold text-foreground">通知设置</Text>
+        </View>
         {[
           { label: '订单消息', desc: '支付、发货、退款等通知' },
           { label: '活动推送', desc: '优惠券、限时活动等通知' },
         ].map(item => (
-          <div key={item.label} className="flex items-center justify-between px-4 py-4 border-b border-border last:border-0">
-            <div className="flex flex-col gap-1">
-              <span className="text-xl text-foreground">{item.label}</span>
-              <span className="text-base text-muted-foreground">{item.desc}</span>
-            </div>
-            <div className="w-12 h-7 rounded-full bg-primary flex items-end justify-end" style={{ padding: '2px' }}>
-              <div className="w-6 h-6 rounded-full bg-white" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
-            </div>
-          </div>
+          <View key={item.label} className="flex items-center justify-between px-4 py-4 border-b border-border last:border-0">
+            <View className="flex flex-col gap-1">
+              <Text className="text-xl text-foreground">{item.label}</Text>
+              <Text className="text-base text-muted-foreground">{item.desc}</Text>
+            </View>
+            <View className="w-12 h-7 rounded-full bg-primary flex items-end justify-end" style={{ padding: '2px' }}>
+              <View className="w-6 h-6 rounded-full bg-white" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+            </View>
+          </View>
         ))}
-      </div>
+      </View>
 
       {/* 账号安全 */}
-      <div className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <div className="i-mdi-shield-account text-2xl text-primary" />
-          <span className="text-xl font-bold text-foreground">账号安全</span>
-        </div>
-        <div className="flex items-center justify-between px-4 py-4 border-b border-border"
+      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+        <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <View className="i-mdi-shield-account text-2xl text-primary" />
+          <Text className="text-xl font-bold text-foreground">账号安全</Text>
+        </View>
+        <View className="flex items-center justify-between px-4 py-4 border-b border-border"
           onClick={() => Taro.showToast({ title: '请通过微信修改绑定手机号', icon: 'none' })}>
-          <span className="text-xl text-foreground">修改手机号</span>
-          <div className="i-mdi-chevron-right text-2xl text-muted-foreground" />
-        </div>
-        <div className="flex items-center justify-between px-4 py-4"
+          <Text className="text-xl text-foreground">修改手机号</Text>
+          <View className="i-mdi-chevron-right text-2xl text-muted-foreground" />
+        </View>
+        <View className="flex items-center justify-between px-4 py-4"
           onClick={handleDeleteAccount}>
-          <span className="text-xl text-red-400">注销账号</span>
-          <div className="i-mdi-chevron-right text-2xl text-muted-foreground" />
-        </div>
-      </div>
+          <Text className="text-xl text-red-400">注销账号</Text>
+          <View className="i-mdi-chevron-right text-2xl text-muted-foreground" />
+        </View>
+      </View>
 
       {/* 关于 */}
-      <div className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <div className="i-mdi-information-outline text-2xl text-primary" />
-          <span className="text-xl font-bold text-foreground">关于</span>
-        </div>
+      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+        <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <View className="i-mdi-information-outline text-2xl text-primary" />
+          <Text className="text-xl font-bold text-foreground">关于</Text>
+        </View>
         {[
-          { label: '用户协议', handler: () => Taro.showToast({ title: '请在微信审核后查看', icon: 'none' }) },
-          { label: '隐私政策', handler: () => Taro.showToast({ title: '请在微信审核后查看', icon: 'none' }) },
+          { label: '用户协议', handler: () => Taro.navigateTo({ url: '/pages/user-agreement/index' }) },
+          { label: '隐私政策', handler: () => Taro.navigateTo({ url: '/pages/privacy-policy/index' }) },
           { label: '版本信息', handler: () => Taro.showToast({ title: 'v1.0.0 来店有喜', icon: 'none' }) },
         ].map(item => (
-          <div key={item.label} className="flex items-center justify-between px-4 py-4 border-b border-border last:border-0"
+          <View key={item.label} className="flex items-center justify-between px-4 py-4 border-b border-border last:border-0"
             onClick={item.handler}>
-            <span className="text-xl text-foreground">{item.label}</span>
-            <div className="i-mdi-chevron-right text-2xl text-muted-foreground" />
-          </div>
+            <Text className="text-xl text-foreground">{item.label}</Text>
+            <View className="i-mdi-chevron-right text-2xl text-muted-foreground" />
+          </View>
         ))}
-      </div>
+      </View>
 
       {/* 退出登录 */}
-      <div className="mx-4 mt-4">
-        <button type="button"
+      <View className="mx-4 mt-4">
+        <View
           className="w-full flex items-center justify-center leading-none rounded-2xl border-2 border-red-300 bg-card"
           onClick={handleLogout}>
-          <div className="py-4 text-xl font-bold text-red-400">退出登录</div>
-        </button>
-      </div>
-    </div>
-  )
+          <View className="py-4 text-xl font-bold text-red-400">退出登录</View>
+        </View>
+      </View>
+    </View>
+  </RouteGuard>)
 }
 
-export default withRouteGuard(SettingsPage)
+/* wrapped by RouteGuard - see render */
+export default SettingsPage

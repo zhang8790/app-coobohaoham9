@@ -1,9 +1,10 @@
 // @title 我的优惠券
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
+import { View, Text } from '@tarojs/components'
 import { getMyCoupons } from '@/db/api'
 import type { Coupon } from '@/db/types'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 
 type Tab = 'available' | 'used' | 'expired'
 
@@ -37,87 +38,88 @@ function CouponPage() {
     return `${c.discount_value}折`
   }
 
-  return (
-    <div className="min-h-screen bg-background pb-8">
-      <div className="flex items-center px-4 pt-4 pb-2">
-        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
+  return (<RouteGuard>
+    <View className="min-h-screen bg-background pb-8">
+      <View className="flex items-center px-4 pt-4 pb-2">
+        <View className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
           onClick={() => Taro.navigateBack()}>
-          <div className="i-mdi-arrow-left text-2xl text-foreground" />
-        </button>
-        <span className="flex-1 text-center text-xl font-bold text-foreground pr-10">我的优惠券</span>
-      </div>
+          <View className="i-mdi-arrow-left text-2xl text-foreground" />
+        </View>
+        <Text className="flex-1 text-center text-xl font-bold text-foreground pr-10">我的优惠券</Text>
+      </View>
 
       {/* Tab */}
-      <div className="flex mx-4 mt-4 bg-muted rounded-2xl p-1">
+      <View className="flex mx-4 mt-4 bg-muted rounded-2xl p-1">
         {([['available', '可使用'], ['used', '已使用'], ['expired', '已过期']] as const).map(([key, label]) => (
-          <div key={key}
+          <View key={key}
             className={`flex-1 flex items-center justify-center py-2 rounded-xl text-xl font-bold transition ${tab === key ? 'bg-card text-primary' : 'text-muted-foreground'}`}
             onClick={() => setTab(key)}>
             {label}
-          </div>
+          </View>
         ))}
-      </div>
+      </View>
 
-      <div className="px-4 mt-4">
+      <View className="px-4 mt-4">
         {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="i-mdi-loading text-4xl text-primary animate-spin" />
-          </div>
+          <View className="flex justify-center py-16">
+            <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+          </View>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center py-20 gap-4">
-            <div className="i-mdi-ticket-percent-outline text-7xl text-muted-foreground/30" />
-            <p className="text-xl text-muted-foreground">
+          <View className="flex flex-col items-center py-20 gap-4">
+            <View className="i-mdi-ticket-percent-outline text-7xl text-muted-foreground/30" />
+            <Text className="text-xl text-muted-foreground">
               {tab === 'available' ? '暂无可用优惠券' : tab === 'used' ? '暂无已使用的优惠券' : '暂无已过期的优惠券'}
-            </p>
+            </Text>
             {tab === 'available' && (
-              <button type="button"
+              <View
                 className="flex items-center justify-center leading-none rounded-2xl bg-primary"
                 onClick={() => Taro.switchTab({ url: '/pages/index/index' })}>
-                <div className="py-3 px-8 text-xl font-bold text-white">去逛逛赚券</div>
-              </button>
+                <View className="py-3 px-8 text-xl font-bold text-white">去逛逛赚券</View>
+              </View>
             )}
-          </div>
+          </View>
         ) : (
           filtered.map(c => {
             const isUsed = c.is_used
             const isExpired = c.expired_at ? new Date(c.expired_at) < now : false
             const dim = isUsed || isExpired
             return (
-              <div key={c.id} className={`mb-3 rounded-2xl overflow-hidden border ${dim ? 'border-border opacity-60' : 'border-primary/30'}`}>
-                <div className="flex">
+              <View key={c.id} className={`mb-3 rounded-2xl overflow-hidden border ${dim ? 'border-border opacity-60' : 'border-primary/30'}`}>
+                <View className="flex">
                   {/* 左侧金额 */}
-                  <div className={`w-28 flex flex-col items-center justify-center py-5 flex-shrink-0 ${dim ? 'bg-muted' : 'bg-primary'}`}>
-                    <span className={`text-4xl font-black ${dim ? 'text-muted-foreground' : 'text-white'}`}>{discountText(c)}</span>
+                  <View className={`w-28 flex flex-col items-center justify-center py-5 flex-shrink-0 ${dim ? 'bg-muted' : 'bg-primary'}`}>
+                    <Text className={`text-4xl font-black ${dim ? 'text-muted-foreground' : 'text-white'}`}>{discountText(c)}</Text>
                     {c.min_amount > 0 && (
-                      <span className={`text-base mt-1 ${dim ? 'text-muted-foreground' : 'text-white/80'}`}>满{c.min_amount}可用</span>
+                      <Text className={`text-base mt-1 ${dim ? 'text-muted-foreground' : 'text-white/80'}`}>满{c.min_amount}可用</Text>
                     )}
-                  </div>
+                  </View>
                   {/* 右侧信息 */}
-                  <div className="flex-1 px-4 py-4 bg-card flex flex-col justify-between">
-                    <p className="text-xl font-bold text-foreground line-clamp-1">{c.title}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-base text-muted-foreground">{formatExpire(c.expired_at)}</span>
+                  <View className="flex-1 px-4 py-4 bg-card flex flex-col justify-between">
+                    <Text className="text-xl font-bold text-foreground line-clamp-1">{c.title}</Text>
+                    <View className="flex items-center justify-between mt-2">
+                      <Text className="text-base text-muted-foreground">{formatExpire(c.expired_at)}</Text>
                       {!dim && (
-                        <button type="button"
+                        <View
                           className="flex items-center justify-center leading-none rounded-xl bg-primary/10"
                           onClick={() => Taro.switchTab({ url: '/pages/index/index' })}>
-                          <div className="py-1 px-3 text-xl text-primary font-bold">去使用</div>
-                        </button>
+                          <View className="py-1 px-3 text-xl text-primary font-bold">去使用</View>
+                        </View>
                       )}
-                      {isUsed && <span className="text-xl text-muted-foreground font-bold">已使用</span>}
-                      {isExpired && !isUsed && <span className="text-xl text-muted-foreground font-bold">已过期</span>}
-                    </div>
-                  </div>
-                </div>
+                      {isUsed && <Text className="text-xl text-muted-foreground font-bold">已使用</Text>}
+                      {isExpired && !isUsed && <Text className="text-xl text-muted-foreground font-bold">已过期</Text>}
+                    </View>
+                  </View>
+                </View>
                 {/* 锯齿分隔线 */}
-                <div className="h-px" style={{ background: 'repeating-linear-gradient(90deg, var(--border) 0 8px, transparent 8px 12px)' }} />
-              </div>
+                <View className="h-px" style={{ background: 'repeating-linear-gradient(90deg, var(--border) 0 8px, transparent 8px 12px)' }} />
+              </View>
             )
           })
         )}
-      </div>
-    </div>
-  )
+      </View>
+    </View>
+  </RouteGuard>)
 }
 
-export default withRouteGuard(CouponPage)
+/* wrapped by RouteGuard - see render */
+export default CouponPage

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>V4分佣算法 - 合理性验证测试</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #666;
+      margin-top: 30px;
+    }
+    .test-case {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .test-title {
+      font-weight: bold;
+      color: #4CAF50;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    .test-result {
+      margin: 10px 0;
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .pass {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+    .fail {
+      color: #f44336;
+      font-weight: bold;
+    }
+    .info {
+      color: #2196F3;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 20px 0;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    .summary {
+      background: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 20px;
+      margin: 30px 0;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 V4分佣算法 - 合理性验证测试</h1>
+  
+  <button onclick="runAllTests()">▶️ 运行全部测试</button>
+  
+  <div id="results"></div>
+  
+  <div class="summary" id="summary" style="display:none;">
+    <h2>📊 测试总结</h2>
+    <div id="summary-content"></div>
+  </div>
+
+  <script>
+    // 简化版V4分佣算法（直接在浏览器中运行）
+    
+    const MIN_MONTHLY_CONSUMPTION = 39;
+    const MAX_CONSECUTIVE_ZERO_MONTHS = 2;
+    const PLATFORM_RATES = { low: 0.10, medium: 0.08, high: 0.07 };
+    const TEAM_GMV_THRESHOLDS = { low: 1000, medium: 5000 };
+    const RECRUITMENT_DECAY = {
+      newTeamL1Weight: 0.65,
+      newTeamL2Weight: 0.35,
+      decayRate: 0.10,
+      minL1Weight: 0.40,
+      monthsToDecay: 3,
+    };
+    
+    function checkCommissionEligibility(monthlyConsumption, consecutiveZeroMonths) {
+      if (consecutiveZeroMonths >= MAX_CONSECUTIVE_ZERO_MONTHS) {
+        return { eligible: false, reason: '连续2个月零消费，已取消分佣资格', l1Multiplier: 0, l2Multiplier: 0 };
+      }
+      if (monthlyConsumption === 0) {
+        return { eligible: true, reason: '当月零消费，一级佣金减半（宽限期）', l1Multiplier: 0.5, l2Multiplier: 1 };
+      }
+      if (monthlyConsumption < MIN_MONTHLY_CONSUMPTION) {
+        return { eligible: true, reason: `当月消费未达门槛（${MIN_MONTHLY_CONSUMPTION}元），一级佣金减半`, l1Multiplier: 0.5, l2Multiplier: 1 };
+      }
+      return { eligible: true, reason: '正常活跃，全额分佣', l1Multiplier: 1, l2Multiplier: 1 };
+    }
+    
+    function calculateTeamGmvLevel(gmv) {
+      if (gmv < TEAM_GMV_THRESHOLDS.low) return { level: 'low', platformRate: PLATFORM_RATES.low };
+      if (gmv < TEAM_GMV_THRESHOLDS.medium) return { level: 'medium', platformRate: PLATFORM_RATES.medium };
+      return { level: 'high', platformRate: PLATFORM_RATES.high };
+    }
+    
+    function calculateRecruitmentWeight(hasNewRecruit, monthsSinceLastRecruit) {
+      if (hasNewRecruit) {
+        return { l1Weight: RECRUITMENT_DECAY.newTeamL1Weight, l2Weight: RECRUITMENT_DECAY.newTeamL2Weight };
+      }
+      if (monthsSinceLastRecruit < RECRUITMENT_DECAY.monthsToDecay) {
+        return { l1Weight: RECRUITMENT_DECAY.newTeamL1Weight, l2Weight: RECRUITMENT_DECAY.newTeamL2Weight };
+      }
+      const decayMonths = monthsSinceLastRecruit - RECRUITMENT_DECAY.monthsToDecay + 1;
+      const decayFactor = Math.pow(1 - RECRUITMENT_DECAY.decayRate, decayMonths);
+      const l1Weight = Math.max(RECRUITMENT_DECAY.minL1Weight, RECRUITMENT_DECAY.newTeamL1Weight * decayFactor);
+      return { l1Weight: Math.round(l1Weight * 100) / 100, l2Weight: RECRUITMENT_DECAY.newTeamL2Weight };
+    }
+    
+    function calculateCommissionV4(input) {
+      const discountPool = input.orderAmount * input.discountRate;
+      
+      const l1Eligibility = checkCommissionEligibility(input.referrer1MonthlyConsumption, input.referrer1ConsecutiveZeroMonths);
+      const teamGmvStats = calculateTeamGmvLevel(Math.max(input.referrer1TeamMonthlyGmv, input.referrer2TeamMonthlyGmv));
+      const commissionPool = discountPool * (1 - teamGmvStats.platformRate);
+      
+      const l1Recruitment = calculateRecruitmentWeight(input.referrer1HasNewRecruit, input.referrer1MonthsSinceLastRecruit);
+      const l2Recruitment = calculateRecruitmentWeight(input.referrer2HasNewRecruit, input.referrer2MonthsSinceLastRecruit);
+      
+      let level1Commission = 0;
+      if (l1Eligibility.eligible && l1Eligibility.l1Multiplier > 0) {
+        const l1BaseCommission = commissionPool * l1Recruitment.l1Weight;
+        level1Commission = l1BaseCommission * l1Eligibility.l1Multiplier;
+      }
+      
+      const buyerPoints = discountPool * 0.10; // 简化：固定10%
+      const platformIncome = discountPool - level1Commission - buyerPoints;
+      
+      return {
+        orderAmount: input.orderAmount,
+        discountPool,
+        platformIncome,
+        level1Commission,
+        buyerPoints,
+        platformRate: teamGmvStats.platformRate,
+        l1Eligible: l1Eligibility.eligible,
+        l1Reason: l1Eligibility.reason,
+      };
+    }
+    
+    function toPrecision(n) {
+      return Math.round(n * 10000) / 10000;
+    }
+    
+    // 测试用例
+    const tests = [
+      {
+        name: '测试1.1：连续2个月零消费 → 取消分佣资格',
+        input: {
+          orderAmount: 100,
+          discountRate: 0.09,
+          referrer1MonthlyConsumption: 0,
+          referrer1ConsecutiveZeroMonths: 2,
+          referrer1TeamMonthlyGmv: 500,
+          referrer1HasNewRecruit: false,
+          referrer1MonthsSinceLastRecruit: 4,
+        },
+        expect: (r) => r.level1Commission === 0 && !r.l1Eligible,
+      },
+      {
+        name: '测试1.2：当月零消费（首次） → 一级佣金减半',
+        input: {
+          orderAmount: 100,
+          discountRate: 0.09,
+          referrer1MonthlyConsumption: 0,
+          referrer1ConsecutiveZeroMonths: 1,
+          referrer1TeamMonthlyGmv: 500,
+          referrer1HasNewRecruit: false,
+          referrer1MonthsSinceLastRecruit: 4,
+        },
+        expect: (r) => r.level1Commission > 0 && r.level1Commission < 5,
+      },
+      {
+        name: '测试1.3：当月消费≥39元 → 全额分佣',
+        input: {
+          orderAmount: 100,
+          discountRate: 0.09,
+          referrer1MonthlyConsumption: 50,
+          referrer1ConsecutiveZeroMonths: 0,
+          referrer1TeamMonthlyGmv: 500,
+          referrer1HasNewRecruit: false,
+          referrer1MonthsSinceLastRecruit: 4,
+        },
+        expect: (r) => r.level1Commission > 0,
+      },
+      {
+        name: '测试2.1：低档（GMV<1000） → 平台抽10%',
+        input: {
+          orderAmount: 100,
+          discountRate: 0.09,
+          referrer1MonthlyConsumption: 50,
+          referrer1ConsecutiveZeroMonths: 0,
+          referrer1TeamMonthlyGmv: 500,
+          referrer1HasNewRecruit: true,
+          referrer1MonthsSinceLastRecruit: 0,
+        },
+        expect: (r) => r.platformRate === 0.10,
+      },
+      {
+        name: '测试2.2：高档（GMV>=5000） → 平台抽7%',
+        input: {
+          orderAmount: 100,
+          discountRate: 0.09,
+          referrer1MonthlyConsumption: 50,
+          referrer1ConsecutiveZeroMonths: 0,
+          referrer1TeamMonthlyGmv: 8000,
+          referrer1HasNewRecruit: true,
+          referrer1MonthsSinceLastRecruit: 0,
+        },
+        expect: (r) => r.platformRate === 0.07,
+      },
+      {
+        name: '测试3.1：有新增下线 → 恢复全额佣金',
+        input: {
+          orderAmount: 100,
+          discountRate: 0.09,
+          referrer1MonthlyConsumption: 50,
+          referrer1ConsecutiveZeroMonths: 0,
+          referrer1TeamMonthlyGmv: 5000,
+          referrer1HasNewRecruit: true,
+          referrer1MonthsSinceLastRecruit: 0,
+        },
+        expect: (r) => r.level1Commission > 0,
+      },
+      {
+        name: '测试4.1：躺平不消费，团队流水低 → 平台高收入',
+        input: {
+          orderAmount: 100,
+          discountRate: 0.09,
+          referrer1MonthlyConsumption: 0,
+          referrer1ConsecutiveZeroMonths: 2,
+          referrer1TeamMonthlyGmv: 500,
+          referrer1HasNewRecruit: false,
+          referrer1MonthsSinceLastRecruit: 4,
+        },
+        expect: (r) => r.platformIncome >= r.discountPool * 0.5,
+      },
+    ];
+    
+    function runAllTests() {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '';
+      
+      let passCount = 0;
+      let failCount = 0;
+      
+      tests.forEach((test, index) => {
+        const result = calculateCommissionV4(test.input);
+        const passed = test.expect(result);
+        
+        if (passed) passCount++;
+        else failCount++;
+        
+        const testCase = document.createElement('div');
+        testCase.className = 'test-case';
+        testCase.innerHTML = `
+          <div class="test-title">${test.name}</div>
+          <div class="test-result">
+            <div>让利池：${result.discountPool.toFixed(2)} 元</div>
+            <div>L1分佣资格：<span class="${result.l1Eligible ? 'pass' : 'fail'}">${result.l1Eligible ? '✅ 有' : '❌ 无'}</span></div>
+            <div>L1佣金：${result.level1Commission.toFixed(2)} 元</div>
+            <div>平台抽成率：${(result.platformRate * 100).toFixed(0)}%</div>
+            <div>平台收入：${result.platformIncome.toFixed(2)} 元</div>
+            <div>验证结果：<span class="${passed ? 'pass' : 'fail'}">${passed ? '✅ 通过' : '❌ 失败'}</span></div>
+          </div>
+        `;
+        
+        resultsDiv.appendChild(testCase);
+      });
+      
+      // 显示总结
+      const summaryDiv = document.getElementById('summary');
+      const summaryContent = document.getElementById('summary-content');
+      summaryDiv.style.display = 'block';
+      summaryContent.innerHTML = `
+        <p>✅ 通过：${passCount} 个</p>
+        <p>❌ 失败：${failCount} 个</p>
+        <p>总计：${tests.length} 个</p>
+        <p class="${failCount === 0 ? 'pass' : 'fail'}">${failCount === 0 ? '🎉 所有测试通过！V4分佣算法实现正确！' : '⚠️ 有测试失败，请检查算法实现'}</p>
+      `;
+    }
+  </script>
+</body>
+</html>

@@ -19,6 +19,16 @@ export interface Profile {
   balance: number
   coupons_count: number
   merchant_status: MerchantStatus
+  referral_code: string | null
+  referrer_id: string | null
+  total_consumption: number | null  // 个人累计消费金额（用于计算段位）
+  team_performance: number | null   // 团队业绩（直接下线消费 + 间接下线消费×0.5）
+  // V4分佣算法字段
+  monthly_consumption: number | null      // 当月个人消费金额
+  consecutive_zero_months: number | null  // 连续零消费月数
+  team_monthly_gmv: number | null         // 团队月度GMV
+  has_new_recruit: boolean | null         // 当月是否有新增下线
+  months_since_last_recruit: number | null // 距离上次拓新月数
   created_at: string
 }
 
@@ -34,8 +44,8 @@ export interface Store {
   banner_url: string | null
   rating: number
   is_active: boolean
-  created_at: string
   short_code: string | null
+  created_at: string
 }
 
 export interface StoreCategory {
@@ -54,11 +64,21 @@ export interface Product {
   price: number
   original_price: number | null
   image_url: string | null
+  // 新增：主图/副图/详情图/视频
+  main_image: string | null
+  sub_images: string[] | null
+  detail_images: string[] | null
+  video_url: string | null
+  // 新增：成本价（用于计算毛利和让利）
+  cost_price: number | null
+  // 新增：商品让利% (0~100)
+  discount_rate: number | null
   stock: number
   barcode: string | null
   mood_tags: string[]
   scene_tags: string[]
   is_active: boolean
+  review_status: 'pending' | 'approved' | 'rejected'
   created_at: string
   // joined
   stores?: Store
@@ -86,6 +106,11 @@ export interface Order {
   payment_method: PaymentMethod | null
   pay_expired_at: string | null
   paid_at: string | null
+  gold_beans_used: number
+  referrer_id: string | null
+  commission_distributed: boolean
+  service_type: 'dine_in' | 'self_pickup' | 'delivery'
+  refunded_amount: number
   created_at: string
   // joined
   order_items?: OrderItem[]
@@ -126,7 +151,7 @@ export interface Refund {
   created_at: string
   updated_at: string
 }
-export type PointsLogType = 'purchase_earn' | 'invite_earn' | 'checkin_earn' | 'ugc_earn' | 'redeem_spend' | 'pay_spend' | 'lottery_spend' | 'refund_deduct'
+export type PointsLogType = 'purchase_earn' | 'invite_earn' | 'checkin_earn' | 'ugc_earn' | 'redeem_spend' | 'pay_spend' | 'refund_deduct'
 export type PayMode = 'pure_gold' | 'hybrid' | 'wxpay'
 export type CommissionStatus = 'pending' | 'settled' | 'refunded'
 

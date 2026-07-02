@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { getMyCommissions } from '@/db/api'
 import type { Commission } from '@/db/types'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 
 type Tab = 'all' | 'pending' | 'settled'
 
@@ -31,7 +31,7 @@ function CommissionDetailPage() {
   const totalPending = items.filter(c => c.status === 'pending').reduce((s, c) => s + Number(c.commission_amount), 0)
   const totalSettled = items.filter(c => c.status === 'settled').reduce((s, c) => s + Number(c.commission_amount), 0)
 
-  return (
+  return (<RouteGuard>
     <div className="min-h-screen bg-background pb-8">
       <div className="flex items-center px-4 pt-4 pb-2">
         <button type="button" className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
@@ -113,7 +113,8 @@ function CommissionDetailPage() {
         )}
       </div>
     </div>
-  )
+  </RouteGuard>)
 }
 
-export default withRouteGuard(CommissionDetailPage)
+/* wrapped by RouteGuard - see render */
+export default CommissionDetailPage

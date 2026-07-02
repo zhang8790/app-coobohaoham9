@@ -1,7 +1,7 @@
 // @title 商品详情
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
-import { Image } from '@tarojs/components'
+import { Image, Button, Swiper, SwiperItem, Video } from '@tarojs/components'
 import { getProductById, addToCart, getCartCount, isFavorited, toggleFavorite, recordFootprint } from '@/db/api'
 import { updateCartBadge } from '@/utils/cartBadge'
 import type { Product } from '@/db/types'
@@ -21,6 +21,21 @@ export default function ProductPage() {
   const [myCode, setMyCode] = useState('')
   const [isFav, setIsFav] = useState(false)
   const [favLoading, setFavLoading] = useState(false)
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
+
+  // 构建媒体列表：主图 + 副图 + 视频（视频放最后）
+  const mediaList = useMemo(() => {
+    if (!product) return []
+    const list: { type: 'image'; url: string }[] = []
+    const main = product.main_image || product.image_url
+    if (main) list.push({ type: 'image', url: main })
+    ;(product.sub_images || []).forEach(url => {
+      if (url && !list.some(m => m.url === url)) list.push({ type: 'image', url })
+    })
+    return list
+  }, [product])
+
+  const videoUrl = useMemo(() => product?.video_url || '', [product])
 
   const load = useCallback(async () => {
     if (!id) return
@@ -47,12 +62,16 @@ export default function ProductPage() {
   useDidShow(() => { refreshCart() })
 
   // 商品分享携带推广码，好友扫码→锁定为下线
+  const shareImage = product?.main_image || product?.image_url || ''
   useShareAppMessage(() => ({
-    title: product ? `${product.name} · 来店有喜江湖好物` : '来店有喜 · 武侠生活平台',
+    title: product ? `【来店有喜】${product.name}，品质好物推荐！` : '来店有喜 · 武侠生活平台',
     path: `/pages/product/index?id=${encodeURIComponent(id)}${myCode ? `&ref=${myCode}` : ''}`,
+    imageUrl: shareImage,
   }))
   useShareTimeline(() => ({
-    title: product ? `${product.name} · 来店有喜` : '来店有喜',
+    title: product ? `【来店有喜】${product.name}` : '来店有喜',
+    query: `id=${encodeURIComponent(id)}${myCode ? `&ref=${myCode}` : ''}`,
+    imageUrl: shareImage,
   }))
 
   const requireLogin = () => {
@@ -101,16 +120,54 @@ export default function ProductPage() {
 
   return (
     <div className="min-h-screen bg-background pb-28">
-      {/* 商品图 + 顶部返回 + 购物车角标 */}
+      {/* 商品媒体轮播 + 顶部返回 + 购物车角标 */}
       <div className="relative">
-        <Image src={product.image_url || ''} mode="aspectFill" className="w-full" style={{ height: '280px', display: 'block' }} />
+        {/* 主图 + 副图轮播 */}
+        {mediaList.length > 0 && (
+          <Swiper
+            current={currentMediaIndex}
+            onChange={e => setCurrentMediaIndex(e.detail.current)}
+            className="w-full"
+            style={{ height: '280px' }}
+            indicatorDots={mediaList.length > 1}
+            indicatorColor="rgba(255,255,255,0.4)"
+            indicatorActiveColor="#ffffff"
+            circular={mediaList.length > 1}
+            autoplay={mediaList.length > 1}
+          >
+            {mediaList.map((m, i) => (
+              <SwiperItem key={i}>
+                <Image src={m.url} mode="aspectFill" className="w-full h-full" style={{ display: 'block' }} />
+              </SwiperItem>
+            ))}
+          </Swiper>
+        )}
+
+        {/* 媒体计数指示 */}
+        {mediaList.length > 1 && (
+          <div className="absolute bottom-3 right-4 px-2 py-0.5 rounded-full bg-black/50 text-white text-xs">
+            {currentMediaIndex + 1}/{mediaList.length}
+          </div>
+        )}
+
+        {/* 有视频标识 */}
+        {videoUrl && (
+          <div className="absolute bottom-3 left-4 px-2 py-0.5 rounded-full bg-red-500/80 text-white text-xs flex items-center gap-1">
+            <div className="i-mdi-video text-sm" />
+            <span>含视频</span>
+          </div>
+        )}
+
+        {/* 顶部返回按钮 */}
         <button type="button"
-          className="absolute top-3 left-4 w-10 h-10 rounded-full bg-black/40 flex items-center justify-center"
+          className="absolute top-3 left-4 w-10 h-10 rounded-full bg-black/40 flex items-center justify-center z-10"
           onClick={() => Taro.navigateBack()}>
           <div className="i-mdi-arrow-left text-2xl text-white" />
         </button>
+
+        {/* 购物车角标 */}
         {cartCount > 0 && (
-          <div className="absolute top-3 right-4" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
+          <div className="absolute top-3 right-4 z-10" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
             <div className="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center">
               <div className="i-mdi-shopping-outline text-2xl text-white" />
             </div>
@@ -121,8 +178,48 @@ export default function ProductPage() {
         )}
       </div>
 
+      {/* 视频播放区域 */}
+      {videoUrl && (
+        <div className="mx-4 mt-3 rounded-2xl overflow-hidden bg-black">
+          <Video
+            src={videoUrl}
+            className="w-full"
+            style={{ height: '200px' }}
+            controls
+            showCenterPlayBtn
+            enableProgressGesture
+            objectFit="contain"
+          />
+        </div>
+      )}
+
+      {/* 详情图片展示 */}
+      {product.detail_images && product.detail_images.length > 0 && (
+        <div className="mx-4 mt-3">
+          <p className="text-xl font-bold text-foreground mb-2">商品详情</p>
+          <div className="flex flex-col gap-3">
+            {product.detail_images.map((img, i) => (
+              <Image
+                key={i}
+                src={img}
+                mode="widthFix"
+                className="w-full rounded-2xl"
+                style={{ display: 'block' }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 价格信息卡 */}
       <div className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
+        {/* 分享赚佣提示 */}
+        {myCode && (
+          <div className="mb-3 py-2 px-3 rounded-xl bg-primary/10 flex items-center gap-2">
+            <div className="i-mdi-share-variant text-xl text-primary" />
+            <span className="text-xl text-primary font-bold">分享此商品，好友购买你可获佣金</span>
+          </div>
+        )}
         <div className="flex items-center gap-3">
           <span className="text-3xl font-bold text-primary">¥{product.price}</span>
           {product.original_price && (
@@ -131,6 +228,12 @@ export default function ProductPage() {
           {product.original_price && (
             <span className="px-2 py-0.5 rounded-full bg-primary/10 text-xl font-bold text-primary">
               省¥{(product.original_price - product.price).toFixed(2)}
+            </span>
+          )}
+          {/* 让利标签 */}
+          {product.discount_rate != null && product.discount_rate > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-purple-100 text-base font-bold text-purple-700">
+              立减{product.discount_rate}%
             </span>
           )}
         </div>
@@ -180,6 +283,12 @@ export default function ProductPage() {
             ? <div className="i-mdi-loading text-2xl text-primary animate-spin" />
             : <div className={`text-2xl ${isFav ? 'i-mdi-heart text-red-400' : 'i-mdi-heart-outline text-foreground'}`} />}
         </div>
+        {/* 分享按钮 */}
+        <Button openType="share"
+          className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
+          style={{ background: '#f5f5f5', border: '2px solid #e5e5e5', padding: 0 }}>
+          <div className="i-mdi-share-variant text-2xl text-foreground" />
+        </Button>
         <button type="button"
           className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-primary bg-card"
           onClick={handleAddCart}>

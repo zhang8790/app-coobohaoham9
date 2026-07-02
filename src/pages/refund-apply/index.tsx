@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { getOrderById, applyRefund } from '@/db/api'
-import { withRouteGuard } from '@/components/RouteGuard'
+import { RouteGuard } from '@/components/RouteGuard'
 import type { Order } from '@/db/types'
 
 const REASONS = [
@@ -87,7 +87,7 @@ function RefundApplyPage() {
     </div>
   )
 
-  return (
+  return (<RouteGuard>
     <div className="min-h-screen bg-background pb-36">
       {/* 退款金额 */}
       <div className="mx-4 mt-6 p-5 rounded-2xl bg-card border-2 border-primary/20 flex flex-col items-center gap-2">
@@ -189,7 +189,8 @@ function RefundApplyPage() {
         </button>
       </div>
     </div>
-  )
+  </RouteGuard>)
 }
 
-export default withRouteGuard(RefundApplyPage)
+/* wrapped by RouteGuard - see render */
+export default RefundApplyPage
