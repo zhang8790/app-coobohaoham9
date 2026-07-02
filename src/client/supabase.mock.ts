@@ -351,6 +351,19 @@ class MockQueryBuilder {
 
     data = this.applyFilters(data)
 
+    // ═══ 关联数据填充（模拟 Supabase JOIN） ═══
+    // cart_items 需要关联 products、stores 数据（购物车页面依赖 i.products?.price 等）
+    if (this.table === 'cart_items' && Array.isArray(data)) {
+      const products = store.products || []
+      const stores = store.stores || []
+      data = (data as any[]).map((item: any) => ({
+        ...item,
+        products: products.find((p: any) => p.id === item.product_id) || null,
+        stores: stores.find((s: any) => s.id === item.store_id) || null,
+      }))
+      console.log('[Mock] cart_items 已关联 products/stores, 共', data.length, '条')
+    }
+
     // 排序
     if (this.sorts.length > 0) {
       data.sort((a: any, b: any) => {
