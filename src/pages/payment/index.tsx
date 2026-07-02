@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Input, Button } from '@tarojs/components'
 import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile } from '@/db/api'
+import { supabase } from '@/client/supabase'
 import { RouteGuard } from '@/components/RouteGuard'
 import type { PayMode } from '@/db/types'
 import { calculateCommissionV4, getRankByDynamicScore, RANK_TABLE } from '@/utils/commission-calculator-v4'
@@ -30,6 +31,8 @@ function PaymentPage() {
   const [orderNo, setOrderNo] = useState('')
   const [items, setItems] = useState<any[]>([])
   const [totalAmount, setTotalAmount] = useState(totalParam)
+  const [isMultiStore, setIsMultiStore] = useState(false)
+  const [parentOrderNo, setParentOrderNo] = useState<string | null>(null)
   const [userTotalConsumption, setUserTotalConsumption] = useState(0) // 用户个人累计消费
   const [userTeamPerformance, setUserTeamPerformance] = useState(0)   // 用户团队业绩（新增）
 
@@ -149,6 +152,25 @@ function PaymentPage() {
     return null
   }
 
+  // 跨门店订单：支付成功后确认所有子订单
+  const confirmMultiStoreOrders = async (parentOrderNo: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'pending_ship', paid_at: new Date().toISOString() })
+        .eq('parent_order_no', parentOrderNo)
+        .eq('status', 'pending_pay')
+      
+      if (error) {
+        console.error('[跨门店支付] 确认子订单失败', error)
+      } else {
+        console.log('[跨门店支付] 所有子订单已确认')
+      }
+    } catch (err) {
+      console.error('[跨门店支付] 确认子订单异常', err)
+    }
+  }
+
   const handlePay = async () => {
     if (_payLock.current) { Taro.showToast({ title: '支付处理中，请稍候', icon: 'none' }); return }
     _payLock.current = true
@@ -168,10 +190,21 @@ function PaymentPage() {
       if (!orderResult) throw new Error('创建订单失败，请重试')
       setOrderNo(orderResult.order.order_no)
       _pendingOrderNo.current = orderResult.order.order_no
+      
+      // 跨门店结算：记录父订单号
+      if (orderResult.is_multi_store) {
+        setIsMultiStore(true)
+        setParentOrderNo(orderResult.order.parent_order_no)
+      }
 
       // 2. 纯金豆：已在服务端完成，直接跳转
       if (payMode === 'pure_gold') {
       Taro.showToast({ title: '金豆支付成功！', icon: 'success' })
+      
+      // 跨门店结算：确认所有子订单（纯金豆已在服务端完成，这里只是保险）
+      if (isMultiStore && parentOrderNo) {
+        await confirmMultiStoreOrders(parentOrderNo)
+      }
       
       // V4算法：更新用户消费数据（用于段位判定）
       try {
@@ -209,6 +242,11 @@ function PaymentPage() {
       })
 
       Taro.showToast({ title: '支付成功！', icon: 'success' })
+      
+      // 跨门店结算：确认所有子订单
+      if (isMultiStore && parentOrderNo) {
+        await confirmMultiStoreOrders(parentOrderNo)
+      }
       
       // V4算法：更新用户消费数据（用于段位判定）
       try {

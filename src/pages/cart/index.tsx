@@ -71,16 +71,21 @@ function CartPage() {
     }})
   }
 
-  // 按门店结算：只结算该门店已选商品
-  const goCheckoutStore = (storeId: string) => {
-    const selectedStoreItems = items.filter(i => i.store_id === storeId && i.selected)
-    if (selectedStoreItems.length === 0) {
+  // 统一结算：结算所有已选商品（跨门店）
+  const goCheckoutAll = () => {
+    const selectedItems = items.filter(i => i.selected)
+    if (selectedItems.length === 0) {
       Taro.showToast({ title: '请先勾选商品', icon: 'none' }); return
     }
-    const total = selectedStoreItems.reduce((s, i) => s + (i.products?.price || 0) * i.quantity, 0)
-    const ids = selectedStoreItems.map(i => i.id).join(',')
+    const total = selectedItems.reduce((s, i) => s + (i.products?.price || 0) * i.quantity, 0)
+    const ids = selectedItems.map(i => i.id).join(',')
     Taro.navigateTo({ url: `/pages/payment/index?cartIds=${encodeURIComponent(ids)}&total=${total.toFixed(2)}` })
   }
+
+  // 计算已选商品的总金额和数量
+  const selectedItems = items.filter(i => i.selected)
+  const selectedTotal = selectedItems.reduce((s, i) => s + (i.products?.price || 0) * i.quantity, 0)
+  const selectedCount = selectedItems.reduce((s, i) => s + i.quantity, 0)
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
@@ -174,32 +179,42 @@ function CartPage() {
                     </View>
                   ))}
 
-                  {/* 门店结算栏 */}
-                  <View className="flex items-center px-4 py-3 bg-background border-t border-border gap-3">
-                    <View className="flex-1">
-                      {selectedStoreItems.length > 0 ? (
-                        <Text className="text-xl text-foreground">
-                          已选 <Text className="font-bold text-primary">{selectedStoreItems.length}</Text> 件 · 小计
-                          <Text className="text-2xl font-bold text-primary ml-1">¥{storeTotal.toFixed(2)}</Text>
-                        </Text>
-                      ) : (
-                        <Text className="text-xl text-muted-foreground">勾选商品后结算</Text>
-                      )}
+                  {/* 门店小计（仅展示，不提供结算按钮） */}
+                  {selectedStoreItems.length > 0 && (
+                    <View className="flex items-center px-4 py-2 bg-primary/5">
+                      <Text className="text-base text-muted-foreground">
+                        {group.storeName} 小计：<Text className="font-bold text-primary">¥{storeTotal.toFixed(2)}</Text>
+                      </Text>
                     </View>
-                    <View
-                      className={`flex items-center justify-center leading-none rounded-2xl ${selectedStoreItems.length === 0 ? 'bg-primary/40' : 'bg-primary'}`}
-                      onClick={() => goCheckoutStore(storeId)}>
-                      <View className="py-3 px-5 text-xl text-white font-bold">
-                        结算({selectedStoreItems.length})
-                      </View>
-                    </View>
-                  </View>
+                  )}
                 </View>
               )
             })}
           </View>
         )}
       </View>
+
+      {/* 底部统一结算栏 */}
+      {items.length > 0 && (
+        <View className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-card border-t-2 border-primary shadow-lg">
+          <View className="flex-1">
+            <Text className="text-xl text-foreground">
+              已选 <Text className="font-bold text-primary">{selectedCount}</Text> 件
+            </Text>
+            <View className="flex items-center mt-1">
+              <Text className="text-base text-muted-foreground">合计：</Text>
+              <Text className="text-2xl font-bold text-primary">¥{selectedTotal.toFixed(2)}</Text>
+            </View>
+          </View>
+          <View
+            className={`flex items-center justify-center leading-none rounded-2xl ${selectedItems.length === 0 ? 'bg-primary/40' : 'bg-primary'}`}
+            onClick={goCheckoutAll}>
+            <View className="py-3 px-6 text-xl text-white font-bold">
+              去结算
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   </RouteGuard>)
 }
