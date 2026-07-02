@@ -19,6 +19,77 @@ export async function updateProfile(updates: Partial<Pick<Profile, 'nickname' | 
   await supabase.from('profiles').update(updates).eq('id', uid)
 }
 
+// 注销账号：删除用户相关数据并退出登录
+export async function deleteUserAccount(): Promise<boolean> {
+  const uid = (await supabase.auth.getUser()).data.user?.id
+  if (!uid) return false
+  try {
+    // 删除用户相关数据（按顺序，避免外键约束报错）
+    await supabase.from('cart_items').delete().eq('user_id', uid)
+    await supabase.from('user_addresses').delete().eq('user_id', uid)
+    await supabase.from('favorites').delete().eq('user_id', uid)
+    await supabase.from('footprints').delete().eq('user_id', uid)
+    await supabase.from('orders').delete().eq('user_id', uid)
+    // 删除 profile（最后删，因为其他表可能引用）
+    await supabase.from('profiles').delete().eq('id', uid)
+    // 退出登录
+    await supabase.auth.signOut()
+    return true
+  } catch (e) {
+    console.error('删除账号失败', e)
+    return false
+  }
+}
+
+// =====================
+// Referrals（推荐关系）
+// =====================
+
+// 获取我的推广码
+export async function ensureReferralCode(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data: profile } = await supabase.from('profiles').select('referral_code').eq('id', user.id).maybeSingle()
+  return profile?.referral_code || null
+}
+
+// 获取我的推荐列表
+export async function getMyReferrals(): Promise<{
+  level_1: Profile[]
+  level_2: Profile[]
+  level_1_count: number
+  level_2_count: number
+}> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { level_1: [], level_2: [], level_1_count: 0, level_2_count: 0 }
+
+  // 一级推荐（直接推荐人是我）
+  const { data: level_1 } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('referrer_id', user.id)
+    .order('created_at', { ascending: false })
+
+  // 二级推荐（一级推荐人的推荐人）
+  const l1Ids = (level_1 || []).map(p => p.id)
+  let level_2: any[] = []
+  if (l1Ids.length > 0) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('referrer_id', l1Ids)
+      .order('created_at', { ascending: false })
+    level_2 = data || []
+  }
+
+  return {
+    level_1: level_1 || [],
+    level_2,
+    level_1_count: level_1?.length || 0,
+    level_2_count: level_2.length,
+  }
+}
+
 // =====================
 // Stores
 // =====================
@@ -250,7 +321,10 @@ export async function deleteArticle(id: string): Promise<void> {
 // Merchant Applications
 // =====================
 export async function getMyMerchantApplication(): Promise<MerchantApplication | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
   const { data } = await supabase.from('merchant_applications').select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false }).limit(1).maybeSingle()
   return data
 }
@@ -259,7 +333,10 @@ export async function submitMerchantApplication(info: {
   store_name: string, contact_name: string, contact_phone: string,
   business_type: string, description?: string
 }): Promise<void> {
-  await supabase.from('merchant_applications').insert(info)
+  await supabase.from('merchant_applications').insert({
+    ...info,
+    status: 'pending'  // 显式设置状态为待审核
+  })
 }
 
 // =====================
@@ -367,7 +444,11 @@ export async function generateQrcode(params:
 // 商家管理：商品 CRUD
 // =====================
 export async function getMerchantStore(): Promise<import('./types').Store | null> {
-  const { data } = await supabase.from('stores').select('*').maybeSingle()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  // 通过 owner_id 过滤，确保只返回当前商家自己拥有的门店
+  const { data } = await supabase.from('stores').select('*')
+    .eq('owner_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
   return data ?? null
 }
 
@@ -387,9 +468,21 @@ export async function createProduct(params: {
   store_id: string; category_id?: string; name: string; description?: string
   price: number; original_price?: number; image_url?: string; stock: number
   barcode?: string; mood_tags?: string[]; scene_tags?: string[]
+  // 新增字段
+  main_image?: string; sub_images?: string[]; detail_images?: string[]
+  video_url?: string; cost_price?: number; discount_rate?: number
 }): Promise<import('./types').Product | null> {
   const { data, error } = await supabase.from('products').insert({
-    ...params, mood_tags: params.mood_tags ?? [], scene_tags: params.scene_tags ?? [], is_active: true,
+    ...params,
+    mood_tags: params.mood_tags ?? [],
+    scene_tags: params.scene_tags ?? [],
+    is_active: true,
+    main_image: params.main_image || params.image_url || null,
+    sub_images: params.sub_images ?? null,
+    detail_images: params.detail_images ?? null,
+    video_url: params.video_url ?? null,
+    cost_price: params.cost_price ?? null,
+    discount_rate: params.discount_rate ?? null,
   }).select().maybeSingle()
   if (error) { console.error('[createProduct]', error); return null }
   return data
@@ -399,6 +492,9 @@ export async function updateProduct(id: string, params: Partial<{
   name: string; description: string; price: number; original_price: number
   image_url: string; stock: number; barcode: string; is_active: boolean
   mood_tags: string[]; scene_tags: string[]
+  // 新增字段
+  main_image: string; sub_images: string[]; detail_images: string[]
+  video_url: string; cost_price: number; discount_rate: number
 }>): Promise<boolean> {
   const { error } = await supabase.from('products').update(params).eq('id', id)
   return !error
@@ -429,12 +525,32 @@ export async function getAdminMerchantApplications(): Promise<MerchantApplicatio
 }
 
 export async function adminApproveApplication(id: string): Promise<boolean> {
-  const app = await supabase.from('merchant_applications').select('user_id, store_name, business_type').eq('id', id).maybeSingle()
+  const app = await supabase.from('merchant_applications').select('user_id, store_name, business_type, description, contact_phone').eq('id', id).maybeSingle()
   if (!app.data) return false
+  
+  // 1. 更新申请状态
   const { error } = await supabase.from('merchant_applications').update({ status: 'approved' }).eq('id', id)
   if (error) return false
-  // 同步 profiles.merchant_status
+  
+  // 2. 同步 profiles.merchant_status
   await supabase.from('profiles').update({ merchant_status: 'approved' }).eq('id', app.data.user_id)
+  
+  // 3. 创建门店记录（关键！）
+  const { error: storeError } = await supabase.from('stores').insert({
+    owner_id: app.data.user_id,
+    name: app.data.store_name,
+    description: app.data.description || null,
+    phone: app.data.contact_phone || null,
+    category: app.data.business_type || '其他',
+    is_active: true,
+    rating: 0,
+  })
+  
+  if (storeError) {
+    console.error('[adminApproveApplication] 创建门店失败:', storeError)
+    return false
+  }
+  
   return true
 }
 
@@ -481,12 +597,13 @@ export async function adminRejectWithdrawal(id: string): Promise<boolean> {
   if (!w.data) return false
   const { error } = await supabase.from('withdrawals').update({ status: 'rejected', updated_at: new Date().toISOString() }).eq('id', id)
   if (error) return false
-  // 退还余额至 profiles.balance（单位：金豆，1元=100金豆，但 withdrawal.amount 是元，balance 存金豆）
-  // 查当前余额
+  // 退还余额至 profiles.balance
+  // profiles.balance 字段是 numeric(10,2)，单位是「元」（与 withdrawal.amount 一致）
+  // 1 元 = 100 金豆，但 balance 存的是「元」数（金豆余额存在 profiles.points）
   const { data: prof } = await supabase.from('profiles').select('balance').eq('id', w.data.user_id).maybeSingle()
-  const cur = prof?.balance ?? 0
-  const refundBeans = Math.round(Number(w.data.amount) / 0.01) // 元→金豆
-  await supabase.from('profiles').update({ balance: cur + refundBeans }).eq('id', w.data.user_id)
+  const cur = Number(prof?.balance ?? 0)
+  const refundAmount = Number(w.data.amount)
+  await supabase.from('profiles').update({ balance: cur + refundAmount }).eq('id', w.data.user_id)
   return true
 }
 
