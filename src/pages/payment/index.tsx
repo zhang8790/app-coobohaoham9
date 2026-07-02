@@ -32,7 +32,18 @@ function PaymentPage() {
   const [totalAmount, setTotalAmount] = useState(totalParam)
   const [userTotalConsumption, setUserTotalConsumption] = useState(0) // 用户个人累计消费
   const [userTeamPerformance, setUserTeamPerformance] = useState(0)   // 用户团队业绩（新增）
-  const [userRankInfo, setUserRankInfo] = useState<any>(null) // 用户段位信息
+
+  // V4算法：根据用户消费数据计算段位（前端实时计算）
+  const v4RankInfo = useMemo(() => {
+    const dynamicScore = calculateDynamicScore(userTotalConsumption, userTeamPerformance)
+    const rank = getRankByDynamicScore(dynamicScore)
+    return {
+      rankName: rank.rankName,
+      l1Ratio: Math.round(rank.l1Ratio * 100),
+      l2Ratio: Math.round(rank.l2Ratio * 100),
+      pointsRatio: Math.round(rank.pointsRatio * 100),
+    }
+  }, [userTotalConsumption, userTeamPerformance])
 
   // 防重复支付双重锁
   const _payLock = useRef(false)
@@ -365,20 +376,20 @@ function PaymentPage() {
         </View>
       )}
 
-      {/* 分润提示 - 动态积分预览 */}
+      {/* 分润提示 - V4动态积分预览 */}
       <View className="mx-4 mt-4 p-3 rounded-xl bg-muted flex items-center gap-2">
         <View className="i-mdi-gift-outline text-2xl text-primary flex-shrink-0" />
         <View className="flex-1">
           <Text className="text-base text-muted-foreground">
             支付成功后将获得积分奖励
           </Text>
-          {userRankInfo && (
+          {v4RankInfo && (
             <View className="flex items-center gap-1 mt-1">
-              <Text className="text-xl" style={{ color: userRankInfo.color }}>
-                {userRankInfo.icon} {userRankInfo.rankName}
+              <Text className="text-xl text-primary font-bold">
+                {v4RankInfo.rankName} · L1佣金{v4RankInfo.l1Ratio}% · 积分返还{v4RankInfo.pointsRatio}%
               </Text>
               <Text className="text-base text-primary font-bold">
-                预计获得 {Math.round(calculatePointsPreview(totalAmount, userTotalConsumption))} 积分
+                预计获得 {Math.round(totalAmount * v4RankInfo.pointsRatio / 100)} 积分
               </Text>
             </View>
           )}

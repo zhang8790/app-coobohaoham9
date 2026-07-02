@@ -1,93 +1,96 @@
--- 更新 get_rank_progress 函数，返回 l1_ratio 和 l2_ratio
--- 日期：2026-07-02
+-- 更新 get_rank_progress 函数，返回V4段位比例
+-- 执行时间：2026-07-02
 
-CREATE OR REPLACE FUNCTION get_rank_progress(p_user_id UUID)
+CREATE OR REPLACE FUNCTION get_rank_progress(user_id UUID)
 RETURNS TABLE (
   current_rank TEXT,
   next_rank TEXT,
-  direct_count INTEGER,
+  current_count INTEGER,
   target_count INTEGER,
-  progress NUMERIC,
-  total_gmv NUMERIC,
-  points INTEGER,
-  balance NUMERIC,
-  l1_ratio INTEGER,
-  l2_ratio INTEGER,
-  next_l1_ratio INTEGER,
-  next_l2_ratio INTEGER
+  direct_count INTEGER,
+  l1_ratio NUMERIC,
+  l2_ratio NUMERIC,
+  points_ratio NUMERIC
 ) AS $$
 DECLARE
-  v_referral_code TEXT;
-  v_direct_count INTEGER := 0;
-  v_total_gmv NUMERIC := 0;
-  v_points INTEGER := 0;
-  v_balance NUMERIC := 0;
-  v_current_rank TEXT := '江湖散修';
-  v_next_rank TEXT := '外门弟子';
-  v_target_count INTEGER := 1;
-  v_progress NUMERIC := 0;
-  v_l1_ratio INTEGER := 15;
-  v_l2_ratio INTEGER := 6;
-  v_next_l1_ratio INTEGER := 18;
-  v_next_l2_ratio INTEGER := 8;
+  profile_record RECORD;
+  dynamic_score NUMERIC;
+  current_rank_name TEXT;
+  next_rank_name TEXT;
+  l1_ratio_value NUMERIC;
+  l2_ratio_value NUMERIC;
+  points_ratio_value NUMERIC;
 BEGIN
-  -- 获取用户推广码
-  SELECT referral_code INTO v_referral_code
-  FROM profiles
-  WHERE id = p_user_id;
+  -- 获取用户资料和推荐关系
+  SELECT 
+    p.total_consumption,
+    p.team_performance,
+    COUNT(DISTINCT r.id) as direct_count
+  INTO profile_record
+  FROM profiles p
+  LEFT JOIN profiles r ON r.referrer_id = p.id
+  WHERE p.id = user_id
+  GROUP BY p.id, p.total_consumption, p.team_performance;
 
-  IF v_referral_code IS NULL THEN
-    -- 用户不存在或无推广码
-    RETURN QUERY SELECT
-      v_current_rank::TEXT,
-      v_next_rank::TEXT,
-      v_direct_count,
-      v_target_count,
-      v_progress,
-      v_total_gmv,
-      v_points,
-      v_balance,
-      v_l1_ratio,
-      v_l2_ratio,
-      v_next_l1_ratio,
-      v_next_l2_ratio;
-    RETURN;
+  -- 计算动态分数
+  dynamic_score := COALESCE(profile_record.total_consumption, 0) * 0.3 
+                 + COALESCE(profile_record.team_performance, 0) * 0.7;
+
+  -- 判定当前段位
+  SELECT rank_name, l1_ratio, l2_ratio, points_ratio
+  INTO current_rank_name, l1_ratio_value, l2_ratio_value, points_ratio_value
+  FROM (
+    VALUES 
+      ('江湖散修', 0, 0.15, 0.06, 0.10),
+      ('外门弟子', 500, 0.18, 0.08, 0.12),
+      ('内门弟子', 2000, 0.20, 0.10, 0.14),
+      ('核心弟子', 5000, 0.23, 0.12, 0.16),
+      ('长老', 15000, 0.25, 0.14, 0.18),
+      ('掌门', 50000, 0.28, 0.16, 0.20)
+  ) AS rank_table(rank_name, min_score, l1, l2, points)
+  WHERE dynamic_score >= min_score
+  ORDER BY min_score DESC
+  LIMIT 1;
+
+  -- 如果没有匹配（新用户），默认为江湖散修
+  IF current_rank_name IS NULL THEN
+    current_rank_name := '江湖散修';
+    l1_ratio_value := 0.15;
+    l2_ratio_value := 0.06;
+    points_ratio_value := 0.10;
   END IF;
 
-  -- 统计一级下线数量
-  SELECT COUNT(*) INTO v_direct_count
-  FROM profiles
-  WHERE referrer_id = p_user_id;
-
-  -- 统计累计GMV（简化：从orders表统计）
-  SELECT COALESCE(SUM(total_amount), 0) INTO v_total_gmv
-  FROM orders
-  WHERE user_id = p_user_id
-    AND status IN ('pending_ship', 'pending_receive', 'pending_review', 'completed');
-
-  -- 获取积分和余额
-  SELECT COALESCE(points, 0), COALESCE(balance, 0)
-  INTO v_points, v_balance
-  FROM profiles
-  WHERE id = p_user_id;
-
-  -- 根据直推数量判定段位（简化版，实际应该用V4算法）
-  -- 这里返回硬编码的段位配置，前端应该从V4算法读取
-  -- 为了兼容性，这里先返回默认值
+  -- 获取下一段位
+  SELECT rank_name INTO next_rank_name
+  FROM (
+    VALUES 
+      ('外门弟子', 500),
+      ('内门弟子', 2000),
+      ('核心弟子', 5000),
+      ('长老', 15000),
+      ('掌门', 50000)
+  ) AS next_table(rank_name, min_score)
+  WHERE min_score > dynamic_score
+  ORDER BY min_score ASC
+  LIMIT 1;
 
   -- 返回结果
-  RETURN QUERY SELECT
-    v_current_rank::TEXT,
-    v_next_rank::TEXT,
-    v_direct_count,
-    v_target_count,
-    v_progress,
-    v_total_gmv,
-    v_points,
-    v_balance,
-    v_l1_ratio,
-    v_l2_ratio,
-    v_next_l1_ratio,
-    v_next_l2_ratio;
+  RETURN QUERY
+  SELECT 
+    current_rank_name,
+    COALESCE(next_rank_name, '已达最高段位'),
+    profile_record.direct_count,
+    CASE 
+      WHEN next_rank_name = '外门弟子' THEN 1
+      WHEN next_rank_name = '内门弟子' THEN 3
+      WHEN next_rank_name = '核心弟子' THEN 10
+      WHEN next_rank_name = '长老' THEN 30
+      WHEN next_rank_name = '掌门' THEN 100
+      ELSE 0
+    END,
+    profile_record.direct_count,
+    l1_ratio_value,
+    l2_ratio_value,
+    points_ratio_value;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
