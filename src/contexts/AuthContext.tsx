@@ -149,13 +149,21 @@ export function AuthProvider({children}: {children: ReactNode}) {
   const signUpWithUsername = async (username: string, password: string) => {
     try {
       const email = `${username}@miaoda.com`
-      const {error} = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {data: {username}}
       })
 
       if (error) throw error
+      
+      // 【新增】注册成功后，转化预锁客记录
+      if (data.user) {
+        const { convertPendingReferral } = await import('@/db/api')
+        await convertPendingReferral(data.user.id)
+        console.log('[Auth] 已转化预锁客记录:', data.user.id)
+      }
+      
       return {error: null}
     } catch (error) {
       return {error: error as Error}
@@ -164,12 +172,20 @@ export function AuthProvider({children}: {children: ReactNode}) {
 
   const signUpWithPhone = async (phone: string, password: string) => {
     try {
-      const {error} = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         phone,
         password
       })
 
       if (error) throw error
+      
+      // 【新增】注册成功后，转化预锁客记录
+      if (data.user) {
+        const { convertPendingReferral } = await import('@/db/api')
+        await convertPendingReferral(data.user.id)
+        console.log('[Auth] 已转化预锁客记录:', data.user.id)
+      }
+      
       return {error: null}
     } catch (error) {
       return {error: error as Error}
@@ -206,7 +222,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
         // 如果用户不存在，自动创建
         if (error && error.message.includes('Invalid login credentials')) {
           console.log('[Auth] 短信登录：测试账号不存在，自动创建...')
-          const { error: signUpError } = await supabase.auth.signUp({
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: 'test18701410500@test.com',
             password: '12345678',
             options: {
@@ -231,16 +247,33 @@ export function AuthProvider({children}: {children: ReactNode}) {
         }
         
         if (error) throw error
+        
+        // 【新增】登录/注册成功后，转化预锁客记录
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { convertPendingReferral } = await import('@/db/api')
+          await convertPendingReferral(user.id)
+          console.log('[Auth] 已转化预锁客记录:', user.id)
+        }
+        
         return { error: null }
       }
 
       // 生产模式：真实短信验证
-      const { error } = await supabase.auth.verifyOtp({
+      const { data, error } = await supabase.auth.verifyOtp({
         phone,
         token: code,
         type: 'sms'
       })
       if (error) throw error
+      
+      // 【新增】验证成功后，转化预锁客记录
+      if (data.user) {
+        const { convertPendingReferral } = await import('@/db/api')
+        await convertPendingReferral(data.user.id)
+        console.log('[Auth] 已转化预锁客记录:', data.user.id)
+      }
+      
       return { error: null }
     } catch (error) {
       return { error: error as Error }

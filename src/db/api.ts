@@ -92,6 +92,123 @@ export async function getMyReferrals(): Promise<{
 }
 
 // =====================
+// Pending Referrals（预锁客）
+// =====================
+
+// 获取设备ID（微信小程序环境）
+function getDeviceId(): string {
+  try {
+    const systemInfo = Taro.getSystemInfoSync()
+    // 使用设备型号 + 系统版本 + 随机ID生成设备指纹
+    const storedId = Taro.getStorageSync('device_id')
+    if (storedId) return storedId
+    
+    const randomId = Math.random().toString(36).substring(2, 15)
+    const deviceId = `device_${systemInfo.model || 'unknown'}_${randomId}`
+    Taro.setStorageSync('device_id', deviceId)
+    return deviceId
+  } catch (e) {
+    // 降级方案：使用随机ID
+    const storedId = Taro.getStorageSync('device_id')
+    if (storedId) return storedId
+    const randomId = Math.random().toString(36).substring(2, 15)
+    Taro.setStorageSync('device_id', randomId)
+    return randomId
+  }
+}
+
+// 创建预锁客记录（扫码时调用，不需要登录）
+export async function createPendingReferral(params: {
+  referral_code: string
+  store_id?: string
+  campaign_id?: string
+}): Promise<boolean> {
+  try {
+    const deviceId = getDeviceId()
+    const { error } = await supabase
+      .from('pending_referrals')
+      .insert({
+        device_id: deviceId,
+        referral_code: params.referral_code,
+        store_id: params.store_id || null,
+        campaign_id: params.campaign_id || null,
+        status: 'pending',
+      })
+    
+    if (error) {
+      console.error('[createPendingReferral] 失败:', error.message)
+      return false
+    }
+    
+    // 同时保存到本地缓存（注册时备用）
+    Taro.setStorageSync('pending_referral_code', params.referral_code)
+    if (params.store_id) Taro.setStorageSync('pending_store_id', params.store_id)
+    if (params.campaign_id) Taro.setStorageSync('pending_campaign_id', params.campaign_id)
+    
+    console.log('[createPendingReferral] 成功:', params.referral_code)
+    return true
+  } catch (e) {
+    console.error('[createPendingReferral] 异常:', e)
+    return false
+  }
+}
+
+// 转化预锁客记录（注册时调用）
+export async function convertPendingReferral(userId: string): Promise<boolean> {
+  try {
+    const deviceId = getDeviceId()
+    
+    // 调用数据库函数转化预锁客记录
+    const { error } = await supabase
+      .rpc('convert_pending_referral', {
+        p_device_id: deviceId,
+        p_user_id: userId,
+      })
+    
+    if (error) {
+      console.error('[convertPendingReferral] 失败:', error.message)
+      return false
+    }
+    
+    // 清除本地缓存
+    Taro.removeStorageSync('pending_referral_code')
+    Taro.removeStorageSync('pending_store_id')
+    Taro.removeStorageSync('pending_campaign_id')
+    
+    console.log('[convertPendingReferral] 成功:', userId)
+    return true
+  } catch (e) {
+    console.error('[convertPendingReferral] 异常:', e)
+    return false
+  }
+}
+
+// 检查并绑定本地缓存的推广码（注册时调用）
+export async function checkAndBindReferralCode(userId: string): Promise<boolean> {
+  try {
+    const referralCode = Taro.getStorageSync('pending_referral_code')
+    if (!referralCode) return false
+    
+    // 更新 profiles.invited_by
+    const { error } = await supabase
+      .from('profiles')
+      .update({ invited_by: referralCode })
+      .eq('id', userId)
+    
+    if (error) {
+      console.error('[checkAndBindReferralCode] 失败:', error.message)
+      return false
+    }
+    
+    console.log('[checkAndBindReferralCode] 成功绑定:', referralCode)
+    return true
+  } catch (e) {
+    console.error('[checkAndBindReferralCode] 异常:', e)
+    return false
+  }
+}
+
+// =====================
 // Stores
 // =====================
 export async function getStores(category?: string, page = 0, limit = 20, platformFilter?: 'only' | 'exclude'): Promise<Store[]> {
