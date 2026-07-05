@@ -26,7 +26,7 @@ function StoreImagePlaceholder({ name }: { name: string }) {
 export default function RewardShopPage() {
   const [activeCat, setActiveCat] = useState('全部')
   const [cartCount, setCartCount] = useState(0)
-  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
+  const [failedImages, setFailedImages] = useState<string[]>([])  // ✅ 改成数组
 
   // 使用 usePagination Hook 管理分页
   const { list: stores, loading, refreshing, hasMore, onRefresh, onLoadMore } = usePagination<Store>(
@@ -117,7 +117,7 @@ export default function RewardShopPage() {
               return (
               <View key={store.id} className="bg-card rounded-2xl overflow-hidden border border-border mb-3 flex gap-0"
                 onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${store.id}` })}>
-                {failedImages.has(store.id) || !img ? (
+                {failedImages.includes(store.id) || !img ? (
                   <StoreImagePlaceholder name={store.name} />
                 ) : (
                   <LazyImage 

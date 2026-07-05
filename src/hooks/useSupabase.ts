@@ -166,7 +166,7 @@ export function useImageLazyLoad(options: {
   rootMargin?: string
 } = {}) {
   const observerRef = useRef<IntersectionObserver | null>(null)
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set())
+  const [loadedImages, setLoadedImages] = useState<string[]>([])  // ✅ 改成数组
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return
@@ -180,7 +180,7 @@ export function useImageLazyLoad(options: {
             if (src) {
               img.src = src
               img.removeAttribute('data-src')
-              setLoadedImages(prev => new Set([...prev, src]))
+              setLoadedImages(prev => [...prev, src])  // ✅ 数组写法
             }
             observerRef.current?.unobserve(entry.target)
           }
@@ -206,6 +206,7 @@ export function useImageLazyLoad(options: {
   return {
     observe,
     loadedImages,
+    isLoaded: (src: string) => loadedImages.includes(src),  // ✅ 添加辅助函数
   }
 }
 
