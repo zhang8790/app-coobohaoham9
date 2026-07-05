@@ -41,6 +41,11 @@ const pages = [
   'pages/merchant-analytics/index',
   'pages/merchant-settings/index',
   'pages/my-referrals/index',
+  'pages/employee/index',
+  'pages/article-detail/index',
+  // V4：多区域架构 + LBS定位 + 红包实物引流
+  'pages/city-select/index',
+  'pages/campaign-claim/index',
 ]
 
 export default defineAppConfig({
@@ -88,5 +93,13 @@ export default defineAppConfig({
     navigationBarBackgroundColor: '#FFFBF7',
     navigationBarTitleText: '来店有喜',
     navigationBarTextStyle: 'black',
+  },
+  // 微信小程序隐私权限声明（基础库 3.7.0+ 要求）
+  requiredPrivateInfos: ['getLocation'],
+  // 微信小程序权限声明
+  permission: {
+    'scope.userLocation': {
+      desc: '用于匹配就近门店，展示本地化商品',
+    },
   },
 })

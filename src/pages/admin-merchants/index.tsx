@@ -1,3 +1,4 @@
+import { View, Button, Textarea, Text } from '@tarojs/components'
 // @title 门派大典
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
@@ -50,95 +51,95 @@ function AdminMerchantsPage() {
   }
 
   return (<RouteGuard>
-    <div className="min-h-screen bg-background pb-10">
-      <div className="px-4 py-4">
+    <View className="min-h-screen bg-background pb-10">
+      <View className="px-4 py-4">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="i-mdi-loading text-5xl text-primary animate-spin" />
-          </div>
+          <View className="flex items-center justify-center py-20">
+            <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+          </View>
         ) : list.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="i-mdi-check-circle text-6xl text-emerald-500" />
-            <span className="text-2xl text-muted-foreground">暂无待审商家申请</span>
-          </div>
+          <View className="flex flex-col items-center justify-center py-20 gap-3">
+            <View className="i-mdi-check-circle text-6xl text-emerald-500" />
+            <Text className="text-2xl text-muted-foreground">暂无待审商家申请</Text>
+          </View>
         ) : (
-          <div className="flex flex-col gap-4">
+          <View className="flex flex-col gap-4">
             {list.map(app => (
-              <div key={app.id} className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-2xl font-bold text-foreground">{app.store_name}</span>
-                    <span className="text-xl text-muted-foreground">{app.business_type}</span>
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-base bg-amber-100 text-amber-700 font-bold">待审</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <div className="i-mdi-account text-xl text-muted-foreground" />
-                    <span className="text-xl text-foreground">{app.contact_name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="i-mdi-phone text-xl text-muted-foreground" />
-                    <span className="text-xl text-foreground">{app.contact_phone}</span>
-                  </div>
+              <View key={app.id} className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-3">
+                <View className="flex items-start justify-between">
+                  <View className="flex flex-col gap-1">
+                    <Text className="text-2xl font-bold text-foreground">{app.store_name}</Text>
+                    <Text className="text-xl text-muted-foreground">{app.business_type}</Text>
+                  </View>
+                  <Text className="px-3 py-1 rounded-full text-base bg-amber-100 text-amber-700 font-bold">待审</Text>
+                </View>
+                <View className="flex flex-col gap-1">
+                  <View className="flex items-center gap-2">
+                    <View className="i-mdi-account text-xl text-muted-foreground" />
+                    <Text className="text-xl text-foreground">{app.contact_name}</Text>
+                  </View>
+                  <View className="flex items-center gap-2">
+                    <View className="i-mdi-phone text-xl text-muted-foreground" />
+                    <Text className="text-xl text-foreground">{app.contact_phone}</Text>
+                  </View>
                   {app.description && (
-                    <div className="flex items-start gap-2">
-                      <div className="i-mdi-text text-xl text-muted-foreground flex-shrink-0 mt-0.5" />
-                      <span className="text-xl text-muted-foreground">{app.description}</span>
-                    </div>
+                    <View className="flex items-start gap-2">
+                      <View className="i-mdi-text text-xl text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <Text className="text-xl text-muted-foreground">{app.description}</Text>
+                    </View>
                   )}
-                  <span className="text-base text-muted-foreground">{new Date(app.created_at).toLocaleDateString('zh-CN')}</span>
-                </div>
-                <div className="flex flex-row gap-3 pt-1">
-                  <button type="button"
+                  <Text className="text-base text-muted-foreground">{new Date(app.created_at).toLocaleDateString('zh-CN')}</Text>
+                </View>
+                <View className="flex flex-row gap-3 pt-1">
+                  <Button type="button"
                     className={`flex-1 flex items-center justify-center leading-none rounded-xl ${processing === app.id ? 'bg-primary/50' : 'bg-primary'}`}
                     onClick={() => handleApprove(app.id)}>
-                    <div className="py-3 px-4 text-xl font-bold text-white flex items-center gap-1">
-                      <div className="i-mdi-check-circle text-xl" />
-                      <span>准许开山立派</span>
-                    </div>
-                  </button>
-                  <button type="button"
+                    <View className="py-3 px-4 text-xl font-bold text-white flex items-center gap-1">
+                      <View className="i-mdi-check-circle text-xl" />
+                      <Text>准许开山立派</Text>
+                    </View>
+                  </Button>
+                  <Button type="button"
                     className="flex-1 flex items-center justify-center leading-none rounded-xl bg-destructive/10 border-2 border-destructive"
                     onClick={() => { setRejectId(app.id); setRejectReason('') }}>
-                    <div className="py-3 px-4 text-xl font-bold text-destructive flex items-center gap-1">
-                      <div className="i-mdi-close-circle text-xl" />
-                      <span>逐出山门</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
+                    <View className="py-3 px-4 text-xl font-bold text-destructive flex items-center gap-1">
+                      <View className="i-mdi-close-circle text-xl" />
+                      <Text>逐出山门</Text>
+                    </View>
+                  </Button>
+                </View>
+              </View>
             ))}
-          </div>
+          </View>
         )}
-      </div>
+      </View>
 
       {/* 驳回理由弹窗 */}
       {rejectId && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
-          <div className="w-full bg-card rounded-t-3xl p-6 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold text-foreground">填写驳回理由</span>
-              <button type="button" onClick={() => setRejectId(null)}>
-                <div className="i-mdi-close text-3xl text-muted-foreground" />
-              </button>
-            </div>
-            <div className="border-2 border-input rounded-xl px-4 py-3 bg-background">
-              <textarea className="w-full text-xl text-foreground bg-transparent outline-none"
+        <View className="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
+          <View className="w-full bg-card rounded-t-3xl p-6 flex flex-col gap-4">
+            <View className="flex items-center justify-between">
+              <Text className="text-2xl font-bold text-foreground">填写驳回理由</Text>
+              <Button type="button" onClick={() => setRejectId(null)}>
+                <View className="i-mdi-close text-3xl text-muted-foreground" />
+              </Button>
+            </View>
+            <View className="border-2 border-input rounded-xl px-4 py-3 bg-background">
+              <Textarea className="w-full text-xl text-foreground bg-transparent outline-none"
                 style={{ height: '20vw', minHeight: '80px' }}
                 placeholder="请填写驳回理由，将告知申请商家..."
                 value={rejectReason}
                 onInput={(e) => { const ev = e as any; setRejectReason(ev.detail?.value ?? ev.target?.value ?? '') }} />
-            </div>
-            <button type="button"
+            </View>
+            <Button type="button"
               className="flex items-center justify-center leading-none rounded-xl bg-destructive w-full"
               onClick={handleReject}>
-              <div className="py-4 text-xl font-bold text-white">确认驳回</div>
-            </button>
-          </div>
-        </div>
+              <View className="py-4 text-xl font-bold text-white">确认驳回</View>
+            </Button>
+          </View>
+        </View>
       )}
-    </div>
+    </View>
   </RouteGuard>)
 }
 

@@ -33,7 +33,9 @@ export default function RewardShopPage() {
   const loadStores = useCallback(async (cat: string, reset = true) => {
     const p = reset ? 0 : page.current
     setLoading(true)
-    const data = await getStores(cat, p, 20)
+    // ⭐ 犒赏铺只看商家门店，排除自营门店
+    const data = await getStores(cat, p, 20, 'exclude')
+    console.log('[犒赏铺] loadStores 结果:', { cat, reset, count: data.length, stores: data.map(s => ({ name: s.name, is_active: s.is_active, is_platform: s.is_platform })) })
     if (reset) { setStores(data); page.current = 1 }
     else { setStores(prev => [...prev, ...data]); page.current = p + 1 }
     hasMore.current = data.length === 20
@@ -54,6 +56,17 @@ export default function RewardShopPage() {
 
   const handleImageError = (id: string) => {
     setFailedImages(prev => new Set(prev).add(id))
+  }
+
+  const getStoreImage = (store: Store): string | null => {
+    // 优先 banner_url（用户最新上传），其次 image_url 兜底
+    const url = store.banner_url || store.image_url || ''
+    // 排除无效值
+    if (!url || url === 'null' || url === 'undefined') return null
+    if (url.startsWith('wxfile://') || url.startsWith('http://tmp') || url.startsWith('tmp://') || url.startsWith('data:')) return null
+    // 只接受 http(s) 开头的公网 URL
+    if (url.startsWith('http://') || url.startsWith('https://')) return url
+    return null
   }
 
   return (
@@ -94,13 +107,15 @@ export default function RewardShopPage() {
               <View className="i-mdi-loading text-3xl text-primary animate-spin" />
             </View>
           ) : (
-            stores.map(store => (
+            stores.map(store => {
+              const img = getStoreImage(store)
+              return (
               <View key={store.id} className="bg-card rounded-2xl overflow-hidden border border-border mb-3 flex gap-0"
                 onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${store.id}` })}>
-                {failedImages.has(store.id) || !store.image_url ? (
+                {failedImages.has(store.id) || !img ? (
                   <StoreImagePlaceholder name={store.name} />
                 ) : (
-                  <Image src={store.image_url || ''} mode="aspectFill" style={{ width: '100px', height: '100px', flexShrink: 0 }}
+                  <Image src={img} mode="aspectFill" style={{ width: '100px', height: '100px', flexShrink: 0 }}
                     onError={() => handleImageError(store.id)} />
                 )}
                 <View className="flex-1 p-3 flex flex-col justify-between">
@@ -124,7 +139,8 @@ export default function RewardShopPage() {
                   <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
                 </View>
               </View>
-            ))
+              )
+            })
           )}
           {hasMore.current && stores.length > 0 && (
             <View className="flex justify-center pt-2 pb-2">

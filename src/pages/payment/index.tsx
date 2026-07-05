@@ -1,12 +1,12 @@
 // @title 支付
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Input, Button } from '@tarojs/components'
-import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile } from '@/db/api'
+import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile, getMyAddresses } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import { RouteGuard } from '@/components/RouteGuard'
 import type { PayMode } from '@/db/types'
-import { calculateCommissionV4, getRankByDynamicScore, RANK_TABLE } from '@/utils/commission-calculator-v4'
+import { calculateCommissionV5, getRankByDynamicScoreV5, RANK_CONFIG_TABLE_V5 } from '@/utils/commission-calculator-v5'
 import { updateUserConsumptionAfterPayment } from '@/utils/commission-helpers'
 
 // 万分位精度
@@ -35,16 +35,23 @@ function PaymentPage() {
   const [parentOrderNo, setParentOrderNo] = useState<string | null>(null)
   const [userTotalConsumption, setUserTotalConsumption] = useState(0) // 用户个人累计消费
   const [userTeamPerformance, setUserTeamPerformance] = useState(0)   // 用户团队业绩（新增）
+  const [addresses, setAddresses] = useState<any[]>([])  // 收货地址列表
+  const [selectedAddress, setSelectedAddress] = useState<any>(null)  // 选中的地址
 
-  // V4算法：根据用户消费数据计算段位（前端实时计算）
-  const v4RankInfo = useMemo(() => {
-    const dynamicScore = calculateDynamicScore(userTotalConsumption, userTeamPerformance)
-    const rank = getRankByDynamicScore(dynamicScore)
+  // V5算法：根据用户消费数据计算段位（前端实时计算）
+  const v5RankInfo = useMemo(() => {
+    const sortedRanks = [...RANK_CONFIG_TABLE_V5].sort((a, b) => a.minDynamicScore - b.minDynamicScore)
+    const totalScore = userTotalConsumption + userTeamPerformance
+    // 找到最高满足的段位
+    let matched = sortedRanks[0]
+    for (const r of sortedRanks) {
+      if (totalScore >= r.minDynamicScore) matched = r
+    }
     return {
-      rankName: rank.rankName,
-      l1Ratio: Math.round(rank.l1Ratio * 100),
-      l2Ratio: Math.round(rank.l2Ratio * 100),
-      pointsRatio: Math.round(rank.pointsRatio * 100),
+      rankName: matched.rank,
+      l1Ratio: Math.round(matched.l1CommissionRate * 100),
+      l2Ratio: Math.round(matched.l2CommissionRate * 100),
+      pointsRatio: Math.round(matched.pointsRate * 100),
     }
   }, [userTotalConsumption, userTeamPerformance])
 
@@ -52,14 +59,21 @@ function PaymentPage() {
   const _payLock = useRef(false)
   const _pendingOrderNo = useRef('')
 
-  // 加载购物车商品 + 金豆余额 + 用户消费数据
+  // 加载购物车商品 + 金豆余额 + 用户消费数据 + 收货地址
   const loadData = useCallback(async () => {
-    const [bal, profile] = await Promise.all([
+    const [bal, profile, addrList] = await Promise.all([
       getMyBalance(),
-      getMyProfile().catch(() => null) // 获取用户资料（包含累计消费和团队业绩）
+      getMyProfile().catch(() => null), // 获取用户资料（包含累计消费和团队业绩）
+      getMyAddresses().catch(() => []),  // 获取收货地址列表
     ])
 
     setBalance(bal.balance)
+    setAddresses(addrList)
+
+    // 自动选中默认地址
+    const defaultAddr = addrList.find((a: any) => a.is_default)
+    if (defaultAddr) setSelectedAddress(defaultAddr)
+    else if (addrList.length > 0) setSelectedAddress(addrList[0])
 
     // 个人累计消费
     const totalConsumption = profile?.total_consumption || 0
@@ -68,11 +82,6 @@ function PaymentPage() {
     // 团队业绩（新增）
     const teamPerformance = profile?.team_performance || 0
     setUserTeamPerformance(teamPerformance)
-
-    // 获取用户段位信息（基于个人消费 + 团队业绩）
-    const totalScore = totalConsumption + teamPerformance
-    const rankInfo = getRankInfo(totalScore)
-    setUserRankInfo(rankInfo)
 
     if (cartIds.length > 0) {
       const cartItems = await getCartItems()
@@ -103,12 +112,32 @@ function PaymentPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
+  // 从地址管理页返回后，重新加载地址列表
+  useDidShow(() => {
+    if (serviceType === 'delivery') {
+      getMyAddresses().then(addrList => {
+        setAddresses(addrList)
+        const defaultAddr = addrList.find((a: any) => a.is_default)
+        if (defaultAddr) setSelectedAddress(defaultAddr)
+        else if (addrList.length > 0 && !selectedAddress) setSelectedAddress(addrList[0])
+      }).catch(() => {})
+    }
+  })
+
   // 倒计时
   useEffect(() => {
     const t = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(t)
+          // 超时取消订单（如果已创建）
+          if (orderNo) {
+            supabase.from('orders')
+              .update({ status: 'cancelled' })
+              .eq('order_no', orderNo)
+              .then(() => console.log('[支付超时] 订单已取消', orderNo))
+              .catch(err => console.error('[支付超时] 取消订单失败', err))
+          }
           Taro.showModal({ title: '订单超时', content: '支付超时，订单已取消', showCancel: false, success: () => Taro.navigateBack() })
           return 0
         }
@@ -116,7 +145,7 @@ function PaymentPage() {
       })
     }, 1000)
     return () => clearInterval(t)
-  }, [])
+  }, [orderNo])
 
   const countdownDisplay = useMemo(() => {
     const m = Math.floor(countdown / 60); const s = countdown % 60
@@ -173,10 +202,22 @@ function PaymentPage() {
 
   const handlePay = async () => {
     if (_payLock.current) { Taro.showToast({ title: '支付处理中，请稍候', icon: 'none' }); return }
+    
+    // 外卖配送必须选地址
+    if (serviceType === 'delivery' && !selectedAddress) {
+      Taro.showToast({ title: '请选择收货地址', icon: 'none' })
+      return
+    }
+    
     _payLock.current = true
     setPaying(true)
 
     try {
+      // 拼接地址字符串
+      const addressStr = selectedAddress
+        ? `${selectedAddress.name} ${selectedAddress.phone} ${[selectedAddress.province, selectedAddress.city, selectedAddress.district, selectedAddress.detail].filter(Boolean).join(' ')}`
+        : ''
+
       // 1. 创建订单
       const orderResult = await createOrderV2({
         items: items.length > 0 ? items : [{ product_id: (params as any).productId || '', store_id: '', store_name: '', product_name: '商品', product_image: null, price: totalAmount, quantity: 1 }],
@@ -185,6 +226,7 @@ function PaymentPage() {
         gold_beans_to_use: actualGoldBeansUsed,
         idempotency_key: `pay_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         service_type: serviceType,
+        address: serviceType === 'delivery' ? addressStr : undefined,
       })
 
       if (!orderResult) throw new Error('创建订单失败，请重试')
@@ -206,11 +248,35 @@ function PaymentPage() {
         await confirmMultiStoreOrders(parentOrderNo)
       }
       
-      // V4算法：更新用户消费数据（用于段位判定）
+      // V5算法：金豆支付成功后计算佣金并写入订单
       try {
-        await updateUserConsumptionAfterPayment(user?.id || '', totalAmount)
+        const profile = await getMyProfile()
+        if (profile && orderResult?.order?.id) {
+          const { data: storeData } = await supabase
+            .from('stores')
+            .select('referral_rate')
+            .eq('id', items[0]?.store_id || '')
+            .maybeSingle()
+          const discountRate = (storeData as any)?.referral_rate ?? 0.09
+          const commissionResult = calculateCommissionV5({
+            orderAmount: totalAmount,
+            discountRate,
+            buyerId: profile.id,
+            buyerTotalConsumption: profile.total_consumption || 0,
+            buyerTeamPerformance: (profile as any).team_performance || 0,
+            referrerId: profile.referrer_id || undefined,
+          })
+          await supabase.from('orders').update({
+            l1_commission: commissionResult.l1Commission,
+            l2_commission: commissionResult.l2Commission,
+            buyer_points: Math.round(commissionResult.buyerPoints),
+            platform_income: commissionResult.platformTotalIncome,
+            commission_calculated: true,
+          }).eq('id', orderResult.order.id)
+          console.log('[V5] 金豆支付佣金计算完成', commissionResult)
+        }
       } catch (err) {
-        console.error('[V4] 更新消费数据失败', err)
+        console.error('[V5] 金豆支付佣金计算失败', err)
       }
       
       setTimeout(() => Taro.redirectTo({ url: '/pages/order-center/index?tab=pending_receive' }), 1500)
@@ -243,16 +309,49 @@ function PaymentPage() {
 
       Taro.showToast({ title: '支付成功！', icon: 'success' })
       
+      // 支付成功 → 更新订单状态为 paid
+      try {
+        if (isMultiStore && parentOrderNo) {
+          await supabase.from('orders').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('parent_order_no', parentOrderNo)
+        } else if (orderResult?.order?.order_no) {
+          await supabase.from('orders').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('order_no', orderResult.order.order_no)
+        }
+      } catch (e) { console.warn('[支付成功] 更新状态失败(不影响)', e) }
+      
       // 跨门店结算：确认所有子订单
       if (isMultiStore && parentOrderNo) {
         await confirmMultiStoreOrders(parentOrderNo)
       }
       
-      // V4算法：更新用户消费数据（用于段位判定）
+      // V5算法：支付成功后计算佣金并写入订单
       try {
-        await updateUserConsumptionAfterPayment(user?.id || '', totalAmount)
+        const profile = await getMyProfile()
+        if (profile && orderResult?.order?.id) {
+          const { data: storeData } = await supabase
+            .from('stores')
+            .select('referral_rate')
+            .eq('id', items[0]?.store_id || '')
+            .maybeSingle()
+          const discountRate = (storeData as any)?.referral_rate ?? 0.09
+          const commissionResult = calculateCommissionV5({
+            orderAmount: totalAmount,
+            discountRate,
+            buyerId: profile.id,
+            buyerTotalConsumption: profile.total_consumption || 0,
+            buyerTeamPerformance: (profile as any).team_performance || 0,
+            referrerId: profile.referrer_id || undefined,
+          })
+          await supabase.from('orders').update({
+            l1_commission: commissionResult.l1Commission,
+            l2_commission: commissionResult.l2Commission,
+            buyer_points: Math.round(commissionResult.buyerPoints),
+            platform_income: commissionResult.platformTotalIncome,
+            commission_calculated: true,
+          }).eq('id', orderResult.order.id)
+          console.log('[V5] 佣金计算完成', commissionResult)
+        }
       } catch (err) {
-        console.error('[V4] 更新消费数据失败', err)
+        console.error('[V5] 佣金计算失败', err)
       }
       
       setTimeout(() => Taro.redirectTo({ url: '/pages/order-center/index?tab=pending_receive' }), 1500)
@@ -292,12 +391,9 @@ function PaymentPage() {
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
-      {/* 顶部返回键 */}
-      <View className="flex items-center px-4 pt-4 pb-2">
-        <View className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
-          onClick={handleCancel}>
-          <View className="i-mdi-arrow-left text-2xl text-foreground" />
-        </View>
+
+      {/* 订单摘要卡 */}
+      <View className="mx-4 mt-4 p-4 bg-card rounded-2xl">
         <Text className="flex-1 text-center text-xl font-bold text-foreground pr-10">确认支付</Text>
       </View>
 
@@ -357,6 +453,38 @@ function PaymentPage() {
           ))}
         </View>
       </View>
+
+      {/* 地址选择（外卖配送时显示） */}
+      {serviceType === 'delivery' && (
+        <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+          <View className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <Text className="text-xl font-bold text-foreground">收货地址</Text>
+            <View onClick={() => Taro.navigateTo({ url: '/pages/address/index' })}>
+              <Text className="text-xl text-primary">管理</Text>
+            </View>
+          </View>
+          {selectedAddress ? (
+            <View className="px-4 py-4" onClick={() => Taro.navigateTo({ url: '/pages/address/index' })}>
+              <View className="flex items-center gap-2 mb-2">
+                <Text className="text-xl font-bold text-foreground">{selectedAddress.name}</Text>
+                <Text className="text-xl text-muted-foreground">{selectedAddress.phone}</Text>
+                {selectedAddress.is_default && (
+                  <Text className="text-base px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">默认</Text>
+                )}
+              </View>
+              <Text className="text-xl text-foreground">
+                {[selectedAddress.province, selectedAddress.city, selectedAddress.district, selectedAddress.detail].filter(Boolean).join(' ')}
+              </Text>
+            </View>
+          ) : (
+            <View className="px-4 py-8 flex flex-col items-center gap-2"
+              onClick={() => Taro.navigateTo({ url: '/pages/address/index' })}>
+              <View className="i-mdi-map-marker-plus text-4xl text-primary" />
+              <Text className="text-xl text-primary font-bold">新增收货地址</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* 支付方式选择 */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
@@ -421,13 +549,13 @@ function PaymentPage() {
           <Text className="text-base text-muted-foreground">
             支付成功后将获得积分奖励
           </Text>
-          {v4RankInfo && (
+          {v5RankInfo && (
             <View className="flex items-center gap-1 mt-1">
               <Text className="text-xl text-primary font-bold">
-                {v4RankInfo.rankName} · L1佣金{v4RankInfo.l1Ratio}% · 积分返还{v4RankInfo.pointsRatio}%
+                {v5RankInfo.rankName} · L1佣金{v5RankInfo.l1Ratio}% · 积分返还{v5RankInfo.pointsRatio}%
               </Text>
               <Text className="text-base text-primary font-bold">
-                预计获得 {Math.round(totalAmount * v4RankInfo.pointsRatio / 100)} 积分
+                预计获得 {Math.round(totalAmount * v5RankInfo.pointsRatio / 100)} 积分
               </Text>
             </View>
           )}

@@ -24,7 +24,116 @@ function AddressPage() {
   }, [])
   useEffect(() => { load() }, [load])
 
-  const openAdd = () => { setForm(emptyForm()); setEditId(null); setShowForm(true) }
+  const openAdd = async () => {
+    setForm(emptyForm())
+    setEditId(null)
+    setShowForm(true)
+
+    // 自动获取用户位置并解析省市区
+    try {
+      const isWeapp = Taro.getEnv() === 'WEAPP'
+      if (isWeapp) {
+        // 先检查权限
+        const setting = await Taro.getSetting()
+        if (setting.authSetting['scope.userLocation'] === false) {
+          Taro.showModal({
+            title: '需要位置权限',
+            content: '为了自动填写地址信息，请在设置中允许访问位置',
+            confirmText: '去设置',
+            success: (res) => { if (res.confirm) Taro.openSetting() },
+          })
+          return
+        }
+
+        // 获取当前位置坐标
+        let latitude: number, longitude: number
+        try {
+          const locRes = await Taro.getLocation({ type: 'gcj02' })
+          latitude = locRes.latitude
+          longitude = locRes.longitude
+        } catch (locErr) {
+          console.warn('[Address] 获取位置失败，使用默认定位', locErr)
+          // 默认定位到北京
+          latitude = 39.9042
+          longitude = 116.4074
+        }
+
+        // 使用 chooseLocation 让用户选择具体地址（返回详细地址信息）
+        try {
+          const chosenLoc = await Taro.chooseLocation({
+            latitude,
+            longitude,
+          })
+          
+          if (chosenLoc && chosenLoc.address) {
+            // 解析地址字符串，提取省市区
+            const fullAddress = chosenLoc.address || ''
+            const name = chosenLoc.name || ''
+            
+            // 简单解析中国地址格式
+            let province = '', city = '', district = '', detail = ''
+            
+            // 尝试匹配常见格式：广东省广州市天河区xxx路
+            const provinceMatch = fullAddress.match(/^(.+?省|.+?自治区)/)
+            if (provinceMatch) {
+              province = provinceMatch[1]
+              const restAfterProvince = fullAddress.slice(provinceMatch[0].length)
+              const cityMatch = restAfterProvince.match(/^(.+?市)/)
+              if (cityMatch) {
+                city = cityMatch[1]
+                const restAfterCity = restAfterProvince.slice(cityMatch[0].length)
+                const districtMatch = restAfterCity.match(/^(.+?区|.+?县)/)
+                if (districtMatch) {
+                  district = districtMatch[1]
+                  detail = restAfterCity.slice(districtMatch[0].length)
+                } else {
+                  detail = restAfterCity
+                }
+              } else {
+                // 没有匹配到市，可能地址格式不标准
+                city = restAfterProvince.split(/区|县/)[0] || ''
+                detail = restAfterProvince
+              }
+            } else {
+              // 尝试匹配直辖市格式：北京市朝阳区xxx路
+              const municipalityMatch = fullAddress.match(/^(北京|上海|天津|重庆)(市)?(.+?区|.+?县)/)
+              if (municipalityMatch) {
+                province = municipalityMatch[1] + '市'
+                city = municipalityMatch[1] + '市'
+                district = municipalityMatch[3] || ''
+                detail = fullAddress.slice(municipalityMatch[0].length)
+              }
+            }
+            
+            // 如果解析失败，使用 name 作为详细地址
+            if (!province && !city) {
+              // 无法解析，提示用户手动选择
+              Taro.showToast({ title: '请手动选择省市', icon: 'none', duration: 2000 })
+            } else {
+              setForm(prev => ({
+                ...prev,
+                province,
+                city,
+                district,
+                detail: detail || name || '',
+              }))
+              Taro.showToast({ title: '地址已自动填写', icon: 'success', duration: 1500 })
+            }
+          }
+        } catch (chooseErr: any) {
+          // 用户取消选择，不处理
+          if (chooseErr.errMsg && chooseErr.errMsg.includes('cancel')) {
+            console.log('[Address] 用户取消选择位置')
+          } else {
+            console.warn('[Address] chooseLocation 失败:', chooseErr)
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Address] 获取位置失败:', e)
+      // 静默失败，不影响正常使用
+    }
+  }
   const openEdit = (a: UserAddress) => {
     setForm({ name: a.name, phone: a.phone, province: a.province ?? '', city: a.city ?? '', district: a.district ?? '', detail: a.detail, is_default: a.is_default })
     setEditId(a.id); setShowForm(true)
@@ -57,13 +166,6 @@ function AddressPage() {
 
   return (
     <View className="min-h-screen bg-background pb-24">
-      <View className="flex items-center px-4 pt-4 pb-2">
-        <View className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
-          onClick={() => Taro.navigateBack()}>
-          <View className="i-mdi-arrow-left text-2xl text-foreground" />
-        </View>
-        <Text className="flex-1 text-center text-xl font-bold text-foreground pr-10">地址管理</Text>
-      </View>
 
       <View className="px-4 mt-4">
         {loading ? (

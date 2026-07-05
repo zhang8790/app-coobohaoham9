@@ -12,12 +12,19 @@ function SettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState('')
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [notifyOrder, setNotifyOrder] = useState(true)
+  const [notifyPromo, setNotifyPromo] = useState(true)
 
   useEffect(() => {
     if (ctxProfile) {
       setNickname(ctxProfile.nickname || '')
       setAvatarUrl(ctxProfile.avatar_url || '')
     }
+    // 从本地存储读取通知设置
+    const orderNotify = Taro.getStorageSync('notify_order')
+    const promoNotify = Taro.getStorageSync('notify_promo')
+    if (orderNotify !== '' && orderNotify !== undefined) setNotifyOrder(orderNotify)
+    if (promoNotify !== '' && promoNotify !== undefined) setNotifyPromo(promoNotify)
   }, [ctxProfile])
 
   const handleSaveProfile = useCallback(async () => {
@@ -73,14 +80,6 @@ function SettingsPage() {
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-10">
-      {/* 导航 */}
-      <View className="flex items-center px-4 pt-4 pb-2">
-        <View className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
-          onClick={() => Taro.navigateBack()}>
-          <View className="i-mdi-arrow-left text-2xl text-foreground" />
-        </View>
-        <Text className="flex-1 text-center text-xl font-bold text-foreground pr-10">设置</Text>
-      </View>
 
       {/* 个人资料卡 */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
@@ -128,7 +127,11 @@ function SettingsPage() {
         <View className="flex items-center justify-between px-4 py-4">
           <Text className="text-xl text-foreground">手机号</Text>
           <Text className="text-xl text-muted-foreground">
-            {user?.phone ? `${user.phone.slice(0,3)}****${user.phone.slice(-4)}` : '未绑定'}
+            {ctxProfile?.phone
+              ? `${ctxProfile.phone.slice(0,3)}****${ctxProfile.phone.slice(-4)}`
+              : user?.phone
+                ? `${user.phone.slice(0,3)}****${user.phone.slice(-4)}`
+                : '去绑定'}
           </Text>
         </View>
 
@@ -151,19 +154,39 @@ function SettingsPage() {
           <Text className="text-xl font-bold text-foreground">通知设置</Text>
         </View>
         {[
-          { label: '订单消息', desc: '支付、发货、退款等通知' },
-          { label: '活动推送', desc: '优惠券、限时活动等通知' },
-        ].map(item => (
-          <View key={item.label} className="flex items-center justify-between px-4 py-4 border-b border-border last:border-0">
-            <View className="flex flex-col gap-1">
-              <Text className="text-xl text-foreground">{item.label}</Text>
-              <Text className="text-base text-muted-foreground">{item.desc}</Text>
+          { label: '订单消息', desc: '支付、发货、退款等通知', key: 'order' },
+          { label: '活动推送', desc: '优惠券、限时活动等通知', key: 'promo' },
+        ].map(item => {
+          const isOn = item.key === 'order' ? notifyOrder : notifyPromo
+          const toggle = () => {
+            if (item.key === 'order') {
+              setNotifyOrder(v => { Taro.setStorageSync('notify_order', !v); return !v })
+            } else {
+              setNotifyPromo(v => { Taro.setStorageSync('notify_promo', !v); return !v })
+            }
+          }
+          return (
+            <View key={item.label} className="flex items-center justify-between px-4 py-4 border-b border-border last:border-0"
+              onClick={toggle}>
+              <View className="flex flex-col gap-1">
+                <Text className="text-xl text-foreground">{item.label}</Text>
+                <Text className="text-base text-muted-foreground">{item.desc}</Text>
+              </View>
+              <View
+                className="w-12 h-7 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: isOn ? '#22C55E' : '#D1D5DB', padding: '2px' }}>
+                <View
+                  className="w-6 h-6 rounded-full bg-white"
+                  style={{
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                    alignSelf: isOn ? 'flex-end' : 'flex-start',
+                    transition: 'all 0.2s',
+                  }}
+                />
+              </View>
             </View>
-            <View className="w-12 h-7 rounded-full bg-primary flex items-end justify-end" style={{ padding: '2px' }}>
-              <View className="w-6 h-6 rounded-full bg-white" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
-            </View>
-          </View>
-        ))}
+          )
+        })}
       </View>
 
       {/* 账号安全 */}

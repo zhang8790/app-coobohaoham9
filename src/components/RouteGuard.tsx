@@ -53,6 +53,16 @@ function navigateToLogin(currentPath: string): void {
 export function RouteGuard({children}: {children: React.ReactNode}) {
   const {user, loading} = useAuth()
   const [shouldRender, setShouldRender] = useState(false)
+  const [forceRender, setForceRender] = useState(false)
+
+  // 超时机制：5秒后强制渲染（避免一直加载）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setForceRender(true)
+      setShouldRender(true)
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [])
 
   const checkAuth = useCallback(() => {
     const currentPath: string = Taro.getCurrentInstance()?.router?.path || ''
@@ -95,8 +105,14 @@ export function RouteGuard({children}: {children: React.ReactNode}) {
     checkAuth()
   }, [checkAuth])
 
-  if (!shouldRender) {
-    return null
+  // 修改渲染逻辑：超时后强制渲染
+  if (!shouldRender && !forceRender) {
+    // 显示加载动画（而不是空白）
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="i-mdi-loading text-4xl text-primary animate-spin" />
+      </div>
+    )
   }
 
   return <>{children}</>

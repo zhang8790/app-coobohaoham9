@@ -94,13 +94,6 @@ function ReviewPage() {
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-28">
-      <View className="flex items-center px-4 pt-4 pb-2">
-        <View className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
-          onClick={() => Taro.navigateBack()}>
-          <View className="i-mdi-arrow-left text-2xl text-foreground" />
-        </View>
-        <Text className="flex-1 text-center text-xl font-bold text-foreground pr-10">订单评价</Text>
-      </View>
 
       <View className="px-4 mt-4">
         <View className="bg-card rounded-2xl border border-border px-4 py-3 mb-4 flex items-center gap-2">

@@ -40,12 +40,6 @@ function MerchantAnalyticsPage() {
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
-      <View className="flex items-center px-4 pt-4 pb-2">
-        <View className="!w-10 !h-10 !flex !items-center !justify-center !rounded-full !bg-muted" onClick={() => Taro.navigateBack()}>
-          <View className="i-mdi-arrow-left text-2xl text-foreground" />
-        </View>
-        <Text className="flex-1 text-center text-xl font-bold text-foreground pr-10">数据分析</Text>
-      </View>
 
       {/* 今日概览 */}
       <View className="mx-4 mt-3">

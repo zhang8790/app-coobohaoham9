@@ -41,20 +41,6 @@ function FootprintPage() {
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
-      <View className="flex items-center px-4 pt-4 pb-2">
-        <View className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
-          onClick={() => Taro.navigateBack()}>
-          <View className="i-mdi-arrow-left text-2xl text-foreground" />
-        </View>
-        <Text className="flex-1 text-center text-xl font-bold text-foreground">浏览足迹</Text>
-        {items.length > 0 && (
-          <View
-            className="flex items-center justify-center leading-none rounded-lg"
-            onClick={handleClearAll}>
-            <View className="px-3 py-1 text-xl text-muted-foreground">清空</View>
-          </View>
-        )}
-      </View>
 
       {loading ? (
         <View className="flex justify-center py-16">

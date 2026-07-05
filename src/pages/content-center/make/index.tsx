@@ -1,7 +1,7 @@
 // @title 创作江湖令
 import { useState, useRef } from 'react'
 import Taro from '@tarojs/taro'
-import { Image } from '@tarojs/components'
+import { View, Text, Image, ScrollView, Input, Textarea, Button } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { createArticle, getArticleById, updateArticle } from '@/db/api'
 import { supabase } from '@/client/supabase'
@@ -56,7 +56,7 @@ export default function MakePage() {
   // 链接导入
   const [fetchUrl, setFetchUrl] = useState('')
   const [fetchLoading, setFetchLoading] = useState(false)
-  const [fetchResult, setFetchResult] = useState<{ title: string; content: string } | null>(null)
+  const [fetchResult, setFetchResult] = useState<{ title: string; content: string; images?: string[] } | null>(null)
 
   // 模板选择
   const [showTemplates, setShowTemplates] = useState(false)
@@ -65,6 +65,8 @@ export default function MakePage() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [coverImage, setCoverImage] = useState<string | null>(null)
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [fetchedImages, setFetchedImages] = useState<string[]>([])
   const [publishing, setPublishing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [articleId, setArticleId] = useState<string | null>(null)
@@ -88,19 +90,79 @@ export default function MakePage() {
     setStep('edit')
   }
 
-  // 提取文章内容（调用 Edge Function）
+  // 提取文章内容（智能解析链接 + 手动输入辅助）
   const handleFetchArticle = async () => {
     if (!fetchUrl.trim()) { Taro.showToast({ title: '请输入文章链接', icon: 'none' }); return }
     setFetchLoading(true)
     setFetchResult(null)
+
     try {
+      // 尝试调用后端 Edge Function（如果已部署）
       const { data, error } = await supabase.functions.invoke('article-fetch', {
         body: { url: fetchUrl.trim() },
       })
-      if (error || !data?.title) throw new Error(error?.message ?? '提取失败')
-      setFetchResult({ title: data.title, content: data.content ?? '' })
+
+      if (!error && data?.title) {
+        // 后端提取成功 — 去掉内容末尾的【原文图片】段落（图片单独展示）
+        let cleanContent = data.content ?? ''
+        const imgSectionIndex = cleanContent.indexOf('\n【原文图片】')
+        if (imgSectionIndex > 0) {
+          cleanContent = cleanContent.slice(0, imgSectionIndex).trim()
+        }
+        setFetchResult({ title: data.title, content: cleanContent, images: data.images })
+      } else {
+        // 后端不可用 → 智能辅助模式：从URL解析信息，引导用户手动输入
+        const url = fetchUrl.trim()
+        let platform = '未知平台'
+        let guessedTitle = ''
+
+        // 解析来源平台
+        if (url.includes('mp.weixin.qq.com')) platform = '微信公众号'
+        else if (url.includes('zhihu.com')) platform = '知乎'
+        else if (url.includes('xiaohongshu.com') || url.includes('xhslink.com')) platform = '小红书'
+        else if (url.includes('bilibili.com') || url.includes('b23.tv')) platform = 'B站'
+        else if (url.includes('douyin.com')) platform = '抖音'
+        else if (url.includes('weibo.com')) platform = '微博'
+        else { platform = '网页文章' }
+
+        // 从 URL 解析来源信息
+        try {
+          const urlObj = new URL(url)
+          // 微信公众号文章路径特殊处理
+          if (url.includes('mp.weixin.qq.com')) {
+            guessedTitle = '微信公众号文章'
+          } else {
+            const pathParts = urlObj.pathname.split('/').filter(Boolean)
+            if (pathParts.length > 0) {
+              const lastPart = decodeURIComponent(pathParts[pathParts.length - 1])
+              guessedTitle = lastPart
+                .replace(/[_\-]/g, ' ')
+                .replace(/\.(html|htm|shtml|md)$/, '')
+                .slice(0, 50)
+              // 如果解析出来的像ID（纯字母数字+短横线且超过15字符），替换掉
+              if (/^[a-zA-Z0-9\-_]{15,}$/.test(guessedTitle)) {
+                guessedTitle = platform + '文章'
+              }
+            } else {
+              guessedTitle = platform + '文章'
+            }
+          }
+        } catch (_) { /* ignore */ }
+
+        setFetchResult({
+          title: guessedTitle || '我的转载文章',
+          content: `【原文链接】\n${url}\n\n【引用内容】\n\n请在此粘贴或输入原文主要内容...\n\n【个人观点】\n\n`,
+        })
+
+        Taro.showToast({ title: '已自动填充模板，请补充内容', icon: 'none', duration: 2000 })
+      }
     } catch (e: any) {
-      Taro.showToast({ title: e.message ?? '链接解析失败，请检查链接', icon: 'none' })
+      // 网络异常等 → 也走辅助模式
+      setFetchResult({
+        title: '我的转载文章',
+        content: `【原文链接】\n${fetchUrl.trim()}\n\n【引用内容】\n\n请在此粘贴或输入原文主要内容...\n\n【个人观点】\n\n`,
+      })
+      Taro.showToast({ title: '已生成编辑模板', icon: 'none' })
     }
     setFetchLoading(false)
   }
@@ -108,7 +170,9 @@ export default function MakePage() {
   const handleUseFetched = () => {
     if (!fetchResult) return
     setTitle(fetchResult.title); setContent(fetchResult.content)
-    setCoverImage(null); setArticleId(null)
+    setCoverImage(null); setArticleId(null); setVideoUrl(null)
+    // 保存提取的图片
+    setFetchedImages(fetchResult.images || [])
     setStep('edit')
   }
 
@@ -124,16 +188,24 @@ export default function MakePage() {
     if (!title.trim()) { Taro.showToast({ title: '请填写标题', icon: 'none' }); return }
     setSaving(true)
     try {
+      console.log('[MakePage] 开始保存草稿...', { title, contentLength: content.length, articleId })
+      
       if (articleId) {
-        await updateArticle(articleId, { title, content, status: 'draft' })
+        await updateArticle(articleId, { title, content, status: 'draft', images: fetchedImages, video_url: videoUrl })
         Taro.showToast({ title: '草稿已更新', icon: 'success' })
       } else {
-        const art = await createArticle(title, content, [], [], { status: 'draft', cover_image: coverImage ?? undefined })
+        const art = await createArticle(title, content, fetchedImages, [], { status: 'draft', cover_image: coverImage ?? undefined, video_url: videoUrl ?? undefined })
+        console.log('[MakePage] 草稿创建成功:', art)
         if (art?.id) setArticleId(art.id)
         Taro.showToast({ title: '已存草稿', icon: 'success' })
       }
-    } catch {
-      Taro.showToast({ title: '保存失败，请重试', icon: 'none' })
+    } catch (e: any) {
+      console.error('[MakePage] 保存草稿失败:', e.message || e)
+      Taro.showToast({
+        title: e.message || '保存失败，请重试',
+        icon: 'none',
+        duration: 3000,
+      })
     }
     setSaving(false)
   }
@@ -146,194 +218,246 @@ export default function MakePage() {
     if (publishing) return
     setPublishing(true)
     try {
+      console.log('[MakePage] 开始发布文章...', { title, contentLength: content.length, articleId })
+      
       if (articleId) {
-        await updateArticle(articleId, { title, content, status: 'published', cover_image: coverImage ?? undefined })
+        console.log('[MakePage] 更新已有文章:', articleId)
+        await updateArticle(articleId, { title, content, status: 'published', cover_image: coverImage ?? undefined, images: fetchedImages, video_url: videoUrl })
       } else {
-        await createArticle(title, content, [], [], { status: 'published', cover_image: coverImage ?? undefined })
+        console.log('[MakePage] 创建新文章...')
+        const art = await createArticle(title, content, fetchedImages, [], { status: 'published', cover_image: coverImage ?? undefined, video_url: videoUrl ?? undefined })
+        console.log('[MakePage] 文章创建成功:', art)
+        if (art?.id) setArticleId(art.id)
       }
+      
       Taro.showToast({ title: '发布成功！', icon: 'success' })
       setTimeout(() => {
         Taro.navigateTo({ url: '/pages/content-center/my-articles/index?tab=published' })
       }, 800)
-    } catch {
-      Taro.showToast({ title: '发布失败，请重试', icon: 'none' })
+    } catch (e: any) {
+      console.error('[MakePage] 发布失败:', e.message || e)
+      Taro.showToast({
+        title: e.message || '发布失败，请重试',
+        icon: 'none',
+        duration: 3000,
+      })
       setPublishing(false)
     }
   }
 
   const wordCount = content.length
 
+  // 动态设置导航栏标题
+  useEffect(() => {
+    if (showTemplates) {
+      Taro.setNavigationBarTitle({ title: '选择模板' })
+    } else {
+      const titleMap = { choose: '创作江湖令', fetch: '链接导入', edit: '文章编辑' }
+      Taro.setNavigationBarTitle({ title: titleMap[step] })
+    }
+  }, [step, showTemplates])
+
   // ── 模板弹层 ──
   if (showTemplates) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="sticky top-0 z-10 bg-background px-4 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid #E7DDD0' }}>
-          <button type="button" className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
-            onClick={() => setShowTemplates(false)}>
-            <div className="i-mdi-arrow-left text-2xl text-foreground" />
-          </button>
-          <h1 className="text-2xl font-bold text-foreground">选择模板</h1>
-        </div>
-        <div className="p-4 flex flex-col gap-4">
+      <View className="min-h-screen bg-background">
+        <View className="p-4 flex flex-col gap-4">
           {TEMPLATES.map(tpl => (
-            <div key={tpl.name}
+            <View key={tpl.name}
               onClick={() => handleSelectTemplate(tpl)}
               className="p-4 rounded-2xl bg-card border-2 border-border"
               style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="i-mdi-file-document text-2xl text-primary" />
-                <span className="text-2xl font-bold text-foreground">{tpl.name}</span>
-              </div>
-              <p className="text-xl text-muted-foreground whitespace-pre-line leading-relaxed">{tpl.content}</p>
-              <div className="mt-3 flex justify-end">
-                <span className="px-4 py-1 rounded-full bg-primary/10 text-primary text-xl">使用此模板</span>
-              </div>
-            </div>
+              <View className="flex items-center gap-2 mb-2">
+                <View className="i-mdi-file-document text-2xl text-primary" />
+                <Text className="text-2xl font-bold text-foreground">{tpl.name}</Text>
+              </View>
+              <Text className="text-xl text-muted-foreground whitespace-pre-line leading-relaxed">{tpl.content}</Text>
+              <View className="mt-3 flex justify-end">
+                <Text className="px-4 py-1 rounded-full bg-primary/10 text-primary text-xl">使用此模板</Text>
+              </View>
+            </View>
           ))}
-        </div>
-      </div>
+        </View>
+      </View>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background pb-10">
-      {/* 顶部导航 */}
-      <div className="sticky top-0 z-10 bg-background px-4 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid #E7DDD0' }}>
-        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
-          onClick={() => {
-            if (step === 'choose') Taro.navigateBack()
-            else setStep('choose')
-          }}>
-          <div className="i-mdi-arrow-left text-2xl text-foreground" />
-        </button>
-        <h1 className="text-2xl font-bold text-foreground flex-1">
-          {step === 'choose' ? '创作江湖令' : step === 'fetch' ? '链接导入' : '文章编辑'}
-        </h1>
-        {step === 'edit' && (
-          <span className="text-xl text-muted-foreground">{wordCount}/5000字</span>
-        )}
-      </div>
-
+    <View className="min-h-screen bg-background pb-10">
       {/* ── 创作方式选择 ── */}
       {step === 'choose' && (
-        <div className="p-4">
+        <View className="p-4">
           {/* 题头 */}
-          <div className="mb-6 p-4 rounded-2xl flex items-center gap-3" style={{ background: 'linear-gradient(135deg,#FFEEDD,#FFFBF7)' }}>
-            <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-2xl">✍️</span>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">创作你的江湖令</p>
-              <p className="text-xl text-muted-foreground mt-1">一文传千里，好物享江湖</p>
-            </div>
-          </div>
+          <View className="mb-6 p-4 rounded-2xl flex items-center gap-3" style={{ background: 'linear-gradient(135deg,#FFEEDD,#FFFBF7)' }}>
+            <View className="w-12 h-12 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+              <Text className="text-white text-2xl">✍️</Text>
+            </View>
+            <View>
+              <Text className="text-2xl font-bold text-foreground">创作你的江湖令</Text>
+              <Text className="text-xl text-muted-foreground mt-1">一文传千里，好物享江湖</Text>
+            </View>
+          </View>
 
           {/* 三种方式 */}
-          <div className="flex flex-col gap-4 mb-6">
+          <View className="flex flex-col gap-4 mb-6">
             {MODES.map(mode => (
-              <div key={mode.key}
+              <View key={mode.key}
                 onClick={() => handleChooseMode(mode.key)}
                 className="p-4 rounded-2xl flex items-center gap-4"
                 style={{ background: mode.bg, border: `2px solid ${mode.border}22`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                <View className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
                   style={{ background: mode.border + '22' }}>
-                  <span className="text-3xl">{mode.emoji}</span>
-                </div>
-                <div className="flex-1">
-                  <p className="text-2xl font-bold text-foreground">{mode.title}</p>
-                  <p className="text-xl text-muted-foreground mt-1">{mode.desc}</p>
-                </div>
-                <div className="i-mdi-chevron-right text-2xl text-muted-foreground" />
-              </div>
+                  <Text className="text-3xl">{mode.emoji}</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-2xl font-bold text-foreground">{mode.title}</Text>
+                  <Text className="text-xl text-muted-foreground mt-1">{mode.desc}</Text>
+                </View>
+                <View className="i-mdi-chevron-right text-2xl text-muted-foreground" />
+              </View>
             ))}
-          </div>
+          </View>
 
           {/* 查看我的文章 */}
-          <div className="p-4 rounded-2xl bg-card border border-border flex items-center gap-3"
+          <View className="p-4 rounded-2xl bg-card border border-border flex items-center gap-3"
             onClick={() => Taro.navigateTo({ url: '/pages/content-center/my-articles/index' })}>
-            <div className="i-mdi-text-box-multiple text-2xl text-primary" />
-            <span className="text-xl text-foreground flex-1">查看我的文章</span>
-            <div className="i-mdi-chevron-right text-2xl text-muted-foreground" />
-          </div>
-        </div>
+            <View className="i-mdi-text-box-multiple text-2xl text-primary" />
+            <Text className="text-xl text-foreground flex-1">查看我的文章</Text>
+            <View className="i-mdi-chevron-right text-2xl text-muted-foreground" />
+          </View>
+        </View>
       )}
 
       {/* ── 链接导入 ── */}
       {step === 'fetch' && (
-        <div className="p-4">
-          <div className="mb-4 p-3 rounded-xl bg-muted/50 flex items-start gap-2">
-            <div className="i-mdi-information-outline text-xl text-primary flex-shrink-0 mt-0.5" />
-            <p className="text-xl text-muted-foreground leading-relaxed">支持微信公众号、知乎、小红书等平台文章链接</p>
-          </div>
+        <View className="p-4">
+          <View className="mb-4 p-3 rounded-xl bg-muted/50 flex items-start gap-2">
+            <View className="i-mdi-information-outline text-xl text-primary flex-shrink-0 mt-0.5" />
+            <Text className="text-xl text-muted-foreground leading-relaxed">粘贴链接后自动识别来源平台，生成编辑模板，支持微信/知乎/小红书等</Text>
+          </View>
 
           {/* 链接输入 */}
-          <p className="text-xl font-bold text-foreground mb-2">文章链接</p>
-          <div className="border-2 border-input rounded-xl px-4 py-3 bg-card mb-4">
-            <input
+          <Text className="text-xl font-bold text-foreground mb-2">文章链接</Text>
+          <View className="border-2 border-input rounded-xl px-4 py-3 bg-card mb-4">
+            <Input
               className="w-full text-xl text-foreground bg-transparent outline-none"
               placeholder="粘贴文章链接..."
               value={fetchUrl}
               onInput={(e) => { const ev = e as any; setFetchUrl(ev.detail?.value ?? ev.target?.value ?? '') }}
             />
-          </div>
+          </View>
 
-          <button type="button"
+          <View
             className={`w-full flex items-center justify-center leading-none rounded-xl ${fetchLoading ? 'bg-primary/50' : 'bg-primary'}`}
             onClick={handleFetchArticle}>
-            <div className="py-4 flex items-center gap-2">
+            <View className="py-4 flex items-center gap-2">
               {fetchLoading
-                ? <div className="i-mdi-loading text-2xl text-white animate-spin" />
-                : <div className="i-mdi-download text-2xl text-white" />}
-              <span className="text-xl text-white font-bold">{fetchLoading ? '提取中...' : '提取内容'}</span>
-            </div>
-          </button>
+                ? <View className="i-mdi-loading text-2xl text-white animate-spin" />
+                : <View className="i-mdi-download text-2xl text-white" />}
+              <Text className="text-xl text-white font-bold">{fetchLoading ? '提取中...' : '提取内容'}</Text>
+            </View>
+          </View>
 
           {/* 提取结果 */}
           {fetchResult && (
-            <div className="mt-4 p-4 rounded-2xl bg-card border-2 border-primary/30">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="i-mdi-check-circle text-2xl text-primary" />
-                <span className="text-xl font-bold text-primary">提取成功</span>
-              </div>
-              <p className="text-2xl font-bold text-foreground mb-2">{fetchResult.title}</p>
-              <p className="text-xl text-muted-foreground line-clamp-4 leading-relaxed">
+            <View className="mt-4 p-4 rounded-2xl bg-card border-2 border-primary/30">
+              <View className="flex items-center gap-2 mb-3">
+                <View className="i-mdi-check-circle text-2xl text-primary" />
+                <Text className="text-xl font-bold text-primary">提取成功</Text>
+              </View>
+              <Text className="text-2xl font-bold text-foreground mb-2">{fetchResult.title}</Text>
+              <Text className="text-xl text-muted-foreground line-clamp-4 leading-relaxed">
                 {fetchResult.content.slice(0, 150)}{fetchResult.content.length > 150 ? '...' : ''}
-              </p>
-              <button type="button"
+              </Text>
+
+              {/* 图片预览 */}
+              {fetchResult.images && fetchResult.images.length > 0 && (
+                <View className="mt-3">
+                  <View className="flex items-center gap-1 mb-2">
+                    <View className="i-mdi-image-multiple text-lg text-primary" />
+                    <Text className="text-base font-bold text-primary">原文图片 ({fetchResult.images.length}张)</Text>
+                  </View>
+                  <ScrollView scrollX style={{ whiteSpace: 'nowrap' }} className="flex-row gap-2">
+                    {fetchResult.images.slice(0, 9).map((imgUrl, idx) => (
+                      <View key={idx}
+                        className="flex-shrink-0 rounded-xl overflow-hidden"
+                        style={{ width: '120px', height: '90px', position: 'relative' }}
+                        onClick={() => {
+                          // 点击预览大图
+                          Taro.previewImage({ urls: fetchResult.images!, current: imgUrl })
+                        }}>
+                        <Image src={imgUrl} mode="aspectFill" style={{ width: '120px', height: '90px' }} lazyLoad />
+                        <View style={{
+                          position: 'absolute', bottom: 2, right: 4,
+                          background: 'rgba(0,0,0,0.5)', borderRadius: '8px',
+                          padding: '1px 6px',
+                        }}>
+                          <Text style={{ fontSize: '10px', color: '#FFF' }}>🔍</Text>
+                        </View>
+                      </View>
+                    ))}
+                    {fetchResult.images.length > 9 && (
+                      <View
+                        className="flex-shrink-0 rounded-xl flex items-center justify-center"
+                        style={{ width: '120px', height: '90px', background: '#F5F5F5' }}
+                        onClick={() => {
+                          Taro.previewImage({ urls: fetchResult.images!, current: fetchResult.images![9] })
+                        }}>
+                        <Text style={{ fontSize: '14px', color: '#999' }}>+{fetchResult.images.length - 9}张</Text>
+                      </View>
+                    )}
+                  </ScrollView>
+                  {/* 设为封面按钮 */}
+                  {!coverImage && fetchResult.images[0] && (
+                    <View
+                      className="mt-2 flex items-center justify-center gap-1 py-2 rounded-lg bg-blue-50 border border-blue-200"
+                      onClick={() => setCoverImage(fetchResult!.images![0])}>
+                      <View className="i-mdi-image-plus text-base text-blue-600" />
+                      <Text className="text-base text-blue-600 font-bold">用第1张图做封面</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              <Text className="text-base text-muted-foreground mt-3 italic">💡 可在编辑页补充原文内容和你的观点</Text>
+              <View
                 className="mt-4 w-full flex items-center justify-center leading-none rounded-xl bg-primary"
                 onClick={handleUseFetched}>
-                <div className="py-4 text-xl text-white font-bold">使用此内容，开始编辑</div>
-              </button>
-            </div>
+                <View className="py-4 flex items-center gap-2">
+                  <View className="i-mdi-pencil text-xl text-white" />
+                  <Text className="text-xl text-white font-bold">使用此内容，开始编辑</Text>
+                </View>
+              </View>
+            </View>
           )}
-        </div>
+        </View>
       )}
 
       {/* ── 文章编辑 ── */}
       {step === 'edit' && (
-        <div className="p-4">
+        <View className="p-4">
           {/* 标题 */}
-          <div className="mb-4">
-            <p className="text-xl font-bold text-foreground mb-2">
-              文章标题 <span className="text-destructive">*</span>
-            </p>
-            <div className="border-2 border-input rounded-xl px-4 py-3 bg-card">
-              <input
+          <View className="mb-4">
+            <Text className="text-xl font-bold text-foreground mb-2">
+              文章标题 <Text className="text-destructive">*</Text>
+            </Text>
+            <View className="border-2 border-input rounded-xl px-4 py-3 bg-card">
+              <Input
                 className="w-full text-2xl text-foreground bg-transparent outline-none font-bold"
                 placeholder="输入文章标题（吸引人的标题更容易传播）"
                 value={title}
                 onInput={(e) => { const ev = e as any; setTitle(ev.detail?.value ?? ev.target?.value ?? '') }}
               />
-            </div>
-          </div>
+            </View>
+          </View>
 
           {/* 内容 */}
-          <div className="mb-4">
-            <p className="text-xl font-bold text-foreground mb-2">
-              文章内容 <span className="text-destructive">*</span>
-            </p>
-            <div className="border-2 border-input rounded-xl px-4 py-3 bg-card">
-              <textarea
+          <View className="mb-4">
+            <Text className="text-xl font-bold text-foreground mb-2">
+              文章内容 <Text className="text-destructive">*</Text>
+            </Text>
+            <View className="border-2 border-input rounded-xl px-4 py-3 bg-card">
+              <Textarea
                 className="w-full text-xl text-foreground bg-transparent outline-none leading-relaxed"
                 style={{ height: '40vw', minHeight: '200px' }}
                 placeholder="在这里尽情挥毫，分享你的江湖见闻..."
@@ -341,65 +465,89 @@ export default function MakePage() {
                 value={content}
                 onInput={(e) => { const ev = e as any; setContent(ev.detail?.value ?? ev.target?.value ?? '') }}
               />
-            </div>
-            <p className="text-right text-base text-muted-foreground mt-1">{wordCount}/5000</p>
-          </div>
+            </View>
+            <Text className="text-right text-base text-muted-foreground mt-1">{wordCount}/5000</Text>
+          </View>
 
           {/* 封面图 */}
-          <div className="mb-6">
-            <p className="text-xl font-bold text-foreground mb-2">封面图（可选）</p>
+          <View className="mb-6">
+            <Text className="text-xl font-bold text-foreground mb-2">封面图（可选）</Text>
             {coverImage ? (
-              <div className="relative rounded-xl overflow-hidden" style={{ height: '160px' }}>
+              <View className="relative rounded-xl overflow-hidden" style={{ height: '160px' }}>
                 <Image src={coverImage} mode="aspectFill" className="w-full" style={{ height: '160px' }} />
-                <button type="button"
+                <View
                   className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"
                   onClick={() => setCoverImage(null)}>
-                  <div className="i-mdi-close text-xl text-white" />
-                </button>
-              </div>
+                  <View className="i-mdi-close text-xl text-white" />
+                </View>
+              </View>
             ) : (
-              <button type="button"
+              <View
                 className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl bg-muted/30"
                 style={{ height: '100px' }}
                 onClick={handleChooseCover}>
-                <div className="i-mdi-image-plus text-3xl text-muted-foreground" />
-                <span className="text-xl text-muted-foreground">选择封面图</span>
-              </button>
+                <View className="i-mdi-image-plus text-3xl text-muted-foreground" />
+                <Text className="text-xl text-muted-foreground">选择封面图</Text>
+              </View>
             )}
-          </div>
+          </View>
+
+          {/* 视频链接（可选） */}
+          <View className="mb-6">
+            <Text className="text-xl font-bold text-foreground mb-2">视频链接（可选）</Text>
+            <View className="flex items-center gap-2">
+              <View className="flex-1 border-2 border-input rounded-xl px-4 py-3 bg-card">
+                <Input
+                  className="w-full text-xl text-foreground bg-transparent outline-none"
+                  placeholder="粘贴视频链接（mp4直链或B站/抖音等）"
+                  value={videoUrl || ''}
+                  onInput={(e: any) => setVideoUrl((e.detail?.value || e.target?.value || '').trim() || null)}
+                />
+              </View>
+              {videoUrl && (
+                <View
+                  className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center flex-shrink-0"
+                  onClick={() => setVideoUrl(null)}
+                >
+                  <View className="i-mdi-close text-xl text-white" />
+                </View>
+              )}
+            </View>
+            <Text className="text-base text-muted-foreground mt-1">支持 mp4 直链视频（可播放）或外链（复制链接观看）</Text>
+          </View>
 
           {/* 操作按钮 */}
-          <div className="flex flex-col gap-3">
+          <View className="flex flex-col gap-3">
             {/* 发布按钮 */}
-            <button type="button"
+            <View
               className={`w-full flex items-center justify-center leading-none rounded-xl ${publishing ? 'bg-primary/50' : 'bg-primary'}`}
               onClick={handlePublish}>
-              <div className="py-4 flex items-center gap-2">
-                {publishing && <div className="i-mdi-loading text-2xl text-white animate-spin" />}
-                <span className="text-xl text-white font-bold">{publishing ? '发布中...' : (articleId ? '更新文章' : '发布文章')}</span>
-              </div>
-            </button>
+              <View className="py-4 flex items-center gap-2">
+                {publishing && <View className="i-mdi-loading text-2xl text-white animate-spin" />}
+                <Text className="text-xl text-white font-bold">{publishing ? '发布中...' : (articleId ? '更新文章' : '发布文章')}</Text>
+              </View>
+            </View>
 
-            <div className="flex gap-3">
+            <View className="flex gap-3">
               {/* 存草稿 */}
-              <button type="button"
+              <View
                 className={`flex-1 flex items-center justify-center leading-none rounded-xl border-2 border-border bg-card ${saving ? 'opacity-50' : ''}`}
                 onClick={handleSaveDraft}>
-                <div className="py-3 flex items-center gap-2">
-                  {saving && <div className="i-mdi-loading text-xl text-foreground animate-spin" />}
-                  <span className="text-xl text-foreground">{saving ? '保存中...' : '存草稿'}</span>
-                </div>
-              </button>
+                <View className="py-3 flex items-center gap-2">
+                  {saving && <View className="i-mdi-loading text-xl text-foreground animate-spin" />}
+                  <Text className="text-xl text-foreground">{saving ? '保存中...' : '存草稿'}</Text>
+                </View>
+              </View>
               {/* 返回重选 */}
-              <button type="button"
+              <View
                 className="flex-1 flex items-center justify-center leading-none rounded-xl border-2 border-border bg-card"
                 onClick={() => setStep('choose')}>
-                <div className="py-3 text-xl text-muted-foreground">返回重选</div>
-              </button>
-            </div>
-          </div>
-        </div>
+                <View className="py-3 text-xl text-muted-foreground">返回重选</View>
+              </View>
+            </View>
+          </View>
+        </View>
       )}
-    </div>
+    </View>
   )
 }

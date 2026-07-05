@@ -19,7 +19,7 @@ export interface Profile {
   balance: number
   coupons_count: number
   merchant_status: MerchantStatus
-  referral_code: string | null
+  invite_code: string | null
   referrer_id: string | null
   total_consumption: number | null  // 个人累计消费金额（用于计算段位）
   team_performance: number | null   // 团队业绩（直接下线消费 + 间接下线消费×0.5）
@@ -44,7 +44,22 @@ export interface Store {
   banner_url: string | null
   rating: number
   is_active: boolean
+  is_platform: boolean  // ⭐ 自营门店标识（true=平台自营，false=商家门店）
   short_code: string | null
+  referral_rate: number | null   // 让利率（%），商家设置
+  // 店铺设置页字段（00018 迁移补全）
+  contact: string | null
+  is_open: boolean
+  open_time: string | null
+  close_time: string | null
+  delivery_enabled: boolean
+  pickup_enabled: boolean
+  delivery_radius: number | null
+  delivery_fee: number | null
+  free_delivery_threshold: number | null
+  min_order_amount: number | null
+  announcement: string | null
+  scene_tags: string[] | null
   created_at: string
 }
 
@@ -101,6 +116,7 @@ export interface Order {
   id: string
   order_no: string
   user_id: string
+  store_id: string | null
   total_amount: number
   status: OrderStatus
   payment_method: PaymentMethod | null
@@ -111,6 +127,16 @@ export interface Order {
   commission_distributed: boolean
   service_type: 'dine_in' | 'self_pickup' | 'delivery'
   refunded_amount: number
+  // 00018 迁移补全的字段
+  parent_order_no: string | null
+  idempotency_key: string | null
+  l1_commission: number | null
+  l2_commission: number | null
+  buyer_points: number | null
+  platform_income: number | null
+  commission_calculated: boolean
+  promoter_id: string | null
+  staff_id: string | null
   created_at: string
   // joined
   order_items?: OrderItem[]
@@ -126,6 +152,7 @@ export interface OrderItem {
   product_image: string | null
   price: number
   quantity: number
+  created_at: string
 }
 
 export type ArticleStatus = 'draft' | 'published'
@@ -193,6 +220,9 @@ export interface Article {
   is_published: boolean
   status: ArticleStatus
   cover_image: string | null
+  video_url: string | null
+  view_count: number
+  share_count: number
   created_at: string
   // joined
   profiles?: Pick<Profile, 'id' | 'nickname' | 'avatar_url'>

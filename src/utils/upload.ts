@@ -1,6 +1,9 @@
 import Taro from "@tarojs/taro";
 import { supabase } from "@/client/supabase";
 
+/** 默认存储桶名 */
+const DEFAULT_BUCKET = 'images'
+
 /**
  * MIME type mappings for common file extensions
  */
@@ -32,9 +35,6 @@ export const MIME_TYPES: Record<string, string> = {
   csv: 'text/csv'
 } as const
 
-/**
- * File input type for WeChat MiniProgram
- */
 export interface MiniProgramFileInput {
   name: string
   type: string
@@ -42,42 +42,25 @@ export interface MiniProgramFileInput {
   tempFilePath: string
 }
 
-
-/**
- * Options for selecting media files
- */
 export interface SelectMediaOptions {
-  /** Maximum number of files to select */
   count?: number
-  /** Media types to select */
   mediaType?: ('image' | 'video' | 'mix')[]
-  /** Source type for file selection */
   sourceType?: ('album' | 'camera')[]
-  /** Maximum video duration in seconds (MiniProgram only) */
   maxDuration?: number
-  /** Camera mode (MiniProgram only) */
   camera?: 'back' | 'front'
 }
 
-/**
- * Options for selecting message files
- */
 export interface SelectMessageFileOptions {
-  /** Maximum number of files to select */
   count?: number
-  /** File type filter */
   type?: 'all' | 'video' | 'image' | 'file'
-  /** File extensions to allow */
   extension?: string[]
 }
 
-/** File upload configuration options */
 export interface FileInputOptions {
   bucket: string
   userId?: string
 }
 
-/** Supported file data types */
 export type FileBody =
   | ArrayBuffer
   | ArrayBufferView
@@ -85,9 +68,7 @@ export type FileBody =
   | File
   | string
 
-/** File input type (MiniProgram or Web) */
 export type FileInput = MiniProgramFileInput | File
-
 
 /**
  * Generate unique storage file name
@@ -98,29 +79,163 @@ export function generateFileName(ext: string): string {
   return `${timestamp}-${random}.${ext}`
 }
 
-/**
- * Get MIME type for a file extension
- */
 export function getMimeType(ext: string): string {
   return MIME_TYPES[ext.toLowerCase()] || 'application/octet-stream'
 }
 
+// ============================================================
+// 核心上传函数：tempFilePath → Supabase Storage → 公网 URL
+// ============================================================
+
 /**
- * Upload file to Supabase Storage
- * Supports both Web (File) and WeChat MiniProgram (tempFilePath) environments
+ * 将本地临时文件路径上传到 Supabase Storage，返回公网 URL
+ *
+ * 微信小程序限制说明：
+ * - <Image src> 支持：网络URL / 本地临时路径(wxfile://)
+ * - <Image src> 不支持：data URI (base64)
+ *
+ * 所以本函数只做「上传→返回URL」，不做 base64 转换
  */
+export async function uploadToStorage(tempFilePath: string, options?: { bucket?: string }): Promise<string> {
+  try {
+    const bucket = options?.bucket || DEFAULT_BUCKET
+    const ext = tempFilePath.split('.').pop() || 'jpg'
+    const fileName = generateFileName(ext)
+
+    // 获取当前用户 ID（用于存储路径）
+    let userId = 'public'
+    try {
+      const { data: userData } = await supabase.auth.getUser()
+      if (userData?.user?.id) userId = userData.user.id
+      console.log('[uploadToStorage] 用户ID:', userId)
+    } catch (authErr: any) {
+      console.warn('[uploadToStorage] 获取用户失败，使用 public:', authErr?.message)
+    }
+    const storagePath = `${userId}/${fileName}`
+    console.log('[uploadToStorage] 目标路径:', storagePath, '| 桶:', bucket)
+
+    // 微信小程序必须先读成 ArrayBuffer 再传给 Supabase
+    let fileBody: FileBody = tempFilePath
+    try {
+      const fs = Taro.getFileSystemManager()
+      fileBody = await new Promise<ArrayBuffer>((resolve, reject) => {
+        fs.readFile({
+          filePath: tempFilePath,
+          success: (res: any) => {
+            console.log('[uploadToStorage] readFile 成功，大小:', res.data?.byteLength || 'unknown')
+            resolve(res.data as ArrayBuffer)
+          },
+          fail: (err: any) => {
+            console.error('[uploadToStorage] readFile 失败:', err?.errMsg || err)
+            reject(err)
+          },
+        } as any)
+      })
+    } catch (readErr: any) {
+      console.warn('[uploadToStorage] readFile 异常，尝试直接传路径:', readErr?.errMsg || readErr?.message)
+      // readFile 失败时继续用原始路径尝试（某些情况下 supabase-js 可直接处理）
+    }
+
+    console.log('[uploadToStorage] 开始上传到 Supabase Storage...')
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(storagePath, fileBody, {
+        contentType: getMimeType(ext),
+        upsert: true,
+      })
+
+    if (error) {
+      // 详细错误分类
+      const errMsg = error.message || JSON.stringify(error)
+      console.error('[uploadToStorage] ❌ 上传失败:', errMsg)
+
+      if (errMsg.includes('bucket') || errMsg.includes('Bucket')) {
+        Taro.showToast({ title: '存储桶不存在，请联系管理员', icon: 'none', duration: 3000 })
+      } else if (errMsg.includes('permission') || errMsg.includes('RLS') || errMsg.includes('policy')) {
+        Taro.showToast({ title: '无权限上传，检查存储策略', icon: 'none', duration: 3000 })
+      } else if (errMsg.includes('quota') || errMsg.includes('size')) {
+        Taro.showToast({ title: '文件太大或空间不足', icon: 'none', duration: 3000 })
+      } else {
+        Taro.showToast({ title: '上传失败: ' + errMsg.slice(0, 40), icon: 'none', duration: 3000 })
+      }
+      return ''
+    }
+
+    if (!data?.path) {
+      console.error('[uploadToStorage] 上传成功但 data.path 为空:', data)
+      Taro.showToast({ title: '上传返回异常', icon: 'none' })
+      return ''
+    }
+
+    // 获取公网 URL
+    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path)
+    const publicUrl = urlData?.publicUrl || ''
+    console.log('[uploadToStorage] ✅ 上传成功! URL:', publicUrl.slice(0, 80))
+    return publicUrl
+  } catch (error: any) {
+    const errMsg = error?.message || error?.errMsg || String(error)
+    console.error('[uploadToStorage] 💥 未捕获异常:', errMsg)
+    Taro.showToast({ title: '上传异常: ' + errMsg.slice(0, 50), icon: 'none', duration: 3000 })
+    return ''
+  }
+}
+
+// ============================================================
+// 便捷选图+上传（返回 Storage URL，用于持久化存储）
+// ============================================================
+
+/**
+ * 🖼️ 选图并上传到 Storage，返回公网 URL
+ *
+ * 注意：此 URL 用于**持久化存储到数据库**
+ * 如果需要**立即可见的预览**，请直接使用 chooseMedia 返回的 tempFilePath
+ */
+export async function uploadImage(options?: {
+  filePath?: string
+  count?: number
+  bucket?: string
+}): Promise<string | string[]> {
+  try {
+    let tempPaths: string[] = []
+
+    if (options?.filePath) {
+      tempPaths = [options.filePath]
+    } else {
+      const res = await Taro.chooseMedia({
+        mediaType: ['image'],
+        count: options?.count || 1,
+        sizeType: ['compressed'],
+      })
+      tempPaths = res.tempFiles.map((f: any) => f.tempFilePath)
+      if (!tempPaths.length) return options?.count ? [] : ''
+    }
+
+    // 逐张上传到 Storage
+    const urls: string[] = []
+    for (const tp of tempPaths) {
+      const url = await uploadToStorage(tp, { bucket: options?.bucket })
+      urls.push(url)
+    }
+
+    return options?.count ? urls : urls[0]
+  } catch (error: any) {
+    console.error('[uploadImage] 异常:', error?.message || error)
+    return options?.count ? [] : ''
+  }
+}
+
+// ============================================================
+// 旧版兼容接口（保持不动）
+// ============================================================
+
 export async function uploadToSupabase(
   file: FileInput,
   options: FileInputOptions
 ): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    const { bucket, userId  } = options
-
-    // Generate storage path
+    const { bucket, userId } = options
     const ext = file?.name?.split('.')?.pop() || 'file'
     const storageName = `${userId || 'public'}/${generateFileName(ext)}`
-
-    // Prepare file body based on environment
     const fileBody: FileBody = Taro.getEnv() === Taro.ENV_TYPE.WEB ? (file as File)
       : (file as MiniProgramFileInput).tempFilePath
 
@@ -128,25 +243,14 @@ export async function uploadToSupabase(
       .from(bucket)
       .upload(storageName, fileBody, { contentType: file.type, upsert: false })
 
-    if (error) {
-      throw error
-    }
-
+    if (error) throw error
     return { success: true, data }
   } catch (error: any) {
-    return {
-      success: false,
-      error: error.message || 'Upload failed'
-    }
+    return { success: false, error: error.message || 'Upload failed' }
   }
 }
 
-/**
- * Select media files (images/videos) from device
- */
-export async function selectMediaFiles(
-  options: SelectMediaOptions = {}
-): Promise<(MiniProgramFileInput | File)[]> {
+export async function selectMediaFiles(options: SelectMediaOptions = {}): Promise<(MiniProgramFileInput | File)[]> {
   const {
     count = 1,
     mediaType = ['image', 'video'],
@@ -156,36 +260,13 @@ export async function selectMediaFiles(
   } = options
 
   try {
-    const result = await Taro.chooseMedia({
-      count,
-      mediaType,
-      sourceType,
-      maxDuration,
-      camera
-    })
-
-    if (!result.tempFiles?.length) {
-      return []
-    }
-
+    const result = await Taro.chooseMedia({ count, mediaType, sourceType, maxDuration, camera })
+    if (!result.tempFiles?.length) return []
     return result.tempFiles.map((file: any) => {
-      // Web environment: return File object directly
-      if (Taro.getEnv() === Taro.ENV_TYPE.WEB) {
-        return file.originalFileObj as File
-      }
-
-      // MiniProgram environment: construct file metadata
+      if (Taro.getEnv() === Taro.ENV_TYPE.WEB) return file.originalFileObj as File
       const tempFilePath = file.tempFilePath
       const ext = tempFilePath.split('.').pop() || 'unknown'
-      const name = generateFileName(ext)
-      const type = getMimeType(ext)
-
-      return {
-        name,
-        type,
-        size: file.size,
-        tempFilePath
-      } as MiniProgramFileInput
+      return { name: generateFileName(ext), type: getMimeType(ext), size: file.size, tempFilePath }
     })
   } catch (error: any) {
     console.error('Failed to select media files:', error)
@@ -193,20 +274,9 @@ export async function selectMediaFiles(
   }
 }
 
-/**
- * Select a message file (document) from WeChat chat or local storage
- */
-export async function selectMessageFile(
-  options: SelectMessageFileOptions = {}
-): Promise<MiniProgramFileInput | File | null> {
-  const {
-    count = 1,
-    type = 'file',
-    extension = ['pdf']
-  } = options
-
+export async function selectMessageFile(options: SelectMessageFileOptions = {}): Promise<MiniProgramFileInput | File | null> {
+  const { count = 1, type = 'file', extension = ['pdf'] } = options
   try {
-    // Web environment: use native file input
     if (Taro.getEnv() === Taro.ENV_TYPE.WEB) {
       return new Promise<File | null>((resolve) => {
         const input = document.createElement('input')
@@ -218,32 +288,15 @@ export async function selectMessageFile(
           input.remove()
           resolve(selectedFile || null)
         }
-        // Handle user cancellation
-        input.oncancel = () => {
-          input.remove()
-          resolve(null)
-        }
+        input.oncancel = () => { input.remove(); resolve(null) }
         input.click()
       })
     }
-
-    // MiniProgram environment: use chooseMessageFile API
-    const result = await Taro.chooseMessageFile({
-      count,
-      type,
-      extension
-    })
-    if (!result.tempFiles?.length) {
-      return null
-    }
+    const result = await Taro.chooseMessageFile({ count, type, extension })
+    if (!result.tempFiles?.length) return null
     const file = result.tempFiles[0]
     const ext = file.name?.split('.').pop() || extension[0]
-    return {
-      name: file.name,
-      type: getMimeType(ext),
-      size: file.size,
-      tempFilePath: file.path
-    } as MiniProgramFileInput
+    return { name: file.name, type: getMimeType(ext), size: file.size, tempFilePath: file.path }
   } catch (error: any) {
     console.error('Failed to select message file:', error)
     return null

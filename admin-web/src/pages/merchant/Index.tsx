@@ -1,8 +1,10 @@
 // @title 商家中心 - 店铺概况
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
 
-// Mock 数据
+// Mock 数据（演示模式 fallback）
 const MOCK_STATS = {
   todayRevenue: 1280.50,
   monthRevenue: 38620.00,
@@ -28,7 +30,6 @@ const STATUS_LABEL: Record<string, string> = {
   refund: '退款中',
   cancelled: '已取消',
 }
-
 const STATUS_COLOR: Record<string, string> = {
   pending_pay: '#F59E0B',
   pending_ship: '#C2410C',
@@ -38,10 +39,129 @@ const STATUS_COLOR: Record<string, string> = {
   cancelled: '#6B7280',
 }
 
+// 判断是否有商家权限
+const isMerchantUser = (profile: any): boolean => {
+  if (!profile) return false
+  return profile.role === 'merchant' || profile.merchant_status === 'approved'
+}
+
 export default function MerchantDashboard() {
   const nav = useNavigate()
-  const [stats] = useState(MOCK_STATS)
-  const [recentOrders] = useState(MOCK_RECENT_ORDERS)
+  const { profile, useMock } = useAuth()
+  const [stats, setStats] = useState({ todayRevenue: 0, monthRevenue: 0, todayOrders: 0, totalCustomers: 0, pendingOrders: 0, pendingWithdraw: 0 })
+  const [recentOrders, setRecentOrders] = useState<typeof MOCK_RECENT_ORDERS>([])
+  const [storeId, setStoreId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // 获取当前商家的 store_id
+  useEffect(() => {
+    if (!profile || !isMerchantUser(profile)) return
+    const fetchStore = async () => {
+      const { data } = await supabase
+        .from('stores')
+        .select('id')
+        .eq('owner_id', profile.id)
+        .maybeSingle()
+      setStoreId(data?.id ?? null)
+    }
+    if (!useMock) {
+      fetchStore()
+    }
+  }, [profile, useMock])
+
+  // 加载真实数据
+  useEffect(() => {
+    if (useMock || !storeId) {
+      // 演示模式：用 Mock 数据
+      setStats(MOCK_STATS)
+      setRecentOrders(MOCK_RECENT_ORDERS)
+      setLoading(false)
+      return
+    }
+    const load = async () => {
+      setLoading(true)
+      const today = new Date().toISOString().slice(0, 10)
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
+
+      try {
+        // 今日订单
+        const { data: todayOrdersData } = await supabase
+          .from('orders')
+          .select('total_amount, status, created_at')
+          .eq('store_id', storeId)
+          .gte('created_at', today)
+
+        const todayOrders = todayOrdersData?.length ?? 0
+        const todayRevenue = todayOrdersData?.reduce((s, o) => s + (o.total_amount ?? 0), 0) ?? 0
+
+        // 本月订单
+        const { data: monthOrdersData } = await supabase
+          .from('orders')
+          .select('total_amount')
+          .eq('store_id', storeId)
+          .gte('created_at', monthStart)
+
+        const monthRevenue = monthOrdersData?.reduce((s, o) => s + (o.total_amount ?? 0), 0) ?? 0
+
+        // 待发货订单数
+        const { count: pendingCount } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('store_id', storeId)
+          .eq('status', 'pending_ship')
+
+        // 可提现佣金（已审核通过的提现申请总额，或从 commissions 表汇总）
+        const { data: withdrawData } = await supabase
+          .from('withdrawals')
+          .select('amount')
+          .eq('store_id', storeId)
+          .eq('status', 'approved')
+
+        const pendingWithdraw = withdrawData?.reduce((s, w) => s + (w.amount ?? 0), 0) ?? 0
+
+        // 累积客户数（有过订单的去重用户数）
+        const { data: custData } = await supabase
+          .from('orders')
+          .select('user_id')
+          .eq('store_id', storeId)
+
+        const totalCustomers = new Set(custData?.map(o => o.user_id)).size
+
+        setStats({
+          todayRevenue,
+          monthRevenue,
+          todayOrders,
+          totalCustomers,
+          pendingOrders: pendingCount ?? 0,
+          pendingWithdraw,
+        })
+
+        // 最新5条订单
+        const { data: recent } = await supabase
+          .from('orders')
+          .select('id, order_items(product_name, quantity), total_amount, status, created_at')
+          .eq('store_id', storeId)
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        setRecentOrders((recent ?? []).map(o => ({
+          id: o.id,
+          product_name: (o as any).order_items?.[0]?.product_name ?? '多商品订单',
+          quantity: (o as any).order_items?.[0]?.quantity ?? 1,
+          price: o.total_amount ?? 0,
+          status: o.status,
+          created_at: (o.created_at ?? '').replace('T', ' ').slice(0, 16),
+        })))
+      } catch (e) {
+        console.warn('[Dashboard] 加载真实数据失败，使用 Mock:', e)
+        setStats(MOCK_STATS)
+        setRecentOrders(MOCK_RECENT_ORDERS)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [useMock, storeId])
 
   const cards = [
     { label: '今日营收', value: `¥${stats.todayRevenue.toFixed(2)}`, icon: '💰', color: '#059669' },

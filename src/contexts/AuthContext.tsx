@@ -48,9 +48,16 @@ export function AuthProvider({children}: {children: ReactNode}) {
   }
 
   useEffect(() => {
+    // 超时保护：8秒后强制取消加载状态，防止永久转圈
+    const timeout = setTimeout(() => {
+      console.warn('[Auth] getSession 超时（8秒），强制进入页面')
+      setLoading(false)
+    }, 8000)
+
     supabase.auth
       .getSession()
       .then(({data: {session}}: { data: { session: Session | null } }) => {
+        clearTimeout(timeout)
         setUser(session?.user ?? null)
         if (session?.user) {
           getProfile(session.user.id).then(setProfile)
@@ -58,6 +65,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
         setLoading(false)
       })
       .catch((error: Error) => {
+        clearTimeout(timeout)
         console.warn('Failed to get session:', error)
         setUser(null)
         setProfile(null)
@@ -81,12 +89,56 @@ export function AuthProvider({children}: {children: ReactNode}) {
 
   const signInWithUsername = async (username: string, password: string) => {
     try {
-      const email = `${username}@miaoda.com`
-      const {error} = await supabase.auth.signInWithPassword({
+      // 支持：邮箱（含 @）、用户名、手机号
+      let email = username
+      if (!username.includes('@')) {
+      // 手机号格式：支持测试账号直接映射（18701410500 / 18710410500 均可）
+      if (/^1[3-9]\d{9}$/.test(username)) {
+        if (username === '18701410500' || username === '18710410500' || username === '187101410500') {
+            email = 'test18701410500@test.com'
+          } else {
+            // 生产环境：此处应通过 backend API 按手机号查邮箱
+            throw new Error('该手机号未开通密码登录，请使用短信验证码登录')
+          }
+        } else {
+          // 纯用户名：补 @miaoda.com 后缀
+          email = `${username}@miaoda.com`
+        }
+      }
+      
+      // 先尝试登录
+      let {error} = await supabase.auth.signInWithPassword({
         email,
         password
       })
-
+      
+      // 如果是测试账号且登录失败（用户不存在），自动创建
+      if (error && email === 'test18701410500@test.com' && error.message.includes('Invalid login credentials')) {
+        console.log('[Auth] 测试账号不存在，自动创建...')
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { 
+              phone: '18701410500',
+              nickname: '测试用户'
+            }
+          }
+        })
+        
+        if (signUpError) {
+          console.error('[Auth] 自动创建测试账号失败:', signUpError)
+          throw signUpError
+        }
+        
+        // 创建成功，重新登录
+        const { error: reLoginError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        })
+        error = reLoginError
+      }
+      
       if (error) throw error
       return {error: null}
     } catch (error) {
@@ -127,7 +179,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
   const signInWithPhone = async (phone: string) => {
     try {
       // 本地测试模式：测试账号直接发送固定验证码
-      if (phone === '+8618701410500' || phone === '+8612345678901') {
+      if (phone === '+8618701410500' || phone === '+8612345678901' || phone === '+8618710410500') {
         // 测试账号，不真正发送短信，而是提示用户使用固定验证码
         return { error: null }
       }
@@ -144,11 +196,40 @@ export function AuthProvider({children}: {children: ReactNode}) {
   const verifyPhoneOtp = async (phone: string, code: string) => {
     try {
       // 本地测试模式：测试账号绕过真实短信验证
-      if ((phone === '+8618701410500' || phone === '+8612345678901') && code === '123456') {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: 'test_18701410500@laidianyouxi.com',
-          password: 'Test123456!'
+      if ((phone === '+8618701410500' || phone === '+8612345678901' || phone === '+8618710410500') && code === '123456') {
+        // 先尝试登录
+        let { error } = await supabase.auth.signInWithPassword({
+          email: 'test18701410500@test.com',
+          password: '12345678',
         })
+        
+        // 如果用户不存在，自动创建
+        if (error && error.message.includes('Invalid login credentials')) {
+          console.log('[Auth] 短信登录：测试账号不存在，自动创建...')
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: 'test18701410500@test.com',
+            password: '12345678',
+            options: {
+              data: { 
+                phone: '18701410500',
+                nickname: '测试用户'
+              }
+            }
+          })
+          
+          if (signUpError) {
+            console.error('[Auth] 自动创建测试账号失败:', signUpError)
+            throw signUpError
+          }
+          
+          // 创建成功，重新登录
+          const { error: reLoginError } = await supabase.auth.signInWithPassword({
+            email: 'test18701410500@test.com',
+            password: '12345678',
+          })
+          error = reLoginError
+        }
+        
         if (error) throw error
         return { error: null }
       }

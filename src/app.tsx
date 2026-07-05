@@ -9,7 +9,9 @@ import { useTabBarPageClass } from '@/hooks/useTabBarPageClass'
 
 import './app.scss'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { LocationProvider } from '@/contexts/LocationContext'
 import { handleInviterFromQuery } from '@/utils/share'
+import PrivacyModal from '@/components/PrivacyModal'
 
 const App: React.FC = ({ children }: PropsWithChildren<unknown>) => {
   useTabBarPageClass()
@@ -19,7 +21,14 @@ const App: React.FC = ({ children }: PropsWithChildren<unknown>) => {
     handleInviterFromQuery()
   })
 
-  return <AuthProvider>{children}</AuthProvider>
+  return (
+    <AuthProvider>
+      <LocationProvider>
+        {children}
+        <PrivacyModal />
+      </LocationProvider>
+    </AuthProvider>
+  )
 }
 
 export default App

@@ -61,7 +61,7 @@ function MerchantCenterPage() {
     try {
       const url = await generateQrcode({
         type: 'store',
-        store_short_code: store.short_code || store.id,
+        short_code: store.short_code || store.id,
       })
       if (url) setStoreQrUrl(url)
       else Taro.showToast({ title: '二维码生成失败', icon: 'none' })
@@ -152,15 +152,6 @@ function MerchantCenterPage() {
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
-      {/* 顶部 */}
-      <View className="flex items-center px-4 pt-4 pb-2">
-        <Button className="!w-10 !h-10 !p-0 !bg-muted !rounded-full !border-none"
-          onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
-          <View className="i-mdi-arrow-left text-2xl text-foreground" />
-        </Button>
-        <Text className="flex-1 text-center text-xl font-bold text-foreground pr-10">商家管理中心</Text>
-      </View>
-
       {/* 门店信息卡 */}
       <View className="mx-4 mt-2 p-4 rounded-2xl bg-card border border-border">
         <View className="flex items-center gap-3">

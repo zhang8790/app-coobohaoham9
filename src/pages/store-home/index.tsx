@@ -2,11 +2,13 @@
 import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
+import './index.scss'
 
 // 关键：必须从 common.js 导入至少一项，否则 Rollup 会 tree-sh掉 common.js 和 vendors.js
 // 导致小程序运行时缺少必要代码 → 页面空白崩溃
 import { getStoreById, getStoreCategories, getProducts } from '@/db/api'
 import type { Store, StoreCategory, Product } from '@/db/types'
+import { supabase } from '@/client/supabase'
 
 export default function StoreHomePage() {
   const [storeId, setStoreId] = useState('')
@@ -16,13 +18,49 @@ export default function StoreHomePage() {
   const [activeCat, setActiveCat] = useState<string>('all')
   const [loading, setLoading] = useState(true)
 
-  // 获取路由参数
+  // 获取路由参数（支持 id 直接传参 + scene 扫码参数）
   useEffect(() => {
     try {
       const instance = Taro.getCurrentInstance()
-      const id = instance?.router?.params?.id
+      const params = instance?.router?.params as any || {}
+      const id = params.id
+
+      // 方式1：直接 ?id=xxx 跳转
       if (id) {
         setStoreId(decodeURIComponent(id))
+        return
+      }
+
+      // 方式2：扫码进入，scene 参数格式 s=短码&r=推广码
+      const scene = params.scene
+      if (scene) {
+        try {
+          const decodedScene = decodeURIComponent(scene)
+          console.log('[StoreHome] scene:', decodedScene)
+
+          // 匹配 s=门店短码（8位字母数字）
+          const storeMatch = decodedScene.match(/s=([A-Za-z0-9]{4,12})/i)
+          if (storeMatch) {
+            const shortCode = storeMatch[1].toUpperCase()
+            console.log('[StoreHome] 查找门店 short_code:', shortCode)
+
+            // 通过短码查询门店 ID
+            supabase.from('stores').select('id').eq('short_code', shortCode).maybeSingle()
+              .then(({ data }) => {
+                if (data?.id) {
+                  console.log('[StoreHome] 找到门店 ID:', data.id)
+                  setStoreId(data.id)
+                } else {
+                  Taro.showToast({ title: '门店不存在', icon: 'none' })
+                }
+              })
+              .catch((err) => {
+                console.error('[StoreHome] 查询门店失败:', err)
+              })
+          }
+        } catch (e) {
+          console.error('[StoreHome] scene 解析失败:', e)
+        }
       }
     } catch (e) {
       console.error('[StoreHome] params error:', e)
@@ -76,25 +114,58 @@ export default function StoreHomePage() {
     )
   }
 
+  // 获取店铺展示图片（优先 banner_url → image_url，因为 banner_url 是用户最新上传的）
+  const getStoreImage = (s: Store | null): string | null => {
+    if (!s) return null
+    const url = s.banner_url || s.image_url || ''
+    // 过滤无效值
+    if (!url || url === 'null' || url === 'undefined') return null
+    if (url.startsWith('wxfile://') || url.startsWith('http://tmp') || url.startsWith('data:')) return null
+    // Supabase Storage URL 格式检查
+    if (url.startsWith('http://') || url.startsWith('https://')) return url
+    return null
+  }
+
   return (
     <View style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#F5F5F5' }}>
 
       {/* ========== 门店头部 Banner ========== */}
       <View style={{ position: 'relative', height: '180px', flexShrink: 0 }}>
-        <Image
-          src={store.image_url || ''}
-          mode="aspectFill"
-          style={{ width: '100%', height: '180px', display: 'block' }}
-        />
-        {/* 渐变遮罩 */}
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0) 30%, rgba(0,0,0,0.7) 100%)',
-        }} />
+        {(() => {
+          const img = getStoreImage(store)
+          return img ? (
+            <Image
+              src={img}
+              mode="aspectFill"
+              style={{ width: '100%', height: '180px', display: 'block' }}
+            />
+          ) : (
+            // 无图片时：显示品牌色背景 + 店铺图标
+            // 使用 CSS class 实现渐变（微信小程序不支持 inline linear-gradient）
+            <View className="brand-gradient-bg"
+              style={{
+              width: '100%',
+              height: '180px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <View style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '16px',
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Text style={{ fontSize: '32px' }}>🏪</Text>
+              </View>
+            </View>
+          )
+        })()}
+        {/* 渐变遮罩 — 使用 CSS class 实现 */}
+        <View className="banner-overlay" />
         {/* 返回按钮 */}
         <View
           onClick={() => Taro.navigateBack()}

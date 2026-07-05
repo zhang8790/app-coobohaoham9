@@ -1,7 +1,7 @@
 // @title 商品详情
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
-import { Image, Button, Swiper, SwiperItem, Video } from '@tarojs/components'
+import { Image, Button, Swiper, SwiperItem, Video, View, Text } from '@tarojs/components'
 import { getProductById, addToCart, getCartCount, isFavorited, toggleFavorite, recordFootprint } from '@/db/api'
 import { updateCartBadge } from '@/utils/cartBadge'
 import type { Product } from '@/db/types'
@@ -22,6 +22,7 @@ export default function ProductPage() {
   const [isFav, setIsFav] = useState(false)
   const [favLoading, setFavLoading] = useState(false)
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
+  const [quantity, setQuantity] = useState(1)
 
   // 构建媒体列表：主图 + 副图 + 视频（视频放最后）
   const mediaList = useMemo(() => {
@@ -91,9 +92,9 @@ export default function ProductPage() {
   const handleAddCart = async () => {
     if (!requireLogin() || !product) return
     setAdding(true)
-    await addToCart(product.id, product.store_id)
+    await addToCart(product.id, product.store_id, quantity)
     setAdding(false)
-    setCartCount(prev => prev + 1)
+    setCartCount(prev => prev + quantity)
     updateCartBadge()
     Taro.showToast({ title: '已加入行囊', icon: 'success' })
   }
@@ -101,27 +102,27 @@ export default function ProductPage() {
   const handleBuyNow = async () => {
     if (!requireLogin() || !product) return
     setAdding(true)
-    await addToCart(product.id, product.store_id)
+    await addToCart(product.id, product.store_id, quantity)
     setAdding(false)
     updateCartBadge()
-    Taro.navigateTo({ url: `/pages/payment/index?productId=${encodeURIComponent(product.id)}&total=${product.price}` })
+    Taro.navigateTo({ url: `/pages/payment/index?productId=${encodeURIComponent(product.id)}&total=${product.price}&quantity=${quantity}` })
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="i-mdi-loading text-4xl text-primary animate-spin" />
-    </div>
+    <View className="flex items-center justify-center min-h-screen bg-background">
+      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+    </View>
   )
   if (!product) return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <p className="text-xl text-muted-foreground">商品不存在</p>
-    </div>
+    <View className="flex items-center justify-center min-h-screen bg-background">
+      <Text className="text-xl text-muted-foreground">商品不存在</Text>
+    </View>
   )
 
   return (
-    <div className="min-h-screen bg-background pb-28">
+    <View className="min-h-screen bg-background pb-28">
       {/* 商品媒体轮播 + 顶部返回 + 购物车角标 */}
-      <div className="relative">
+      <View className="relative">
         {/* 主图 + 副图轮播 */}
         {mediaList.length > 0 && (
           <Swiper
@@ -145,42 +146,23 @@ export default function ProductPage() {
 
         {/* 媒体计数指示 */}
         {mediaList.length > 1 && (
-          <div className="absolute bottom-3 right-4 px-2 py-0.5 rounded-full bg-black/50 text-white text-xs">
+          <View className="absolute bottom-3 right-4 px-2 py-0.5 rounded-full bg-black/50 text-white text-xs">
             {currentMediaIndex + 1}/{mediaList.length}
-          </div>
+          </View>
         )}
 
         {/* 有视频标识 */}
         {videoUrl && (
-          <div className="absolute bottom-3 left-4 px-2 py-0.5 rounded-full bg-red-500/80 text-white text-xs flex items-center gap-1">
-            <div className="i-mdi-video text-sm" />
-            <span>含视频</span>
-          </div>
+          <View className="absolute bottom-3 left-4 px-2 py-0.5 rounded-full bg-red-500/80 text-white text-xs flex items-center gap-1">
+            <View className="i-mdi-video text-sm" />
+            <Text>含视频</Text>
+          </View>
         )}
-
-        {/* 顶部返回按钮 */}
-        <button type="button"
-          className="absolute top-3 left-4 w-10 h-10 rounded-full bg-black/40 flex items-center justify-center z-10"
-          onClick={() => Taro.navigateBack()}>
-          <div className="i-mdi-arrow-left text-2xl text-white" />
-        </button>
-
-        {/* 购物车角标 */}
-        {cartCount > 0 && (
-          <div className="absolute top-3 right-4 z-10" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
-            <div className="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center">
-              <div className="i-mdi-shopping-outline text-2xl text-white" />
-            </div>
-            <div className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full bg-primary flex items-center justify-center px-1">
-              <span className="text-white text-xs font-bold">{cartCount > 99 ? '99+' : cartCount}</span>
-            </div>
-          </div>
-        )}
-      </div>
+      </View>
 
       {/* 视频播放区域 */}
       {videoUrl && (
-        <div className="mx-4 mt-3 rounded-2xl overflow-hidden bg-black">
+        <View className="mx-4 mt-3 rounded-2xl overflow-hidden bg-black">
           <Video
             src={videoUrl}
             className="w-full"
@@ -190,14 +172,14 @@ export default function ProductPage() {
             enableProgressGesture
             objectFit="contain"
           />
-        </div>
+        </View>
       )}
 
       {/* 详情图片展示 */}
       {product.detail_images && product.detail_images.length > 0 && (
-        <div className="mx-4 mt-3">
-          <p className="text-xl font-bold text-foreground mb-2">商品详情</p>
-          <div className="flex flex-col gap-3">
+        <View className="mx-4 mt-3">
+          <Text className="text-xl font-bold text-foreground mb-2">商品详情</Text>
+          <View className="flex flex-col gap-3">
             {product.detail_images.map((img, i) => (
               <Image
                 key={i}
@@ -207,101 +189,126 @@ export default function ProductPage() {
                 style={{ display: 'block' }}
               />
             ))}
-          </div>
-        </div>
+          </View>
+        </View>
       )}
 
       {/* 价格信息卡 */}
-      <div className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
+      <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
         {/* 分享赚佣提示 */}
         {myCode && (
-          <div className="mb-3 py-2 px-3 rounded-xl bg-primary/10 flex items-center gap-2">
-            <div className="i-mdi-share-variant text-xl text-primary" />
-            <span className="text-xl text-primary font-bold">分享此商品，好友购买你可获佣金</span>
-          </div>
+          <View className="mb-3 py-2 px-3 rounded-xl bg-primary/10 flex items-center gap-2">
+            <View className="i-mdi-share-variant text-xl text-primary" />
+            <Text className="text-xl text-primary font-bold">分享此商品，好友购买你可获佣金</Text>
+          </View>
         )}
-        <div className="flex items-center gap-3">
-          <span className="text-3xl font-bold text-primary">¥{product.price}</span>
+        <View className="flex items-center gap-3">
+          <Text className="text-3xl font-bold text-primary">¥{product.price}</Text>
           {product.original_price && (
-            <span className="text-xl text-muted-foreground line-through">¥{product.original_price}</span>
+            <Text className="text-xl text-muted-foreground line-through">¥{product.original_price}</Text>
           )}
           {product.original_price && (
-            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-xl font-bold text-primary">
+            <Text className="px-2 py-0.5 rounded-full bg-primary/10 text-xl font-bold text-primary">
               省¥{(product.original_price - product.price).toFixed(2)}
-            </span>
+            </Text>
           )}
           {/* 让利标签 */}
           {product.discount_rate != null && product.discount_rate > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-purple-100 text-base font-bold text-purple-700">
+            <Text className="px-2 py-0.5 rounded-full bg-purple-100 text-base font-bold text-purple-700">
               立减{product.discount_rate}%
-            </span>
+            </Text>
           )}
-        </div>
+        </View>
         <h1 className="text-2xl font-bold text-foreground mt-3 leading-tight">{product.name}</h1>
         {product.description && (
-          <p className="text-xl text-muted-foreground mt-2 leading-relaxed">{product.description}</p>
+          <Text className="text-xl text-muted-foreground mt-2 leading-relaxed">{product.description}</Text>
         )}
         {product.mood_tags && product.mood_tags.length > 0 && (
-          <div className="flex gap-2 mt-3 flex-wrap">
+          <View className="flex gap-2 mt-3 flex-wrap">
             {product.mood_tags.map(t => (
-              <span key={t} className="px-3 py-1 rounded-full bg-muted text-xl text-secondary">{t}</span>
+              <Text key={t} className="px-3 py-1 rounded-full bg-muted text-xl text-secondary">{t}</Text>
             ))}
-          </div>
+          </View>
         )}
         {/* 进入门店 */}
         {product.stores && (
-          <div className="mt-4 flex items-center gap-3 py-3 border-t border-border"
+          <View className="mt-4 flex items-center gap-3 py-3 border-t border-border"
             onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${product.store_id}` })}>
-            <div className="i-mdi-store text-2xl text-primary flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-xl font-bold text-foreground">{(product.stores as any)?.name}</p>
-              <p className="text-base text-muted-foreground">点击进入门店</p>
-            </div>
-            <div className="i-mdi-chevron-right text-xl text-muted-foreground" />
-          </div>
+            <View className="i-mdi-store text-2xl text-primary flex-shrink-0" />
+            <View className="flex-1">
+              <Text className="text-xl font-bold text-foreground">{(product.stores as any)?.name}</Text>
+              <Text className="text-base text-muted-foreground">点击进入门店</Text>
+            </View>
+            <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+          </View>
         )}
-      </div>
+      </View>
+
+      {/* 数量选择器 */}
+      <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border flex items-center justify-between">
+        <Text className="text-xl font-bold text-foreground">购买数量</Text>
+        <View className="flex items-center gap-4">
+          <View
+            className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 ${quantity <= 1 ? 'border-muted bg-muted/50' : 'border-border bg-card'}`}
+            hoverClass="none"
+            onClick={() => { if (quantity > 1) setQuantity(q => q - 1) }}
+          >
+            <Text className={`text-2xl font-bold ${quantity <= 1 ? 'text-muted-foreground' : 'text-foreground'}`}>−</Text>
+          </View>
+          <Text className="text-2xl font-bold text-foreground min-w-8 text-center">{quantity}</Text>
+          <View
+            className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-border bg-card"
+            hoverClass="none"
+            onClick={() => {
+              const maxStock = (product as any)?.stock || 99
+              if (quantity < maxStock) setQuantity(q => q + 1)
+            }}
+          >
+            <Text className="text-2xl font-bold text-foreground">+</Text>
+          </View>
+        </View>
+      </View>
 
       {/* 底部操作栏 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t-2 border-border px-4 py-3 flex gap-3"
+      <View className="fixed bottom-0 left-0 right-0 bg-card border-t-2 border-border px-4 py-3 flex gap-3"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
         {/* 购物车图标入口 */}
-        <div className="relative flex-shrink-0" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center border-2 border-border">
-            <div className="i-mdi-shopping-outline text-2xl text-foreground" />
-          </div>
+        <View className="relative flex-shrink-0" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
+          <View className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center border-2 border-border">
+            <View className="i-mdi-shopping-outline text-2xl text-foreground" />
+          </View>
           {cartCount > 0 && (
-            <div className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full bg-primary flex items-center justify-center px-1">
-              <span className="text-white text-xs font-bold">{cartCount > 99 ? '99+' : cartCount}</span>
-            </div>
+            <View className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full bg-primary flex items-center justify-center px-1">
+              <Text className="text-white text-xs font-bold">{cartCount > 99 ? '99+' : cartCount}</Text>
+            </View>
           )}
-        </div>
+        </View>
         {/* 收藏按钮 */}
-        <div className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
+        <View className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
           onClick={handleToggleFav}>
           {favLoading
-            ? <div className="i-mdi-loading text-2xl text-primary animate-spin" />
-            : <div className={`text-2xl ${isFav ? 'i-mdi-heart text-red-400' : 'i-mdi-heart-outline text-foreground'}`} />}
-        </div>
+            ? <View className="i-mdi-loading text-2xl text-primary animate-spin" />
+            : <View className={`text-2xl ${isFav ? 'i-mdi-heart text-red-400' : 'i-mdi-heart-outline text-foreground'}`} />}
+        </View>
         {/* 分享按钮 */}
         <Button openType="share"
           className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
           style={{ background: '#f5f5f5', border: '2px solid #e5e5e5', padding: 0 }}>
-          <div className="i-mdi-share-variant text-2xl text-foreground" />
+          <View className="i-mdi-share-variant text-2xl text-foreground" />
         </Button>
-        <button type="button"
+        <Button type="button"
           className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-primary bg-card"
           onClick={handleAddCart}>
-          <div className="py-4 text-xl font-bold text-primary">
+          <View className="py-4 text-xl font-bold text-primary">
             {adding ? '加入中...' : '收入行囊'}
-          </div>
-        </button>
-        <button type="button"
+          </View>
+        </Button>
+        <Button type="button"
           className="flex-1 flex items-center justify-center leading-none rounded-2xl bg-primary"
           onClick={handleBuyNow}>
-          <div className="py-4 text-xl font-bold text-white">立即购买</div>
-        </button>
-      </div>
-    </div>
+          <View className="py-4 text-xl font-bold text-white">立即购买</View>
+        </Button>
+      </View>
+    </View>
   )
 }

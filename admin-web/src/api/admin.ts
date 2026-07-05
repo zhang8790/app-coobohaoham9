@@ -131,6 +131,31 @@ export async function getMerchantApplications(
   })())
 }
 
+// ── 生成唯一 short_code ─────────────────────────────────────────────────
+async function generateUniqueShortCode(): Promise<string> {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const maxRetries = 10
+  
+  for (let i = 0; i < maxRetries; i++) {
+    // 生成格式：LD + 6位随机字母数字
+    const shortCode = 'LD' + Array.from({ length: 6 }, () => 
+      chars[Math.floor(Math.random() * chars.length)]
+    ).join('')
+    
+    // 检查是否已存在
+    const { data } = await supabase
+      .from('stores')
+      .select('id')
+      .eq('short_code', shortCode)
+      .maybeSingle()
+    
+    if (!data) return shortCode  // 不存在，返回这个码
+  }
+  
+  // 如果重试多次仍冲突，使用时间戳方案
+  return `LD${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+}
+
 export async function approveApplication(id: string): Promise<boolean> {
   return safeQuery(
     async () => {
@@ -143,24 +168,28 @@ export async function approveApplication(id: string): Promise<boolean> {
       
       if (!app) return false
       
-      // 2. 更新申请状态
+      // 2. 生成唯一 short_code
+      const shortCode = await generateUniqueShortCode()
+      
+      // 3. 更新申请状态
       await supabase
         .from('merchant_applications')
         .update({ status: 'approved' })
         .eq('id', id)
       
-      // 3. 更新用户状态
+      // 4. 更新用户状态
       await supabase
         .from('profiles')
         .update({ merchant_status: 'approved' })
         .eq('id', app.user_id)
       
-      // 4. 创建门店记录（关键！）
+      // 5. 创建门店记录（包含 short_code）
       const { error: storeError } = await supabase
         .from('stores')
         .insert({
           owner_id: app.user_id,
           name: app.store_name,
+          short_code: shortCode,  // ← 新增：唯一短码
           description: app.description || null,
           phone: app.contact_phone || null,
           category: app.business_type || '其他',
@@ -173,6 +202,7 @@ export async function approveApplication(id: string): Promise<boolean> {
         return false
       }
       
+      console.log(`[approveApplication] 门店创建成功，short_code: ${shortCode}`)
       return true
     },
     true // mock 模式直接返回成功

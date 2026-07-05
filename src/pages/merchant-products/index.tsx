@@ -6,6 +6,7 @@ import {
   getMerchantStore, getMerchantProducts,
   createProduct, updateProduct, deleteProduct, getProductByBarcode,
 } from '@/db/api'
+import { uploadImage } from '@/utils/upload'
 import type { Product, Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 
@@ -156,37 +157,29 @@ function MerchantProductsPage() {
     setShowForm(false)
   }
 
-  // 图片选择
-  const chooseImage = async (multiple = false, max = 1): Promise<string[]> => {
-    const res = await Taro.chooseMedia({
-      mediaType: ['image'],
-      count: multiple ? max : 1,
-      sizeType: ['compressed'],
-    })
-    return res.tempFiles.map(f => f.tempFilePath)
-  }
-
+  // 图片选择 → 上传到 Supabase Storage → 返回公网 URL
   const handleChooseMain = async () => {
-    try {
-      const imgs = await chooseImage(false)
-      if (imgs[0]) setForm(f => ({ ...f, main_image: imgs[0] }))
-    } catch {}
+    Taro.showLoading({ title: '上传中...' })
+    const url = await uploadImage()
+    if (url) setForm(f => ({ ...f, main_image: url }))
+    else Taro.showToast({ title: '上传失败', icon: 'none' })
+    Taro.hideLoading()
   }
   const handleChooseSub = async () => {
     const rest = 9 - form.sub_images.length
     if (rest <= 0) { Taro.showToast({ title: '最多9张副图', icon: 'none' }); return }
-    try {
-      const imgs = await chooseImage(true, rest)
-      setForm(f => ({ ...f, sub_images: [...f.sub_images, ...imgs] }))
-    } catch {}
+    Taro.showLoading({ title: '上传中...' })
+    const urls = await uploadImage({ count: rest }) as string[]
+    if (urls.length && urls[0]) setForm(f => ({ ...f, sub_images: [...f.sub_images, ...urls] }))
+    Taro.hideLoading()
   }
   const handleChooseDetail = async () => {
     const rest = 20 - form.detail_images.length
     if (rest <= 0) { Taro.showToast({ title: '最多20张详情图', icon: 'none' }); return }
-    try {
-      const imgs = await chooseImage(true, rest)
-      setForm(f => ({ ...f, detail_images: [...f.detail_images, ...imgs] }))
-    } catch {}
+    Taro.showLoading({ title: '上传中...' })
+    const urls = await uploadImage({ count: rest }) as string[]
+    if (urls.length && urls[0]) setForm(f => ({ ...f, detail_images: [...f.detail_images, ...urls] }))
+    Taro.hideLoading()
   }
 
   const filtered = filter === 'all' ? products : products.filter(p => filter === 'online' ? p.is_active : !p.is_active)
@@ -200,23 +193,6 @@ function MerchantProductsPage() {
   return (
     <RouteGuard>
     <View style={{ minHeight: '100vh', background: '#FFF8F4', paddingBottom: '32px' }}>
-
-      {/* ═══ 顶部导航 ═══ */}
-      <View style={{
-        display: 'flex', alignItems: 'center',
-        padding: '12px 14px 8px',
-      }}>
-        <View
-          onClick={() => Taro.navigateBack()}
-          style={{
-            width: '40px', height: '40px', borderRadius: '20px',
-            background: '#F0E6D8',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-          <Text style={{ fontSize: '18px' }}>←</Text>
-        </View>
-        <Text style={{ flex: 1, textAlign: 'center', fontSize: '18px', fontWeight: 'bold', color: '#333', paddingRight: '40px' }}>商品管理</Text>
-      </View>
 
       {store && (
         <View style={{ margin: '8px 14px 0', padding: '10px 14px', borderRadius: '14px', background: '#FFF', border: '1px solid #F0E6D8' }}>

@@ -54,14 +54,6 @@ function MerchantMembersPage() {
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
-      {/* 顶部 */}
-      <View className="flex items-center px-4 pt-4 pb-2">
-        <View className="!w-10 !h-10 !flex !items-center !justify-center !rounded-full !bg-muted"
-          onClick={() => Taro.navigateBack()}>
-          <View className="i-mdi-arrow-left text-2xl text-foreground" />
-        </View>
-        <Text className="flex-1 text-center text-xl font-bold text-foreground pr-10">会员管理</Text>
-      </View>
 
       {store && (
         <View className="mx-4 mt-2 p-3 rounded-2xl bg-card border border-border">

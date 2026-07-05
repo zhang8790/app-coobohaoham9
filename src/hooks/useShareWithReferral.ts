@@ -21,9 +21,9 @@ export function useShareWithReferral(options: {
   useEffect(() => {
     if (user) {
       import('@/client/supabase').then(({ supabase }) => {
-        supabase.from('profiles').select('referral_code').maybeSingle()
+        supabase.from('profiles').select('invite_code').maybeSingle()
           .then(({ data }) => {
-            if (data?.referral_code) setMyCode(data.referral_code)
+            if (data?.invite_code) setMyCode(data.invite_code)
           })
           .catch(() => {}) // 忽略错误
       })

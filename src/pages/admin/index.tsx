@@ -1,3 +1,4 @@
+import { View, Text } from '@tarojs/components'
 // @title 武林盟
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
@@ -35,63 +36,72 @@ function AdminPage() {
   ]
 
   return (<RouteGuard>
-    <div className="min-h-screen bg-background">
-      {/* 头部 */}
-      <div className="px-4 pt-6 pb-5" style={{ background: 'linear-gradient(135deg,#7C2D12 0%,#C2410C 100%)' }}>
-        <div className="flex items-center gap-3">
-          <div className="i-mdi-shield-crown text-4xl text-white" />
-          <div>
-            <p className="text-3xl font-black text-white">武林盟</p>
-            <p className="text-xl text-orange-200">超级管理后台</p>
-          </div>
-        </div>
-      </div>
+    <View className="min-h-screen bg-background">
+      {/* 导航 */}
+      <View className="flex items-center px-4 pt-4 pb-2">
+        <View className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
+          onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
+          <View className="i-mdi-arrow-left text-2xl text-foreground" />
+        </View>
+        <View className="flex-1 text-center text-xl font-bold text-foreground pr-10">武林盟</View>
+      </View>
 
-      <div className="px-4 pt-5 pb-10">
+      {/* 头部 */}
+      <View className="px-4 pt-4 pb-5" style={{ background: 'linear-gradient(135deg,#7C2D12 0%,#C2410C 100%)' }}>
+        <View className="flex items-center gap-3">
+          <View className="i-mdi-shield-crown text-4xl text-white" />
+          <View>
+            <Text className="text-3xl font-black text-white">武林盟</Text>
+            <Text className="text-xl text-orange-200">超级管理后台</Text>
+          </View>
+        </View>
+      </View>
+
+      <View className="px-4 pt-5 pb-10">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="i-mdi-loading text-5xl text-primary animate-spin" />
-            <span className="text-xl text-muted-foreground">聚气中...</span>
-          </div>
+          <View className="flex flex-col items-center justify-center py-20 gap-3">
+            <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+            <Text className="text-xl text-muted-foreground">聚气中...</Text>
+          </View>
         ) : (
           <>
-            <p className="text-2xl font-bold text-foreground mb-4">待处理事项</p>
-            <div className="grid grid-cols-2 gap-3">
+            <Text className="text-2xl font-bold text-foreground mb-4">待处理事项</Text>
+            <View className="grid grid-cols-2 gap-3">
               {cards.map(c => (
-                <div key={c.label}
+                <View key={c.label}
                   className={`rounded-2xl border-2 ${c.border} ${c.bg} p-4 flex flex-col gap-2`}
                   onClick={() => Taro.navigateTo({ url: c.url })}>
-                  <div className="flex items-center justify-between">
-                    <div className={`${c.icon} text-3xl ${c.color}`} />
-                    <div className={`text-4xl font-black ${c.color}`}>{c.count}</div>
-                  </div>
-                  <p className="text-2xl font-bold text-foreground">{c.label}</p>
-                  <p className="text-xl text-muted-foreground">{c.sub}</p>
-                </div>
+                  <View className="flex items-center justify-between">
+                    <View className={`${c.icon} text-3xl ${c.color}`} />
+                    <View className={`text-4xl font-black ${c.color}`}>{c.count}</View>
+                  </View>
+                  <Text className="text-2xl font-bold text-foreground">{c.label}</Text>
+                  <Text className="text-xl text-muted-foreground">{c.sub}</Text>
+                </View>
               ))}
-            </div>
+            </View>
 
             {/* 快捷指引 */}
-            <div className="mt-6 rounded-2xl bg-card border border-border p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="i-mdi-lightning-bolt text-2xl text-primary" />
-                <span className="text-2xl font-bold text-foreground">武林盟令牌</span>
-              </div>
+            <View className="mt-6 rounded-2xl bg-card border border-border p-4">
+              <View className="flex items-center gap-2 mb-3">
+                <View className="i-mdi-lightning-bolt text-2xl text-primary" />
+                <Text className="text-2xl font-bold text-foreground">武林盟令牌</Text>
+              </View>
               {[
                 { name: '全部数字均为待处理数量', icon: 'i-mdi-information', color: 'text-primary' },
                 { name: '点击卡片进入对应审核列表', icon: 'i-mdi-cursor-pointer', color: 'text-foreground' },
                 { name: '驳回操作需填写驳回理由', icon: 'i-mdi-alert-circle', color: 'text-destructive' },
               ].map(tip => (
-                <div key={tip.name} className="flex items-center gap-2 py-2 border-b border-border last:border-b-0">
-                  <div className={`${tip.icon} text-xl ${tip.color} flex-shrink-0`} />
-                  <span className="text-xl text-muted-foreground">{tip.name}</span>
-                </div>
+                <View key={tip.name} className="flex items-center gap-2 py-2 border-b border-border last:border-b-0">
+                  <View className={`${tip.icon} text-xl ${tip.color} flex-shrink-0`} />
+                  <Text className="text-xl text-muted-foreground">{tip.name}</Text>
+                </View>
               ))}
-            </div>
+            </View>
           </>
         )}
-      </div>
-    </div>
+      </View>
+    </View>
   </RouteGuard>)
 }
 

@@ -39,6 +39,7 @@ export default function MyReferrals() {
 
   return (
     <View className="min-h-screen bg-background pb-8">
+
       {/* 顶部统计卡片 */}
       <View className="mx-4 mt-4 p-5 rounded-2xl bg-primary border border-primary/20">
         <Text className="text-white text-lg font-bold">我的推荐</Text>

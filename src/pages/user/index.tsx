@@ -32,7 +32,6 @@ const MENU_GROUPS = [
     title: '江湖事',
     icon: 'i-mdi-account-group',
     items: [
-      { name: '邀请好友', icon: 'i-mdi-gift', page: '/pages/my-promotion/index' },
       { name: '帮助中心', icon: 'i-mdi-help-circle', page: '/pages/help/index' },
       { name: '设置', icon: 'i-mdi-cog', page: '/pages/settings/index' },
     ]
@@ -191,9 +190,9 @@ function UserPage() {
         {user && profile && (
           <View className="grid grid-cols-3 gap-3 mt-4">
             {[
-              { label: '积分', value: profile.points, icon: 'i-mdi-star-circle' },
-              { label: '余额', value: `¥${profile.balance.toFixed(2)}`, icon: 'i-mdi-wallet' },
-              { label: '优惠券', value: `${profile.coupons_count}张`, icon: 'i-mdi-ticket' },
+              { label: '积分', value: profile.points || 0, icon: 'i-mdi-star-circle' },
+              { label: '余额', value: `¥${(profile.balance || 0).toFixed(2)}`, icon: 'i-mdi-wallet' },
+              { label: '优惠券', value: `${profile.coupons_count || 0}张`, icon: 'i-mdi-ticket' },
             ].map(item => (
               <View key={item.label} className="bg-card rounded-2xl flex flex-col items-center py-4 border border-border">
                 <Text className="text-xl font-bold text-foreground">{item.value}</Text>
@@ -239,17 +238,28 @@ function UserPage() {
             <View className="i-mdi-sword text-2xl text-primary" />
             <Text className="text-xl font-bold text-foreground">侠客中心</Text>
           </View>
-          <View className="grid grid-cols-4 py-3">
+          <View className="grid grid-cols-3 py-3">
             {[
-              { name: '我的段位', icon: 'i-mdi-medal', page: '/pages/my-promotion/index' },
-              { name: '我的佣金', icon: 'i-mdi-cash-multiple', page: '/pages/my-promotion/index' },
-              { name: '分销团队', icon: 'i-mdi-account-group', page: '/pages/my-promotion/index' },
-              { name: '邀请有礼', icon: 'i-mdi-gift', page: '/pages/my-promotion/index' },
+              { name: '我的段位', icon: '🏅', page: '/pages/my-promotion/index', desc: '查看推广码' },
+              { name: '我的佣金', icon: '💰', page: '/pages/withdraw/index', desc: '提现管理' },
+              { name: '分销团队', icon: '👥', page: '/pages/my-referrals/index', desc: '查看下线' },
             ].map(item => (
-              <View key={item.name} className="flex flex-col items-center gap-2 py-2"
-                onClick={() => Taro.navigateTo({ url: item.page })}>
-                <View className={`${item.icon} text-3xl text-primary`} />
-                <Text className="text-base text-foreground">{item.name}</Text>
+              <View key={item.name}
+                hoverClass="none"
+                onClick={() => {
+                  console.log('[User] 点击:', item.name, '→', item.page)
+                  Taro.navigateTo({ url: item.page })
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  padding: '12px 0',
+                  gap: '8px',
+                }}>
+                <Text style={{ fontSize: '32px' }}>{item.icon}</Text>
+                <Text style={{ fontSize: '14px', color: '#333', fontWeight: 'bold' }}>{item.name}</Text>
+                <Text style={{ fontSize: '12px', color: '#999' }}>{item.desc}</Text>
               </View>
             ))}
           </View>
@@ -260,32 +270,6 @@ function UserPage() {
       {user && (
         <View className="mx-4 mt-4">
           {merchantStatusNode}
-        </View>
-      )}
-
-      {/* 推广入口 */}
-      {user && (
-        <View className="mx-4 mt-4 px-4 py-4 rounded-2xl bg-card border border-primary/30 flex items-center justify-between"
-          onClick={() => Taro.navigateTo({ url: '/pages/my-promotion/index' })}>
-          <View className="flex items-center gap-2">
-            <View className="i-mdi-bullhorn text-2xl text-primary" />
-            <Text className="text-xl font-bold text-foreground">侠客推广中心</Text>
-            <Text className="text-xl text-muted-foreground">· 我的推广码</Text>
-          </View>
-          <View className="i-mdi-chevron-right text-xl text-primary" />
-        </View>
-      )}
-
-      {/* 提现管理入口 */}
-      {user && (
-        <View className="mx-4 mt-3 px-4 py-4 rounded-2xl bg-card border border-border flex items-center justify-between"
-          onClick={() => Taro.navigateTo({ url: '/pages/withdraw/index' })}>
-          <View className="flex items-center gap-2">
-            <View className="i-mdi-cash-fast text-2xl text-primary" />
-            <Text className="text-xl font-bold text-foreground">提现管理</Text>
-            <Text className="text-xl text-muted-foreground">· 佣金提现</Text>
-          </View>
-          <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
         </View>
       )}
 

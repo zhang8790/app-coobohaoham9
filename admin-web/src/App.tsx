@@ -30,6 +30,12 @@ import MerchantMembers from '@/pages/merchant/Members'
  * - requireMerchant: 仅允许 merchant，其余跳转 /dashboard
  * - 无 requireXxx: 任意已登录角色均可访问
  */
+// 判断是否有商家权限（role=merchant 或 merchant_status=approved）
+const isMerchantUser = (profile: any): boolean => {
+  if (!profile) return false
+  return profile.role === 'merchant' || profile.merchant_status === 'approved'
+}
+
 function RequireAuth({ children, requireAdmin = false, requireMerchant = false }: {
   children: React.ReactNode
   requireAdmin?: boolean
@@ -49,8 +55,8 @@ function RequireAuth({ children, requireAdmin = false, requireMerchant = false }
   if (requireAdmin && profile.role !== 'admin') {
     return <Navigate to="/merchant" replace />
   }
-  // 商家专属路由
-  if (requireMerchant && profile.role !== 'merchant') {
+  // 商家专属路由（允许 role=merchant 或 merchant_status=approved）
+  if (requireMerchant && !isMerchantUser(profile)) {
     return <Navigate to="/dashboard" replace />
   }
   return <>{children}</>
@@ -71,8 +77,8 @@ function RoleRouter() {
   )
   if (!profile) return <Navigate to="/login" replace />
   if (profile.role === 'admin') return <Navigate to="/dashboard" replace />
-  if (profile.role === 'merchant') return <Navigate to="/merchant" replace />
-  // 兜底
+  if (isMerchantUser(profile)) return <Navigate to="/merchant" replace />
+  // 兜底：无权限用户退回登录
   return <Navigate to="/login" replace />
 }
 

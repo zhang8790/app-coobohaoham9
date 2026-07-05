@@ -1,3 +1,4 @@
+import { View, Button, Text } from '@tarojs/components'
 // @title 帮助中心
 import { useState } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
@@ -49,78 +50,71 @@ function HelpPage() {
   const toggle = (key: string) => setOpenKey(prev => prev === key ? null : key)
 
   return (
-    <div className="min-h-screen bg-background pb-8">
-      <div className="flex items-center px-4 pt-4 pb-2">
-        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
-          onClick={() => Taro.navigateBack()}>
-          <div className="i-mdi-arrow-left text-2xl text-foreground" />
-        </button>
-        <span className="flex-1 text-center text-xl font-bold text-foreground pr-10">帮助中心</span>
-      </div>
+    <View className="min-h-screen bg-background pb-8">
 
       {/* 搜索提示 */}
-      <div className="mx-4 mt-4 p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-center gap-3">
-        <div className="i-mdi-headset text-3xl text-primary flex-shrink-0" />
-        <div className="flex-1">
-          <p className="text-xl font-bold text-foreground">遇到问题？</p>
-          <p className="text-base text-muted-foreground">查看常见问题或联系客服</p>
-        </div>
-        <button type="button"
+      <View className="mx-4 mt-4 p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-center gap-3">
+        <View className="i-mdi-headset text-3xl text-primary flex-shrink-0" />
+        <View className="flex-1">
+          <Text className="text-xl font-bold text-foreground">遇到问题？</Text>
+          <Text className="text-base text-muted-foreground">查看常见问题或联系客服</Text>
+        </View>
+        <Button type="button"
           className="flex items-center justify-center leading-none rounded-xl bg-primary"
           onClick={() => Taro.makePhoneCall({ phoneNumber: '400-000-0000' }).catch(() => {})}>
-          <div className="px-3 py-2 text-xl font-bold text-white">联系客服</div>
-        </button>
-      </div>
+          <View className="px-3 py-2 text-xl font-bold text-white">联系客服</View>
+        </Button>
+      </View>
 
       {/* 常见问题 */}
       {FAQ_GROUPS.map(group => (
-        <div key={group.title} className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-            <div className={`${group.icon} text-2xl text-primary`} />
-            <span className="text-xl font-bold text-foreground">{group.title}</span>
-          </div>
+        <View key={group.title} className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+          <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
+            <View className={`${group.icon} text-2xl text-primary`} />
+            <Text className="text-xl font-bold text-foreground">{group.title}</Text>
+          </View>
           {group.items.map((item, idx) => {
             const key = `${group.title}-${idx}`
             const isOpen = openKey === key
             return (
-              <div key={key} className="border-b border-border last:border-0">
-                <div className="flex items-center justify-between px-4 py-4"
+              <View key={key} className="border-b border-border last:border-0">
+                <View className="flex items-center justify-between px-4 py-4"
                   onClick={() => toggle(key)}>
-                  <span className="text-xl text-foreground flex-1 pr-2">{item.q}</span>
-                  <div className={`i-mdi-chevron-down text-2xl text-muted-foreground transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
-                </div>
+                  <Text className="text-xl text-foreground flex-1 pr-2">{item.q}</Text>
+                  <View className={`i-mdi-chevron-down text-2xl text-muted-foreground transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                </View>
                 {isOpen && (
-                  <div className="px-4 pb-4">
-                    <div className="p-3 bg-muted rounded-xl">
-                      <p className="text-xl text-foreground leading-relaxed">{item.a}</p>
-                    </div>
-                  </div>
+                  <View className="px-4 pb-4">
+                    <View className="p-3 bg-muted rounded-xl">
+                      <Text className="text-xl text-foreground leading-relaxed">{item.a}</Text>
+                    </View>
+                  </View>
                 )}
-              </div>
+              </View>
             )
           })}
-        </div>
+        </View>
       ))}
 
       {/* 底部联系方式 */}
-      <div className="mx-4 mt-4 p-4 rounded-2xl bg-card border border-border">
-        <p className="text-xl font-bold text-foreground mb-3">联系我们</p>
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <div className="i-mdi-phone text-2xl text-primary" />
-            <span className="text-xl text-foreground">客服电话：400-000-0000</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="i-mdi-clock-outline text-2xl text-primary" />
-            <span className="text-xl text-foreground">服务时间：周一至周日 9:00-21:00</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="i-mdi-email-outline text-2xl text-primary" />
-            <span className="text-xl text-foreground">邮箱：support@laidian.com</span>
-          </div>
-        </div>
-      </div>
-    </div>
+      <View className="mx-4 mt-4 p-4 rounded-2xl bg-card border border-border">
+        <Text className="text-xl font-bold text-foreground mb-3">联系我们</Text>
+        <View className="flex flex-col gap-3">
+          <View className="flex items-center gap-3">
+            <View className="i-mdi-phone text-2xl text-primary" />
+            <Text className="text-xl text-foreground">客服电话：400-000-0000</Text>
+          </View>
+          <View className="flex items-center gap-3">
+            <View className="i-mdi-clock-outline text-2xl text-primary" />
+            <Text className="text-xl text-foreground">服务时间：周一至周日 9:00-21:00</Text>
+          </View>
+          <View className="flex items-center gap-3">
+            <View className="i-mdi-email-outline text-2xl text-primary" />
+            <Text className="text-xl text-foreground">邮箱：support@laidian.com</Text>
+          </View>
+        </View>
+      </View>
+    </View>
   )
 }
 

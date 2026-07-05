@@ -1,3 +1,4 @@
+import { View, Button, Input, Text } from '@tarojs/components'
 // @title 提现管理
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
@@ -86,82 +87,74 @@ function WithdrawPage() {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="i-mdi-loading text-4xl text-primary animate-spin" />
-    </div>
+    <View className="flex items-center justify-center min-h-screen bg-background">
+      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+    </View>
   )
 
   // 可提余额（积分 100 = 1元，balance 字段单位为积分/金豆）
   const availableYuan = (balance / 100).toFixed(2)
 
   return (<RouteGuard>
-    <div className="min-h-screen bg-background pb-8">
-      {/* 顶部导航 */}
-      <div className="flex items-center px-4 pt-4 pb-2">
-        <button type="button" className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
-          onClick={() => Taro.navigateBack()}>
-          <div className="i-mdi-arrow-left text-2xl text-foreground" />
-        </button>
-        <span className="flex-1 text-center text-xl font-bold text-foreground pr-10">提现管理</span>
-      </div>
+    <View className="min-h-screen bg-background pb-8">
 
       {/* 余额卡 */}
-      <div className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)' }}>
-        <p className="text-xl text-white/80 mb-1">可提现余额（金豆）</p>
-        <p className="text-4xl font-bold text-white">{balance.toLocaleString()}<span className="text-xl ml-1">豆</span></p>
-        <p className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}</p>
-      </div>
+      <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)' }}>
+        <Text className="text-xl text-white/80 mb-1">可提现余额（金豆）</Text>
+        <Text className="text-4xl font-bold text-white">{balance.toLocaleString()}<Text className="text-xl ml-1">豆</Text></Text>
+        <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}</Text>
+      </View>
 
       {/* Tab 切换 */}
-      <div className="flex mx-4 mt-4 bg-muted rounded-2xl p-1">
+      <View className="flex mx-4 mt-4 bg-muted rounded-2xl p-1">
         {([['apply', '申请提现'], ['records', '提现记录']] as const).map(([key, label]) => (
-          <div key={key}
+          <View key={key}
             className={`flex-1 flex items-center justify-center py-2 rounded-xl text-xl font-bold transition ${tab === key ? 'bg-card text-primary' : 'text-muted-foreground'}`}
             onClick={() => setTab(key)}>
             {label}
-          </div>
+          </View>
         ))}
-      </div>
+      </View>
 
       {/* 申请表单 */}
       {tab === 'apply' && (
-        <div className="px-4 mt-4">
+        <View className="px-4 mt-4">
           {/* 金额 */}
-          <div className="bg-card rounded-2xl border border-border p-4 mb-4">
-            <p className="text-xl font-bold text-foreground mb-3">提现金额（元）</p>
-            <div className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden flex items-center gap-2">
-              <span className="text-2xl text-muted-foreground">¥</span>
-              <input className="flex-1 text-2xl font-bold text-foreground bg-transparent outline-none"
+          <View className="bg-card rounded-2xl border border-border p-4 mb-4">
+            <Text className="text-xl font-bold text-foreground mb-3">提现金额（元）</Text>
+            <View className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden flex items-center gap-2">
+              <Text className="text-2xl text-muted-foreground">¥</Text>
+              <Input className="flex-1 text-2xl font-bold text-foreground bg-transparent outline-none"
                 placeholder="0.00"
                 value={amount}
                 onInput={e => { const ev = e as any; setAmount(ev.detail?.value ?? ev.target?.value ?? '') }} />
-              <button type="button"
+              <Button type="button"
                 className="flex items-center justify-center leading-none rounded-lg bg-muted"
                 onClick={() => setAmount(availableYuan)}>
-                <div className="px-3 py-1 text-xl text-primary font-bold">全部</div>
-              </button>
-            </div>
-            <p className="text-base text-muted-foreground mt-2">可提：¥{availableYuan}（最低提现 ¥1.00）</p>
-          </div>
+                <View className="px-3 py-1 text-xl text-primary font-bold">全部</View>
+              </Button>
+            </View>
+            <Text className="text-base text-muted-foreground mt-2">可提：¥{availableYuan}（最低提现 ¥1.00）</Text>
+          </View>
 
           {/* 提现方式 */}
-          <div className="bg-card rounded-2xl border border-border p-4 mb-4">
-            <p className="text-xl font-bold text-foreground mb-3">收款方式</p>
-            <div className="flex gap-3">
+          <View className="bg-card rounded-2xl border border-border p-4 mb-4">
+            <Text className="text-xl font-bold text-foreground mb-3">收款方式</Text>
+            <View className="flex gap-3">
               {methodOptions.map(m => (
-                <div key={m.key}
+                <View key={m.key}
                   className={`flex-1 flex flex-col items-center py-4 rounded-2xl border-2 transition ${method === m.key ? 'border-primary bg-primary/5' : 'border-border bg-background'}`}
                   onClick={() => setMethod(m.key)}>
-                  <div className={`${m.icon} text-3xl ${method === m.key ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <span className={`text-xl mt-2 font-bold ${method === m.key ? 'text-primary' : 'text-muted-foreground'}`}>{m.label}</span>
-                </div>
+                  <View className={`${m.icon} text-3xl ${method === m.key ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <Text className={`text-xl mt-2 font-bold ${method === m.key ? 'text-primary' : 'text-muted-foreground'}`}>{m.label}</Text>
+                </View>
               ))}
-            </div>
-          </div>
+            </View>
+          </View>
 
           {/* 收款账户信息 */}
-          <div className="bg-card rounded-2xl border border-border p-4 mb-4">
-            <p className="text-xl font-bold text-foreground mb-3">账户信息</p>
+          <View className="bg-card rounded-2xl border border-border p-4 mb-4">
+            <Text className="text-xl font-bold text-foreground mb-3">账户信息</Text>
             {method === 'bank' && (
               <>
                 {[
@@ -169,96 +162,96 @@ function WithdrawPage() {
                   { label: '银行卡号', val: bankAccount, set: setBankAccount, placeholder: '请输入银行卡号' },
                   { label: '持卡人姓名', val: bankHolder, set: setBankHolder, placeholder: '请输入持卡人真实姓名' },
                 ].map(f => (
-                  <div key={f.label} className="mb-3">
-                    <p className="text-xl text-foreground mb-1">{f.label}</p>
-                    <div className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden">
-                      <input className="w-full text-xl text-foreground bg-transparent outline-none"
+                  <View key={f.label} className="mb-3">
+                    <Text className="text-xl text-foreground mb-1">{f.label}</Text>
+                    <View className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden">
+                      <Input className="w-full text-xl text-foreground bg-transparent outline-none"
                         placeholder={f.placeholder} value={f.val}
                         onInput={e => { const ev = e as any; f.set(ev.detail?.value ?? ev.target?.value ?? '') }} />
-                    </div>
-                  </div>
+                    </View>
+                  </View>
                 ))}
               </>
             )}
             {method === 'alipay' && (
-              <div className="mb-3">
-                <p className="text-xl text-foreground mb-1">支付宝账号</p>
-                <div className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden">
-                  <input className="w-full text-xl text-foreground bg-transparent outline-none"
+              <View className="mb-3">
+                <Text className="text-xl text-foreground mb-1">支付宝账号</Text>
+                <View className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden">
+                  <Input className="w-full text-xl text-foreground bg-transparent outline-none"
                     placeholder="手机号或邮箱" value={alipayAccount}
                     onInput={e => { const ev = e as any; setAlipayAccount(ev.detail?.value ?? ev.target?.value ?? '') }} />
-                </div>
-              </div>
+                </View>
+              </View>
             )}
             {method === 'wechat' && (
-              <div className="flex flex-col items-center py-6 gap-2">
-                <div className="i-mdi-wechat text-5xl text-green-500" />
-                <p className="text-xl text-muted-foreground text-center">微信到账将打款至您的微信零钱，无需填写账号</p>
-              </div>
+              <View className="flex flex-col items-center py-6 gap-2">
+                <View className="i-mdi-wechat text-5xl text-green-500" />
+                <Text className="text-xl text-muted-foreground text-center">微信到账将打款至您的微信零钱，无需填写账号</Text>
+              </View>
             )}
             {/* 备注 */}
-            <div>
-              <p className="text-xl text-foreground mb-1">备注（可选）</p>
-              <div className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden">
-                <input className="w-full text-xl text-foreground bg-transparent outline-none"
+            <View>
+              <Text className="text-xl text-foreground mb-1">备注（可选）</Text>
+              <View className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden">
+                <Input className="w-full text-xl text-foreground bg-transparent outline-none"
                   placeholder="如有特殊说明可填写"
                   value={remark}
                   onInput={e => { const ev = e as any; setRemark(ev.detail?.value ?? ev.target?.value ?? '') }} />
-              </div>
-            </div>
-          </div>
+              </View>
+            </View>
+          </View>
 
           {/* 提交按钮 */}
-          <button type="button"
+          <Button type="button"
             className={`w-full flex items-center justify-center leading-none rounded-2xl ${submitting ? 'bg-primary/50' : 'bg-primary'}`}
             onClick={handleSubmit}>
-            <div className="py-4 text-xl font-bold text-white">{submitting ? '提交中…' : '立即申请提现'}</div>
-          </button>
-          <p className="text-base text-muted-foreground text-center mt-3">提现申请审核通常需要 1-3 个工作日</p>
-        </div>
+            <View className="py-4 text-xl font-bold text-white">{submitting ? '提交中…' : '立即申请提现'}</View>
+          </Button>
+          <Text className="text-base text-muted-foreground text-center mt-3">提现申请审核通常需要 1-3 个工作日</Text>
+        </View>
       )}
 
       {/* 提现记录 */}
       {tab === 'records' && (
-        <div className="px-4 mt-4">
+        <View className="px-4 mt-4">
           {records.length === 0 ? (
-            <div className="flex flex-col items-center py-16 gap-3">
-              <div className="i-mdi-history text-6xl text-muted-foreground/40" />
-              <p className="text-xl text-muted-foreground">暂无提现记录</p>
-            </div>
+            <View className="flex flex-col items-center py-16 gap-3">
+              <View className="i-mdi-history text-6xl text-muted-foreground/40" />
+              <Text className="text-xl text-muted-foreground">暂无提现记录</Text>
+            </View>
           ) : (
             records.map(r => (
-              <div key={r.id} className="bg-card rounded-2xl border border-border mb-3 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-2xl font-bold text-foreground">¥{Number(r.amount).toFixed(2)}</span>
-                  <span className={`text-xl font-bold ${statusColor[r.status] || 'text-foreground'}`}>
+              <View key={r.id} className="bg-card rounded-2xl border border-border mb-3 p-4">
+                <View className="flex items-center justify-between mb-2">
+                  <Text className="text-2xl font-bold text-foreground">¥{Number(r.amount).toFixed(2)}</Text>
+                  <Text className={`text-xl font-bold ${statusColor[r.status] || 'text-foreground'}`}>
                     {statusLabel[r.status] || r.status}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xl text-muted-foreground">
+                  </Text>
+                </View>
+                <View className="flex items-center gap-3">
+                  <Text className="text-xl text-muted-foreground">
                     {r.withdraw_method === 'bank' ? '银行卡' : r.withdraw_method === 'alipay' ? '支付宝' : '微信'}
-                  </span>
+                  </Text>
                   {r.bank_account && (
-                    <span className="text-xl text-muted-foreground">
+                    <Text className="text-xl text-muted-foreground">
                       {r.bank_account.slice(-4).padStart(r.bank_account.length, '·')}
-                    </span>
+                    </Text>
                   )}
-                </div>
+                </View>
                 {r.reject_reason && (
-                  <div className="mt-2 p-3 bg-red-50 rounded-xl">
-                    <p className="text-xl text-red-500">拒绝原因：{r.reject_reason}</p>
-                  </div>
+                  <View className="mt-2 p-3 bg-red-50 rounded-xl">
+                    <Text className="text-xl text-red-500">拒绝原因：{r.reject_reason}</Text>
+                  </View>
                 )}
-                <p className="text-base text-muted-foreground mt-2">
+                <Text className="text-base text-muted-foreground mt-2">
                   {new Date(r.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })}
-                </p>
-              </div>
+                </Text>
+              </View>
             ))
           )}
-        </div>
+        </View>
       )}
-    </div>
+    </View>
   </RouteGuard>)
 }
 

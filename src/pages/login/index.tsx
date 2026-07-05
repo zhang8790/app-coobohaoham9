@@ -1,5 +1,5 @@
 // @title 登录
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Input } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [loginMode, setLoginMode] = useState<'phone' | 'password'>('phone')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [testMode, setTestMode] = useState(false)
+  const [testMode, setTestMode] = useState(false) // 内部保留，不暴露 UI
 
   // 从 URL 参数或小程序 scene 中读取推广码
   const referralCode = useMemo(() => {
@@ -25,7 +25,7 @@ export default function LoginPage() {
     if (params?.scene) {
       try {
         const scene = decodeURIComponent(params.scene)
-        const match = scene.match(/ref=([A-Z0-9]{6})/)
+        const match = scene.match(/ref=([A-Z0-9]{6,8})/)
         if (match) return match[1]
       } catch { /* ignore */ }
     }
@@ -49,7 +49,7 @@ export default function LoginPage() {
     if (countdown > 0 && !testMode) return
 
     // 测试模式：直接跳过短信发送
-    if (testMode || phone === '18701410500' || phone === '12345678901') {
+    if (testMode || phone === '18710410500' || phone === '18701410500' || phone === '12345678901') {
       setStep('otp')
       Taro.showToast({ title: '测试模式：请输入 123456', icon: 'none' })
       return
@@ -100,6 +100,28 @@ export default function LoginPage() {
         Taro.removeStorageSync('pendingReferralCode')
       } catch { /* non-blocking */ }
     }
+
+    // 检测是否为员工
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: staff } = await supabase
+          .from('store_staff')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .maybeSingle()
+        if (staff) {
+          // 是员工 → 跳员工中心
+          Taro.reLaunch({ url: '/pages/employee/index' })
+          return
+        }
+      }
+    } catch (err) {
+      console.error('[登录] 员工检测失败', err)
+    }
+
+    // 非员工 → 正常跳转
     const redirect = Taro.getStorageSync('loginRedirectPath')
     Taro.removeStorageSync('loginRedirectPath')
     const tabBarPaths = ['/pages/index/index', '/pages/explore/index', '/pages/reward-shop/index', '/pages/cart/index', '/pages/user/index']
@@ -157,7 +179,6 @@ export default function LoginPage() {
           <>
             <Text className="text-2xl font-bold text-foreground mb-6">
               {step === 'phone' ? '手机号登录' : '输入验证码'}
-              {testMode && <Text className="text-xl text-orange-500 ml-2">[测试模式]</Text>}
             </Text>
 
             {step === 'phone' ? (
@@ -176,21 +197,11 @@ export default function LoginPage() {
                   </View>
                 </View>
 
-                {/* 测试模式快捷按钮 */}
-                {testMode && (
-                  <View className="flex gap-2 mb-4">
-                    <View className="flex-1 py-2 text-xl text-primary border border-primary rounded-lg"
-                      onClick={() => { setPhone('18701410500'); setAgreed(true) }}>
-                      填充测试手机号
-                    </View>
-                  </View>
-                )}
-
                 <View
                   className={`w-full flex items-center justify-center leading-none rounded-xl ${loading ? 'bg-primary/50' : 'bg-primary'}`}
                   onClick={handleSendCode}>
                   <View className="py-4 text-xl text-white font-bold">
-                    {loading ? '发送中...' : (testMode ? '测试登录（跳过短信）' : '获取验证码')}
+                    {loading ? '发送中...' : '获取验证码'}
                   </View>
                 </View>
               </View>
@@ -207,16 +218,6 @@ export default function LoginPage() {
                     onInput={(e) => { const ev = e as any; setCode(ev.detail?.value ?? ev.target?.value ?? '') }}
                   />
                 </View>
-
-                {/* 测试模式：自动填充验证码 */}
-                {testMode && (
-                  <View className="flex gap-2 mb-4">
-                    <View className="flex-1 py-2 text-xl text-primary border border-primary rounded-lg"
-                      onClick={() => setCode('123456')}>
-                      填充测试验证码
-                    </View>
-                  </View>
-                )}
 
                 <View className="flex items-center gap-3 mb-4">
                   <View className="flex-1 flex items-center justify-center leading-none rounded-xl bg-primary"
@@ -315,35 +316,6 @@ export default function LoginPage() {
       ) : (
         <View className="px-6 pb-4" />
       )}
-
-      {/* 测试模式开关 */}
-      <View className="px-6 pb-10">
-        <View className="flex items-center justify-between py-3 px-4 rounded-xl bg-orange-50 border border-orange-200">
-          <View className="flex items-center gap-2">
-            <View className="i-mdi-test-tube text-xl text-orange-500" />
-            <Text className="text-xl text-orange-700">测试模式</Text>
-          </View>
-          <View
-            className={`w-12 h-6 rounded-full relative ${testMode ? 'bg-orange-500' : 'bg-gray-300'}`}
-            onClick={() => {
-              setTestMode(!testMode)
-              if (!testMode) {
-                // 开启测试模式：不自动勾选协议，需用户手动同意
-                Taro.showToast({ title: '测试模式已开启，请勾选协议后登录', icon: 'none' })
-              } else {
-                setAgreed(false)
-                Taro.showToast({ title: '测试模式已关闭', icon: 'none' })
-              }
-            }}>
-            <View className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${testMode ? 'left-6' : 'left-0.5'}`} />
-          </View>
-        </View>
-        {testMode && (
-          <Text className="text-xl text-orange-600 mt-2 text-center">
-            测试账号：18701410500 / 123456
-          </Text>
-        )}
-      </View>
     </View>
   )
 }

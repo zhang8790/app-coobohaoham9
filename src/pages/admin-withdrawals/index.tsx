@@ -1,3 +1,4 @@
+import { View, Button, Text } from '@tarojs/components'
 // @title 银票兑付
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
@@ -62,73 +63,73 @@ function AdminWithdrawalsPage() {
   }
 
   return (<RouteGuard>
-    <div className="min-h-screen bg-background pb-10">
-      <div className="px-4 py-4">
+    <View className="min-h-screen bg-background pb-10">
+      <View className="px-4 py-4">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="i-mdi-loading text-5xl text-primary animate-spin" />
-          </div>
+          <View className="flex items-center justify-center py-20">
+            <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+          </View>
         ) : list.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="i-mdi-cash-check text-6xl text-emerald-500" />
-            <span className="text-2xl text-muted-foreground">暂无待审提现申请</span>
-          </div>
+          <View className="flex flex-col items-center justify-center py-20 gap-3">
+            <View className="i-mdi-cash-check text-6xl text-emerald-500" />
+            <Text className="text-2xl text-muted-foreground">暂无待审提现申请</Text>
+          </View>
         ) : (
-          <div className="flex flex-col gap-4">
+          <View className="flex flex-col gap-4">
             {list.map(w => {
               const taxAmount = Number(w.amount) * 0.1
               const actualAmount = Number(w.amount) - taxAmount
               return (
-                <div key={w.id} className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-2xl font-bold text-foreground">
+                <View key={w.id} className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-3">
+                  <View className="flex items-start justify-between">
+                    <View className="flex flex-col gap-1">
+                      <Text className="text-2xl font-bold text-foreground">
                         {w.profiles?.nickname || '侠客'}
-                      </span>
-                      <span className="text-xl text-muted-foreground">{w.profiles?.phone || '未知手机'}</span>
-                    </div>
-                    <span className="text-3xl font-black text-primary">¥{Number(w.amount).toFixed(2)}</span>
-                  </div>
+                      </Text>
+                      <Text className="text-xl text-muted-foreground">{w.profiles?.phone || '未知手机'}</Text>
+                    </View>
+                    <Text className="text-3xl font-black text-primary">¥{Number(w.amount).toFixed(2)}</Text>
+                  </View>
 
-                  <div className="bg-muted rounded-xl p-3 flex flex-col gap-2">
+                  <View className="bg-muted rounded-xl p-3 flex flex-col gap-2">
                     {[
                       { label: '提现方式', val: METHOD_LABELS[w.withdraw_method] || w.withdraw_method },
                       { label: '江湖税(10%)', val: `-¥${taxAmount.toFixed(2)}` },
                       { label: '实际到手', val: `¥${actualAmount.toFixed(2)}` },
                       { label: '申请时间', val: new Date(w.created_at).toLocaleString('zh-CN') },
                     ].map(item => (
-                      <div key={item.label} className="flex items-center justify-between">
-                        <span className="text-xl text-muted-foreground">{item.label}</span>
-                        <span className="text-xl text-foreground font-bold">{item.val}</span>
-                      </div>
+                      <View key={item.label} className="flex items-center justify-between">
+                        <Text className="text-xl text-muted-foreground">{item.label}</Text>
+                        <Text className="text-xl text-foreground font-bold">{item.val}</Text>
+                      </View>
                     ))}
-                  </div>
+                  </View>
 
-                  <div className="flex flex-row gap-3">
-                    <button type="button"
+                  <View className="flex flex-row gap-3">
+                    <Button type="button"
                       className={`flex-1 flex items-center justify-center leading-none rounded-xl ${processing === w.id ? 'bg-primary/50' : 'bg-primary'}`}
                       onClick={() => handleApprove(w.id)}>
-                      <div className="py-3 text-xl font-bold text-white flex items-center gap-1">
-                        <div className="i-mdi-cash-check text-xl" />
-                        <span>通过代付</span>
-                      </div>
-                    </button>
-                    <button type="button"
+                      <View className="py-3 text-xl font-bold text-white flex items-center gap-1">
+                        <View className="i-mdi-cash-check text-xl" />
+                        <Text>通过代付</Text>
+                      </View>
+                    </Button>
+                    <Button type="button"
                       className="flex-1 flex items-center justify-center leading-none rounded-xl bg-destructive/10 border-2 border-destructive"
                       onClick={() => handleReject(w.id)}>
-                      <div className="py-3 text-xl font-bold text-destructive flex items-center gap-1">
-                        <div className="i-mdi-close-circle text-xl" />
-                        <span>驳回退款</span>
-                      </div>
-                    </button>
-                  </div>
-                </div>
+                      <View className="py-3 text-xl font-bold text-destructive flex items-center gap-1">
+                        <View className="i-mdi-close-circle text-xl" />
+                        <Text>驳回退款</Text>
+                      </View>
+                    </Button>
+                  </View>
+                </View>
               )
             })}
-          </div>
+          </View>
         )}
-      </div>
-    </div>
+      </View>
+    </View>
   </RouteGuard>)
 }
 

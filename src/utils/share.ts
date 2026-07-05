@@ -10,11 +10,11 @@ export async function getMyReferralCode(): Promise<string> {
 
   const { data } = await supabase
     .from('profiles')
-    .select('referral_code')
+    .select('invite_code')
     .eq('id', user.id)
     .maybeSingle()
 
-  return data?.referral_code || ''
+  return data?.invite_code || ''
 }
 
 // 构建带推广参数的分享路径

@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Product } from '@/types'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface ProductWithExt extends Product {
   status: 'online' | 'offline'
@@ -106,7 +108,9 @@ function fileToBase64(file: File): Promise<string> {
 
 export default function MerchantProducts() {
   const nav = useNavigate()
+  const { profile, useMock } = useAuth()
   const [list, setList] = useState<ProductWithExt[]>([])
+  const [storeId, setStoreId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<ProductWithExt | null>(null)
@@ -120,17 +124,65 @@ export default function MerchantProducts() {
   const detailRef    = useRef<HTMLInputElement>(null)
   const videoRef     = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { load() }, [])
-  const load = () => { setList([...MOCK_PRODUCTS]) }
+  // 判断是否有商家权限
+  const isMerchantUser = profile?.merchant_status === 'approved' || profile?.role === 'merchant'
+
+  // 获取当前商家的 store_id
+  useEffect(() => {
+    if (!profile || !isMerchantUser) return
+    if (useMock) { setStoreId(null); return }
+    const fetchStore = async () => {
+      const { data } = await supabase
+        .from('stores')
+        .select('id')
+        .eq('owner_id', profile.id)
+        .maybeSingle()
+      setStoreId(data?.id ?? null)
+    }
+    fetchStore()
+  }, [profile, useMock])
+
+  // 加载商品列表
+  useEffect(() => {
+    if (useMock || !isMerchantUser || !storeId) {
+      // 演示模式或用 Mock 数据
+      setList([...MOCK_PRODUCTS])
+      return
+    }
+    load()
+  }, [useMock, storeId, profile])
+
+  const load = async () => {
+    setList([])
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('store_id', storeId || '')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setList((data ?? []).map(p => ({
+        ...p,
+        status: p.is_active ? 'online' : 'offline',
+        sales: (p as any).sales ?? 0,
+      } as ProductWithExt)))
+    } catch (e) {
+      console.warn('[Products] 加载失败，使用 Mock:', e)
+      setList([...MOCK_PRODUCTS])
+    }
+  }
 
   const filtered = filter === 'all' ? list : list.filter(p => p.status === filter)
 
-  const toggleStatus = (id: string) => {
-    setList(prev => prev.map(p => p.id === id ? {
-      ...p,
-      status: p.status === 'online' ? 'offline' as const : 'online' as const,
-      is_active: p.status !== 'online',
-    } : p))
+  const toggleStatus = async (id: string) => {
+    const item = list.find(p => p.id === id)
+    if (!item) return
+    const newActive = !item.is_active
+    if (!useMock && storeId) {
+      const { error } = await supabase.from('products').update({ is_active: newActive }).eq('id', id)
+      if (error) { console.warn('[Products] 更新状态失败:', error); return }
+    }
+    setList(prev => prev.map(p => p.id === id ? { ...p, is_active: newActive, status: (newActive ? 'online' : 'offline') as 'online' | 'offline' } : p))
   }
 
   const openCreate = () => {
@@ -205,7 +257,13 @@ export default function MerchantProducts() {
     setForm(f => ({ ...f, sub_images: f.sub_images.filter((_, i) => i !== idx) }))
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    // 真实模式：暂时提示去小程序端操作（图片上传需要 Storage 集成）
+    if (!useMock && storeId) {
+      alert('真实模式下，创建/编辑商品功能请在小程序端操作（支持图片上传）。')
+      closeModal()
+      return
+    }
     const cost = Number(form.cost_price) || 0
     const dr = Number(form.discount_rate) || 0
     if (editing) {
@@ -242,8 +300,12 @@ export default function MerchantProducts() {
     closeModal()
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('确认删除该商品？删除后不可恢复。')) return
+    if (!useMock && storeId) {
+      const { error } = await supabase.from('products').delete().eq('id', id)
+      if (error) { console.warn('[Products] 删除失败:', error); return }
+    }
     setList(prev => prev.filter(p => p.id !== id))
   }
 

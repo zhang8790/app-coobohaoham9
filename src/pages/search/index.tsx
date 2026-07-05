@@ -51,7 +51,8 @@ export default function SearchPage() {
             <View className="i-mdi-close text-xl text-muted-foreground" onClick={() => { setKeyword(''); setSearched(false); setResults([]) }} />
           )}
         </View>
-        <View type="button" className="flex items-center justify-center" onClick={() => keyword.trim() ? doSearch(keyword) : Taro.navigateBack()}>
+        <View type="button" className="flex items-center justify-center flex-shrink-0"
+          onClick={() => keyword.trim() ? doSearch(keyword) : Taro.navigateBack()}>
           <Text className="text-xl text-primary font-bold">{keyword.trim() ? '搜索' : '取消'}</Text>
         </View>
       </View>

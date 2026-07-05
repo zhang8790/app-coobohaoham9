@@ -1,0 +1,16 @@
+/* store-home 页面样式 — 微信小程序不支持 inline style 的 linear-gradient */
+
+/* Banner 渐变遮罩：从透明到黑色 */
+.banner-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.7) 100%);
+}
+
+/* 品牌渐变背景（无图片时的 Banner 底色） */
+.brand-gradient-bg {
+  background: linear-gradient(135deg, #C2410C 0%, #7C2D12 50%, #431407 100%);
+}
