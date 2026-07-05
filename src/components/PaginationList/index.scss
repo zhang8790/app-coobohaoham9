@@ -1,0 +1,46 @@
+.pagination-list {
+  height: 100%;
+  &__content {
+    padding: 20px;
+  }
+
+  &__item {
+    margin-bottom: 20px;
+  }
+
+  &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 0;
+  }
+
+  &__empty-text {
+    font-size: 28px;
+    color: #999;
+  }
+
+  &__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 0;
+  }
+
+  &__loading-text {
+    font-size: 28px;
+    color: #666;
+  }
+
+  &__no-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 0;
+  }
+
+  &__no-more-text {
+    font-size: 28px;
+    color: #999;
+  }
+}

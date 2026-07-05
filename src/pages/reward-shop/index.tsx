@@ -1,9 +1,11 @@
 // @title 犒赏铺
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { View, Text, Image, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView } from '@tarojs/components'
 import { getStores, getCartCount } from '@/db/api'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
+import { usePagination } from '@/hooks'
+import LazyImage from '@/components/LazyImage'
 import type { Store } from '@/db/types'
 
 const CATEGORIES = ['全部', '餐饮', '购物', '娱乐', '美容', '家政', '教育']
@@ -23,40 +25,43 @@ function StoreImagePlaceholder({ name }: { name: string }) {
 
 export default function RewardShopPage() {
   const [activeCat, setActiveCat] = useState('全部')
-  const [stores, setStores] = useState<Store[]>([])
   const [cartCount, setCartCount] = useState(0)
-  const [loading, setLoading] = useState(false)
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
-  const page = useRef(0)
-  const hasMore = useRef(true)
 
-  const loadStores = useCallback(async (cat: string, reset = true) => {
-    const p = reset ? 0 : page.current
-    setLoading(true)
-    // ⭐ 犒赏铺只看商家门店，排除自营门店
-    const data = await getStores(cat, p, 20, 'exclude')
-    console.log('[犒赏铺] loadStores 结果:', { cat, reset, count: data.length, stores: data.map(s => ({ name: s.name, is_active: s.is_active, is_platform: s.is_platform })) })
-    if (reset) { setStores(data); page.current = 1 }
-    else { setStores(prev => [...prev, ...data]); page.current = p + 1 }
-    hasMore.current = data.length === 20
-    setLoading(false)
-  }, [])
+  // 使用 usePagination Hook 管理分页
+  const { list: stores, loading, refreshing, hasMore, onRefresh, onLoadMore } = usePagination<Store>(
+    async (page, pageSize) => {
+      // ⭐ 犒赏铺只看商家门店，排除自营门店
+      const data = await getStores(activeCat === '全部' ? undefined : activeCat, page - 1, pageSize, 'exclude')
+      return { data, hasMore: data.length >= pageSize }
+    },
+    {
+      pageSize: 20,
+      immediate: false,  // 手动控制首次加载
+    }
+  )
 
   const refreshCart = useCallback(async () => { setCartCount(await getCartCount()) }, [])
 
-  useEffect(() => { loadStores('全部'); refreshCart() }, [refreshCart])
+  // 切换分类时刷新
+  const handleCategoryChange = useCallback((cat: string) => {
+    setActiveCat(cat)
+    onRefresh()
+  }, [onRefresh])
+
+  useEffect(() => { refreshCart() }, [refreshCart])
   useDidShow(() => { refreshCart() })
 
+  // 初始加载
+  useEffect(() => {
+    onRefresh()
+  }, [])
   // 分享配置：携带推广码
   useShareWithReferral({
     title: '来店有喜 · 犒赏铺，品质门店推荐',
     path: '/pages/reward-shop/index',
     timelineTitle: '来店有喜 · 发现身边好店',
   })
-
-  const handleImageError = (id: string) => {
-    setFailedImages(prev => new Set(prev).add(id))
-  }
 
   const getStoreImage = (store: Store): string | null => {
     // 优先 banner_url（用户最新上传），其次 image_url 兜底
@@ -94,7 +99,7 @@ export default function RewardShopPage() {
           {CATEGORIES.map(cat => (
             <View key={cat}
               className={`py-4 flex items-center justify-center text-xl font-bold transition ${activeCat === cat ? 'bg-background text-primary border-l-4 border-primary' : 'text-foreground'}`}
-              onClick={() => { setActiveCat(cat); loadStores(cat, true) }}>
+            onClick={() => handleCategoryChange(cat)}>
               <Text>{cat}</Text>
             </View>
           ))}
@@ -115,8 +120,13 @@ export default function RewardShopPage() {
                 {failedImages.has(store.id) || !img ? (
                   <StoreImagePlaceholder name={store.name} />
                 ) : (
-                  <Image src={img} mode="aspectFill" style={{ width: '100px', height: '100px', flexShrink: 0 }}
-                    onError={() => handleImageError(store.id)} />
+                  <LazyImage 
+                    src={img} 
+                    width={100} 
+                    height={100}
+                    mode="aspectFill"
+                    className="flex-shrink-0"
+                  />
                 )}
                 <View className="flex-1 p-3 flex flex-col justify-between">
                   <View>
@@ -142,10 +152,12 @@ export default function RewardShopPage() {
               )
             })
           )}
-          {hasMore.current && stores.length > 0 && (
+          {hasMore && stores.length > 0 && (
             <View className="flex justify-center pt-2 pb-2">
-              <View className="px-6 py-2 rounded-full bg-muted text-xl text-muted-foreground"
-                onClick={() => loadStores(activeCat, false)}>
+              <View 
+                className="px-6 py-2 rounded-full bg-muted text-xl text-muted-foreground"
+                onClick={onLoadMore}
+              >
                 <Text>{loading ? '加载中...' : '加载更多'}</Text>
               </View>
             </View>
