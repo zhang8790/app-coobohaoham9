@@ -1,10 +1,11 @@
 // @title 探索
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { Image, View, Text, Button } from '@tarojs/components'
+import { View, Text, Button } from '@tarojs/components'
 import { getNearbyProducts, getCartCount, addToCart } from '@/db/api'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import { useLocation } from '@/contexts/LocationContext'
+import LazyImage from '@/components/LazyImage'
 import type { NearbyProduct } from '@/db/api'
 
 const CATEGORIES = ['全部', '图书', '美食', '饮品', '零食', '日用', '礼品']
@@ -33,7 +34,6 @@ export default function ExplorePage() {
   const [cartCount, setCartCount] = useState(0)
   const [addingId, setAddingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
   const page = useRef(0)
   const hasMore = useRef(true)
 
@@ -193,11 +193,15 @@ export default function ExplorePage() {
               {products.map(p => (
                 <View key={p.product_id} className="bg-card rounded-2xl overflow-hidden border border-border relative"
                   onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.product_id}` })}>
-                  {failedImages.has(p.product_id) || !p.product_image_url ? (
+                  {!p.product_image_url ? (
                     <ProductImagePlaceholder name={p.product_name} />
                   ) : (
-                    <Image src={p.product_image_url || ''} mode="aspectFill" className="w-full" style={{ height: '120px' }}
-                      onError={() => handleImageError(p.product_id)} />
+                    <LazyImage 
+                      src={p.product_image_url} 
+                      mode="aspectFill"
+                      className="w-full"
+                      style={{ height: '120px' }}
+                    />
                   )}
                   <View className="p-3">
                     <Text className="text-xl font-bold text-foreground leading-tight line-clamp-2">{p.product_name}</Text>
