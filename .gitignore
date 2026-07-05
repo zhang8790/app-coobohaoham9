@@ -36,6 +36,11 @@ lerna-debug.log*
 project.zip
 taro-weapp-template.tar
 
+# Windows 保留文件名
+nul
+nul.*
+nul?
+
 .vscode/
 output/
 package.json.[0-9]*

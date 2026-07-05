@@ -97,9 +97,14 @@ Deno.serve(async (req: Request) => {
 
     // 防重复：同一幂等key已存在则直接返回
     if (idempotency_key) {
-      const { data: existing } = await supabase.from('orders')
-        .select('id, order_no, status, total_amount, parent_order_no').eq('idempotency_key' as any, idempotency_key).maybeSingle()
-      if (existing) {
+      const { data: existing, error: existErr } = await supabase.from('orders')
+        .select('id, order_no, status, total_amount, parent_order_no')
+        .eq('idempotency_key', idempotency_key)
+        .maybeSingle()
+      if (existErr) {
+        console.warn('[create-order] 幂等键查询失败（可能字段不存在）:', existErr.message)
+        // 不阻塞主流程，继续执行
+      } else if (existing) {
         return Response.json({ success: true, order: existing, reused: true, is_multi_store: !!existing.parent_order_no }, { headers: corsHeaders })
       }
     }

@@ -1,0 +1,183 @@
+version: "3.8"
+
+services:
+  # PostgreSQL database
+  db:
+    image: supabase/postgres:15.1.0.147
+    container_name: supabase_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - ./supabase/migrations:/docker-entrypoint-initdb.d/migrations
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Supabase Auth
+  auth:
+    image: supabase/gotrue:v2.132.3
+    container_name: supabase_auth
+    restart: unless-stopped
+    ports:
+      - "9999:9999"
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://localhost:8000
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
+      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_URI_ALLOW_LIST: http://localhost:3000,http://localhost:5173
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "true"
+      GOTRUE_SMS_AUTOFILL: "false"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_SMS_OTP_EXP: 60
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Supabase REST API (PostgREST)
+  rest:
+    image: postgrest/postgrest:v12.2.0
+    container_name: supabase_rest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@db:5432/postgres
+      PGRST_DB_SCHEMA: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
+      PGRST_HOST: 0.0.0.0
+      PGRST_PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Supabase Realtime
+  realtime:
+    image: supabase/realtime:v2.30.3
+    container_name: supabase_realtime
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: SET search_path TO _realtime
+      DB_ENC_KEY: supabaserealtimeencrypt
+      FLY_ALLOC_ID: fly-random
+      FLY_APP_NAME: supabase
+      SECRET_KEY_BASE: UpNVAPMJpwCD2HWtBQ/DcLFbcUsMOgE0
+      ERL_AFFINITY: "true"
+      JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Supabase Storage
+  storage:
+    image: supabase/storage-api:v0.49.4
+    container_name: supabase_storage
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgICJyb2xlIjogImFub24iLCAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsICAgImF1ZCI6ICJyZWFjdGlvbiIsICAgImV4cCI6IDE5OTk5OTk5OTksICAgImlhdCI6IDE3MjA1MDAwMDB9.OpJhr9Id0Qy_Fv1a3k0P6EDDfv0POsYgFdTi5scEvX8
+      SERVICE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwgICAiYXVkIjogInJlYWN0aW9uIiwgICAiZXhwIjogMTk5OTk5OTk5OSwgICAiaWF0IjogMTcyMDUwMDAwMH0.6d7bp9zRRTFE8YX-VE5f9YxkF_s3GZ9kq8lmx9XnJ8k
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
+      DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
+      FILE_SIZE_LIMIT: 52428800
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+    volumes:
+      - storage_data:/var/lib/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+
+  # Supabase Studio (Dashboard)
+  studio:
+    image: supabase/studio:20240422-9c1e60b
+    container_name: supabase_studio
+    restart: unless-stopped
+    ports:
+      - "54323:3000"
+    environment:
+      STUDIO_PG_META_URL: http://pg-meta:8080
+      POSTGRES_PASSWORD: postgres
+      DEFAULT_ORGANIZATION_NAME: supabase
+      DEFAULT_PROJECT_NAME: Local Project
+      SUPABASE_URL: http://localhost
+      SUPABASE_PUBLIC_URL: http://localhost:54323
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgICJyb2xlIjogImFub24iLCAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsICAgImF1ZCI6ICJyZWFjdGlvbiIsICAgImV4cCI6IDE5OTk5OTk5OTksICAgImlhdCI6IDE3MjA1MDAwMDB9.OpJhr9Id0Qy_Fv1a3k0P6EDDfv0POsYgFdTi5scEvX8
+      NEXT_PUBLIC_API_URL: http://localhost:54321
+      NEXT_PUBLIC_URL: http://localhost:54323
+      NEXT_PUBLIC_DASHBOARD_URL: http://localhost:54323
+    depends_on:
+      - pg-meta
+
+  # Supabase Postgres Meta
+  pg-meta:
+    image: supabase/postgres-meta:v0.80.0
+    container_name: supabase_pg_meta
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USERNAME: postgres
+      PG_META_DB_PASSWORD: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Kong (API Gateway)
+  kong:
+    image: kong:2.8.1
+    container_name: supabase_kong
+    restart: unless-stopped
+    ports:
+      - "54321:8000"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_RESOLVER: "1.1.1.1"
+      KONG_PLUGINS: request-transformer,cors
+      KONG_LOG_LEVEL: info
+    volumes:
+      - ./kong.yml:/home/kong/kong.yml
+    depends_on:
+      - auth
+      - rest
+      - realtime
+      - storage
+
+volumes:
+  db_data:
+  storage_data:
