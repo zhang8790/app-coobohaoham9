@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import './index.scss'
+import LazyImage from '@/components/LazyImage'
 
 // 关键：必须从 common.js 导入至少一项，否则 Rollup 会 tree-sh掉 common.js 和 vendors.js
 // 导致小程序运行时缺少必要代码 → 页面空白崩溃
@@ -279,10 +280,12 @@ export default function StoreHomePage() {
                     borderWidth: '1px',
                     borderColor: '#EDEDED',
                   }}>
-                  <Image
+                  <LazyImage
                     src={p.main_image || p.image_url || ''}
                     mode="aspectFill"
-                    style={{ width: '100%', height: '120px', display: 'block' }}
+                    width="100%"
+                    height={120}
+                    className="block"
                   />
                   <View style={{ padding: '10px' }}>
                     <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#333' }} numberOfLines={2}>{p.name}</Text>
