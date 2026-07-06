@@ -1,6 +1,6 @@
 // @title 商家入驻
 import { useState, useCallback, useEffect } from 'react'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Input, Textarea, Button } from '@tarojs/components'
 import { getMyMerchantApplication, submitMerchantApplication } from '@/db/api'
 import type { MerchantApplication } from '@/db/types'
@@ -50,21 +50,32 @@ function MerchantApplyPage() {
 
   useEffect(() => { loadApp() }, [loadApp])
 
+  // 页面每次显示时重新加载（处理从其他页面返回的场景）
+  useDidShow(() => {
+    if (user) loadApp()
+  })
+
   const handleSubmit = async () => {
     if (!storeName.trim()) { Taro.showToast({ title: '请输入门店名称', icon: 'none' }); return }
     if (!contactName.trim()) { Taro.showToast({ title: '请输入联系人', icon: 'none' }); return }
     if (!/^1[3-9]\d{9}$/.test(contactPhone)) { Taro.showToast({ title: '请输入正确手机号', icon: 'none' }); return }
     setSubmitting(true)
-    await submitMerchantApplication({
-      store_name: storeName.trim(),
-      contact_name: contactName.trim(),
-      contact_phone: contactPhone.trim(),
-      business_type: businessType,
-      description: description.trim() || undefined
-    })
-    setSubmitting(false)
-    Taro.showToast({ title: '申请已提交！', icon: 'success' })
-    setTimeout(() => Taro.navigateBack(), 1500)
+    try {
+      await submitMerchantApplication({
+        store_name: storeName.trim(),
+        contact_name: contactName.trim(),
+        contact_phone: contactPhone.trim(),
+        business_type: businessType,
+        description: description.trim() || undefined
+      })
+      Taro.showToast({ title: '申请已提交！', icon: 'success' })
+      // 提交成功后，立即重新加载申请状态，显示"审核中"页面
+      await loadApp()
+    } catch (err: any) {
+      Taro.showToast({ title: err.message || '提交失败', icon: 'none' })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (loading) return (
