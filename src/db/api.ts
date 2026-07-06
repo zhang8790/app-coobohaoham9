@@ -646,11 +646,15 @@ export async function submitMerchantApplication(info: {
 }): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('请先登录')
-  await supabase.from('merchant_applications').insert({
+  const { error } = await supabase.from('merchant_applications').insert({
     ...info,
     user_id: user.id,  // 关键：关联当前用户
     status: 'pending'  // 显式设置状态为待审核
   })
+  if (error) {
+    console.error('[submitMerchantApplication] 插入失败:', error.message, error.code, error.details)
+    throw new Error(`提交失败: ${error.message}`)
+  }
 }
 
 // =====================
