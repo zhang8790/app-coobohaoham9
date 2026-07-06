@@ -111,7 +111,7 @@ function UserPage() {
         <Text className="text-xl text-muted-foreground">加载中...</Text>
       </View>
     )
-    const status = profile.merchant_status || application?.status || 'none'
+    const status = profile?.merchant_status || application?.status || 'none'
     if (status === 'none') return (
       <View className="flex items-center justify-between px-4 py-3 rounded-2xl bg-card border border-border"
         onClick={() => Taro.navigateTo({ url: '/pages/merchant-apply/index' })}>
