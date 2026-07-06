@@ -6,6 +6,7 @@ import { getMyMerchantApplication, submitMerchantApplication } from '@/db/api'
 import type { MerchantApplication } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
+import { withTimeout } from '@/utils/withTimeout'
 
 interface InputFieldProps {
   label: string
@@ -30,11 +31,21 @@ function MerchantApplyPage() {
   const [loading, setLoading] = useState(true)
 
   const loadApp = useCallback(async () => {
-    if (!user) return
+    if (!user) { setLoading(false); return }
     setLoading(true)
-    const app = await getMyMerchantApplication()
-    setExisting(app)
-    setLoading(false)
+    try {
+      const app = await withTimeout(
+        getMyMerchantApplication(),
+        5000,
+        '[merchant-apply] getMyMerchantApplication 超时'
+      )
+      setExisting(app ?? null)
+    } catch (err) {
+      console.error('[merchant-apply] loadApp error:', err)
+      setExisting(null)
+    } finally {
+      setLoading(false)
+    }
   }, [user])
 
   useEffect(() => { loadApp() }, [loadApp])
