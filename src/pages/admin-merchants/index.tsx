@@ -5,6 +5,7 @@ import Taro from '@tarojs/taro'
 import { getAdminMerchantApplications, adminApproveApplication, adminRejectApplication } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
+import { withTimeout } from '@/utils/withTimeout'
 
 type App = {
   id: string; user_id: string; store_name: string; contact_name: string
@@ -24,9 +25,15 @@ function AdminMerchantsPage() {
     if (authLoading) return
     if (profile?.role !== 'admin') { Taro.reLaunch({ url: '/pages/index/index' }); return }
     setLoading(true)
-    const data = await getAdminMerchantApplications()
-    setList(data)
-    setLoading(false)
+    try {
+      const data = await withTimeout(getAdminMerchantApplications())
+      setList(data)
+    } catch (err) {
+      console.error('[AdminMerchants] load failed:', err)
+      Taro.showToast({ title: '加载失败', icon: 'none' })
+    } finally {
+      setLoading(false)
+    }
   }, [profile, authLoading])
 
   useEffect(() => { load() }, [load])

@@ -5,6 +5,7 @@ import Taro from '@tarojs/taro'
 import { getAdminWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
+import { withTimeout } from '@/utils/withTimeout'
 
 type Withdrawal = {
   id: string; user_id: string; amount: number; status: string
@@ -25,9 +26,15 @@ function AdminWithdrawalsPage() {
     if (authLoading) return
     if (profile?.role !== 'admin') { Taro.reLaunch({ url: '/pages/index/index' }); return }
     setLoading(true)
-    const data = await getAdminWithdrawals()
-    setList(data)
-    setLoading(false)
+    try {
+      const data = await withTimeout(getAdminWithdrawals())
+      setList(data)
+    } catch (err) {
+      console.error('[AdminWithdrawals] load failed:', err)
+      Taro.showToast({ title: '加载失败', icon: 'none' })
+    } finally {
+      setLoading(false)
+    }
   }, [profile, authLoading])
 
   useEffect(() => { load() }, [load])

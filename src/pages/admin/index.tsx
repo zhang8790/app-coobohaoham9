@@ -21,9 +21,20 @@ function AdminPage() {
       return
     }
     setLoading(true)
-    const s = await getAdminStats()
-    setStats(s)
-    setLoading(false)
+    try {
+      const s = await Promise.race([
+        getAdminStats(),
+        new Promise<Stats>((_, reject) => 
+          setTimeout(() => reject(new Error('getAdminStats timeout')), 5000)
+        )
+      ])
+      setStats(s)
+    } catch (err) {
+      console.error('[Admin] getAdminStats failed:', err)
+      Taro.showToast({ title: '加载失败，请重试', icon: 'none' })
+    } finally {
+      setLoading(false)
+    }
   }, [profile, authLoading])
 
   useEffect(() => { load() }, [load])

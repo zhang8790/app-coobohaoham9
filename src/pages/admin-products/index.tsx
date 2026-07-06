@@ -5,6 +5,7 @@ import { Image, View, Button, Textarea, Text } from '@tarojs/components'
 import { getAdminPendingProducts, adminApproveProduct, adminRejectProduct } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
+import { withTimeout } from '@/utils/withTimeout'
 import type { Product } from '@/db/types'
 
 function AdminProductsPage() {
@@ -19,9 +20,15 @@ function AdminProductsPage() {
     if (authLoading) return
     if (profile?.role !== 'admin') { Taro.reLaunch({ url: '/pages/index/index' }); return }
     setLoading(true)
-    const data = await getAdminPendingProducts()
-    setList(data)
-    setLoading(false)
+    try {
+      const data = await withTimeout(getAdminPendingProducts())
+      setList(data)
+    } catch (err) {
+      console.error('[AdminProducts] load failed:', err)
+      Taro.showToast({ title: '加载失败', icon: 'none' })
+    } finally {
+      setLoading(false)
+    }
   }, [profile, authLoading])
 
   useEffect(() => { load() }, [load])

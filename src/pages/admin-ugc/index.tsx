@@ -5,6 +5,7 @@ import { Image, View, Button, Text } from '@tarojs/components'
 import { getAdminArticles, adminToggleArticlePublish, adminDeleteArticle } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
+import { withTimeout } from '@/utils/withTimeout'
 import type { Article } from '@/db/types'
 
 type Tab = 'all' | 'published' | 'hidden'
@@ -20,9 +21,15 @@ function AdminUgcPage() {
     if (authLoading) return
     if (profile?.role !== 'admin') { Taro.reLaunch({ url: '/pages/index/index' }); return }
     setLoading(true)
-    const data = await getAdminArticles()
-    setList(data)
-    setLoading(false)
+    try {
+      const data = await withTimeout(getAdminArticles())
+      setList(data)
+    } catch (err) {
+      console.error('[AdminUgc] load failed:', err)
+      Taro.showToast({ title: '加载失败', icon: 'none' })
+    } finally {
+      setLoading(false)
+    }
   }, [profile, authLoading])
 
   useEffect(() => { load() }, [load])
