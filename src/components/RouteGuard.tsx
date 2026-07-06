@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useState} from 'react'
 import Taro, {useDidShow} from '@tarojs/taro'
 import type {TabBarItem} from '@tarojs/taro'
+import {View, Text} from '@tarojs/components'
 import {useAuth} from '@/contexts/AuthContext'
 
 // Public pages that don't require authentication
