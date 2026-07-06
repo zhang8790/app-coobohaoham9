@@ -644,8 +644,11 @@ export async function submitMerchantApplication(info: {
   store_name: string, contact_name: string, contact_phone: string,
   business_type: string, description?: string
 }): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('请先登录')
   await supabase.from('merchant_applications').insert({
     ...info,
+    user_id: user.id,  // 关键：关联当前用户
     status: 'pending'  // 显式设置状态为待审核
   })
 }
