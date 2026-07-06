@@ -29,38 +29,46 @@ function MerchantCenterPage() {
   const [storeQrUrl, setStoreQrUrl] = useState('')
   const [qrLoading, setQrLoading] = useState(false)
 
+  // 第一步：加载商家信息（快速）
   useEffect(() => {
+    let cancelled = false
+
     Promise.all([
       getMerchantStore(),
       getMyMerchantApplication(),
-    ]).then(async ([s, app]) => {
+    ]).then(([s, app]) => {
+      if (cancelled) return
       setStore(s)
       setMerchantAppStatus(app?.status || null)
-      
-      if (s) {
-        try {
-          const [prods, ords] = await Promise.all([
-            getMerchantProducts(s.id),
-            getMerchantOrders(s.id),
-          ])
-          const online = prods.filter(p => p.is_active).length
-          const today = new Date().toISOString().slice(0, 10)
-          const todayOrders = ords.filter(o => (o.orders?.created_at || '').startsWith(today)).length
-          setStats({ products: prods.length, online, orders: ords.length, todayOrders, members: 5, crossStore: 2 })
-        } catch (error) {
-          console.error('[MerchantCenter] 加载统计数据失败:', error)
-          // 即使统计失败，也设置默认值
-          setStats({ products: 0, online: 0, orders: 0, todayOrders: 0, members: 0, crossStore: 0 })
-        }
-      }
-      
-      // 无论成功失败，都要设置loading为false
-      setLoading(false)
+      setLoading(false)  // 立即退出加载状态，显示页面
     }).catch(error => {
       console.error('[MerchantCenter] 加载商家信息失败:', error)
-      setLoading(false)
+      if (!cancelled) setLoading(false)
     })
+
+    return () => { cancelled = true }
   }, [])
+
+  // 第二步：异步加载统计数据（慢，但不阻塞UI）
+  useEffect(() => {
+    if (!store) return
+    let cancelled = false
+
+    Promise.all([
+      getMerchantProducts(store.id),
+      getMerchantOrders(store.id),
+    ]).then(([prods, ords]) => {
+      if (cancelled) return
+      const online = prods.filter(p => p.is_active).length
+      const today = new Date().toISOString().slice(0, 10)
+      const todayOrders = ords.filter(o => (o.orders?.created_at || '').startsWith(today)).length
+      setStats({ products: prods.length, online, orders: ords.length, todayOrders, members: 5, crossStore: 2 })
+    }).catch(error => {
+      console.error('[MerchantCenter] 加载统计数据失败:', error)
+    })
+
+    return () => { cancelled = true }
+  }, [store])
 
   // 打开门店二维码弹窗
   const handleShowStoreQr = async () => {
