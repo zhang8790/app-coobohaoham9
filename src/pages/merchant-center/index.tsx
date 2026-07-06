@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { View, Text, Button, Image } from '@tarojs/components'
 import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMyMerchantApplication, generateQrcode } from '@/db/api'
+import { supabase } from '@/client/supabase'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 
@@ -33,20 +34,79 @@ function MerchantCenterPage() {
   useEffect(() => {
     let cancelled = false
 
-    Promise.all([
-      getMerchantStore(),
-      getMyMerchantApplication(),
-    ]).then(([s, app]) => {
-      if (cancelled) return
-      setStore(s)
-      setMerchantAppStatus(app?.status || null)
-      setLoading(false)  // 立即退出加载状态，显示页面
-    }).catch(error => {
-      console.error('[MerchantCenter] 加载商家信息失败:', error)
-      if (!cancelled) setLoading(false)
-    })
+    // 超时保护：5秒后强制退出加载状态
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        console.warn('[MerchantCenter] 加载超时，强制退出加载状态')
+        setLoading(false)
+        Taro.showToast({
+          title: '加载超时，请检查网络或重新登录',
+          icon: 'none',
+          duration: 3000
+        })
+      }
+    }, 5000)
 
-    return () => { cancelled = true }
+    // 分别加载，避免一个失败影响另一个
+    const loadData = async () => {
+      try {
+        // 先检查登录状态
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+          console.error('[MerchantCenter] 用户未登录')
+          if (!cancelled) {
+            setLoading(false)
+            Taro.showToast({ title: '请先登录', icon: 'none' })
+          }
+          return
+        }
+
+        console.log('[MerchantCenter] 开始加载，用户ID:', user.id)
+
+        // 并行加载，但分别处理错误
+        const [storeResult, appResult] = await Promise.allSettled([
+          getMerchantStore(),
+          getMyMerchantApplication(),
+        ])
+
+        if (cancelled) return
+
+        // 处理商家信息
+        if (storeResult.status === 'fulfilled') {
+          console.log('[MerchantCenter] 商家信息:', storeResult.value)
+          setStore(storeResult.value)
+        } else {
+          console.error('[MerchantCenter] 加载商家信息失败:', storeResult.reason)
+        }
+
+        // 处理审核状态
+        if (appResult.status === 'fulfilled') {
+          console.log('[MerchantCenter] 审核状态:', appResult.value)
+          setMerchantAppStatus(appResult.value?.status || null)
+        } else {
+          console.error('[MerchantCenter] 加载审核状态失败:', appResult.reason)
+        }
+
+        // 无论成功失败，都退出加载状态
+        setLoading(false)
+        console.log('[MerchantCenter] 加载完成，loading设为false')
+
+      } catch (error) {
+        console.error('[MerchantCenter] 加载过程异常:', error)
+        if (!cancelled) {
+          setLoading(false)
+        }
+      } finally {
+        clearTimeout(timeoutId)
+      }
+    }
+
+    loadData()
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeoutId)
+    }
   }, [])
 
   // 第二步：异步加载统计数据（慢，但不阻塞UI）
