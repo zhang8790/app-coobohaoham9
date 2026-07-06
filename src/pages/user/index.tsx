@@ -56,12 +56,18 @@ function UserPage() {
 
   const loadData = useCallback(async () => {
     if (!user) return
-    const [p, app, counts] = await Promise.all([
-      getMyProfile(), getMyMerchantApplication(), getOrderCounts()
-    ])
-    setProfile(p)
-    setApplication(app)
-    setOrderCounts(counts)
+    try {
+      const [p, app, counts] = await Promise.all([
+        getMyProfile().catch(err => { console.error('[User] getMyProfile failed:', err); return null }),
+        getMyMerchantApplication().catch(err => { console.error('[User] getMyMerchantApplication failed:', err); return null }),
+        getOrderCounts().catch(err => { console.error('[User] getOrderCounts failed:', err); return {} as Record<string, number> }),
+      ])
+      if (p) setProfile(p)
+      if (app) setApplication(app)
+      if (counts) setOrderCounts(counts)
+    } catch (err) {
+      console.error('[User] loadData error:', err)
+    }
   }, [user])
 
   useEffect(() => { loadData() }, [loadData])
