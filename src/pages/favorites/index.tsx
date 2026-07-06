@@ -1,10 +1,11 @@
 // @title 我的收藏
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text, Image, Input, Button } from '@tarojs/components'
+import { View, Text, Input, Button } from '@tarojs/components'
 import { getMyFavorites, toggleFavorite } from '@/db/api'
 import type { Favorite } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
+import LazyImage from '@/components/LazyImage'
 
 function FavoritesPage() {
   const [items, setItems] = useState<Favorite[]>([])
@@ -54,11 +55,12 @@ function FavoritesPage() {
                 <View key={fav.id} className="bg-card rounded-2xl border border-border overflow-hidden"
                   onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${encodeURIComponent(p.id)}` })}>
                   <View className="relative" style={{ height: '160px' }}>
-                    {p.image_url
-                      ? <Image src={p.image_url} mode="aspectFill" style={{ width: '100%', height: '160px' }} />
-                      : <View className="w-full h-full bg-muted flex items-center justify-center">
-                          <View className="i-mdi-image text-4xl text-muted-foreground/30" />
-                        </View>}
+                    <LazyImage
+                      src={p.image_url}
+                      mode="aspectFill"
+                      style={{ width: '100%', height: '160px' }}
+                      fallbackIcon="i-mdi-image"
+                    />
                     <View type="button"
                       className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center"
                       onClick={e => { e.stopPropagation(); handleRemove(fav) }}>

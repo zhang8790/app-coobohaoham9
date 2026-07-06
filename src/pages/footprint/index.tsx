@@ -1,10 +1,11 @@
 // @title 浏览足迹
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import { getMyFootprints, deleteFootprint } from '@/db/api'
 import type { Footprint } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
+import LazyImage from '@/components/LazyImage'
 
 function FootprintPage() {
   const [items, setItems] = useState<Footprint[]>([])
@@ -63,12 +64,13 @@ function FootprintPage() {
                   return (
                     <View key={fp.id} className="bg-card rounded-2xl border border-border flex items-center gap-3 p-3"
                       onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${encodeURIComponent(p.id)}` })}>
-                      <View className="w-16 h-16 rounded-xl bg-muted overflow-hidden flex-shrink-0">
-                        {p.image_url
-                          ? <Image src={p.image_url} mode="aspectFill" style={{ width: '64px', height: '64px' }} />
-                          : <View className="w-full h-full flex items-center justify-center">
-                              <View className="i-mdi-image text-2xl text-muted-foreground/30" />
-                            </View>}
+                      <View className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                        <LazyImage
+                          src={p.image_url}
+                          mode="aspectFill"
+                          style={{ width: '64px', height: '64px' }}
+                          fallbackIcon="i-mdi-image"
+                        />
                       </View>
                       <View className="flex-1">
                         <Text className="text-xl font-bold text-foreground line-clamp-1">{p.name}</Text>

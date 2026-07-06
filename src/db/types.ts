@@ -324,3 +324,61 @@ export interface Withdrawal {
   created_at: string
   updated_at: string
 }
+
+// =====================
+// Marketing Campaigns（营销活动）
+// =====================
+
+export type CampaignType = 'redpacket' | 'physical'
+export type CampaignStatus = 'active' | 'paused' | 'ended'
+
+export interface MarketingCampaign {
+  id: number
+  store_id: string | null
+  campaign_name: string
+  campaign_type: CampaignType
+  gift_name: string | null
+  gift_value: number
+  total_limit: number
+  daily_limit: number
+  start_date: string
+  end_date: string
+  claimed_count: number
+  commission_rate: number
+  status: CampaignStatus
+  created_at: string
+  updated_at: string
+}
+
+// =====================
+// User Campaign Claims（用户活动领取记录）
+// =====================
+
+export type ClaimStatus = 'pending' | 'verified' | 'expired'
+
+export interface UserCampaignClaim {
+  id: string
+  user_id: string
+  campaign_id: number
+  store_id: string | null
+  claimed_at: string
+  status: ClaimStatus
+  verified: boolean
+}
+
+// =====================
+// Pending Referrals（预锁客）
+// =====================
+
+export type PendingReferralStatus = 'pending' | 'converted' | 'expired'
+
+export interface PendingReferral {
+  id: string
+  device_id: string
+  referral_code: string
+  store_id: string | null
+  campaign_id: number | null
+  status: PendingReferralStatus
+  converted: boolean
+  created_at: string
+}
