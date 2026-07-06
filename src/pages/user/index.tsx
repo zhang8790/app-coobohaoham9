@@ -59,16 +59,22 @@ function UserPage() {
     if (!user) { setProfileLoading(false); return }
     setProfileLoading(true)
     try {
-      const [p, app, counts] = await Promise.all([
-        getMyProfile().catch(err => { console.error('[User] getMyProfile failed:', err); return null }),
-        getMyMerchantApplication().catch(err => { console.error('[User] getMyMerchantApplication failed:', err); return null }),
-        getOrderCounts().catch(err => { console.error('[User] getOrderCounts failed:', err); return {} as Record<string, number> }),
+      // 使用 Promise.race 防止请求挂起导致永远显示"加载中"
+      const [p, app, counts] = await Promise.race([
+        Promise.all([
+          getMyProfile().catch(err => { console.error('[User] getMyProfile failed:', err); return null }),
+          getMyMerchantApplication().catch(err => { console.error('[User] getMyMerchantApplication failed:', err); return null }),
+          getOrderCounts().catch(err => { console.error('[User] getOrderCounts failed:', err); return {} as Record<string, number> }),
+        ]),
+        new Promise<[(Profile | null), (MerchantApplication | null), Record<string, number>]>(
+          (_, reject) => setTimeout(() => reject(new Error('loadData timeout')), 5000)
+        )
       ])
       if (p) setProfile(p)
       if (app) setApplication(app)
       if (counts) setOrderCounts(counts)
     } catch (err) {
-      console.error('[User] loadData error:', err)
+      console.error('[User] loadData error or timeout:', err)
     } finally {
       setProfileLoading(false)
     }
