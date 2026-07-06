@@ -48,6 +48,8 @@ const pages = [
   'pages/campaign-claim/index',
   'pages/merchant-campaigns/index',
   'pages/merchant-campaigns/create/index',
+  // V5：情绪系统
+  'pages/emotion-check/index',
 ]
 
 export default defineAppConfig({

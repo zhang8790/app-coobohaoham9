@@ -382,3 +382,35 @@ export interface PendingReferral {
   converted: boolean
   created_at: string
 }
+
+// =====================
+// Emotion System（情绪系统）
+// =====================
+
+export type EmotionInnerLabel = 'drained_low' | 'lonely_still' | 'expressive_high' | 'peaceful_zen' | 'nostalgic_soft' | 'eager_forward'
+
+export interface EmotionKeyword {
+  id: number
+  inner_label: EmotionInnerLabel
+  keyword: string
+  priority: number
+  created_at: string
+}
+
+export interface EmotionContent {
+  id: number
+  inner_label: EmotionInnerLabel
+  content_type: 'translation' | 'scene_card' | 'feed_title'
+  scene_card_id?: string
+  title: string
+  subtitle?: string
+  extra_meta?: any
+  created_at: string
+}
+
+export interface EmotionResponse {
+  inner_label: EmotionInnerLabel
+  translation: string
+  sceneCards: EmotionContent[]
+  feedTitles: EmotionContent[]
+}
