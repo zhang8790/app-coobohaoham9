@@ -79,8 +79,10 @@ function CampaignClaimPage() {
 
     setClaiming(true)
     try {
-      const userInfo = Taro.getStorageSync('user_info')
-      if (!userInfo?.id) {
+      // 使用 supabase.auth.getUser() 获取用户信息（正确方法）
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError || !user) {
         Taro.showToast({ title: '请先登录', icon: 'none' })
         setClaiming(false)
         return
@@ -88,14 +90,15 @@ function CampaignClaimPage() {
 
       // 调用后端RPC函数（包含风控逻辑）
       const { data, error } = await supabase.rpc('claim_campaign', {
-        p_user_id: userInfo.id,
+        p_user_id: user.id,
         p_campaign_id: parseInt(campaignId),
-        p_store_id: campaign?.store_id,
+        p_store_id: campaign?.store_id || null,  // 确保是整数或null
         p_device_id: Taro.getSystemInfoSync().deviceId || null,
         p_referrer_id: referrerId || null,  // 使用查询到的推荐人ID
       })
 
       if (error) {
+        console.error('[Campaign] 领取失败:', error)
         Taro.showToast({ title: '领取失败：' + error.message, icon: 'none' })
         setClaiming(false)
         return
@@ -110,6 +113,7 @@ function CampaignClaimPage() {
       setClaimed(true)
       Taro.showToast({ title: '领取成功！已锁定门店关系', icon: 'success' })
     } catch (err: any) {
+      console.error('[Campaign] 领取异常:', err)
       Taro.showToast({ title: '领取失败：' + (err.message || '未知错误'), icon: 'none' })
     }
     setClaiming(false)

@@ -142,10 +142,6 @@ export default function ExplorePage() {
     if (!loading && hasMore.current) loadProducts(activeCat, false)
   }
 
-  const handleImageError = (id: string) => {
-    setFailedImages(prev => new Set(prev).add(id))
-  }
-
   return (
     <View className="h-screen flex flex-col bg-background">
       {/* 顶部搜索栏 */}
@@ -155,10 +151,22 @@ export default function ExplorePage() {
           <View className="i-mdi-magnify text-xl text-muted-foreground" />
           <Text className="text-xl text-muted-foreground">搜索商品...</Text>
         </View>
-        <Button type="button" className="w-10 h-10 flex items-center justify-center"
-          onClick={() => Taro.scanCode({ onlyFromCamera: false }).catch(() => {})}>
+        <View className="w-10 h-10 flex items-center justify-center"
+          onClick={() => {
+            Taro.scanCode({
+              onlyFromCamera: false,
+              success: (res) => {
+                console.log('[Explore] 扫码结果:', res.result)
+                // 处理扫码结果（可能是商品条码或推广码）
+                Taro.showToast({ title: '扫码成功', icon: 'success' })
+              },
+              fail: (err) => {
+                console.log('[Explore] 扫码取消或失败:', err)
+              }
+            })
+          }}>
           <View className="i-mdi-qrcode-scan text-2xl text-foreground" />
-        </Button>
+        </View>
         <View className="relative" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
           <View className="i-mdi-shopping-outline text-2xl text-foreground" />
           {cartCount > 0 && (

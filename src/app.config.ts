@@ -46,6 +46,8 @@ const pages = [
   // V4：多区域架构 + LBS定位 + 红包实物引流
   'pages/city-select/index',
   'pages/campaign-claim/index',
+  'pages/merchant-campaigns/index',
+  'pages/merchant-campaigns/create/index',
 ]
 
 export default defineAppConfig({

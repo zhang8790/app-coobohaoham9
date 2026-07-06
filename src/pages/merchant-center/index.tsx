@@ -36,18 +36,29 @@ function MerchantCenterPage() {
     ]).then(async ([s, app]) => {
       setStore(s)
       setMerchantAppStatus(app?.status || null)
-      setLoading(false)
-
+      
       if (s) {
-        const [prods, ords] = await Promise.all([
-          getMerchantProducts(s.id),
-          getMerchantOrders(s.id),
-        ])
-        const online = prods.filter(p => p.is_active).length
-        const today = new Date().toISOString().slice(0, 10)
-        const todayOrders = ords.filter(o => (o.orders?.created_at || '').startsWith(today)).length
-        setStats({ products: prods.length, online, orders: ords.length, todayOrders, members: 5, crossStore: 2 })
+        try {
+          const [prods, ords] = await Promise.all([
+            getMerchantProducts(s.id),
+            getMerchantOrders(s.id),
+          ])
+          const online = prods.filter(p => p.is_active).length
+          const today = new Date().toISOString().slice(0, 10)
+          const todayOrders = ords.filter(o => (o.orders?.created_at || '').startsWith(today)).length
+          setStats({ products: prods.length, online, orders: ords.length, todayOrders, members: 5, crossStore: 2 })
+        } catch (error) {
+          console.error('[MerchantCenter] 加载统计数据失败:', error)
+          // 即使统计失败，也设置默认值
+          setStats({ products: 0, online: 0, orders: 0, todayOrders: 0, members: 0, crossStore: 0 })
+        }
       }
+      
+      // 无论成功失败，都要设置loading为false
+      setLoading(false)
+    }).catch(error => {
+      console.error('[MerchantCenter] 加载商家信息失败:', error)
+      setLoading(false)
     })
   }, [])
 
@@ -226,6 +237,23 @@ function MerchantCenterPage() {
             <View className="py-3 flex items-center gap-1">
               <View className="i-mdi-barcode-scan text-primary text-xl" />
               <Text className="text-base font-bold text-primary">扫码上架</Text>
+            </View>
+          </Button>
+        </View>
+        {/* 红包发放入口 */}
+        <View className="flex gap-3 mt-3">
+          <Button className="!flex-1 !m-0 !p-0 !bg-red-500 !border-none !rounded-2xl !leading-none"
+            onClick={() => Taro.navigateTo({ url: '/pages/merchant-campaigns/index?action=create' })}>
+            <View className="py-3 flex items-center gap-1">
+              <View className="i-mdi-gift text-white text-xl" />
+              <Text className="text-base font-bold text-white">发放红包</Text>
+            </View>
+          </Button>
+          <Button className="!flex-1 !m-0 !p-0 !bg-orange-500 !border-none !rounded-2xl !leading-none"
+            onClick={() => Taro.navigateTo({ url: '/pages/merchant-campaigns/index' })}>
+            <View className="py-3 flex items-center gap-1">
+              <View className="i-mdi-gift-outline text-white text-xl" />
+              <Text className="text-base font-bold text-white">管理活动</Text>
             </View>
           </Button>
         </View>

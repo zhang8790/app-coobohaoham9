@@ -1,5 +1,5 @@
 // @title 创作江湖令
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image, ScrollView, Input, Textarea, Button } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
