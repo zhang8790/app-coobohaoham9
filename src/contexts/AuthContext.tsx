@@ -48,43 +48,49 @@ export function AuthProvider({children}: {children: ReactNode}) {
   }
 
   useEffect(() => {
-    // 超时保护：8秒后强制取消加载状态，防止永久转圈
-    const timeout = setTimeout(() => {
-      console.warn('[Auth] getSession 超时（8秒），强制进入页面')
-      setLoading(false)
-    }, 8000)
+    let cancelled = false
 
-    supabase.auth
-      .getSession()
-      .then(({data: {session}}: { data: { session: Session | null } }) => {
-        clearTimeout(timeout)
+    // 用 Promise.race 强制定时，确保 getSession 不会永远挂起
+    const getSessionWithTimeout = () =>
+      Promise.race([
+        supabase.auth.getSession(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('getSession timeout after 8s')), 8000)
+        ),
+      ])
+
+    getSessionWithTimeout()
+      .then(({ data: { session } }: any) => {
+        if (cancelled) return
         setUser(session?.user ?? null)
         if (session?.user) {
-          getProfile(session.user.id).then(setProfile)
+          getProfile(session.user.id).then(setProfile).catch(() => setProfile(null))
         }
         setLoading(false)
       })
       .catch((error: Error) => {
-        clearTimeout(timeout)
-        console.warn('Failed to get session:', error)
+        if (cancelled) return
+        console.warn('[Auth] getSession 失败（已超时或网络错误）:', error?.message || error)
         setUser(null)
         setProfile(null)
         setLoading(false)
       })
 
-    // In this function, do NOT use any await calls. Use `.then()` instead to avoid deadlocks.
-    const {
-      data: {subscription}
-    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+    // 监听登录状态变化
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+      if (cancelled) return
       setUser(session?.user ?? null)
       if (session?.user) {
-        getProfile(session.user.id).then(setProfile)
+        getProfile(session.user.id).then(setProfile).catch(() => setProfile(null))
       } else {
         setProfile(null)
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signInWithUsername = async (username: string, password: string) => {

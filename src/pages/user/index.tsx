@@ -53,9 +53,11 @@ function UserPage() {
   const [orderCounts, setOrderCounts] = useState<Record<string, number>>({})
   const [editingNick, setEditingNick] = useState(false)
   const [nickInput, setNickInput] = useState('')
+  const [profileLoading, setProfileLoading] = useState(true)
 
   const loadData = useCallback(async () => {
-    if (!user) return
+    if (!user) { setProfileLoading(false); return }
+    setProfileLoading(true)
     try {
       const [p, app, counts] = await Promise.all([
         getMyProfile().catch(err => { console.error('[User] getMyProfile failed:', err); return null }),
@@ -67,6 +69,8 @@ function UserPage() {
       if (counts) setOrderCounts(counts)
     } catch (err) {
       console.error('[User] loadData error:', err)
+    } finally {
+      setProfileLoading(false)
     }
   }, [user])
 
@@ -101,7 +105,7 @@ function UserPage() {
   // 商家状态入口：优先用 profile.merchant_status，其次用 application.status
   // 注意：profile 未加载完成时显示 loading，避免闪烁
   const merchantStatusNode = (() => {
-    if (!profile) return (
+    if (profileLoading) return (
       <View className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-muted border border-border">
         <View className="i-mdi-loading text-2xl text-muted-foreground animate-spin" />
         <Text className="text-xl text-muted-foreground">加载中...</Text>

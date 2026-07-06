@@ -54,15 +54,22 @@ export function RouteGuard({children}: {children: React.ReactNode}) {
   const {user, loading} = useAuth()
   const [shouldRender, setShouldRender] = useState(false)
   const [forceRender, setForceRender] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
 
-  // 超时机制：5秒后强制渲染（避免一直加载）
+  // 超时机制：3秒后强制渲染（避免一直加载）
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (forceRender) return
+    const start = Date.now()
+    const timer = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+    const forceTimer = setTimeout(() => {
+      console.warn('[RouteGuard] 超时3秒，强制渲染页面')
       setForceRender(true)
       setShouldRender(true)
-    }, 5000)
-    return () => clearTimeout(timer)
-  }, [])
+    }, 3000)
+    return () => { clearTimeout(forceTimer); clearInterval(timer) }
+  }, [forceRender])
 
   const checkAuth = useCallback(() => {
     const currentPath: string = Taro.getCurrentInstance()?.router?.path || ''
@@ -105,13 +112,18 @@ export function RouteGuard({children}: {children: React.ReactNode}) {
     checkAuth()
   }, [checkAuth])
 
-  // 修改渲染逻辑：超时后强制渲染
+  // 修改渲染逻辑：超时后强制渲染，并显示调试信息
   if (!shouldRender && !forceRender) {
-    // 显示加载动画（而不是空白）
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="i-mdi-loading text-4xl text-primary animate-spin" />
-      </div>
+      <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
+        <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+        <Text className="text-base text-muted-foreground">正在检查登录状态...</Text>
+        {elapsed >= 2 && (
+          <Text className="text-xs text-muted-foreground/60 text-center">
+            已等待{elapsed}秒，{elapsed >= 3 ? '即将强制进入页面' : '请稍候'}
+          </Text>
+        )}
+      </View>
     )
   }
 
