@@ -6,7 +6,16 @@
 -- 说明：返回类型与 00049 一致，PostgreSQL 允许 CREATE OR REPLACE 同签名函数；
 --       但为与历史迁移保持一致、避免任何签名歧义，仍先 DROP 再 CREATE（幂等可重跑）。
 
-DROP FUNCTION IF EXISTS get_rank_progress(uuid);
+-- 强制删除所有同名重载（避免旧签名残留导致 "cannot change return type" 42P13）
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN SELECT oid FROM pg_proc WHERE proname = 'get_rank_progress'
+  LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.oid::regprocedure || ' CASCADE';
+  END LOOP;
+END $$;
 CREATE OR REPLACE FUNCTION get_rank_progress(user_id UUID)
 RETURNS TABLE (
   current_rank TEXT,
