@@ -204,15 +204,16 @@ function UserPage() {
 
         {/* 资产行 */}
         {user && profile && (
-          <View className="grid grid-cols-3 gap-3 mt-4">
+          <View className="grid grid-cols-4 gap-2 mt-4">
             {[
               { label: '积分', value: profile.points || 0, icon: 'i-mdi-star-circle' },
+              { label: '金豆', value: profile.gold_beans || 0, icon: 'i-mdi-gold' },
               { label: '余额', value: `¥${(profile.balance || 0).toFixed(2)}`, icon: 'i-mdi-wallet' },
               { label: '优惠券', value: `${profile.coupons_count || 0}张`, icon: 'i-mdi-ticket' },
             ].map(item => (
-              <View key={item.label} className="bg-card rounded-2xl flex flex-col items-center py-4 border border-border">
-                <Text className="text-xl font-bold text-foreground">{item.value}</Text>
-                <Text className="text-base text-muted-foreground mt-1">{item.label}</Text>
+              <View key={item.label} className="bg-card rounded-2xl flex flex-col items-center py-3 border border-border">
+                <Text className="text-lg font-bold text-foreground">{item.value}</Text>
+                <Text className="text-xs text-muted-foreground mt-1">{item.label}</Text>
               </View>
             ))}
           </View>
