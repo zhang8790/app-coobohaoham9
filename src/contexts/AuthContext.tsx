@@ -71,6 +71,9 @@ export function AuthProvider({children}: {children: ReactNode}) {
       .catch((error: Error) => {
         if (cancelled) return
         console.warn('[Auth] getSession 失败（已超时或网络错误）:', error?.message || error)
+        // 清理可能损坏的本地 session（坏 refresh_token 会一直阻塞自动登录），
+        // 让用户能以干净状态重新登录，避免反复 Invalid Refresh Token
+        supabase.auth.signOut().catch(() => {})
         setUser(null)
         setProfile(null)
         setLoading(false)
