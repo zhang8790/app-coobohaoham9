@@ -122,6 +122,10 @@ function PaymentPage() {
     const finalBalance = profile?.gold_beans ?? bal.gold_beans ?? 0
     console.log('[Payment] balance 加载结果:', { profileGold: profile?.gold_beans, apiGold: bal.gold_beans, final: finalBalance, version: '2026-07-07-v3' })
     setBalance(finalBalance)
+    // 调试用：开发模式下弹出当前余额+版本号，确认真机代码是否已更新（生产环境不显示）
+    if (process.env.NODE_ENV !== 'production') {
+      Taro.showToast({ title: `余额${finalBalance}·v3`, icon: 'none', duration: 2000 })
+    }
     setAddresses(addrList)
 
     // 自动选中默认地址
