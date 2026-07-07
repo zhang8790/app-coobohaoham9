@@ -1,11 +1,11 @@
 // @title 文章详情页 - 公众号风格
 import { useState, useEffect, useRef } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
-import { View, Text, Image, ScrollView } from '@tarojs/components'
+import { View, Text, Image, ScrollView, RichText } from '@tarojs/components'
 import './index.scss'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { getArticleById, incrementArticleView, getArticles } from '@/db/api'
+import { getArticleById, incrementArticleView, getArticles, getProductById } from '@/db/api'
 import { handleInviterFromQuery } from '@/utils/share'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 
@@ -245,14 +245,9 @@ export default function ArticleDetailPage() {
             </View>
           )}
 
-          {/* HTML 正文 - 使用 RichText */}
+          {/* HTML 正文 - 使用 RichText，文中商品卡占位符会被替换成商品卡组件 */}
           {article.content && (
-            <View className="content-text">
-              <RichText
-                nodes={article.content}
-                className="rich-content"
-              />
-            </View>
+            <ArticleContentWithProducts content={article.content} articleId={articleId} />
           )}
 
           {/* 视频提示 */}
@@ -348,6 +343,93 @@ export default function ArticleDetailPage() {
 
         <View className="safe-bottom" />
       </ScrollView>
+    </View>
+  )
+}
+
+// ─────────────────────────────────────────────
+// 文中商品卡：把 content 里的 [[product:ID]] 占位符替换成可点击的商品卡
+// ─────────────────────────────────────────────
+type ContentPart = { type: 'product'; id: string } | { type: 'text'; value: string }
+
+function parseContent(content: string): ContentPart[] {
+  if (!content) return []
+  const raw = content.split(/(\[\[product:[\w-]+\]\])/g)
+  const parts: ContentPart[] = []
+  for (const seg of raw) {
+    const m = seg.match(/^\[\[product:([\w-]+)\]\]$/)
+    if (m) {
+      parts.push({ type: 'product', id: m[1] })
+    } else if (seg.trim() !== '') {
+      parts.push({ type: 'text', value: seg })
+    }
+  }
+  return parts
+}
+
+// 单个商品卡（内联渲染于文章流中）
+function ProductCardInline({ productId, articleId }: { productId: string; articleId?: string }) {
+  const [product, setProduct] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    getProductById(productId)
+      .then(p => { if (alive) { setProduct(p); setLoading(false) } })
+      .catch(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [productId])
+
+  if (loading) {
+    return <View className="apc-skeleton"><View className="apc-skeleton-img" /><View className="apc-skeleton-line" /></View>
+  }
+  if (!product) return null
+
+  const emo = product.product_emotion
+  const handleTap = () => {
+    const q = `/pages/product/index?id=${encodeURIComponent(product.id)}&from=article${articleId ? `&articleId=${encodeURIComponent(articleId)}` : ''}`
+    Taro.navigateTo({ url: q })
+  }
+
+  return (
+    <View className="article-product-card" onClick={handleTap}>
+      <View className="apc-media">
+        {product.image_url ? (
+          <Image src={product.image_url} mode="aspectFill" className="apc-img" />
+        ) : (
+          <View className="apc-img apc-img-fallback">
+            <View className="i-mdi-package-variant text-3xl text-muted-foreground" />
+          </View>
+        )}
+        <View className="apc-badge">🛍️ 好物推荐</View>
+      </View>
+      <View className="apc-body">
+        {emo?.emotion_title && (
+          <Text className="apc-emotion">✨ {emo.emotion_title}</Text>
+        )}
+        <Text className="apc-name">{product.name}</Text>
+        <View className="apc-foot">
+          <Text className="apc-price">¥{(product.price ?? 0).toFixed(2)}</Text>
+          <View className="apc-cta">立即拥有 ›</View>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+// 正文拆分渲染（文本段用 RichText，商品占位符用商品卡）
+function ArticleContentWithProducts({ content, articleId }: { content: string; articleId?: string }) {
+  const parts = parseContent(content)
+  if (parts.length === 0) return null
+  return (
+    <View className="content-text">
+      {parts.map((part, idx) =>
+        part.type === 'product' ? (
+          <ProductCardInline key={idx} productId={part.id} articleId={articleId} />
+        ) : (
+          <RichText key={idx} nodes={part.value} className="rich-content" />
+        )
+      )}
     </View>
   )
 }

@@ -1,17 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import type { Product } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { localCompileEmotion, recommendDimensions } from '@/utils/emotion'
 
 interface ProductWithExt extends Product {
   status: 'online' | 'offline'
   sales: number
-  cost_price?: number
-  main_image?: string
-  sub_images?: string[]
-  detail_images?: string[]
-  video_url?: string
 }
 
 function calcMargin(price: number, cost?: number): string {
@@ -27,7 +22,7 @@ function calcRangLi(price: number, original?: number): string {
 const MOCK_PRODUCTS: ProductWithExt[] = [
   {
     id: '1', store_id: 'store-1', name: '云南高山古树普洱茶 357g', description: '正宗云南古树普洱，陈化5年，汤色红浓明亮，滋味醇厚回甘。每一饼茶都经过严格筛选，确保品质上乘。适合长期储藏，越陈越香。',
-    price: 268, original_price: 398,
+    price: 268, original_price: 398, image_url: null,
     main_image: 'https://img.icons8.com/color/96/000000/tea.png',
     sub_images: [
       'https://img.icons8.com/color/96/000000/tea.png',
@@ -40,11 +35,11 @@ const MOCK_PRODUCTS: ProductWithExt[] = [
     ],
     video_url: '',
     category_id: 'cat-1', status: 'online', stock: 126, sales: 342, is_active: true, cost_price: 120,
-    discount_rate: 33, created_at: '2026-06-15',
+    discount_rate: 33, review_status: 'approved', created_at: '2026-06-15',
   },
   {
     id: '2', store_id: 'store-1', name: '手工红糖姜茶 15包装', description: '云南手工红糖+老姜，暖胃驱寒，独立小包装，方便携带。精选优质红糖和老姜，传统工艺制作，无添加防腐剂。',
-    price: 39.9, original_price: 59.9,
+    price: 39.9, original_price: 59.9, image_url: null,
     main_image: 'https://img.icons8.com/color/96/000000/honey.png',
     sub_images: [],
     detail_images: [
@@ -53,21 +48,21 @@ const MOCK_PRODUCTS: ProductWithExt[] = [
     ],
     video_url: '',
     category_id: 'cat-2', status: 'online', stock: 500, sales: 1024, is_active: true, cost_price: 18,
-    discount_rate: 33, created_at: '2026-06-10',
+    discount_rate: 33, review_status: 'approved', created_at: '2026-06-10',
   },
   {
     id: '3', store_id: 'store-1', name: '野生菌汤包 煲汤食材 150g', description: '云南野生菌组合，煲汤极品，含牛肝菌、鸡油菌、松茸等优质野生菌，营养丰富，味道鲜美。',
-    price: 88, original_price: 128,
+    price: 88, original_price: 128, image_url: null,
     main_image: '',
     sub_images: [],
     detail_images: [],
     video_url: '',
     category_id: 'cat-3', status: 'offline', stock: 80, sales: 56, is_active: false, cost_price: 45,
-    discount_rate: 31, created_at: '2026-06-05',
+    discount_rate: 31, review_status: 'pending', created_at: '2026-06-05',
   },
   {
     id: '4', store_id: 'store-1', name: '傣族手工鲜花饼 礼盒装', description: '云南鲜花饼，现做现发20枚，选用云南食用玫瑰，皮薄馅多，花香浓郁，甜而不腻。',
-    price: 68, original_price: 98,
+    price: 68, original_price: 98, image_url: null,
     main_image: 'https://img.icons8.com/color/96/000000/cake.png',
     sub_images: [],
     detail_images: [
@@ -75,11 +70,11 @@ const MOCK_PRODUCTS: ProductWithExt[] = [
     ],
     video_url: '',
     category_id: 'cat-4', status: 'online', stock: 200, sales: 789, is_active: true, cost_price: 32,
-    discount_rate: 31, created_at: '2026-05-28',
+    discount_rate: 31, review_status: 'approved', created_at: '2026-05-28',
   },
   {
     id: '5', store_id: 'store-1', name: '云南小粒咖啡豆 烘焙熟豆 500g', description: '普洱小粒咖啡，中度烘焙，花果香明显，酸度适中，余韵悠长。产地直供，新鲜烘焙。',
-    price: 128, original_price: 168,
+    price: 128, original_price: 168, image_url: null,
     main_image: 'https://img.icons8.com/color/96/000000/coffee.png',
     sub_images: [
       'https://img.icons8.com/color/96/000000/coffee.png',
@@ -92,7 +87,7 @@ const MOCK_PRODUCTS: ProductWithExt[] = [
     ],
     video_url: 'https://www.w3schools.com/html/mov_bbb.mp4',
     category_id: 'cat-5', status: 'offline', stock: 0, sales: 231, is_active: false, cost_price: 65,
-    discount_rate: 24, created_at: '2026-05-20',
+    discount_rate: 24, review_status: 'pending', created_at: '2026-05-20',
   },
 ]
 
@@ -107,10 +102,11 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function MerchantProducts() {
-  const nav = useNavigate()
   const { profile, useMock } = useAuth()
   const [list, setList] = useState<ProductWithExt[]>([])
   const [storeId, setStoreId] = useState<string | null>(null)
+  const [storeCategory, setStoreCategory] = useState<string | null>(null)
+  const [emotionFlash, setEmotionFlash] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<ProductWithExt | null>(null)
@@ -134,10 +130,11 @@ export default function MerchantProducts() {
     const fetchStore = async () => {
       const { data } = await supabase
         .from('stores')
-        .select('id')
+        .select('id, category')
         .eq('owner_id', profile.id)
         .maybeSingle()
       setStoreId(data?.id ?? null)
+      setStoreCategory(data?.category ?? null)
     }
     fetchStore()
   }, [profile, useMock])
@@ -258,12 +255,6 @@ export default function MerchantProducts() {
   }
 
   const handleSubmit = async () => {
-    // 真实模式：暂时提示去小程序端操作（图片上传需要 Storage 集成）
-    if (!useMock && storeId) {
-      alert('真实模式下，创建/编辑商品功能请在小程序端操作（支持图片上传）。')
-      closeModal()
-      return
-    }
     const cost = Number(form.cost_price) || 0
     const dr = Number(form.discount_rate) || 0
     if (editing) {
@@ -272,27 +263,28 @@ export default function MerchantProducts() {
         name: form.name,
         price: Number(form.price),
         original_price: Number(form.original_price),
-        cost_price: cost || undefined,
+        cost_price: cost || null,
         stock: Number(form.stock),
         description: form.desc,
         main_image: form.main_image,
         sub_images: form.sub_images,
         detail_images: form.detail_images,
         video_url: form.video_url,
-        discount_rate: dr || undefined,
+        discount_rate: dr || null,
       } : p))
     } else {
       const newP: ProductWithExt = {
         id: `new-${Date.now()}`, store_id: 'store-1', name: form.name,
         price: Number(form.price), original_price: Number(form.original_price),
-        cost_price: cost || undefined, stock: Number(form.stock),
+        cost_price: cost || null, stock: Number(form.stock),
         description: form.desc,
         main_image: form.main_image,
+        image_url: null,
         sub_images: form.sub_images,
         detail_images: form.detail_images,
         video_url: form.video_url,
-        discount_rate: dr || undefined,
-        category_id: '', status: 'offline', sales: 0, is_active: false,
+        discount_rate: dr || null,
+        category_id: '', status: 'offline', review_status: 'pending', sales: 0, is_active: false,
         created_at: new Date().toISOString().slice(0, 10),
       }
       setList(prev => [newP, ...prev])
@@ -307,6 +299,33 @@ export default function MerchantProducts() {
       if (error) { console.warn('[Products] 删除失败:', error); return }
     }
     setList(prev => prev.filter(p => p.id !== id))
+  }
+
+  // 情绪编译：调 emotion-compile Edge Function，把商品编译为情绪化叙事（结果写入 product_emotion 缓存）
+  const handleCompileEmotion = async (p: ProductWithExt) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('emotion-compile', {
+        body: {
+          mode: 'compile',
+          product_id: useMock ? undefined : p.id,
+          name: p.name,
+          description: p.description || '',
+          category: storeCategory || undefined,
+        },
+      })
+      if (error) {
+        // 云端函数未部署/不可用时，前端本地规则兜底，保证编译不失败
+        const rec = recommendDimensions(p.description || '')
+        const local = localCompileEmotion({ name: p.name, description: p.description || '', selected: rec })
+        setEmotionFlash(`⚠️ 云端函数未部署，已用本地规则生成：\n${local.emotion_title}\n${local.emotion_detail}`)
+      } else if (data) {
+        setEmotionFlash(`✨ ${data.emotion_title || ''}\n${data.emotion_detail || ''}${data.compiled_by ? `（${data.compiled_by}）` : ''}`)
+      }
+      setTimeout(() => setEmotionFlash(null), 7000)
+    } catch (e: any) {
+      setEmotionFlash('编译异常：' + String(e?.message || e))
+      setTimeout(() => setEmotionFlash(null), 7000)
+    }
   }
 
   const totalCost    = list.reduce((s, p) => s + (p.cost_price || 0) * p.sales, 0)
@@ -324,6 +343,18 @@ export default function MerchantProducts() {
         </div>
         <button onClick={openCreate} style={{ padding: '8px 18px', background: '#059669', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>+ 添加商品</button>
       </div>
+
+      {/* 情绪编译结果 toast */}
+      {emotionFlash && (
+        <div style={{
+          position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
+          maxWidth: 520, background: '#1E1B4B', border: '1px solid #6366F1', borderRadius: 12,
+          padding: '14px 18px', color: '#E0E7FF', fontSize: 13, lineHeight: 1.7, whiteSpace: 'pre-wrap',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+        }}>
+          {emotionFlash}
+        </div>
+      )}
 
       {/* stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
@@ -479,6 +510,7 @@ export default function MerchantProducts() {
               </div>
               {/* action */}
               <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                <button onClick={() => handleCompileEmotion(p)} style={{ padding: '4px 10px', background: 'rgba(99,102,241,0.15)', border: '1px solid #6366F1', borderRadius: 4, color: '#A5B4FC', cursor: 'pointer', fontSize: 12 }}>情绪编译</button>
                 <button onClick={() => openEdit(p)} style={{ padding: '4px 10px', background: '#1F2937', border: '1px solid #374151', borderRadius: 4, color: '#9CA3AF', cursor: 'pointer', fontSize: 12 }}>编辑</button>
                 <button onClick={() => toggleStatus(p.id)} style={{
                   padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12,

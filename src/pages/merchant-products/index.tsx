@@ -6,7 +6,9 @@ import {
   getMerchantStore, getMerchantProducts,
   createProduct, updateProduct, deleteProduct, getProductByBarcode,
 } from '@/db/api'
-import { uploadImage } from '@/utils/upload'
+import { uploadImage, uploadVideo } from '@/utils/upload'
+import { MOOD_CATEGORIES, MOOD_TAGS, SCENE_TAGS, type MoodTag } from '@/utils/mood-tags'
+import { generateEmotionDescriptions } from '@/utils/emotion-description'
 import type { Product, Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 
@@ -16,12 +18,14 @@ type FormState = {
   stock: string; description: string; barcode: string
   main_image: string; sub_images: string[]; detail_images: string[]; video_url: string
   is_active: boolean
+  mood_tags: string[]; scene_tags: string[]
 }
 const emptyForm = (): FormState => ({
   name: '', price: '', original_price: '', cost_price: '', discount_rate: '',
   stock: '', description: '', barcode: '',
   main_image: '', sub_images: [], detail_images: [], video_url: '',
   is_active: true,
+  mood_tags: [], scene_tags: [],
 })
 
 function calcMargin(price: number, cost?: number): string {
@@ -39,6 +43,9 @@ function MerchantProductsPage() {
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [scanning, setScanning] = useState(false)
+  const [activeMoodCategory, setActiveMoodCategory] = useState<string>('positive') // 当前选中的情绪分类
+  const [generating, setGenerating] = useState(false) // 是否正在生成描述
+  const [descriptionCandidates, setDescriptionCandidates] = useState<string[]>([]) // 候选描述列表
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -112,6 +119,8 @@ function MerchantProductsPage() {
       detail_images: p.detail_images ?? [],
       video_url: p.video_url ?? '',
       is_active: p.is_active,
+      mood_tags: p.mood_tags ?? [],
+      scene_tags: p.scene_tags ?? [],
     })
     setEditId(p.id); setShowForm(true)
   }
@@ -135,6 +144,8 @@ function MerchantProductsPage() {
         cost_price: form.cost_price ? parseFloat(form.cost_price) : undefined,
         original_price: form.original_price ? parseFloat(form.original_price) : undefined,
         discount_rate: form.discount_rate ? parseFloat(form.discount_rate) : undefined,
+        mood_tags: form.mood_tags.length > 0 ? form.mood_tags : undefined,
+        scene_tags: form.scene_tags.length > 0 ? form.scene_tags : undefined,
       }
       if (editId) {
         await updateProduct(editId, payload)
@@ -180,6 +191,35 @@ function MerchantProductsPage() {
     const urls = await uploadImage({ count: rest }) as string[]
     if (urls.length && urls[0]) setForm(f => ({ ...f, detail_images: [...f.detail_images, ...urls] }))
     Taro.hideLoading()
+  }
+
+  // 视频上传
+  const handleChooseVideo = async () => {
+    Taro.showLoading({ title: '上传中...' })
+    const url = await uploadVideo()
+    if (url) setForm(f => ({ ...f, video_url: url }))
+    else Taro.showToast({ title: '上传失败', icon: 'none' })
+    Taro.hideLoading()
+  }
+
+  // 情绪标签切换
+  const toggleMoodTag = (tag: string) => {
+    setForm(f => {
+      const tags = f.mood_tags.includes(tag)
+        ? f.mood_tags.filter(t => t !== tag)
+        : [...f.mood_tags, tag]
+      return { ...f, mood_tags: tags }
+    })
+  }
+
+  // 场景标签切换
+  const toggleSceneTag = (tag: string) => {
+    setForm(f => {
+      const tags = f.scene_tags.includes(tag)
+        ? f.scene_tags.filter(t => t !== tag)
+        : [...f.scene_tags, tag]
+      return { ...f, scene_tags: tags }
+    })
   }
 
   const filtered = filter === 'all' ? products : products.filter(p => filter === 'online' ? p.is_active : !p.is_active)
@@ -328,6 +368,12 @@ function MerchantProductsPage() {
                   }}
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
                   <Text style={{ fontSize: '13px', color: '#666' }}>{p.is_active ? '👁 下架' : '👁 上架'}</Text>
+                </View>
+                <View style={{ width: '1px', background: '#F0E6D8' }} />
+                <View
+                  onClick={() => Taro.navigateTo({ url: `/pages/merchant-emotion-compile/index?productId=${p.id}` })}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+                  <Text style={{ fontSize: '13px', color: '#6C5CE7', fontWeight: '500' }}>🎭 情绪编译</Text>
                 </View>
                 <View style={{ width: '1px', background: '#F0E6D8' }} />
                 <View
@@ -617,6 +663,210 @@ function MerchantProductsPage() {
                 )}
               </View>
               <Text style={{ fontSize: '11px', color: '#AAA', marginTop: '4px' }}>详情图将在商品详情页依次展示</Text>
+            </View>
+
+            {/* 商品视频 */}
+            <View style={{ marginBottom: '14px' }}>
+              <Text style={{ fontSize: '14px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>🎬 商品视频（可选）</Text>
+              <View style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <View
+                  onClick={handleChooseVideo}
+                  style={{
+                    width: '120px', height: '80px', borderRadius: '12px',
+                    background: '#F5F0EB',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    overflow: 'hidden', border: '2px dashed #DDD',
+                  }}>
+                  {form.video_url
+                    ? <View style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+                        <Text style={{ fontSize: '32px', color: '#FFF' }}>▶️</Text>
+                      </View>
+                    : <View style={{ textAlign: 'center' }}>
+                        <Text style={{ fontSize: '28px' }}>🎬</Text>
+                        <Text style={{ fontSize: '11px', color: '#999', display: 'block', marginTop: '4px' }}>上传视频</Text>
+                      </View>}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: '12px', color: '#AAA', display: 'block', marginBottom: '4px' }}>点击上传商品展示视频</Text>
+                  <Text style={{ fontSize: '11px', color: '#CCC', display: 'block' }}>支持 MP4/MOV 格式</Text>
+                  <Text style={{ fontSize: '11px', color: '#CCC', display: 'block' }}>最长 60 秒，最大 200MB</Text>
+                  {form.video_url && (
+                    <View
+                      onClick={() => setForm(f => ({ ...f, video_url: '' }))}
+                      style={{
+                        marginTop: '8px',
+                        padding: '4px 12px',
+                        borderRadius: '6px',
+                        background: '#FEE2E2',
+                        display: 'inline-block',
+                      }}>
+                      <Text style={{ fontSize: '12px', color: '#DC2626' }}>删除视频</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
+            {/* 情绪标签 */}
+            <View style={{ marginBottom: '14px' }}>
+              <Text style={{ fontSize: '14px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>😊 情绪标签（可选）</Text>
+              <Text style={{ fontSize: '11px', color: '#AAA', marginBottom: '8px', display: 'block' }}>选择符合商品氛围的情绪词，帮助用户快速感知商品特色</Text>
+              
+              {/* 情绪分类切换 */}
+              <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                {Object.entries(MOOD_CATEGORIES).map(([key, label]) => (
+                  <View
+                    key={key}
+                    onClick={() => setActiveMoodCategory(key)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '16px',
+                      background: activeMoodCategory === key ? '#FF6B6B' : '#F5F5F5',
+                      border: `1px solid ${activeMoodCategory === key ? '#FF6B6B' : '#EEE'}`,
+                    }}>
+                    <Text style={{ fontSize: '12px', color: activeMoodCategory === key ? '#FFF' : '#666' }}>
+                      {label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* 当前分类的情绪标签 */}
+              <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {MOOD_TAGS[activeMoodCategory]?.map((tag: MoodTag, idx: number) => (
+                  <View
+                    key={idx}
+                    onClick={() => toggleMoodTag(tag.zh)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '16px',
+                      background: form.mood_tags.includes(tag.zh) ? tag.color : '#F5F5F5',
+                      border: `1px solid ${form.mood_tags.includes(tag.zh) ? tag.color : '#EEE'}`,
+                    }}>
+                    <Text style={{ fontSize: '12px', color: form.mood_tags.includes(tag.zh) ? '#FFF' : '#666' }}>
+                      {tag.icon} {tag.zh}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* 已选中的情绪标签 */}
+              {form.mood_tags.length > 0 && (
+                <View style={{ marginTop: '8px', padding: '8px', borderRadius: '8px', background: '#F9F9F9' }}>
+                  <Text style={{ fontSize: '11px', color: '#999', marginBottom: '4px' }}>已选中：</Text>
+                  <View style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {form.mood_tags.map((tag: string, idx: number) => {
+                      const tagInfo = MOOD_TAGS[activeMoodCategory]?.find((t: MoodTag) => t.zh === tag)
+                      return (
+                        <View key={idx} style={{ padding: '4px 8px', borderRadius: '12px', background: tagInfo?.color || '#DDD' }}>
+                          <Text style={{ fontSize: '11px', color: '#FFF' }}>{tag}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* 场景标签 */}
+            <View style={{ marginBottom: '14px' }}>
+              <Text style={{ fontSize: '14px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>🏷️ 场景标签（可选）</Text>
+              <Text style={{ fontSize: '11px', color: '#AAA', marginBottom: '8px', display: 'block' }}>选择商品适用的场景，帮助用户快速找到所需</Text>
+              
+              <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {SCENE_TAGS.map((tag: MoodTag, idx: number) => (
+                  <View
+                    key={idx}
+                    onClick={() => toggleSceneTag(tag.zh)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '16px',
+                      background: form.scene_tags.includes(tag.zh) ? tag.color : '#F5F5F5',
+                      border: `1px solid ${form.scene_tags.includes(tag.zh) ? tag.color : '#EEE'}`,
+                    }}>
+                    <Text style={{ fontSize: '12px', color: form.scene_tags.includes(tag.zh) ? '#FFF' : '#666' }}>
+                      {tag.icon} {tag.zh}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* 已选中的场景标签 */}
+              {form.scene_tags.length > 0 && (
+                <View style={{ marginTop: '8px', padding: '8px', borderRadius: '8px', background: '#F9F9F9' }}>
+                  <Text style={{ fontSize: '11px', color: '#999', marginBottom: '4px' }}>已选中：</Text>
+                  <View style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {form.scene_tags.map((tag: string, idx: number) => {
+                      const tagInfo = SCENE_TAGS.find((t: MoodTag) => t.zh === tag)
+                      return (
+                        <View key={idx} style={{ padding: '4px 8px', borderRadius: '12px', background: tagInfo?.color || '#DDD' }}>
+                          <Text style={{ fontSize: '11px', color: '#FFF' }}>{tag}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                </View>
+              )}
+            </View>
+            {/* 智能生成情绪化描述 */}
+            <View style={{ marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#F9F9FF', border: '1.5px solid #E8E8FF' }}>
+              <View style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Text style={{ fontSize: '14px', color: '#333', fontWeight: '600' }}>✨ 智能生成情绪化描述</Text>
+                <View
+                  onClick={async () => {
+                    if (form.mood_tags.length === 0 && form.scene_tags.length === 0) {
+                      Taro.showToast({ title: '请先选择情绪标签或场景标签', icon: 'none' })
+                      return
+                    }
+                    setGenerating(true)
+                    // 生成3个候选描述
+                    const candidates = generateEmotionDescriptions(
+                      { name: form.name, description: form.description },
+                      form.mood_tags,
+                      form.scene_tags,
+                      3
+                    )
+                    setDescriptionCandidates(candidates)
+                    setGenerating(false)
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    background: form.mood_tags.length > 0 || form.scene_tags.length > 0 ? '#6C5CE7' : '#CCC',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}>
+                  <Text style={{ fontSize: '12px', color: '#FFF' }}>{generating ? '生成中...' : '生成描述'}</Text>
+                </View>
+              </View>
+
+              {/* 候选描述列表 */}
+              {descriptionCandidates.length > 0 && (
+                <View style={{ marginTop: '8px' }}>
+                  <Text style={{ fontSize: '12px', color: '#666', marginBottom: '6px', display: 'block' }}>选择以下描述，或手动修改：</Text>
+                  {descriptionCandidates.map((desc, idx) => (
+                    <View
+                      key={idx}
+                      onClick={() => {
+                        setForm(f => ({ ...f, description: desc }))
+                        setDescriptionCandidates([])
+                        Taro.showToast({ title: '已采用描述', icon: 'success' })
+                      }}
+                      style={{
+                        padding: '10px',
+                        borderRadius: '8px',
+                        background: '#FFF',
+                        border: '1px solid #E8E8FF',
+                        marginBottom: '6px',
+                      }}>
+                      <Text style={{ fontSize: '13px', color: '#333', lineHeight: '1.6' }}>{desc}</Text>
+                      <View style={{ marginTop: '6px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <Text style={{ fontSize: '11px', color: '#6C5CE7' }}>点击采用 →</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* 商品描述 */}

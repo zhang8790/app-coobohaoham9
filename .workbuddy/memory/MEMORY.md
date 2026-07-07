@@ -39,6 +39,12 @@
 - `project.private.config.json` 的 `setting` 会覆盖 `project.config.json`
 - 统一前后端类型：`src/db/types.ts`（小程序端）+ `admin-web/src/types/index.ts`（后台端），两边均含 Profile/Product/Order/Withdrawal/Announcement/Refund 等
 - 数据库 19 张表：profiles/stores/store_categories/products/cart_items/orders/order_items/articles/merchant_applications/announcements/commissions/withdrawals/refunds/points_logs/user_addresses/favorites/footprints/product_reviews/coupons/**user_store_relation**(锁客)/**store_staff**(员工)
+
+### ⚠️ 云端 schema 漂移坑（2026-07-07 发现，重要）
+- **迁移文件 ≠ 云端真实 schema**！本地 `00001` 里 `stores.id`/各 `store_id` 都写 UUID，但**云端实际 `user_campaign_claims.store_id` 外键指向 `self_operated_stores.id`（INTEGER，一张冗余/废弃表）**，不是 `stores.id`。而 `marketing_campaigns.store_id` / `user_store_relation.store_id` 才指向 `stores.id`（UUID）。
+- 任何想"把 store_id 统一成 UUID"的迁移都会因外键类型冲突（42804）失败。正确修法：DROP 错误外键 → `ALTER store_id TYPE UUID USING NULL` → 重建外键到 `stores(id)`。
+- **改 schema 前务必先用 information_schema 探查云端真实类型/外键**，别信迁移文件。
+- 合并迁移脚本：`supabase/apply_fullfix_migrations.sql`（00045~48，幂等可重跑）；探查脚本：`supabase/introspect_schema.sql`。
 - orders 补全字段：store_id/address_json/remark/tracking_no/refund_status/commission_amount
 - profiles 补全字段：invite_code(邀请码)/invited_by(推荐人)/total_commission/settled_commission
 - 测试账号邀请码：`LDYX001`
@@ -59,3 +65,17 @@
 - 短信登录在 Supabase 中未配置 SMS Provider，当前通过测试账号走 password 通道绕过
 - 商家管理中心入口逻辑在 `pages/user/index.tsx` 中已实现：未申请→申请入口，审核中→提示，已通过→进入管理后台
 - 商家管理中心 `pages/merchant-center/index.tsx` 已实现商品管理、上架、下架、扫码上架、订单管理
+
+## 2026-07-06 审查报告（2026-07-07 已修复大部分）
+- 详细报告：`docs/audit-report-2026-07-06.md`（含第六部分修复执行记录）
+- **✅ P0-4 已修复**: `api.ts` generateQrcode 函数名 `qrcodes` → `generate-qrcode`
+- **✅ 协议页已创建**: 交易规则/提现规则/佣金规则/段位规则/积分规则/商家入驻协议 6个页面 + 各入口链接 + 设置页8条协议入口
+- **✅ 小程序端admin已补齐**: admin-users(用户管理)/admin-refunds(退款管理)/admin-announcements(公告管理) 三个真实数据页面 + 武林盟首页"平台管理"入口
+- **⏳ 仍待办**: admin-web 商家后台4个Mock页面接真实数据(P1-8)；段位/佣金/积分规则管理界面(P2-1)；犒赏铺改名(P2-4)
+- **关键改动文件**: `src/db/api.ts`, `src/app.config.ts`, `src/pages/{payment,withdraw,my-promotion,settings,merchant-apply,admin,admin-users,admin-refunds,admin-announcements}/*`, 6个新协议页
+
+## 情绪编译系统（V5 已落地 + 方案采纳）
+- 已有地基：`src/utils/category-emotion.ts`(11业态策略+云端热更新)、`mood-tags.ts`(30标签)、`emotion-recommendation.ts`(画像推荐)、`supabase/functions/emotion-compile/index.ts`(理解+编译双通道)、`src/pages/emotion-check`(6情绪态)、`ProductEmotion`/`EmotionTaxonomy`类型+迁移00038/40/41。
+- 2026-07-07 采纳方案 §4.1/§4.2 新增：`src/utils/emotion-compile-rules.ts`(三阶段翻译规则库)、`src/utils/emotion-scoring.ts`(编译质量评分引擎，满分100四维度+违规检测)、并把 `emotion-compile` 云函数 `ruleCompile` 升级为三阶段结构化输出。
+- 执行手册：`docs/emotion-system-execution-manual.md`（P0/P1/P2 排期）。
+- 仍缺（全新模块，需建表+页面）：商家情绪编译工作台、五屏情绪详情页、激活码扫码确权、情绪资产/徽章/滋养通宝/侠客录情绪板块、文章插商品卡联动、情绪漏斗看板。通宝/徽章/激活码当前代码与DB类型中均无。

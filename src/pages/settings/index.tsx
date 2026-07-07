@@ -216,6 +216,12 @@ function SettingsPage() {
         {[
           { label: '用户协议', handler: () => Taro.navigateTo({ url: '/pages/user-agreement/index' }) },
           { label: '隐私政策', handler: () => Taro.navigateTo({ url: '/pages/privacy-policy/index' }) },
+          { label: '交易规则', handler: () => Taro.navigateTo({ url: '/pages/trade-rules/index' }) },
+          { label: '提现规则', handler: () => Taro.navigateTo({ url: '/pages/withdraw-rules/index' }) },
+          { label: '佣金规则', handler: () => Taro.navigateTo({ url: '/pages/commission-rules/index' }) },
+          { label: '段位规则', handler: () => Taro.navigateTo({ url: '/pages/rank-rules/index' }) },
+          { label: '积分规则', handler: () => Taro.navigateTo({ url: '/pages/points-rules/index' }) },
+          { label: '商家入驻协议', handler: () => Taro.navigateTo({ url: '/pages/merchant-agreement/index' }) },
           { label: '版本信息', handler: () => Taro.showToast({ title: 'v1.0.0 来店有喜', icon: 'none' }) },
         ].map(item => (
           <View key={item.label} className="flex items-center justify-between px-4 py-4 border-b border-border last:border-0"

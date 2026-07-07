@@ -16,13 +16,13 @@ export interface Profile {
   openid: string | null
   member_rank: MemberRank
   points: number
-  balance: number
+  balance: number          // 现金余额（元，微信充值/退款退回）
+  gold_beans: number       // 金豆余额（1 金豆 = 1 元，平台积分体系）
   coupons_count: number
   merchant_status: MerchantStatus
   invite_code: string | null
   referrer_id: string | null
   total_consumption: number | null  // 个人累计消费金额（用于计算段位）
-  team_performance: number | null   // 团队业绩（直接下线消费 + 间接下线消费×0.5）
   // V4分佣算法字段
   monthly_consumption: number | null      // 当月个人消费金额
   consecutive_zero_months: number | null  // 连续零消费月数
@@ -60,6 +60,9 @@ export interface Store {
   min_order_amount: number | null
   announcement: string | null
   scene_tags: string[] | null
+  // 合作商家建模（犒赏铺等合作品牌体系）
+  partner_brand: string | null
+  partner_tier: string | null
   created_at: string
 }
 
@@ -97,6 +100,122 @@ export interface Product {
   created_at: string
   // joined
   stores?: Store
+  product_emotion?: ProductEmotion
+}
+
+// 商品情绪编译结果缓存（由 emotion-compile Edge Function 写入，详情页直读）
+export interface ProductEmotion {
+  id: string
+  product_id: string
+  emotion_title: string | null
+  emotion_detail: string | null
+  scene_tags_compiled: string[] | null
+  mood_tags_used: string[] | null
+  category_profile_id: string | null
+  compiled_by: 'rule' | 'llm'
+  model: string | null
+  compiled_at: string
+  created_at: string
+  // 商家情绪编译工作台（00050）新增字段
+  dimension_tags?: Record<string, string[]> | null  // 五维标签：function/scene/emotion/identity/sensory
+  quality_score?: number | null
+  review_status?: 'draft' | 'submitted' | 'approved' | 'rejected'
+}
+
+// 情绪确权记录（消费即确权路线，由 00052 建表）
+export interface EmotionClaim {
+  id: string
+  user_id: string | null
+  order_no: string | null
+  product_id: string | null
+  store_id: string | null
+  selected_emotion: string[] | null
+  badge_text: string | null
+  tongbao_amount: number | null
+  created_at: string
+}
+
+// =====================
+// 情绪通宝 + 徽章（V5 P2-1，00053 独立化）
+// =====================
+
+// 通宝账户
+export interface EmotionAsset {
+  id: string
+  user_id: string
+  balance: number        // 可用通宝
+  frozen: number         // 冻结中
+  total_earned: number   // 累计获得
+  total_spent: number    // 累计消耗
+  created_at: string
+  updated_at: string
+}
+
+// 通宝流水
+export type EmotionTongbaoReason =
+  | 'emotion_claim'      // 消费即确权奖励
+  | 'emotion_feed'       // 情绪喂养消耗
+  | 'emotion_exchange'   // 通宝兑换（未来）
+  | 'admin_adjust'       // 平台调账
+  | 'share_invite'       // 分享锁客奖励
+export interface EmotionTongbaoLog {
+  id: string
+  user_id: string
+  delta: number
+  balance_after: number
+  reason: EmotionTongbaoReason
+  ref_id: string | null
+  remark: string | null
+  created_at: string
+}
+
+// 徽章定义（字典表，运营可改）
+export type EmotionBadgeRarity = 'common' | 'rare' | 'epic' | 'legend'
+export interface EmotionBadgeDef {
+  code: string
+  name: string
+  description: string
+  icon: string
+  rarity: EmotionBadgeRarity
+  unlock_hint: string
+  sort_order: number
+  is_active: boolean
+  created_at: string
+}
+
+// 徽章发放
+export interface EmotionBadgeGrant {
+  id: string
+  user_id: string
+  badge_code: string
+  granted_at: string
+  expire_at: string | null
+  source: 'auto' | 'admin' | null
+}
+
+// 类目情绪编译策略（来自 category_emotion_profiles 表，运营后台可改）
+export interface CategoryEmotionProfileRow {
+  id: string
+  category_key: string
+  label: string
+  tone: string | null
+  allowed_mood_tags: string[] | null
+  metaphors: string[] | null
+  angles: string[] | null
+  openers: string[] | null
+  closers: string[] | null
+  aliases: string[] | null
+  created_at: string
+  updated_at: string
+}
+
+// 情绪词表桥接（商品 mood_tags ↔ 用户 6 情绪态）
+export interface EmotionTaxonomy {
+  id: string
+  mood_tag: string
+  inner_label: string
+  description: string | null
+  created_at: string
 }
 
 export interface CartItem {
@@ -178,7 +297,7 @@ export interface Refund {
   created_at: string
   updated_at: string
 }
-export type PointsLogType = 'purchase_earn' | 'invite_earn' | 'checkin_earn' | 'ugc_earn' | 'redeem_spend' | 'pay_spend' | 'refund_deduct'
+export type PointsLogType = 'purchase_earn' | 'invite_earn' | 'checkin_earn' | 'ugc_earn' | 'redeem_spend' | 'pay_spend' | 'refund_deduct' | 'emotion_claim'
 export type PayMode = 'pure_gold' | 'hybrid' | 'wxpay'
 export type CommissionStatus = 'pending' | 'settled' | 'refunded'
 
@@ -364,6 +483,32 @@ export interface UserCampaignClaim {
   claimed_at: string
   status: ClaimStatus
   verified: boolean
+}
+
+// =====================
+// Redpacket Payouts（红包现金发放记录）
+// =====================
+
+export type RedpacketPayoutStatus =
+  | 'pending_manual'  // 框架待启用，仅记录未发钱
+  | 'processing'      // 已提交微信，受理中
+  | 'success'         // 微信已受理（异步到账）
+  | 'failed'          // 调用失败
+
+export interface RedpacketPayout {
+  id: string
+  user_id: string
+  campaign_id: number
+  claim_id: string | null
+  openid: string | null
+  amount_fen: number
+  status: RedpacketPayoutStatus
+  wx_out_bill_no: string | null
+  wx_transfer_bill_no: string | null
+  error_msg: string | null
+  paid_at: string | null
+  created_at: string
+  updated_at: string
 }
 
 // =====================

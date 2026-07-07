@@ -1,0 +1,109 @@
+.emotion-bill-header {
+  background: linear-gradient(160deg, #FFF0E8 0%, #FFFBF7 80%);
+}
+.emotion-stat-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid rgba(194, 65, 12, 0.12);
+}
+.emotion-claim-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  position: relative;
+}
+.emotion-claim-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #C2410C, #EA580C);
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 100px;
+}
+.emotion-claim-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: #f3ede7;
+}
+.emotion-claim-img--ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.emotion-chip {
+  background: rgba(194, 65, 12, 0.08);
+  color: #C2410C;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+.emotion-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+.emotion-empty-btn {
+  margin-top: 20px;
+  background: linear-gradient(135deg, #C2410C, #EA580C);
+  border-radius: 100px;
+  padding: 8px 32px;
+}
+
+// 顶部徽章条带
+.emotion-badge-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  white-space: nowrap;
+}
+.emotion-badge-strip::-webkit-scrollbar { display: none; }
+.emotion-badge-chip {
+  flex-shrink: 0;
+  width: 72px;
+  height: 86px;
+  background: #fff;
+  border: 1px solid rgba(194, 65, 12, 0.18);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.emotion-badge-chip.is-locked {
+  opacity: 0.35;
+  filter: grayscale(0.8);
+}
+.emotion-badge-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.emotion-badge-name {
+  font-size: 11px;
+  color: #44403C;
+  font-weight: bold;
+}
+
+@media (prefers-color-scheme: dark) {
+  .emotion-bill-header { background: linear-gradient(160deg, #2a1c14 0%, #1a1410 80%); }
+  .emotion-stat-card { background: #211a14; border-color: rgba(234, 88, 12, 0.25); }
+  .emotion-claim-card { background: #1c1712; border-color: rgba(255, 255, 255, 0.08); box-shadow: none; }
+  .emotion-claim-img { background: #2a2018; }
+  .emotion-chip { background: rgba(234, 88, 12, 0.18); color: #fb923c; }
+  .emotion-badge-chip { background: #1c1712; border-color: rgba(234, 88, 12, 0.3); }
+  .emotion-badge-name { color: #d6d3d1; }
+}

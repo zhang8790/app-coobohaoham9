@@ -55,7 +55,7 @@ function WithdrawPage() {
   const handleSubmit = async () => {
     const amt = parseFloat(amount)
     if (isNaN(amt) || amt <= 0) { Taro.showToast({ title: '请填写正确的提现金额', icon: 'none' }); return }
-    if (amt > balance / 100) { Taro.showToast({ title: '提现金额不能超过可用余额', icon: 'none' }); return }
+    if (amt > balance) { Taro.showToast({ title: '提现金额不能超过可用余额', icon: 'none' }); return }
     if (method === 'bank') {
       if (!bankName.trim()) { Taro.showToast({ title: '请填写开户行', icon: 'none' }); return }
       if (!bankAccount.trim()) { Taro.showToast({ title: '请填写银行卡号', icon: 'none' }); return }
@@ -92,15 +92,15 @@ function WithdrawPage() {
     </View>
   )
 
-  // 可提余额（积分 100 = 1元，balance 字段单位为积分/金豆）
-  const availableYuan = (balance / 100).toFixed(2)
+  // 可提余额（金豆 1 豆 = 1 元，已统一为 1:1）
+  const availableYuan = balance.toFixed(2)
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
 
       {/* 余额卡 */}
       <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)' }}>
-        <Text className="text-xl text-white/80 mb-1">可提现余额（金豆）</Text>
+        <Text className="text-xl text-white/80 mb-1">可提现余额（元）</Text>
         <Text className="text-4xl font-bold text-white">{balance.toLocaleString()}<Text className="text-xl ml-1">豆</Text></Text>
         <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}</Text>
       </View>
@@ -208,6 +208,9 @@ function WithdrawPage() {
             <View className="py-4 text-xl font-bold text-white">{submitting ? '提交中…' : '立即申请提现'}</View>
           </Button>
           <Text className="text-base text-muted-foreground text-center mt-3">提现申请审核通常需要 1-3 个工作日</Text>
+          <View className="mt-2 text-center" onClick={() => Taro.navigateTo({ url: '/pages/withdraw-rules/index' })}>
+            <Text className="text-base text-primary">查看《提现规则》</Text>
+          </View>
         </View>
       )}
 

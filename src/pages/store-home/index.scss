@@ -14,3 +14,9 @@
 .brand-gradient-bg {
   background: linear-gradient(135deg, #C2410C 0%, #7C2D12 50%, #431407 100%);
 }
+
+/* 门店红包横幅（进店领→锁客）— inline 不支持渐变，用 class */
+.store-redpacket-banner {
+  background: linear-gradient(135deg, #E11D48 0%, #F43F5E 100%);
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);
+}

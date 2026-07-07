@@ -2,14 +2,16 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 
-type LoginMethod = 'password' | 'otp'
+type LoginMethod = 'password' | 'otp' | 'email'
 
 export default function Login() {
-  const { profile, signInWithPhonePassword, signInWithPhone, sendOtpCode } = useAuth()
+  const { profile, signInWithPhonePassword, signInWithPhone, sendOtpCode, signInWithEmail } = useAuth()
   const nav = useNavigate()
   const [method, setMethod] = useState<LoginMethod>('password')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('')
+  const [emailPassword, setEmailPassword] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
@@ -55,6 +57,16 @@ export default function Login() {
     if (!phone || !otpCode) { setErr('请填写手机号和验证码'); return }
     setLoading(true); setErr('')
     const errMsg = await signInWithPhone(phone, otpCode)
+    setLoading(false)
+    if (errMsg) setErr(errMsg)
+  }
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email) { setErr('请输入邮箱'); return }
+    if (!emailPassword) { setErr('请输入密码'); return }
+    setLoading(true); setErr('')
+    const errMsg = await signInWithEmail(email, emailPassword)
     setLoading(false)
     if (errMsg) setErr(errMsg)
   }
@@ -130,6 +142,7 @@ export default function Login() {
           {([
             { key: 'password' as LoginMethod, label: '密码登录' },
             { key: 'otp' as LoginMethod, label: '验证码登录' },
+            { key: 'email' as LoginMethod, label: '邮箱登录' },
           ]).map(m => (
             <button key={m.key} type="button" onClick={() => { setMethod(m.key); setErr('') }} style={{
               flex: 1, padding: '9px 0', borderRadius: 8,
@@ -232,9 +245,46 @@ export default function Login() {
           </form>
         )}
 
+        {/* === 邮箱表单 === */}
+        {method === 'email' && (
+          <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div>
+              <label style={labelStyle}>邮箱地址</label>
+              <input type="email" value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="请输入邮箱地址"
+                style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>登录密码</label>
+              <input type="password" value={emailPassword}
+                onChange={e => setEmailPassword(e.target.value)} placeholder="请输入密码"
+                style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}
+              />
+            </div>
+
+            {err && (
+              <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.07)',
+                border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10,
+                color: '#FCA5A5', fontSize: 13,
+              }}>{err}</div>
+            )}
+
+            <button type="submit" disabled={loading} style={{
+              width: '100%', padding: '13px',
+              background: loading ? '#7A2508' : 'linear-gradient(135deg, #C2410C, #EA580C)',
+              border: 'none', borderRadius: 10, color: '#fff', fontSize: 15,
+              fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s', boxShadow: loading ? 'none' : '0 4px 20px rgba(194,65,12,0.3)',
+              marginTop: 4,
+            }}>{loading ? '登 录 中...' : '登 录'}</button>
+          </form>
+        )}
+
         {/* 底部 */}
         <p style={{ color: '#374151', fontSize: 11, textAlign: 'center', marginTop: 24 }}>
-          测试账号：18701410500 / 123456
+          {method === 'email' ? '管理员邮箱：admin@laidianyouxi.com / Admin123456' : '测试账号：18701410500 / 123456'}
         </p>
       </div>
     </div>

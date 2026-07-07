@@ -31,7 +31,7 @@ export default function RewardShopPage() {
   // 使用 usePagination Hook 管理分页
   const { list: stores, loading, refreshing, hasMore, onRefresh, onLoadMore } = usePagination<Store>(
     async (page, pageSize) => {
-      // ⭐ 犒赏铺只看商家门店，排除自营门店
+      // ⭐ 犒赏铺 Tab：展示合作门店（犒赏铺为合作门店品牌）列表，排除平台自营门店
       const data = await getStores(activeCat === '全部' ? undefined : activeCat, page - 1, pageSize, 'exclude')
       return { data, hasMore: data.length >= pageSize }
     },

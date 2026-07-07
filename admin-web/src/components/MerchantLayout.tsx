@@ -12,6 +12,8 @@ const MERCHANT_NAV = [
   { to: '/merchant/ads', icon: '📢', label: '广告管理' },
   { to: '/merchant/messages', icon: '🔔', label: '消息通知' },
   { to: '/merchant/withdraw', icon: '💰', label: '佣金提现' },
+  { to: '/merchant/emotion-studio', icon: '🎭', label: '情绪工作台' },
+  { to: '/merchant/emotion-funnel', icon: '📈', label: '情绪漏斗' },
 ]
 
 export default function MerchantLayout() {

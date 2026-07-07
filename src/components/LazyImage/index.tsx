@@ -1,6 +1,5 @@
-import Taro from '@tarojs/taro'
+import { useState, useEffect } from 'react'
 import { View, Image } from '@tarojs/components'
-import { useRef, useEffect, useState } from 'react'
 import './index.scss'
 
 export interface LazyImageProps {
@@ -9,23 +8,20 @@ export interface LazyImageProps {
   height?: number | string
   mode?: 'scaleToFill' | 'aspectFit' | 'aspectFill' | 'widthFix' | 'heightFix'
   className?: string
-  placeholder?: string  // 占位图 URL
-  threshold?: number     // 提前加载的阈值（px）
+  placeholder?: string
   onLoad?: () => void
   onError?: () => void
 }
 
 /**
- * 图片懒加载组件
- * 使用 Taro 的 IntersectionObserver 实现懒加载
- * 
- * 使用示例：
- * <LazyImage 
- *   src="https://example.com/image.jpg"
- *   width={200}
- *   height={200}
- *   mode="aspectFill"
- * />
+ * 图片懒加载组件（小程序安全版）
+ *
+ * ⚠️ 重要变更：移除了 ref + IntersectionObserver
+ * 微信小程序中 Taro 组件 ref 返回内部节点对象，
+ * 该对象包含 parentNode↔childNodes 循环引用，
+ * 传入事件系统会触发 "Converting circular structure to JSON" 错误。
+ *
+ * 现在依赖 Taro Image 自带的 lazyLoad 属性实现原生懒加载。
  */
 export default function LazyImage(props: LazyImageProps) {
   const {
@@ -34,40 +30,19 @@ export default function LazyImage(props: LazyImageProps) {
     height,
     mode = 'aspectFill',
     className = '',
-    placeholder = '',  // 可以设置为默认占位图
-    threshold = 100,
     onLoad,
     onError,
   } = props
 
   const [loaded, setLoaded] = useState(false)
-  const [currentSrc, setCurrentSrc] = useState(placeholder || '')
-  const imgRef = useRef<any>(null)
-  const observerRef = useRef<any>(null)
+  const [failed, setFailed] = useState(false)
 
+  // 组件挂载后标记可加载（配合 CSS 过渡效果）
   useEffect(() => {
-    // 小程序环境使用 Taro.createIntersectionObserver
-    if (typeof Taro.createIntersectionObserver === 'function') {
-      observerRef.current = Taro.createIntersectionObserver()
-      observerRef.current
-        .relativeToViewport({ top: threshold, bottom: threshold })
-        .observe(imgRef.current, (res) => {
-          if (res.intersectionRatio > 0 && !loaded) {
-            setCurrentSrc(src)
-            setLoaded(true)
-            observerRef.current?.disconnect()
-          }
-        })
-    } else {
-      // H5 环境直接使用 src
-      setCurrentSrc(src)
-      setLoaded(true)
-    }
-
-    return () => {
-      observerRef.current?.disconnect()
-    }
-  }, [src, threshold])
+    // 使用 requestAnimationFrame 确保 DOM 已渲染
+    const timer = setTimeout(() => setLoaded(true), 50)
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleLoad = () => {
     onLoad?.()
@@ -75,24 +50,26 @@ export default function LazyImage(props: LazyImageProps) {
 
   const handleError = () => {
     console.warn('[LazyImage] 图片加载失败', src)
+    setFailed(true)
     onError?.()
   }
 
   return (
-    <View ref={imgRef} className={`lazy-image ${className}`} style={{ width, height }}>
-      {currentSrc && (
-        <Image
-          src={currentSrc}
-          mode={mode}
-          className={`lazy-image__img ${loaded ? 'lazy-image__img--loaded' : ''}`}
-          onLoad={handleLoad}
-          onError={handleError}
-          lazyLoad={true}  // 启用 Taro 的懒加载
-        />
+    <View className={`lazy-image ${className}`} style={{ width, height }}>
+      <Image
+        src={src}
+        mode={mode}
+        className={`lazy-image__img ${loaded ? 'lazy-image__img--loaded' : ''}`}
+        lazyLoad={true}
+        onLoad={handleLoad}
+        onError={handleError}
+      />
+      {!loaded && !failed && (
+        <View className="lazy-image__placeholder" />
       )}
-      {!loaded && (
-        <View className="lazy-image__placeholder">
-          {/* 可以放骨架屏或默认占位图 */}
+      {failed && (
+        <View className="lazy-image__error">
+          {/* 加载失败时留空或显示默认占位 */}
         </View>
       )}
     </View>

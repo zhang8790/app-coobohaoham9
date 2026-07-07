@@ -9,8 +9,8 @@
  * 2. 个人活跃门槛 - 分佣资格开关（杜绝零消费躺赚）
  * 3. 团队流水阶梯 - 动态佣金池（团队低迷时平台提高抽成）
  * 4. 拓新衰减机制 - 只奖励持续拓新（无新增用户→佣金衰减）
- * 
- * 段位判定：动态分数 = 个人累计消费 × 30% + 团队业绩 × 70%
+ *
+ * 段位判定：动态分数 = 个人累计消费（不再包含团队维度）
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
@@ -21,15 +21,18 @@ const corsHeaders = {
 
 // ============ V4算法配置 ============
 
-/** 六段位配置表 */
+/** V5 段位配置（与前端 commission-calculator-v5.ts 完全一致，保证前后端分佣比例统一） */
 const RANK_TABLE = [
-  { rank: '掌门',       minScore: 50000, l1: 0.28, l2: 0.16, points: 0.20 },
-  { rank: '长老',       minScore: 15000, l1: 0.25, l2: 0.14, points: 0.18 },
-  { rank: '核心弟子',   minScore: 5000,  l1: 0.23, l2: 0.12, points: 0.16 },
-  { rank: '内门弟子',   minScore: 2000,  l1: 0.20, l2: 0.10, points: 0.14 },
-  { rank: '外门弟子',   minScore: 500,   l1: 0.18, l2: 0.08, points: 0.12 },
-  { rank: '江湖散修',   minScore: 0,     l1: 0.15, l2: 0.06, points: 0.10 },
+  { rank: '掌门',       minScore: 20000, l1: 0.60, l2: 0.25, points: 0.15 },
+  { rank: '长老',       minScore: 6000,  l1: 0.57, l2: 0.24, points: 0.15 },
+  { rank: '核心弟子',   minScore: 2000,  l1: 0.54, l2: 0.22, points: 0.14 },
+  { rank: '内门弟子',   minScore: 800,   l1: 0.50, l2: 0.20, points: 0.13 },
+  { rank: '外门弟子',   minScore: 200,   l1: 0.45, l2: 0.18, points: 0.12 },
+  { rank: '江湖散修',   minScore: 0,     l1: 0.40, l2: 0.15, points: 0.10 },
 ]
+
+/** V5 平台最低抽成（与前端 PLATFORM_CONFIG.MIN_PLATFORM_RATE 一致） */
+const MIN_PLATFORM_RATE_V5 = 0.10
 
 /** 个人活跃门槛 */
 const MIN_MONTHLY_CONSUMPTION = 39  // 39元/月
@@ -51,9 +54,9 @@ const RECRUITMENT_DECAY = {
 
 // ============ V4算法核心函数 ============
 
-/** 计算动态分数 */
-function calculateDynamicScore(totalConsumption: number, teamPerformance: number): number {
-  return Math.round((totalConsumption * 0.3 + teamPerformance * 0.7) * 100) / 100
+/** 计算动态分数（仅基于个人累计消费，1:1） */
+function calculateDynamicScore(totalConsumption: number): number {
+  return Math.round((totalConsumption || 0) * 100) / 100
 }
 
 /** 根据动态分数判定段位 */
@@ -64,21 +67,12 @@ function getRankByScore(score: number): typeof RANK_TABLE[0] {
   return RANK_TABLE[RANK_TABLE.length - 1]  // 默认江湖散修
 }
 
-/** 检查分佣资格（机制1：个人活跃门槛） */
+/** 检查分佣资格（V5 统一：与前端一致，按段位比例全额发放，不做活跃门槛减半） */
 function checkCommissionEligibility(
   monthlyConsumption: number, 
   consecutiveZeroMonths: number
 ): { eligible: boolean; l1Multiplier: number; reason: string } {
-  if (consecutiveZeroMonths >= MAX_CONSECUTIVE_ZERO_MONTHS) {
-    return { eligible: false, l1Multiplier: 0, reason: `连续${MAX_CONSECUTIVE_ZERO_MONTHS}个月零消费，取消资格` }
-  }
-  if (monthlyConsumption === 0) {
-    return { eligible: true, l1Multiplier: GRACE_PERIOD_RATE, reason: '当月零消费，佣金减半（宽限期）' }
-  }
-  if (monthlyConsumption < MIN_MONTHLY_CONSUMPTION) {
-    return { eligible: true, l1Multiplier: GRACE_PERIOD_RATE, reason: `消费未达门槛（${MIN_MONTHLY_CONSUMPTION}元），佣金减半` }
-  }
-  return { eligible: true, l1Multiplier: 1, reason: '正常活跃，全额分佣' }
+  return { eligible: true, l1Multiplier: 1, reason: 'V5统一：按段位比例全额' }
 }
 
 /** 计算团队流水档位（机制2：团队流水阶梯） */
@@ -92,21 +86,9 @@ function calculateTeamGmvLevel(teamMonthlyGmv: number): { level: string; platfor
   }
 }
 
-/** 计算拓新衰减（机制3：拓新衰减） */
+/** 计算拓新权重（V5 统一：与前端一致，权重恒为 1，不做衰减） */
 function calculateRecruitmentWeight(hasNewRecruit: boolean, monthsSinceLastRecruit: number): number {
-  if (hasNewRecruit) return RECRUITMENT_DECAY.newTeamL1Weight
-  
-  if (monthsSinceLastRecruit >= RECRUITMENT_DECAY.monthsToDecay) {
-    const decayMonths = monthsSinceLastRecruit - RECRUITMENT_DECAY.monthsToDecay + 1
-    const decayFactor = Math.pow(1 - RECRUITMENT_DECAY.decayRate, decayMonths)
-    const weight = Math.max(
-      RECRUITMENT_DECAY.minL1Weight,
-      RECRUITMENT_DECAY.newTeamL1Weight * decayFactor
-    )
-    return Math.round(weight * 100) / 100
-  }
-  
-  return RECRUITMENT_DECAY.newTeamL1Weight
+  return 1
 }
 
 /** 精确计算（万分位） */
@@ -186,15 +168,14 @@ Deno.serve(async (req: Request) => {
       // 查询L1用户数据
       const { data: l1Profile } = await supabase
         .from('profiles')
-        .select('id, total_consumption, team_performance, monthly_consumption, consecutive_zero_months, team_monthly_gmv, has_new_recruit, months_since_last_recruit, referrer_id')
+        .select('id, total_consumption, monthly_consumption, consecutive_zero_months, team_monthly_gmv, has_new_recruit, months_since_last_recruit, referrer_id')
         .eq('id', l1UserId)
         .maybeSingle()
 
       if (l1Profile) {
         // 计算L1动态分数和段位
         const l1DynamicScore = calculateDynamicScore(
-          l1Profile.total_consumption ?? 0,
-          l1Profile.team_performance ?? 0
+          l1Profile.total_consumption ?? 0
         )
         const l1Rank = getRankByScore(l1DynamicScore)
         
@@ -206,7 +187,7 @@ Deno.serve(async (req: Request) => {
 
         // 计算团队流水档位（机制2）
         const teamGmvStats = calculateTeamGmvLevel(l1Profile.team_monthly_gmv ?? 0)
-        const commissionPool = toFixed4(discountPool * (1 - teamGmvStats.platformRate))
+        const commissionPool = toFixed4(discountPool * (1 - MIN_PLATFORM_RATE_V5))  // V5：平台最低抽成10%，剩余池再分配
 
         // 计算拓新权重（机制3）
         const l1RecruitmentWeight = calculateRecruitmentWeight(
@@ -228,15 +209,14 @@ Deno.serve(async (req: Request) => {
         if (l2UserId && l2UserId !== payer_id) {
           const { data: l2Profile } = await supabase
             .from('profiles')
-            .select('id, total_consumption, team_performance, monthly_consumption, consecutive_zero_months, team_monthly_gmv, has_new_recruit, months_since_last_recruit')
+            .select('id, total_consumption, monthly_consumption, consecutive_zero_months, team_monthly_gmv, has_new_recruit, months_since_last_recruit')
             .eq('id', l2UserId)
             .maybeSingle()
 
           if (l2Profile) {
             // 计算L2动态分数和段位
             const l2DynamicScore = calculateDynamicScore(
-              l2Profile.total_consumption ?? 0,
-              l2Profile.team_performance ?? 0
+              l2Profile.total_consumption ?? 0
             )
             const l2Rank = getRankByScore(l2DynamicScore)
 
@@ -263,16 +243,15 @@ Deno.serve(async (req: Request) => {
         // 计算买家积分（基于买家段位）
         const { data: buyerProfile } = await supabase
           .from('profiles')
-          .select('total_consumption, team_performance')
+          .select('total_consumption')
           .eq('id', payer_id)
           .maybeSingle()
 
         const buyerDynamicScore = calculateDynamicScore(
-          buyerProfile?.total_consumption ?? 0,
-          buyerProfile?.team_performance ?? 0
+          buyerProfile?.total_consumption ?? 0
         )
         const buyerRank = getRankByScore(buyerDynamicScore)
-        const buyerPoints = toFixed4(discountPool * buyerRank.points)
+        const buyerPoints = toFixed4(commissionPool * buyerRank.points)  // V5：与后端 distributeCommissionDirect / 前端预览同用剩余池基数，保证一致
 
         // 平台收入
         const platformIncome = toFixed4(discountPool - l1Commission - l2Commission - buyerPoints)
@@ -280,7 +259,7 @@ Deno.serve(async (req: Request) => {
         console.log('[V4] 分佣结果:', {
           l1Rank: l1Rank.rank,
           l1Commission,
-          l2Rank: l2UserId ? getRankByScore(calculateDynamicScore(0, 0)).rank : null,
+          l2Rank: l2UserId ? getRankByScore(calculateDynamicScore(0)).rank : null,
           l2Commission,
           buyerRank: buyerRank.rank,
           buyerPoints,
@@ -305,7 +284,7 @@ Deno.serve(async (req: Request) => {
         }
 
         if (l2Commission > 0) {
-          const l2DynamicScore = calculateDynamicScore(0, 0)  // 简化，实际应该查询
+          const l2DynamicScore = calculateDynamicScore(0)  // 简化，实际应该查询
           const l2Rank = getRankByScore(l2DynamicScore)
           commissionRows.push({
             order_id,
@@ -331,7 +310,7 @@ Deno.serve(async (req: Request) => {
             .maybeSingle()
 
           const currentPoints = payerProfile?.points ?? 0
-          const newPoints = Math.round(buyerPoints * 100)  // 积分换算（1元=100积分）
+          const newPoints = Math.round(buyerPoints)  // 积分换算（1元=1积分，与前端 V5 单位统一为 1:1）
           const balanceAfter = currentPoints + newPoints
 
           await supabase.from('profiles').update({ points: balanceAfter }).eq('id', payer_id)

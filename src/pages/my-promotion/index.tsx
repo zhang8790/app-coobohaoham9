@@ -6,7 +6,7 @@ import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
 import { generateQrcode } from '@/db/api'
-import { getRankByDynamicScore, calculateDynamicScore, RANK_CONFIG_TABLE } from '@/utils/commission-calculator-v4'
+import { calculateDynamicScore, getRankByDynamicScoreV5, RANK_CONFIG_TABLE_V5 } from '@/utils/commission-calculator-v5'
 
 const RANK_ORDER = ['江湖散修', '外门弟子', '内门弟子', '核心弟子', '长老', '掌门']
 const RANK_COLORS: Record<string, string> = {
@@ -44,19 +44,18 @@ function MyPromotionPage() {
   useShareAppMessage(() => ({ title: shareTitle, path: sharePath }))
   useShareTimeline(() => ({ title: shareTitle }))
 
-  // 根据用户信息计算段位（前端V4算法）
+  // 根据用户信息计算段位（前端V5算法，基于个人累计消费）
   const userRankInfo = useMemo(() => {
     if (!profile) return null
     const totalConsumption = profile.total_consumption || 0
-    const teamPerformance = profile.team_performance || 0
-    const dynamicScore = calculateDynamicScore(totalConsumption, teamPerformance)
-    const rank = getRankByDynamicScore(dynamicScore)
+    const dynamicScore = calculateDynamicScore(totalConsumption)
+    const rank = getRankByDynamicScoreV5(dynamicScore)
     return {
-      rankName: rank.rankName,
+      rankName: rank.rank,
       dynamicScore,
-      l1Ratio: Math.round(rank.l1Ratio * 100),
-      l2Ratio: Math.round(rank.l2Ratio * 100),
-      pointsRatio: Math.round(rank.pointsRatio * 100),
+      l1Ratio: Math.round(rank.l1CommissionRate * 100),
+      l2Ratio: Math.round(rank.l2CommissionRate * 100),
+      pointsRatio: Math.round(rank.pointsRate * 100),
     }
   }, [profile])
 
@@ -68,7 +67,7 @@ function MyPromotionPage() {
       // 分别加载，避免一个失败影响其他
       const [rankRes, profileRes, commRes, teamRes] = await Promise.allSettled([
         supabase.rpc('get_rank_progress', { p_user_id: user.id }),
-        supabase.from('profiles').select('invite_code,member_rank,total_consumption,team_performance,gold_beans').eq('id', user.id).maybeSingle(),
+        supabase.from('profiles').select('invite_code,member_rank,total_consumption,gold_beans').eq('id', user.id).maybeSingle(),
         supabase.from('commissions').select('commission_amount,status,level').eq('beneficiary_id', user.id),
         supabase.from('profiles').select('id,nickname,member_rank,created_at').eq('referrer_id', user.id).order('created_at', { ascending: false }).limit(20),
       ])
@@ -87,16 +86,15 @@ function MyPromotionPage() {
           balance: data.balance || 0,
         })
       } else {
-        // 前端降级计算段位（使用V4算法，保持逻辑一致）
+        // 前端降级计算段位（使用V5算法，保持逻辑一致）
         const totalConsumption = profile?.total_consumption || 0
-        const teamPerformance = profile?.team_performance || 0
-        const dynamicScore = calculateDynamicScore(totalConsumption, teamPerformance)
-        const rankConfig = getRankByDynamicScore(dynamicScore)
-        
+        const dynamicScore = calculateDynamicScore(totalConsumption)
+        const rankConfig = getRankByDynamicScoreV5(dynamicScore)
+
         // 计算进度
         const currentMin = rankConfig.minDynamicScore
-        const rankIndex = RANK_CONFIG_TABLE.findIndex(r => r.rank === rankConfig.rank)
-        const nextRankConfig = rankIndex > 0 ? RANK_CONFIG_TABLE[rankIndex - 1] : null
+        const rankIndex = RANK_CONFIG_TABLE_V5.findIndex(r => r.rank === rankConfig.rank)
+        const nextRankConfig = rankIndex > 0 ? RANK_CONFIG_TABLE_V5[rankIndex - 1] : null
         let progress = 100
         if (nextRankConfig && nextRankConfig.minDynamicScore > currentMin) {
           progress = Math.min(100, ((dynamicScore - currentMin) / (nextRankConfig.minDynamicScore - currentMin)) * 100)
@@ -397,6 +395,10 @@ function MyPromotionPage() {
               <Text className="text-base text-muted-foreground leading-relaxed">{item.text}</Text>
             </View>
           ))}
+        </View>
+        <View className="mt-3 pt-3 border-t border-border text-center"
+          onClick={() => Taro.navigateTo({ url: '/pages/commission-rules/index' })}>
+          <Text className="text-base text-primary">查看完整《佣金规则》</Text>
         </View>
       </View>
 

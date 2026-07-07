@@ -31,8 +31,19 @@ const pages = [
   'pages/admin-products/index',
   'pages/admin-withdrawals/index',
   'pages/admin-ugc/index',
+  // 管理后台补充页面（与 admin-web 配对）
+  'pages/admin-users/index',
+  'pages/admin-refunds/index',
+  'pages/admin-announcements/index',
   'pages/privacy-policy/index',
   'pages/user-agreement/index',
+  // 协议/规则页面（合规化）
+  'pages/trade-rules/index',
+  'pages/withdraw-rules/index',
+  'pages/commission-rules/index',
+  'pages/rank-rules/index',
+  'pages/points-rules/index',
+  'pages/merchant-agreement/index',
   // 商家管理中心（对齐 admin-web）
   'pages/merchant-products/index',
   'pages/merchant-orders/index',
@@ -50,6 +61,18 @@ const pages = [
   'pages/merchant-campaigns/create/index',
   // V5：情绪系统
   'pages/emotion-check/index',
+  // 商家情绪编译工作台
+  'pages/merchant-emotion-compile/index',
+  // V5：五屏情绪详情页（C端沉浸式情绪导购）
+  'pages/emotion-detail/index',
+  // V5：商家情绪漏斗看板
+  'pages/merchant-emotion-funnel/index',
+  // V5：消费即确权页（支付成功后引导）
+  'pages/emotion-claim/index',
+  // V5：我的情绪账单（用户侧确权集 + 通宝）
+  'pages/emotion-bill/index',
+  // V5 P2-1：我的情绪徽章
+  'pages/emotion-badges/index',
 ]
 
 export default defineAppConfig({

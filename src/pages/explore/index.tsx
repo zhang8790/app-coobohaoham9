@@ -2,13 +2,24 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
-import { getNearbyProducts, getCartCount, addToCart } from '@/db/api'
+import { getNearbyProducts, getCartCount, addToCart, getProducts, getProductsByEmotion } from '@/db/api'
+import { recordEmotionPreference, getEmotionBasedRecommendations } from '@/utils/emotion-recommendation'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import { useLocation } from '@/contexts/LocationContext'
 import LazyImage from '@/components/LazyImage'
 import type { NearbyProduct } from '@/db/api'
 
-const CATEGORIES = ['全部', '图书', '美食', '饮品', '零食', '日用', '礼品']
+const CATEGORIES = ['全部', '图书', '美食', '饮品', '零食', '日用', '礼品', '情绪']
+
+// 情绪筛选选项
+const EMOTION_FILTERS = [
+  { tag: '快乐', icon: '😊' },
+  { tag: '温馨', icon: '🏠' },
+  { tag: '清爽', icon: '🍃' },
+  { tag: '奢华', icon: '👑' },
+  { tag: '有趣', icon: '🎈' },
+  { tag: '平静', icon: '🧘' },
+]
 
 const STORE_CATEGORY_MAP: Record<string, string> = {
   '图书': '图书', '美食': '美食', '饮品': '饮品', '零食': '零食', '日用': '日用', '礼品': '礼品'
@@ -31,6 +42,8 @@ export default function ExplorePage() {
   const { location } = useLocation()
   const [activeCat, setActiveCat] = useState('全部')
   const [products, setProducts] = useState<NearbyProduct[]>([])
+  const [emotionProducts, setEmotionProducts] = useState<Product[]>([]) // 情绪推荐商品
+  const [showEmotionSection, setShowEmotionSection] = useState(false) // 是否显示情绪推荐区
   const [cartCount, setCartCount] = useState(0)
   const [addingId, setAddingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -42,13 +55,14 @@ export default function ExplorePage() {
     const p = reset ? 0 : page.current
     setLoading(true)
 
-    // 如果用户已定位，根据距离推荐附近商品
+    // 如果用户已定位，根据距离推荐附近商品（只显示自营门店商品）
     if (location?.latitude && location?.longitude) {
       const data = await getNearbyProducts(
         location.latitude,
         location.longitude,
         20,
-        cat !== '全部' ? cat : undefined
+        cat !== '全部' ? cat : undefined,
+        'only'  // ✅ 只显示自营门店商品
       )
       if (reset) {
         setProducts(data)
@@ -59,10 +73,11 @@ export default function ExplorePage() {
       }
       hasMore.current = data.length === 20
     } else {
-      // 如果未定位，使用原来的 API（按时间排序）
+      // 如果未定位，使用原来的 API（按时间排序）— 只显示自营门店商品
       const { getProducts } = await import('@/db/api')
       const data = await getProducts({
         page: p, limit: 20,
+        platformFilter: 'only',  // ✅ 只显示自营门店商品
         ...(cat !== '全部' ? { search: cat } : {}),
       })
       if (reset) {
@@ -111,6 +126,21 @@ export default function ExplorePage() {
   useEffect(() => {
     loadProducts('全部')
     refreshCart()
+    
+    // 加载情绪推荐商品
+    const loadEmotionRecs = async () => {
+      const { supabase } = await import('@/client/supabase')
+      const uid = (await supabase.auth.getUser()).data.user?.id
+      if (!uid) return
+      
+      const recs = await getEmotionBasedRecommendations(uid, 10)
+      if (recs && recs.length > 0) {
+        setEmotionProducts(recs)
+        setShowEmotionSection(true)
+      }
+    }
+    
+    loadEmotionRecs()
   }, [refreshCart])
 
   useDidShow(() => { refreshCart() })
@@ -190,8 +220,81 @@ export default function ExplorePage() {
           ))}
         </View>
 
-        {/* 右侧商品网格 */}
+        {/* 右侧内容 */}
         <View className="flex-1 overflow-y-auto px-3 py-3">
+          {/* 情绪推荐区 */}
+          {showEmotionSection && emotionProducts.length > 0 && (
+            <View className="mb-4">
+              <View className="flex items-center gap-2 mb-3">
+                <Text className="text-xl font-bold text-foreground">😊 根据你的情绪偏好推荐</Text>
+              </View>
+              <View className="grid grid-cols-2 gap-3">
+                {emotionProducts.slice(0, 4).map((p: any) => (
+                  <View key={p.id} className="bg-card rounded-2xl overflow-hidden border border-border"
+                    onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}>
+                    <LazyImage 
+                      src={p.main_image || p.image_url || ''} 
+                      mode="aspectFill"
+                      className="w-full"
+                      style={{ height: '100px' }}
+                    />
+                    <View className="p-2">
+                      <Text className="text-xl font-bold text-foreground leading-tight line-clamp-2">{p.name}</Text>
+                      {p.mood_tags && p.mood_tags.length > 0 && (
+                        <View className="flex gap-1 mt-1 flex-wrap">
+                          {p.mood_tags.slice(0, 2).map((t: string) => (
+                            <Text key={t} className="px-2 py-0.5 rounded-full text-base bg-primary/10 text-primary">{t}</Text>
+                          ))}
+                        </View>
+                      )}
+                      <Text className="text-xl font-bold text-primary mt-1">¥{p.price}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* 情绪筛选区（当选择"情绪"分类时显示） */}
+          {activeCat === '情绪' && (
+            <View className="mb-4">
+              <Text className="text-xl font-bold text-foreground mb-3" style={{ display: 'block' }}>🎯 选择你想感受的情绪</Text>
+              <View className="flex gap-2 flex-wrap">
+                {EMOTION_FILTERS.map((item, idx) => (
+                  <View
+                    key={idx}
+                    onClick={async () => {
+                      setLoading(true)
+                      const data = await getProducts({ moodTag: item.tag, platformFilter: 'only', limit: 20 })
+                      setProducts(data.map(p => ({
+                        product_id: p.id,
+                        product_name: p.name,
+                        product_price: p.price,
+                        product_image_url: p.main_image || p.image_url || '',
+                        product_mood_tags: p.mood_tags || [],
+                        store_id: p.store_id,
+                        store_name: (p as any).stores?.name || '',
+                        store_address: '',
+                        store_lat: 0,
+                        store_lng: 0,
+                        distance_km: 0,
+                      })))
+                      setLoading(false)
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '20px',
+                      background: '#F5F5F5',
+                      border: '1.5px solid #EEE',
+                    }}>
+                    <Text style={{ fontSize: '14px' }}>{item.icon} {item.tag}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* 商品网格 */}
           {loading && products.length === 0 ? (
             <View className="flex items-center justify-center pt-20">
               <View className="i-mdi-loading text-3xl text-primary animate-spin" />

@@ -1,12 +1,11 @@
 /**
- * V4分佣算法 - 支付成功后更新用户数据
- * 
+ * V5分佣算法 - 支付成功后更新用户数据
+ *
  * 功能：
  * 1. 更新用户当月消费（monthly_consumption）
  * 2. 更新用户累计消费（total_consumption）
  * 3. 重置连续零消费月数（consecutive_zero_months = 0）
  * 4. 更新团队月度GMV（team_monthly_gmv）- 需要递归更新上线
- * 5. 更新团队业绩（team_performance）- 需要递归更新上线
  */
 
 import { supabase } from '@/client/supabase'
@@ -62,8 +61,8 @@ export async function updateUserConsumptionAfterPayment(
       total_consumption: updates.total_consumption,
     })
     
-    // 3. 递归更新上线们的团队月度GMV和团队业绩
-    await updateReferrersTeamPerformance(profile.referrer_id, orderAmount)
+    // 3. 递归更新上线们的团队月度GMV
+    await updateReferrersTeamGmv(profile.referrer_id, orderAmount)
     
   } catch (err) {
     console.error('[V4] 更新用户消费数据异常', err)
@@ -71,13 +70,13 @@ export async function updateUserConsumptionAfterPayment(
 }
 
 /**
- * 递归更新上线们的团队月度GMV和团队业绩
- * 
+ * 递归更新上线们的团队月度GMV
+ *
  * @param referrerId 直接推荐人ID
  * @param orderAmount 订单金额
  * @param level 递归层级（1=L1, 2=L2）
  */
-async function updateReferrersTeamPerformance(
+async function updateReferrersTeamGmv(
   referrerId: string | null,
   orderAmount: number,
   level: number = 1
@@ -86,7 +85,7 @@ async function updateReferrersTeamPerformance(
   if (!referrerId || level > 2) {
     return
   }
-  
+
   try {
     // 1. 获取推荐人资料
     const { data: referrer, error } = await supabase
@@ -94,45 +93,38 @@ async function updateReferrersTeamPerformance(
       .select('*')
       .eq('id', referrerId)
       .single()
-    
+
     if (error || !referrer) {
-      console.error('[V4] 获取推荐人资料失败', error)
+      console.error('[V5] 获取推荐人资料失败', error)
       return
     }
-    
-    // 2. 更新推荐人团队数据
+
+    // 2. 更新推荐人团队月度GMV（直接/间接下线消费全额计入）
     const updates: Partial<Profile> = {}
-    
-    // 更新团队月度GMV（直接下线消费全额计入，间接下线消费全额计入）
     updates.team_monthly_gmv = (referrer.team_monthly_gmv || 0) + orderAmount
-    
-    // 更新团队业绩（L1全额，L2打5折）
-    const performanceWeight = level === 1 ? 1.0 : 0.5
-    updates.team_performance = (referrer.team_performance || 0) + orderAmount * performanceWeight
-    
+
     const { error: updateError } = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', referrerId)
-    
+
     if (updateError) {
-      console.error('[V4] 更新推荐人团队数据失败', updateError)
+      console.error('[V5] 更新推荐人团队数据失败', updateError)
       return
     }
-    
-    console.log('[V4] 更新推荐人团队数据成功', {
+
+    console.log('[V5] 更新推荐人团队数据成功', {
       referrerId,
       level,
       orderAmount,
       team_monthly_gmv: updates.team_monthly_gmv,
-      team_performance: updates.team_performance,
     })
-    
+
     // 3. 递归更新上线（L2的上线是L1的推荐人）
-    await updateReferrersTeamPerformance(referrer.referrer_id, orderAmount, level + 1)
-    
+    await updateReferrersTeamGmv(referrer.referrer_id, orderAmount, level + 1)
+
   } catch (err) {
-    console.error('[V4] 更新推荐人团队数据异常', err)
+    console.error('[V5] 更新推荐人团队数据异常', err)
   }
 }
 
@@ -273,7 +265,7 @@ export async function updateUserConsumptionAfterPaymentMock(
     
     // 递归更新上线
     if (profile.referrer_id) {
-      await updateReferrersTeamPerformanceMock(profile.referrer_id, orderAmount, 1, store)
+      await updateReferrersTeamGmvMock(profile.referrer_id, orderAmount, 1, store)
     }
     
   } catch (err) {
@@ -284,7 +276,7 @@ export async function updateUserConsumptionAfterPaymentMock(
 /**
  * Mock版本：递归更新上线团队数据
  */
-async function updateReferrersTeamPerformanceMock(
+async function updateReferrersTeamGmvMock(
   referrerId: string,
   orderAmount: number,
   level: number,
@@ -297,22 +289,19 @@ async function updateReferrersTeamPerformanceMock(
   if (referrerIndex === -1) return
   
   const referrer = profiles[referrerIndex]
-  
-  // 更新团队数据
+
+  // 更新团队月度GMV
   referrer.team_monthly_gmv = (referrer.team_monthly_gmv || 0) + orderAmount
-  const performanceWeight = level === 1 ? 1.0 : 0.5
-  referrer.team_performance = (referrer.team_performance || 0) + orderAmount * performanceWeight
-  
-  console.log('[V4 Mock] 更新推荐人团队数据成功', {
+
+  console.log('[V5 Mock] 更新推荐人团队数据成功', {
     referrerId,
     level,
     team_monthly_gmv: referrer.team_monthly_gmv,
-    team_performance: referrer.team_performance,
   })
   
   // 递归更新上线
   if (referrer.referrer_id) {
-    await updateReferrersTeamPerformanceMock(referrer.referrer_id, orderAmount, level + 1, store)
+    await updateReferrersTeamGmvMock(referrer.referrer_id, orderAmount, level + 1, store)
   }
   
   // 保存

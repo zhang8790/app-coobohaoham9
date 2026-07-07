@@ -254,11 +254,12 @@ function UserPage() {
             <View className="i-mdi-sword text-2xl text-primary" />
             <Text className="text-xl font-bold text-foreground">侠客中心</Text>
           </View>
-          <View className="grid grid-cols-3 py-3">
+          <View className="grid grid-cols-4 py-3">
             {[
               { name: '我的段位', icon: '🏅', page: '/pages/my-promotion/index', desc: '查看推广码' },
               { name: '我的佣金', icon: '💰', page: '/pages/withdraw/index', desc: '提现管理' },
               { name: '分销团队', icon: '👥', page: '/pages/my-referrals/index', desc: '查看下线' },
+              { name: '情绪账单', icon: '🎭', page: '/pages/emotion-bill/index', desc: '确权集' },
             ].map(item => (
               <View key={item.name}
                 hoverClass="none"

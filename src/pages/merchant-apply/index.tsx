@@ -29,6 +29,7 @@ function MerchantApplyPage() {
   const [description, setDescription] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [agreed, setAgreed] = useState(false)
 
   const loadApp = useCallback(async () => {
     if (!user) { setLoading(false); return }
@@ -59,6 +60,7 @@ function MerchantApplyPage() {
     if (!storeName.trim()) { Taro.showToast({ title: '请输入门店名称', icon: 'none' }); return }
     if (!contactName.trim()) { Taro.showToast({ title: '请输入联系人', icon: 'none' }); return }
     if (!/^1[3-9]\d{9}$/.test(contactPhone)) { Taro.showToast({ title: '请输入正确手机号', icon: 'none' }); return }
+    if (!agreed) { Taro.showToast({ title: '请先阅读并同意入驻协议', icon: 'none' }); return }
     setSubmitting(true)
     try {
       await submitMerchantApplication({
@@ -183,6 +185,16 @@ function MerchantApplyPage() {
       {/* 提交按钮 */}
       <View className="fixed bottom-0 left-0 right-0 bg-card border-t-2 border-border px-4 py-3"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
+        {/* 入驻协议勾选 */}
+        <View className="flex items-center gap-2 mb-3"
+          onClick={() => setAgreed(v => !v)}>
+          <View className={`w-5 h-5 rounded border-2 flex items-center justify-center ${agreed ? 'bg-primary border-primary' : 'border-border'}`}>
+            {agreed && <View className="i-mdi-check text-white text-sm" />}
+          </View>
+          <View className="flex-1 flex items-center" onClick={(e) => { e.stopPropagation(); Taro.navigateTo({ url: '/pages/merchant-agreement/index' }) }}>
+            <Text className="text-base text-muted-foreground">我已阅读并同意<Text className="text-primary">《商家入驻协议》</Text></Text>
+          </View>
+        </View>
         <Button type="button"
           className={`w-full flex items-center justify-center leading-none rounded-2xl ${submitting ? 'bg-primary/50' : 'bg-primary'}`}
           onClick={handleSubmit}>

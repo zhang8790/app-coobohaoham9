@@ -1,0 +1,4 @@
+/* 领取页 banner 渐变（微信小程序 inline style 不支持 linear-gradient，必须用 class） */
+.claim-gradient-bg {
+  background: linear-gradient(160deg, #FEF3C7 0%, #FDE68A 100%);
+}

@@ -1,8 +1,27 @@
 // @title 商家中心 - 订单管理
 import { useState } from 'react'
-import type { OrderItem } from '@/types'
 
-const MOCK_ORDERS: (OrderItem & { orders: any })[] = [
+interface MockOrderItem {
+  id: string
+  product_id: string
+  product_name: string
+  product_image: string
+  quantity: number
+  price: number
+  store_id: string
+  orders: {
+    id: string
+    order_no: string
+    status: string
+    total_amount: number
+    created_at: string
+    buyer_phone: string
+    delivery_type: string
+    address: string
+  }
+}
+
+const MOCK_ORDERS: MockOrderItem[] = [
   { id: '1', product_id: 'p1', product_name: '手工桂花糕', product_image: '', quantity: 2, price: 39.8, store_id: 's1', orders: { id: 'o1', order_no: 'LD202606300001', status: 'pending_ship', total_amount: 79.6, created_at: '2026-06-30T14:20:00', buyer_phone: '138****8000', delivery_type: 'delivery', address: '杭州市西湖区xx路xx号' } },
   { id: '2', product_id: 'p2', product_name: '芝麻汤圆', product_image: '', quantity: 1, price: 28.0, store_id: 's1', orders: { id: 'o2', order_no: 'LD202606300002', status: 'pending_receive', total_amount: 28.0, created_at: '2026-06-30T13:45:00', buyer_phone: '139****9000', delivery_type: 'delivery', address: '杭州市上城区xx路xx号' } },
   { id: '3', product_id: 'p3', product_name: '红糖糍粑', product_image: '', quantity: 3, price: 45.0, store_id: 's1', orders: { id: 'o3', order_no: 'LD202606300003', status: 'pending_pickup', total_amount: 45.0, created_at: '2026-06-30T12:30:00', buyer_phone: '137****7000', delivery_type: 'pickup', address: '' } },
@@ -43,14 +62,14 @@ const STATUS_COLOR: Record<string, string> = {
 export default function MerchantOrders() {
   const [activeTab, setActiveTab] = useState('all')
   const [orders] = useState(MOCK_ORDERS)
-  const [detailOrder, setDetailOrder] = useState<typeof MOCK_ORDERS[0] | null>(null)
+  const [, setDetailOrder] = useState<typeof MOCK_ORDERS[0] | null>(null)
   const [shipModal, setShipModal] = useState<typeof MOCK_ORDERS[0] | null>(null)
   const [shipCompany, setShipCompany] = useState('')
   const [shipNo, setShipNo] = useState('')
 
   const filtered = activeTab === 'all' ? orders : orders.filter(o => o.orders.status === activeTab)
 
-  const handleShip = (order: typeof MOCK_ORDERS[0]) => {
+  const handleShip = () => {
     if (!shipCompany || !shipNo) return
     setShipModal(null)
     setShipCompany('')
@@ -190,7 +209,7 @@ export default function MerchantOrders() {
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={() => setShipModal(null)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid #374151', borderRadius: 8, color: '#9CA3AF', fontSize: 14, cursor: 'pointer' }}>取消</button>
-              <button onClick={() => handleShip(shipModal)} style={{ flex: 1, padding: '10px', background: '#059669', border: 'none', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>确认发货</button>
+              <button onClick={() => handleShip()} style={{ flex: 1, padding: '10px', background: '#059669', border: 'none', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>确认发货</button>
             </div>
           </div>
         </div>

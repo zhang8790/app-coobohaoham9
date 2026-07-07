@@ -1,10 +1,10 @@
 /**
  * wechat-payment-callback Edge Function
- * 微信支付结果回调：验签 → 更新订单状态 → 触发分润
+ * 微信支付结果回调：验签 → 解密 → 更新订单状态 → 触发分润
  * 幂等：affected_rows=0 时直接返回 SUCCESS
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { Aes } from 'npm:wechatpay-axios-plugin@0.9.4'
+import { Aes, Formatter, Rsa } from 'npm:wechatpay-axios-plugin@0.9.4'
 
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type' }
 
@@ -24,17 +24,48 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   const MCH_API_V3_KEY = Deno.env.get('MCH_API_V3_KEY') ?? ''
-  if (!MCH_API_V3_KEY) {
-    return new Response(JSON.stringify({ code: 'FAIL', message: 'MCH_API_V3_KEY 未配置' }), { status: 200 })
+  const WECHAT_PAY_PUBLIC_KEY_ID = Deno.env.get('WECHAT_PAY_PUBLIC_KEY_ID') ?? ''
+  const WECHAT_PAY_PUBLIC_KEY = Deno.env.get('WECHAT_PAY_PUBLIC_KEY') ?? ''
+  if (!MCH_API_V3_KEY || !WECHAT_PAY_PUBLIC_KEY_ID || !WECHAT_PAY_PUBLIC_KEY) {
+    return new Response(JSON.stringify({ code: 'FAIL', message: '微信支付配置缺失' }), { status: 200 })
+  }
+
+  // 1) 读取原始报文（用于验签，不能先 json 化）
+  const rawBody = await req.text()
+
+  // 2) 验签：防止伪造回调（微信使用平台私钥对 timestamp\nnonce\nbody\n 签名）
+  const timestamp = req.headers.get('Wechatpay-Timestamp') ?? ''
+  const nonce = req.headers.get('Wechatpay-Nonce') ?? ''
+  const signature = req.headers.get('Wechatpay-Signature') ?? ''
+  const serial = req.headers.get('Wechatpay-Serial') ?? ''
+  if (!timestamp || !nonce || !signature) {
+    return new Response(JSON.stringify({ code: 'FAIL', message: '缺少签名头' }), { status: 200 })
+  }
+  // 平台证书可能轮换，序列号不匹配时拒绝（如需多证书在此扩展 certs map）
+  if (serial !== WECHAT_PAY_PUBLIC_KEY_ID) {
+    console.error('[callback] 平台证书序列号不匹配:', serial)
+    return new Response(JSON.stringify({ code: 'FAIL', message: '证书序列号不匹配' }), { status: 200 })
+  }
+  const verifyMessage = Formatter.joinedByLineFeed(timestamp, nonce, rawBody)
+  if (!Rsa.verify(verifyMessage, signature, WECHAT_PAY_PUBLIC_KEY)) {
+    console.error('[callback] 签名校验失败')
+    return new Response(JSON.stringify({ code: 'FAIL', message: '签名校验失败' }), { status: 200 })
+  }
+
+  // 3) 解析并解密业务报文
+  let body: { resource?: { associated_data: string; nonce: string; ciphertext: string } }
+  try {
+    body = JSON.parse(rawBody)
+  } catch {
+    return new Response(JSON.stringify({ code: 'FAIL', message: '报文解析失败' }), { status: 200 })
+  }
+  if (!body.resource) {
+    return new Response(JSON.stringify({ code: 'FAIL', message: '缺少 resource' }), { status: 200 })
   }
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
   try {
-    const body = await req.json() as {
-      resource: { associated_data: string; nonce: string; ciphertext: string }
-    }
-
     const { tradeState, outTradeNo, transactionId } = await decryptTradeState(
       MCH_API_V3_KEY,
       body.resource.associated_data,
@@ -52,7 +83,7 @@ Deno.serve(async (req: Request) => {
       .update({ status: 'pending_ship', wechat_transaction_id: transactionId, paid_at: new Date().toISOString() })
       .eq('order_no', outTradeNo)
       .eq('status', 'pending_pay')
-      .select('id, order_no, user_id, total_amount, referrer_id')
+      .select('id, order_no, user_id, total_amount, referrer_id, gold_beans_used')
 
     if (error) {
       console.error('[wechat-payment-callback] DB error:', error.message)

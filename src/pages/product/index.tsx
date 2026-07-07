@@ -7,6 +7,9 @@ import { updateCartBadge } from '@/utils/cartBadge'
 import type { Product } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
+import { MOOD_TAGS_ALL, SCENE_TAGS_ALL } from '@/utils/mood-tags'
+import { generateEmotionDescription } from '@/utils/emotion-description'
+import { loadCategoryEmotionProfilesFromDb } from '@/utils/category-emotion'
 
 export default function ProductPage() {
   const { user } = useAuth()
@@ -23,6 +26,8 @@ export default function ProductPage() {
   const [favLoading, setFavLoading] = useState(false)
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  // 云端类目策略加载标记：拉取完成后 +1，驱动情绪翻译用最新策略重算
+  const [profilesTick, setProfilesTick] = useState(0)
 
   // 构建媒体列表：主图 + 副图 + 视频（视频放最后）
   const mediaList = useMemo(() => {
@@ -38,6 +43,24 @@ export default function ProductPage() {
 
   const videoUrl = useMemo(() => product?.video_url || '', [product])
 
+  // 情绪翻译：优先读 product_emotion 缓存（emotion-compile Edge Function 编译，可能由 LLM 生成），
+  // 无缓存且无标签时回退本地规则计算
+  const hasEmotion = !!(product?.mood_tags?.length || product?.scene_tags?.length)
+  const emotionData = useMemo<{ title: string; detail: string; by: 'rule' | 'llm' } | null>(() => {
+    if (!product) return null
+    const cached = product.product_emotion
+    if (cached?.emotion_detail) {
+      return { title: cached.emotion_title || '情绪翻译', detail: cached.emotion_detail, by: cached.compiled_by }
+    }
+    if (!hasEmotion) return null
+    const category = (product as any).stores?.category
+    return {
+      title: '情绪翻译',
+      detail: generateEmotionDescription(product, product.mood_tags || [], product.scene_tags || [], category),
+      by: 'rule',
+    }
+  }, [product, hasEmotion, profilesTick])
+
   const load = useCallback(async () => {
     if (!id) return
     setLoading(true)
@@ -46,6 +69,10 @@ export default function ProductPage() {
     setLoading(false)
     // 记录浏览足迹
     if (data) recordFootprint(data.id).catch(() => {})
+    // 拉取云端类目情绪策略（运营后台改词库即时生效）；加载完驱动情绪翻译重算
+    loadCategoryEmotionProfilesFromDb()
+      .then(() => setProfilesTick(t => t + 1))
+      .catch(() => {})
   }, [id])
 
   const refreshCart = useCallback(async () => {
@@ -220,14 +247,83 @@ export default function ProductPage() {
           )}
         </View>
         <h1 className="text-2xl font-bold text-foreground mt-3 leading-tight">{product.name}</h1>
-        {product.description && (
-          <Text className="text-xl text-muted-foreground mt-2 leading-relaxed">{product.description}</Text>
+        {/* 情绪翻译：商品详情的主叙事（非电商带货腔，优先读编译缓存） */}
+        {emotionData && (
+          <View
+            className="mt-3 px-3 py-3 rounded-2xl bg-primary/5 border border-primary/15"
+            onClick={() => product && Taro.navigateTo({ url: `/pages/emotion-detail/index?productId=${encodeURIComponent(product.id)}` })}
+          >
+            <View className="flex items-center justify-between">
+              <Text className="text-base font-bold text-primary" style={{ display: 'block' }}>
+                ✨ {emotionData.title}{emotionData.by === 'llm' ? ' · AI编译' : ''}
+              </Text>
+              <Text className="text-xs text-primary/70" style={{ flexShrink: 0, marginLeft: 8 }}>开启情绪之旅 ›</Text>
+            </View>
+            <Text className="text-xl text-foreground leading-relaxed mt-1" style={{ lineHeight: '1.7', display: 'block' }}>{emotionData.detail}</Text>
+          </View>
         )}
+        {/* 商家原话（功能信息，低调呈现，合规可查） */}
+        {product.description && (
+          <Text className="text-base text-muted-foreground mt-2 leading-relaxed" style={{ display: 'block' }}>商家原话：{product.description}</Text>
+        )}
+        {/* 情绪标签 - 情绪化展示 */}
         {product.mood_tags && product.mood_tags.length > 0 && (
-          <View className="flex gap-2 mt-3 flex-wrap">
-            {product.mood_tags.map(t => (
-              <Text key={t} className="px-3 py-1 rounded-full bg-muted text-xl text-secondary">{t}</Text>
-            ))}
+          <View className="mt-3">
+            <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>😊 商品氛围</Text>
+            <View className="flex gap-2 flex-wrap">
+              {product.mood_tags.map((tag: string) => {
+                // 从情绪词库中查找标签信息
+                const tagInfo = MOOD_TAGS_ALL.find(t => t.zh === tag)
+                return (
+                  <View 
+                    key={tag}
+                    className="px-3 py-2 rounded-2xl flex items-center gap-1"
+                    style={{ 
+                      background: tagInfo?.color ? `${tagInfo.color}20` : '#F5F5F5',
+                      border: `1.5px solid ${tagInfo?.color || '#EEE'}`,
+                    }}
+                  >
+                    <Text style={{ fontSize: '16px' }}>{tagInfo?.icon || '😊'}</Text>
+                    <Text 
+                      style={{ 
+                        fontSize: '13px', 
+                        fontWeight: '600',
+                        color: tagInfo?.color || '#666',
+                      }}
+                    >{tag}</Text>
+                  </View>
+                )
+              })}
+            </View>
+          </View>
+        )}
+        {/* 场景标签 */}
+        {product.scene_tags && product.scene_tags.length > 0 && (
+          <View className="mt-3">
+            <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>🏷️ 适用场景</Text>
+            <View className="flex gap-2 flex-wrap">
+              {product.scene_tags.map((tag: string) => {
+                const tagInfo = SCENE_TAGS_ALL.find(t => t.zh === tag)
+                return (
+                  <View 
+                    key={tag}
+                    className="px-3 py-1 rounded-full flex items-center gap-1"
+                    style={{ 
+                      background: tagInfo?.color ? `${tagInfo.color}15` : '#F9F9F9',
+                      border: `1px solid ${tagInfo?.color || '#EEE'}`,
+                    }}
+                  >
+                    <Text style={{ fontSize: '14px' }}>{tagInfo?.icon || '🏷️'}</Text>
+                    <Text 
+                      style={{ 
+                        fontSize: '12px', 
+                        color: tagInfo?.color || '#666',
+                      }}
+                    >{tag}</Text>
+                  </View>
+                )
+              })}
+            </View>
           </View>
         )}
         {/* 进入门店 */}

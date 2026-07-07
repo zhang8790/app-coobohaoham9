@@ -51,7 +51,7 @@ export default function MerchantDashboard() {
   const [stats, setStats] = useState({ todayRevenue: 0, monthRevenue: 0, todayOrders: 0, totalCustomers: 0, pendingOrders: 0, pendingWithdraw: 0 })
   const [recentOrders, setRecentOrders] = useState<typeof MOCK_RECENT_ORDERS>([])
   const [storeId, setStoreId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [, setLoading] = useState(true)
 
   // 获取当前商家的 store_id
   useEffect(() => {
@@ -200,7 +200,9 @@ export default function MerchantDashboard() {
         ].map((btn, i) => (
           <div key={i}
             onClick={() => nav(btn.to)}
-            style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 20, cursor: 'pointer', transition: 'all 0.2s', hover: { borderColor: '#059669' } }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#059669')}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1F2937')}
+            style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 20, cursor: 'pointer', transition: 'all 0.2s' }}
           >
             <span style={{ fontSize: 28, display: 'block', marginBottom: 8 }}>{btn.icon}</span>
             <p style={{ color: '#E5E7EB', fontSize: 14, fontWeight: 600 }}>{btn.label}</p>

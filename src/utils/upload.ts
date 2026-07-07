@@ -13,7 +13,7 @@ export const MIME_TYPES: Record<string, string> = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   xls: 'application/vnd.ms-excel',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  ppt: 'application/vnd.ms-powerpoint',
+  ppt: 'application/vnd.powerpoint',
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   txt: 'text/plain',
   zip: 'application/zip',
@@ -95,8 +95,10 @@ export function getMimeType(ext: string): string {
  * - <Image src> 不支持：data URI (base64)
  *
  * 所以本函数只做「上传→返回URL」，不做 base64 转换
+ *
+ * @param options.silent 为 true 时不弹错误 Toast（用于回退场景，避免误导用户）
  */
-export async function uploadToStorage(tempFilePath: string, options?: { bucket?: string }): Promise<string> {
+export async function uploadToStorage(tempFilePath: string, options?: { bucket?: string; silent?: boolean }): Promise<string> {
   try {
     const bucket = options?.bucket || DEFAULT_BUCKET
     const ext = tempFilePath.split('.').pop() || 'jpg'
@@ -149,21 +151,23 @@ export async function uploadToStorage(tempFilePath: string, options?: { bucket?:
       const errMsg = error.message || JSON.stringify(error)
       console.error('[uploadToStorage] ❌ 上传失败:', errMsg)
 
-      if (errMsg.includes('bucket') || errMsg.includes('Bucket')) {
-        Taro.showToast({ title: '存储桶不存在，请联系管理员', icon: 'none', duration: 3000 })
-      } else if (errMsg.includes('permission') || errMsg.includes('RLS') || errMsg.includes('policy')) {
-        Taro.showToast({ title: '无权限上传，检查存储策略', icon: 'none', duration: 3000 })
-      } else if (errMsg.includes('quota') || errMsg.includes('size')) {
-        Taro.showToast({ title: '文件太大或空间不足', icon: 'none', duration: 3000 })
-      } else {
-        Taro.showToast({ title: '上传失败: ' + errMsg.slice(0, 40), icon: 'none', duration: 3000 })
+      if (!options?.silent) {
+        if (errMsg.includes('bucket') || errMsg.includes('Bucket')) {
+          Taro.showToast({ title: '存储桶不存在，请联系管理员', icon: 'none', duration: 3000 })
+        } else if (errMsg.includes('permission') || errMsg.includes('RLS') || errMsg.includes('policy')) {
+          Taro.showToast({ title: '无权限上传，检查存储策略', icon: 'none', duration: 3000 })
+        } else if (errMsg.includes('quota') || errMsg.includes('size')) {
+          Taro.showToast({ title: '文件太大或空间不足', icon: 'none', duration: 3000 })
+        } else {
+          Taro.showToast({ title: '上传失败: ' + errMsg.slice(0, 40), icon: 'none', duration: 3000 })
+        }
       }
       return ''
     }
 
     if (!data?.path) {
       console.error('[uploadToStorage] 上传成功但 data.path 为空:', data)
-      Taro.showToast({ title: '上传返回异常', icon: 'none' })
+      if (!options?.silent) Taro.showToast({ title: '上传返回异常', icon: 'none' })
       return ''
     }
 
@@ -175,7 +179,7 @@ export async function uploadToStorage(tempFilePath: string, options?: { bucket?:
   } catch (error: any) {
     const errMsg = error?.message || error?.errMsg || String(error)
     console.error('[uploadToStorage] 💥 未捕获异常:', errMsg)
-    Taro.showToast({ title: '上传异常: ' + errMsg.slice(0, 50), icon: 'none', duration: 3000 })
+    if (!options?.silent) Taro.showToast({ title: '上传异常: ' + errMsg.slice(0, 50), icon: 'none', duration: 3000 })
     return ''
   }
 }
@@ -225,6 +229,56 @@ export async function uploadImage(options?: {
 }
 
 // ============================================================
+// 🎬 视频上传函数
+// ============================================================
+
+/**
+ * 🎬 选择视频并上传到 Storage，返回公网 URL
+ *
+ * 限制：
+ * - 微信小程序视频大小限制：最大 200MB
+ * - 建议时长：不超过 60 秒
+ * - 支持格式：MP4, MOV, AVI
+ *
+ * 容错：优先写入 videos 桶；若 videos 桶尚未创建（迁移未执行），
+ * 静默回退到已存在的 images 桶，保证视频上传功能始终可用。
+ */
+export async function uploadVideo(options?: {
+  filePath?: string
+  bucket?: string
+  maxDuration?: number
+}): Promise<string> {
+  try {
+    let tempFilePath: string = ''
+
+    if (options?.filePath) {
+      tempFilePath = options.filePath
+    } else {
+      const res = await Taro.chooseMedia({
+        mediaType: ['video'],
+        count: 1,
+        maxDuration: options?.maxDuration || 60,
+        sourceType: ['album', 'camera'],
+      })
+      tempFilePath = res.tempFiles[0]?.tempFilePath || ''
+      if (!tempFilePath) return ''
+    }
+
+    // 优先上传到 videos 桶；若桶不存在（未创建）则静默回退到 images 桶，保证可用性
+    let url = await uploadToStorage(tempFilePath, { bucket: options?.bucket || 'videos', silent: true })
+    if (!url) {
+      console.warn('[uploadVideo] videos 桶不可用，回退到 images 桶')
+      url = await uploadToStorage(tempFilePath, { bucket: 'images' })
+    }
+    return url
+  } catch (error: any) {
+    console.error('[uploadVideo] 异常:', error?.message || error)
+    Taro.showToast({ title: '视频上传失败', icon: 'none' })
+    return ''
+  }
+}
+
+// ============================================================
 // 旧版兼容接口（保持不动）
 // ============================================================
 
@@ -234,7 +288,7 @@ export async function uploadToSupabase(
 ): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
     const { bucket, userId } = options
-    const ext = file?.name?.split('.')?.pop() || 'file'
+    const ext = file?.name?.split('.').pop() || 'file'
     const storageName = `${userId || 'public'}/${generateFileName(ext)}`
     const fileBody: FileBody = Taro.getEnv() === Taro.ENV_TYPE.WEB ? (file as File)
       : (file as MiniProgramFileInput).tempFilePath

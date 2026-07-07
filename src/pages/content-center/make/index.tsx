@@ -1,10 +1,11 @@
 // @title 创作江湖令
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image, ScrollView, Input, Textarea, Button } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
-import { createArticle, getArticleById, updateArticle } from '@/db/api'
+import { createArticle, getArticleById, updateArticle, searchProducts } from '@/db/api'
 import { supabase } from '@/client/supabase'
+import './index.scss'
 
 type Step = 'choose' | 'fetch' | 'edit'
 type EditMode = 'blank' | 'fetch' | 'template'
@@ -70,6 +71,56 @@ export default function MakePage() {
   const [publishing, setPublishing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [articleId, setArticleId] = useState<string | null>(null)
+
+  // 插入好物卡（商品卡占位符）
+  const [showProductPicker, setShowProductPicker] = useState(false)
+  const [productSearch, setProductSearch] = useState('')
+  const [productList, setProductList] = useState<any[]>([])
+  const [productLoading, setProductLoading] = useState(false)
+  // 已插入的商品ID（从 content 解析，便于展示与管理）
+  const insertedProducts = useMemo(() => {
+    const ids = (content.match(/\[\[product:([\w-]+)\]\]/g) || []).map(m => m.replace(/\[\[product:/, '').replace(/\]\]/, ''))
+    return Array.from(new Set(ids))
+  }, [content])
+
+  const openProductPicker = () => {
+    setShowProductPicker(true)
+    setProductSearch('')
+    setProductList([])
+  }
+
+  const handleProductSearch = async (kw: string) => {
+    setProductSearch(kw)
+    setProductLoading(true)
+    try {
+      const list = await searchProducts(kw.trim(), 0)
+      setProductList(list || [])
+    } catch {
+      setProductList([])
+    } finally {
+      setProductLoading(false)
+    }
+  }
+
+  // 插入占位符到文末（避免重复）
+  const insertProductCard = (product: any) => {
+    if (insertedProducts.includes(product.id)) {
+      Taro.showToast({ title: '已在文中', icon: 'none' })
+      return
+    }
+    const token = `[[product:${product.id}]]`
+    const base = content.trim()
+    setContent(base ? `${base}\n\n${token}` : token)
+    Taro.showToast({ title: '已附到文末', icon: 'success' })
+    setShowProductPicker(false)
+  }
+
+  // 从文中移除某个商品占位符
+  const removeProductCard = (productId: string) => {
+    const next = content.replace(new RegExp(`\\n*\\s*🛍️?\\[\\[product:${productId}\\]\\]`, 'g'), '').trim()
+    setContent(next)
+    Taro.showToast({ title: '已移除', icon: 'none' })
+  }
 
   const handleChooseMode = (mode: EditMode) => {
     setEditMode(mode)
@@ -516,6 +567,54 @@ export default function MakePage() {
             <Text className="text-base text-muted-foreground mt-1">支持 mp4 直链视频（可播放）或外链（复制链接观看）</Text>
           </View>
 
+          {/* 插入好物卡（文章内商品转化卡片） */}
+          <View className="mb-6">
+            <View className="flex items-center justify-between mb-2">
+              <Text className="text-xl font-bold text-foreground">🛍️ 插入好物卡</Text>
+              <View
+                className="px-3 py-1.5 rounded-full bg-primary/10 flex items-center gap-1"
+                onClick={openProductPicker}>
+                <View className="i-mdi-plus text-base text-primary" />
+                <Text className="text-base text-primary font-bold">选商品</Text>
+              </View>
+            </View>
+            <Text className="text-base text-muted-foreground mb-2">选中商品会附在文末，读者读到此处可见情绪好物卡并直达购买。</Text>
+            {insertedProducts.length > 0 ? (
+              <View className="flex flex-col gap-2">
+                {insertedProducts.map(pid => {
+                  const p = productList.find(x => x.id === pid)
+                  return (
+                    <View key={pid} className="flex items-center gap-2 p-2 rounded-xl bg-card border border-border">
+                      {p?.image_url ? (
+                        <Image src={p.image_url} mode="aspectFill" className="w-12 h-12 rounded-lg flex-shrink-0" />
+                      ) : (
+                        <View className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                          <View className="i-mdi-package-variant text-xl text-muted-foreground" />
+                        </View>
+                      )}
+                      <View className="flex-1 min-w-0">
+                        <Text className="text-base font-bold text-foreground truncate block">{p?.name || '商品'}</Text>
+                        {p?.product_emotion?.emotion_title && (
+                          <Text className="text-sm text-primary truncate block">✨ {p.product_emotion.emotion_title}</Text>
+                        )}
+                      </View>
+                      <View
+                        className="w-7 h-7 rounded-full bg-black/5 flex items-center justify-center flex-shrink-0"
+                        onClick={() => removeProductCard(pid)}>
+                        <View className="i-mdi-close text-base text-muted-foreground" />
+                      </View>
+                    </View>
+                  )
+                })}
+              </View>
+            ) : (
+              <View className="p-3 rounded-xl bg-muted/30 border border-dashed border-border flex items-center gap-2">
+                <View className="i-mdi-package-variant-closed text-xl text-muted-foreground" />
+                <Text className="text-base text-muted-foreground">尚未插入好物，点击右上「选商品」</Text>
+              </View>
+            )}
+          </View>
+
           {/* 操作按钮 */}
           <View className="flex flex-col gap-3">
             {/* 发布按钮 */}
@@ -545,6 +644,79 @@ export default function MakePage() {
                 <View className="py-3 text-xl text-muted-foreground">返回重选</View>
               </View>
             </View>
+          </View>
+        </View>
+      )}
+
+      {/* ── 商品选择器弹层（插入好物卡） ── */}
+      {showProductPicker && (
+        <View className="product-picker-mask" onClick={() => setShowProductPicker(false)}>
+          <View className="product-picker-sheet" onClick={(e: any) => e.stopPropagation()}>
+            <View className="picker-header">
+              <Text className="text-2xl font-bold text-foreground">选择好物</Text>
+              <View className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center" onClick={() => setShowProductPicker(false)}>
+                <View className="i-mdi-close text-xl text-muted-foreground" />
+              </View>
+            </View>
+
+            {/* 搜索框 */}
+            <View className="picker-search border-2 border-input rounded-xl px-4 py-2.5 bg-card mb-3">
+              <Input
+                className="w-full text-xl text-foreground bg-transparent outline-none"
+                placeholder="搜索商品名 / 关键词"
+                value={productSearch}
+                onInput={(e: any) => handleProductSearch(e.detail?.value || e.target?.value || '')}
+              />
+            </View>
+
+            {/* 列表 */}
+            <ScrollView scrollY className="picker-list" enhanced showScrollbar={false}>
+              {productLoading && (
+                <View className="picker-empty">
+                  <View className="i-mdi-loading text-3xl text-primary animate-spin" />
+                  <Text className="text-base text-muted-foreground mt-2">搜索中...</Text>
+                </View>
+              )}
+              {!productLoading && productList.length === 0 && (
+                <View className="picker-empty">
+                  <View className="i-mdi-package-variant text-3xl text-muted-foreground" />
+                  <Text className="text-base text-muted-foreground mt-2">{productSearch ? '未找到相关商品' : '输入关键词搜索商品'}</Text>
+                </View>
+              )}
+              {!productLoading && productList.map(p => {
+                const inserted = insertedProducts.includes(p.id)
+                return (
+                  <View
+                    key={p.id}
+                    className={`picker-item ${inserted ? 'picker-item-disabled' : ''}`}
+                    onClick={() => !inserted && insertProductCard(p)}>
+                    {p.image_url ? (
+                      <Image src={p.image_url} mode="aspectFill" className="picker-item-img" />
+                    ) : (
+                      <View className="picker-item-img bg-muted flex items-center justify-center">
+                        <View className="i-mdi-package-variant text-2xl text-muted-foreground" />
+                      </View>
+                    )}
+                    <View className="picker-item-body">
+                      <Text className="text-xl font-bold text-foreground truncate block">{p.name}</Text>
+                      {p.product_emotion?.emotion_title ? (
+                        <Text className="text-base text-primary truncate block">✨ {p.product_emotion.emotion_title}</Text>
+                      ) : (
+                        <Text className="text-base text-muted-foreground truncate block">{p.store_name || '好物推荐'}</Text>
+                      )}
+                      <Text className="text-base text-destructive font-bold mt-0.5">¥{(p.price ?? 0).toFixed(2)}</Text>
+                    </View>
+                    {inserted ? (
+                      <Text className="picker-item-tag text-sm text-muted-foreground">已插入</Text>
+                    ) : (
+                      <View className="picker-item-add">
+                        <View className="i-mdi-plus text-lg text-white" />
+                      </View>
+                    )}
+                  </View>
+                )
+              })}
+            </ScrollView>
           </View>
         </View>
       )}

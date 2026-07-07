@@ -24,14 +24,20 @@ export default function MerchantCampaignsPage() {
 
       if (store) {
         setStoreId(store.id)
-        // 加载该门店的活动
-        const { data: campaignsData } = await supabase
+        // 加载该门店自己创建的活动（按 store_id 过滤，仅看本店）
+        const { data: campaignsData, error: campaignsError } = await supabase
           .from('marketing_campaigns')
           .select('*')
           .eq('store_id', store.id)
           .order('created_at', { ascending: false })
         
-        setCampaigns(campaignsData || [])
+        if (campaignsError) {
+          console.error('[Campaigns] 查询活动失败:', campaignsError.code, campaignsError.message)
+          Taro.showToast({ title: '活动功能暂时不可用', icon: 'none' })
+          setCampaigns([])
+        } else {
+          setCampaigns(campaignsData || [])
+        }
       }
     } catch (err) {
       console.error('[Campaigns] 加载失败:', err)
@@ -111,7 +117,7 @@ export default function MerchantCampaignsPage() {
                 <View className="flex items-center gap-1">
                   <View className="i-mdi-gift text-primary" />
                   <Text className="text-base text-foreground">
-                    {campaign.campaign_type === 'redpacket' ? '现金红包' : '实物礼品'}
+                    {campaign.campaign_type === 'red_packet' ? '现金红包' : '实物礼品'}
                   </Text>
                 </View>
                 <View className="flex items-center gap-1">

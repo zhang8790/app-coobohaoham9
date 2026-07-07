@@ -48,6 +48,8 @@ export default function IndexPage() {
   const [showCampaignPopup, setShowCampaignPopup] = useState(false)
   const [campaignList, setCampaignList] = useState<any[]>([])
   const [loadingCampaign, setLoadingCampaign] = useState(false)
+  // 门店红包对应的门店名（用于在首页弹窗标注「XX店专享」）
+  const [storeNameMap, setStoreNameMap] = useState<Record<string, string>>({})
 
   // 小程序启动时捕获 scene：ref=推广码 或 s=门店短码&r=推广码
   const routeParams = useMemo(() => Taro.getCurrentInstance().router?.params as any || {}, [])
@@ -185,6 +187,17 @@ export default function IndexPage() {
 
       if (activeList.length > 0) {
         setCampaignList(activeList)
+        // 解析门店专享红包的门店名
+        const storeIds = activeList.map((c: any) => c.store_id).filter(Boolean)
+        if (storeIds.length > 0) {
+          const { data: stores } = await supabase
+            .from('stores')
+            .select('id, name')
+            .in('id', storeIds)
+          const map: Record<string, string> = {}
+          ;(stores || []).forEach((s: any) => { map[s.id] = s.name })
+          setStoreNameMap(map)
+        }
         setTimeout(() => setShowCampaignPopup(true), 3000)
       }
     } catch (err) {
@@ -459,6 +472,13 @@ export default function IndexPage() {
                           ? `¥${campaign.gift_value} 现金红包`
                           : campaign.gift_name}
                       </Text>
+                      {campaign.store_id && storeNameMap[campaign.store_id] && (
+                        <View className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full bg-red-100">
+                          <Text className="text-xs text-red-600 font-bold">
+                            {storeNameMap[campaign.store_id]} 专享
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                   <View

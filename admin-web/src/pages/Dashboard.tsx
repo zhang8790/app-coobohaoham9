@@ -9,9 +9,9 @@ const MOCK_STATS: AdminStats = {
   merchants: 3, products: 5, withdrawals: 2, articles: 3, users: 8, orders: 12,
 }
 const MOCK_RECENT: MerchantApplication[] = [
-  { id: 'm1', user_id: 'u1', store_name: '霸王茶姬（旗舰店）', contact_name: '张三', business_type: '餐饮', status: 'pending', created_at: new Date().toISOString() },
-  { id: 'm2', user_id: 'u2', store_name: '瑞幸咖啡（科技园店）', contact_name: '李四', business_type: '餐饮', status: 'approved', created_at: new Date(Date.now()-864e5).toISOString() },
-  { id: 'm3', user_id: 'u3', store_name: '名创优品（万达店）', contact_name: '王五', business_type: '零售', status: 'pending', created_at: new Date(Date.now()-2*864e5).toISOString() },
+  { id: 'm1', user_id: 'u1', store_name: '霸王茶姬（旗舰店）', contact_name: '张三', contact_phone: '13800138001', business_type: '餐饮', description: '头部新中式茶饮品牌', status: 'pending', reject_reason: null, created_at: new Date().toISOString() },
+  { id: 'm2', user_id: 'u2', store_name: '瑞幸咖啡（科技园店）', contact_name: '李四', contact_phone: '13800138002', business_type: '餐饮', description: '知名连锁咖啡品牌', status: 'approved', reject_reason: null, created_at: new Date(Date.now()-864e5).toISOString() },
+  { id: 'm3', user_id: 'u3', store_name: '名创优品（万达店）', contact_name: '王五', contact_phone: '13800138003', business_type: '零售', description: '生活好物集合店', status: 'pending', reject_reason: null, created_at: new Date(Date.now()-2*864e5).toISOString() },
 ]
 
 const S = {

@@ -28,7 +28,6 @@ export const mockProfile: Profile = {
   referral_code: 'ABC123',
   referrer_id: null,
   total_consumption: 500,  // 个人累计消费500元
-  team_performance: 0,     // 团队业绩（暂无下线）
   // V4分佣算法字段
   monthly_consumption: 100,       // 当月消费100元（达标）
   consecutive_zero_months: 0,     // 未连续零消费

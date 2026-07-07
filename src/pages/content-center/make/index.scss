@@ -1,0 +1,100 @@
+/* ============================================
+   创作江湖令 - 插入好物卡 商品选择器
+   ============================================ */
+
+/* --- 遮罩层 --- */
+.product-picker-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* --- 底部抽屉 --- */
+.product-picker-sheet {
+  background: #ffffff;
+  border-radius: 24px 24px 0 0;
+  max-height: 82vh;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- 头部 --- */
+.picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+/* --- 列表 --- */
+.picker-list {
+  max-height: 60vh;
+}
+
+.picker-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #f7f7f7;
+  margin-bottom: 10px;
+}
+
+.picker-item-disabled {
+  opacity: 0.5;
+}
+
+.picker-item-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.picker-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.picker-item-add {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f97316;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.picker-item-tag {
+  flex-shrink: 0;
+}
+
+/* --- 暗黑模式 --- */
+@media (prefers-color-scheme: dark) {
+  .product-picker-sheet {
+    background: #1a1a1a;
+  }
+  .picker-item {
+    background: #2a2a2a;
+  }
+}

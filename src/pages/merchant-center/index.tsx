@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { to: '/pages/merchant-members/index', icon: 'i-mdi-account-group', label: '会员管理', color: 'bg-purple-500', key: 'members' },
   { to: '/pages/merchant-coupons/index', icon: 'i-mdi-ticket-percent', label: '优惠券', color: 'bg-pink-500', key: 'coupons' },
   { to: '/pages/merchant-analytics/index', icon: 'i-mdi-chart-line', label: '数据分析', color: 'bg-green-500', key: 'analytics' },
+  { to: '/pages/merchant-emotion-funnel/index', icon: 'i-mdi-emoticon-happy-outline', label: '情绪漏斗', color: 'bg-pink-500', key: 'emofunnel' },
   { to: '/pages/merchant-settings/index', icon: 'i-mdi-store-cog', label: '店铺设置', color: 'bg-gray-500', key: 'settings' },
   { to: '/pages/withdraw/index', icon: 'i-mdi-cash-multiple', label: '佣金提现', color: 'bg-yellow-500', key: 'withdraw' },
   { to: '/pages/merchant-products/index?tab=ads', icon: 'i-mdi-bullhorn', label: '广告管理', color: 'bg-red-500', key: 'ads' },
@@ -311,7 +312,7 @@ function MerchantCenterPage() {
         {/* 红包发放入口 */}
         <View className="flex gap-3 mt-3">
           <Button className="!flex-1 !m-0 !p-0 !bg-red-500 !border-none !rounded-2xl !leading-none"
-            onClick={() => Taro.navigateTo({ url: '/pages/merchant-campaigns/index?action=create' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/merchant-campaigns/create/index' })}>
             <View className="py-3 flex items-center gap-1">
               <View className="i-mdi-gift text-white text-xl" />
               <Text className="text-base font-bold text-white">发放红包</Text>

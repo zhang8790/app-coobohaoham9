@@ -6,11 +6,63 @@ import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWecha
 import { supabase } from '@/client/supabase'
 import { RouteGuard } from '@/components/RouteGuard'
 import type { PayMode } from '@/db/types'
-import { calculateCommissionV5, getRankByDynamicScoreV5, RANK_CONFIG_TABLE_V5 } from '@/utils/commission-calculator-v5'
+import { calculateCommissionV5, RANK_CONFIG_TABLE_V5 } from '@/utils/commission-calculator-v5'
 import { updateUserConsumptionAfterPayment } from '@/utils/commission-helpers'
 
 // 万分位精度
 function toFixed4(n: number) { return Math.round(n * 10000) / 10000 }
+
+// 统一 V5 分佣计算并落库（与后端 distributeCommissionDirect 完全一致：展示=实发）
+async function runV5Commission(orderId: string, storeId: string, totalAmount: number) {
+  try {
+    if (!orderId) return
+    const profile = await getMyProfile()
+    if (!profile) return
+    const { data: storeData } = await supabase
+      .from('stores').select('referral_rate').eq('id', storeId || '').maybeSingle()
+    const discountRate = (storeData as any)?.referral_rate ?? 0.09
+
+    // 推荐链：直接推荐人（拿一级大头 l1）+ 其上级（二级 l2）
+    const directReferrerId = profile.referrer_id || null
+    let staffId: string | undefined, staffConsumption = 0
+    let referrerId2: string | undefined, ref2Consumption = 0
+    if (directReferrerId) {
+      const { data: refP } = await supabase.from('profiles')
+        .select('total_consumption, invited_by')
+        .eq('id', directReferrerId).maybeSingle()
+      staffId = directReferrerId
+      staffConsumption = refP?.total_consumption || 0
+      if (refP?.invited_by) {
+        const { data: ref2P } = await supabase.from('profiles')
+          .select('total_consumption')
+          .eq('id', refP.invited_by).maybeSingle()
+        referrerId2 = refP.invited_by
+        ref2Consumption = ref2P?.total_consumption || 0
+      }
+    }
+
+    const commissionResult = calculateCommissionV5({
+      orderAmount: totalAmount,
+      discountRate,
+      staffId,
+      staffTotalConsumption: staffConsumption,
+      referrerId: referrerId2,
+      referrerTotalConsumption: ref2Consumption,
+      buyerId: profile.id,
+      buyerTotalConsumption: profile.total_consumption || 0,
+    })
+    await supabase.from('orders').update({
+      l1_commission: commissionResult.l1Commission,
+      l2_commission: commissionResult.l2Commission,
+      buyer_points: Math.round(commissionResult.buyerPoints),
+      platform_income: commissionResult.platformTotalIncome,
+      commission_calculated: true,
+    }).eq('id', orderId)
+    console.log('[V5] 佣金计算完成', commissionResult)
+  } catch (err) {
+    console.error('[V5] 佣金计算失败', err)
+  }
+}
 // 金豆换算比例：1金豆 = 1元（金豆:积分:元 = 1:1:1）
 const GOLD_BEAN_RATE = 1
 
@@ -34,14 +86,13 @@ function PaymentPage() {
   const [isMultiStore, setIsMultiStore] = useState(false)
   const [parentOrderNo, setParentOrderNo] = useState<string | null>(null)
   const [userTotalConsumption, setUserTotalConsumption] = useState(0) // 用户个人累计消费
-  const [userTeamPerformance, setUserTeamPerformance] = useState(0)   // 用户团队业绩（新增）
   const [addresses, setAddresses] = useState<any[]>([])  // 收货地址列表
   const [selectedAddress, setSelectedAddress] = useState<any>(null)  // 选中的地址
 
-  // V5算法：根据用户消费数据计算段位（前端实时计算）
+  // V5算法：根据用户消费数据计算段位（前端实时计算，仅基于个人累计消费）
   const v5RankInfo = useMemo(() => {
     const sortedRanks = [...RANK_CONFIG_TABLE_V5].sort((a, b) => a.minDynamicScore - b.minDynamicScore)
-    const totalScore = userTotalConsumption + userTeamPerformance
+    const totalScore = userTotalConsumption
     // 找到最高满足的段位
     let matched = sortedRanks[0]
     for (const r of sortedRanks) {
@@ -53,7 +104,7 @@ function PaymentPage() {
       l2Ratio: Math.round(matched.l2CommissionRate * 100),
       pointsRatio: Math.round(matched.pointsRate * 100),
     }
-  }, [userTotalConsumption, userTeamPerformance])
+  }, [userTotalConsumption])
 
   // 防重复支付双重锁
   const _payLock = useRef(false)
@@ -63,11 +114,11 @@ function PaymentPage() {
   const loadData = useCallback(async () => {
     const [bal, profile, addrList] = await Promise.all([
       getMyBalance(),
-      getMyProfile().catch(() => null), // 获取用户资料（包含累计消费和团队业绩）
+      getMyProfile().catch(() => null), // 获取用户资料（含累计消费）
       getMyAddresses().catch(() => []),  // 获取收货地址列表
     ])
 
-    setBalance(bal.balance)
+    setBalance(bal.gold_beans)  // 1 金豆 = 1 元；UI 展示与扣减列统一
     setAddresses(addrList)
 
     // 自动选中默认地址
@@ -78,10 +129,6 @@ function PaymentPage() {
     // 个人累计消费
     const totalConsumption = profile?.total_consumption || 0
     setUserTotalConsumption(totalConsumption)
-
-    // 团队业绩（新增）
-    const teamPerformance = profile?.team_performance || 0
-    setUserTeamPerformance(teamPerformance)
 
     if (cartIds.length > 0) {
       const cartItems = await getCartItems()
@@ -124,18 +171,25 @@ function PaymentPage() {
     }
   })
 
-  // 倒计时
+  // 倒计时（P0 修复：超时取消加 status='pending_pay' 守卫，避免覆盖已支付订单）
   useEffect(() => {
     const t = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(t)
-          // 超时取消订单（如果已创建）
+          // 超时取消订单（如果已创建，且仍未支付）
           if (orderNo) {
             supabase.from('orders')
               .update({ status: 'cancelled' })
               .eq('order_no', orderNo)
-              .then(() => console.log('[支付超时] 订单已取消', orderNo))
+              .eq('status', 'pending_pay')  // ⬅ 守卫：已支付/已金豆支付/已取消的订单不被覆盖
+              .then(({ data }) => {
+                if (data && (data as any[]).length > 0) {
+                  console.log('[支付超时] 订单已取消', orderNo)
+                } else {
+                  console.log('[支付超时] 订单状态已变更，跳过取消', orderNo)
+                }
+              })
               .catch(err => console.error('[支付超时] 取消订单失败', err))
           }
           Taro.showModal({ title: '订单超时', content: '支付超时，订单已取消', showCancel: false, success: () => Taro.navigateBack() })
@@ -248,38 +302,19 @@ function PaymentPage() {
         await confirmMultiStoreOrders(parentOrderNo)
       }
       
-      // V5算法：金豆支付成功后计算佣金并写入订单
+      // V5算法：金豆支付成功后计算佣金并写入订单（含真实推荐人段位）
       try {
-        const profile = await getMyProfile()
-        if (profile && orderResult?.order?.id) {
-          const { data: storeData } = await supabase
-            .from('stores')
-            .select('referral_rate')
-            .eq('id', items[0]?.store_id || '')
-            .maybeSingle()
-          const discountRate = (storeData as any)?.referral_rate ?? 0.09
-          const commissionResult = calculateCommissionV5({
-            orderAmount: totalAmount,
-            discountRate,
-            buyerId: profile.id,
-            buyerTotalConsumption: profile.total_consumption || 0,
-            buyerTeamPerformance: (profile as any).team_performance || 0,
-            referrerId: profile.referrer_id || undefined,
-          })
-          await supabase.from('orders').update({
-            l1_commission: commissionResult.l1Commission,
-            l2_commission: commissionResult.l2Commission,
-            buyer_points: Math.round(commissionResult.buyerPoints),
-            platform_income: commissionResult.platformTotalIncome,
-            commission_calculated: true,
-          }).eq('id', orderResult.order.id)
-          console.log('[V5] 金豆支付佣金计算完成', commissionResult)
-        }
+        await runV5Commission(orderResult?.order?.id || '', items[0]?.store_id || '', totalAmount)
       } catch (err) {
         console.error('[V5] 金豆支付佣金计算失败', err)
       }
       
-      setTimeout(() => Taro.redirectTo({ url: '/pages/order-center/index?tab=pending_receive' }), 1500)
+      // 支付成功 → 引导情绪确权（消费即确权路线），由确权页完成/跳过再进订单中心
+      setTimeout(() => {
+        Taro.navigateTo({
+          url: `/pages/emotion-claim/index?orderNo=${encodeURIComponent(orderResult?.order?.order_no || '')}&productId=${encodeURIComponent(items[0]?.id || '')}&storeId=${encodeURIComponent(items[0]?.store_id || '')}`,
+        })
+      }, 1500)
         return
       }
 
@@ -323,38 +358,19 @@ function PaymentPage() {
         await confirmMultiStoreOrders(parentOrderNo)
       }
       
-      // V5算法：支付成功后计算佣金并写入订单
+      // V5算法：支付成功后计算佣金并写入订单（含真实推荐人段位）
       try {
-        const profile = await getMyProfile()
-        if (profile && orderResult?.order?.id) {
-          const { data: storeData } = await supabase
-            .from('stores')
-            .select('referral_rate')
-            .eq('id', items[0]?.store_id || '')
-            .maybeSingle()
-          const discountRate = (storeData as any)?.referral_rate ?? 0.09
-          const commissionResult = calculateCommissionV5({
-            orderAmount: totalAmount,
-            discountRate,
-            buyerId: profile.id,
-            buyerTotalConsumption: profile.total_consumption || 0,
-            buyerTeamPerformance: (profile as any).team_performance || 0,
-            referrerId: profile.referrer_id || undefined,
-          })
-          await supabase.from('orders').update({
-            l1_commission: commissionResult.l1Commission,
-            l2_commission: commissionResult.l2Commission,
-            buyer_points: Math.round(commissionResult.buyerPoints),
-            platform_income: commissionResult.platformTotalIncome,
-            commission_calculated: true,
-          }).eq('id', orderResult.order.id)
-          console.log('[V5] 佣金计算完成', commissionResult)
-        }
+        await runV5Commission(orderResult?.order?.id || '', items[0]?.store_id || '', totalAmount)
       } catch (err) {
         console.error('[V5] 佣金计算失败', err)
       }
       
-      setTimeout(() => Taro.redirectTo({ url: '/pages/order-center/index?tab=pending_receive' }), 1500)
+      // 支付成功 → 引导情绪确权（消费即确权路线），由确权页完成/跳过再进订单中心
+      setTimeout(() => {
+        Taro.navigateTo({
+          url: `/pages/emotion-claim/index?orderNo=${encodeURIComponent(orderResult?.order?.order_no || '')}&productId=${encodeURIComponent(items[0]?.id || '')}&storeId=${encodeURIComponent(items[0]?.store_id || '')}`,
+        })
+      }, 1500)
 
     } catch (err: any) {
       const msg = err?.message || ''
@@ -576,8 +592,9 @@ function PaymentPage() {
         </View>
       </View>
 
-      <View className="mx-4 mt-4 pb-6">
-        <Text className="text-base text-muted-foreground text-center">支付即视为同意《来店有喜交易规则》</Text>
+      <View className="mx-4 mt-4 pb-6"
+        onClick={() => Taro.navigateTo({ url: '/pages/trade-rules/index' })}>
+        <Text className="text-base text-muted-foreground text-center">支付即视为同意<Text className="text-primary">《来店有喜交易规则》</Text></Text>
       </View>
     </View>
   </RouteGuard>)

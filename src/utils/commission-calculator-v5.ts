@@ -1,7 +1,7 @@
 /**
  * V5 流动性二级分销算法（防亏损 + 防刷单版）
  * 基于 V4，新增：
- * 1. 平台最低抽成 5%（让利池先抽）
+ * 1. 平台最低抽成 10%（让利池先抽）
  * 2. 流动一级机制（按单动态）
  * 3. 调整后的段位系数（保证平台收入）
  * 4. 风控检测集成
@@ -38,7 +38,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
   },
   { 
     rank: '外门弟子', 
-    minDynamicScore: 500, 
+    minDynamicScore: 200, 
     l1CommissionRate: 0.45, 
     l2CommissionRate: 0.18, 
     pointsRate: 0.12,
@@ -47,7 +47,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
   },
   { 
     rank: '内门弟子', 
-    minDynamicScore: 2000, 
+    minDynamicScore: 800, 
     l1CommissionRate: 0.50, 
     l2CommissionRate: 0.20, 
     pointsRate: 0.13,
@@ -56,7 +56,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
   },
   { 
     rank: '核心弟子', 
-    minDynamicScore: 5000, 
+    minDynamicScore: 2000, 
     l1CommissionRate: 0.54, 
     l2CommissionRate: 0.22, 
     pointsRate: 0.14,
@@ -65,7 +65,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
   },
   { 
     rank: '长老', 
-    minDynamicScore: 15000, 
+    minDynamicScore: 6000, 
     l1CommissionRate: 0.57, 
     l2CommissionRate: 0.24, 
     pointsRate: 0.15,
@@ -74,7 +74,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
   },
   { 
     rank: '掌门', 
-    minDynamicScore: 50000, 
+    minDynamicScore: 20000, 
     l1CommissionRate: 0.60, 
     l2CommissionRate: 0.25, 
     pointsRate: 0.15,
@@ -85,7 +85,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
 
 // ============ 平台配置 ============
 export const PLATFORM_CONFIG = {
-  MIN_PLATFORM_RATE: 0.05,   // 平台最低抽成 5%
+  MIN_PLATFORM_RATE: 0.10,   // 平台最低抽成 10%
   BINDING_VALID_DAYS: 30,    // 流动一级绑定有效期 30 天
   MAX_ORDERS_PER_DAY: 10,    // 每日订单上限
   MIN_ORDER_FOR_COMMISSION: 5, // 最低计佣订单金额
@@ -99,24 +99,21 @@ export interface CommissionInputV5 {
   // 流动一级（服务人员/推广员）
   staffId?: string | null;        // 服务人员ID
   staffTotalConsumption?: number; // 服务人员个人累计消费
-  staffTeamPerformance?: number;  // 服务人员团队业绩
-  
+
   // 静态二级（推荐人）
   referrerId?: string | null;     // 推荐人ID
   referrerTotalConsumption?: number;
-  referrerTeamPerformance?: number;
-  
+
   // 买家
   buyerId: string;
   buyerTotalConsumption?: number;
-  buyerTeamPerformance?: number;
 }
 
 // ============ 计算结果 ============
 export interface CommissionResultV5 {
   orderAmount: number;
   discountPool: number;          // 让利池
-  platformMinIncome: number;     // 平台最低抽成（5%）
+  platformMinIncome: number;     // 平台最低抽成（10%）
   remainingPool: number;         // 剩余池（让利池 - 平台最低抽成）
   
   l1Commission: number;          // 流动一级佣金
@@ -143,30 +140,27 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
     orderAmount,
     discountRate = 0.09,
     staffTotalConsumption = 0,
-    staffTeamPerformance = 0,
     referrerTotalConsumption = 0,
-    referrerTeamPerformance = 0,
     buyerTotalConsumption = 0,
-    buyerTeamPerformance = 0,
   } = input;
   
   // 1. 计算让利池
   const discountPool = toPrecision(orderAmount * discountRate);
   
-  // 2. 平台最低抽成（5%）
+  // 2. 平台最低抽成（10%）
   const platformMinIncome = toPrecision(discountPool * PLATFORM_CONFIG.MIN_PLATFORM_RATE);
   const remainingPool = toPrecision(discountPool - platformMinIncome);
   
   // 3. 计算段位（按 低→高 排序后遍历）
   const sortedRanks = [...RANK_CONFIG_TABLE_V5].sort((a, b) => a.minDynamicScore - b.minDynamicScore);
   
-  const staffDynamicScore = calculateDynamicScore(staffTotalConsumption, staffTeamPerformance);
+  const staffDynamicScore = calculateDynamicScore(staffTotalConsumption);
   const staffRank = getRankByScore(staffDynamicScore, sortedRanks);
-  
-  const referrerDynamicScore = calculateDynamicScore(referrerTotalConsumption, referrerTeamPerformance);
+
+  const referrerDynamicScore = calculateDynamicScore(referrerTotalConsumption);
   const referrerRank = getRankByScore(referrerDynamicScore, sortedRanks);
-  
-  const buyerDynamicScore = calculateDynamicScore(buyerTotalConsumption, buyerTeamPerformance);
+
+  const buyerDynamicScore = calculateDynamicScore(buyerTotalConsumption);
   const buyerRank = getRankByScore(buyerDynamicScore, sortedRanks);
   
   // 4. 计算佣金（基于剩余池）
@@ -213,14 +207,25 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
 }
 
 // ============ 工具函数 ============
+/**
+ * 计算段位动态分数（V5：仅基于个人累计消费，1:1）
+ * 不再包含团队维度，段位完全由个人消费决定。
+ */
 export function calculateDynamicScore(
-  personalTotalConsumption: number,
-  teamPerformance: number
+  personalTotalConsumption: number
 ): number {
-  const score = 
-    (personalTotalConsumption || 0) * 0.3 +
-    (teamPerformance || 0) * 0.7;
-  return Math.round(score * 100) / 100;
+  return Math.round((personalTotalConsumption || 0) * 100) / 100;
+}
+
+/** 根据动态分数判定段位（导出给页面复用，保证前后端一致） */
+export function getRankByDynamicScoreV5(dynamicScore: number): RankConfigV5 {
+  const score = Math.max(0, dynamicScore || 0)
+  const sortedRanks = [...RANK_CONFIG_TABLE_V5].sort((a, b) => a.minDynamicScore - b.minDynamicScore)
+  let matched = sortedRanks[0]
+  for (const config of sortedRanks) {
+    if (score >= config.minDynamicScore) matched = config
+  }
+  return matched
 }
 
 function getRankByScore(score: number, sortedRanks: RankConfigV5[]): RankConfigV5 {
@@ -249,17 +254,15 @@ export function testV5Algorithm(): void {
     discountRate: 0.10,
     staffId: 'staff-1',
     staffTotalConsumption: 50000,
-    staffTeamPerformance: 50000,
     referrerId: 'ref-1',
     referrerTotalConsumption: 50000,
-    referrerTeamPerformance: 50000,
     buyerId: 'buyer-1',
     buyerTotalConsumption: 50000,
   });
   
   console.log('【全掌门】订单100元，让利率10%');
   console.log('让利池：', result1.discountPool);
-  console.log('平台最低抽成（5%）：', result1.platformMinIncome);
+  console.log('平台最低抽成（10%）：', result1.platformMinIncome);
   console.log('剩余池：', result1.remainingPool);
   console.log('流动一级佣金：', result1.l1Commission, `(${(result1.l1Rate * 100).toFixed(1)}%)`);
   console.log('静态二级佣金：', result1.l2Commission, `(${(result1.l2Rate * 100).toFixed(1)}%)`);
@@ -276,7 +279,7 @@ export function testV5Algorithm(): void {
   
   console.log('\n【全散修】订单100元，让利率10%');
   console.log('让利池：', result2.discountPool);
-  console.log('平台最低抽成（5%）：', result2.platformMinIncome);
+  console.log('平台最低抽成（10%）：', result2.platformMinIncome);
   console.log('剩余池：', result2.remainingPool);
   console.log('平台总收入：', result2.platformTotalIncome, `(${(result2.platformTotalIncome / result2.discountPool * 100).toFixed(1)}%)`);
 }

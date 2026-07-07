@@ -1,0 +1,143 @@
+// 情绪漏斗看板样式（布局为主，颜色走 Tailwind 主题类 + inline 纯色）
+// 进度条宽度的百分比用 inline style（合法）；仅进度条背景用浅灰占位。
+
+.emo-funnel-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emo-funnel-range {
+  padding: 6rpx 26rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid #e5e7eb;
+  background: #fff;
+}
+.emo-funnel-range.active {
+  background: rgba(194, 65, 12, 0.1);
+  border-color: #c2410c;
+}
+.emo-funnel-range-text {
+  font-size: 24rpx;
+  color: #6b7280;
+}
+.emo-funnel-range-text.active {
+  color: #c2410c;
+  font-weight: 700;
+}
+
+.emo-funnel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 64rpx;
+}
+.emo-funnel-empty-icon {
+  font-size: 96rpx;
+}
+.emo-funnel-empty-text {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1f2937;
+  margin-top: 24rpx;
+}
+.emo-funnel-empty-sub {
+  font-size: 26rpx;
+  color: #9ca3af;
+  text-align: center;
+  margin-top: 16rpx;
+  line-height: 1.6;
+}
+
+.emo-funnel-step {
+  margin-top: 32rpx;
+}
+.emo-funnel-step-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.emo-funnel-step-label {
+  font-size: 28rpx;
+  color: #374151;
+}
+.emo-funnel-step-value {
+  font-size: 36rpx;
+  font-weight: 800;
+}
+.emo-funnel-bar-bg {
+  height: 24rpx;
+  border-radius: 999rpx;
+  margin-top: 16rpx;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+.emo-funnel-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  transition: width 0.4s ease;
+}
+.emo-funnel-step-rate {
+  font-size: 24rpx;
+  color: #9ca3af;
+  margin-top: 12rpx;
+  display: block;
+}
+.emo-funnel-overall {
+  margin-top: 32rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx dashed #e5e7eb;
+}
+.emo-funnel-overall-text {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #c2410c;
+}
+
+.emo-funnel-prod {
+  border-radius: 28rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+.emo-funnel-prod-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.emo-funnel-prod-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1f2937;
+}
+.emo-funnel-prod-cta {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #f97316;
+}
+.emo-funnel-prod-bars {
+  margin-top: 20rpx;
+}
+.emo-funnel-mini {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 12rpx;
+}
+.emo-funnel-mini-label {
+  font-size: 22rpx;
+  color: #9ca3af;
+  width: 132rpx;
+  flex-shrink: 0;
+}
+.emo-funnel-mini-bg {
+  flex: 1;
+  height: 12rpx;
+  border-radius: 999rpx;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+.emo-funnel-mini-bar {
+  height: 100%;
+  border-radius: 999rpx;
+}

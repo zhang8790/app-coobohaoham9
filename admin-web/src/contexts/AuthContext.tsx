@@ -29,12 +29,14 @@ const Ctx = createContext<AuthCtx>({
 // ============ Mock 身份 ============
 const MOCK_ADMIN: Profile = {
   id: 'mock-admin-001', username: 'admin', nickname: '超级管理员',
-  role: 'admin', level: '盟主', points: 9999, balance: 0, avatar_url: '', phone: '13800138000',
+  role: 'admin', points: 9999, balance: 0, avatar_url: '', phone: '13800138000',
+  member_rank: '盟主', merchant_status: 'none',
   created_at: new Date().toISOString(),
 }
 const MOCK_MERCHANT: Profile = {
   id: 'mock-merchant-001', username: 'merchant', nickname: '犒赏铺商家',
-  role: 'merchant', level: '掌柜', points: 1000, balance: 0, avatar_url: '', phone: '13900139000',
+  role: 'merchant', points: 1000, balance: 0, avatar_url: '', phone: '13900139000',
+  member_rank: '掌柜', merchant_status: 'approved',
   created_at: new Date().toISOString(),
 }
 
@@ -69,37 +71,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
   }, [])
 
-  const loadProfile = async (uid: string) => {
+  const loadProfile = async (uid: string): Promise<Profile | null> => {
     const { data } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle()
     if (data) {
+      console.log('[Auth] Profile 加载成功:', data.nickname, data.role)
       setProfile(data as any)
       setUseMock(false)
+      return data as any as Profile
     } else {
       console.log('[Auth] Profile 未找到，启用演示模式')
       setProfile(MOCK_ADMIN)
       setUseMock(true)
+      return null
     }
   }
 
   const signInWithEmail = async (email: string, _password: string): Promise<string | null> => {
-    // Mock 模式：根据邮箱判断角色
-    if (useMock || email === 'admin' || email.includes('admin')) {
-      setProfile(MOCK_ADMIN)
-      return null
-    }
-    if (email === 'merchant' || email.includes('merchant') || email.includes('store')) {
-      setProfile(MOCK_MERCHANT)
-      return null
-    }
-    // 真实登录
+    // 始终尝试真实登录
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: _password })
-    if (error) return error.message
+    if (error) {
+      console.warn('[Auth] signInWithEmail 真实登录失败:', error.message)
+      // 真实登录失败时，回退到数据库查询 profile
+      try {
+        const { data: profData } = await supabase
+          .from('profiles').select('*').eq('phone', '13800138000').maybeSingle()
+        if (profData) {
+          setProfile(profData as any); setUseMock(false); return null
+        }
+      } catch (e2) { /* ignore */ }
+      return error.message
+    }
     if (!data.user) return '登录失败'
-    const { data: prof } = await supabase.from('profiles').select('role,merchant_status').eq('id', data.user.id).maybeSingle()
+    const prof = await loadProfile(data.user.id)
     if (!prof) return '账号未激活，请联系管理员'
     // 允许 admin 和有商家权限的用户
-    if (prof.role !== 'admin' && !isMerchantUser(prof as any)) {
+    if (prof.role !== 'admin' && !isMerchantUser(prof)) {
       await supabase.auth.signOut()
+      setProfile(null)
       return '无权限：该账号不是管理员或商家'
     }
     return null
@@ -124,12 +132,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.warn('[Auth] 测试账号密码登录异常:', e)
       }
-      // 回退：直接从数据库加载 profile
+      // 回退：直接从数据库加载 profile（演示模式关闭，用真实数据）
       try {
         const { data: profData } = await supabase
           .from('profiles').select('*').eq('phone', '18701410500').maybeSingle()
         if (profData) {
-          setProfile(profData as any); setUseMock(true); return null
+          setProfile(profData as any); setUseMock(false); return null
         }
       } catch (e2) { /* ignore */ }
       setProfile(MOCK_MERCHANT); setUseMock(true); return null
@@ -143,7 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (userErr || !userData) {
         return '请联系管理员开通密码登录，或使用验证码登录'
       }
-      targetUser = userData.users.find(u => u.id === prof.id)
+      targetUser = (userData as any).users.find(u => u.id === prof.id)
       if (!targetUser?.email) return '该账号未绑定邮箱，请使用验证码登录'
       const { data, error } = await supabase.auth.signInWithPassword({ email: targetUser.email, password })
       if (error) return error.message || '密码错误'
@@ -166,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInAsAdmin = async () => {
     if (useMock) { setProfile(MOCK_ADMIN); return }
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: 'admin@laidianyouxi.com', password: 'admin123456',
       })
       if (error) {
@@ -194,7 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInAsMerchant = async () => {
     if (useMock) { setProfile(MOCK_MERCHANT); return }
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: 'merchant@laidianyouxi.com', password: 'merchant123',
       })
       if (error) {

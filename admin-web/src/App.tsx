@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import Layout from '@/components/Layout'
 import MerchantLayout from '@/components/MerchantLayout'
@@ -21,6 +21,8 @@ import MerchantAds from '@/pages/merchant/Ads'
 import MerchantMessages from '@/pages/merchant/Messages'
 import MerchantWithdraw from '@/pages/merchant/Withdraw'
 import MerchantMembers from '@/pages/merchant/Members'
+import EmotionStudio from '@/pages/merchant/EmotionStudio'
+import EmotionFunnel from '@/pages/merchant/EmotionFunnel'
 
 // ============ 路由守卫 ============
 
@@ -42,7 +44,6 @@ function RequireAuth({ children, requireAdmin = false, requireMerchant = false }
   requireMerchant?: boolean
 }) {
   const { profile, loading } = useAuth()
-  const nav = useNavigate()
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0B0F19' }}>
@@ -119,6 +120,8 @@ export default function App() {
             <Route path="messages" element={<MerchantMessages />} />
             <Route path="withdraw" element={<MerchantWithdraw />} />
             <Route path="members" element={<MerchantMembers />} />
+            <Route path="emotion-studio" element={<EmotionStudio />} />
+            <Route path="emotion-funnel" element={<EmotionFunnel />} />
           </Route>
 
           {/* 兜底：未匹配路由 → 按角色跳转 */}

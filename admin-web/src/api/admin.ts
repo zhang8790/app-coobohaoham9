@@ -23,7 +23,7 @@ export async function testConnection(): Promise<{ ok: boolean; message: string; 
     if (!url) return { ok: false, message: 'VITE_SUPABASE_URL 未配置' }
 
     // 测试 2: 尝试查询（会受 RLS 影响）
-    const { data, error, count } = await supabase
+    const { error, count } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
       .limit(0)
@@ -59,7 +59,7 @@ export async function testConnection(): Promise<{ ok: boolean; message: string; 
 }
 
 // =========== 通用：带降级的查询 ===========
-async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+async function safeQuery<T>(fn: () => PromiseLike<T>, fallback: T): Promise<T> {
   if (USE_MOCK) {
     // mock 模式：API 失败时返回 mock 数据
     try {
@@ -233,7 +233,7 @@ export async function getPendingProducts(page: number, pageSize: number): Promis
       .range(page * pageSize, (page + 1) * pageSize - 1)
     return { data: Array.isArray(data) ? data : [], total: count ?? 0 }
   }, (() => {
-    const data = MOCK_PRODUCTS.filter(p => p.status === 'pending')
+    const data = MOCK_PRODUCTS.filter(p => p.review_status === 'pending')
     return { data: data.slice(page * pageSize, (page + 1) * pageSize), total: data.length }
   })())
 }

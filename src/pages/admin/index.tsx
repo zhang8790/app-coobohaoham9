@@ -46,6 +46,12 @@ function AdminPage() {
     { label: '武林贴管理', sub: 'UGC内容管理', count: stats.ugc, icon: 'i-mdi-newspaper-variant', color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200', url: '/pages/admin-ugc/index' },
   ]
 
+  const platformCards = [
+    { label: '用户管理', sub: '用户/管理员权限', icon: 'i-mdi-account-group', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', url: '/pages/admin-users/index' },
+    { label: '退款管理', sub: '处理退款申请', icon: 'i-mdi-cash-refund', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200', url: '/pages/admin-refunds/index' },
+    { label: '公告管理', sub: '发布/管理公告', icon: 'i-mdi-bullhorn', color: 'text-cyan-700', bg: 'bg-cyan-50', border: 'border-cyan-200', url: '/pages/admin-announcements/index' },
+  ]
+
   return (<RouteGuard>
     <View className="min-h-screen bg-background">
       {/* 导航 */}
@@ -86,6 +92,20 @@ function AdminPage() {
                     <View className={`${c.icon} text-3xl ${c.color}`} />
                     <View className={`text-4xl font-black ${c.color}`}>{c.count}</View>
                   </View>
+                  <Text className="text-2xl font-bold text-foreground">{c.label}</Text>
+                  <Text className="text-xl text-muted-foreground">{c.sub}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* 平台管理 */}
+            <Text className="text-2xl font-bold text-foreground mt-6 mb-4">平台管理</Text>
+            <View className="grid grid-cols-2 gap-3">
+              {platformCards.map(c => (
+                <View key={c.label}
+                  className={`rounded-2xl border-2 ${c.border} ${c.bg} p-4 flex flex-col gap-2`}
+                  onClick={() => Taro.navigateTo({ url: c.url })}>
+                  <View className={`${c.icon} text-3xl ${c.color}`} />
                   <Text className="text-2xl font-bold text-foreground">{c.label}</Text>
                   <Text className="text-xl text-muted-foreground">{c.sub}</Text>
                 </View>

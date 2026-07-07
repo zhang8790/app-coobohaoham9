@@ -1,18 +1,16 @@
 -- ============================================
 -- 更新 claim_campaign 函数（添加锁客逻辑）
--- 执行日期：2026-07-05
+-- 执行日期：2026-07-05（2026-07-07 修正 p_store_id 为 TEXT+双CAST）
 -- ============================================
 
--- 删除旧函数（如果存在）
 DROP FUNCTION IF EXISTS public.claim_campaign CASCADE;
 
--- 创建 claim_campaign 函数（包含锁客逻辑）
 CREATE OR REPLACE FUNCTION public.claim_campaign(
     p_user_id UUID,
     p_campaign_id INTEGER,
-    p_store_id INTEGER,
+    p_store_id TEXT DEFAULT NULL,     -- TEXT 中间层，兼容 INTEGER(user_campaign_claims) 和 UUID(user_store_relation)
     p_device_id VARCHAR DEFAULT NULL,
-    p_referrer_id UUID DEFAULT NULL  -- 推荐人ID
+    p_referrer_id UUID DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -70,7 +68,7 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', '您今天已经领过这个奖励了');
     END IF;
     
-    -- 7. 记录领取
+    -- 7. 记录领取（user_campaign_claims.store_id 是 INTEGER）
     INSERT INTO public.user_campaign_claims (
         user_id, 
         campaign_id, 
@@ -80,7 +78,7 @@ BEGIN
     ) VALUES (
         p_user_id, 
         p_campaign_id, 
-        p_store_id, 
+        CASE WHEN p_store_id IS NOT NULL THEN p_store_id::INTEGER ELSE NULL END,
         p_device_id,
         NOW()
     );
@@ -90,15 +88,13 @@ BEGIN
     SET claimed_count = claimed_count + 1 
     WHERE id = p_campaign_id;
     
-    -- 9. 建立锁客关系（核心逻辑）
-    -- 检查是否已经存在锁客关系
+    -- 9. 建立锁客关系（user_store_relation.store_id 是 UUID）
     SELECT COUNT(*) INTO v_existing_lock
     FROM public.user_store_relation
     WHERE user_id = p_user_id 
-      AND store_id = p_store_id;
+      AND store_id = CASE WHEN p_store_id IS NOT NULL THEN p_store_id::UUID ELSE NULL END;
     
     IF v_existing_lock = 0 THEN
-        -- 不存在锁客关系，新建
         INSERT INTO public.user_store_relation (
             user_id, 
             store_id, 
@@ -109,11 +105,11 @@ BEGIN
             status
         ) VALUES (
             p_user_id,
-            p_store_id,
-            p_referrer_id,  -- 推荐人ID（可能为NULL）
-            'campaign',     -- 锁客来源：活动领取
+            CASE WHEN p_store_id IS NOT NULL THEN p_store_id::UUID ELSE NULL END,
+            p_referrer_id,
+            'campaign',
             NOW(),
-            NOW() + INTERVAL '180 days',  -- 锁客有效期6个月
+            NOW() + INTERVAL '180 days',
             'active'
         );
     END IF;
@@ -125,7 +121,7 @@ BEGIN
         'gift_name', v_campaign.gift_name,
         'gift_value', v_campaign.gift_value,
         'commission_rate', v_campaign.commission_rate,
-        'locked', v_existing_lock = 0  -- 告知前端是否新建了锁客关系
+        'locked', v_existing_lock = 0
     );
     
     RETURN v_result;
@@ -138,8 +134,6 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
--- 添加函数注释
-COMMENT ON FUNCTION public.claim_campaign IS '领取营销活动奖励（包含锁客逻辑）- 2026-07-05更新';
+COMMENT ON FUNCTION public.claim_campaign IS '领取营销活动奖励（含锁客逻辑）- 2026-07-07修正';
 
--- 验证函数创建成功
-SELECT 'claim_campaign 函数已更新（包含锁客逻辑）' AS result;
+SELECT 'claim_campaign 函数已更新' AS result;
