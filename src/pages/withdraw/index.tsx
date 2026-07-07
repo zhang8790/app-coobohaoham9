@@ -44,7 +44,7 @@ function WithdrawPage() {
     const [bal, store, recs] = await Promise.all([
       getMyBalance(), getMerchantStore(), getMyWithdrawals(),
     ])
-    setBalance(bal.balance)
+    setBalance(bal.gold_beans)
     setStoreId(store?.id)
     setRecords(recs)
     setLoading(false)

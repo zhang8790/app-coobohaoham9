@@ -1839,22 +1839,26 @@ export async function getAdminWithdrawals(): Promise<any[]> {
 }
 
 export async function adminApproveWithdrawal(id: string): Promise<boolean> {
+  // 审核通过：扣减用户金豆余额（金豆=余额，单位元，1:1）
+  const w = await supabase.from('withdrawals').select('user_id, amount').eq('id', id).maybeSingle()
+  if (!w.data) return false
+  const { data: prof } = await supabase.from('profiles').select('gold_beans').eq('id', w.data.user_id).maybeSingle()
+  const cur = Number(prof?.gold_beans ?? 0)
+  const amt = Number(w.data.amount)
+  if (cur < amt) {
+    // 余额不足，仅标记异常（不打款），由管理员线下处理
+    await supabase.from('withdrawals').update({ status: 'rejected', remark: '余额不足', updated_at: new Date().toISOString() }).eq('id', id)
+    return false
+  }
+  await supabase.from('profiles').update({ gold_beans: cur - amt, updated_at: new Date().toISOString() }).eq('id', w.data.user_id)
   const { error } = await supabase.from('withdrawals').update({ status: 'paid', updated_at: new Date().toISOString() }).eq('id', id)
   return !error
 }
 
 export async function adminRejectWithdrawal(id: string): Promise<boolean> {
-  // 驳回时退还余额
-  const w = await supabase.from('withdrawals').select('user_id, amount').eq('id', id).maybeSingle()
-  if (!w.data) return false
+  // 申请时未预扣余额，驳回无需退还（避免凭空加钱）
   const { error } = await supabase.from('withdrawals').update({ status: 'rejected', updated_at: new Date().toISOString() }).eq('id', id)
-  if (error) return false
-  // 退还余额至 profiles.balance（现金余额，单位：元，与 withdrawal.amount 一致，1:1）
-  const { data: prof } = await supabase.from('profiles').select('balance').eq('id', w.data.user_id).maybeSingle()
-  const cur = Number(prof?.balance ?? 0)
-  const refundAmount = Number(w.data.amount)
-  await supabase.from('profiles').update({ balance: cur + refundAmount }).eq('id', w.data.user_id)
-  return true
+  return !error
 }
 
 export async function getAdminArticles(): Promise<Article[]> {

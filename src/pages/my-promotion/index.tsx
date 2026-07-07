@@ -83,7 +83,7 @@ function MyPromotionPage() {
           progress: data.progress || 0,
           total_gmv: data.total_gmv || 0,
           points: data.points || 0,
-          balance: data.balance || 0,
+          balance: data.gold_beans || 0,
         })
       } else {
         // 前端降级计算段位（使用V5算法，保持逻辑一致）

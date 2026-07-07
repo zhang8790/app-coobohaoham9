@@ -30,7 +30,7 @@ function AdminUsersPage() {
     setLoading(true)
     try {
         const { data, error } = await withTimeout(
-        supabase.from('profiles').select('id,nickname,phone,member_rank,role,points,balance,created_at').order('created_at', { ascending: false }).limit(100),
+        supabase.from('profiles').select('id,nickname,phone,member_rank,role,points,balance,gold_beans,created_at').order('created_at', { ascending: false }).limit(100),
         8000,
         '[admin-users] load timeout'
       )
@@ -97,7 +97,7 @@ function AdminUsersPage() {
                 </View>
                 <View className="flex flex-col items-end">
                   <Text className="text-xl font-bold text-primary">{u.member_rank || '江湖散修'}</Text>
-                  <Text className="text-base text-muted-foreground">积分 {u.points ?? 0} · 余额 ¥{Number(u.balance ?? 0).toFixed(2)}</Text>
+                  <Text className="text-base text-muted-foreground">积分 {u.points ?? 0} · 金豆 {Number(u.gold_beans ?? 0).toFixed(2)}</Text>
                 </View>
               </View>
               <View className="flex items-center justify-between">
