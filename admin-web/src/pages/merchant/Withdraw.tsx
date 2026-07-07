@@ -49,7 +49,7 @@ export default function MerchantWithdraw() {
     if (!profile) return
     const amt = parseFloat(amount)
     if (!amt || amt < 100) { alert('提现金额不得低于¥100'); return }
-    if (balance && amt > balance.available) { alert('提现金额不得超过可提现余额'); return }
+    if (balance && amt > balance.available) { alert('提现金额不得超过可提现金豆'); return }
     if (!account.trim()) { alert('请输入到账账号'); return }
     setSubmitting(true)
     try {
@@ -125,7 +125,7 @@ export default function MerchantWithdraw() {
                       <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="请输入提现金额" style={{ flex: 1, padding: '12px 16px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 16, outline: 'none' }} />
                       <button onClick={() => balance && setAmount(String(balance.available))} style={{ padding: '12px 16px', background: 'transparent', border: '1px solid #059669', borderRadius: 8, color: '#059669', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>全部</button>
                     </div>
-                    <p style={{ color: '#6B7280', fontSize: 12, marginTop: 6 }}>可提现余额：¥{balance ? balance.available.toFixed(2) : '0.00'}</p>
+                    <p style={{ color: '#6B7280', fontSize: 12, marginTop: 6 }}>可提现金豆：{balance ? balance.available : '0'}</p>
                   </div>
                   <div>
                     <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>到账方式</label>

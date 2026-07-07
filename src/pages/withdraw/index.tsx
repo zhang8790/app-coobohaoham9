@@ -55,7 +55,7 @@ function WithdrawPage() {
   const handleSubmit = async () => {
     const amt = parseFloat(amount)
     if (isNaN(amt) || amt <= 0) { Taro.showToast({ title: '请填写正确的提现金额', icon: 'none' }); return }
-    if (amt > balance) { Taro.showToast({ title: '提现金额不能超过可用余额', icon: 'none' }); return }
+    if (amt > balance) { Taro.showToast({ title: '提现金额不能超过可用金豆', icon: 'none' }); return }
     if (method === 'bank') {
       if (!bankName.trim()) { Taro.showToast({ title: '请填写开户行', icon: 'none' }); return }
       if (!bankAccount.trim()) { Taro.showToast({ title: '请填写银行卡号', icon: 'none' }); return }
@@ -100,7 +100,7 @@ function WithdrawPage() {
 
       {/* 余额卡 */}
       <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)' }}>
-        <Text className="text-xl text-white/80 mb-1">可提现余额（元）</Text>
+        <Text className="text-xl text-white/80 mb-1">可提现金豆（元）</Text>
         <Text className="text-4xl font-bold text-white">{balance.toLocaleString()}<Text className="text-xl ml-1">豆</Text></Text>
         <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}</Text>
       </View>

@@ -57,7 +57,7 @@ function AdminWithdrawalsPage() {
   const handleReject = async (id: string) => {
     Taro.showModal({
       title: '确认驳回',
-      content: '驳回后该提现申请将被关闭，余额退还至用户账户',
+      content: '驳回后该提现申请将被关闭，金豆退还至用户账户',
       success: async (res) => {
         if (!res.confirm) return
         setProcessing(id)

@@ -28,7 +28,7 @@ export default function Withdrawals() {
   }
 
   const handleReject = async (id: string) => {
-    if (!confirm('确认驳回该提现申请？余额将退还至用户账户。')) return
+    if (!confirm('确认驳回该提现申请？金豆将退还至用户账户。')) return
     setProcessing(id)
     await rejectWithdrawal(id)
     setProcessing(null); load()

@@ -1847,7 +1847,7 @@ export async function adminApproveWithdrawal(id: string): Promise<boolean> {
   const amt = Number(w.data.amount)
   if (cur < amt) {
     // 余额不足，仅标记异常（不打款），由管理员线下处理
-    await supabase.from('withdrawals').update({ status: 'rejected', remark: '余额不足', updated_at: new Date().toISOString() }).eq('id', id)
+    await supabase.from('withdrawals').update({ status: 'rejected', remark: '金豆余额不足', updated_at: new Date().toISOString() }).eq('id', id)
     return false
   }
   await supabase.from('profiles').update({ gold_beans: cur - amt, updated_at: new Date().toISOString() }).eq('id', w.data.user_id)

@@ -55,7 +55,7 @@ export default function Users() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['昵称', '手机号', '段位', '积分', '余额', '角色', '注册时间', '操作'].map(h => (
+                {['昵称', '手机号', '段位', '积分', '金豆', '角色', '注册时间', '操作'].map(h => (
                   <th key={h} style={S.th}>{h}</th>
                 ))}
               </tr>
@@ -74,7 +74,7 @@ export default function Users() {
                       </span>
                     </td>
                     <td style={{ ...S.td, color: '#9CA3AF' }}>{u.points}</td>
-                    <td style={{ ...S.td, color: '#9CA3AF' }}>¥{Number(u.balance).toFixed(2)}</td>
+                    <td style={{ ...S.td, color: '#9CA3AF' }}>金豆 {Number(u.balance).toFixed(2)}</td>
                     <td style={S.td}>
                       <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
                         background: u.role === 'admin' ? '#C2410C22' : '#1F2937', color: u.role === 'admin' ? '#C2410C' : '#9CA3AF' }}>

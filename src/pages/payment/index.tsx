@@ -402,7 +402,7 @@ function PaymentPage() {
   const payModes: Array<{ key: PayMode; icon: string; label: string; color: string; desc: string; disabled?: boolean }> = [
     { key: 'wxpay', icon: 'i-mdi-wechat', label: '微信支付', color: '#07C160', desc: `¥${totalAmount.toFixed(2)}` },
     { key: 'hybrid', icon: 'i-mdi-lightning-bolt', label: '金豆+微信混合', color: '#C2410C', desc: `金豆抵 ¥${deductYuan.toFixed(2)}，余付 ¥${wxpayAmount.toFixed(2)}`, disabled: balance <= 0 },
-    { key: 'pure_gold', icon: 'i-mdi-star-circle', label: '纯金豆支付', color: '#D97706', desc: `余额 ${balance} 金豆`, disabled: balance < Math.ceil(totalAmount / GOLD_BEAN_RATE) },
+    { key: 'pure_gold', icon: 'i-mdi-star-circle', label: '纯金豆支付', color: '#D97706', desc: `金豆 ${balance}`, disabled: balance < Math.ceil(totalAmount / GOLD_BEAN_RATE) },
   ]
 
   return (<RouteGuard>

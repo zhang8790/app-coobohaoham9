@@ -11,8 +11,8 @@ function WithdrawRules() {
 
         <View style={{ marginBottom: 16 }}>
           <Text style={{ color: '#E5E7EB', fontWeight: 600, marginBottom: 4 }}>一、可提现范围</Text>
-          <Text>1. 可提现余额为已结算的佣金及金豆收益，待结算金额需结算后方可提现。</Text>
-          <Text>2. 单笔提现最低金额为 ¥1.00，最高不超过账户可用余额。</Text>
+          <Text>1. 可提现金豆为已结算的佣金及金豆收益，待结算金额需结算后方可提现。</Text>
+          <Text>2. 单笔提现最低金额为 ¥1.00，最高不超过账户可用金豆。</Text>
         </View>
 
         <View style={{ marginBottom: 16 }}>
@@ -32,7 +32,7 @@ function WithdrawRules() {
           <Text style={{ color: '#E5E7EB', fontWeight: 600, marginBottom: 4 }}>四、到账周期</Text>
           <Text>1. 提现申请提交后进入审核，审核通常需要 1-3 个工作日。</Text>
           <Text>2. 审核通过后打款，到账时间以各支付渠道为准（一般 1-2 个工作日）。</Text>
-          <Text>3. 审核未通过将退回申请金额至账户余额，可在提现记录查看拒绝原因。</Text>
+          <Text>3. 审核未通过将退回申请金额至账户金豆，可在提现记录查看拒绝原因。</Text>
         </View>
 
         <View style={{ marginBottom: 16 }}>
