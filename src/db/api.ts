@@ -1558,7 +1558,8 @@ export async function getMyPointsLogs(page = 0, limit = 20): Promise<import('./t
 
 /** 获取用户积分&金豆余额（1 金豆 = 1 元） */
 export async function getMyBalance(): Promise<{ points: number; balance: number; gold_beans: number }> {
-  const { data } = await supabase.from('profiles').select('points, balance, gold_beans').maybeSingle()
+  const uid = (await supabase.auth.getUser()).data.user?.id ?? ''
+  const { data } = await supabase.from('profiles').select('points, balance, gold_beans').eq('id', uid).maybeSingle()
   return { points: data?.points ?? 0, balance: data?.balance ?? 0, gold_beans: data?.gold_beans ?? 0 }
 }
 
