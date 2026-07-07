@@ -119,8 +119,8 @@ Deno.serve(async (req: Request) => {
     if (wxRefundAmount === 0) {
       const goldBeansToReturn = Math.floor(refund_amount / 0.01)
       if (goldBeansToReturn > 0) {
-        const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).maybeSingle()
-        await supabase.from('profiles').update({ balance: (profile?.balance ?? 0) + goldBeansToReturn }).eq('id', user.id)
+        const { data: profile } = await supabase.from('profiles').select('gold_beans').eq('id', user.id).maybeSingle()
+        await supabase.from('profiles').update({ gold_beans: (profile?.gold_beans ?? 0) + goldBeansToReturn }).eq('id', user.id)
       }
       // 直接完成退款
       await supabase.from('refunds').update({ status: 'completed', wechat_refund_id: null, completed_at: new Date().toISOString() }).eq('id', refundRecord.id)

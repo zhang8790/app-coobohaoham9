@@ -69,8 +69,8 @@ Deno.serve(async (req: Request) => {
     const isMultiStore = storeGroups.size > 1
 
     // 查用户金豆余额
-    const { data: profile } = await supabase.from('profiles').select('balance, points').eq('id', user.id).maybeSingle()
-    const goldBeanBalance = profile?.balance ?? 0
+    const { data: profile } = await supabase.from('profiles').select('gold_beans, points').eq('id', user.id).maybeSingle()
+    const goldBeanBalance = profile?.gold_beans ?? 0
 
     // 计算金豆抵扣（按总金额计算）
     let goldBeansUsed = 0
@@ -115,9 +115,9 @@ Deno.serve(async (req: Request) => {
     // 扣金豆（如有）— 先扣，失败则回滚
     if (goldBeansUsed > 0) {
       const { error: balErr } = await supabase.from('profiles')
-        .update({ balance: goldBeanBalance - goldBeansUsed })
+        .update({ gold_beans: goldBeanBalance - goldBeansUsed })
         .eq('id', user.id)
-        .gte('balance', goldBeansUsed)
+        .gte('gold_beans', goldBeansUsed)
       if (balErr) return Response.json({ error: '金豆扣减失败，请重试', code: 'GOLD_DEDUCT_FAIL' }, { status: 500, headers: corsHeaders })
     }
 
@@ -194,7 +194,7 @@ Deno.serve(async (req: Request) => {
     } catch (err) {
       // 创建订单失败，回滚金豆
       if (goldBeansUsed > 0) {
-        await supabase.from('profiles').update({ balance: goldBeanBalance }).eq('id', user.id)
+        await supabase.from('profiles').update({ gold_beans: goldBeanBalance }).eq('id', user.id)
       }
       // 删除已创建的订单（回滚）
       for (const order of createdOrders) {
