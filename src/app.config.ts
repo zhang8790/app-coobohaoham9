@@ -118,7 +118,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#FFFBF7',
-    navigationBarTitleText: '来店有喜',
+    navigationBarTitleText: '来电有喜',
     navigationBarTextStyle: 'black',
   },
   // 微信小程序隐私权限声明（基础库 3.7.0+ 要求）

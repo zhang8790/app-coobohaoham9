@@ -118,7 +118,8 @@ function PaymentPage() {
       getMyAddresses().catch(() => []),  // 获取收货地址列表
     ])
 
-    setBalance(bal.gold_beans)  // 1 金豆 = 1 元；UI 展示与扣减列统一
+    // 余额优先取已验证正确的 getMyProfile.gold_beans，getMyBalance 作兜底（双保险防 RLS 偏差导致读成 0）
+    setBalance(profile?.gold_beans ?? bal.gold_beans ?? 0)
     setAddresses(addrList)
 
     // 自动选中默认地址
