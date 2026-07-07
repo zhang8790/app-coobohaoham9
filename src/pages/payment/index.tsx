@@ -119,7 +119,9 @@ function PaymentPage() {
     ])
 
     // 余额优先取已验证正确的 getMyProfile.gold_beans，getMyBalance 作兜底（双保险防 RLS 偏差导致读成 0）
-    setBalance(profile?.gold_beans ?? bal.gold_beans ?? 0)
+    const finalBalance = profile?.gold_beans ?? bal.gold_beans ?? 0
+    console.log('[Payment] balance 加载结果:', { profileGold: profile?.gold_beans, apiGold: bal.gold_beans, final: finalBalance, version: '2026-07-07-v3' })
+    setBalance(finalBalance)
     setAddresses(addrList)
 
     // 自动选中默认地址
