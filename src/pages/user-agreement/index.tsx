@@ -7,12 +7,12 @@ function UserAgreement() {
     <View className="min-h-screen bg-background pb-10">
 
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4" style={{ fontSize: '13px', lineHeight: '2', color: '#9CA3AF' }}>
-        <Text style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 12, lineHeight: 1.5 }}>来店有喜用户服务协议</Text>
+        <Text style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 12, lineHeight: 1.5 }}>来电有喜用户服务协议</Text>
         <Text style={{ color: '#6B7280', fontSize: 12, marginBottom: 16 }}>最近更新日期：2026年7月1日<br/>生效日期：2026年7月1日</Text>
 
         <View style={{ marginBottom: 16 }}>
           <Text style={{ color: '#E5E7EB', fontWeight: 600, marginBottom: 4 }}>一、协议范围</Text>
-          <Text>本协议是您与来店有喜（以下简称「我们」）之间关于使用来店有喜小程序服务所订立的协议。</Text>
+          <Text>本协议是您与来电有喜（以下简称「我们」）之间关于使用来电有喜小程序服务所订立的协议。</Text>
           <Text>使用本小程序前，请您仔细阅读本协议。一旦您完成登录，即视为您已阅读并同意本协议的全部内容。</Text>
         </View>
 
@@ -26,7 +26,7 @@ function UserAgreement() {
 
         <View style={{ marginBottom: 16 }}>
           <Text style={{ color: '#E5E7EB', fontWeight: 600, marginBottom: 4 }}>三、服务内容</Text>
-          <Text>1. 来店有喜是一个本地生活服务平台，为用户提供周边商家优惠信息及消费服务。</Text>
+          <Text>1. 来电有喜是一个本地生活服务平台，为用户提供周边商家优惠信息及消费服务。</Text>
           <Text>2. 我们尽力确保平台信息的真实性，但不对商家提供的商品或服务的质量承担保证责任。</Text>
           <Text>3. 您通过本平台购买的商品或服务，由对应商家直接提供，相关售后由商家负责。</Text>
         </View>

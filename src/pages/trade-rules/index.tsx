@@ -6,12 +6,12 @@ function TradeRules() {
   return (
     <View className="min-h-screen bg-background pb-10">
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4" style={{ fontSize: '13px', lineHeight: '2', color: '#9CA3AF' }}>
-        <Text style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 12, lineHeight: 1.5 }}>来店有喜交易规则</Text>
+        <Text style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 12, lineHeight: 1.5 }}>来电有喜交易规则</Text>
         <Text style={{ color: '#6B7280', fontSize: 12, marginBottom: 16 }}>最近更新日期：2026年7月1日<br/>生效日期：2026年7月1日</Text>
 
         <View style={{ marginBottom: 16 }}>
           <Text style={{ color: '#E5E7EB', fontWeight: 600, marginBottom: 4 }}>一、适用范围</Text>
-          <Text>本规则适用于来店有喜平台内的一切商品/服务交易行为，包括用户下单、支付、核销、退款、评价等环节。</Text>
+          <Text>本规则适用于来电有喜平台内的一切商品/服务交易行为，包括用户下单、支付、核销、退款、评价等环节。</Text>
         </View>
 
         <View style={{ marginBottom: 16 }}>

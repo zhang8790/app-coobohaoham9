@@ -397,7 +397,7 @@ export const mockProducts: Product[] = [
 // 公告
 // =====================
 export let mockAnnouncements: Announcement[] = [
-  { id: 'ann-001', content: '🎉 欢迎来到来店有喜！首单享九折优惠~', is_active: true, sort_order: 1, created_at: new Date().toISOString() },
+  { id: 'ann-001', content: '🎉 欢迎来到来电有喜！首单享九折优惠~', is_active: true, sort_order: 1, created_at: new Date().toISOString() },
   { id: 'ann-002', content: '【新店入驻】茶语轩精品茶饮正式上线，满50减10！', is_active: true, sort_order: 2, created_at: new Date().toISOString() },
   { id: 'ann-003', content: '本周末双倍积分活动，消费即送积分！', is_active: true, sort_order: 3, created_at: new Date().toISOString() },
 ]

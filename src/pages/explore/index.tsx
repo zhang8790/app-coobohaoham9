@@ -147,9 +147,9 @@ export default function ExplorePage() {
 
   // 分享配置：携带推广码
   useShareWithReferral({
-    title: '来店有喜 · 探索江湖好物',
+    title: '来电有喜 · 探索江湖好物',
     path: '/pages/explore/index',
-    timelineTitle: '来店有喜 · 发现品质好物',
+    timelineTitle: '来电有喜 · 发现品质好物',
   })
 
   const handleCatSelect = (cat: string) => {

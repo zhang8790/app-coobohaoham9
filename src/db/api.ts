@@ -232,9 +232,9 @@ export async function getStores(category?: string, page = 0, limit = 20, platfor
     
     // 双重保险：is_platform 字段 + 名称/ID 兜底
     const PLATFORM_STORE_IDS = new Set([
-      'ffffffff-ffff-ffff-ffff-ffffffffffff', // 来店有喜官方店
+      'ffffffff-ffff-ffff-ffff-ffffffffffff', // 来电有喜官方店
     ])
-    const PLATFORM_STORE_NAMES = ['来店有喜官方店', '来店有喜自营店', '平台自营店']
+    const PLATFORM_STORE_NAMES = ['来电有喜官方店', '来电有喜自营店', '平台自营店']
 
     const filtered = all.filter(s => {
       const isPlatformById = PLATFORM_STORE_IDS.has(s.id)
@@ -274,9 +274,9 @@ export async function getStoreCategories(storeId: string): Promise<StoreCategory
 // =====================
 // 自营门店标识（双重保险：ID + 名称）
 const PLATFORM_STORE_IDS = new Set([
-  'ffffffff-ffff-ffff-ffff-ffffffffffff', // 来店有喜官方店
+  'ffffffff-ffff-ffff-ffff-ffffffffffff', // 来电有喜官方店
 ])
-const PLATFORM_STORE_NAMES = ['来店有喜官方店', '来店有喜自营店', '平台自营店']
+const PLATFORM_STORE_NAMES = ['来电有喜官方店', '来电有喜自营店', '平台自营店']
 
 /** 判断商品是否属于自营门店 */
 function isPlatformProduct(p: Product): boolean {
@@ -384,7 +384,7 @@ export async function getNearbyProducts(
       results = results.filter(item => {
         // 判断是否为自营门店商品（通过 store_id 或 store_name 判断）
         const isPlatform = item.store_id === 'ffffffff-ffff-ffff-ffff-ffffffffffff' ||
-          ['来店有喜官方店', '来店有喜自营店', '平台自营店'].includes(item.store_name || '')
+          ['来电有喜官方店', '来电有喜自营店', '平台自营店'].includes(item.store_name || '')
         
         if (platformFilter === 'only') return isPlatform
         return !isPlatform  // exclude
@@ -1573,12 +1573,12 @@ export async function generateQrcode(params:
   if (params.type === 'user') {
     const ref = (params.referral_code || '').toUpperCase().slice(0, 6)
     if (!ref) return null
-    qrContent = `来店有喜·推广码：${ref}\n扫码成为${ref}的推荐用户`
+    qrContent = `来电有喜·推广码：${ref}\n扫码成为${ref}的推荐用户`
   } else {
     const sc = (params.short_code || '').toUpperCase().slice(0, 8)
     const ref = params.referral_code ? (params.referral_code || '').toUpperCase().slice(0, 6) : ''
     if (!sc) return null
-    qrContent = `来店有喜·门店码：${sc}${ref ? `\n推荐人：${ref}` : ''}`
+    qrContent = `来电有喜·门店码：${sc}${ref ? `\n推荐人：${ref}` : ''}`
   }
 
   // 方案1：尝试 Edge Function（生产环境，生成真正的微信小程序码）

@@ -6,7 +6,7 @@ function CommissionRules() {
   return (
     <View className="min-h-screen bg-background pb-10">
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4" style={{ fontSize: '13px', lineHeight: '2', color: '#9CA3AF' }}>
-        <Text style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 12, lineHeight: 1.5 }}>来店有喜佣金规则</Text>
+        <Text style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 12, lineHeight: 1.5 }}>来电有喜佣金规则</Text>
         <Text style={{ color: '#6B7280', fontSize: 12, marginBottom: 16 }}>最近更新日期：2026年7月1日<br/>生效日期：2026年7月1日</Text>
 
         <View style={{ marginBottom: 16 }}>
@@ -46,7 +46,7 @@ function CommissionRules() {
         </View>
 
         <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 20, borderTop: '1px solid #1F2937', paddingTop: 12 }}>
-          完整段位与比例详见《段位规则》。本规则最终解释权归来店有喜平台所有。
+          完整段位与比例详见《段位规则》。本规则最终解释权归来电有喜平台所有。
         </Text>
       </View>
     </View>

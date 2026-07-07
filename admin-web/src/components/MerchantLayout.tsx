@@ -47,7 +47,7 @@ export default function MerchantLayout() {
           {!collapsed && (
             <div>
               <p style={{ color: '#E5E7EB', fontWeight: 700, fontSize: 14, lineHeight: 1 }}>商家中心</p>
-              <p style={{ color: '#6B7280', fontSize: 11, marginTop: 2 }}>来店有喜</p>
+              <p style={{ color: '#6B7280', fontSize: 11, marginTop: 2 }}>来电有喜</p>
             </div>
           )}
         </div>

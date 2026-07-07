@@ -3,9 +3,11 @@
  */
 
 import { useEffect } from 'react'
+import { View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import type { PropsWithChildren } from 'react'
 import { useTabBarPageClass } from '@/hooks/useTabBarPageClass'
+import { useSwipeToHome } from '@/hooks/useSwipeToHome'
 
 import './app.scss'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -15,6 +17,7 @@ import PrivacyModal from '@/components/PrivacyModal'
 
 const App: React.FC = ({ children }: PropsWithChildren<unknown>) => {
   useTabBarPageClass()
+  const { onTouchStart, onTouchEnd } = useSwipeToHome()
 
   // 每次页面显示时检查推广参数（处理从小程序卡片进入的场景）
   useDidShow(() => {
@@ -24,7 +27,9 @@ const App: React.FC = ({ children }: PropsWithChildren<unknown>) => {
   return (
     <AuthProvider>
       <LocationProvider>
-        {children}
+        <View onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+          {children}
+        </View>
         <PrivacyModal />
       </LocationProvider>
     </AuthProvider>

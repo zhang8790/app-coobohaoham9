@@ -92,12 +92,12 @@ export default function ProductPage() {
   // 商品分享携带推广码，好友扫码→锁定为下线
   const shareImage = product?.main_image || product?.image_url || ''
   useShareAppMessage(() => ({
-    title: product ? `【来店有喜】${product.name}，品质好物推荐！` : '来店有喜 · 武侠生活平台',
+    title: product ? `【来电有喜】${product.name}，品质好物推荐！` : '来电有喜 · 武侠生活平台',
     path: `/pages/product/index?id=${encodeURIComponent(id)}${myCode ? `&ref=${myCode}` : ''}`,
     imageUrl: shareImage,
   }))
   useShareTimeline(() => ({
-    title: product ? `【来店有喜】${product.name}` : '来店有喜',
+    title: product ? `【来电有喜】${product.name}` : '来电有喜',
     query: `id=${encodeURIComponent(id)}${myCode ? `&ref=${myCode}` : ''}`,
     imageUrl: shareImage,
   }))

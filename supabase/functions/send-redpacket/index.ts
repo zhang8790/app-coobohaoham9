@@ -27,9 +27,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// 转账场景 ID：1000 = 现金营销（来店有喜新人红包属此类）
+// 转账场景 ID：1000 = 现金营销（来电有喜新人红包属此类）
 const TRANSFER_SCENE_ID = '1000'
-const TRANSFER_REMARK = '来店有喜新人红包'
+const TRANSFER_REMARK = '来电有喜新人红包'
 
 // 商家转账到零钱单笔限额：0.1元 ~ 200元（单位：分）
 const MIN_AMOUNT_FEN = 10

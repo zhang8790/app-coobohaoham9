@@ -70,7 +70,7 @@ Deno.serve(async (req: Request) => {
     const { data } = await wxpay.v3.pay.transactions.jsapi.post({
       mchid: MERCHANT_ID,
       appid: MERCHANT_APP_ID,
-      description: '来店有喜 · 订单支付',
+      description: '来电有喜 · 订单支付',
       out_trade_no: order.order_no,
       notify_url: notifyUrl,
       amount: { total: wxAmount, currency: 'CNY' },

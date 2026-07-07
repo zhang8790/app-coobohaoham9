@@ -40,7 +40,7 @@ export default function EmotionClaimPage() {
 
   // 分享确权卡 → 带邀请码锁客（复用首页进店锁客链路）
   useShareAppMessage(() => ({
-    title: `我在来店有喜给「${product?.name || '好物'}」做了情绪确权 🎭`,
+    title: `我在来电有喜给「${product?.name || '好物'}」做了情绪确权 🎭`,
     path: `/pages/index/index?inviterCode=${inviteCode || ''}`,
     imageUrl: product?.main_image,
   }))

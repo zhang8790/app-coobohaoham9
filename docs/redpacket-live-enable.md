@@ -1,6 +1,6 @@
 # 现金红包「真发钱」上线指南
 
-> 适用：来店有喜小程序 `red_packet` 类活动，领取后通过微信支付 v3「商家转账到零钱」把真实现金打到用户微信零钱。
+> 适用：来电有喜小程序 `red_packet` 类活动，领取后通过微信支付 v3「商家转账到零钱」把真实现金打到用户微信零钱。
 > 代码改动：`supabase/functions/send-redpacket/index.ts`（服务端自取 openid / 防重复 / 金额校验）、`src/pages/campaign-claim/index.tsx`（进页自动补齐 openid）。
 
 ---

@@ -104,16 +104,16 @@ export default function IndexPage() {
   useShareAppMessage(() => {
     const p = shareProductRef.current
     if (p) return {
-      title: `${p.name} · 来店有喜江湖好物`,
+      title: `${p.name} · 来电有喜江湖好物`,
       path: `/pages/product/index?id=${encodeURIComponent(p.id)}${myRef ? `&ref=${myRef}` : ''}`,
       imageUrl: p.imageUrl || undefined,
     }
     return {
-      title: '来店有喜 · 武侠生活平台，好物相候！',
+      title: '来电有喜 · 武侠生活平台，好物相候！',
       path: `/pages/index/index${myRef ? `?ref=${myRef}` : ''}`,
     }
   })
-  useShareTimeline(() => ({ title: '来店有喜 · 武侠江湖，有喜相逢' }))
+  useShareTimeline(() => ({ title: '来电有喜 · 武侠江湖，有喜相逢' }))
 
   // 下拉刷新
   useEffect(() => {
@@ -278,7 +278,7 @@ export default function IndexPage() {
             <View className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
               <Text className="text-white font-bold text-base">喜</Text>
             </View>
-            <Text className="text-2xl font-bold text-foreground">来店有喜</Text>
+            <Text className="text-2xl font-bold text-foreground">来电有喜</Text>
           </View>
 
           {/* 城市选择 */}

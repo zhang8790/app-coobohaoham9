@@ -42,7 +42,7 @@ export const MOCK_ARTICLES: Article[] = [
 ]
 
 export const MOCK_ANNOUNCEMENTS: Announcement[] = [
-  { id: 'an1', content: '来店有喜平台正式上线！', is_active: true, sort_order: 1, created_at: new Date().toISOString() },
+  { id: 'an1', content: '来电有喜平台正式上线！', is_active: true, sort_order: 1, created_at: new Date().toISOString() },
   { id: 'an2', content: '全平台满减活动进行中', is_active: true, sort_order: 2, created_at: new Date(Date.now()-864e5).toISOString() },
   { id: 'an3', content: '将于今晚凌晨2点进行系统维护', is_active: false, sort_order: 3, created_at: new Date(Date.now()-2*864e5).toISOString() },
 ]

@@ -39,7 +39,7 @@ function MyPromotionPage() {
   const [error, setError] = useState<string>('')  // 添加错误状态
 
   // 分享配置
-  const shareTitle = `我在"来店有喜"找到了好东西，用我的推广码${referralCode}注册，享首单优惠！`
+  const shareTitle = `我在"来电有喜"找到了好东西，用我的推广码${referralCode}注册，享首单优惠！`
   const sharePath = `/pages/index/index?ref=${referralCode}`
   useShareAppMessage(() => ({ title: shareTitle, path: sharePath }))
   useShareTimeline(() => ({ title: shareTitle }))
@@ -185,7 +185,7 @@ function MyPromotionPage() {
   }
 
   const handleShareLink = () => {
-    const link = `来店有喜 - 武侠生活平台，专属推广码：${referralCode}，下载并使用我的推广码注册享优惠！`
+    const link = `来电有喜 - 武侠生活平台，专属推广码：${referralCode}，下载并使用我的推广码注册享优惠！`
     Taro.setClipboardData({ data: link, success: () =>
       Taro.showToast({ title: '推广链接已复制', icon: 'success' })
     })

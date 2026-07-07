@@ -222,7 +222,7 @@ function SettingsPage() {
           { label: '段位规则', handler: () => Taro.navigateTo({ url: '/pages/rank-rules/index' }) },
           { label: '积分规则', handler: () => Taro.navigateTo({ url: '/pages/points-rules/index' }) },
           { label: '商家入驻协议', handler: () => Taro.navigateTo({ url: '/pages/merchant-agreement/index' }) },
-          { label: '版本信息', handler: () => Taro.showToast({ title: 'v1.0.0 来店有喜', icon: 'none' }) },
+          { label: '版本信息', handler: () => Taro.showToast({ title: 'v1.0.0 来电有喜', icon: 'none' }) },
         ].map(item => (
           <View key={item.label} className="flex items-center justify-between px-4 py-4 border-b border-border last:border-0"
             onClick={item.handler}>

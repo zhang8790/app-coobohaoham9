@@ -171,12 +171,12 @@ function MerchantCenterPage() {
 
   // 分享配置：携带门店链接（用于锁客）
   useShareAppMessage(() => ({
-    title: `${store?.name || '来店有喜'} · 扫码进店购物`,
+    title: `${store?.name || '来电有喜'} · 扫码进店购物`,
     path: store ? `/pages/store-home/index?id=${store.id}` : '/pages/reward-shop/index',
     imageUrl: store?.image_url || '',
   }))
   useShareTimeline(() => ({
-    title: `${store?.name || '来店有喜'} · 好店推荐，扫码进店`,
+    title: `${store?.name || '来电有喜'} · 好店推荐，扫码进店`,
     query: store ? `id=${store.id}` : '',
   }))
 

@@ -7,7 +7,7 @@ function PrivacyPolicy() {
     <View className="min-h-screen bg-background pb-10">
 
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4" style={{ fontSize: '13px', lineHeight: '2', color: '#9CA3AF' }}>
-        <Text style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 12, lineHeight: 1.5 }}>来店有喜隐私政策</Text>
+        <Text style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 12, lineHeight: 1.5 }}>来电有喜隐私政策</Text>
         <Text style={{ color: '#6B7280', fontSize: 12, marginBottom: 16 }}>最近更新日期：2026年7月1日<br/>生效日期：2026年7月1日</Text>
 
         <View style={{ marginBottom: 16 }}>
@@ -62,7 +62,7 @@ function PrivacyPolicy() {
         </View>
 
         <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 20, borderTop: '1px solid #1F2937', paddingTop: 12 }}>
-          来店有喜保留随时修改本政策的权利，修改后的政策将在小程序内公布并生效。
+          来电有喜保留随时修改本政策的权利，修改后的政策将在小程序内公布并生效。
         </Text>
       </View>
     </View>

@@ -103,7 +103,7 @@ function CampaignClaimPage() {
     return { title, path, imageUrl: '' }
   })
   useShareTimeline(() => ({
-    title: '来店有喜 · 限时福利，速来领取',
+    title: '来电有喜 · 限时福利，速来领取',
     query: `campaignId=${campaignId}${myCode ? `&ref=${myCode}` : ''}`,
   }))
 

@@ -58,9 +58,9 @@ export default function RewardShopPage() {
   }, [])
   // 分享配置：携带推广码
   useShareWithReferral({
-    title: '来店有喜 · 犒赏铺，品质门店推荐',
+    title: '来电有喜 · 犒赏铺，品质门店推荐',
     path: '/pages/reward-shop/index',
-    timelineTitle: '来店有喜 · 发现身边好店',
+    timelineTitle: '来电有喜 · 发现身边好店',
   })
 
   const getStoreImage = (store: Store): string | null => {

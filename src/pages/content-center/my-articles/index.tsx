@@ -26,14 +26,14 @@ export default function MyArticlesPage() {
   // 分享：携带推广码锁定下线，动态返回文章标题
   useShareAppMessage(() => ({
     title: shareArticle
-      ? `【来店有喜】${shareArticle.title}`
-      : '我在来店有喜发现了好内容，快来看看！',
+      ? `【来电有喜】${shareArticle.title}`
+      : '我在来电有喜发现了好内容，快来看看！',
     path: `/pages/content-center/my-articles/index${shareArticle ? `?articleId=${shareArticle.id}` : ''}`,
   }))
   useShareTimeline(() => ({
     title: shareArticle
-      ? `【来店有喜】${shareArticle.title}`
-      : '来店有喜 · 武侠生活平台',
+      ? `【来电有喜】${shareArticle.title}`
+      : '来电有喜 · 武侠生活平台',
   }))
 
   const loadArticles = useCallback(async () => {

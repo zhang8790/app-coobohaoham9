@@ -147,7 +147,7 @@ export default function LoginPage() {
             <Text className="text-white font-bold text-xl">喜</Text>
           </View>
           <View>
-            <Text className="text-3xl font-bold text-foreground">来店有喜</Text>
+            <Text className="text-3xl font-bold text-foreground">来电有喜</Text>
             <Text className="text-xl text-muted-foreground mt-1">武侠江湖，有喜相逢</Text>
           </View>
         </View>

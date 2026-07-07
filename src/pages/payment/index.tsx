@@ -595,7 +595,7 @@ function PaymentPage() {
 
       <View className="mx-4 mt-4 pb-6"
         onClick={() => Taro.navigateTo({ url: '/pages/trade-rules/index' })}>
-        <Text className="text-base text-muted-foreground text-center">支付即视为同意<Text className="text-primary">《来店有喜交易规则》</Text></Text>
+        <Text className="text-base text-muted-foreground text-center">支付即视为同意<Text className="text-primary">《来电有喜交易规则》</Text></Text>
       </View>
     </View>
   </RouteGuard>)

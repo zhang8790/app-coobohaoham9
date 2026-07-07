@@ -23,7 +23,7 @@ export default function ArticleDetailPage() {
 
   // 分享钩子
   useShareWithReferral({
-    title: article?.title || '来店有喜 - 好文推荐',
+    title: article?.title || '来电有喜 - 好文推荐',
     path: `/pages/article-detail/index?id=${articleId}`,
     imageUrl: article?.cover_image || '',
   })
@@ -337,7 +337,7 @@ export default function ArticleDetailPage() {
         {/* ===== 底部账号信息（公众号风格） ===== */}
         <View className="account-footer">
           <View className="account-line" />
-          <Text className="account-name">来店有喜</Text>
+          <Text className="account-name">来电有喜</Text>
           <Text className="account-desc">武侠生活 · 好物推荐</Text>
         </View>
 

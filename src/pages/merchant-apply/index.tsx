@@ -134,7 +134,7 @@ function MerchantApplyPage() {
           <Text className="text-xl font-bold text-foreground">商家入驻申请</Text>
         </View>
         <Text className="text-xl text-secondary leading-relaxed">
-          加入来店有喜商家联盟，覆盖百万本地用户，坐享流量红利。填写信息后1-3个工作日完成审核。
+          加入来电有喜商家联盟，覆盖百万本地用户，坐享流量红利。填写信息后1-3个工作日完成审核。
         </Text>
       </View>
 

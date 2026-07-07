@@ -127,7 +127,7 @@ export default function Login() {
                 />
               </svg>
             </div>
-            <span style={{ color: '#F9FAFB', fontWeight: 700, fontSize: 20 }}>来店有喜</span>
+            <span style={{ color: '#F9FAFB', fontWeight: 700, fontSize: 20 }}>来电有喜</span>
           </div>
           <h1 style={{ color: '#F9FAFB', fontSize: 22, fontWeight: 700, margin: 0 }}>欢迎回来</h1>
           <p style={{ color: '#6B7280', fontSize: 14, marginTop: 6 }}>商家管理中心</p>
