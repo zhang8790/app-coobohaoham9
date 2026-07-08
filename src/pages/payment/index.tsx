@@ -319,7 +319,7 @@ function PaymentPage() {
       // 支付成功 → 引导情绪确权（消费即确权路线），由确权页完成/跳过再进订单中心
       setTimeout(() => {
         Taro.navigateTo({
-          url: `/pages/emotion-claim/index?orderNo=${encodeURIComponent(orderResult?.order?.order_no || '')}&productId=${encodeURIComponent(items[0]?.id || '')}&storeId=${encodeURIComponent(items[0]?.store_id || '')}`,
+          url: `/pages/emotion-claim/index?orderNo=${encodeURIComponent(orderResult?.order?.order_no || '')}&productId=${encodeURIComponent(items[0]?.product_id || '')}&storeId=${encodeURIComponent(items[0]?.store_id || '')}`,
         })
       }, 1500)
         return
@@ -375,7 +375,7 @@ function PaymentPage() {
       // 支付成功 → 引导情绪确权（消费即确权路线），由确权页完成/跳过再进订单中心
       setTimeout(() => {
         Taro.navigateTo({
-          url: `/pages/emotion-claim/index?orderNo=${encodeURIComponent(orderResult?.order?.order_no || '')}&productId=${encodeURIComponent(items[0]?.id || '')}&storeId=${encodeURIComponent(items[0]?.store_id || '')}`,
+          url: `/pages/emotion-claim/index?orderNo=${encodeURIComponent(orderResult?.order?.order_no || '')}&productId=${encodeURIComponent(items[0]?.product_id || '')}&storeId=${encodeURIComponent(items[0]?.store_id || '')}`,
         })
       }, 1500)
 
