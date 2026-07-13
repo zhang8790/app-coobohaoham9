@@ -1,4 +1,4 @@
-// @title 会员管理（商家端）—— 展示本店真实锁客名单
+// @title 会员管理（商家端）—— 展示本店真实归属客户名单
 import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Input, Button, Image } from '@tarojs/components'
@@ -18,11 +18,11 @@ interface LockedMember {
 }
 
 const LOCK_TYPE_LABEL: Record<string, string> = {
-  first_order: '首单锁客',
+  first_order: '首单绑定',
   scan: '扫码进店',
-  share: '分享锁客',
-  invite: '邀请锁客',
-  campaign: '红包锁客',
+  share: '分享绑定',
+  invite: '邀请绑定',
+  campaign: '红包绑定',
 }
 
 function MerchantMembersPage() {
@@ -39,12 +39,12 @@ function MerchantMembersPage() {
         if (!s) { setLoading(false); return }
         if (!cancelled) setStore(s)
 
-        // 查询本店真实锁客名单（走脱敏 RPC，明文手机号不下发客户端）
+        // 查询本店真实归属客户名单（走脱敏 RPC，明文手机号不下发客户端）
         const { data, error } = await supabase
           .rpc('get_store_locked_members', { p_store_id: s.id })
 
         if (error) {
-          console.error('[Members] 查询锁客失败', error)
+          console.error('[Members] 查询客户失败', error)
           if (!cancelled) setMembers([])
         } else {
           const list: LockedMember[] = (data || []).map((r: any) => ({
@@ -87,7 +87,7 @@ function MerchantMembersPage() {
       <View className="flex gap-3 px-4 mt-3 items-center">
         <View className="flex-1 bg-card rounded-2xl border border-border p-3 text-center">
           <Text className="text-2xl font-bold text-primary">{members.length}</Text>
-          <Text className="text-xs text-muted-foreground">本店锁客数</Text>
+          <Text className="text-xs text-muted-foreground">本店客户数</Text>
         </View>
         <View className="flex-[2] border-2 border-input rounded-xl px-3 py-2 flex items-center bg-background">
           <View className="i-mdi-magnify text-lg text-muted-foreground mr-2" />
@@ -96,7 +96,7 @@ function MerchantMembersPage() {
         </View>
       </View>
 
-      {/* 锁客列表（真实数据） */}
+      {/* 客户列表（真实数据） */}
       {loading ? (
         <View className="flex items-center justify-center py-20">
           <View className="i-mdi-loading text-4xl text-primary animate-spin" />
@@ -104,8 +104,8 @@ function MerchantMembersPage() {
       ) : filtered.length === 0 ? (
         <View className="flex flex-col items-center justify-center py-20 gap-3">
           <View className="i-mdi-account-group text-5xl text-muted-foreground/30" />
-          <Text className="text-base text-muted-foreground">暂无锁客</Text>
-          <Text className="text-sm text-muted-foreground/50">用户领取本店红包或扫码进店即会锁定在此</Text>
+          <Text className="text-base text-muted-foreground">暂无绑定会员</Text>
+          <Text className="text-sm text-muted-foreground/50">用户领取本店红包或扫码进店即会归入本店会员</Text>
         </View>
       ) : (
         <View className="px-4 mt-3">
@@ -122,13 +122,13 @@ function MerchantMembersPage() {
                 <View className="flex items-center gap-2">
                   <Text className="text-base font-bold text-foreground">{m.nickname}</Text>
                   <View className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 text-xs">
-                    {LOCK_TYPE_LABEL[m.lock_type] || '已锁客'}
+                    {LOCK_TYPE_LABEL[m.lock_type] || '已绑定'}
                   </View>
                 </View>
                 <Text className="text-sm text-muted-foreground">{m.phone_masked}</Text>
               </View>
               <View className="text-right">
-                <Text className="text-xs text-muted-foreground">锁定于</Text>
+                <Text className="text-xs text-muted-foreground">绑定于</Text>
                 <Text className="text-sm text-foreground">{(m.locked_at || '').slice(0, 10)}</Text>
               </View>
             </View>

@@ -11,6 +11,7 @@ import {
   EMOTION_DIMENSION_LABELS, recommendDimensions, getDimensionTag,
 } from '@/utils/emotion-dimensions'
 import { applyThreeStage } from '@/utils/emotion-compile-rules'
+import { generateEmotionStages, generateEmotionHeadline } from '@/utils/emotion-description'
 import { initEmotionTracker, trackEmotionEvent } from '@/utils/emotion-analytics'
 
 type DimKey = 'function' | 'scene' | 'emotion' | 'identity' | 'sensory'
@@ -48,7 +49,15 @@ export default function EmotionDetailPage() {
   // 解析三阶段文案 + 五维标签（优先云端编译，否则本地降级）
   const parsed = useMemo(() => {
     const empty: Record<DimKey, string[]> = { function: [], scene: [], emotion: [], identity: [], sensory: [] }
-    if (!product) return { stage1: '', stage2: '', stage3: '', title: '', dims: empty, hasCompiled: false, source: '' }
+    if (!product) return { stage1: '', stage2: '', stage3: '', title: '', headline: '', dims: empty, hasCompiled: false, source: '' }
+
+    // v3.1 AI 卖点标题：屏3 商品揭晓时作为「一句话卖点」呈现（emoji + 情绪修饰短句）
+    const headline = generateEmotionHeadline(
+      product,
+      product.mood_tags || [],
+      product.scene_tags || [],
+      product.stores?.category || undefined,
+    )
 
     // 有云端编译结果
     if (emo && (emo.emotion_detail || (emo.dimension_tags && Object.keys(emo.dimension_tags).length))) {
@@ -62,10 +71,16 @@ export default function EmotionDetailPage() {
       if (parts.length >= 3) { stage1 = parts[0]; stage2 = parts[1]; stage3 = parts.slice(2).join(' ') }
       else if (parts.length === 2) { stage1 = parts[0]; stage2 = parts[1] }
       else if (parts.length === 1) { stage2 = parts[0] }
-      return { stage1, stage2, stage3, title: emo.emotion_title || '', dims, hasCompiled: true, source: emo.compiled_by || 'rule' }
+      return { stage1, stage2, stage3, title: emo.emotion_title || '', headline, dims, hasCompiled: true, source: emo.compiled_by || 'rule' }
     }
 
-    // 降级：本地规则生成（保证每个商品都能走完五屏）
+    // 降级：用商品身份前置引擎生成差异化三阶段文案（保证每个商品内容不同）
+    const stages = generateEmotionStages(
+      product,
+      product.mood_tags || [],
+      product.scene_tags || [],
+      product.stores?.category || undefined,
+    )
     const rec = recommendDimensions(`${product.name} ${product.description ?? ''}`)
     const dims: Record<DimKey, string[]> = {
       function: rec.function || [],
@@ -74,12 +89,16 @@ export default function EmotionDetailPage() {
       identity: rec.identity || [],
       sensory: rec.sensory || [],
     }
-    const t = applyThreeStage({
-      functionAttr: dims.function.length ? dims.function.join('、') : (product.name || ''),
-      scene: dims.scene.length ? dims.scene[0] : '',
-      emotionSatisfaction: dims.emotion.length ? dims.emotion[0] : '',
-    })
-    return { stage1: t.stage1, stage2: t.stage2, stage3: t.stage3, title: '情绪之旅', dims, hasCompiled: false, source: 'rule' }
+    return {
+      stage1: stages.stage1,
+      stage2: stages.stage2,
+      stage3: stages.stage3,
+      title: stages.title,
+      headline,
+      dims,
+      hasCompiled: false,
+      source: 'stages',
+    }
   }, [product, emo])
 
   const handleBack = () => {
@@ -205,6 +224,8 @@ export default function EmotionDetailPage() {
           </View>
           <View className="emo-content emo-center">
             <Text className="emo-headline emo-headline-mid">它，正好接住了此刻的你</Text>
+            {/* v3.1 AI 卖点标题：情绪钩子之后的「一句话卖点」，落到具体商品角度 */}
+            {parsed.headline && <Text className="emo-sellpoint">{parsed.headline}</Text>}
             <Text className="emo-subline">{product.name}</Text>
           </View>
           <View className="emo-swipe-hint" onClick={goNext}>
@@ -242,6 +263,8 @@ export default function EmotionDetailPage() {
 
             <View className="emo-fact-card">
               <Text className="emo-fact-name">{product.name}</Text>
+              {/* v3.1 AI 卖点标题：信任闭环里再落一次情绪角度，临门一脚 */}
+              {parsed.headline && <Text className="emo-fact-tagline">{parsed.headline}</Text>}
               {product.description && <Text className="emo-fact-desc">商家原话：{product.description}</Text>}
               <View className="emo-fact-bottom">
                 <View className="emo-price">

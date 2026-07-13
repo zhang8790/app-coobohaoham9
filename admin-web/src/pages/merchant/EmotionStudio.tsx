@@ -11,6 +11,14 @@ import {
   localCompileEmotion,
   type ScoreResult,
 } from '@/utils/emotion'
+import {
+  SHIYANG_CATEGORIES,
+  SHIYANG_DIMENSION_KEY,
+  SHIYANG_DIMENSION_LABEL,
+  SHIYANG_DIMENSION_MAX,
+  generateShiyangCopy,
+  toShiyangTags,
+} from '@/utils/shiyang'
 
 const CARD = '#111827'
 const BORDER = '#1F2937'
@@ -27,6 +35,9 @@ export default function EmotionStudio() {
   const [compiling, setCompiling] = useState(false)
   const [result, setResult] = useState<{ title: string; detail: string } | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  // 食养成分打标（与小程序端共用 product_emotion.shiyang_tags / shiyang_copy 同一 DB 列）
+  const [shiyangDims, setShiyangDims] = useState<string[]>([])
+  const [shiyangCopy, setShiyangCopy] = useState<string>('')
 
   const isMerchantUser = profile?.merchant_status === 'approved' || profile?.role === 'merchant'
 
@@ -65,6 +76,9 @@ export default function EmotionStudio() {
         ? { title: p.product_emotion.emotion_title, detail: p.product_emotion.emotion_detail || '' }
         : null,
     )
+    const sy = p.product_emotion?.shiyang_tags?.[SHIYANG_DIMENSION_KEY] || []
+    setShiyangDims(sy)
+    setShiyangCopy(p.product_emotion?.shiyang_copy || (sy.length ? generateShiyangCopy({ ingredients: sy }).cardDetail : ''))
   }
 
   function toggleTag(dim: string, zh: string) {
@@ -75,6 +89,19 @@ export default function EmotionStudio() {
       else if (cur.length < EMOTION_DIMENSION_MAX) cur.push(zh)
       return { ...prev, [dim]: cur }
     })
+  }
+
+  // 食养成分标签切换（最多 SHIYANG_DIMENSION_MAX 个，切换后自动生成合规文案）
+  function toggleShiyangTag(zh: string) {
+    const on = shiyangDims.includes(zh)
+    if (!on && shiyangDims.length >= SHIYANG_DIMENSION_MAX) {
+      setFlash(`最多选 ${SHIYANG_DIMENSION_MAX} 个食材`)
+      setTimeout(() => setFlash(null), 3000)
+      return
+    }
+    const next = on ? shiyangDims.filter((t) => t !== zh) : [...shiyangDims, zh]
+    setShiyangDims(next)
+    setShiyangCopy(next.length ? generateShiyangCopy({ ingredients: next }).cardDetail : '')
   }
 
   // 实时评分
@@ -138,22 +165,33 @@ export default function EmotionStudio() {
       const { error } = await supabase.from('product_emotion').upsert(
         {
           product_id: active.id,
-          store_id: storeId,
           dimension_tags: selected,
           quality_score: score.total,
           emotion_title: result?.title ?? null,
           emotion_detail: result?.detail ?? null,
-          review_status: 'draft',
+          shiyang_tags: toShiyangTags(shiyangDims),
+          shiyang_copy: shiyangDims.length ? (shiyangCopy || generateShiyangCopy({ ingredients: shiyangDims }).cardDetail) : null,
         },
         { onConflict: 'product_id' },
       )
       if (error) throw error
-      setFlash('💾 已保存五维标签与编译分（' + score.total + '分）')
+      setFlash('💾 已保存五维标签、食养成分与编译分（' + score.total + '分）')
       // 本地同步
       setProducts((prev) =>
         prev.map((p) =>
           p.id === active.id
-            ? { ...p, product_emotion: { ...p.product_emotion, dimension_tags: selected, quality_score: score.total, emotion_title: result?.title ?? null, emotion_detail: result?.detail ?? null } }
+            ? {
+                ...p,
+                product_emotion: {
+                  ...p.product_emotion,
+                  dimension_tags: selected,
+                  quality_score: score.total,
+                  emotion_title: result?.title ?? null,
+                  emotion_detail: result?.detail ?? null,
+                  shiyang_tags: toShiyangTags(shiyangDims),
+                  shiyang_copy: shiyangDims.length ? (shiyangCopy || generateShiyangCopy({ ingredients: shiyangDims }).cardDetail) : null,
+                },
+              }
             : p,
         ),
       )
@@ -226,6 +264,7 @@ export default function EmotionStudio() {
                 <div style={{ flexShrink: 0, textAlign: 'center' }}>
                   <div style={{ fontSize: 34, fontWeight: 800, color: tierColor, lineHeight: 1 }}>{score.total}</div>
                   <div style={{ color: muted, fontSize: 11, marginTop: 4 }}>编译分 / 100</div>
+                  <div style={{ color: '#A78BFA', fontSize: 11, marginTop: 4 }}>🌿 食养 {shiyangDims.length}/{SHIYANG_DIMENSION_MAX}</div>
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ color: tierColor, fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>{tierText}</p>
@@ -281,6 +320,55 @@ export default function EmotionStudio() {
                     </div>
                   )
                 })}
+              </div>
+
+              {/* 食养成分打标 */}
+              <div style={{ background: CARD, borderRadius: 12, border: `1px solid ${BORDER}`, padding: 16, marginTop: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ color: '#C4B5FD', fontSize: 14, fontWeight: 700 }}>🌿 {SHIYANG_DIMENSION_LABEL}打标</span>
+                  <span style={{ color: muted, fontSize: 11 }}>{shiyangDims.length}/{SHIYANG_DIMENSION_MAX}</span>
+                </div>
+                <p style={{ color: muted, fontSize: 12, margin: '0 0 12px' }}>最多选 {SHIYANG_DIMENSION_MAX} 个食材，食养文案自动套合规措辞（传统食养参考，不替代医疗）</p>
+                {Object.entries(SHIYANG_CATEGORIES).map(([catKey, cat]) => (
+                  <div key={catKey} style={{ marginBottom: 14 }}>
+                    <div style={{ color: fg, fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{cat.label}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {cat.tags.map((t) => {
+                        const on = shiyangDims.includes(t.zh)
+                        return (
+                          <button
+                            key={t.zh}
+                            onClick={() => toggleShiyangTag(t.zh)}
+                            disabled={!on && shiyangDims.length >= SHIYANG_DIMENSION_MAX}
+                            style={{
+                              padding: '6px 12px', borderRadius: 999, fontSize: 13, cursor: 'pointer',
+                              border: `1px solid ${on ? t.color : BORDER}`,
+                              background: on ? t.color + '22' : 'transparent',
+                              color: on ? t.color : muted,
+                              opacity: !on && shiyangDims.length >= SHIYANG_DIMENSION_MAX ? 0.4 : 1,
+                            }}
+                          >
+                            {t.icon} {t.zh}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+                {/* 食养文案（合规自动生成，可微调） */}
+                <div style={{ marginTop: 4 }}>
+                  <p style={{ color: '#C4B5FD', fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>食养卡片文案</p>
+                  <textarea
+                    value={shiyangCopy}
+                    onChange={(e) => setShiyangCopy(e.target.value)}
+                    placeholder="选择食材后自动生成合规食养文案，可手动微调"
+                    disabled={shiyangDims.length === 0}
+                    style={{ width: '100%', minHeight: 88, resize: 'vertical', background: '#0B1220', color: fg, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 10, fontSize: 13, lineHeight: 1.7, fontFamily: 'inherit' }}
+                  />
+                  {shiyangDims.length > 0 && (
+                    <p style={{ color: muted, fontSize: 11, margin: '6px 0 0', lineHeight: 1.6 }}>以上为传统食养文化参考，个体差异较大，不能替代专业医疗建议。如身体不适应及时休息，症状持续或加重请及时就医。</p>
+                  )}
+                </div>
               </div>
 
               {/* 编译结果 */}

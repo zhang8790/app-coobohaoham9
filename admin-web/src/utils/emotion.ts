@@ -185,7 +185,7 @@ export interface ScoreResult {
 }
 
 const DEFAULT_HOLLOW_WORDS = ['治愈', '松弛感', '松弛', '小确幸', '氛围感', '治愈系']
-const AD_ILLEGAL_WORDS = ['国家级', '最高级', '最佳', '第一', '顶级', '极品', '万能', '100%', '绝对', '唯一']
+const AD_ILLEGAL_WORDS = ['国家级', '最高级', '最佳', '最好', '第一', '顶级', '极品', '万能', '100%', '绝对', '唯一']
 
 export function scoreCompilation(input: CompileScoreInput): ScoreResult {
   const hollow = input.hollowWords ?? DEFAULT_HOLLOW_WORDS

@@ -32,21 +32,26 @@ function ReviewPage() {
   const load = useCallback(async () => {
     if (!orderId) return
     setLoading(true)
-    const orders = await getOrders('pending_review' as any)
-    const found = orders.find(o => o.id === orderId)
-    if (found) {
-      setOrder(found)
-      setReviews((found.order_items || []).map(item => ({
-        order_item_id: item.id,
-        product_id: item.product_id ?? null,
-        product_name: item.product_name,
-        product_image: item.product_image ?? null,
-        rating: 5,
-        content: '',
-        mood_tags: [],
-      })))
+    try {
+      const orders = await getOrders('pending_review' as any)
+      const found = orders.find(o => o.id === orderId)
+      if (found) {
+        setOrder(found)
+        setReviews((found.order_items || []).map(item => ({
+          order_item_id: item.id,
+          product_id: item.product_id ?? null,
+          product_name: item.product_name,
+          product_image: item.product_image ?? null,
+          rating: 5,
+          content: '',
+          mood_tags: [],
+        })))
+      }
+    } catch (e) {
+      console.warn('[ReviewPage] load error', e)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [orderId])
 
   useEffect(() => { load() }, [load])
@@ -115,7 +120,7 @@ function ReviewPage() {
           <Text className="text-xl text-muted-foreground">订单号：{order.order_no}</Text>
         </View>
 
-        {reviews.map((rev, idx) => (
+        {(reviews || []).map((rev, idx) => (
           <View key={rev.order_item_id} className="bg-card rounded-2xl border border-border mb-4 p-4">
             {/* 商品信息 */}
             <View className="flex items-center gap-3 mb-4">
@@ -178,7 +183,7 @@ function ReviewPage() {
 
               {/* 情绪标签选择 */}
               <View className="flex gap-2 flex-wrap">
-                {MOOD_CATEGORIES[activeMoodCategory as keyof typeof MOOD_CATEGORIES].tags.map(tagZh => {
+                {(MOOD_CATEGORIES[activeMoodCategory as keyof typeof MOOD_CATEGORIES]?.tags || []).map(tagZh => {
                   const tag = MOOD_TAGS_ALL.find(t => t.zh === tagZh)
                   if (!tag) return null
                   const selected = rev.mood_tags.includes(tag.zh)

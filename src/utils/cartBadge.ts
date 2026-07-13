@@ -6,9 +6,9 @@ export async function updateCartBadge(): Promise<void> {
   try {
     const n = await getCartCount()
     if (n > 0) {
-      Taro.setTabBarBadge({ index: 3, text: n > 99 ? '99+' : String(n) })
+      await Taro.setTabBarBadge({ index: 3, text: n > 99 ? '99+' : String(n) })
     } else {
-      Taro.removeTabBarBadge({ index: 3 })
+      await Taro.removeTabBarBadge({ index: 3 })
     }
   } catch { /* 非 tab 页调用时忽略 */ }
 }

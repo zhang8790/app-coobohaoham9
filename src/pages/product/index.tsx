@@ -2,14 +2,17 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { Image, Button, Swiper, SwiperItem, Video, View, Text } from '@tarojs/components'
-import { getProductById, addToCart, getCartCount, isFavorited, toggleFavorite, recordFootprint } from '@/db/api'
-import { updateCartBadge } from '@/utils/cartBadge'
+import { getProductById, addToCart, isFavorited, toggleFavorite, recordFootprint } from '@/db/api'
+import { useCartCount, refreshCartCount } from '@/utils/cartStore'
+import { setPendingCheckout } from '@/utils/checkoutCache'
+import { buildProductShare } from '@/utils/share'
 import type { Product } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
 import { MOOD_TAGS_ALL, SCENE_TAGS_ALL } from '@/utils/mood-tags'
-import { generateEmotionDescription } from '@/utils/emotion-description'
+import { generateEmotionDescription, generateEmotionHeadline } from '@/utils/emotion-description'
 import { loadCategoryEmotionProfilesFromDb } from '@/utils/category-emotion'
+import { resolveIngredientEntries, SHIYANG_DISCLAIMER } from '@/utils/ingredient-analysis'
 
 export default function ProductPage() {
   const { user } = useAuth()
@@ -20,7 +23,7 @@ export default function ProductPage() {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
-  const [cartCount, setCartCount] = useState(0)
+  const cartCount = useCartCount()
   const [myCode, setMyCode] = useState('')
   const [isFav, setIsFav] = useState(false)
   const [favLoading, setFavLoading] = useState(false)
@@ -46,17 +49,20 @@ export default function ProductPage() {
   // 情绪翻译：优先读 product_emotion 缓存（emotion-compile Edge Function 编译，可能由 LLM 生成），
   // 无缓存且无标签时回退本地规则计算
   const hasEmotion = !!(product?.mood_tags?.length || product?.scene_tags?.length)
-  const emotionData = useMemo<{ title: string; detail: string; by: 'rule' | 'llm' } | null>(() => {
+  const emotionData = useMemo<{ title: string; detail: string; headline: string; by: 'rule' | 'llm' } | null>(() => {
     if (!product) return null
+    const category = (product as any).stores?.category
+    // v3.1 情绪卖点标题引擎：emoji + 情绪修饰短句，给商品一句「货架感」卖点小标题
+    const headline = generateEmotionHeadline(product, product.mood_tags || [], product.scene_tags || [], category)
     const cached = product.product_emotion
     if (cached?.emotion_detail) {
-      return { title: cached.emotion_title || '情绪翻译', detail: cached.emotion_detail, by: cached.compiled_by }
+      return { title: cached.emotion_title || '情绪翻译', detail: cached.emotion_detail, headline, by: cached.compiled_by }
     }
     if (!hasEmotion) return null
-    const category = (product as any).stores?.category
     return {
       title: '情绪翻译',
       detail: generateEmotionDescription(product, product.mood_tags || [], product.scene_tags || [], category),
+      headline,
       by: 'rule',
     }
   }, [product, hasEmotion, profilesTick])
@@ -77,7 +83,7 @@ export default function ProductPage() {
 
   const refreshCart = useCallback(async () => {
     if (!user) return
-    setCartCount(await getCartCount())
+    await refreshCartCount()
     const [favStatus, { data }] = await Promise.all([
       isFavorited(id),
       supabase.from('profiles').select('referral_code').maybeSingle(),
@@ -89,18 +95,17 @@ export default function ProductPage() {
   useEffect(() => { load(); refreshCart() }, [load, refreshCart])
   useDidShow(() => { refreshCart() })
 
-  // 商品分享携带推广码，好友扫码→锁定为下线
-  const shareImage = product?.main_image || product?.image_url || ''
-  useShareAppMessage(() => ({
-    title: product ? `【来电有喜】${product.name}，品质好物推荐！` : '来电有喜 · 武侠生活平台',
-    path: `/pages/product/index?id=${encodeURIComponent(id)}${myCode ? `&ref=${myCode}` : ''}`,
-    imageUrl: shareImage,
-  }))
-  useShareTimeline(() => ({
-    title: product ? `【来电有喜】${product.name}` : '来电有喜',
-    query: `id=${encodeURIComponent(id)}${myCode ? `&ref=${myCode}` : ''}`,
-    imageUrl: shareImage,
-  }))
+  // 商品卡分享：一定是产品（商品主图 + 商品详情路径），并注入情绪表达词
+  useShareAppMessage(() => {
+    if (!product) return { title: '来电有喜', path: '/pages/product/index' }
+    const s = buildProductShare(product, myCode)
+    return { title: s.title, path: s.path, imageUrl: s.imageUrl }
+  })
+  useShareTimeline(() => {
+    if (!product) return { title: '来电有喜', query: '', imageUrl: '' }
+    const s = buildProductShare(product, myCode)
+    return { title: s.timelineTitle, query: s.query, imageUrl: s.imageUrl }
+  })
 
   const requireLogin = () => {
     if (!user) { Taro.navigateTo({ url: '/pages/login/index' }); return false }
@@ -121,8 +126,6 @@ export default function ProductPage() {
     setAdding(true)
     await addToCart(product.id, product.store_id, quantity)
     setAdding(false)
-    setCartCount(prev => prev + quantity)
-    updateCartBadge()
     Taro.showToast({ title: '已加入行囊', icon: 'success' })
   }
 
@@ -131,7 +134,8 @@ export default function ProductPage() {
     setAdding(true)
     await addToCart(product.id, product.store_id, quantity)
     setAdding(false)
-    updateCartBadge()
+    // 写入待结算缓存：覆盖冷启动/热重载停在支付页时 router.params 为空的情况
+    setPendingCheckout({ productId: product.id, total: product.price, quantity })
     Taro.navigateTo({ url: `/pages/payment/index?productId=${encodeURIComponent(product.id)}&total=${product.price}&quantity=${quantity}` })
   }
 
@@ -202,24 +206,6 @@ export default function ProductPage() {
         </View>
       )}
 
-      {/* 详情图片展示 */}
-      {product.detail_images && product.detail_images.length > 0 && (
-        <View className="mx-4 mt-3">
-          <Text className="text-xl font-bold text-foreground mb-2">商品详情</Text>
-          <View className="flex flex-col gap-3">
-            {product.detail_images.map((img, i) => (
-              <Image
-                key={i}
-                src={img}
-                mode="widthFix"
-                className="w-full rounded-2xl"
-                style={{ display: 'block' }}
-              />
-            ))}
-          </View>
-        </View>
-      )}
-
       {/* 价格信息卡 */}
       <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
         {/* 分享赚佣提示 */}
@@ -246,13 +232,18 @@ export default function ProductPage() {
             </Text>
           )}
         </View>
-        <h1 className="text-2xl font-bold text-foreground mt-3 leading-tight">{product.name}</h1>
+        <View className="text-2xl font-bold text-foreground mt-3 leading-tight">{product.name}</View>
         {/* 情绪翻译：商品详情的主叙事（非电商带货腔，优先读编译缓存） */}
         {emotionData && (
           <View
             className="mt-3 px-3 py-3 rounded-2xl bg-primary/5 border border-primary/15"
             onClick={() => product && Taro.navigateTo({ url: `/pages/emotion-detail/index?productId=${encodeURIComponent(product.id)}` })}
           >
+            {/* v3.1 AI 卖点标题：作为情绪卡的主视觉锚点，引导用户一眼抓住商品情绪角度 */}
+            <View className="flex items-center gap-1.5 mb-2">
+              <Text className="text-xs font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded" style={{ display: 'inline-block' }}>卖点</Text>
+              <Text className="text-lg font-bold text-foreground leading-snug" style={{ display: 'inline-block' }}>{emotionData.headline}</Text>
+            </View>
             <View className="flex items-center justify-between">
               <Text className="text-base font-bold text-primary" style={{ display: 'block' }}>
                 ✨ {emotionData.title}{emotionData.by === 'llm' ? ' · AI编译' : ''}
@@ -326,6 +317,30 @@ export default function ProductPage() {
             </View>
           </View>
         )}
+        {/* 原料分析 */}
+        {(() => {
+          const entries = product ? resolveIngredientEntries(product) : []
+          if (!entries.length) return null
+          return (
+            <View className="mt-3" style={{ padding: '12px 14px', borderRadius: '16px', background: '#F6FBF7', border: '1px solid #D6EFD8' }}>
+              <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>🥗 原料分析</Text>
+              <Text className="text-xs text-muted-foreground mb-3" style={{ display: 'block' }}>这份商品的主要成分与食养参考</Text>
+              {entries.map((e, i) => (
+                <View key={e.zh + i} style={{ marginBottom: i < entries.length - 1 ? '10px' : 0 }}>
+                  <View className="flex items-center gap-2">
+                    <Text style={{ fontSize: '18px' }}>{e.icon}</Text>
+                    <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#1F2937' }}>{e.zh}</Text>
+                    <Text style={{ fontSize: '11px', color: '#fff', background: '#34A853', padding: '1px 8px', borderRadius: '10px' }}>{e.nature}</Text>
+                  </View>
+                  <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '4px', display: 'block' }}>功效：{e.benefits.join('、')}</Text>
+                  <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '2px', display: 'block' }}>适合人群：{e.audiences.join('、')}</Text>
+                  <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '2px', display: 'block' }}>场景：{e.scenarios.join('、')}</Text>
+                </View>
+              ))}
+              <Text style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '8px', display: 'block', lineHeight: '1.5' }}>{SHIYANG_DISCLAIMER}</Text>
+            </View>
+          )
+        })()}
         {/* 进入门店 */}
         {product.stores && (
           <View className="mt-4 flex items-center gap-3 py-3 border-t border-border"
@@ -364,6 +379,24 @@ export default function ProductPage() {
           </View>
         </View>
       </View>
+
+      {/* 详情图片展示 */}
+      {product.detail_images && product.detail_images.length > 0 && (
+        <View className="mx-4 mt-3">
+          <Text className="text-xl font-bold text-foreground mb-2">商品详情</Text>
+          <View className="flex flex-col gap-3">
+            {product.detail_images.map((img, i) => (
+              <Image
+                key={i}
+                src={img}
+                mode="widthFix"
+                className="w-full rounded-2xl"
+                style={{ display: 'block' }}
+              />
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* 底部操作栏 */}
       <View className="fixed bottom-0 left-0 right-0 bg-card border-t-2 border-border px-4 py-3 flex gap-3"

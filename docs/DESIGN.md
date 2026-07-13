@@ -13,8 +13,8 @@
 - Secondary: #78350F
 
 ## Typography
-- Heading: 有爱黑体 CN (family: NowarHansCN, weight: SemiBold, url: https://resource-static.bj.bcebos.com/fonts-skill/NowarHansCN_SemiBold.ttf)
-- Body: 有爱黑体 CN (family: NowarHansCN, weight: Light, url: https://resource-static.bj.bcebos.com/fonts-skill/NowarHansCN_Light.ttf)
+- Heading: 有爱黑体 CN (family: NowarHansCN, weight: SemiBold, url: https://cdn.example.com/fonts-skill/NowarHansCN_SemiBold.ttf)
+- Body: 有爱黑体 CN (family: NowarHansCN, weight: Light, url: https://cdn.example.com/fonts-skill/NowarHansCN_Light.ttf)
 
 ## Visual Language
 - 核心视觉签名：朱砂印章点——在卡片右上角或价格旁以圆形或六边形朱砂色小块（Primary, 8-12px）模拟印章落点，配合 ink-black 文字形成纸墨对比

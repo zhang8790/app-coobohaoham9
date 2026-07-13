@@ -8,7 +8,7 @@ import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 
 // 场景标签选项
-const SCENE_OPTIONS = ['堂食', '自取', '外卖']
+const SCENE_OPTIONS = ['堂食', '配送']
 // 类目选项
 const CATEGORY_OPTIONS = ['餐饮', '零售', '水果', '服务', '娱乐', '其他']
 
@@ -220,7 +220,7 @@ function MerchantSettingsPage() {
         )}
       </View>
 
-      {/* ===== 2. 场景配置（堂食/自取/外卖）===== */}
+      {/* ===== 2. 场景配置（堂食/配送）===== */}
       <View className="px-4 mt-4">
         <Text className="text-base font-bold text-foreground mb-2 block">服务场景</Text>
         <View className="flex gap-2">
@@ -360,9 +360,9 @@ function MerchantSettingsPage() {
         </View>
       </View>
 
-      {/* ===== 5.5 让利（分销）配置 ===== */}
+      {/* ===== 5.5 让利（推广）配置 ===== */}
       <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
-        <Text className="text-base font-bold text-foreground mb-1 block">让利（分销）配置</Text>
+        <Text className="text-base font-bold text-foreground mb-1 block">让利（推广）配置</Text>
         <Text className="text-xs text-gray-400 mb-3 block">设置订单金额中让利给平台的比例，用于推广员佣金和积分返还</Text>
 
         <View className="flex items-center justify-between">
@@ -394,11 +394,11 @@ function MerchantSettingsPage() {
       <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
         <Text className="text-base font-bold text-foreground mb-3 block">双通道配置</Text>
 
-        {/* 外卖配送 */}
+        {/* 配送 */}
         <View className="p-3 rounded-xl bg-gray-50 mb-3">
           <View className="flex items-center justify-between">
             <View>
-              <Text className="text-base font-semibold text-foreground">外卖配送</Text>
+              <Text className="text-base font-semibold text-foreground">配送</Text>
               <Text className="text-xs text-gray-400 mt-0.5 block">支持送到客户地址</Text>
             </View>
             <View
@@ -439,21 +439,6 @@ function MerchantSettingsPage() {
           )}
         </View>
 
-        {/* 到店自取 */}
-        <View className="p-3 rounded-xl bg-gray-50">
-          <View className="flex items-center justify-between">
-            <View>
-              <Text className="text-base font-semibold text-foreground">到店自取</Text>
-              <Text className="text-xs text-gray-400 mt-0.5 block">客户到店取货</Text>
-            </View>
-            <View
-              className={`w-12 h-7 rounded-full relative ${form.pickup_enabled ? 'bg-green-500' : 'bg-gray-300'}`}
-              onClick={() => updateField('pickup_enabled', !form.pickup_enabled)}
-            >
-              <View className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${form.pickup_enabled ? 'right-0.5' : 'left-0.5'}`} />
-            </View>
-          </View>
-        </View>
       </View>
 
       {/* ===== 7. 店铺公告 ===== */}

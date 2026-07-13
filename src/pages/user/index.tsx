@@ -2,10 +2,12 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image, Input } from '@tarojs/components'
-import { getMyProfile, getMyMerchantApplication, getOrderCounts, updateProfile } from '@/db/api'
+import { getMyProfile, getMyMerchantApplication, getOrderCounts, updateProfile, getEquitySummary } from '@/db/api'
+import type { EquitySummary } from '@/db/api'
 import type { Profile, MerchantApplication } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
+import { supabase } from '@/client/supabase'
 
 const WUXIA_NAMES = ['剑影飘鸿', '凌云一笑', '碧落寒烟', '寒光碎月', '幽谷清风', '紫电青霜', '千机云鹤', '翠微长啸', '玉骨冰心', '逍遥散人']
 const RANK_COLORS: Record<string, string> = { '江湖散修': '#78350F', '外门弟子': '#B45309', '内门弟子': '#92400E', '核心弟子': '#C2410C', '长老': '#9333EA', '掌门': '#DC2626' }
@@ -32,6 +34,7 @@ const MENU_GROUPS = [
     title: '江湖事',
     icon: 'i-mdi-account-group',
     items: [
+      { name: '消息中心', icon: 'i-mdi-bell-outline', page: '/pages/messages/index', badge: 'unread' },
       { name: '帮助中心', icon: 'i-mdi-help-circle', page: '/pages/help/index' },
       { name: '设置', icon: 'i-mdi-cog', page: '/pages/settings/index' },
     ]
@@ -54,6 +57,8 @@ function UserPage() {
   const [editingNick, setEditingNick] = useState(false)
   const [nickInput, setNickInput] = useState('')
   const [profileLoading, setProfileLoading] = useState(true)
+  const [equity, setEquity] = useState<EquitySummary | null>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const loadData = useCallback(async () => {
     if (!user) { setProfileLoading(false); return }
@@ -80,8 +85,29 @@ function UserPage() {
     }
   }, [user])
 
+  // 拉取未读消息数
+  const loadUnread = useCallback(async () => {
+    if (!user?.id) { setUnreadCount(0); return }
+    try {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .is('read_at', null)
+      setUnreadCount(count ?? 0)
+    } catch (e) {
+      console.warn('[User] loadUnread fail', e)
+    }
+  }, [user?.id])
+
   useEffect(() => { loadData() }, [loadData])
-  useDidShow(() => { loadData() })
+  useEffect(() => { loadUnread() }, [loadUnread])
+  useDidShow(() => { loadData(); loadUnread() })
+
+  useEffect(() => {
+    if (!user) return
+    getEquitySummary().catch(() => null).then(eq => { if (eq) setEquity(eq) })
+  }, [user])
 
   const rankColor = profile ? (RANK_COLORS[profile.member_rank] || '#78350F') : '#78350F'
 
@@ -105,8 +131,6 @@ function UserPage() {
       if (res.confirm) { await signOut(); Taro.reLaunch({ url: '/pages/login/index' }) }
     }})
   }
-
-  const isAdmin = profile?.role === 'admin'
 
   // 商家状态入口：优先用 profile.merchant_status，其次用 application.status
   // 注意：profile 未加载完成时显示 loading，避免闪烁
@@ -206,8 +230,8 @@ function UserPage() {
         {user && profile && (
           <View className="grid grid-cols-3 gap-3 mt-4">
             {[
-              { label: '积分', value: profile.points || 0, icon: 'i-mdi-star-circle' },
               { label: '金豆', value: profile.gold_beans || 0, icon: 'i-mdi-wallet' },
+              { label: '情绪豆', value: profile.tb_balance || 0, icon: 'i-mdi-emoticon-happy' },
               { label: '优惠券', value: `${profile.coupons_count || 0}张`, icon: 'i-mdi-ticket' },
             ].map(item => (
               <View key={item.label} className="bg-card rounded-2xl flex flex-col items-center py-4 border border-border">
@@ -218,6 +242,35 @@ function UserPage() {
           </View>
         )}
       </View>
+
+      {/* 会员权益区块 */}
+      {user && profile && (
+        <View className="mx-4 mt-3 rounded-2xl border border-primary/30 px-4 py-4" style={{ background: 'linear-gradient(120deg,#FFF7ED 0%,#FFEDD5 100%)' }}>
+          <View className="flex items-center justify-between">
+            <Text className="text-xl font-bold text-foreground">我的会员权益</Text>
+            <Text className="text-base text-primary font-bold"
+              onClick={() => Taro.navigateTo({ url: '/pages/emotion-bill/index' })}>确权记录 ›</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: '12px' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#C2410C' }}>
+                {equity ? (equity.shareRatio * 100 < 0.01 ? (equity.shareRatio * 100).toFixed(4) : (equity.shareRatio * 100).toFixed(2)) + '%' : '0%'}
+              </Text>
+              <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>我的消费贡献占比</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#C2410C' }}>
+                {equity ? (equity.dividendEstimate || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '0'}
+              </Text>
+              <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>年度消费回馈（非现金分红）</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: '20px', fontWeight: 'bold' }}>{profile.cv_total || 0}</Text>
+              <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>我的贡献值</Text>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* 订单统计 */}
       {user && (
@@ -258,7 +311,7 @@ function UserPage() {
             {[
               { name: '我的段位', icon: '🏅', page: '/pages/my-promotion/index', desc: '查看推广码' },
               { name: '我的佣金', icon: '💰', page: '/pages/withdraw/index', desc: '提现管理' },
-              { name: '分销团队', icon: '👥', page: '/pages/my-referrals/index', desc: '查看下线' },
+              { name: '我的好友', icon: '👥', page: '/pages/my-referrals/index', desc: '查看推荐' },
               { name: '情绪账单', icon: '🎭', page: '/pages/emotion-bill/index', desc: '确权集' },
             ].map(item => (
               <View key={item.name}
@@ -302,26 +355,21 @@ function UserPage() {
               onClick={() => item.page ? Taro.navigateTo({ url: item.page }) : Taro.showToast({ title: '功能开发中', icon: 'none' })}>
               <View className={`${item.icon} text-2xl text-foreground`} />
               <Text className="flex-1 text-xl text-foreground">{item.name}</Text>
+              {item.badge === 'unread' && unreadCount > 0 && (
+                <View style={{
+                  minWidth: 20, height: 20, padding: '0 6px', borderRadius: 10,
+                  background: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Text style={{ color: 'white', fontSize: 11, fontWeight: 600, lineHeight: '20px' }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
               <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
             </View>
           ))}
         </View>
       ))}
-
-      {/* 武林盟管理后台入口（仅 admin 可见） */}
-      {user && isAdmin && (
-        <View className="mx-4 mt-4 px-4 py-4 rounded-2xl border-2 border-primary bg-primary/5 flex items-center justify-between"
-          onClick={() => Taro.navigateTo({ url: '/pages/admin/index' })}>
-          <View className="flex items-center gap-3">
-            <View className="i-mdi-shield-crown text-3xl text-primary" />
-            <View className="flex flex-col">
-              <Text className="text-2xl font-bold text-primary">武林盟</Text>
-              <Text className="text-xl text-muted-foreground">超级管理后台</Text>
-            </View>
-          </View>
-          <View className="i-mdi-chevron-right text-2xl text-primary" />
-        </View>
-      )}
 
       {/* 退出登录 */}
       {user && (

@@ -1,4 +1,4 @@
-// 我的推荐 - 展示一级、二级推荐关系
+// 我的推荐 - 展示两级（我的好友+我的粉丝）推荐关系，仅两级
 import { useState, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
@@ -15,15 +15,20 @@ export default function MyReferrals() {
 
   const load = async () => {
     setLoading(true)
-    const [data, code] = await Promise.all([
-      getMyReferrals(),
-      ensureReferralCode(),
-    ])
-    setLevel1List(data.level_1 || [])
-    setLevel2List(data.level_2 || [])
-    setCounts({ l1: data.level_1_count || 0, l2: data.level_2_count || 0 })
-    setReferralCode(code || '')
-    setLoading(false)
+    try {
+      const [data, code] = await Promise.all([
+        getMyReferrals(),
+        ensureReferralCode(),
+      ])
+      setLevel1List(data.level_1 || [])
+      setLevel2List(data.level_2 || [])
+      setCounts({ l1: data.level_1_count || 0, l2: data.level_2_count || 0 })
+      setReferralCode(code || '')
+    } catch (e) {
+      console.error('[我的推荐] load 失败', e)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])
@@ -46,11 +51,11 @@ export default function MyReferrals() {
         <View className="flex gap-4 mt-4">
           <View className="flex-1 bg-white bg-opacity-20 rounded-xl p-3 text-center">
             <Text className="text-white text-2xl font-bold">{counts.l1}</Text>
-            <Text className="text-white text-xs opacity-80 mt-1">一级推荐好友</Text>
+            <Text className="text-white text-xs opacity-80 mt-1">我的好友</Text>
           </View>
           <View className="flex-1 bg-white bg-opacity-20 rounded-xl p-3 text-center">
             <Text className="text-white text-2xl font-bold">{counts.l2}</Text>
-            <Text className="text-white text-xs opacity-80 mt-1">二级推荐好友</Text>
+            <Text className="text-white text-xs opacity-80 mt-1">我的粉丝</Text>
           </View>
         </View>
       </View>
@@ -61,7 +66,7 @@ export default function MyReferrals() {
         <View className="flex items-center gap-3 mt-3">
           <View className="flex-1 bg-background rounded-xl px-4 py-3 border border-border">
             <Text className="text-xl font-bold text-primary font-mono tracking-widest">
-              {referralCode || '加载中...'}
+              {referralCode || (loading ? '加载中...' : '暂无推广码')}
             </Text>
           </View>
           <View className="bg-primary px-4 py-2 rounded-xl" onClick={copyCode}>
@@ -80,7 +85,7 @@ export default function MyReferrals() {
           onClick={() => setActiveTab('1')}
         >
           <Text className={`text-base font-bold ${activeTab === '1' ? 'text-white' : 'text-foreground'}`}>
-            一级推荐 ({counts.l1})
+            我的好友 ({counts.l1})
           </Text>
         </View>
         <View
@@ -88,7 +93,7 @@ export default function MyReferrals() {
           onClick={() => setActiveTab('2')}
         >
           <Text className={`text-base font-bold ${activeTab === '2' ? 'text-white' : 'text-foreground'}`}>
-            二级推荐 ({counts.l2})
+            我的粉丝 ({counts.l2})
           </Text>
         </View>
       </View>
@@ -103,7 +108,7 @@ export default function MyReferrals() {
           <View className="flex flex-col items-center justify-center py-12 gap-3">
             <View className="i-mdi-account-search text-5xl text-muted-foreground opacity-40" />
             <Text className="text-base text-muted-foreground">
-              {activeTab === '1' ? '暂无一级推荐好友' : '暂无二级推荐好友'}
+              {activeTab === '1' ? '暂无我的好友' : '暂无我的粉丝'}
             </Text>
             <Text className="text-xs text-muted-foreground">
               分享小程序给好友，好友注册后即可在此看到
@@ -121,7 +126,7 @@ export default function MyReferrals() {
               <View className="flex-1">
                 <Text className="text-base font-bold text-foreground">{p.nickname || '江湖侠客'}</Text>
                 <Text className="text-xs text-muted-foreground mt-0.5">
-                  {p.member_rank || '江湖散修'} · 积分 {p.points || 0}
+                  {p.member_rank || '江湖散修'} · 金豆 {p.gold_beans || 0}
                 </Text>
               </View>
               <Text className="text-xs text-muted-foreground">

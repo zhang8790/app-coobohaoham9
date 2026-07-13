@@ -6,6 +6,7 @@ import { getAdminMerchantApplications, adminApproveApplication, adminRejectAppli
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { withTimeout } from '@/utils/withTimeout'
+import { maskPhone } from '@/utils/mask'
 
 type App = {
   id: string; user_id: string; store_name: string; contact_name: string
@@ -87,7 +88,7 @@ function AdminMerchantsPage() {
                   </View>
                   <View className="flex items-center gap-2">
                     <View className="i-mdi-phone text-xl text-muted-foreground" />
-                    <Text className="text-xl text-foreground">{app.contact_phone}</Text>
+                    <Text className="text-xl text-foreground">{maskPhone(app.contact_phone)}</Text>
                   </View>
                   {app.description && (
                     <View className="flex items-start gap-2">

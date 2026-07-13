@@ -6,6 +6,7 @@ import { supabase } from '@/client/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { withTimeout } from '@/utils/withTimeout'
+import { maskPhone } from '@/utils/mask'
 
 type UserRow = {
   id: string
@@ -50,7 +51,7 @@ function AdminUsersPage() {
     const target = u.role === 'admin' ? 'user' : 'admin'
     Taro.showModal({
       title: '修改管理员权限',
-      content: `确认将「${u.nickname || u.phone || '该用户'}」${target === 'admin' ? '设为' : '取消'}管理员？`,
+      content: `确认将「${u.nickname || maskPhone(u.phone) || '该用户'}」${target === 'admin' ? '设为' : '取消'}管理员？`,
       success: async (res) => {
         if (!res.confirm) return
         setProcessing(u.id)
@@ -93,11 +94,11 @@ function AdminUsersPage() {
                       </View>
                     )}
                   </View>
-                  <Text className="text-xl text-muted-foreground">{u.phone || '未知手机'}</Text>
+                  <Text className="text-xl text-muted-foreground">{maskPhone(u.phone) || '未知手机'}</Text>
                 </View>
                 <View className="flex flex-col items-end">
                   <Text className="text-xl font-bold text-primary">{u.member_rank || '江湖散修'}</Text>
-                  <Text className="text-base text-muted-foreground">积分 {u.points ?? 0} · 金豆 {Number(u.gold_beans ?? 0).toFixed(2)}</Text>
+                  <Text className="text-base text-muted-foreground">金豆 {Number(u.gold_beans ?? 0).toFixed(2)}</Text>
                 </View>
               </View>
               <View className="flex items-center justify-between">

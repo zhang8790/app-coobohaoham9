@@ -14,6 +14,8 @@ export default function MerchantWithdraw() {
   const [method, setMethod] = useState<'bank' | 'alipay'>('alipay')
   const [account, setAccount] = useState('')
   const [name, setName] = useState('')
+  const [idCard, setIdCard] = useState('')
+  const [bankName, setBankName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [records, setRecords] = useState<WithdrawalRecord[]>([])
   const [balance, setBalance] = useState<{ available: number; totalEarned: number; withdrawn: number } | null>(null)
@@ -49,13 +51,16 @@ export default function MerchantWithdraw() {
     if (!profile) return
     const amt = parseFloat(amount)
     if (!amt || amt < 100) { alert('提现金额不得低于¥100'); return }
-    if (balance && amt > balance.available) { alert('提现金额不得超过可提现金豆'); return }
+    if (balance && amt > balance.available) { alert('提现金额不得超过可提现佣金'); return }
     if (!account.trim()) { alert('请输入到账账号'); return }
+    if (!name.trim()) { alert('请输入真实姓名'); return }
+    if (method === 'bank' && !bankName.trim()) { alert('请输入开户银行'); return }
+    if (!idCard.trim()) { alert('请输入身份证号（打款核对）'); return }
     setSubmitting(true)
     try {
-      await createWithdrawal({ userId: profile.id, storeId, amount: amt, method, account: account.trim(), name: name.trim() })
+      await createWithdrawal({ userId: profile.id, storeId, amount: amt, method, account: account.trim(), name: name.trim(), idCard: idCard.trim(), bankName: method === 'bank' ? bankName.trim() : undefined })
       await reload()
-      setAmount(''); setAccount(''); setName('')
+      setAmount(''); setAccount(''); setName(''); setIdCard(''); setBankName('')
       alert('提现申请已提交，预计1-2个工作日到账')
     } catch (e: any) { alert('提交失败：' + (e?.message || e)) }
     finally { setSubmitting(false) }
@@ -125,7 +130,7 @@ export default function MerchantWithdraw() {
                       <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="请输入提现金额" style={{ flex: 1, padding: '12px 16px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 16, outline: 'none' }} />
                       <button onClick={() => balance && setAmount(String(balance.available))} style={{ padding: '12px 16px', background: 'transparent', border: '1px solid #059669', borderRadius: 8, color: '#059669', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>全部</button>
                     </div>
-                    <p style={{ color: '#6B7280', fontSize: 12, marginTop: 6 }}>可提现金豆：{balance ? balance.available : '0'}</p>
+                    <p style={{ color: '#6B7280', fontSize: 12, marginTop: 6 }}>可提现佣金：{balance ? balance.available : '0'}</p>
                   </div>
                   <div>
                     <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>到账方式</label>
@@ -142,12 +147,22 @@ export default function MerchantWithdraw() {
                     </div>
                   </div>
                   <div>
-                    <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>{method === 'alipay' ? '支付宝账号' : '银行卡号'}</label>
-                    <input value={account} onChange={e => setAccount(e.target.value)} placeholder={method === 'alipay' ? '请输入支付宝账号' : '请输入银行卡号'} style={{ width: '100%', padding: '12px 16px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                    <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>真实姓名 <span style={{ color: '#EF4444' }}>*</span></label>
+                    <input value={name} onChange={e => setName(e.target.value)} placeholder="请输入与收款账户一致的真实姓名" style={{ width: '100%', padding: '12px 16px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <div>
-                    <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>真实姓名</label>
-                    <input value={name} onChange={e => setName(e.target.value)} placeholder="请输入真实姓名" style={{ width: '100%', padding: '12px 16px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                    <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>身份证号 <span style={{ color: '#EF4444' }}>*</span></label>
+                    <input value={idCard} onChange={e => setIdCard(e.target.value)} placeholder="用于打款核对，仅平台财务可见" style={{ width: '100%', padding: '12px 16px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  {method === 'bank' && (
+                    <div>
+                      <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>开户银行 <span style={{ color: '#EF4444' }}>*</span></label>
+                      <input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="如：中国工商银行" style={{ width: '100%', padding: '12px 16px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                  )}
+                  <div>
+                    <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>{method === 'alipay' ? '支付宝账号' : '银行卡号'} <span style={{ color: '#EF4444' }}>*</span></label>
+                    <input value={account} onChange={e => setAccount(e.target.value)} placeholder={method === 'alipay' ? '请输入支付宝账号' : '请输入银行卡号'} style={{ width: '100%', padding: '12px 16px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <button onClick={handleSubmit} disabled={submitting} style={{ width: '100%', padding: '14px', background: submitting ? '#374151' : '#C2410C', border: 'none', borderRadius: 8, color: 'white', fontSize: 16, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', marginTop: 8 }}>{submitting ? '提交中...' : `确认提现 ¥${amount || '0'}`}</button>
                 </div>

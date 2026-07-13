@@ -2,7 +2,7 @@
 // 运行方式：node seed.js <SERVICE_KEY>
 // 如果只有 anon key，尝试直接写入（需 RLS 已禁用）
 
-const SUPABASE_URL = 'https://backend.appmiaoda.com/projects/supabase330158129083891712'
+const SUPABASE_URL = process.env.SUPABASE_URL || ''
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoyMDk4MTQzMDMyLCJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwic3ViIjoiYW5vbmUifQ.3N9FG29GyKFP5N2bzWBoxb22FrF1aItWRKdkHAfkkFQ'
 
 // 如果提供了 service key，用 service key（可以绕过 RLS）

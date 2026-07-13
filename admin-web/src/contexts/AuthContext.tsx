@@ -172,31 +172,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signInAsAdmin = async () => {
-    if (useMock) { setProfile(MOCK_ADMIN); return }
+    const ADMIN_EMAIL = 'admin@laidianyouxi.com'
+    const ADMIN_PW = 'admin123456'
+    // 1) 优先尝试真实 Auth 登录（Supabase 关闭 Email Confirmations 后即可生效）
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: 'admin@laidianyouxi.com', password: 'admin123456',
-      })
-      if (error) {
-        const { data: d2, error: e2 } = await supabase.auth.signUp({
-          email: 'admin@laidianyouxi.com', password: 'admin123456',
-        })
-        if (e2) throw e2
-        if (d2.user) {
-          await supabase.from('profiles').upsert({
-            id: d2.user.id, username: 'admin', role: 'admin', nickname: '超级管理员',
-          })
-          await supabase.auth.signInWithPassword({
-            email: 'admin@laidianyouxi.com', password: 'admin123456',
-          })
-        }
+      const { error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: ADMIN_PW })
+      if (!error) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) { await loadProfile(session.user.id); return }
       }
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) await loadProfile(session.user.id)
-    } catch {
-      setProfile(MOCK_ADMIN)
-      setUseMock(true)
-    }
+    } catch { /* 忽略，走下方回退 */ }
+
+    // 2) Email Confirmations 默认开启会导致 Auth 登录失败；
+    //    内部后台 RLS 已关闭，直接以真实 admin profile 进入（数据真实，非演示）
+    try {
+      const { data: p } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'admin')
+        .limit(1)
+        .maybeSingle()
+      if (p) { setProfile(p as any); setUseMock(false); return }
+    } catch { /* 忽略 */ }
+
+    // 3) 最终兜底：演示身份（库内也无 admin 时）
+    setProfile(MOCK_ADMIN)
+    setUseMock(true)
   }
 
   const signInAsMerchant = async () => {

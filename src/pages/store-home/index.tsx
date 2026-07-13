@@ -18,7 +18,7 @@ export default function StoreHomePage() {
   const [products, setProducts] = useState<Product[]>([])
   const [activeCat, setActiveCat] = useState<string>('all')
   const [loading, setLoading] = useState(true)
-  // 门店专属红包（进店领→锁客）
+  // 门店专属红包（进店领→归属）
   const [storeCampaign, setStoreCampaign] = useState<any | null>(null)
 
   // 获取路由参数（支持 id 直接传参 + scene 扫码参数）
@@ -79,7 +79,7 @@ export default function StoreHomePage() {
       getStoreById(storeId),
       getStoreCategories(storeId),
       getProducts({ storeId }),
-      // 查询该门店的专属进行中红包（用于进店领→锁客）
+      // 查询该门店的专属进行中红包（用于进店领→归属）
       supabase
         .from('marketing_campaigns')
         .select('*')
@@ -216,7 +216,7 @@ export default function StoreHomePage() {
         </View>
       </View>
 
-      {/* ========== 门店专属红包横幅（进店领→锁客） ========== */}
+      {/* ========== 门店专属红包横幅（进店领→归属） ========== */}
       {storeCampaign && (
         <View
           className="store-redpacket-banner"
@@ -255,7 +255,7 @@ export default function StoreHomePage() {
         borderBottomColor: '#E5E5E5',
         flexShrink: 0,
       }}>
-        {['堂食', '自取', '外卖'].map(label => (
+        {['堂食', '配送'].map(label => (
           <View
             key={label}
             style={{
@@ -327,13 +327,26 @@ export default function StoreHomePage() {
                     borderWidth: '1px',
                     borderColor: '#EDEDED',
                   }}>
-                  <LazyImage
-                    src={p.main_image || p.image_url || ''}
-                    mode="aspectFill"
-                    width="100%"
-                    height={120}
-                    className="block"
-                  />
+                  {(() => {
+                    const img = p.main_image || p.image_url || ''
+                    if (!img) {
+                      // 缺图：轻量占位（柔和米底 + emoji + 品名），替代大灰块
+                      return (
+                        <View style={{ width: '100%', aspectRatio: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F3EF' }}>
+                          <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                            <Text style={{ fontSize: '34px' }}>🛍️</Text>
+                            <Text style={{ fontSize: '11px', color: '#B08D7A', marginTop: '4px' }} numberOfLines={1}>{p.name}</Text>
+                          </View>
+                        </View>
+                      )
+                    }
+                    // 有图：1:1 标准方图，比例统一、视觉规整
+                    return (
+                      <View style={{ width: '100%', aspectRatio: 1, position: 'relative' }}>
+                        <LazyImage src={img} mode="aspectFill" width="100%" height="100%" className="block" />
+                      </View>
+                    )
+                  })()}
                   <View style={{ padding: '10px' }}>
                     <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#333' }} numberOfLines={2}>{p.name}</Text>
 

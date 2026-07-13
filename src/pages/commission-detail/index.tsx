@@ -87,7 +87,7 @@ function CommissionDetailPage() {
                     <Text className={`text-base font-bold ${c.level === 1 ? 'text-primary' : 'text-blue-600'}`}>L{c.level}</Text>
                   </View>
                   <Text className="text-xl text-foreground">
-                    {c.level === 1 ? '直推佣金' : '二级佣金'}
+                    {c.level === 1 ? '我的好友佣金' : '我的粉丝佣金'}
                   </Text>
                 </View>
                 <Text className={`text-2xl font-black ${statusColor[c.status] || 'text-foreground'}`}>

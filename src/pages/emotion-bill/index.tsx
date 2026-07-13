@@ -5,10 +5,12 @@ import { View, Text, Image } from '@tarojs/components'
 import { supabase } from '@/client/supabase'
 import {
   getUserEmotionClaims,
-  getEmotionTongbaoStats,
   getUserEmotionBadges,
   getEmotionBadgeDefs,
+  getMyProfile,
+  getEquitySummary,
 } from '@/db/api'
+import type { EquitySummary } from '@/db/api'
 import type { EmotionClaim, Product, EmotionBadgeDef, EmotionBadgeGrant } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import './index.scss'
@@ -19,6 +21,10 @@ function fmtDate(s?: string): string {
   if (isNaN(d.getTime())) return ''
   const p = (n: number) => (n < 10 ? '0' + n : '' + n)
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+function sharePct(r: number): string {
+  const p = r * 100
+  return (p < 0.01 ? p.toFixed(4) : p.toFixed(2)) + '%'
 }
 
 const RARITY_COLORS: Record<string, string> = {
@@ -32,7 +38,9 @@ function EmotionBillPage() {
   const { user } = useAuth()
   const [claims, setClaims] = useState<EmotionClaim[]>([])
   const [products, setProducts] = useState<Record<string, Product>>({})
-  const [stats, setStats] = useState({ balance: 0, total_earned: 0, total_spent: 0 })
+  const [tbBalance, setTbBalance] = useState(0)
+  const [cvTotal, setCvTotal] = useState(0)
+  const [equity, setEquity] = useState<EquitySummary | null>(null)
   const [badges, setBadges] = useState<EmotionBadgeGrant[]>([])
   const [badgeDefs, setBadgeDefs] = useState<EmotionBadgeDef[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,16 +49,19 @@ function EmotionBillPage() {
     if (!user) { setLoading(false); return }
     setLoading(true)
     try {
-      const [cls, st, bg, bd] = await Promise.all([
+      const [cls, prof, bg, bd, eq] = await Promise.all([
         getUserEmotionClaims(user.id).catch(() => [] as EmotionClaim[]),
-        getEmotionTongbaoStats(user.id).catch(() => ({ balance: 0, total_earned: 0, total_spent: 0 })),
+        getMyProfile().catch(() => null),
         getUserEmotionBadges(user.id).catch(() => [] as EmotionBadgeGrant[]),
         getEmotionBadgeDefs().catch(() => [] as EmotionBadgeDef[]),
+        getEquitySummary().catch(() => null),
       ])
       setClaims(cls || [])
-      setStats(st)
+      setTbBalance((prof as any)?.tb_balance || 0)
+      setCvTotal((prof as any)?.cv_total || 0)
       setBadges(bg || [])
       setBadgeDefs(bd || [])
+      if (eq) setEquity(eq)
       const ids = (cls || []).map(c => c.product_id).filter(Boolean) as string[]
       if (ids.length) {
         const { data: prods } = await supabase
@@ -58,7 +69,7 @@ function EmotionBillPage() {
           .select('id,name,price,main_image,image_url')
           .in('id', ids)
         const map: Record<string, Product> = {}
-        ;(prods || []).forEach(pd => { map[pd.id] = pd as Product })
+        ;(prods || []).forEach((pd: Product) => { map[pd.id] = pd })
         setProducts(map)
       }
     } catch (e) {
@@ -70,6 +81,15 @@ function EmotionBillPage() {
 
   useEffect(() => { load() }, [load])
   useDidShow(() => { load() })
+
+  const goShop = useCallback(() => {
+    // 确权已改为「支付成功自动发放」，不再需要手动跳转确权页。
+    // 该入口引导用户去逛逛，下单后即自动确权、累积成长值。
+    Taro.switchTab({ url: '/pages/index/index' }).catch(() => {})
+  }, [])
+  const scrollTo = useCallback((sel: string) => {
+    Taro.pageScrollTo({ selector: sel, offsetTop: 64 }).catch(() => {})
+  }, [])
 
   if (!user) {
     return (
@@ -85,19 +105,25 @@ function EmotionBillPage() {
   // 徽章已获集合
   const ownedCodes = new Set(badges.map(b => b.badge_code))
   const badgesToShow = badgeDefs.slice(0, 5)  // 顶部条带最多展示 5 枚
-  const totalTongbao = claims.reduce((s, c) => s + (c.tongbao_amount || 0), 0)
 
   return (
     <View className="min-h-screen bg-background pb-10">
       {/* 顶部统计 */}
       <View className="emotion-bill-header px-4 pt-8 pb-6">
-        <Text className="text-3xl font-bold text-foreground" style={{ display: 'block' }}>情绪账单</Text>
-        <Text className="text-xl text-muted-foreground mt-1" style={{ display: 'block' }}>每一次确权，都是被接住的时刻</Text>
+        <View className="flex items-center justify-between">
+          <View>
+            <Text className="text-3xl font-bold text-foreground" style={{ display: 'block' }}>情绪账单</Text>
+            <Text className="text-xl text-muted-foreground mt-1" style={{ display: 'block' }}>每一次确权，都是被接住的时刻</Text>
+          </View>
+          <View className="emotion-cta" onClick={goShop} hoverClass="emotion-cta--active">
+            <Text className="emotion-cta-text">去逛逛 ›</Text>
+          </View>
+        </View>
         <View className="grid grid-cols-3 gap-3 mt-5">
           {[
-            { label: '通宝余额', value: `${stats.balance}`, sub: '可用通宝' },
-            { label: '累计获得', value: `${stats.total_earned}`, sub: '总入账' },
-            { label: '累计消耗', value: `${stats.total_spent}`, sub: '总支出' },
+            { label: '情绪豆', value: `${tbBalance}`, sub: '可用' },
+            { label: '会员贡献值', value: `${cvTotal}`, sub: '会员权益依据' },
+            { label: '确权次数', value: `${claims.length}`, sub: '累计确权' },
           ].map(s => (
             <View key={s.label} className="emotion-stat-card">
               <Text className="text-2xl font-bold text-foreground">{s.value}</Text>
@@ -129,11 +155,43 @@ function EmotionBillPage() {
             </View>
           </View>
         )}
+        {/* 会员权益区块 */}
+        {equity && (
+          <View id="sec-equity" className="emotion-equity-block mt-5">
+            <View className="flex items-center justify-between">
+              <Text className="text-lg font-bold text-foreground" style={{ display: 'block' }}>我的会员权益</Text>
+              <View className="emotion-equity-cta" onClick={goShop} hoverClass="emotion-equity-cta--active">
+                <Text className="emotion-equity-cta-text">去逛逛提成长值 ›</Text>
+              </View>
+            </View>
+            <View style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#DC2626' }}>{sharePct(equity.shareRatio)}</Text>
+                <Text style={{ fontSize: '12px', color: '#999', display: 'block' }}>全平台成长占比</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#DC2626' }}>{(equity.dividendEstimate || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</Text>
+                <Text style={{ fontSize: '12px', color: '#999', display: 'block' }}>年度成长回馈(情绪豆)</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: '20px', fontWeight: 'bold' }}>{(equity.newUsersThisMonth || 0).toLocaleString('zh-CN')}</Text>
+                <Text style={{ fontSize: '12px', color: '#999', display: 'block' }}>本月新增用户</Text>
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* 子导航：快速跳转各区块 */}
+      <View className="emotion-subnav">
+        <View className="emotion-subnav-btn" onClick={() => scrollTo('#sec-claims')} hoverClass="emotion-subnav-btn--active">确权集</View>
+        <View className="emotion-subnav-btn" onClick={() => Taro.navigateTo({ url: '/pages/emotion-badges/index' }).catch(() => {})} hoverClass="emotion-subnav-btn--active">我的徽章</View>
+        <View className="emotion-subnav-btn" onClick={() => equity ? scrollTo('#sec-equity') : Taro.navigateTo({ url: '/pages/user/index' }).catch(() => {})} hoverClass="emotion-subnav-btn--active">会员权益</View>
       </View>
 
       {/* 确权卡集 */}
       <View className="px-4 mt-4">
-        <Text className="text-lg font-bold text-foreground mb-3" style={{ display: 'block' }}>确权时刻</Text>
+        <Text id="sec-claims" className="text-lg font-bold text-foreground mb-3" style={{ display: 'block' }}>确权时刻</Text>
         {loading ? (
           <View className="flex items-center justify-center py-10">
             <View className="i-mdi-loading text-3xl text-primary animate-spin" />
@@ -175,7 +233,7 @@ function EmotionBillPage() {
                   </View>
                 </View>
                 <View className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-                  <Text className="text-base text-muted-foreground">+{c.tongbao_amount || 0} 通宝 · {fmtDate(c.created_at)}</Text>
+                  <Text className="text-base text-muted-foreground">+{c.tb_amount || 0} 情绪豆 · {fmtDate(c.created_at)}</Text>
                   <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
                 </View>
               </View>

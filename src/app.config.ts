@@ -8,6 +8,7 @@ const pages = [
   'pages/product/index',
   'pages/store-home/index',
   'pages/payment/index',
+  'pages/payment-result/index',
   'pages/order-center/index',
   'pages/search/index',
   'pages/ugc-publish/index',
@@ -44,6 +45,7 @@ const pages = [
   'pages/rank-rules/index',
   'pages/points-rules/index',
   'pages/merchant-agreement/index',
+  'pages/distribution-agreement/index',
   // 商家管理中心（对齐 admin-web）
   'pages/merchant-products/index',
   'pages/merchant-orders/index',
@@ -69,10 +71,12 @@ const pages = [
   'pages/merchant-emotion-funnel/index',
   // V5：消费即确权页（支付成功后引导）
   'pages/emotion-claim/index',
-  // V5：我的情绪账单（用户侧确权集 + 通宝）
+  // V5：我的情绪账单（用户侧确权集 + 情绪豆）
   'pages/emotion-bill/index',
   // V5 P2-1：我的情绪徽章
   'pages/emotion-badges/index',
+  // 通知中心
+  'pages/messages/index',
 ]
 
 export default defineAppConfig({

@@ -4,6 +4,9 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
 import { getCartItems, updateCartQty, removeCartItem, updateCartSelected } from '@/db/api'
 import { updateCartBadge } from '@/utils/cartBadge'
+import { subscribeCartCount, bumpCartCount } from '@/utils/cartStore'
+import { setPendingCheckout } from '@/utils/checkoutCache'
+import { generateEmotionHeadline } from '@/utils/emotion-description'
 import type { CartItem } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
@@ -24,6 +27,8 @@ function CartPage() {
 
   useEffect(() => { loadCart() }, [loadCart])
   useDidShow(() => { loadCart() })
+  // 实时联动：购物车总件数变化（如其他端加购/删除）时立即重载行囊物品
+  useEffect(() => subscribeCartCount(() => { loadCart() }), [loadCart])
 
   // 按门店分组
   const grouped = items.reduce((acc: Record<string, { storeName: string; storeId: string; items: CartItem[] }>, item) => {
@@ -55,17 +60,22 @@ function CartPage() {
     const newQty = current + delta
     if (newQty <= 0) {
       await removeCartItem(id)
+      bumpCartCount(-current) // 移除当前件数，徽标实时 -current
       setItems(prev => { const next = prev.filter(i => i.id !== id); updateCartBadge(); return next })
     } else {
       await updateCartQty(id, newQty)
+      bumpCartCount(delta) // 件数变化，徽标实时 ±delta
       setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: newQty } : i))
     }
   }
 
   const handleRemove = async (id: string) => {
+    const target = items.find(i => i.id === id)
+    const q = target?.quantity || 0
     Taro.showModal({ title: '确认删除', content: '确认从行囊中移除此商品？', success: async (res) => {
       if (res.confirm) {
         await removeCartItem(id)
+        bumpCartCount(-q) // 删除整行，徽标实时 -件数
         setItems(prev => { const next = prev.filter(i => i.id !== id); updateCartBadge(); return next })
       }
     }})
@@ -79,6 +89,8 @@ function CartPage() {
     }
     const total = selectedItems.reduce((s, i) => s + (i.products?.price || 0) * i.quantity, 0)
     const ids = selectedItems.map(i => i.id).join(',')
+    // 写入待结算缓存：覆盖冷启动/热重载停在支付页时 router.params 为空的情况
+    setPendingCheckout({ cartIds: ids ? ids.split(',') : [], total })
     Taro.navigateTo({ url: `/pages/payment/index?cartIds=${encodeURIComponent(ids)}&total=${total.toFixed(2)}` })
   }
 
@@ -155,6 +167,12 @@ function CartPage() {
                       <View className="flex-1">
                         <Text className="text-xl text-foreground font-bold line-clamp-2">{item.products?.name}</Text>
                         <Text className="text-xl font-bold text-primary mt-1">¥{item.products?.price}</Text>
+                        {/* v3.1 AI 卖点标题：行囊里也露一次脸，强化转化前的心智锚点 */}
+                        {(item.products?.mood_tags?.length ?? 0) > 0 && (
+                          <Text className="text-xs text-muted-foreground mt-1" style={{ display: 'block' }}>
+                            {generateEmotionHeadline(item.products as any, item.products?.mood_tags || [], item.products?.scene_tags || [])}
+                          </Text>
+                        )}
                         <View className="flex items-center justify-between mt-2">
                           <View className="flex items-center gap-3">
                             <View

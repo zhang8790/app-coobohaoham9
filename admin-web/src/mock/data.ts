@@ -17,9 +17,9 @@ export const MOCK_PRODUCTS: Product[] = [
 ]
 
 export const MOCK_WITHDRAWALS: Withdrawal[] = [
-  { id: 'w1', user_id: 'u1', store_id: null, amount: 500, status: 'pending', withdraw_method: 'bank', bank_name: '工商银行', bank_account: '6222****1234', bank_holder: '张三', alipay_account: null, reject_reason: null, remark: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: 'w2', user_id: 'u2', store_id: null, amount: 1200, status: 'pending', withdraw_method: 'alipay', bank_name: null, bank_account: null, bank_holder: null, alipay_account: '138****0000', reject_reason: null, remark: null, created_at: new Date(Date.now()-864e5).toISOString(), updated_at: new Date(Date.now()-864e5).toISOString() },
-  { id: 'w3', user_id: 'u3', store_id: null, amount: 300, status: 'approved', withdraw_method: 'bank', bank_name: '招商银行', bank_account: '6217****5678', bank_holder: '王五', alipay_account: null, reject_reason: null, remark: null, created_at: new Date(Date.now()-2*864e5).toISOString(), updated_at: new Date(Date.now()-2*864e5).toISOString() },
+  { id: 'w1', user_id: 'u1', store_id: null, amount: 500, status: 'pending', withdraw_method: 'bank', bank_name: '工商银行', bank_account: '6222****1234', bank_holder: '张三', real_name: '张三', id_card: '110101199001011234', alipay_account: null, reject_reason: null, remark: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 'w2', user_id: 'u2', store_id: null, amount: 1200, status: 'pending', withdraw_method: 'alipay', bank_name: null, bank_account: null, bank_holder: null, real_name: '李四', id_card: '310101199203034567', alipay_account: '138****0000', reject_reason: null, remark: null, created_at: new Date(Date.now()-864e5).toISOString(), updated_at: new Date(Date.now()-864e5).toISOString() },
+  { id: 'w3', user_id: 'u3', store_id: null, amount: 300, status: 'approved', withdraw_method: 'bank', bank_name: '招商银行', bank_account: '6217****5678', bank_holder: '王五', real_name: '王五', id_card: '440301198807086789', alipay_account: null, reject_reason: null, remark: null, created_at: new Date(Date.now()-2*864e5).toISOString(), updated_at: new Date(Date.now()-2*864e5).toISOString() },
 ]
 
 export const MOCK_REFUNDS: Refund[] = [

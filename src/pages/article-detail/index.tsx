@@ -1,12 +1,13 @@
 // @title 文章详情页 - 公众号风格
 import { useState, useEffect, useRef } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
-import { View, Text, Image, ScrollView, RichText } from '@tarojs/components'
+import { View, Text, Image, ScrollView, RichText, Button, Canvas } from '@tarojs/components'
 import './index.scss'
 
 import { useAuth } from '@/contexts/AuthContext'
 import { getArticleById, incrementArticleView, getArticles, getProductById } from '@/db/api'
-import { handleInviterFromQuery } from '@/utils/share'
+import { handleInviterFromQuery, buildArticleShareTitle } from '@/utils/share'
+import { generateArticleSharePoster, POSTER_WIDTH, POSTER_HEIGHT } from '@/utils/share-poster'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 
 export default function ArticleDetailPage() {
@@ -22,10 +23,34 @@ export default function ArticleDetailPage() {
   const articleId = instance.router?.params?.id
 
   // 分享钩子
+  const shareTitle = buildArticleShareTitle(article)
+  const [sharePosterUrl, setSharePosterUrl] = useState<string>('')
+
+  // 文章加载成功后，异步生成分享海报
+  useEffect(() => {
+    if (!article) return
+    let alive = true
+    const timer = setTimeout(() => {
+      generateArticleSharePoster(article, 'articleShareCanvas')
+        .then((url) => {
+          if (alive) setSharePosterUrl(url)
+        })
+        .catch((err) => {
+          console.warn('[文章分享] 生成海报失败，回退到封面图', err)
+        })
+    }, 500)
+    return () => {
+      alive = false
+      clearTimeout(timer)
+    }
+  }, [article])
+
   useShareWithReferral({
-    title: article?.title || '来电有喜 - 好文推荐',
+    title: shareTitle,
     path: `/pages/article-detail/index?id=${articleId}`,
-    imageUrl: article?.cover_image || '',
+    imageUrl: sharePosterUrl || article?.cover_image || '',
+    timelineTitle: shareTitle,
+    timelineQuery: `id=${articleId}`,
   })
 
   // 获取当前城市名称
@@ -48,7 +73,7 @@ export default function ArticleDetailPage() {
     loadArticle()
   }, [articleId])
 
-  // 预览时锁客
+  // 预览时归属
   useEffect(() => {
     if (article && user) {
       const query = instance.router?.params || {}
@@ -114,7 +139,9 @@ export default function ArticleDetailPage() {
   }
 
   const handleShare = () => {
-    Taro.showShareMenu({ withShareTicket: true })
+    // 真正触发分享由 openType='share' 的 Button 完成
+    // 保留此函数，方便以后做「生成海报」等二次入口
+    Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
   }
 
   if (loading) {
@@ -270,10 +297,10 @@ export default function ArticleDetailPage() {
 
         {/* ===== 底部操作栏 ===== */}
         <View className="bottom-actions">
-          <View className="action-item" onClick={handleShare}>
+          <Button openType="share" className="action-item action-share-btn" onClick={handleShare}>
             <Text className="action-icon">↗</Text>
             <Text className="action-label">分享</Text>
-          </View>
+          </Button>
           <View
             className={`action-item ${isFavorited ? 'action-active' : ''}`}
             onClick={handleFavorite}
@@ -343,6 +370,14 @@ export default function ArticleDetailPage() {
 
         <View className="safe-bottom" />
       </ScrollView>
+
+      {/* 隐藏 Canvas：用于绘制文章分享海报 */}
+      <Canvas
+        type="2d"
+        id="articleShareCanvas"
+        className="share-canvas-hidden"
+        style={{ width: `${POSTER_WIDTH}px`, height: `${POSTER_HEIGHT}px` }}
+      />
     </View>
   )
 }

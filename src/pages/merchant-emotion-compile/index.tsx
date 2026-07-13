@@ -11,8 +11,10 @@ import { scoreCompilation } from '@/utils/emotion-scoring'
 import {
   EMOTION_DIMENSION_TAGS, EMOTION_DIMENSION_ORDER, EMOTION_DIMENSION_LABELS,
   EMOTION_DIMENSION_MAX, recommendDimensions,
+  SHIYANG_CATEGORIES, SHIYANG_DIMENSION_KEY, SHIYANG_DIMENSION_LABEL, SHIYANG_DIMENSION_MAX,
 } from '@/utils/emotion-dimensions'
 import { RouteGuard } from '@/components/RouteGuard'
+import { generateEmotionHeadline } from '@/utils/emotion-description'
 
 type DimKey = 'function' | 'scene' | 'emotion' | 'identity' | 'sensory'
 
@@ -29,6 +31,8 @@ function MerchantEmotionCompilePage() {
   const [dims, setDims] = useState<Record<DimKey, string[]>>({
     function: [], scene: [], emotion: [], identity: [], sensory: [],
   })
+  // 食养成分标签选择
+  const [shiyangDims, setShiyangDims] = useState<string[]>([])
   // 推荐标签（根据商品描述）
   const [recommended, setRecommended] = useState<Partial<Record<DimKey, string[]>>>({})
 
@@ -37,6 +41,11 @@ function MerchantEmotionCompilePage() {
   const [stage1, setStage1] = useState('') // 场景化问句
   const [stage2, setStage2] = useState('') // 状态确认
   const [stage3, setStage3] = useState('') // 身份确认
+  // 多段候选（云端/本地编译返回的 3 段候选文案，用于"换一版"切换）
+  const [candidates, setCandidates] = useState<string[]>([])
+  // 候选对应的「AI 卖点标题」（与 candidates 同序，工作台展示每条文案的卖点角度）
+  const [candidateHeadlines, setCandidateHeadlines] = useState<string[]>([])
+  const [curHeadline, setCurHeadline] = useState('')
 
   // ── 加载商品 + 已有编译结果 ──
   useEffect(() => {
@@ -57,6 +66,9 @@ function MerchantEmotionCompilePage() {
             function: dt.function || [], scene: dt.scene || [],
             emotion: dt.emotion || [], identity: dt.identity || [], sensory: dt.sensory || [],
           })
+          if (emo.shiyang_tags?.[SHIYANG_DIMENSION_KEY]) {
+            setShiyangDims(emo.shiyang_tags[SHIYANG_DIMENSION_KEY] || [])
+          }
           setTitle(emo.emotion_title ?? '')
           // 已有编译结果：优先用三阶段（存于 emotion_detail 由 ' ' 拼接），否则整体放入 stage2
           const detail = emo.emotion_detail ?? ''
@@ -85,6 +97,18 @@ function MerchantEmotionCompilePage() {
         return prev
       }
       return { ...prev, [dim]: [...cur, zh] }
+    })
+  }
+
+  // ── 食养成分标签切换 ──
+  const toggleShiyangTag = (zh: string) => {
+    setShiyangDims(prev => {
+      if (prev.includes(zh)) return prev.filter(t => t !== zh)
+      if (prev.length >= SHIYANG_DIMENSION_MAX) {
+        Taro.showToast({ title: `最多选 ${SHIYANG_DIMENSION_MAX} 个食材`, icon: 'none' })
+        return prev
+      }
+      return [...prev, zh]
     })
   }
 
@@ -118,7 +142,17 @@ function MerchantEmotionCompilePage() {
         if (res.stage1) setStage1(res.stage1)
         if (res.stage2) setStage2(res.stage2)
         if (res.stage3) setStage3(res.stage3)
+        if (res.candidates && Array.isArray(res.candidates)) setCandidates(res.candidates)
         if (!res.stage1 && res.emotion_detail) setStage2(res.emotion_detail)
+        // 为候选文案生成「AI 卖点标题」，让商家一眼分辨每条角度
+        const srcList = (res.candidates && Array.isArray(res.candidates) && res.candidates.length)
+          ? res.candidates
+          : (res.emotion_detail ? [res.emotion_detail] : [])
+        const hs = srcList.map((_, i) =>
+          generateEmotionHeadline(product, dims.emotion, dims.scene, product.category, i),
+        )
+        setCandidateHeadlines(hs)
+        setCurHeadline(hs[0] || '')
         if (res._local) Taro.showToast({ title: '⚠️ 云端未部署，已用本地规则生成', icon: 'none' })
         else Taro.showToast({ title: '编译完成', icon: 'success' })
       } else {
@@ -132,6 +166,20 @@ function MerchantEmotionCompilePage() {
     }
   }
 
+  // ── 换一版：在 3 段候选文案中循环切换，更新 stage2 ──
+  const [candidateIdx, setCandidateIdx] = useState(0)
+  const handleNextCandidate = () => {
+    if (candidates.length <= 1) {
+      Taro.showToast({ title: '候选仅 1 段，请先点"一键编译"', icon: 'none' })
+      return
+    }
+    const next = (candidateIdx + 1) % candidates.length
+    setCandidateIdx(next)
+    setStage2(candidates[next])
+    setCurHeadline(candidateHeadlines[next] || '')
+    Taro.showToast({ title: `已切换到第 ${next + 1}/${candidates.length} 段`, icon: 'none' })
+  }
+
   // ── 实时质量评分 ──
   const score = useMemo(() => {
     const copyText = [title, stage1, stage2, stage3].filter(Boolean).join(' ')
@@ -141,6 +189,7 @@ function MerchantEmotionCompilePage() {
       hasFunctionInfo: Boolean(product?.description && product.description.trim().length > 5),
       sceneBound: (dims.scene?.length || 0) > 0,
       claimVerifiable: true, // 本地生活实物可消费验证
+      shiyangTagCount: shiyangDims.length,
     })
   }, [dims, title, stage1, stage2, stage3, product])
 
@@ -167,6 +216,10 @@ function MerchantEmotionCompilePage() {
         dimension_tags: dims,
         quality_score: score.total,
         review_status: submit ? 'submitted' : 'draft',
+        shiyang_tags: { [SHIYANG_DIMENSION_KEY]: shiyangDims },
+        shiyang_copy: shiyangDims.length > 0
+          ? `食材：${shiyangDims.join('、')}（传统食养参考）`
+          : null,
       })
       if (ok) {
         Taro.showToast({ title: submit ? '已提交审核' : '已存草稿', icon: 'success' })
@@ -270,9 +323,40 @@ function MerchantEmotionCompilePage() {
         })}
       </View>
 
+      {/* ── 食养成分打标 ── */}
+      <View style={{ margin: '0 14px 14px', padding: '14px', borderRadius: '16px', background: '#FFF', border: '1px solid #F0E6D8' }}>
+        <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#333', marginBottom: '4px' }}>② 食养成分打标（可选）</Text>
+        <Text style={{ fontSize: '11px', color: '#AAA', marginBottom: '10px', display: 'block' }}>最多选 {SHIYANG_DIMENSION_MAX} 个食材，所有食养文案自动套合规措辞</Text>
+        {Object.entries(SHIYANG_CATEGORIES).map(([catKey, cat]) => (
+          <View key={catKey} style={{ marginBottom: '10px' }}>
+            <Text style={{ fontSize: '12px', fontWeight: 'bold', color: '#16A34A', marginBottom: '6px', display: 'block' }}>{cat.label}</Text>
+            <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {cat.tags.map(tag => {
+                const on = shiyangDims.includes(tag.zh)
+                return (
+                  <View
+                    key={tag.zh}
+                    onClick={() => toggleShiyangTag(tag.zh)}
+                    style={{
+                      padding: '5px 10px', borderRadius: '14px',
+                      background: on ? (tag.color || '#CCC') : '#F5F5F5',
+                      border: `1px solid ${on ? (tag.color || '#CCC') : '#EEE'}`,
+                      display: 'flex', alignItems: 'center', gap: '3px',
+                    }}>
+                    <Text style={{ fontSize: '12px', color: on ? '#FFF' : '#666' }}>
+                      {tag.icon} {tag.zh}
+                    </Text>
+                  </View>
+                )
+              })}
+            </View>
+          </View>
+        ))}
+      </View>
+
       {/* ── 一键编译 ── */}
       <View style={{ margin: '0 14px 14px', padding: '14px', borderRadius: '16px', background: 'linear-gradient(135deg,#F3F0FF,#FFEFF6)', border: '1px solid #E8E0FF' }}>
-        <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#333', marginBottom: '8px', display: 'block' }}>② 一键编译</Text>
+        <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#333', marginBottom: '8px', display: 'block' }}>③ 一键编译</Text>
         <Text style={{ fontSize: '11px', color: '#999', marginBottom: '10px', display: 'block' }}>基于三阶段翻译引擎（功能→场景→情绪→身份）生成情绪化叙事</Text>
         <View
           onClick={handleCompile}
@@ -290,6 +374,14 @@ function MerchantEmotionCompilePage() {
         <View style={{ margin: '0 14px 14px', padding: '14px', borderRadius: '16px', background: '#FFF', border: '1px solid #F0E6D8' }}>
           <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#333', marginBottom: '10px', display: 'block' }}>③ 编译结果（可微调）</Text>
 
+          {curHeadline && (
+            <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', padding: '8px 10px', borderRadius: '10px', background: '#FFF7ED', border: '1px solid #FED7AA' }}>
+              <Text style={{ fontSize: '12px', color: '#C2410C', fontWeight: 'bold' }}>🏷️ {curHeadline}</Text>
+              <View onClick={() => setTitle(curHeadline)} style={{ padding: '3px 10px', borderRadius: '8px', background: '#FF8A65' }}>
+                <Text style={{ fontSize: '11px', color: '#FFF', fontWeight: 'bold' }}>采用</Text>
+              </View>
+            </View>
+          )}
           <Text style={{ fontSize: '12px', color: '#666', marginBottom: '4px', display: 'block' }}>标题</Text>
           <Input
             style={inputBox}
@@ -301,8 +393,25 @@ function MerchantEmotionCompilePage() {
           <Text style={{ fontSize: '12px', color: '#666', margin: '10px 0 4px', display: 'block' }}>第一屏 · 场景化问句</Text>
           <Textarea style={areaBox} value={stage1} onInput={(e: any) => setStage1(e.detail?.value ?? '')} placeholder="如：加班到十点，需要一口暖的？" />
 
-          <Text style={{ fontSize: '12px', color: '#666', margin: '10px 0 4px', display: 'block' }}>第二屏 · 状态确认</Text>
-          <Textarea style={areaBox} value={stage2} onInput={(e: any) => setStage2(e.detail?.value ?? '')} placeholder="如：明明很累了，又不想随便对付自己？" />
+          <Text style={{ fontSize: '12px', color: '#666', margin: '10px 0 4px', display: 'block' }}>第二屏 · 状态确认（多段叙事，可手动微调）</Text>
+          <Textarea
+            style={{ ...areaBox, minHeight: '160px' }}
+            value={stage2}
+            onInput={(e: any) => setStage2(e.detail?.value ?? '')}
+            placeholder="如：明明很累了，又不想随便对付自己？"
+          />
+          {candidates.length > 1 && (
+            <View
+              onClick={handleNextCandidate}
+              style={{
+                marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px',
+                padding: '5px 12px', borderRadius: '12px', background: '#F3F0FF', border: '1px solid #C9C2F0',
+              }}>
+              <Text style={{ fontSize: '12px', color: '#6C5CE7', fontWeight: 'bold' }}>
+                🔄 换一版（{candidateIdx + 1}/{candidates.length}）
+              </Text>
+            </View>
+          )}
 
           <Text style={{ fontSize: '12px', color: '#666', margin: '10px 0 4px', display: 'block' }}>第三屏 · 身份确认</Text>
           <Textarea style={areaBox} value={stage3} onInput={(e: any) => setStage3(e.detail?.value ?? '')} placeholder="如：你是再忙也会好好照顾自己的人" />
@@ -330,10 +439,11 @@ function MerchantEmotionCompilePage() {
           </View>
           <View style={{ flex: 1 }}>
             {[
-              { label: '标签完整度', v: score.dimensions.tagCompleteness, max: 30, color: '#6C5CE7' },
-              { label: '文案合规性', v: score.dimensions.copyCompliance, max: 30, color: '#0EA5E9' },
-              { label: '场景精准度', v: score.dimensions.scenePrecision, max: 20, color: '#16A34A' },
-              { label: '确权可达性', v: score.dimensions.claimVerifiability, max: 20, color: '#C2410C' },
+              { label: '标签完整度', v: score.dimensions.tagCompleteness, max: 25, color: '#6C5CE7' },
+              { label: '文案合规性', v: score.dimensions.copyCompliance, max: 25, color: '#0EA5E9' },
+              { label: '场景精准度', v: score.dimensions.scenePrecision, max: 18, color: '#16A34A' },
+              { label: '确权可达性', v: score.dimensions.claimVerifiability, max: 17, color: '#C2410C' },
+              { label: '食养完整度', v: score.dimensions.shiyangCompleteness, max: 15, color: '#9333EA' },
             ].map(d => (
               <View key={d.label} style={{ marginBottom: '5px' }}>
                 <View style={{ display: 'flex', justifyContent: 'space-between' }}>

@@ -1,52 +1,56 @@
 import { View, Text } from '@tarojs/components'
-// @title 佣金规则
+// @title 推广规则
 import Taro from '@tarojs/taro'
+import RiskWarning from '@/components/RiskWarning'
 
 function CommissionRules() {
   return (
     <View className="min-h-screen bg-background pb-10">
-      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4" style={{ fontSize: '13px', lineHeight: '2', color: '#9CA3AF' }}>
-        <Text style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 12, lineHeight: 1.5 }}>来电有喜佣金规则</Text>
-        <Text style={{ color: '#6B7280', fontSize: 12, marginBottom: 16 }}>最近更新日期：2026年7月1日<br/>生效日期：2026年7月1日</Text>
+      <RiskWarning />
 
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ color: '#E5E7EB', fontWeight: 600, marginBottom: 4 }}>一、佣金来源</Text>
-          <Text>1. 您通过专属推广码邀请的好友（一级下线）消费，您可获得 L1 佣金。</Text>
-          <Text>2. 一级下线再邀请的好友（二级下线）消费，您可获得 L2 佣金。</Text>
-          <Text>3. 分享平台文章/门店也可锁定下线，订单同样计入您的推广链条。</Text>
+      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4 text-muted-foreground text-sm leading-loose">
+        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜推广规则</Text>
+        <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月10日\n生效日期：2026年7月10日'}</Text>
+
+        <View className="mb-4">
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">一、佣金来源（二级结构）</Text>
+          <Text className="block">1. 您通过专属推广码邀请的我的好友在平台消费，您可获得我的好友佣金。</Text>
+          <Text className="block">2. 您推荐的我的好友再邀请其好友消费，您可获得我的粉丝佣金。</Text>
+          <Text className="block">3. 分享平台文章/门店给好友，好友注册后消费同样计入您的推广业绩。</Text>
+          <Text className="block">4. 本平台仅设二级推广（我的好友+我的粉丝），只有二级、不发展第三级及多级分润。</Text>
         </View>
 
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ color: '#E5E7EB', fontWeight: 600, marginBottom: 4 }}>二、佣金比例</Text>
-          <Text>佣金比例由您的「段位」决定，段位越高比例越大：</Text>
-          <Text>L1 佣金比例区间：15% ~ 28%（随段位提升）</Text>
-          <Text>L2 佣金比例区间：6% ~ 16%（随段位提升）</Text>
-          <Text>具体比例以推广中心当前段位展示为准。</Text>
+        <View className="mb-4">
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">二、佣金比例（二级）</Text>
+          <Text className="block">1. 我的好友佣金比例由您的「段位」决定，段位越高比例越大：约 40% ~ 60%（基于订单让利池在扣除平台基础服务费后的剩余部分计算，并非订单全额）。</Text>
+          <Text className="block">2. 我的粉丝佣金比例为 15% ~ 25%，随您的段位提升而提高。</Text>
+          <Text className="block">3. 仅二级（我的好友+我的粉丝），不设置第三级及多层返利。</Text>
+          <Text className="block">具体比例以推广中心当前段位展示为准。</Text>
         </View>
 
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ color: '#E5E7EB', fontWeight: 600, marginBottom: 4 }}>三、结算规则</Text>
-          <Text>1. 订单完成后佣金进入「待结算」状态。</Text>
-          <Text>2. 订单无退款纠纷且超过售后周期后，佣金转为「已结算」。</Text>
-          <Text>3. 已结算佣金可发起提现，提现将扣除 10% 平台服务费。</Text>
+        <View className="mb-4">
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">三、结算与提现</Text>
+          <Text className="block">1. 订单完成后佣金进入「待结算」状态。</Text>
+          <Text className="block">2. 订单无退款纠纷且超过售后周期后，佣金转为「已结算」。</Text>
+          <Text className="block">3. 已结算佣金可发起提现，提现按您申请的金额发放，到账周期 1-3 个工作日。推广佣金属于依法应申报的劳务报酬所得，请依法履行个人所得税纳税申报义务。</Text>
         </View>
 
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ color: '#E5E7EB', fontWeight: 600, marginBottom: 4 }}>四、活跃门槛</Text>
-          <Text>1. 推广人须保持活跃：当月自消费满 ¥39 方可获得全额 L1 佣金。</Text>
-          <Text>2. 当月零消费（首次）：L1 佣金减半（宽限期）。</Text>
-          <Text>3. 连续 2 个月零消费：取消分佣资格，恢复消费后重新激活。</Text>
+        <View className="mb-4">
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">四、活跃门槛</Text>
+          <Text className="block">1. 推广人须保持推广活跃：当月您推荐的好友产生有效成交订单，方可获得全额推广佣金。</Text>
+          <Text className="block">2. 当月无推荐成交（首次）：推广佣金减半（宽限期）。</Text>
+          <Text className="block">3. 连续 2 个月无推荐成交：暂停推广佣金资格，恢复推广活跃后重新激活。</Text>
         </View>
 
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ color: '#E5E7EB', fontWeight: 600, marginBottom: 4 }}>五、回扣与风控</Text>
-          <Text>1. 若下线订单发生退款，对应佣金将同步回扣。</Text>
-          <Text>2. 连续 3 个月未拓新，L1 佣金逐级衰减（最低不低于 40%）。</Text>
-          <Text>3. 平台严禁刷单、套现等作弊行为，违规佣金将被冻结或清零。</Text>
+        <View className="mb-4">
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">五、回扣与风控</Text>
+          <Text className="block">1. 若推荐好友订单发生退款，对应佣金将同步回扣。</Text>
+          <Text className="block">2. 连续 3 个月未拓新，推广佣金逐级衰减（最低不低于基准比例的 40%）。</Text>
+          <Text className="block">3. 平台严禁刷单、套现等作弊行为，违规佣金将被冻结或清零。</Text>
         </View>
 
-        <Text style={{ color: '#6B7280', fontSize: 11, marginTop: 20, borderTop: '1px solid #1F2937', paddingTop: 12 }}>
-          完整段位与比例详见《段位规则》。本规则最终解释权归来电有喜平台所有。
+        <Text className="block text-muted-foreground text-xs mt-5 pt-3" style={{ borderTop: '1px solid hsl(var(--border))' }}>
+          完整段位与比例详见《段位规则》。本规则的解释与适用遵循法律法规，如有疑问请联系客服咨询。
         </Text>
       </View>
     </View>

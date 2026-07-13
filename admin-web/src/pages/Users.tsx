@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { getUsers, updateUserRole } from '@/api/admin'
 import type { Profile } from '@/types'
+import { maskPhone } from '@/utils/mask'
 
 const PAGE_SIZE = 20
 const RANK_COLORS: Record<string, string> = {
@@ -66,7 +67,7 @@ export default function Users() {
                 return (
                   <tr key={u.id}>
                     <td style={{ ...S.td, color: '#E5E7EB', fontWeight: 600 }}>{u.nickname || '侠客'}</td>
-                    <td style={{ ...S.td, color: '#9CA3AF' }}>{u.phone || '—'}</td>
+                    <td style={{ ...S.td, color: '#9CA3AF' }}>{maskPhone(u.phone)}</td>
                     <td style={S.td}>
                       <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600,
                         background: `${rankColor}33`, color: rankColor }}>

@@ -17,12 +17,13 @@ const NAV_ITEMS = [
   { to: '/pages/merchant-emotion-funnel/index', icon: 'i-mdi-emoticon-happy-outline', label: '情绪漏斗', color: 'bg-pink-500', key: 'emofunnel' },
   { to: '/pages/merchant-settings/index', icon: 'i-mdi-store-cog', label: '店铺设置', color: 'bg-gray-500', key: 'settings' },
   { to: '/pages/withdraw/index', icon: 'i-mdi-cash-multiple', label: '佣金提现', color: 'bg-yellow-500', key: 'withdraw' },
-  { to: '/pages/merchant-products/index?tab=ads', icon: 'i-mdi-bullhorn', label: '广告管理', color: 'bg-red-500', key: 'ads' },
 ]
 
 function MerchantCenterPage() {
   const [store, setStore] = useState<Store | null>(null)
   const [stats, setStats] = useState({ products: 0, online: 0, orders: 0, todayOrders: 0, members: 5, crossStore: 2 })
+  const [recentOrders, setRecentOrders] = useState<any[]>([])
+  const [statsLoaded, setStatsLoaded] = useState(false)
   const [merchantAppStatus, setMerchantAppStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -124,8 +125,19 @@ function MerchantCenterPage() {
       const today = new Date().toISOString().slice(0, 10)
       const todayOrders = ords.filter(o => (o.orders?.created_at || '').startsWith(today)).length
       setStats({ products: prods.length, online, orders: ords.length, todayOrders, members: 5, crossStore: 2 })
+      // 取最近 5 笔去重订单（order_items 一行一商品，按 order_no 聚合）
+      const seen = new Set<string>()
+      const recent: any[] = []
+      for (const it of ords) {
+        const no = it.orders?.order_no
+        if (no && !seen.has(no)) { seen.add(no); recent.push(it) }
+        if (recent.length >= 5) break
+      }
+      setRecentOrders(recent)
+      setStatsLoaded(true)
     }).catch(error => {
       console.error('[MerchantCenter] 加载统计数据失败:', error)
+      if (!cancelled) setStatsLoaded(true)
     })
 
     return () => { cancelled = true }
@@ -169,7 +181,7 @@ function MerchantCenterPage() {
     })
   }
 
-  // 分享配置：携带门店链接（用于锁客）
+  // 分享配置：携带门店链接（用于归属）
   useShareAppMessage(() => ({
     title: `${store?.name || '来电有喜'} · 扫码进店购物`,
     path: store ? `/pages/store-home/index?id=${store.id}` : '/pages/reward-shop/index',
@@ -239,7 +251,7 @@ function MerchantCenterPage() {
             <View className="i-mdi-store text-2xl text-primary" />
           </View>
           <View className="flex-1">
-            <Text className="text-xl font-bold text-foreground">{store.name}</Text>
+            <Text className="text-2xl font-bold text-foreground">{store.name}</Text>
             <Text className="text-base text-muted-foreground">{store.address || '暂无地址'}</Text>
           </View>
         </View>
@@ -270,9 +282,9 @@ function MerchantCenterPage() {
           { label: '会员', value: stats.members, sub: `${stats.crossStore}跨店`, color: 'text-purple-500' },
         ].map(s => (
           <View key={s.label} className="flex-1 bg-card rounded-2xl border border-border p-3 text-center">
-            <Text className={`text-2xl font-bold ${s.color}`}>{s.value}</Text>
-            <Text className="text-xs text-muted-foreground">{s.label}</Text>
-            <Text className="text-xs text-muted-foreground">{s.sub}</Text>
+            <Text className={`text-3xl font-bold ${s.color}`}>{s.value}</Text>
+            <Text className="text-base text-muted-foreground">{s.label}</Text>
+            <Text className="text-base text-muted-foreground">{s.sub}</Text>
           </View>
         ))}
       </View>
@@ -280,19 +292,19 @@ function MerchantCenterPage() {
       {/* 功能导航网格 */}
       <View className="grid grid-cols-4 gap-3 px-4 mt-4">
         {NAV_ITEMS.map(item => (
-          <View key={item.key} className="flex flex-col items-center gap-2 py-4 px-2 bg-card rounded-2xl border border-border"
+          <View key={item.key} className="flex flex-col items-center gap-2 py-4 px-1 bg-card rounded-2xl border border-border"
             onClick={() => Taro.navigateTo({ url: item.to })}>
-            <View className={`w-10 h-10 rounded-2xl ${item.color} flex items-center justify-center`}>
-              <View className={`${item.icon} text-white text-xl`} />
+            <View className={`w-11 h-11 rounded-2xl ${item.color} flex items-center justify-center`}>
+              <View className={`${item.icon} text-white text-2xl`} />
             </View>
-            <Text className="text-xs text-foreground text-center font-bold">{item.label}</Text>
+            <Text className="text-base text-foreground text-center font-bold whitespace-nowrap">{item.label}</Text>
           </View>
         ))}
       </View>
 
       {/* 快捷操作 */}
       <View className="px-4 mt-4">
-        <Text className="text-base font-bold text-foreground mb-2">快捷操作</Text>
+        <Text className="text-lg font-bold text-foreground mb-2">快捷操作</Text>
         <View className="flex gap-3">
           <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-2xl !leading-none"
             onClick={() => Taro.navigateTo({ url: '/pages/merchant-products/index?action=add' })}>
@@ -331,13 +343,43 @@ function MerchantCenterPage() {
       {/* 最近订单预览 */}
       <View className="px-4 mt-4">
         <View className="flex items-center justify-between mb-2">
-          <Text className="text-base font-bold text-foreground">最近订单</Text>
+          <Text className="text-lg font-bold text-foreground">最近订单</Text>
           <Button className="!p-0 !bg-transparent !border-none" onClick={() => Taro.navigateTo({ url: '/pages/merchant-orders/index' })}>
-            <Text className="text-sm text-primary">查看全部 →</Text>
+            <Text className="text-base text-primary">查看全部 →</Text>
           </Button>
         </View>
-        <View className="bg-card rounded-2xl border border-border p-4 flex items-center justify-center">
-          <Text className="text-base text-muted-foreground">加载中…</Text>
+        <View className="bg-card rounded-2xl border border-border p-4">
+          {!statsLoaded ? (
+            <Text className="text-base text-muted-foreground">加载中…</Text>
+          ) : recentOrders.length === 0 ? (
+            <Text className="text-base text-muted-foreground">暂无订单</Text>
+          ) : (
+            recentOrders.map((it, idx) => {
+              const o = it.orders || {}
+              const statusMap: Record<string, string> = {
+                pending_pay: '待付款', paid: '已付款', pending: '待发货',
+                pending_receive: '待收货', pending_review: '待评价', done: '已完成', completed: '已完成', cancelled: '已取消',
+              }
+              const statusText = statusMap[o.status] || o.status || '未知'
+              const amt = o.total_amount ?? 0
+              const time = (o.created_at || '').replace('T', ' ').slice(0, 16)
+              return (
+                <View
+                  key={o.order_no || idx}
+                  className="flex items-center justify-between py-2.5"
+                  style={idx > 0 ? { borderTop: '1px solid rgba(148,163,184,0.15)' } : undefined}>
+                  <View className="flex-1 mr-3">
+                    <Text className="text-base text-foreground">订单 {String(o.order_no || '').slice(-6)}</Text>
+                    <Text className="text-base text-muted-foreground mt-0.5">{time || '—'}</Text>
+                  </View>
+                  <View className="flex items-center gap-2">
+                    <Text className="text-base text-muted-foreground">{statusText}</Text>
+                    <Text className="text-base font-bold text-foreground">¥{amt}</Text>
+                  </View>
+                </View>
+              )
+            })
+          )}
         </View>
       </View>
 
@@ -399,7 +441,7 @@ function MerchantCenterPage() {
               {/* 提示文字 */}
               <Text className="text-sm text-muted-foreground text-center mt-5 leading-relaxed"
                 style={{ maxWidth: '280px' }}>
-                扫码自动进入「{store?.name}」，新用户注册即成为您的下线，享受消费佣金
+                扫码自动进入「{store?.name}」，新用户注册即成为您的推荐关系，享受推广奖励
               </Text>
             </View>
 

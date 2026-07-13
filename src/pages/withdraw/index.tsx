@@ -5,6 +5,7 @@ import Taro from '@tarojs/taro'
 import { applyWithdraw, getMyWithdrawals, getMyBalance, getMerchantStore } from '@/db/api'
 import type { Withdrawal, WithdrawMethod } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
+import RiskWarning from '@/components/RiskWarning'
 
 type Tab = 'apply' | 'records'
 type MethodKey = WithdrawMethod
@@ -33,6 +34,8 @@ function WithdrawPage() {
   // 申请表单状态
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState<MethodKey>('bank')
+  const [realName, setRealName] = useState('')
+  const [idCard, setIdCard] = useState('')
   const [bankName, setBankName] = useState('')
   const [bankAccount, setBankAccount] = useState('')
   const [bankHolder, setBankHolder] = useState('')
@@ -44,7 +47,7 @@ function WithdrawPage() {
     const [bal, store, recs] = await Promise.all([
       getMyBalance(), getMerchantStore(), getMyWithdrawals(),
     ])
-    setBalance(bal.gold_beans)
+    setBalance(bal.commission_balance)
     setStoreId(store?.id)
     setRecords(recs)
     setLoading(false)
@@ -55,14 +58,19 @@ function WithdrawPage() {
   const handleSubmit = async () => {
     const amt = parseFloat(amount)
     if (isNaN(amt) || amt <= 0) { Taro.showToast({ title: '请填写正确的提现金额', icon: 'none' }); return }
-    if (amt > balance) { Taro.showToast({ title: '提现金额不能超过可用金豆', icon: 'none' }); return }
+    if (amt > balance) { Taro.showToast({ title: '提现金额不能超过可用佣金', icon: 'none' }); return }
+    if (!realName.trim()) { Taro.showToast({ title: '请填写真实姓名', icon: 'none' }); return }
     if (method === 'bank') {
       if (!bankName.trim()) { Taro.showToast({ title: '请填写开户行', icon: 'none' }); return }
       if (!bankAccount.trim()) { Taro.showToast({ title: '请填写银行卡号', icon: 'none' }); return }
       if (!bankHolder.trim()) { Taro.showToast({ title: '请填写持卡人姓名', icon: 'none' }); return }
+      if (!idCard.trim()) { Taro.showToast({ title: '请填写身份证号', icon: 'none' }); return }
     }
     if (method === 'alipay' && !alipayAccount.trim()) {
       Taro.showToast({ title: '请填写支付宝账号', icon: 'none' }); return
+    }
+    if (method !== 'bank' && !idCard.trim()) {
+      Taro.showToast({ title: '请填写身份证号（打款核对）', icon: 'none' }); return
     }
     setSubmitting(true)
     const result = await applyWithdraw({
@@ -73,12 +81,14 @@ function WithdrawPage() {
       bank_account: method === 'bank' ? bankAccount : (method === 'alipay' ? alipayAccount : undefined),
       bank_holder: method === 'bank' ? bankHolder : undefined,
       alipay_account: method === 'alipay' ? alipayAccount : undefined,
+      real_name: realName.trim(),
+      id_card: idCard.trim(),
       remark: remark || undefined,
     })
     setSubmitting(false)
     if (result) {
       Taro.showToast({ title: '申请已提交，等待审核', icon: 'success' })
-      setAmount(''); setBankName(''); setBankAccount(''); setBankHolder(''); setAlipayAccount(''); setRemark('')
+      setAmount(''); setRealName(''); setIdCard(''); setBankName(''); setBankAccount(''); setBankHolder(''); setAlipayAccount(''); setRemark('')
       setTab('records')
       load()
     } else {
@@ -92,16 +102,18 @@ function WithdrawPage() {
     </View>
   )
 
-  // 可提余额（金豆 1 豆 = 1 元，已统一为 1:1）
+  // 可提余额（推广佣金，1 元 = 1 元推广服务费，可提现并代扣个税）
   const availableYuan = balance.toFixed(2)
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
 
+      <RiskWarning />
+
       {/* 余额卡 */}
       <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)' }}>
-        <Text className="text-xl text-white/80 mb-1">可提现金豆（元）</Text>
-        <Text className="text-4xl font-bold text-white">{balance.toLocaleString()}<Text className="text-xl ml-1">豆</Text></Text>
+        <Text className="text-xl text-white/80 mb-1">可提推广佣金（元）</Text>
+        <Text className="text-4xl font-bold text-white">{balance.toLocaleString()}<Text className="text-xl ml-1">元</Text></Text>
         <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}</Text>
       </View>
 
@@ -155,6 +167,29 @@ function WithdrawPage() {
           {/* 收款账户信息 */}
           <View className="bg-card rounded-2xl border border-border p-4 mb-4">
             <Text className="text-xl font-bold text-foreground mb-3">账户信息</Text>
+
+            {/* 真实姓名（所有方式必填） */}
+            <View className="mb-3">
+              <Text className="text-xl text-foreground mb-1">真实姓名 <Text className="text-red-500">*</Text></Text>
+              <View className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden">
+                <Input className="w-full text-xl text-foreground bg-transparent outline-none"
+                  placeholder="请输入与收款账户一致的真实姓名"
+                  value={realName}
+                  onInput={e => { const ev = e as any; setRealName(ev.detail?.value ?? ev.target?.value ?? '') }} />
+              </View>
+            </View>
+
+            {/* 身份证号（打款核对，财务可见） */}
+            <View className="mb-3">
+              <Text className="text-xl text-foreground mb-1">身份证号 <Text className="text-red-500">*</Text></Text>
+              <View className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden">
+                <Input className="w-full text-xl text-foreground bg-transparent outline-none"
+                  placeholder="用于打款核对，仅平台财务可见"
+                  value={idCard}
+                  onInput={e => { const ev = e as any; setIdCard(ev.detail?.value ?? ev.target?.value ?? '') }} />
+              </View>
+            </View>
+
             {method === 'bank' && (
               <>
                 {[
@@ -207,7 +242,7 @@ function WithdrawPage() {
             onClick={handleSubmit}>
             <View className="py-4 text-xl font-bold text-white">{submitting ? '提交中…' : '立即申请提现'}</View>
           </Button>
-          <Text className="text-base text-muted-foreground text-center mt-3">提现申请审核通常需要 1-3 个工作日</Text>
+          <Text className="text-base text-muted-foreground text-center mt-3">提现按申请金额发放，审核 1-3 个工作日到账；推广佣金为劳务报酬所得，请依法履行纳税申报义务</Text>
           <View className="mt-2 text-center" onClick={() => Taro.navigateTo({ url: '/pages/withdraw-rules/index' })}>
             <Text className="text-base text-primary">查看《提现规则》</Text>
           </View>

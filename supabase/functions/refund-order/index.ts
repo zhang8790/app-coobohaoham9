@@ -129,6 +129,25 @@ Deno.serve(async (req: Request) => {
       await triggerClawback(supabase, order_id, order.order_no, user.id, refund_amount, Number(order.total_amount))
       // 更新订单状态
       await supabase.from('orders').update({ status: 'after_sale' }).eq('id', order_id)
+
+      // 推送「退款成功」通知
+      supabase.functions.invoke('send-notification', {
+        body: {
+          user_id: user.id,
+          type: 'refund_result',
+          title: '退款成功',
+          body: `订单 ${order.order_no} 的退款 ¥${refund_amount.toFixed(2)} 已成功（以金豆形式到账）`,
+          order_id: order_id,
+          payload: {
+            order_no: order.order_no,
+            refund_amount: refund_amount.toFixed(2),
+            status_label: '退款成功',
+            refunded_at: new Date().toLocaleString('zh-CN'),
+            page: 'pages/order-center/index',
+          },
+        }
+      }).catch(e => console.warn('[refund-order] send-notification error:', e))
+
       return Response.json({ success: true, refund_id: refundRecord.id, refund_no: refundNo, method: 'gold_beans' }, { headers: corsHeaders })
     }
 
@@ -159,14 +178,26 @@ async function triggerClawback(
 ) {
   const ratio = totalAmount > 0 ? refundAmount / totalAmount : 1
 
-  // 佣金扣回：按比例标记
+  // 佣金扣回：按比例标记，并同步回滚受益人「推广佣金账户 + 累计佣金」
+  // （与 src/db/api.ts refund ③b 保持一致，防止已退款订单仍留存可提现佣金 = 资损）
   const { data: commissions } = await supabase.from('commissions')
-    .select('id, beneficiary_id, commission_amount').eq('order_id', orderId).eq('status', 'pending')
+    .select('id, beneficiary_id, commission_amount, status')
+    .eq('order_id', orderId)
+    .in('status', ['pending', 'settled'])
 
   for (const c of (commissions ?? [])) {
-    const clawback = Math.round(c.commission_amount * ratio * 10000) / 10000
+    const clawback = Math.max(0, Math.round(Number(c.commission_amount || 0) * ratio * 10000) / 10000)
     await supabase.from('commissions').update({ status: 'refunded' }).eq('id', c.id)
-    // 若已发放到余额则扣回（此处标记状态即可，T+7结算前不扣余额）
+    if (clawback > 0 && c.beneficiary_id) {
+      const { data: bProf } = await supabase.from('profiles')
+        .select('commission_balance, total_commission').eq('id', c.beneficiary_id).maybeSingle()
+      if (bProf) {
+        await supabase.from('profiles').update({
+          commission_balance: Math.max(0, Math.round((Number(bProf.commission_balance || 0) - clawback) * 100) / 100),
+          total_commission: Math.max(0, Math.round((Number(bProf.total_commission || 0) - clawback) * 100) / 100),
+        }).eq('id', c.beneficiary_id)
+      }
+    }
     console.log(`[clawback] commission ${c.id} marked refunded, clawback=${clawback}`)
   }
 

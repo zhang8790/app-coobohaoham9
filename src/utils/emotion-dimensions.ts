@@ -84,6 +84,14 @@ export const EMOTION_DIMENSION_TAGS: Record<string, DimensionTag[]> = {
 // 维度顺序（渲染用）
 export const EMOTION_DIMENSION_ORDER = ['function', 'scene', 'emotion', 'identity', 'sensory'] as const
 
+// 食养维度（扩展，独立于五维情绪标签，商家可选）
+export const SHIYANG_DIMENSION_KEY = 'shiyang' as const
+export const SHIYANG_DIMENSION_LABEL = '食养成分'
+export const SHIYANG_DIMENSION_MAX = 5  // 每商品最多选 5 个食材
+
+export { SHIYANG_CATEGORIES } from './shiyang-dictionary'
+import { resolveProductEmotionLexicon } from './product-emotion-lexicon'
+
 export const EMOTION_DIMENSION_LABELS: Record<string, string> = {
   function: '功能属性',
   scene: '适用场景',
@@ -128,6 +136,23 @@ const RECOMMEND_RULES: { keywords: string[]; dim: string; tags: string[] }[] = [
   { keywords: ['酒'], dim: 'scene', tags: ['朋友小聚', '约会', '节日庆祝'] },
   { keywords: ['酒'], dim: 'emotion', tags: ['松弛', '独处'] },
   { keywords: ['酒'], dim: 'sensory', tags: ['醇厚', '馥郁'] },
+  // 水果 / 生鲜
+  { keywords: ['猕猴桃', '苹果', '香蕉', '橙子', '柠檬', '西瓜', '葡萄', '草莓', '樱桃', '芒果', '火龙果', '梨', '柚子', '橘子', '李子', '杏'], dim: 'function', tags: ['水果'] },
+  { keywords: ['水果', '鲜果', '生鲜', '果蔬'], dim: 'scene', tags: ['独处时光', '下午茶', '周末一人食'] },
+  { keywords: ['水果', '鲜果', '果汁'], dim: 'emotion', tags: ['小确幸', '治愈', '清爽'] },
+  { keywords: ['水果', '果肉'], dim: 'sensory', tags: ['清甜', '多汁', '清爽'] },
+  // 零售 / 日用
+  { keywords: ['零食', '坚果', '干果', '饼干', '糖果', '巧克力', '薯片'], dim: 'function', tags: ['甜品', '烘焙甜品'] },
+  { keywords: ['零食', '薯片', '坚果'], dim: 'scene', tags: ['独处时光', '午后摸鱼', '追剧'] },
+  { keywords: ['零食', '巧克力', '糖果'], dim: 'emotion', tags: ['小确幸', '自我取悦', '治愈'] },
+  // 娱乐
+  { keywords: ['电影', 'KTV', '唱歌', '密室', '剧本杀', '游戏', '电竞', '网咖', '桌游', '抓娃娃'], dim: 'function', tags: ['娱乐'] },
+  { keywords: ['KTV', '唱歌', '电影', '聚会', '派对'], dim: 'scene', tags: ['朋友小聚', '节日庆祝', '约会'] },
+  { keywords: ['电影', '密室', '剧本杀', '游戏'], dim: 'emotion', tags: ['兴奋', '解压', '仪式感'] },
+  // 运动/健身
+  { keywords: ['健身', '瑜伽', '游泳', '跑步', '篮球', '羽毛球', '网球', '普拉提', '舞蹈'], dim: 'function', tags: ['运动'] },
+  { keywords: ['健身', '瑜伽', '游泳'], dim: 'scene', tags: ['下班疲惫', '独处时光', '周末一人食'] },
+  { keywords: ['健身', '运动', '瑜伽'], dim: 'emotion', tags: ['解压', '活力', '不将就'] },
   // 通用情绪触发词
   { keywords: ['累', '疲惫', '加班', '困'], dim: 'scene', tags: ['深夜加班', '下班疲惫'] },
   { keywords: ['放松', '解压', '休息'], dim: 'emotion', tags: ['解压', '放空'] },
@@ -150,6 +175,30 @@ export function recommendDimensions(text: string): Partial<Record<string, string
       result[rule.dim] = arr
     }
   }
+  // =====================
+  // 商品级情绪词库：补全更贴合具体商品的标签推荐
+  // 仅采纳命中标准维度库的标签，避免引入未知 key 破坏渲染。
+  // =====================
+  const px = resolveProductEmotionLexicon(text, '')
+  if (px) {
+    const inLib = (dim: string, tag: string) =>
+      (EMOTION_DIMENSION_TAGS[dim] || []).some(t => t.zh === tag)
+    const add = (dim: string, tags?: string[]) => {
+      if (!tags || !tags.length) return
+      for (const tag of tags) {
+        if (!inLib(dim, tag)) continue
+        const arr = result[dim] || []
+        if (arr.length < EMOTION_DIMENSION_MAX && !arr.includes(tag)) arr.push(tag)
+        result[dim] = arr
+      }
+    }
+    add('scene', px.sceneTags)
+    add('sensory', px.sensory)
+    add('function', px.functionTags)
+    add('identity', px.identityTags)
+    add('emotion', px.moodTags) // 仅采纳命中标准情绪库的那些词
+  }
+
   return result
 }
 

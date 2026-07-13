@@ -2,21 +2,33 @@
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, ScrollView } from '@tarojs/components'
-import { getStores, getCartCount } from '@/db/api'
+import { getStores } from '@/db/api'
+import { useCartCount, refreshCartCount } from '@/utils/cartStore'
+import { UNIFIED_EMOTION_FILTERS } from '@/utils/category-emotion'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import { usePagination } from '@/hooks'
 import LazyImage from '@/components/LazyImage'
 import type { Store } from '@/db/types'
 
+// 犒赏铺 = 合作商家入口（platformFilter='exclude'），使用「本地生活类目」体系。
+// 门店类目对齐本地生活业态：餐饮 / 购物(→零售) / 娱乐 / 美容(→美业) / 家政(→生活服务) / 教育(→亲子)
+// 语义声明与映射见 src/utils/category-emotion.ts（REWARD_SHOP_IS_LOCAL_LIFE / REWARD_SHOP_CATEGORY_TO_LOCAL_LIFE）。
 const CATEGORIES = ['全部', '餐饮', '购物', '娱乐', '美容', '家政', '教育']
 
-// 图片加载失败时的占位组件
-function StoreImagePlaceholder({ name }: { name: string }) {
+// 图片加载失败时的占位组件（柔和暖底 + emoji，替代生硬灰块）
+function StoreImagePlaceholder({ name, size = 84 }: { name: string; size?: number }) {
   return (
-    <View className="flex items-center justify-center bg-muted"
-      style={{ width: '100px', height: '100px', flexShrink: 0 }}>
+    <View className="flex items-center justify-center"
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        flexShrink: 0,
+        backgroundColor: '#FFF0E8',
+        borderTopLeftRadius: '16px',
+        borderBottomLeftRadius: '16px',
+      }}>
       <View className="flex flex-col items-center gap-1">
-        <View className="i-mdi-store-outline text-2xl text-muted-foreground" />
+        <Text style={{ fontSize: '26px' }}>🏪</Text>
         <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
       </View>
     </View>
@@ -25,7 +37,7 @@ function StoreImagePlaceholder({ name }: { name: string }) {
 
 export default function RewardShopPage() {
   const [activeCat, setActiveCat] = useState('全部')
-  const [cartCount, setCartCount] = useState(0)
+  const cartCount = useCartCount()
   const [failedImages, setFailedImages] = useState<string[]>([])  // ✅ 改成数组
 
   // 使用 usePagination Hook 管理分页
@@ -41,7 +53,7 @@ export default function RewardShopPage() {
     }
   )
 
-  const refreshCart = useCallback(async () => { setCartCount(await getCartCount()) }, [])
+  const refreshCart = useCallback(async () => { await refreshCartCount() }, [])
 
   // 切换分类时刷新
   const handleCategoryChange = useCallback((cat: string) => {
@@ -93,6 +105,19 @@ export default function RewardShopPage() {
         </View>
       </View>
 
+      {/* 情绪筛选层（与探索共用统一情绪维度，点击跳搜索页情绪配对） */}
+      <View className="flex gap-2 flex-wrap px-3 py-2 bg-background" style={{ borderBottom: '1px solid #E7DDD0' }}>
+        {UNIFIED_EMOTION_FILTERS.map((f) => (
+          <View
+            key={f.tag}
+            hoverClass="none"
+            onClick={() => Taro.navigateTo({ url: `/pages/search/index?mood=${encodeURIComponent(f.tag)}` })}
+            style={{ padding: '6px 14px', borderRadius: '20px', background: '#FFF0E8', border: '1.5px solid #E7DDD0' }}>
+            <Text style={{ fontSize: '14px' }}>{f.icon} {f.tag}</Text>
+          </View>
+        ))}
+      </View>
+
       <View className="flex flex-1 overflow-hidden">
         {/* 左侧分类 */}
         <ScrollView scrollY className="w-24 flex flex-col bg-muted">
@@ -118,12 +143,12 @@ export default function RewardShopPage() {
               <View key={store.id} className="bg-card rounded-2xl overflow-hidden border border-border mb-3 flex gap-0"
                 onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${store.id}` })}>
                 {failedImages.includes(store.id) || !img ? (
-                  <StoreImagePlaceholder name={store.name} />
+                  <StoreImagePlaceholder name={store.name} size={84} />
                 ) : (
-                  <LazyImage 
-                    src={img} 
-                    width={100} 
-                    height={100}
+                  <LazyImage
+                    src={img}
+                    width={84}
+                    height={84}
                     mode="aspectFill"
                     className="flex-shrink-0"
                   />

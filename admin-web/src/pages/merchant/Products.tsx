@@ -3,6 +3,7 @@ import type { Product } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { localCompileEmotion, recommendDimensions } from '@/utils/emotion'
+import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/utils/shiyang'
 
 interface ProductWithExt extends Product {
   status: 'online' | 'offline'
@@ -21,7 +22,7 @@ function calcRangLi(price: number, original?: number): string {
 
 const MOCK_PRODUCTS: ProductWithExt[] = [
   {
-    id: '1', store_id: 'store-1', name: '云南高山古树普洱茶 357g', description: '正宗云南古树普洱，陈化5年，汤色红浓明亮，滋味醇厚回甘。每一饼茶都经过严格筛选，确保品质上乘。适合长期储藏，越陈越香。',
+    id: '1', store_id: 'store-1', name: '云南高山古树普洱茶 357g', description: '云南古树普洱，陈化5年，汤色红浓明亮，滋味醇厚回甘。每一饼茶都经过严格筛选，确保品质稳定。适合长期储藏，越陈越香。',
     price: 268, original_price: 398, image_url: null,
     main_image: 'https://img.icons8.com/color/96/000000/tea.png',
     sub_images: [
@@ -51,7 +52,7 @@ const MOCK_PRODUCTS: ProductWithExt[] = [
     discount_rate: 33, review_status: 'approved', created_at: '2026-06-10',
   },
   {
-    id: '3', store_id: 'store-1', name: '野生菌汤包 煲汤食材 150g', description: '云南野生菌组合，煲汤极品，含牛肝菌、鸡油菌、松茸等优质野生菌，营养丰富，味道鲜美。',
+    id: '3', store_id: 'store-1', name: '野生菌汤包 煲汤食材 150g', description: '云南野生菌组合，煲汤佳品，含牛肝菌、鸡油菌、松茸等优质野生菌，营养丰富，味道鲜美。',
     price: 88, original_price: 128, image_url: null,
     main_image: '',
     sub_images: [],
@@ -114,6 +115,7 @@ export default function MerchantProducts() {
     name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '',
     main_image: '', sub_images: [] as string[], detail_images: [] as string[], video_url: '',
     discount_rate: '',
+    ingredients: [] as string[],
   })
   const mainImgRef   = useRef<HTMLInputElement>(null)
   const subImgRef    = useRef<HTMLInputElement>(null)
@@ -184,7 +186,7 @@ export default function MerchantProducts() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', main_image: '', sub_images: [], detail_images: [], video_url: '', discount_rate: '' })
+    setForm({ name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', main_image: '', sub_images: [], detail_images: [], video_url: '', discount_rate: '', ingredients: [] })
     setShowModal(true)
   }
 
@@ -202,6 +204,7 @@ export default function MerchantProducts() {
       detail_images: p.detail_images ? [...p.detail_images] : [],
       video_url: p.video_url || '',
       discount_rate: p.discount_rate != null ? String(p.discount_rate) : '',
+      ingredients: p.ingredients ?? [],
     })
     setShowModal(true)
   }
@@ -254,37 +257,77 @@ export default function MerchantProducts() {
     setForm(f => ({ ...f, sub_images: f.sub_images.filter((_, i) => i !== idx) }))
   }
 
+  // 原料成分：勾选 / 取消某个食材 key
+  const toggleIngredient = (key: string) => {
+    setForm(f => {
+      const has = f.ingredients.includes(key)
+      return { ...f, ingredients: has ? f.ingredients.filter(k => k !== key) : [...f.ingredients, key] }
+    })
+  }
+  // 智能识别：按商品名匹配食材 key
+  const autoDetectIngredients = () => {
+    const keys = matchIngredientKeys(form.name)
+    setForm(f => ({ ...f, ingredients: Array.from(new Set([...f.ingredients, ...keys])) }))
+  }
+
   const handleSubmit = async () => {
     const cost = Number(form.cost_price) || 0
     const dr = Number(form.discount_rate) || 0
+    const payload = {
+      name: form.name,
+      price: Number(form.price),
+      original_price: Number(form.original_price),
+      cost_price: cost || null,
+      stock: Number(form.stock),
+      description: form.desc,
+      main_image: form.main_image,
+      sub_images: form.sub_images,
+      detail_images: form.detail_images,
+      video_url: form.video_url,
+      discount_rate: dr || null,
+    }
+    const body = { ...payload, ingredients: form.ingredients.length > 0 ? form.ingredients : null }
+    // 真实模式：写库，保证网页版与小程序商家中心同步
+    if (!useMock && storeId) {
+      const persist = (b: any) =>
+        editing
+          ? supabase.from('products').update(b).eq('id', editing.id)
+          : supabase.from('products').insert({
+              ...b,
+              store_id: storeId,
+              status: 'offline',
+              review_status: 'pending',
+              sales: 0,
+              is_active: false,
+              created_at: new Date().toISOString().slice(0, 10),
+            })
+      try {
+        const { error } = await persist(body)
+        if (error) throw error
+      } catch (e: any) {
+        // 软降级：若 products 表尚未加 ingredients 列（迁移 00090 未执行），剥离后重试，保证保存不失败（与小程序端 api.ts 一致）
+        if (e?.message && /ingredients/.test(e.message)) {
+          const { ingredients, ...rest } = body
+          const { error } = await persist(rest)
+          if (error) { console.error('[Products] 软降级仍失败:', error); return }
+          console.warn('[Products] 已软降级保存（忽略 ingredients 列，请在本机执行迁移 00090 加列）')
+        } else {
+          console.error('[Products] 保存失败:', e); return
+        }
+      }
+    }
+    // 本地 state 同步（无论 mock 还是真实都更新显示）
     if (editing) {
-      setList(prev => prev.map(p => p.id === editing.id ? {
-        ...p,
-        name: form.name,
-        price: Number(form.price),
-        original_price: Number(form.original_price),
-        cost_price: cost || null,
-        stock: Number(form.stock),
-        description: form.desc,
-        main_image: form.main_image,
-        sub_images: form.sub_images,
-        detail_images: form.detail_images,
-        video_url: form.video_url,
-        discount_rate: dr || null,
-      } : p))
+      setList(prev => prev.map(p => p.id === editing.id ? { ...p, ...body } : p))
     } else {
       const newP: ProductWithExt = {
-        id: `new-${Date.now()}`, store_id: 'store-1', name: form.name,
-        price: Number(form.price), original_price: Number(form.original_price),
-        cost_price: cost || null, stock: Number(form.stock),
-        description: form.desc,
-        main_image: form.main_image,
+        id: `new-${Date.now()}`, store_id: storeId || 'store-1', ...body,
         image_url: null,
-        sub_images: form.sub_images,
-        detail_images: form.detail_images,
-        video_url: form.video_url,
-        discount_rate: dr || null,
-        category_id: '', status: 'offline', review_status: 'pending', sales: 0, is_active: false,
+        category_id: '',
+        status: 'offline',
+        review_status: 'pending',
+        sales: 0,
+        is_active: false,
         created_at: new Date().toISOString().slice(0, 10),
       }
       setList(prev => [newP, ...prev])
@@ -698,6 +741,46 @@ export default function MerchantProducts() {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* 🥗 原料成分分析（可选） */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ color: '#E5E7EB', fontSize: 14, fontWeight: 600 }}>🥗 原料成分分析（可选）</span>
+                <button type="button" onClick={autoDetectIngredients} disabled={!form.name}
+                  style={{ padding: '6px 14px', background: (!form.name) ? '#374151' : '#1F2937', border: '1px solid #374151', borderRadius: 8, color: (!form.name) ? '#6B7280' : '#E5E7EB', cursor: (!form.name) ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                  智能识别
+                </button>
+              </div>
+              <p style={{ color: '#6B7280', fontSize: 12, margin: '0 0 8px' }}>根据商品名自动识别食材，匹配食养成分（性味 / 功效 / 适合人群 / 场景）。</p>
+              {form.ingredients.length === 0 ? (
+                <div style={{ color: '#6B7280', fontSize: 13, padding: '12px', background: '#0B0F19', border: '1px dashed #374151', borderRadius: 8 }}>尚未选择原料，可点「智能识别」或下方手动勾选。</div>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                  {form.ingredients.map((key: string) => {
+                    const e = INGREDIENT_DICT[key]
+                    if (!e) return null
+                    return (
+                      <span key={key} onClick={() => toggleIngredient(key)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 999, cursor: 'pointer', fontSize: 13, color: '#E5E7EB' }}>
+                        <span>{e.icon} {e.zh}</span>
+                        <span style={{ color: '#6B7280' }}>×</span>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {Object.entries(INGREDIENT_DICT).map(([key, e]) => {
+                  const active = form.ingredients.includes(key)
+                  return (
+                    <button key={key} type="button" onClick={() => toggleIngredient(key)}
+                      style={{ padding: '4px 10px', background: active ? '#065F46' : '#0B0F19', border: `1px solid ${active ? '#059669' : '#374151'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#ECFDF5' : '#9CA3AF' }}>
+                      {e.icon} {e.zh}
+                    </button>
+                  )
+                })}
+              </div>
+              <p style={{ color: '#4B5563', fontSize: 11, margin: '8px 0 0' }}>{SHIYANG_DISCLAIMER}</p>
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>

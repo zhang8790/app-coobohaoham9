@@ -31,8 +31,8 @@ export const mockProfile: Profile = {
   // V4分佣算法字段
   monthly_consumption: 100,       // 当月消费100元（达标）
   consecutive_zero_months: 0,     // 未连续零消费
-  team_monthly_gmv: 0,            // 团队月度GMV（暂无下线）
-  has_new_recruit: false,          // 当月无新增下线
+  team_monthly_gmv: 0,            // 团队月度GMV（暂无推荐）
+  has_new_recruit: false,          // 当月无新增推荐
   months_since_last_recruit: 2,    // 2个月无拓新（未满3个月）
   
   // 添加西瓜商品（让利10%）

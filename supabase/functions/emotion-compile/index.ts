@@ -97,30 +97,42 @@ async function resolveProfile(supabase: any, category?: string) {
   return data || null
 }
 
+// 中文标准情绪标签白名单（与前端 EMOTION_KEYWORD_MAP / ALL_MOOD_TAGS 对齐）
+// understand 统一返回中文标准标签，避免与前端 MOOD_TAGS 英文 6 态键割裂。
+const CANONICAL_TAGS = [
+  '治愈', '孤独', '安静', '放松', '愉悦', '快乐', '活泼', '甜蜜', '幸福', '开心',
+  '满足', '品质', '刺激', '创意', '分享', '送礼', '实用', '仪式感', '怀旧', '温暖', '专注',
+  '活力', '用餐时光', '学习空间', '想念', '思念', '陪伴', '清爽', '清新', '自然', '纯净',
+  '奢华', '高端', '精致', '典雅', '尊贵', '有趣', '可爱', '潮流', '个性', '平静', '舒适', '安逸', '慢生活',
+]
+
 // ---------------- 理解侧 ----------------
 async function handleUnderstand(supabase: any, text: string, headers: any) {
   if (!text || !text.trim()) return json({ success: false, error: 'empty text' }, 400, headers)
 
   if (hasLLM()) {
-    const sys = `你是情绪理解引擎。把用户的话归类到唯一一个情绪态。
-可选情绪态（只返回其中之一，不要解释）：
-${INNER_LABELS.map(l => `${l} = ${LABEL_DESC[l]}`).join('\n')}
-只输出 JSON：{"inner_label": "..."}`
+    const sys = `你是情绪理解引擎。把用户的话归类到唯一一个中文标准情绪标签。
+可选标签（只返回其中之一，不要解释）：
+${CANONICAL_TAGS.join('、')}
+只输出 JSON：{"canonical_tag": "..."}`
     const res = await callLLM(sys, `用户说：${text}`)
-    if (res?.inner_label && INNER_LABELS.includes(res.inner_label)) {
-      return json({ success: true, inner_label: res.inner_label, source: 'llm' }, 200, headers)
+    if (res?.canonical_tag && CANONICAL_TAGS.includes(res.canonical_tag)) {
+      return json({ success: true, canonical_tag: res.canonical_tag, inner_label: res.canonical_tag, source: 'llm' }, 200, headers)
     }
   }
 
-  // 规则兜底：关键词表匹配
-  const { data } = await supabase
-    .from('emotion_keywords')
-    .select('inner_label, priority')
-    .limit(200)
-  const labels = (data || []) as { inner_label: string; keyword: string; priority: number }[]
-  const hit = labels.find(k => text.includes(k.keyword))
-  const inner_label = hit?.inner_label || 'peaceful_zen'
-  return json({ success: true, inner_label, source: 'rule' }, 200, headers)
+  // 规则兜底：读 emotion_lexicon 表（与前端 00057 迁移、loadEmotionLexiconFromDb 列名一致）
+  const { data, error } = await supabase
+    .from('emotion_lexicon')
+    .select('raw_expr, canonical_tag, weight')
+    .limit(1000)
+  if (error) console.error('[emotion-compile] lexicon load error', error)
+  const rows = (data || []) as { raw_expr: string; canonical_tag: string; weight: number }[]
+  // 按 raw_expr 长度降序，优先匹配更长、更具体的表达（如先匹配"被绿"再匹配"绿"）
+  rows.sort((a, b) => (b.raw_expr?.length || 0) - (a.raw_expr?.length || 0))
+  const hit = rows.find(r => r.raw_expr && text.includes(r.raw_expr))
+  const canonical_tag = hit?.canonical_tag || '治愈'
+  return json({ success: true, canonical_tag, inner_label: canonical_tag, source: 'rule' }, 200, headers)
 }
 
 // ---------------- 编译侧 ----------------

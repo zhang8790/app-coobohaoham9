@@ -26,8 +26,7 @@ export default defineConfig<'vite'>(async (merge) => {
     sourceRoot: 'src',
     outputRoot: 'dist',
     plugins: [
-      '@tarojs/plugin-generator',
-      'miaoda-taro-plugin-html'
+      '@tarojs/plugin-generator'
     ],
     alias: {
       '@': path.resolve(__dirname, '../src'),

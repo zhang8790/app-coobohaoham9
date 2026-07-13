@@ -7,6 +7,10 @@
  * 3. 按匹配分降序排列，优先展示高匹配商品
  */
 
+import { supabase } from '@/client/supabase'
+import { understandEmotion } from '@/db/api'
+import { MOOD_TAGS } from '@/utils/mood-tags'
+
 // =====================
 // 情绪关键词 -> 标准情绪标签 映射字典
 // =====================
@@ -150,6 +154,17 @@ export const EMOTION_KEYWORD_MAP: Record<string, string[]> = {
   '难过': ['治愈', '孤独', '安静'],
   '伤心': ['治愈', '孤独', '安静'],
   '失恋': ['治愈', '孤独', '安静'],
+  '分手': ['治愈', '孤独', '安静'],
+  '刚分手': ['治愈', '孤独', '安静'],
+  '被甩': ['治愈', '孤独', '安静'],
+  '被绿': ['治愈', '孤独', '安静'],
+  '绿了': ['治愈', '孤独', '安静'],
+  '失意': ['治愈', '孤独', '安静'],
+  '心碎': ['治愈', '孤独', '安静'],
+  '心碎了': ['治愈', '孤独', '安静'],
+  '劈腿': ['治愈', '孤独', '安静'],
+  '情伤': ['治愈', '孤独', '安静'],
+  '爱而不得': ['治愈', '孤独', '安静'],
   '被骂': ['治愈', '放松'],
   '挨骂': ['治愈', '放松'],
   '加班': ['治愈', '放松', '安静'],
@@ -321,6 +336,54 @@ export const EMOTION_KEYWORD_MAP: Record<string, string[]> = {
   '徒步': ['活力', '治愈', '专注'],
 }
 
+// =====================
+// 运行时词库（硬编码 + 云端 emotion_lexicon 合并）
+// =====================
+// 初始用内置硬编码；loadEmotionLexiconFromDb 从 emotion_lexicon 表读取后合并覆盖，
+// 使运营在 Supabase 加的同义词即时生效（无需发版）。analyzeEmotion 改用本 map，自动受益。
+let runtimeKeywordMap: Record<string, string[]> = { ...EMOTION_KEYWORD_MAP }
+let lexiconLoaded = false
+let lexiconLoadingPromise: Promise<void> | null = null
+
+/**
+ * 从云端 emotion_lexicon 拉取用户表达词库，合并进运行时词库。
+ * 失败 / 空表时静默保留内置硬编码，不阻塞解析。带「已加载 / 并发去重」保护，整会话只拉一次。
+ */
+export async function loadEmotionLexiconFromDb(): Promise<void> {
+  if (lexiconLoaded) return
+  if (lexiconLoadingPromise) return lexiconLoadingPromise
+  lexiconLoadingPromise = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from('emotion_lexicon')
+        .select('raw_expr, canonical_tag, weight')
+      if (error) throw error
+      const rows = (data || []) as Array<{ raw_expr: string; canonical_tag: string; weight: number }>
+      if (rows.length) {
+        const merged: Record<string, string[]> = { ...EMOTION_KEYWORD_MAP }
+        const byExpr: Record<string, Array<{ tag: string; weight: number }>> = {}
+        for (const r of rows) {
+          if (!byExpr[r.raw_expr]) byExpr[r.raw_expr] = []
+          byExpr[r.raw_expr].push({ tag: r.canonical_tag, weight: r.weight })
+        }
+        for (const expr of Object.keys(byExpr)) {
+          byExpr[expr].sort((a, b) => b.weight - a.weight)
+          merged[expr] = byExpr[expr].map(l => l.tag)
+        }
+        runtimeKeywordMap = merged
+        lexiconLoaded = true
+      }
+    } catch (e) {
+      // 保留内置硬编码兜底
+      console.warn('[emotion] 词库云端加载失败，使用内置硬编码词库', e)
+    }
+  })()
+  return lexiconLoadingPromise
+}
+
+// 模块加载即预热（fire-and-forget），使 DB 词库尽快生效
+loadEmotionLexiconFromDb()
+
 // 所有已知情绪标签（与数据库 mood_tags 对齐）
 export const ALL_MOOD_TAGS = [
   '治愈', '放松', '安静', '孤独', '思考', '沉浸',
@@ -350,14 +413,14 @@ const EMOTION_IP_RESPONSES: Record<string, string[]> = {
   ],
   '快乐': [
     '哈哈，侠客笑口常开，喜事连连！来，挑个好物庆贺！',
-    '快乐的侠客最吸引好运，去逛逛吧~',
+    '快乐的侠客很吸引好运，去逛逛吧~',
   ],
   '满足': [
     '丰衣足食，侠客之道！不过，再添一件好物岂不美哉？',
     '知足常乐，但偶尔的小奢侈更增滋味~',
   ],
   '孤独': [
-    '独行侠也需要温暖，好物是最好的伴侣。',
+    '独行侠也需要温暖，好物是很懂你的伴侣。',
     '一个人的旅途，用心选一件好物陪伴你。',
   ],
   '甜蜜': [
@@ -369,11 +432,11 @@ const EMOTION_IP_RESPONSES: Record<string, string[]> = {
     '千里送鹅毛，礼轻情意重。挑一份好礼表心意！',
   ],
   '怀旧': [
-    '岁月如歌，那些熟悉的味道最抚人心。',
-    '旧时光最是温柔，来寻几件唤醒记忆的好物~',
+    '岁月如歌，那些熟悉的味道能抚人心。',
+    '旧时光很是温柔，来寻几件唤醒记忆的好物~',
   ],
   '专注': [
-    '心无旁骛，专注当下。好的工具能让效率翻倍！',
+    '心无旁骛，专注当下。好的工具能让效率明显提升！',
     '沉浸其中，忘却尘嚣，这里有助你专注的好物~',
   ],
   'default': [
@@ -385,12 +448,64 @@ const EMOTION_IP_RESPONSES: Record<string, string[]> = {
 }
 
 // =====================
+// 关键词级专属回应：按「用户实际说了什么」回应，而非笼统的情绪标签
+// （优先级高于 EMOTION_IP_RESPONSES 的标签级文案，解决"输入什么词都是同一句"的体感问题）
+// =====================
+const EMOTION_KEYWORD_RESPONSES: Record<string, string[]> = {
+  // —— 失意 / 心碎 ——
+  '失恋': ['失恋的苦，江湖人都懂。此刻不必急着振作，先让好物陪你缓缓。', '心碎的时候，该被温柔以待。挑一件暖物，哄哄自己。'],
+  '委屈': ['受了委屈别憋着，侠客也有脆弱时。选件好物，好好犒赏自己。'],
+  '难过': ['难过就哭出来，哭完再挑件喜欢的好物，慢慢缓。'],
+  '伤心': ['心碎的缺口，好物能补一点。今夜，对自己好一点。'],
+  // —— 疲惫 / 压力 ——
+  '累': ['奔波一日，是该好好歇歇。寻一处安宁，犒赏疲惫的自己。', '身上的乏、心里的倦，都该被好好卸下。挑件好物放松下。'],
+  '好累': ['奔波一日，是该好好歇歇。寻一处安宁，犒赏疲惫的自己。'],
+  '太累': ['再硬的侠客也会累。今夜放空，好物替你接住疲惫。'],
+  '疲惫': ['身心俱疲时，先原谅自己。选件温柔好物，慢慢回血。'],
+  '心累': ['心若倦了，便歇一歇。挑件温柔好物，好好安放自己。'],
+  '焦虑': ['心绪如麻时，先把呼吸放慢。好物在手，烦忧自散。'],
+  '压力大': ['压力如山，侠客也需出口。犒赏一件好物，给紧绷的松绑。'],
+  'emo': ['江湖风雨急，侠客也会破防。今夜，允许自己脆弱一会儿。'],
+  '崩溃': ['濒临崩溃时，别硬撑。挑件安心的好物，先把这一刻接住。'],
+  '失眠': ['夜深人静，心事难免。挑件安睡好物，伴你入好梦。'],
+  '睡不着': ['辗转难眠的夜，很需温柔陪伴。选件舒眠好物，赴一场好梦。'],
+  '加班': ['挑灯夜战，侠客辛苦了。犒劳自己，从一件暖心好物开始。'],
+  // —— 治愈 / 放松 / 犒赏 ——
+  '治愈': ['想被治愈？正好，好物很懂这份温柔。挑一件，让心慢慢回暖。'],
+  '放松': ['偷得浮生半日闲。放空一下，好物自会抚慰你。'],
+  '想躺平': ['躺平不是放弃，是给自己充电。选件舒服好物，好好瘫一会儿。'],
+  '躺平': ['躺平不是放弃，是给自己充电。选件舒服好物，好好瘫一会儿。'],
+  '犒劳': ['辛苦这么久，你值得被好好犒劳。挑一件，奖赏自己。'],
+  '犒赏': ['辛苦这么久，你值得被好好犒赏。挑一件，奖赏自己。'],
+  '奖励自己': ['该奖就奖，毫不客气。挑件心仪好物，宠自己一下。'],
+  '想犒赏自己': ['该奖就奖，毫不客气。挑件心仪好物，宠自己一下。'],
+  '享受': ['懂得享受的人，很懂生活。挑件品质好物，慢慢品。'],
+  // —— 愉悦 / 庆祝 ——
+  '开心': ['侠客今日眉眼带笑，必有喜事！去挑件好物，把快乐再添一分。', '心情这么好，值得用一件好物来纪念~'],
+  '快乐': ['快乐的人自带好运。去逛逛，挑件好物延续这份欢喜。'],
+  '幸福': ['心里甜甜的，很是难得。来件小物，把这份甜留久一点。'],
+  '甜蜜': ['甜蜜如蜜，生活如此美好。来点甜的犒劳自己~'],
+  '脱单': ['春心萌动时，好事将近。挑件仪式感好物，赴这场浪漫。'],
+  '恋爱': ['恋爱中的侠客，眼里都是光。挑件好物，给对方一个小惊喜。'],
+  '庆祝': ['喜讯当贺！犒赏自己，方不负这高光时刻。'],
+  '升职': ['高升之喜，当浮一大白！挑件好物，奖赏努力的自己。'],
+  '发奖金': ['入账的快乐，要配上对的好物。犒赏一下辛苦的自己~'],
+  // —— 孤独 / 无聊 ——
+  '孤独': ['独行也有独行的风景。用心选一件好物，陪你这一程。'],
+  '寂寞': ['一个人的角落，好物很能作伴。挑一件，陪你度过。'],
+  '一个人': ['独处时光，正适合宠爱自己。选件好物，把孤单变成自在。'],
+  '单身': ['单身也有单身的自由。挑件喜欢的好物，好好取悦自己。'],
+  '无聊': ['闲来无事？正好去寻几件有趣好物，给生活添点乐子。'],
+}
+
+// =====================
 // 情绪分析结果
 // =====================
 export interface EmotionAnalysisResult {
   detectedTags: string[]      // 解析出的情绪标签（去重）
   tagScores: Record<string, number>  // 每个标签的权重分
   ipBubble: string            // IP气泡回应文案
+  matchedKeyword: string | null  // 实际命中的用户输入关键词（驱动专属回应）
   intensity: 'low' | 'medium' | 'high'  // 情绪强度
 }
 
@@ -403,17 +518,20 @@ export function analyzeEmotion(input: string): EmotionAnalysisResult {
       detectedTags: [],
       tagScores: {},
       ipBubble: pickRandom(EMOTION_IP_RESPONSES['default']),
+      matchedKeyword: null,
       intensity: 'low',
     }
   }
 
   const tagScores: Record<string, number> = {}
+  let matchedKeyword: string | null = null
 
   // 按关键词长度降序排，优先匹配长词（避免"好"匹配"好累"之前先匹配单字）
-  const keywords = Object.keys(EMOTION_KEYWORD_MAP).sort((a, b) => b.length - a.length)
+  const keywords = Object.keys(runtimeKeywordMap).sort((a, b) => b.length - a.length)
 
   for (const keyword of keywords) {
     if (input.includes(keyword)) {
+      if (!matchedKeyword) matchedKeyword = keyword  // 记录最长命中的关键词，驱动专属回应
       const tags = EMOTION_KEYWORD_MAP[keyword]
       // 第一个标签权重最高（主情绪），后续递减
       tags.forEach((tag, idx) => {
@@ -434,10 +552,10 @@ export function analyzeEmotion(input: string): EmotionAnalysisResult {
     .map(([tag]) => tag)
     .slice(0, 6) // 最多取6个标签参与匹配
 
-  // 选择最匹配的 IP 回应文案
-  const ipBubble = selectIpBubble(detectedTags)
+  // 选择最匹配的 IP 回应文案（优先按具体关键词专属回应）
+  const ipBubble = selectIpBubble(detectedTags, matchedKeyword)
 
-  return { detectedTags, tagScores, ipBubble, intensity }
+  return { detectedTags, tagScores, ipBubble, matchedKeyword, intensity }
 }
 
 // =====================
@@ -521,7 +639,7 @@ export function getEmotionPoetry(detectedTags: string[], intensity: 'low' | 'med
       '功成身退，犒劳自己，此乃侠客之道！',
     ],
     '孤独': [
-      '独行侠也有柔软之处，好物最能抚慰孤独的心。',
+      '独行侠也有柔软之处，好物很能抚慰孤独的心。',
       '一个人的江湖，用心选一件好物陪伴自己。',
     ],
     '甜蜜': [
@@ -547,7 +665,12 @@ export function getEmotionPoetry(detectedTags: string[], intensity: 'low' | 'med
 // =====================
 // 辅助：选择 IP 文案
 // =====================
-function selectIpBubble(detectedTags: string[]): string {
+function selectIpBubble(detectedTags: string[], matchedKeyword?: string | null): string {
+  // 优先：用户实际说的具体词对应的专属回应（最贴合输入，避免"输入什么词都是同一句"）
+  if (matchedKeyword && EMOTION_KEYWORD_RESPONSES[matchedKeyword]) {
+    return pickRandom(EMOTION_KEYWORD_RESPONSES[matchedKeyword])
+  }
+  // 兜底：按主情绪标签的通用文案
   for (const tag of detectedTags) {
     if (EMOTION_IP_RESPONSES[tag]) {
       return pickRandom(EMOTION_IP_RESPONSES[tag])
@@ -573,3 +696,47 @@ export const QUICK_MOOD_PRESETS: Array<{ label: string; emoji: string; tags: str
   { label: '送个礼物', emoji: '🎁', tags: ['送礼', '品质', '分享'] },
   { label: '想念旧时光', emoji: '🕯️', tags: ['怀旧', '温暖', '治愈'] },
 ]
+
+// =====================
+// 异步版：DB 词库命中 + LLM 兜底
+// =====================
+/**
+ * 情绪分析（异步增强版）：
+ * 1. 先走同步 analyzeEmotion（已含硬编码 + 云端 emotion_lexicon 合并词库）——命中即返回，即时响应；
+ * 2. 若输入完全未命中任何词，调用 understandEmotion（emotion-compile 云函数做语义解析，
+ *    未部署时回退本地关键词）→ 把返回的 6 态 inner_label 映射为情绪标签，构造完整结果；
+ * 3. LLM 仍失败 → 回退默认标签（治愈/放松/安静），保证「说心情」总有情绪反馈。
+ * 主要供搜索页（用户主动表达）使用；首页即时输入仍用同步 analyzeEmotion 保证无延迟。
+ */
+export async function analyzeEmotionAsync(input: string): Promise<EmotionAnalysisResult> {
+  const sync = analyzeEmotion(input)
+  if (sync.detectedTags.length > 0) return sync
+
+  // 完全未命中 → LLM/云端兜底，返回中文标准情绪标签（与同步路径体系一致）
+  try {
+    const label = await understandEmotion(input)
+    if (label) {
+      const tags = [label]
+      const tagScores: Record<string, number> = { [label]: 3 }
+      const ipBubble = selectIpBubble(tags, null)
+      return {
+        detectedTags: tags,
+        tagScores,
+        ipBubble,
+        matchedKeyword: null,
+        intensity: 'medium',
+      }
+    }
+  } catch (e) {
+    console.warn('[emotion] LLM 兜底失败，使用默认标签', e)
+  }
+
+  // 兜底默认标签：保证有情绪反馈
+  return {
+    detectedTags: ['治愈', '放松', '安静'],
+    tagScores: { '治愈': 3, '放松': 2, '安静': 1 },
+    ipBubble: pickRandom(EMOTION_IP_RESPONSES['default']),
+    matchedKeyword: null,
+    intensity: 'low',
+  }
+}

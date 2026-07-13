@@ -15,7 +15,7 @@ function CampaignClaimPage() {
   const [showCompliance, setShowCompliance] = useState(true)  // 合规公示弹窗
   const [agreed, setAgreed] = useState(false)
   const [referrerId, setReferrerId] = useState<string | null>(null)  // 新增：推荐人ID
-  const [myCode, setMyCode] = useState('')  // 我的推广码（转发时携带，用于溯源锁客）
+  const [myCode, setMyCode] = useState('')  // 我的推广码（转发时携带，用于溯源归属）
   const [payoutMsg, setPayoutMsg] = useState('')  // 红包现金发放结果提示
   const [payoutDone, setPayoutDone] = useState(false)  // 是否已尝试发放
 
@@ -103,7 +103,7 @@ function CampaignClaimPage() {
     return { title, path, imageUrl: '' }
   })
   useShareTimeline(() => ({
-    title: '来电有喜 · 限时福利，速来领取',
+    title: '来电有喜 · 优惠好礼，欢迎领取',
     query: `campaignId=${campaignId}${myCode ? `&ref=${myCode}` : ''}`,
   }))
 
@@ -147,7 +147,7 @@ function CampaignClaimPage() {
         return
       }
 
-      // 安全提取并校验 store_id：必须是合法 UUID 格式，否则传 null（跳过锁客）
+      // 安全提取并校验 store_id：必须是合法 UUID 格式，否则传 null（跳过归属）
       // 防止旧数据（整数ID、空字符串等）传入导致 RPC 的 ::UUID CAST 失败报"门店信息异常"
       const rawStoreId = campaign?.store_id
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -156,7 +156,7 @@ function CampaignClaimPage() {
         : null
 
       if (!safeStoreId && rawStoreId != null) {
-        console.warn('[Campaign] store_id 格式异常，已跳过锁客:', rawStoreId)
+        console.warn('[Campaign] store_id 格式异常，已跳过归属:', rawStoreId)
       }
 
       // 调用后端RPC函数（包含风控逻辑）
@@ -220,7 +220,7 @@ function CampaignClaimPage() {
           setPayoutMsg('红包已领取，现金发放待处理')
         }
       } else {
-        Taro.showToast({ title: '领取成功！已锁定门店关系', icon: 'success' })
+        Taro.showToast({ title: '领取成功！已绑定门店关系', icon: 'success' })
       }
     } catch (err: any) {
       console.error('[Campaign] 领取异常:', err)
@@ -248,7 +248,7 @@ function CampaignClaimPage() {
           领取成功！
         </Text>
         <Text className="text-xl text-muted-foreground text-center">
-          到店核销消费后，推荐人可获得两级推广佣金
+          到店核销消费后，推荐人可获得推广奖励
         </Text>
         {payoutDone && payoutMsg ? (
           <View className="w-full py-3 rounded-2xl bg-primary/10 border border-primary/30 text-primary text-center text-lg font-semibold">
@@ -280,13 +280,13 @@ function CampaignClaimPage() {
                   📌 {campaign.campaign_type === 'redpacket' ? '现金红包' : '实物礼品'}仅门店注册引流福利，注册、成为推广员完全免费，不领取福利也可自主注册。
                 </Text>
                 <Text className="text-base text-foreground">
-                  📌 领取仅记录推荐溯源轨迹，单纯注册、领取福利无任何推广佣金、下线收益。
+                  📌 领取仅记录推荐溯源轨迹，单纯注册、领取福利无任何推广佣金、多级收益。
                 </Text>
                 <Text className="text-base text-foreground">
-                  📌 仅线下本店真实到店核销消费（抵扣后实付满10元），才会产生两级推广佣金。
+                  📌 仅线下本店真实到店核销消费（抵扣后实付满10元），才会产生推广奖励。
                 </Text>
                 <Text className="text-base text-foreground">
-                  📌 分销仅两级，无多层返利，禁止以拉人头、注册数量获利。
+                  📌 推广奖励仅两级，无多层返利，禁止以拉人头、注册数量获利。
                 </Text>
                 <Text className="text-base text-foreground mt-2 pt-2" style={{ borderTop: '1px solid #E7DDD0' }}>
                   ⚠️ 本店员工、亲属、关联账号禁止领取付费红包/实物。
@@ -332,7 +332,7 @@ function CampaignClaimPage() {
             <Text className="text-base text-muted-foreground">• 领取后72小时内到店核销，否则红包失效</Text>
             <Text className="text-base text-muted-foreground">• 单用户单店每日限领1份</Text>
             <Text className="text-base text-muted-foreground">• 仅记录推荐轨迹，核销消费后才激活分佣</Text>
-            <Text className="text-base text-muted-foreground">• 分销仅两级，无多层返利</Text>
+            <Text className="text-base text-muted-foreground">• 推广奖励仅两级，无多层返利</Text>
           </View>
         </View>
 

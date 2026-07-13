@@ -432,9 +432,31 @@
   color: #ffc300;
 }
 
-/* ============================================
-   相关推荐（公众号文章底部风格）
-   ============================================ */
+/* 分享按钮 openType=share 需要重置 button 默认样式 */
+.action-share-btn {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  line-height: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-align: center;
+}
+.action-share-btn::after {
+  border: none;
+}
+
+/* 隐藏分享海报 Canvas */
+.share-canvas-hidden {
+  position: fixed;
+  left: -10000px;
+  top: -10000px;
+  width: 500px;
+  height: 400px;
+  pointer-events: none;
+}
+
 .related-section {
   background: #ffffff;
   padding: 0 36px 32px;

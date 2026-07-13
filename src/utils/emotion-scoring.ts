@@ -4,10 +4,11 @@
 // 无副作用、无 DB 依赖，便于商家工作台实时打分、单测、以及云函数复用。
 //
 // 评分维度（满分 100）：
-//   标签完整度  30 分  五维标签每缺一个扣 6 分；标签与商品功能弱相关，每项扣 5 分
-//   文案合规性  30 分  出现空洞情绪词（治愈/松弛感等）且无场景绑定，每个扣 5 分；功能信息缺失扣 10 分
-//   场景精准度  20 分  场景与商品适配度，由算法匹配度 + 人工审核综合判定
-//   确权可达性  20 分  情绪承诺可被用户消费后验证，有明确确权维度；不可验证此项 0 分
+//   标签完整度  25 分  五维标签每缺一个扣 5 分；标签与商品功能弱相关，每项扣 5 分
+//   文案合规性  25 分  出现空洞情绪词（治愈/松弛感等）且无场景绑定，每个扣 5 分；功能信息缺失扣 10 分
+//   场景精准度  18 分  场景与商品适配度，由算法匹配度 + 人工审核综合判定
+//   确权可达性  17 分  情绪承诺可被用户消费后验证，有明确确权维度；不可验证此项 0 分
+//   食养完整度  15 分  食养成分标签选择数，每选 1 个食材得 3 分，满 5 个得 15 分（选 0 个此项 0 分）
 //
 // 违规等级：
 //   redline 红线（直接驳回）：虚假宣传 / 核心功能信息缺失 / 情绪承诺完全不可验证 / 违反广告法
@@ -53,6 +54,8 @@ export interface CompileScoreInput {
   sceneMatchScore?: number
   /** 人工审核场景评分 0~20（可选，未提供则取算法分） */
   sceneManualScore?: number
+  /** 食养成分标签选择数（0~N），每选 1 个得 3 分，上限 15 */
+  shiyangTagCount?: number
 }
 
 export interface ScoreResult {
@@ -64,6 +67,7 @@ export interface ScoreResult {
     copyCompliance: number
     scenePrecision: number
     claimVerifiability: number
+    shiyangCompleteness: number
   }
   violations: Violation[]
   suggestions: string[]
@@ -71,8 +75,8 @@ export interface ScoreResult {
 
 const DEFAULT_HOLLOW_WORDS = ['治愈', '松弛感', '松弛', '小确幸', '氛围感', '治愈系']
 
-// 违反广告法的绝对化用语（红线示例集，运营可扩展）
-const AD_ILLEGAL_WORDS = ['国家级', '最高级', '最佳', '第一', '顶级', '极品', '万能', '100%', '绝对', '唯一']
+// 违禁词库已抽至通用模块（compliance-words），全站商品/活动/情绪文案统一拦截
+import { AD_ILLEGAL_WORDS } from './compliance-words'
 
 /**
  * 对一次情绪编译结果打分并检测违规。
@@ -85,13 +89,13 @@ export function scoreCompilation(input: CompileScoreInput): ScoreResult {
   const violations: Violation[] = []
   const suggestions: string[] = []
 
-  // ---------------- 标签完整度 30 ----------------
-  let tagCompleteness = 30
+  // ---------------- 标签完整度 25 ----------------
+  let tagCompleteness = 25
   const missingDims = EMOTION_TAG_DIMENSIONS.filter(
     d => !dims[d.key] || (dims[d.key] as string[]).length === 0
   )
   if (missingDims.length) {
-    tagCompleteness -= 6 * missingDims.length
+    tagCompleteness -= 5 * missingDims.length
     suggestions.push(`补充以下维度的标签：${missingDims.map(d => d.label).join('、')}`)
   }
   // 弱相关：选中标签命中空洞词且未绑定场景 → 视为与功能弱相关
@@ -104,8 +108,8 @@ export function scoreCompilation(input: CompileScoreInput): ScoreResult {
   }
   tagCompleteness = Math.max(0, tagCompleteness)
 
-  // ---------------- 文案合规性 30 ----------------
-  let copyCompliance = 30
+  // ---------------- 文案合规性 25 ----------------
+  let copyCompliance = 25
   const hollowHits = hollow.filter(w => copy.includes(w))
   if (hollowHits.length && !input.sceneBound) {
     copyCompliance -= 5 * hollowHits.length
@@ -129,26 +133,32 @@ export function scoreCompilation(input: CompileScoreInput): ScoreResult {
   }
   copyCompliance = Math.max(0, copyCompliance)
 
-  // ---------------- 场景精准度 20 ----------------
+  // ---------------- 场景精准度 18 ----------------
   let scenePrecision: number
   if (typeof input.sceneManualScore === 'number') {
-    scenePrecision = Math.min(20, Math.max(0, input.sceneManualScore))
+    scenePrecision = Math.min(18, Math.max(0, input.sceneManualScore))
   } else {
     const match = typeof input.sceneMatchScore === 'number' ? input.sceneMatchScore : input.sceneBound ? 0.85 : 0.5
-    scenePrecision = Math.round(match * 20)
+    scenePrecision = Math.round(match * 18)
   }
-  if (scenePrecision < 12) {
+  if (scenePrecision < 11) {
     suggestions.push('场景与商品适配度偏低，建议更换场景化问句或补充场景图')
   }
 
-  // ---------------- 确权可达性 20 ----------------
-  let claimVerifiability = input.claimVerifiable ? 20 : 0
+  // ---------------- 确权可达性 17 ----------------
+  let claimVerifiability = input.claimVerifiable ? 17 : 0
   if (!input.claimVerifiable) {
     violations.push({
       level: 'redline',
       rule: '情绪承诺不可验证',
       message: '情绪承诺完全不可验证（无对应确权维度），直接驳回',
     })
+  }
+
+  // ---------------- 食养完整度 15 ----------------
+  const shiyangCompleteness = Math.min(15, (input.shiyangTagCount ?? 0) * 3)
+  if ((input.shiyangTagCount ?? 0) === 0) {
+    suggestions.push('建议补充食养成分标签，让商品拥有食养推荐资格')
   }
 
   // ---------------- 红线：广告法 / 虚假宣传 ----------------
@@ -163,7 +173,7 @@ export function scoreCompilation(input: CompileScoreInput): ScoreResult {
 
   const total = Math.max(
     0,
-    tagCompleteness + copyCompliance + scenePrecision + claimVerifiability
+    tagCompleteness + copyCompliance + scenePrecision + claimVerifiability + shiyangCompleteness
   )
 
   const hasRedline = violations.some(v => v.level === 'redline')
@@ -175,7 +185,7 @@ export function scoreCompilation(input: CompileScoreInput): ScoreResult {
   return {
     total,
     tier,
-    dimensions: { tagCompleteness, copyCompliance, scenePrecision, claimVerifiability },
+    dimensions: { tagCompleteness, copyCompliance, scenePrecision, claimVerifiability, shiyangCompleteness },
     violations,
     suggestions: Array.from(new Set(suggestions)),
   }

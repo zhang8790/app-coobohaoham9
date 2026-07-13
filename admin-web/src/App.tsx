@@ -11,6 +11,12 @@ import Ugc from '@/pages/Ugc'
 import Users from '@/pages/Users'
 import Refunds from '@/pages/Refunds'
 import Announcements from '@/pages/Announcements'
+import EmotionClaims from '@/pages/EmotionClaims'
+import FinanceDashboard from '@/pages/FinanceDashboard'
+import Members from '@/pages/Members'
+import Orders from '@/pages/Orders'
+import Ledgers from '@/pages/Ledgers'
+import BehaviorAnalytics from '@/pages/BehaviorAnalytics'
 // 商家管理页面
 import MerchantDashboard from '@/pages/merchant/Index'
 import MerchantProducts from '@/pages/merchant/Products'
@@ -105,8 +111,14 @@ export default function App() {
             <Route path="withdrawals" element={<Withdrawals />} />
             <Route path="ugc" element={<Ugc />} />
             <Route path="users" element={<Users />} />
-            <Route path="refunds" element={<Refunds />} />
-            <Route path="announcements" element={<Announcements />} />
+          <Route path="refunds" element={<Refunds />} />
+          <Route path="announcements" element={<Announcements />} />
+          <Route path="emotion-claims" element={<EmotionClaims />} />
+          <Route path="finance" element={<FinanceDashboard />} />
+          <Route path="members" element={<Members />} />
+          <Route path="orders" element={<Orders />} />
+          <Route path="ledgers" element={<Ledgers />} />
+          <Route path="behavior" element={<BehaviorAnalytics />} />
           </Route>
 
           {/* ===== 犒赏铺管理后台（merchant 专属）===== */}

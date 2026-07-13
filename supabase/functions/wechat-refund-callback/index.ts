@@ -92,6 +92,19 @@ Deno.serve(async (req: Request) => {
         console.log(`[wechat-refund-callback] commission ${c.id} clawback ratio=${ratio.toFixed(4)}`)
       }
 
+      // P0 修复：退款回滚受益人「可提现佣金余额」commission_balance（与客户端 applyRefund 一致）。
+      // 此前仅标记 commissions 状态，余额未扣回 → 已退款订单的佣金仍可被提现 = 资损。
+      for (const c of (commissions ?? [])) {
+        const amt = Number((c as any).commission_amount || 0)
+        if (amt <= 0 || !(c as any).beneficiary_id) continue
+        const { data: benBal } = await supabase.from('profiles').select('commission_balance').eq('id', (c as any).beneficiary_id).maybeSingle()
+        if (benBal) {
+          await supabase.from('profiles').update({
+            commission_balance: Math.max(0, Math.round((Number((benBal as any).commission_balance || 0) - amt) * 100) / 100),
+          }).eq('id', (c as any).beneficiary_id)
+        }
+      }
+
       // 扣回积分
       const { data: pointsLogs } = await supabase.from('points_logs')
         .select('id,user_id,delta').eq('order_id', existing.order_id).eq('type', 'purchase_earn')
@@ -109,6 +122,24 @@ Deno.serve(async (req: Request) => {
       }
 
       console.log(`[wechat-refund-callback] refund ${outRefundNo} completed, clawback done`)
+
+      // 推送「退款成功」通知
+      supabase.functions.invoke('send-notification', {
+        body: {
+          user_id: existing.user_id,
+          type: 'refund_result',
+          title: '退款成功',
+          body: `订单 ${outTradeNo} 的退款 ¥${refundAmount.toFixed(2)} 已成功到账`,
+          order_id: existing.order_id,
+          payload: {
+            order_no: outTradeNo,
+            refund_amount: refundAmount.toFixed(2),
+            status_label: '退款成功',
+            refunded_at: new Date().toLocaleString('zh-CN'),
+            page: 'pages/order-center/index',
+          },
+        }
+      }).catch(e => console.warn('[wechat-refund-callback] send-notification error:', e))
     } else if (newStatus === 'closed') {
       console.warn(`[wechat-refund-callback] refund ${outRefundNo} closed by WeChat`)
     } else {

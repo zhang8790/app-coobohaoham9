@@ -411,7 +411,7 @@ export const mockSupabase = {
           const goldBeansToUse = body.gold_beans_to_use || 0
           const referrerId = body.referrer_id || null
 
-          // 计算金豆抵扣金额（1金豆 = 1元）
+          // 计算推广佣金抵扣金额（1 推广佣金 = 1 元）
           const goldBeanYuan = goldBeansToUse * 1
           const wxpayAmount = Math.max(0, total - goldBeanYuan)
 

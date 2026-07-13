@@ -90,7 +90,7 @@ function EmployeePage() {
           {[
             { icon: 'i-mdi-qrcode-scan', label: '扫码推广', desc: '让客户扫您的码', color: '#07C160' },
             { icon: 'i-mdi-chart-line', label: '业绩统计', desc: '查看推广业绩', color: '#1976D2' },
-            { icon: 'i-mdi-account-group', label: '我的客户', desc: '查看锁定客户', color: '#9C27B0' },
+            { icon: 'i-mdi-account-group', label: '我的客户', desc: '查看归属客户', color: '#9C27B0' },
             { icon: 'i-mdi-wallet', label: '佣金明细', desc: '查看佣金记录', color: '#FF9800' },
           ].map(btn => (
             <View key={btn.label} className="p-4 rounded-2xl bg-card border border-border">

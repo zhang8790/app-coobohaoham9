@@ -90,7 +90,7 @@ VITE_USE_MOCK=false  # 使用本地 Mock API（不是 mock 数据）
 1. 在 Supabase Dashboard 执行 `supabase/disable_rls_dev.sql`
 2. 编辑 `admin-web/.env`：
 ```bash
-VITE_SUPABASE_URL=https://backend.appmiaoda.com/projects/supabase330158129083891712
+VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=<正确的 anon key>
 VITE_USE_MOCK=false
 ```
@@ -122,7 +122,7 @@ bash start-local-dev.sh
 - 仪表盘：显示统计数据
 - 门派大典：查看/审核商家申请
 - 宝贝审阅：查看/审核商品
-- 银票兑付：处理提现申请
+- 佣金兑付：处理提现申请
 - 武林贴管理：管理 UGC 内容
 - 用户管理：查看/管理用户
 - 退款管理：处理退款申请

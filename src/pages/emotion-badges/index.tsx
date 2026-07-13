@@ -5,7 +5,7 @@ import { View, Text } from '@tarojs/components'
 import {
   getEmotionBadgeDefs,
   getUserEmotionBadges,
-  getEmotionTongbaoBalance,
+  getMyProfile,
 } from '@/db/api'
 import type { EmotionBadgeDef, EmotionBadgeGrant } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
@@ -23,6 +23,8 @@ const RARITY_COLOR: Record<string, string> = {
   epic:   '#9333EA',
   legend: '#DC2626',
 }
+// 图鉴分组顺序（高 → 低，突出收藏梯度）
+const RARITY_ORDER = ['legend', 'epic', 'rare', 'common']
 
 function fmtDate(s?: string): string {
   if (!s) return ''
@@ -43,14 +45,14 @@ function EmotionBadgesPage() {
     if (!user) { setLoading(false); return }
     setLoading(true)
     try {
-      const [d, g, b] = await Promise.all([
+      const [d, g, prof] = await Promise.all([
         getEmotionBadgeDefs().catch(() => [] as EmotionBadgeDef[]),
         getUserEmotionBadges(user.id).catch(() => [] as EmotionBadgeGrant[]),
-        getEmotionTongbaoBalance(user.id).catch(() => 0),
+        getMyProfile().catch(() => null),
       ])
       setDefs(d || [])
       setGrants(g || [])
-      setBalance(b)
+      setBalance((prof as any)?.tb_balance || 0)
     } catch (e) {
       console.error('[EmotionBadges] load', e)
     } finally {
@@ -85,7 +87,7 @@ function EmotionBadgesPage() {
         <View className="grid grid-cols-3 gap-3 mt-5">
           {[
             { label: '已获徽章', value: `${ownedCount}`, sub: `/ ${defs.length}` },
-            { label: '通宝余额', value: `${balance}`, sub: '可用' },
+            { label: '情绪豆', value: `${balance}`, sub: '可用' },
             { label: '获取进度', value: defs.length ? `${Math.round((ownedCount / defs.length) * 100)}%` : '0%', sub: '完成度' },
           ].map(s => (
             <View key={s.label} className="emotion-badges-stat">
@@ -97,7 +99,7 @@ function EmotionBadgesPage() {
         </View>
       </View>
 
-      {/* 徽章列表 */}
+      {/* 徽章列表（按稀有度分组 + 集齐解锁流光） */}
       <View className="px-4 mt-4">
         {loading ? (
           <View className="flex items-center justify-center py-10">
@@ -109,41 +111,62 @@ function EmotionBadgesPage() {
             <Text className="text-xl text-muted-foreground mt-3" style={{ display: 'block' }}>徽章字典待加载</Text>
           </View>
         ) : (
-          defs.map(def => {
-            const owned = ownedCodes.has(def.code)
-            const grant = grantedMap.get(def.code)
-            const rarityColor = RARITY_COLOR[def.rarity] || '#78716C'
+          RARITY_ORDER.map((rarity, gi) => {
+            const group = defs.filter(d => (d.rarity || 'common') === rarity)
+            if (!group.length) return null
+            const ownedInGroup = group.filter(d => ownedCodes.has(d.code)).length
+            const allDone = ownedInGroup === group.length
+            const rColor = RARITY_COLOR[rarity] || '#78716C'
             return (
-              <View key={def.code}
-                className={`emotion-badge-row ${owned ? 'is-owned' : 'is-locked'}`}>
-                {/* 圆盘 */}
-                <View className="emotion-badge-medal" style={{ background: owned ? rarityColor : '#A8A29E' }}>
-                  <Text className="emotion-badge-medal-icon">{def.icon}</Text>
-                </View>
-                {/* 文字 */}
-                <View className="flex-1 ml-4">
-                  <View className="flex items-center gap-2">
-                    <Text className="text-xl font-bold text-foreground" style={{ display: 'block' }}>{def.name}</Text>
-                    <View className="emotion-badge-rarity" style={{ color: rarityColor, borderColor: rarityColor }}>
-                      {RARITY_LABEL[def.rarity] || def.rarity}
-                    </View>
+              <View key={rarity}>
+                <View className="emotion-badge-group-head">
+                  <View className="emotion-badge-group-title">
+                    <View className="rounded-full" style={{ width: 10, height: 10, background: rColor }} />
+                    <Text style={{ fontSize: 15, fontWeight: 700, color: '#1c1917' }}>{RARITY_LABEL[rarity]}</Text>
+                    <Text className="emotion-badge-group-count">{ownedInGroup}/{group.length}</Text>
                   </View>
-                  <Text className="text-base text-muted-foreground mt-1" style={{ display: 'block' }}>{def.description}</Text>
-                  <Text className="text-sm text-muted-foreground mt-1" style={{ display: 'block' }}>
-                    🔓 {def.unlock_hint}
-                  </Text>
-                  {owned && grant && (
-                    <Text className="text-xs text-primary mt-1" style={{ display: 'block' }}>
-                      ✓ 已于 {fmtDate(grant.granted_at)} 获得
-                    </Text>
-                  )}
+                  {allDone && <Text className="emotion-badge-complete">✦ 已集齐 ✦</Text>}
                 </View>
-                {/* 状态 */}
-                <View className="emotion-badge-status">
-                  {owned
-                    ? <Text className="i-mdi-check-circle text-3xl" style={{ color: rarityColor }} />
-                    : <Text className="i-mdi-lock-outline text-3xl text-muted-foreground" />}
-                </View>
+                {group.map((def, i) => {
+                  const owned = ownedCodes.has(def.code)
+                  const grant = grantedMap.get(def.code)
+                  const rarityColor = RARITY_COLOR[def.rarity] || '#78716C'
+                  const medalClass = `emotion-badge-medal ${owned ? `medal-owned medal-${def.rarity || 'common'}` : ''}`
+                  return (
+                    <View key={def.code}
+                      className={`emotion-badge-row badge-row-in ${owned ? 'is-owned' : 'is-locked'}`}
+                      style={{ animationDelay: `${(gi * 0.06) + i * 0.04}s` }}>
+                      {/* 圆盘 */}
+                      <View className={medalClass} style={{ background: owned ? rarityColor : '#A8A29E', ['--rc']: rarityColor } as any}>
+                        <Text className="emotion-badge-medal-icon">{def.icon}</Text>
+                      </View>
+                      {/* 文字 */}
+                      <View className="flex-1 ml-4">
+                        <View className="flex items-center gap-2">
+                          <Text className="text-xl font-bold text-foreground" style={{ display: 'block' }}>{def.name}</Text>
+                          <View className="emotion-badge-rarity" style={{ color: rarityColor, borderColor: rarityColor }}>
+                            {RARITY_LABEL[def.rarity] || def.rarity}
+                          </View>
+                        </View>
+                        <Text className="text-base text-muted-foreground mt-1" style={{ display: 'block' }}>{def.description}</Text>
+                        <Text className="text-sm text-muted-foreground mt-1" style={{ display: 'block' }}>
+                          🔓 {def.unlock_hint}
+                        </Text>
+                        {owned && grant && (
+                          <Text className="text-xs text-primary mt-1" style={{ display: 'block' }}>
+                            ✓ 已于 {fmtDate(grant.granted_at)} 获得
+                          </Text>
+                        )}
+                      </View>
+                      {/* 状态 */}
+                      <View className="emotion-badge-status">
+                        {owned
+                          ? <Text className="i-mdi-check-circle text-3xl" style={{ color: rarityColor }} />
+                          : <Text className="i-mdi-lock-outline text-3xl text-muted-foreground" />}
+                      </View>
+                    </View>
+                  )
+                })}
               </View>
             )
           })

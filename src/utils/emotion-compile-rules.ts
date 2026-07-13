@@ -50,6 +50,13 @@ export const STAGE1_FUNCTION_TO_SCENE: Stage1Rule[] = [
   { functionAttr: '轻食、单人餐', scene: '周末一人食', template: '周末不想出门，又想吃得__？', example: '周末不想出门，又想吃得精致点？' },
   { functionAttr: '按摩、SPA、采耳', scene: '下班疲惫', template: '累了一天，浑身发紧？', example: '累了一天，浑身发紧？' },
   { functionAttr: '茶饮、咖啡馆', scene: '午后摸鱼', template: '下午三点，有点撑不住了？', example: '下午三点，有点撑不住了？' },
+  // 水果 / 生鲜
+  { functionAttr: '水果、鲜果、生鲜', scene: '午后小憩', template: '嘴里没味道的时候，想来点__？', example: '嘴里没味的时候，想来点清爽的？' },
+  { functionAttr: '零食、坚果', scene: '独处追剧', template: '一个人安安静静的时候，就想吃__？', example: '一个人安安静静，就想嚼点什么？' },
+  // 娱乐
+  { functionAttr: '娱乐、电影、KTV', scene: '朋友聚会', template: '好久没彻底放松了，想去__？', example: '好久没彻底放松了，想去嗨一下？' },
+  // 运动/健身
+  { functionAttr: '运动、健身、瑜伽', scene: '下班后', template: '坐了一天，身体想要__？', example: '坐了一天，身体想要动一动？' },
 ]
 
 // ============ 阶段二：场景 → 情绪 ============
@@ -57,6 +64,12 @@ export const STAGE2_SCENE_TO_EMOTION: Stage2Rule[] = [
   { scene: '深夜加班', emotionAnchor: '疲惫 + 孤独 + 不将就', template: '明明很累了，又不想随便对付自己？', example: '明明很累了，又不想随便对付自己？' },
   { scene: '周末一人食', emotionAnchor: '松弛 + 独处 + 自我取悦', template: '就想安安静静待着，不用说话不用社交？', example: '就想安安静静待着，不用说话不用社交？' },
   { scene: '下班放松', emotionAnchor: '解压 + 放空 + 回血', template: '不想带脑子，就想发会儿呆？', example: '不想带脑子，就想发会儿呆？' },
+  // 水果 / 生鲜
+  { scene: '午后小憩', emotionAnchor: '清爽 + 小确幸 + 治愈', template: '不是饿，就是嘴里想有点清爽的？', example: '不是饿，就是嘴里想有点清爽的？' },
+  // 独处
+  { scene: '独处追剧', emotionAnchor: '自我取悦 + 松弛 + 小确幸', template: '这种时候，只想对自己好一点？', example: '这种时候，只想对自己好一点？' },
+  // 社交
+  { scene: '朋友聚会', emotionAnchor: '兴奋 + 分享 + 温暖', template: '好久没跟朋友们好好聚聚了？', example: '好久没跟朋友们好好聚聚了？' },
 ]
 
 // ============ 阶段三：情绪 → 身份 ============
@@ -64,6 +77,12 @@ export const STAGE3_EMOTION_TO_IDENTITY: Stage3Rule[] = [
   { emotionSatisfaction: '独处放松', identityTag: '懂生活、会留白', template: '你是懂得给自己留呼吸空间的人', example: '你是懂得给自己留呼吸空间的人' },
   { emotionSatisfaction: '认真吃饭', identityTag: '爱自己、不将就', template: '你是再忙也会好好照顾自己的人', example: '你是再忙也会好好照顾自己的人' },
   { emotionSatisfaction: '尝试新鲜事物', identityTag: '有品味、懂生活', template: '你是愿意为美好体验买单的人', example: '你是愿意为美好体验买单的人' },
+  // 水果 / 生鲜
+  { emotionSatisfaction: '清爽治愈', identityTag: '爱自然、懂滋养', template: '你是知道身体想要什么的人', example: '你是知道身体想要什么的人' },
+  // 自我取悦
+  { emotionSatisfaction: '自我取悦', identityTag: '爱自己、值得', template: '你是对自己挺好的那种人', example: '你是对自己挺好的那种人' },
+  // 社交
+  { emotionSatisfaction: '社交温暖', identityTag: '重情义、懂陪伴', template: '你是愿意把时间花在重要的人身上的人', example: '你是愿意把时间花在重要的人身上的人' },
 ]
 
 // ---------- 阶段选择器（模糊命中，未命中回退首条） ----------

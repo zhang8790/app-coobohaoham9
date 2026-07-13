@@ -9,6 +9,7 @@ import {
 import { uploadImage, uploadVideo } from '@/utils/upload'
 import { MOOD_CATEGORIES, MOOD_TAGS, SCENE_TAGS, type MoodTag } from '@/utils/mood-tags'
 import { generateEmotionDescriptions } from '@/utils/emotion-description'
+import { matchIngredientKeys, getIngredientEntries } from '@/utils/ingredient-analysis'
 import type { Product, Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 
@@ -19,6 +20,8 @@ type FormState = {
   main_image: string; sub_images: string[]; detail_images: string[]; video_url: string
   is_active: boolean
   mood_tags: string[]; scene_tags: string[]
+  ingredients: string[]
+  attribute_keywords: string
 }
 const emptyForm = (): FormState => ({
   name: '', price: '', original_price: '', cost_price: '', discount_rate: '',
@@ -26,6 +29,8 @@ const emptyForm = (): FormState => ({
   main_image: '', sub_images: [], detail_images: [], video_url: '',
   is_active: true,
   mood_tags: [], scene_tags: [],
+  ingredients: [],
+  attribute_keywords: '',
 })
 
 function calcMargin(price: number, cost?: number): string {
@@ -121,6 +126,8 @@ function MerchantProductsPage() {
       is_active: p.is_active,
       mood_tags: p.mood_tags ?? [],
       scene_tags: p.scene_tags ?? [],
+      ingredients: p.ingredients ?? [],
+      attribute_keywords: '',
     })
     setEditId(p.id); setShowForm(true)
   }
@@ -146,18 +153,23 @@ function MerchantProductsPage() {
         discount_rate: form.discount_rate ? parseFloat(form.discount_rate) : undefined,
         mood_tags: form.mood_tags.length > 0 ? form.mood_tags : undefined,
         scene_tags: form.scene_tags.length > 0 ? form.scene_tags : undefined,
+        ingredients: form.ingredients.length > 0 ? form.ingredients : undefined,
       }
       if (editId) {
         await updateProduct(editId, payload)
         Taro.showToast({ title: '修改成功', icon: 'success' })
       } else {
-        await createProduct({ ...payload, store_id: store.id })
+        const created = await createProduct({ ...payload, store_id: store.id })
+        if (!created) {
+          Taro.showToast({ title: '保存失败，请检查后重试', icon: 'error' })
+          return
+        }
         Taro.showToast({ title: '上架成功', icon: 'success' })
       }
       setShowForm(false); load()
-    } catch (e) {
+    } catch (e: any) {
       console.error('[商品管理] 保存失败', e)
-      Taro.showToast({ title: '保存失败', icon: 'error' })
+      Taro.showToast({ title: `保存失败：${(e?.message || '未知错误').slice(0, 30)}`, icon: 'error' })
     } finally {
       setSaving(false)
     }
@@ -220,6 +232,22 @@ function MerchantProductsPage() {
         : [...f.scene_tags, tag]
       return { ...f, scene_tags: tags }
     })
+  }
+
+  // 原料成分勾选切换
+  const toggleIngredient = (key: string) => {
+    setForm(f => {
+      const has = f.ingredients.includes(key)
+      return { ...f, ingredients: has ? f.ingredients.filter(k => k !== key) : [...f.ingredients, key] }
+    })
+  }
+
+  // 智能识别原料：按商品名称匹配食材字典
+  const handleIdentifyIngredients = () => {
+    const keys = matchIngredientKeys(form.name)
+    if (!keys.length) { Taro.showToast({ title: '未从名称识别到食材', icon: 'none' }); return }
+    setForm(f => ({ ...f, ingredients: Array.from(new Set([...f.ingredients, ...keys])) }))
+    Taro.showToast({ title: `已识别 ${keys.length} 种食材`, icon: 'success' })
   }
 
   const filtered = filter === 'all' ? products : products.filter(p => filter === 'online' ? p.is_active : !p.is_active)
@@ -532,7 +560,7 @@ function MerchantProductsPage() {
                   fontSize: '14px', color: '#E65100', padding: '0 10px', boxSizing: 'border-box',
                 }}
                 placeholder="如: 15 表示让利15%（0~100）"
-                placeholderStyle={{ color: '#CCC' }}
+                placeholderStyle={{ color: '#999' }}
                 type="digit"
                 value={form.discount_rate}
                 onInput={(e: any) => setForm(f => ({ ...f, discount_rate: e.detail?.value ?? '' }))}
@@ -688,8 +716,8 @@ function MerchantProductsPage() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: '12px', color: '#AAA', display: 'block', marginBottom: '4px' }}>点击上传商品展示视频</Text>
-                  <Text style={{ fontSize: '11px', color: '#CCC', display: 'block' }}>支持 MP4/MOV 格式</Text>
-                  <Text style={{ fontSize: '11px', color: '#CCC', display: 'block' }}>最长 60 秒，最大 200MB</Text>
+                  <Text style={{ fontSize: '11px', color: '#999', display: 'block' }}>支持 MP4/MOV 格式</Text>
+                  <Text style={{ fontSize: '11px', color: '#999', display: 'block' }}>最长 60 秒，最大 200MB</Text>
                   {form.video_url && (
                     <View
                       onClick={() => setForm(f => ({ ...f, video_url: '' }))}
@@ -807,6 +835,62 @@ function MerchantProductsPage() {
                 </View>
               )}
             </View>
+
+            {/* 原料成分分析 */}
+            <View style={{ marginBottom: '14px' }}>
+              <Text style={{ fontSize: '14px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>🥗 原料成分分析（可选）</Text>
+              <Text style={{ fontSize: '11px', color: '#AAA', marginBottom: '8px', display: 'block' }}>① 先填好商品名称 → ② 点「智能识别原料」自动带出食材 → 功效/人群/场景展示在商品详情页</Text>
+              <View
+                onClick={handleIdentifyIngredients}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '8px 14px',
+                  borderRadius: '12px', background: '#FFF', border: '2px solid #34A853',
+                }}>
+                <Text style={{ color: '#34A853', fontSize: '13px', fontWeight: 'bold' }}>🤖 智能识别原料</Text>
+              </View>
+              {!form.name?.trim() && (
+                <Text style={{ fontSize: '11px', color: '#E08A00', marginTop: '6px', display: 'block' }}>👆 提示：先填写商品名称，识别更准确</Text>
+              )}
+
+              {form.ingredients.length > 0 && (
+                <View style={{ marginTop: '10px' }}>
+                  {form.ingredients.map((key: string) => {
+                    const e = getIngredientEntries([key])[0]
+                    if (!e) return null
+                    return (
+                      <View key={key} style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '12px', background: '#F6FBF7', border: '1px solid #D6EFD8' }}>
+                        <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <View style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Text style={{ fontSize: '18px' }}>{e.icon}</Text>
+                            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#1F2937' }}>{e.zh}</Text>
+                            <Text style={{ fontSize: '11px', color: '#fff', background: '#34A853', padding: '1px 8px', borderRadius: '10px' }}>{e.nature}</Text>
+                          </View>
+                          <View onClick={() => toggleIngredient(key)} style={{ padding: '2px 8px' }}>
+                            <Text style={{ fontSize: '13px', color: '#EF4444' }}>✕ 移除</Text>
+                          </View>
+                        </View>
+                        <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '6px', display: 'block' }}>功效：{e.benefits.join('、')}</Text>
+                        <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '2px', display: 'block' }}>适合：{e.audiences.join('、')}</Text>
+                        <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '2px', display: 'block' }}>场景：{e.scenarios.join('、')}</Text>
+                      </View>
+                    )
+                  })}
+                </View>
+              )}
+            </View>
+
+            {/* 商品属性关键词（选填，让情绪文案更贴合商品） */}
+            <View style={{ marginBottom: '14px' }}>
+              <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', display: 'block', marginBottom: '6px' }}>🏷️ 商品属性关键词（选填）</Text>
+              <Input
+                value={form.attribute_keywords}
+                onInput={(e: any) => setForm(f => ({ ...f, attribute_keywords: e.detail.value }))}
+                placeholder='如：多汁、酸甜、产地直采、手工（逗号分隔）'
+                style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E0E0E0', fontSize: '13px', background: '#FFF' }}
+              />
+              <Text style={{ fontSize: '11px', color: '#999', display: 'block', marginTop: '4px' }}>填写后，生成的情绪文案会自动融入这些真实卖点，更贴合商品。</Text>
+            </View>
+
             {/* 智能生成情绪化描述 */}
             <View style={{ marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#F9F9FF', border: '1.5px solid #E8E8FF' }}>
               <View style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
@@ -818,12 +902,17 @@ function MerchantProductsPage() {
                       return
                     }
                     setGenerating(true)
-                    // 生成3个候选描述
+                    // 生成3个候选描述（传入门店类目 + 商品属性关键词，使文案贴合商品）
+                    const attrKw = form.attribute_keywords
+                      ? form.attribute_keywords.split(/[，,、\s]+/).map((s: string) => s.trim()).filter(Boolean)
+                      : undefined
                     const candidates = generateEmotionDescriptions(
                       { name: form.name, description: form.description },
                       form.mood_tags,
                       form.scene_tags,
-                      3
+                      3,
+                      store?.category,
+                      attrKw
                     )
                     setDescriptionCandidates(candidates)
                     setGenerating(false)
@@ -831,12 +920,12 @@ function MerchantProductsPage() {
                   style={{
                     padding: '6px 12px',
                     borderRadius: '8px',
-                    background: form.mood_tags.length > 0 || form.scene_tags.length > 0 ? '#6C5CE7' : '#CCC',
+                    background: form.mood_tags.length > 0 || form.scene_tags.length > 0 ? '#6C5CE7' : '#E5E7EB',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
                   }}>
-                  <Text style={{ fontSize: '12px', color: '#FFF' }}>{generating ? '生成中...' : '生成描述'}</Text>
+                  <Text style={{ fontSize: '12px', color: form.mood_tags.length > 0 || form.scene_tags.length > 0 ? '#FFF' : '#6B7280' }}>{generating ? '生成中...' : '生成描述'}</Text>
                 </View>
               </View>
 

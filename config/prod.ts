@@ -1,8 +1,4 @@
 import type { UserConfigExport } from "@tarojs/cli";
-import { patchTaroAppConfig } from "miaoda-sc-plugin";
-
-const base = String(process.argv[process.argv.length - 1]);
-const publicPath = base.startsWith("http") ? base : "/";
 
 export default {
 	defineConstants: {
@@ -15,6 +11,6 @@ export default {
 	h5: {},
 	compiler: {
 		type: "vite",
-		vitePlugins: [patchTaroAppConfig(publicPath)],
+		vitePlugins: [],
 	},
 } satisfies UserConfigExport<"vite">;

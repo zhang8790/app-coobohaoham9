@@ -2,12 +2,27 @@
  * 隐私协议弹窗组件
  * 首次进入小程序时弹出，用户同意后才能正常使用
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
+import { supabase } from '@/client/supabase'
+import { useAuth } from '@/contexts/AuthContext'
+
+// 把同意时间写入 profiles.privacy_consented_at（PIPL 审计留痕，幂等）
+async function recordConsent(userId: string) {
+  try {
+    await supabase.from('profiles')
+      .update({ privacy_consented_at: new Date().toISOString() })
+      .eq('id', userId)
+  } catch (e) {
+    console.warn('[PrivacyModal] 写入同意时间失败（不影响使用）', e)
+  }
+}
 
 export default function PrivacyModal() {
+  const { user } = useAuth()
   const [visible, setVisible] = useState(false)
+  const consentFlushed = useRef(false)
 
   useEffect(() => {
     // 检查是否已经同意过
@@ -18,8 +33,20 @@ export default function PrivacyModal() {
     }
   }, [])
 
-  const handleAgree = () => {
+  // 已本地同意、但当时未登录导致 DB 未留痕：登录后自动回填一次
+  useEffect(() => {
+    if (consentFlushed.current) return
+    const agreed = Taro.getStorageSync('privacyAgreed')
+    if (agreed && user) {
+      consentFlushed.current = true
+      recordConsent(user.id)
+    }
+  }, [user])
+
+  const handleAgree = async () => {
     Taro.setStorageSync('privacyAgreed', '1')
+    // 已登录则同步落库；未登录时由上面的回填 effect 在登录后补写
+    if (user) recordConsent(user.id)
     setVisible(false)
   }
 

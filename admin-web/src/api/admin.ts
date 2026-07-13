@@ -239,34 +239,96 @@ export async function getPendingProducts(page: number, pageSize: number): Promis
 }
 
 export async function approveProduct(_id: string): Promise<boolean> {
-  return safeQuery(() => supabase.from('products').update({ review_status: 'approved' }).eq('id', _id).then(() => true), true)
+  return safeQuery(() => supabase.from('products').update({ review_status: 'approved', is_active: true }).eq('id', _id).then(() => true), true)
 }
 
 export async function rejectProduct(_id: string, _reason: string): Promise<boolean> {
-  return safeQuery(() => supabase.from('products').update({ review_status: 'rejected' }).eq('id', _id).then(() => true), true)
+  return safeQuery(() => supabase.from('products').update({ review_status: 'rejected', is_active: false }).eq('id', _id).then(() => true), true)
 }
 
 // ── 提现审核 ──────────────────────────────────────────────────────────
-export async function getPendingWithdrawals(page: number, pageSize: number): Promise<{ data: Withdrawal[]; total: number }> {
+// 提现审核：withdrawals.user_id 未设外键，profiles!user_id 关系 join 必失败 → 列表空白。
+// 改两步直读 + JS merge（与确权页同理）。
+async function profileMap(ids: (string | null)[]): Promise<Map<string, any>> {
+  const uniq = Array.from(new Set(ids.filter(Boolean))) as string[]
+  if (uniq.length === 0) return new Map()
+  const { data, error } = await supabase
+    .from('profiles').select('id, nickname, phone').in('id', uniq)
+  if (error) return new Map()
+  return new Map((data as any[]).map(p => [p.id, p]))
+}
+
+export async function getPendingWithdrawals(page: number, pageSize: number, status: string = 'pending'): Promise<{ data: Withdrawal[]; total: number }> {
   return safeQuery(async () => {
-    const { data, count } = await supabase.from('withdrawals')
-      .select('*, profiles!user_id(nickname, phone)', { count: 'exact' })
-      .eq('status', 'pending')
+    let q = supabase.from('withdrawals')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
-      .range(page * pageSize, (page + 1) * pageSize - 1)
-    return { data: Array.isArray(data) ? data : [], total: count ?? 0 }
+    if (status !== 'all') q = q.eq('status', status)
+    const { data, count } = await q.range(page * pageSize, (page + 1) * pageSize - 1)
+    const rows = Array.isArray(data) ? (data as any[]) : []
+    const pmap = await profileMap(rows.map(r => r.user_id))
+    return {
+      data: rows.map(r => ({
+        ...r,
+        // real_name / id_card / bank_* 已在 withdrawals 行内（select '*'），直接透传
+        profiles: { nickname: pmap.get(r.user_id)?.nickname ?? null, phone: pmap.get(r.user_id)?.phone ?? null },
+      })),
+      total: count ?? 0,
+    }
   }, (() => {
-    const data = MOCK_WITHDRAWALS.filter(w => w.status === 'pending')
+    const data = status === 'all' ? MOCK_WITHDRAWALS : MOCK_WITHDRAWALS.filter(w => w.status === status)
     return { data: data.slice(page * pageSize, (page + 1) * pageSize), total: data.length }
   })())
 }
 
-export async function approveWithdrawal(_id: string): Promise<boolean> {
-  return safeQuery(() => supabase.from('withdrawals').update({ status: 'paid', updated_at: new Date().toISOString() }).eq('id', _id).then(() => true), true)
+/** 审核通过：状态 pending → approved（待财务打款）。带 pending 守卫，防重复审核。 */
+export async function approveWithdrawal(_id: string, remark?: string): Promise<boolean> {
+  return safeQuery(() => supabase.from('withdrawals').update({
+    status: 'approved',
+    remark: remark || null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', _id).eq('status', 'pending').then(() => true), true)
 }
 
-export async function rejectWithdrawal(_id: string): Promise<boolean> {
-  return safeQuery(() => supabase.from('withdrawals').update({ status: 'rejected', updated_at: new Date().toISOString() }).eq('id', _id).then(() => true), true)
+/**
+ * 确认打款：状态 approved → paid，并原子扣减用户可提现佣金。
+ * 修复 P0：原实现只改状态不扣 commission_balance，同一笔佣金可无限次提现（资损）。
+ * 状态守卫(approved) + 余额充足校验，杜绝重复打款/超额出金。
+ */
+export async function payWithdrawal(_id: string, remark?: string): Promise<boolean> {
+  return safeQuery(async () => {
+    // 1. 取提现单（user_id / amount / 当前状态）
+    const { data: w, error: we } = await supabase
+      .from('withdrawals').select('user_id, amount, status').eq('id', _id).maybeSingle()
+    if (we || !w) return false
+    if (w.status !== 'approved') return false // 仅「已通过」可打款，防重复打款
+    const amt = Number(w.amount || 0)
+    // 2. 读最新余额，校验充足（避免并发/超额出金）
+    const { data: p } = await supabase
+      .from('profiles').select('commission_balance').eq('id', w.user_id).maybeSingle()
+    const cur = Number((p as any)?.commission_balance || 0)
+    if (cur < amt) return false // 余额不足：阻断打款
+    const next = Math.round((cur - amt) * 100) / 100
+    // 3. 扣减佣金
+    const { error: ue } = await supabase
+      .from('profiles').update({ commission_balance: next }).eq('id', w.user_id)
+    if (ue) return false
+    // 4. 扣减成功后才置 paid（带 approved 守卫，确保幂等）
+    await supabase.from('withdrawals').update({
+      status: 'paid', remark: remark || null, updated_at: new Date().toISOString(),
+    }).eq('id', _id).eq('status', 'approved')
+    return true
+  }, true)
+}
+
+/** 驳回：状态 → rejected，释放（退回）相应佣金额度 */
+export async function rejectWithdrawal(_id: string, reason: string, remark?: string): Promise<boolean> {
+  return safeQuery(() => supabase.from('withdrawals').update({
+    status: 'rejected',
+    reject_reason: reason || null,
+    remark: remark || null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', _id).then(() => true), true)
 }
 
 // ── 退款管理 ──────────────────────────────────────────────────────────
@@ -298,13 +360,21 @@ export async function getArticles(
   _filter: 'all' | 'published' | 'hidden', page: number, pageSize: number
 ): Promise<{ data: Article[]; total: number }> {
   return safeQuery(async () => {
-    let q = supabase.from('articles').select('*, profiles!user_id(nickname)', { count: 'exact' })
+    let q = supabase.from('articles').select('*', { count: 'exact' })
     if (_filter === 'published') q = q.eq('is_published', true)
     else if (_filter === 'hidden') q = q.eq('is_published', false)
     const { data, count } = await q
       .order('created_at', { ascending: false })
       .range(page * pageSize, (page + 1) * pageSize - 1)
-    return { data: Array.isArray(data) ? data : [], total: count ?? 0 }
+    const rows = Array.isArray(data) ? (data as any[]) : []
+    const pmap = await profileMap(rows.map(r => r.user_id))
+    return {
+      data: rows.map(r => ({
+        ...r,
+        profiles: { nickname: pmap.get(r.user_id)?.nickname ?? null },
+      })),
+      total: count ?? 0,
+    }
   }, (() => {
     let data = [...MOCK_ARTICLES]
     return { data: data.slice(page * pageSize, (page + 1) * pageSize), total: data.length }

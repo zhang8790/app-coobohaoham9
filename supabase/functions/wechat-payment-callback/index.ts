@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
       .update({ status: 'pending_ship', wechat_transaction_id: transactionId, paid_at: new Date().toISOString() })
       .eq('order_no', outTradeNo)
       .eq('status', 'pending_pay')
-      .select('id, order_no, user_id, total_amount, referrer_id, gold_beans_used')
+      .select('id, order_no, user_id, total_amount, referrer_id, gold_beans_used, store_id')
 
     if (error) {
       console.error('[wechat-payment-callback] DB error:', error.message)
@@ -98,9 +98,43 @@ Deno.serve(async (req: Request) => {
 
     const order = updated[0]
 
+    // D1~D3 修复：读取商家让利率 stores.referral_rate（小数口径，如 0.09=9%），
+    // 透传给 distribute-commission，使云端分佣让利池基数与前端支付页预览完全一致（展示=实发）。
+    let storeDiscountRate: number | null = null
+    if (order.store_id) {
+      try {
+        const { data: storeData } = await supabase
+          .from('stores')
+          .select('referral_rate')
+          .eq('id', order.store_id)
+          .maybeSingle()
+        const refRate = (storeData as unknown as { referral_rate?: number | null } | null)?.referral_rate
+        storeDiscountRate = refRate ?? null
+      } catch (e) { console.warn('[wechat-payment-callback] 读取商家让利率失败', e) }
+    }
+
+    // P0 修复：混合支付金豆抵扣——纯金豆已在下单时当场扣除；混合支付(payment_method=wxpay 但
+    // gold_beans_used>0)的金豆推迟到此处（微信支付成功）扣除，避免支付失败却锁豆。此前此处漏扣 → 用户白嫖抵扣。
+    const goldBeansUsed = order.gold_beans_used ?? 0
+    if (goldBeansUsed > 0 && order.payment_method === 'wxpay') {
+      try {
+        const { data: gbProf } = await supabase.from('profiles').select('gold_beans').eq('id', order.user_id).maybeSingle()
+        const cur = gbProf?.gold_beans ?? 0
+        if (cur >= goldBeansUsed) {
+          await supabase.from('profiles').update({ gold_beans: cur - goldBeansUsed }).eq('id', order.user_id)
+          supabase.from('gold_bean_logs').insert({
+            user_id: order.user_id, order_id: order.id, type: 'purchase_spend',
+            delta: -goldBeansUsed, balance_after: cur - goldBeansUsed,
+            remark: `订单${order.order_no}混合支付金豆抵扣`,
+          }).then(() => {}).catch(() => {})
+        } else {
+          console.warn('[wechat-payment-callback] 金豆不足，跳过扣减', { uid: order.user_id, cur, need: goldBeansUsed })
+        }
+      } catch (e) { console.error('[wechat-payment-callback] 混合金豆扣减异常', e) }
+    }
+
     // 异步触发分润（不阻塞回调响应）
     // net_amount = 实际微信现金支付额（扣除金豆抵扣后），作为让利池计算基数
-    const goldBeansUsed = order.gold_beans_used ?? 0
     const netCashAmount = Math.max(0, (order.total_amount ?? 0) - goldBeansUsed * 0.01)
     supabase.functions.invoke('distribute-commission', {
       body: {
@@ -110,8 +144,27 @@ Deno.serve(async (req: Request) => {
         total_amount: order.total_amount,
         net_amount: netCashAmount,
         referrer_id: order.referrer_id ?? null,
+        discount_rate: storeDiscountRate ?? 0.09,  // 商家让利率（小数口径），与前端支付页预览一致
       }
     }).catch(e => console.error('[wechat-payment-callback] distribute-commission error:', e))
+
+    // 异步推送「订单支付成功」通知（不阻塞回调）
+    supabase.functions.invoke('send-notification', {
+      body: {
+        user_id: order.user_id,
+        type: 'order_paid',
+        title: '订单支付成功',
+        body: `订单 ${order.order_no} 已完成支付，感谢您的支持`,
+        order_id: order.id,
+        payload: {
+          order_no: order.order_no,
+          amount: (order.total_amount ?? 0).toFixed(2),
+          paid_at: new Date().toLocaleString('zh-CN'),
+          product_name: (order as { product_name?: string }).product_name ?? '商品',
+          page: 'pages/order-center/index',
+        },
+      }
+    }).catch(e => console.warn('[wechat-payment-callback] send-notification error:', e))
 
     return new Response(JSON.stringify({ code: 'SUCCESS', message: '处理成功' }), { status: 200 })
 

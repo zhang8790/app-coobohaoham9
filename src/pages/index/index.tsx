@@ -1,9 +1,10 @@
 // @title 首页
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import Taro, { useDidShow, useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
 import { Image, Input, Button, View, Text } from '@tarojs/components'
 import { getProductsByEmotion, getProducts, getAnnouncements, addToCart } from '@/db/api'
 import type { Product, Announcement } from '@/db/types'
+import StoreStrip from '@/components/StoreStrip'
 import {
   analyzeEmotion, rankProductsByEmotion, getEmotionPoetry,
   QUICK_MOOD_PRESETS, type ScoredProduct, type EmotionAnalysisResult
@@ -51,8 +52,10 @@ export default function IndexPage() {
   // 门店红包对应的门店名（用于在首页弹窗标注「XX店专享」）
   const [storeNameMap, setStoreNameMap] = useState<Record<string, string>>({})
 
-  // 小程序启动时捕获 scene：ref=推广码 或 s=门店短码&r=推广码
-  const routeParams = useMemo(() => Taro.getCurrentInstance().router?.params as any || {}, [])
+  // 修复：用 useRouter() 取响应式 params，原 useMemo(..., []) 冻结首屏快照，
+  // 导致冷启动/首渲染时 router 尚未就绪则永久丢失 scene/ref/s 推广参数。
+  // 改为响应式后，参数就绪时 useEffect([routeParams]) 会自动重跑捕获推广码。
+  const routeParams = useRouter().params as any || {}
   useEffect(() => {
     // 直接 URL 参数（H5 / 普通跳转）
     const refDirect = routeParams.ref as string || ''
@@ -452,7 +455,7 @@ export default function IndexPage() {
               🎁 限时福利
             </Text>
             <Text className="text-base text-muted-foreground text-center block mb-6">
-              领取红包/实物，锁定专属门店优惠
+              领取红包/实物，绑定专属门店优惠
             </Text>
             
             {/* 活动列表 */}
@@ -544,41 +547,32 @@ export default function IndexPage() {
           )}
         </View>
 
-        {/* 加载中骨架 */}
+        {/* 精选好店 横向滑动 */}
+        <StoreStrip />
+
+        {/* 加载中骨架（横向列表） */}
         {loading && feedItems.length === 0 && (
-          <View className="flex gap-3">
-            {[0, 1].map(col => (
-              <View key={col} className="flex flex-col gap-3" style={{ width: 'calc(50% - 6px)' }}>
-                {[0, 1, 2].map(i => (
-                  <View key={i} className="bg-card rounded-2xl overflow-hidden border border-border animate-pulse">
-                    <View className="w-full bg-muted" style={{ height: '140px' }} />
-                    <View className="p-3 flex flex-col gap-2">
-                      <View className="h-5 bg-muted rounded w-3/4" />
-                      <View className="h-4 bg-muted rounded w-1/2" />
-                    </View>
-                  </View>
-                ))}
+          <View className="flex flex-col gap-2">
+            {[0, 1, 2, 3].map(i => (
+              <View key={i} className="bg-card rounded-xl border border-border animate-pulse flex items-center gap-3 p-2.5">
+                <View className="rounded-lg bg-muted flex-shrink-0" style={{ width: '88px', height: '88px' }} />
+                <View className="flex-1 flex flex-col gap-2 py-1">
+                  <View className="h-4 bg-muted rounded w-3/4" />
+                  <View className="h-3 bg-muted rounded w-1/2" />
+                  <View className="h-4 bg-muted rounded w-1/3" />
+                </View>
               </View>
             ))}
           </View>
         )}
 
-        {/* 双列瀑布流 */}
+        {/* 商品列表（横向列表） */}
         {!loading || feedItems.length > 0 ? (
-          <View className="flex gap-3">
-            <View className="flex flex-col gap-3" style={{ width: 'calc(50% - 6px)' }}>
-              {feedItems.filter((_, i) => i % 2 === 0).map(item => (
-                <FeedCard key={item.product.id} item={item} addingId={addingId} onAddCart={handleAddCart}
-                  onShareClick={p => { shareProductRef.current = { id: p.id, name: p.name, imageUrl: p.image_url || '' } }} />
-
-              ))}
-            </View>
-            <View className="flex flex-col gap-3" style={{ width: 'calc(50% - 6px)' }}>
-              {feedItems.filter((_, i) => i % 2 === 1).map(item => (
-                <FeedCard key={item.product.id} item={item} addingId={addingId} onAddCart={handleAddCart}
-                  onShareClick={p => { shareProductRef.current = { id: p.id, name: p.name, imageUrl: p.image_url || '' } }} />
-              ))}
-            </View>
+          <View className="flex flex-col gap-2">
+            {feedItems.map(item => (
+              <FeedCard key={item.product.id} item={item} addingId={addingId} onAddCart={handleAddCart}
+                onShareClick={p => { shareProductRef.current = { id: p.id, name: p.name, imageUrl: p.image_url || '' } }} />
+            ))}
           </View>
         ) : null}
 
@@ -658,58 +652,63 @@ function FeedCard({
 }) {
   const { product, matchScore, matchLabel } = item
   return (
-    <View className="bg-card rounded-2xl overflow-hidden border border-border relative"
+    <View className="bg-card rounded-xl border border-border relative flex items-stretch gap-3 p-2.5"
       style={{ borderColor: matchScore > 0 ? 'rgba(194,65,12,0.3)' : undefined }}
       onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })}>
 
       {/* 匹配徽标 */}
       {matchLabel && (
-        <View className={`absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full text-base font-bold ${MATCH_LABEL_STYLE[matchLabel] ?? 'bg-muted text-secondary'}`}>
+        <View className={`absolute top-1.5 left-1.5 z-10 px-2 py-0.5 rounded-full text-xs font-bold ${MATCH_LABEL_STYLE[matchLabel] ?? 'bg-muted text-secondary'}`}>
           {matchLabel}
         </View>
       )}
 
       {/* 分享按钮（右上角）*/}
       <Button openType="share"
-        className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center leading-none"
+        className="absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-full bg-black/40 flex items-center justify-center leading-none"
         style={{ border: 'none', padding: 0 }}
         onClick={(e) => { e.stopPropagation(); onShareClick(product) }}>
-        <View className="i-mdi-share-variant text-white text-xl" />
+        <View className="i-mdi-share-variant text-white text-base" />
       </Button>
 
-      <Image src={product.image_url || ''} mode="aspectFill" className="w-full" style={{ height: '140px' }} />
+      {/* 左：1:1 小方图 */}
+      <Image src={product.image_url || ''} mode="aspectFill" className="rounded-lg flex-shrink-0 bg-muted" style={{ width: '88px', height: '88px' }} />
 
-      <View className="p-3">
-        <Text className="text-xl font-bold text-foreground leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+      {/* 右：信息 */}
+      <View className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+        <Text className="text-base font-bold text-foreground leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {product.name}
         </Text>
-        <View className="flex items-center justify-between mt-2">
-          <Text className="text-xl font-bold text-primary">¥{product.price}</Text>
-          {product.original_price && (
-            <Text className="text-base text-muted-foreground line-through">¥{product.original_price}</Text>
-          )}
-        </View>
 
-        {/* 情绪标签 —— 匹配到的高亮显示 */}
         {product.mood_tags && product.mood_tags.length > 0 && (
-          <View className="flex gap-1 mt-2 flex-wrap">
+          <View className="flex gap-1 mt-1 flex-wrap">
             {product.mood_tags.slice(0, 3).map(t => (
               <Text key={t}
-                className={`px-2 py-0.5 rounded-full text-base ${matchScore > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-secondary'}`}>
+                className={`px-1.5 py-0.5 rounded-full text-xs ${matchScore > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-secondary'}`}>
                 {t}
               </Text>
             ))}
           </View>
         )}
+
+        <View className="flex items-center justify-between mt-1">
+          <Text className="text-lg font-bold text-primary">¥{product.price}</Text>
+          {product.original_price && (
+            <Text className="text-xs text-muted-foreground line-through">¥{product.original_price}</Text>
+          )}
+        </View>
       </View>
 
-      <Button type="button"
-        className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center"
-        onClick={e => { e.stopPropagation(); onAddCart(product) }}>
-        {addingId === product.id
-          ? <View className="i-mdi-loading text-white text-xl animate-spin" />
-          : <View className="i-mdi-plus text-white text-xl" />}
-      </Button>
+      {/* 加购按钮（右缘居中）*/}
+      <View className="flex items-center">
+        <Button type="button"
+          className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0"
+          onClick={e => { e.stopPropagation(); onAddCart(product) }}>
+          {addingId === product.id
+            ? <View className="i-mdi-loading text-white text-base animate-spin" />
+            : <View className="i-mdi-plus text-white text-base" />}
+        </Button>
+      </View>
     </View>
   )
 }

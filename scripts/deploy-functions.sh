@@ -21,6 +21,7 @@ FUNCS=(
   create-wechat-payment
   get-wechat-openid
   generate-qrcode
+  delete-account
   send-redpacket
   article-fetch
   create-order

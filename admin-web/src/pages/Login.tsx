@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 type LoginMethod = 'password' | 'otp' | 'email'
 
 export default function Login() {
-  const { profile, signInWithPhonePassword, signInWithPhone, sendOtpCode, signInWithEmail } = useAuth()
+  const { profile, signInWithPhonePassword, signInWithPhone, sendOtpCode, signInWithEmail, signInAsAdmin } = useAuth()
   const nav = useNavigate()
   const [method, setMethod] = useState<LoginMethod>('password')
   const [phone, setPhone] = useState('')
@@ -282,9 +282,20 @@ export default function Login() {
           </form>
         )}
 
+        {/* 管理员后台快捷入口 */}
+        <button type="button" onClick={async () => { setLoading(true); await signInAsAdmin(); }}
+          style={{
+            width: '100%', marginTop: 18, padding: '12px',
+            background: 'rgba(194,65,12,0.08)', border: '1px solid #C2410C',
+            borderRadius: 10, color: '#C2410C', fontSize: 14, fontWeight: 600,
+            cursor: 'pointer', transition: 'all 0.2s',
+          }}>
+          进入总后台（管理员）
+        </button>
+
         {/* 底部 */}
-        <p style={{ color: '#374151', fontSize: 11, textAlign: 'center', marginTop: 24 }}>
-          {method === 'email' ? '管理员邮箱：admin@laidianyouxi.com / Admin123456' : '测试账号：18701410500 / 123456'}
+        <p style={{ color: '#374151', fontSize: 11, textAlign: 'center', marginTop: 16 }}>
+          {method === 'email' ? '管理员邮箱：admin@laidianyouxi.com / admin123456' : '测试账号：18701410500 / 123456'}
         </p>
       </div>
     </div>

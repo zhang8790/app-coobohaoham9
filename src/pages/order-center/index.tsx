@@ -1,8 +1,8 @@
 // @title 订单中心
-import { useState, useCallback, useEffect, useMemo } from 'react'
-import Taro, { useDidShow } from '@tarojs/taro'
+import { useState, useCallback, useEffect } from 'react'
+import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
-import { getOrders } from '@/db/api'
+import { getOrders, confirmReceipt } from '@/db/api'
 import type { Order, OrderStatus } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 
@@ -16,16 +16,19 @@ const TABS: { key: OrderStatus | 'all'; label: string }[] = [
 ]
 
 const STATUS_TEXT: Record<string, string> = {
-  pending_pay: '待付款', pending_ship: '待发货', pending_receive: '待收货',
-  pending_review: '待评价', completed: '已完成', after_sale: '售后', cancelled: '已取消'
+  pending_pay: '待付款', pending_ship: '待发货', pending_receive: '待收货', paid: '已支付',
+  pending_pickup: '待核销', pending_review: '待评价', completed: '已完成', after_sale: '售后', cancelled: '已取消'
 }
 const STATUS_COLOR: Record<string, string> = {
-  pending_pay: '#C2410C', pending_ship: '#B45309', pending_receive: '#1976D2',
-  pending_review: '#7B1FA2', completed: '#4CAF50', after_sale: '#DC2626', cancelled: '#9A8070'
+  pending_pay: '#C2410C', pending_ship: '#B45309', pending_receive: '#1976D2', paid: '#B45309',
+  pending_pickup: '#8B5CF6', pending_review: '#7B1FA2', completed: '#4CAF50', after_sale: '#DC2626', cancelled: '#9A8070'
 }
 
 function OrderCenterPage() {
-  const tabParam = useMemo(() => (Taro.getCurrentInstance().router?.params as any)?.tab || 'all', [])
+  // 修复：用 useRouter() 取响应式 params，原 useMemo(..., []) 会冻结首屏参数快照，
+  // 导致 ?tab=pending_pay 等深链在页面实例复用/冷启动时落到默认 tab。
+  const router = useRouter()
+  const tabParam = (router.params as any)?.tab || 'all'
   const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>(tabParam)
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
@@ -39,6 +42,17 @@ function OrderCenterPage() {
 
   useEffect(() => { loadOrders(activeTab) }, [loadOrders, activeTab])
   useDidShow(() => { loadOrders(activeTab) })
+
+  const handleConfirmReceipt = async (order: Order) => {
+    Taro.showLoading({ title: '确认中' })
+    const ok = await confirmReceipt(order.id)
+    Taro.hideLoading()
+    if (ok) {
+      Taro.showToast({ title: '已确认收货', icon: 'success' })
+      loadOrders(activeTab)
+    }
+    else Taro.showToast({ title: '操作失败，稍后重试', icon: 'none' })
+  }
 
   return (<RouteGuard>
     <View className="h-screen flex flex-col bg-background">
@@ -111,15 +125,15 @@ function OrderCenterPage() {
                 )}
                 {(order.status === 'pending_ship' || order.status === 'pending_receive') && (
                   <View
-                    className="flex items-center justify-center leading-none rounded-xl border-2 border-red-400 bg-card"
+                    className="flex items-center justify-center leading-none rounded-xl bg-muted"
                     onClick={() => Taro.navigateTo({ url: `/pages/refund-apply/index?orderId=${encodeURIComponent(order.id)}` })}>
-                    <View className="py-2 px-4 text-base text-red-500 font-bold">申请退款</View>
+                    <View className="py-2 px-4 text-base text-muted-foreground font-normal">申请退款</View>
                   </View>
                 )}
-                {order.status === 'pending_receive' && (
+                {(order.status === 'pending_ship' || order.status === 'pending_receive') && (
                   <View
                     className="flex items-center justify-center leading-none rounded-xl border-2 border-primary bg-card"
-                    onClick={() => Taro.showToast({ title: '已确认收货', icon: 'success' })}>
+                    onClick={() => handleConfirmReceipt(order)}>
                     <View className="py-2 px-4 text-base text-primary font-bold">确认收货</View>
                   </View>
                 )}
@@ -141,6 +155,7 @@ function OrderCenterPage() {
           ))
         )}
       </View>
+
     </View>
   </RouteGuard>)
 }

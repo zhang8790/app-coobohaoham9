@@ -49,31 +49,35 @@ export interface RiskCheckResult {
 
 /**
  * 检测1：自己买自己的店（员工=买家）
- * 规则：如果订单的 buyer_id = staff_id，则是自买自卖
+ * 规则：若下单买家是该店铺的「在职员工」，则属于员工刷单 / 自买自卖。
+ *   通过 store_staff 表主动核验买家与店铺的雇佣关系，而非信任调用方传入的 staffId，
+ *   避免绕过。store_staff 结构：id, store_id, user_id, role, is_active。
  */
 export async function checkSelfDealing(
+  supabase: any,
   buyerId: string,
-  staffId: string | null,
   storeId: string
 ): Promise<RiskCheckResult> {
-  if (!staffId) {
-    return { passed: true, shouldFreeze: false };
-  }
-  
-  // 检查 staff 是否是该店铺的员工
-  // TODO: 从 store_staff 表查询
-  
-  if (buyerId === staffId) {
+  const { data: staffRow } = await supabase
+    .from('store_staff')
+    .select('id')
+    .eq('user_id', buyerId)
+    .eq('store_id', storeId)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  // 买家是该店铺在职员工 → 自买自卖
+  if (staffRow) {
     return {
       passed: false,
       riskType: 'self_dealing',
       riskLevel: 'high',
-      description: '买家与服务人员为同一人，疑似自买自卖',
+      description: '买家为该店铺在职员工，疑似自买自卖（员工刷单）',
       shouldFreeze: true,
-      freezeReason: '自买自卖检测：买家与服务人员ID相同',
+      freezeReason: '自买自卖检测：买家为店铺在职员工',
     };
   }
-  
+
   return { passed: true, shouldFreeze: false };
 }
 
@@ -222,7 +226,6 @@ export async function runOrderRiskCheck(
   supabase: any,
   orderData: {
     userId: string;
-    staffId: string | null;
     storeId: string;
     referrerId: string | null;
     orderAmount: number;
@@ -235,10 +238,10 @@ export async function runOrderRiskCheck(
 }> {
   const risks: RiskCheckResult[] = [];
   
-  // 检测1：自买自卖
+  // 检测1：自买自卖（买家是否为该店铺在职员工）
   const selfDealingResult = await checkSelfDealing(
+    supabase,
     orderData.userId,
-    orderData.staffId,
     orderData.storeId
   );
   if (!selfDealingResult.passed) {
@@ -338,12 +341,17 @@ export async function recoverCommission(
       })
       .eq('id', commission.id);
     
-    // 从用户已结算佣金中扣除
+    // 从用户已结算佣金中扣除（改用读-改-写，避免依赖未定义的 decrement RPC）
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('settled_commission')
+      .eq('id', commission.user_id)
+      .maybeSingle();
+    const cur = Number((prof as any)?.settled_commission || 0);
+    const next = Math.max(0, cur - Number(commission.amount || 0));
     await supabase
       .from('profiles')
-      .update({
-        settled_commission: supabase.rpc('decrement', { amount: commission.amount }),
-      })
+      .update({ settled_commission: next })
       .eq('id', commission.user_id);
   }
 }
@@ -363,11 +371,16 @@ export async function recoverPoints(
   
   if (!order || !order.buyer_points || order.buyer_points <= 0) return;
   
-  // 扣除积分
+  // 扣回买家获赠金豆（points 已并入 gold_beans）
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('gold_beans')
+    .eq('id', order.user_id)
+    .maybeSingle();
+  const cur = Number((prof as any)?.gold_beans || 0);
+  const next = Math.max(0, cur - Number(order.buyer_points || 0));
   await supabase
     .from('profiles')
-    .update({
-      points: supabase.rpc('decrement', { amount: order.buyer_points }),
-    })
+    .update({ gold_beans: next })
     .eq('id', order.user_id);
 }

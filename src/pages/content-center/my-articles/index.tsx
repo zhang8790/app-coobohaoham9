@@ -1,6 +1,6 @@
 // @title 我的文章
-import { useState, useCallback, useEffect, useMemo } from 'react'
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import { useState, useCallback, useEffect } from 'react'
+import Taro, { useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
 import { View, Button, Text } from '@tarojs/components'
 import { getMyArticles, deleteArticle, getMyProfile } from '@/db/api'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
@@ -15,7 +15,9 @@ const TABS: { key: Tab; label: string }[] = [
 ]
 
 export default function MyArticlesPage() {
-  const routeParams = useMemo(() => Taro.getCurrentInstance().router?.params ?? {}, [])
+  // 修复：用 useRouter() 取响应式 params，原 useMemo(..., []) 冻结首屏参数快照，
+  // 导致 ?tab=draft 等深链在页面实例复用/冷启动时落到默认 tab。
+  const routeParams = useRouter().params ?? {}
   const defaultTab = (routeParams.tab as Tab) ?? 'all'
   const [activeTab, setActiveTab] = useState<Tab>(defaultTab)
   const [articles, setArticles] = useState<Article[]>([])
@@ -23,7 +25,7 @@ export default function MyArticlesPage() {
   const [myCode, setMyCode] = useState('')
   const [shareArticle, setShareArticle] = useState<Article | null>(null)
 
-  // 分享：携带推广码锁定下线，动态返回文章标题
+  // 分享：携带推广码归属推荐关系，动态返回文章标题
   useShareAppMessage(() => ({
     title: shareArticle
       ? `【来电有喜】${shareArticle.title}`
@@ -146,7 +148,7 @@ export default function MyArticlesPage() {
                     <View className="i-mdi-eye-outline text-xl text-blue-600" />
                     <Text className="text-xl text-blue-600">预览</Text>
                   </Button>
-                  {/* 分享按钮 — 已发布的文章才能分享锁客 */}
+                  {/* 分享按钮 — 已发布的文章才能分享归属 */}
                   {article.status === 'published' && (
                     <Button
                       openType="share"

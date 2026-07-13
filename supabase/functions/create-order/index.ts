@@ -55,12 +55,24 @@ Deno.serve(async (req: Request) => {
     const { items, pay_mode, referrer_id, idempotency_key } = body
     if (!items?.length) return Response.json({ error: '订单商品不能为空' }, { status: 400, headers: corsHeaders })
 
-    // 重新计算总金额（服务端校验，万分位精度）
-    const totalAmount = toFixed4(items.reduce((s, i) => s + toFixed4(i.price * i.quantity), 0))
+    // P0 修复：服务端回查 products 目录价，覆盖客户端传入 price，杜绝压价下单资损
+    const productIds = [...new Set(items.map((i: any) => i.product_id).filter(Boolean))]
+    const { data: dbProducts } = await supabase.from('products').select('id, price').in('id', productIds)
+    const dbPriceMap = new Map<string, number>()
+    for (const p of (dbProducts || []) as any[]) dbPriceMap.set(p.id, Number(p.price) || 0)
+    const validatedItems = items.map((i: any) => {
+      const dbPrice = dbPriceMap.get(i.product_id)
+      // 目录中无此商品则禁止下单（不放行客户端伪造 price）
+      if (dbPrice == null) throw new Error(`商品不存在: ${i.product_id}`)
+      return { ...i, price: dbPrice }
+    })
 
-    // 按门店分组
-    const storeGroups = new Map<string, typeof items>()
-    for (const item of items) {
+    // 重新计算总金额（服务端校验，万分位精度，基于目录价）
+    const totalAmount = toFixed4(validatedItems.reduce((s: number, i: any) => s + toFixed4(i.price * i.quantity), 0))
+
+    // 按门店分组（基于目录价校验后的 items）
+    const storeGroups = new Map<string, typeof validatedItems>()
+    for (const item of validatedItems) {
       const sid = item.store_id
       if (!storeGroups.has(sid)) storeGroups.set(sid, [])
       storeGroups.get(sid)!.push(item)
@@ -126,7 +138,7 @@ Deno.serve(async (req: Request) => {
 
     try {
       for (const [storeId, storeItems] of storeGroups.entries()) {
-        // 计算该门店的金额（按比例）
+        // 计算该门店的金额（基于目录价）
         const storeAmount = toFixed4(storeItems.reduce((s, i) => s + toFixed4(i.price * i.quantity), 0))
         
         // 生成订单号

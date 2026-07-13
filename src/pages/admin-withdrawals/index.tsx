@@ -1,11 +1,12 @@
 import { View, Button, Text } from '@tarojs/components'
-// @title 银票兑付
+// @title 佣金兑付
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { getAdminWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { withTimeout } from '@/utils/withTimeout'
+import { maskPhone } from '@/utils/mask'
 
 type Withdrawal = {
   id: string; user_id: string; amount: number; status: string
@@ -57,7 +58,7 @@ function AdminWithdrawalsPage() {
   const handleReject = async (id: string) => {
     Taro.showModal({
       title: '确认驳回',
-      content: '驳回后该提现申请将被关闭，金豆退还至用户账户',
+      content: '驳回后该提现申请将被关闭，佣金退还至用户账户',
       success: async (res) => {
         if (!res.confirm) return
         setProcessing(id)
@@ -93,7 +94,7 @@ function AdminWithdrawalsPage() {
                       <Text className="text-2xl font-bold text-foreground">
                         {w.profiles?.nickname || '侠客'}
                       </Text>
-                      <Text className="text-xl text-muted-foreground">{w.profiles?.phone || '未知手机'}</Text>
+                      <Text className="text-xl text-muted-foreground">{maskPhone(w.profiles?.phone) || '未知手机'}</Text>
                     </View>
                     <Text className="text-3xl font-black text-primary">¥{Number(w.amount).toFixed(2)}</Text>
                   </View>

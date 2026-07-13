@@ -34,6 +34,13 @@ const RANK_TABLE = [
 /** V5 平台最低抽成（与前端 PLATFORM_CONFIG.MIN_PLATFORM_RATE 一致） */
 const MIN_PLATFORM_RATE_V5 = 0.10
 
+/** 支付通道费率（微信收单成本，默认0.6%；可由环境变量 CHANNEL_FEE_RATE 覆盖，随微信商户类目配置） */
+const CHANNEL_FEE_RATE = Number(Deno.env.get('CHANNEL_FEE_RATE') ?? '0.006')
+
+/** 代扣个税（劳务报酬/佣金所得）：税率与免征额，由用户承担，从佣金扣除；可由环境变量覆盖 */
+const TAX_RATE = Number(Deno.env.get('COMMISSION_TAX_RATE') ?? '0.20')
+const TAX_THRESHOLD = Number(Deno.env.get('COMMISSION_TAX_THRESHOLD') ?? '800')
+
 /** 个人活跃门槛 */
 const MIN_MONTHLY_CONSUMPTION = 39  // 39元/月
 const GRACE_PERIOD_RATE = 0.5        // 宽限期佣金减半
@@ -96,6 +103,28 @@ function toFixed4(n: number): number {
   return Math.round(n * 10000) / 10000
 }
 
+/** 代扣个税（劳务报酬/佣金所得）——由用户承担，从佣金扣除。计税规则同税法 */
+function calcWithholdingTax(income: number): number {
+  const base = Math.max(0, income)
+  if (base <= TAX_THRESHOLD) return 0
+  if (base <= 4000) return toFixed4((base - 800) * TAX_RATE)
+  return toFixed4(base * 0.8 * TAX_RATE)  // = base * 0.16
+}
+
+/** 将订单级通道费/代扣税按金额比例分摊到各佣金行，返回每行应扣项与净额 */
+function allocCommission(
+  rowAmt: number,
+  cashTotal: number,
+  channelFee: number,
+  taxWithheld: number,
+): { channelFee: number; taxWithheld: number; net: number } {
+  if (cashTotal <= 0 || rowAmt <= 0) return { channelFee: 0, taxWithheld: 0, net: rowAmt }
+  const cf = toFixed4(channelFee * rowAmt / cashTotal)
+  const tx = toFixed4(taxWithheld * rowAmt / cashTotal)
+  const net = toFixed4(rowAmt - cf - tx)
+  return { channelFee: cf, taxWithheld: tx, net }
+}
+
 // ============ 主函数 ============
 
 Deno.serve(async (req: Request) => {
@@ -121,7 +150,7 @@ Deno.serve(async (req: Request) => {
       payer_id: string
       total_amount: number
       net_amount?: number
-      discount_rate?: number  // 商品让利率（如10表示10%）
+      discount_rate?: number  // 商家让利率（小数口径，与前端 stores.referral_rate 一致，如 0.09 表示 9%）
       referrer_id: string | null
     }
 
@@ -139,14 +168,17 @@ Deno.serve(async (req: Request) => {
 
     // 分佣基数 = 实际现金支付额
     const cashBase = toFixed4(net_amount ?? total_amount)
+    // 支付通道费（微信约0.6%）：按现金基数计提，**由用户承担**，从佣金扣除（商家/平台不承担）
+    const channelFee = toFixed4(cashBase * CHANNEL_FEE_RATE)
     if (cashBase <= 0) {
       console.log('[V4] 纯金豆订单，跳过分佣:', order_no)
-      await supabase.from('orders').update({ commission_distributed: true }).eq('id', order_id)
-      return Response.json({ success: true, skipped: true, reason: 'pure_gold' }, { headers: corsHeaders })
+      await supabase.from('orders').update({ commission_distributed: true, channel_fee: channelFee, channel_fee_rate: CHANNEL_FEE_RATE, tax_withheld: 0 }).eq('id', order_id)
+      return Response.json({ success: true, skipped: true, reason: 'pure_gold', channel_fee: channelFee, tax_withheld: 0 }, { headers: corsHeaders })
     }
 
     // 让利池 = 现金基数 × 让利率
-    const discountRate = (discount_rate ?? 20) / 100  // 默认20%
+    // D1~D3 修复：discount_rate 改为小数口径（与前端 calculateCommissionV5 / payment 预览一致，如 0.09=9%）
+    const discountRate = discount_rate ?? 0.09  // 默认9%，与前端一致
     const discountPool = toFixed4(cashBase * discountRate)
 
     console.log('[V4] 开始分佣计算:', {
@@ -163,6 +195,10 @@ Deno.serve(async (req: Request) => {
     
     const commissionRows: any[] = []
     const pointsRows: any[] = []
+
+    // 用户侧净额（通道费+代扣税从佣金扣除，由用户承担），供财务对账
+    let userNetCommission = 0
+    let taxWithheld = 0
 
     if (l1UserId) {
       // 查询L1用户数据
@@ -253,8 +289,14 @@ Deno.serve(async (req: Request) => {
         const buyerRank = getRankByScore(buyerDynamicScore)
         const buyerPoints = toFixed4(commissionPool * buyerRank.points)  // V5：与后端 distributeCommissionDirect / 前端预览同用剩余池基数，保证一致
 
-        // 平台收入
+        // 平台收入（让利池内抽成，平台对通道费/税费保持中性：不承受、不额外抽）
         const platformIncome = toFixed4(discountPool - l1Commission - l2Commission - buyerPoints)
+
+        // 用户侧：支付通道费 + 代扣个税均从佣金扣除（**由用户承担**，商家/平台不承担）
+        const userGrossCommission = toFixed4(l1Commission + l2Commission)
+        const afterChannel = Math.max(0, userGrossCommission - channelFee)
+        taxWithheld = toFixed4(calcWithholdingTax(afterChannel))
+        userNetCommission = toFixed4(afterChannel - taxWithheld)
 
         console.log('[V4] 分佣结果:', {
           l1Rank: l1Rank.rank,
@@ -266,8 +308,9 @@ Deno.serve(async (req: Request) => {
           platformIncome
         })
 
-        // 写入佣金记录
+        // 写入佣金记录（通道费/代扣税按金额比例分摊到每行，由用户承担）
         if (l1Commission > 0) {
+          const a = allocCommission(l1Commission, userGrossCommission, channelFee, taxWithheld)
           commissionRows.push({
             order_id,
             order_no,
@@ -278,6 +321,9 @@ Deno.serve(async (req: Request) => {
             ratio: l1Rank.l1,
             pool_amount: discountPool,
             commission_amount: l1Commission,
+            channel_fee: a.channelFee,
+            tax_withheld: a.taxWithheld,
+            net_amount: a.net,
             b_coef: 1.0,
             status: 'pending',
           })
@@ -286,6 +332,7 @@ Deno.serve(async (req: Request) => {
         if (l2Commission > 0) {
           const l2DynamicScore = calculateDynamicScore(0)  // 简化，实际应该查询
           const l2Rank = getRankByScore(l2DynamicScore)
+          const a2 = allocCommission(l2Commission, userGrossCommission, channelFee, taxWithheld)
           commissionRows.push({
             order_id,
             order_no,
@@ -296,6 +343,9 @@ Deno.serve(async (req: Request) => {
             ratio: l2Rank.l2,
             pool_amount: discountPool,
             commission_amount: l2Commission,
+            channel_fee: a2.channelFee,
+            tax_withheld: a2.taxWithheld,
+            net_amount: a2.net,
             b_coef: 1.0,
             status: 'pending',
           })
@@ -344,8 +394,55 @@ Deno.serve(async (req: Request) => {
       await supabase.from('points_logs').insert(pointsRows)
     }
 
+    // P0 修复（提现断流止血）：累加受益人「可提现佣金余额」commission_balance。
+    // 此前只写 commissions 记录却从不累加余额 → 用户/推广员永远提不出钱。
+    // 合并同受益人多笔佣金后一次性更新，避免多次读改写。
+    const balanceDelta = new Map<string, number>()
+    for (const c of commissionRows) {
+      const amt = Number(c.net_amount || 0)  // 累加净额（已扣通道费+代扣税），用户实际可提现
+      if (amt <= 0 || !c.beneficiary_id) continue
+      balanceDelta.set(c.beneficiary_id, Math.round(((balanceDelta.get(c.beneficiary_id) || 0) + amt) * 100) / 100)
+    }
+    for (const [uid, amt] of balanceDelta.entries()) {
+      const { data: bal } = await supabase.from('profiles').select('commission_balance').eq('id', uid).maybeSingle()
+      if (bal) {
+        await supabase.from('profiles').update({
+          commission_balance: Math.round((Number(bal.commission_balance || 0) + amt) * 100) / 100,
+        }).eq('id', uid)
+
+        // 推送「分佣到账」通知（每个受益人 1 条，async 不阻塞分佣）
+        supabase.functions.invoke('send-notification', {
+          body: {
+            user_id: uid,
+            type: 'commission_arrived',
+            title: '佣金到账',
+            body: `订单 ${order_no} 的佣金 ¥${amt.toFixed(2)} 已到账，可前往「我的推广」查看`,
+            order_id: order_id,
+            payload: {
+              order_no: order_no,
+              net_amount: amt.toFixed(2),
+              arrived_at: new Date().toLocaleString('zh-CN'),
+              remark: '佣金到账',
+              page: 'pages/my-promotion/index',
+            },
+          }
+        }).catch(e => console.warn('[distribute-commission] send-notification error:', e))
+      }
+    }
+
     // 标记已分佣
     await supabase.from('orders').update({ commission_distributed: true }).eq('id', order_id)
+
+    // 持久化支付通道费 + 代扣税（便于财务对账）；列由迁移 00082/00083 添加，缺失时静默跳过，不影响已完成的分配
+    try {
+      await supabase.from('orders').update({
+        channel_fee: channelFee,
+        channel_fee_rate: CHANNEL_FEE_RATE,
+        tax_withheld: taxWithheld,
+      }).eq('id', order_id)
+    } catch (e: any) {
+      console.warn('[V4] 写入 channel_fee/tax_withheld 失败（可能未跑迁移00082/00083）:', e?.message)
+    }
 
     return Response.json({
       success: true,
@@ -354,6 +451,12 @@ Deno.serve(async (req: Request) => {
       l1_commission: commissionRows.find((c: any) => c.level === 1)?.commission_amount ?? 0,
       l2_commission: commissionRows.find((c: any) => c.level === 2)?.commission_amount ?? 0,
       buyer_points: pointsRows[0]?.delta ?? 0,
+      channel_fee: channelFee,
+      channel_fee_rate: CHANNEL_FEE_RATE,
+      tax_withheld: taxWithheld,
+      user_gross_commission: userGrossCommission,
+      user_net_commission: userNetCommission,
+      platform_income: platformIncome,
     }, { headers: corsHeaders })
 
   } catch (err: any) {

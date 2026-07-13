@@ -1,0 +1,54 @@
+// 全局购物车计数 store —— 解决「加购后角标/数量不同步，需刷新才显示」的问题。
+// 设计：模块级单一 count + 订阅池；任何页面加购/改数量/删除都即时 bump，
+// 并自动同步底部 Tab 栏「行囊」徽标（updateCartBadge 内部对非 tab 页做异常吞掉）。
+// 计数语义 = 购物车总件数（Σ quantity），最贴合「购物数量」心智。
+import { useState, useEffect } from 'react'
+import { getCartCount } from '@/db/api'
+import { updateCartBadge } from '@/utils/cartBadge'
+
+let count = 0
+const listeners = new Set<(c: number) => void>()
+
+function emit(next: number) {
+  count = Math.max(0, next)
+  listeners.forEach(fn => {
+    try { fn(count) } catch { /* 忽略单个订阅异常 */ }
+  })
+  // 同步底部 Tab 栏「行囊」徽标（index=3）
+  updateCartBadge().catch(() => {})
+}
+
+export function getCartCountState(): number {
+  return count
+}
+
+/** 订阅计数变化；注册时立即回调当前值；返回取消订阅函数 */
+export function subscribeCartCount(fn: (c: number) => void): () => void {
+  listeners.add(fn)
+  fn(count)
+  return () => { listeners.delete(fn) }
+}
+
+/** 直接设置（一般来自服务端拉取） */
+export function setCartCount(n: number): void {
+  emit(n)
+}
+
+/** 增量更新：加购 +quantity、改数量 ±delta、删除 -quantity */
+export function bumpCartCount(delta: number): void {
+  emit(count + delta)
+}
+
+/** 从服务端重新拉取真实总件数并广播（mount / didShow 时调用） */
+export async function refreshCartCount(): Promise<number> {
+  const n = await getCartCount()
+  emit(n)
+  return count
+}
+
+/** 组件内获取实时购物车计数（响应式） */
+export function useCartCount(): number {
+  const [c, setC] = useState(count)
+  useEffect(() => subscribeCartCount(setC), [])
+  return c
+}

@@ -99,7 +99,7 @@ async function updateReferrersTeamGmv(
       return
     }
 
-    // 2. 更新推荐人团队月度GMV（直接/间接下线消费全额计入）
+    // 2. 更新推荐人团队月度GMV（直接/间接推荐消费全额计入）
     const updates: Partial<Profile> = {}
     updates.team_monthly_gmv = (referrer.team_monthly_gmv || 0) + orderAmount
 
@@ -129,7 +129,7 @@ async function updateReferrersTeamGmv(
 }
 
 /**
- * 新增下线时更新拓新状态
+ * 新增推荐时更新拓新状态
  * 
  * @param referrerId 推荐人ID
  */
@@ -201,7 +201,7 @@ export async function resetMonthlyStats(): Promise<void> {
         // 更新距离上次拓新月数
         months_since_last_recruit: (profile.months_since_last_recruit || 0) + 1,
         
-        // 重置当月新增下线标记
+        // 重置当月新增推荐标记
         has_new_recruit: false,
       }
       

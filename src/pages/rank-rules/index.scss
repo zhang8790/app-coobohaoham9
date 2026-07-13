@@ -1,0 +1,40 @@
+/* ── Premium 动效：段位晋升流光 / 入场 stagger ── */
+@keyframes rankIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rank-row-in { animation: rankIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes rankFlow {
+  0%, 100% { box-shadow: 0 4px 16px var(--rc); }
+  50%      { box-shadow: 0 8px 30px var(--rc); }
+}
+@keyframes rankSweep {
+  0%   { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+/* 当前段位：流光高亮（呼吸辉光 + 顶部流光条） */
+.rank-current {
+  position: relative;
+  border-color: var(--rc) !important;
+  animation: rankFlow 2.6s ease-in-out infinite;
+}
+.rank-current::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, var(--rc) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: rankSweep 2.2s linear infinite;
+}
+.rank-current-pill {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: var(--rc);
+  margin-left: 6px;
+  white-space: nowrap;
+}

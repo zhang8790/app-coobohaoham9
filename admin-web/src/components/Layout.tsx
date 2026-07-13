@@ -6,11 +6,17 @@ const NAV = [
   { to: '/dashboard', icon: '⬡', label: '仪表盘' },
   { to: '/merchants', icon: '🏪', label: '门派大典' },
   { to: '/products', icon: '📦', label: '宝贝审阅' },
-  { to: '/withdrawals', icon: '💰', label: '银票兑付' },
+  { to: '/withdrawals', icon: '💰', label: '佣金兑付' },
   { to: '/ugc', icon: '📰', label: '武林贴管理' },
   { to: '/users', icon: '👤', label: '用户管理' },
   { to: '/refunds', icon: '↩', label: '退款管理' },
   { to: '/announcements', icon: '📢', label: '公告管理' },
+  { to: '/emotion-claims', icon: '🛡', label: '确权治理' },
+  { to: '/finance', icon: '📊', label: '财务看板' },
+  { to: '/members', icon: '👥', label: '会员明细' },
+  { to: '/orders', icon: '🧾', label: '成交订单' },
+  { to: '/ledgers', icon: '📒', label: '资产流水' },
+  { to: '/behavior', icon: '📈', label: '行为分析' },
 ]
 
 export default function Layout() {

@@ -1,12 +1,15 @@
 import { useEffect, useState, useCallback } from 'react'
 import { getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/api/admin'
 import type { Announcement } from '@/types'
+import { supabase } from '@/lib/supabase'
 
 export default function Announcements() {
   const [list, setList] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(false)
   const [newContent, setNewContent] = useState('')
   const [newSort, setNewSort] = useState(99)
+  const [pushToAll, setPushToAll] = useState(false)
+  const [pushing, setPushing] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -18,8 +21,33 @@ export default function Announcements() {
 
   const handleAdd = async () => {
     if (!newContent.trim()) { alert('请输入公告内容'); return }
-    await createAnnouncement(newContent.trim(), newSort)
-    setNewContent(''); setNewSort(99)
+    const content = newContent.trim()
+    const ok = await createAnnouncement(content, newSort)
+    if (ok && pushToAll) {
+      setPushing(true)
+      try {
+        const r = await supabase.functions.invoke('send-notification', {
+          body: {
+            broadcast: true,
+            type: 'announcement',
+            title: '系统公告',
+            body: content,
+            payload: {
+              summary: content.slice(0, 20),
+              published_at: new Date().toLocaleString('zh-CN'),
+              page: 'pages/messages/index',
+            },
+          }
+        })
+        const data = r.data as { success?: boolean; results?: { total: number; sent: number; failed: number; skipped: number } }
+        alert(`公告已发布。推送结果：总计 ${data?.results?.total ?? 0} 人，成功 ${data?.results?.sent ?? 0}，失败 ${data?.results?.failed ?? 0}，跳过（无 openid）${data?.results?.skipped ?? 0}`)
+      } catch (e) {
+        alert('公告已发布，但推送失败：' + (e as Error).message)
+      } finally {
+        setPushing(false)
+      }
+    }
+    setNewContent(''); setNewSort(99); setPushToAll(false)
     load()
   }
 
@@ -65,7 +93,13 @@ export default function Announcements() {
             placeholder="排序"
             style={{ width: 80, padding: '8px 12px', background: '#0B0F19', border: '1px solid #1F2937', borderRadius: 6, color: '#E5E7EB', fontSize: 14, outline: 'none' }}
           />
-          <button onClick={handleAdd} style={S.btn('#C2410C')}>发布</button>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#9CA3AF', fontSize: 13, cursor: 'pointer', userSelect: 'none' }}>
+            <input type="checkbox" checked={pushToAll} onChange={e => setPushToAll(e.target.checked)} style={{ cursor: 'pointer' }} />
+            同时推送给所有用户
+          </label>
+          <button onClick={handleAdd} disabled={pushing} style={S.btn('#C2410C')}>
+            {pushing ? '推送中…' : '发布'}
+          </button>
         </div>
       </div>
 

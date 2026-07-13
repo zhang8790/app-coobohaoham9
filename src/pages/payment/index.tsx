@@ -1,13 +1,13 @@
 // @title 支付
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { View, Text, Input, Button } from '@tarojs/components'
-import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile, getMyAddresses } from '@/db/api'
+import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile, getMyAddresses, grantEmotionClaim } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import { RouteGuard } from '@/components/RouteGuard'
+import { getPendingCheckout, clearPendingCheckout } from '@/utils/checkoutCache'
 import type { PayMode } from '@/db/types'
-import { calculateCommissionV5, RANK_CONFIG_TABLE_V5 } from '@/utils/commission-calculator-v5'
-import { updateUserConsumptionAfterPayment } from '@/utils/commission-helpers'
+import { calculateCommissionV5 } from '@/utils/commission-calculator-v5'
 
 // 万分位精度
 function toFixed4(n: number) { return Math.round(n * 10000) / 10000 }
@@ -18,9 +18,13 @@ async function runV5Commission(orderId: string, storeId: string, totalAmount: nu
     if (!orderId) return
     const profile = await getMyProfile()
     if (!profile) return
-    const { data: storeData } = await supabase
-      .from('stores').select('referral_rate').eq('id', storeId || '').maybeSingle()
-    const discountRate = (storeData as any)?.referral_rate ?? 0.09
+    // storeId 为空时不发 stores 查询（避免 id=eq. 空参数导致 400），直接用默认费率
+    let discountRate = 0.09
+    if (storeId) {
+      const { data: storeData } = await supabase
+        .from('stores').select('referral_rate').eq('id', storeId).maybeSingle()
+      discountRate = (storeData as any)?.referral_rate ?? 0.09
+    }
 
     // 推荐链：直接推荐人（拿一级大头 l1）+ 其上级（二级 l2）
     const directReferrerId = profile.referrer_id || null
@@ -63,17 +67,92 @@ async function runV5Commission(orderId: string, storeId: string, totalAmount: nu
     console.error('[V5] 佣金计算失败', err)
   }
 }
-// 金豆换算比例：1金豆 = 1元（金豆:积分:元 = 1:1:1）
+// 支付成功后自动确权（用户侧：下单即默认确权，无需跳转）。best-effort，不阻断支付主流程。
+async function grantOneClaim(orderNo: string, item: any) {
+  if (!orderNo || !item) return
+  try {
+    const res = await grantEmotionClaim({
+      orderNo,
+      productId: item.product_id || '',
+      storeId: item.store_id || '',
+      selectedEmotion: [],
+      badgeText: '情绪确权',
+    })
+    if (res.ok) console.log('[确权] 支付后自动确权成功', orderNo)
+    else console.warn('[确权] 支付后自动确权跳过', orderNo, res?.already ? '已确权' : '未过闸')
+  } catch (e) {
+    console.warn('[确权] 支付后自动确权异常(不影响订单)', e)
+  }
+}
+// 单店直接确权；跨门店按子订单号(C+parent+storeId前4位)逐店确权
+async function autoClaimAfterPay(ctx: {
+  orderNo: string
+  isMultiStore: boolean
+  parentOrderNo?: string | null
+  items: any[]
+}) {
+  try {
+    const { orderNo, isMultiStore, parentOrderNo, items } = ctx
+    if (!items?.length) return
+    if (isMultiStore && parentOrderNo) {
+      const stores = [...new Set(items.map((i: any) => i.store_id).filter(Boolean))] as string[]
+      for (const sid of stores) {
+        const subNo = `C${parentOrderNo}${String(sid).slice(0, 4)}`
+        const it = items.find((i: any) => i.store_id === sid)
+        await grantOneClaim(subNo, it)
+      }
+    } else if (orderNo) {
+      await grantOneClaim(orderNo, items[0])
+    }
+  } catch (e) {
+    console.warn('[确权] 自动确权批量异常(不影响订单)', e)
+  }
+}
+// 金豆抵扣比例：1 金豆 = 1 元（金豆与人民币 1:1 锚定，余额即抵扣额，与数据库 profiles.gold_beans 单位一致）
 const GOLD_BEAN_RATE = 1
 
+// 支付成功后的订单状态：配送走「待发货」；到店消费（堂食）当场使用，支付即「待评价+已使用」，跳过待核销
+function paidOrderUpdate(serviceType?: 'dine_in' | 'delivery'): {
+  status: 'pending_ship' | 'pending_review'
+  paid_at: string
+  verified_at?: string
+} {
+  const now = new Date().toISOString()
+  if (serviceType === 'delivery') {
+    return { status: 'pending_ship', paid_at: now }
+  }
+  // 堂食到店消费，无需核销，支付成功即视为已使用（用 verified_at 标记）
+  return { status: 'pending_review', verified_at: now, paid_at: now }
+}
+
+// 支付成功落地页：标准确认点，用户主动选择下一步（查看订单 / 继续逛），
+// 评价改为可选项而非被强制推送。堂食订单支付即 pending_review，故 reviewable。
+function buildResultUrl(orderNo: string, total: number, serviceType: 'dine_in' | 'delivery'): string {
+  const reviewable = serviceType === 'dine_in' ? '1' : '0'
+  return `/pages/payment-result/index?orderNo=${encodeURIComponent(orderNo)}&total=${total}&serviceType=${serviceType}&reviewable=${reviewable}`
+}
+
 function PaymentPage() {
-  const params = useMemo(() => Taro.getCurrentInstance().router?.params || {}, [])
+  // 修复：用 useRouter() 取响应式 params。原 useMemo(() => getCurrentInstance().router?.params || {}, [])
+  // 会把 params 冻结在首屏空快照（Taro 首渲染时 router 尚未就绪），导致 cartIds/productId 永远为空、
+  // loadData 两个分支都不进、items 恒为空，兜底假 item 触发 INVALID_PRODUCT。
+  const router = useRouter()
+  const params = router.params || {}
   const totalParam = useMemo(() => parseFloat((params as any).total || '0'), [params])
   const cartIds = useMemo(() => {
     const raw = (params as any).cartIds
-    return raw ? decodeURIComponent(raw).split(',').filter(Boolean) : []
+    if (raw) return decodeURIComponent(raw).split(',').filter(Boolean)
+    // 冷启动/热重载后 router.params 为空时，回退到待结算缓存（购物车去结算写入）
+    const cache = getPendingCheckout()
+    return cache?.cartIds || []
   }, [params])
-  const productIdParam = useMemo(() => (params as any).productId ? decodeURIComponent((params as any).productId) : '', [params])
+  const productIdParam = useMemo(() => {
+    const raw = (params as any).productId
+    if (raw) return decodeURIComponent(raw)
+    // 同上，回退到待结算缓存（商品详情立即购买写入）
+    const cache = getPendingCheckout()
+    return cache?.productId || ''
+  }, [params])
 
   const [payMode, setPayMode] = useState<PayMode>('wxpay')
   const [goldBeansToUse, setGoldBeansToUse] = useState(0)
@@ -83,35 +162,63 @@ function PaymentPage() {
   const [orderNo, setOrderNo] = useState('')
   const [items, setItems] = useState<any[]>([])
   const [totalAmount, setTotalAmount] = useState(totalParam)
+  // 下单前预校验：加载商品后回查 products 真实状态，拦截失效商品（已下架/无价/售罄）
+  const [productCheck, setProductCheck] = useState<{
+    loading: boolean
+    invalid: Array<{ product_id: string; name: string; reason: string }>
+  }>({ loading: true, invalid: [] })
   const [isMultiStore, setIsMultiStore] = useState(false)
   const [parentOrderNo, setParentOrderNo] = useState<string | null>(null)
   const [userTotalConsumption, setUserTotalConsumption] = useState(0) // 用户个人累计消费
   const [addresses, setAddresses] = useState<any[]>([])  // 收货地址列表
   const [selectedAddress, setSelectedAddress] = useState<any>(null)  // 选中的地址
 
-  // V5算法：根据用户消费数据计算段位（前端实时计算，仅基于个人累计消费）
-  const v5RankInfo = useMemo(() => {
-    const sortedRanks = [...RANK_CONFIG_TABLE_V5].sort((a, b) => a.minDynamicScore - b.minDynamicScore)
-    const totalScore = userTotalConsumption
-    // 找到最高满足的段位
-    let matched = sortedRanks[0]
-    for (const r of sortedRanks) {
-      if (totalScore >= r.minDynamicScore) matched = r
-    }
-    return {
-      rankName: matched.rank,
-      l1Ratio: Math.round(matched.l1CommissionRate * 100),
-      l2Ratio: Math.round(matched.l2CommissionRate * 100),
-      pointsRatio: Math.round(matched.pointsRate * 100),
-    }
-  }, [userTotalConsumption])
-
   // 防重复支付双重锁
   const _payLock = useRef(false)
   const _pendingOrderNo = useRef('')
 
+  // 下单前预校验：回查 products 真实状态，拦截失效商品（已下架 / 无价）
+  // 与 createOrderV2 的价格防伪完全同源（同样受 products RLS `is_active=true` 约束），
+  // 查询列必须与 createOrderV2 一致（只查 id, price, is_active），避免列差异导致结果不一致
+  const verifyProducts = async (loadedItems: any[]) => {
+    if (!loadedItems || loadedItems.length === 0) {
+      setProductCheck({ loading: false, invalid: [] })
+      return
+    }
+    const ids = [...new Set(loadedItems.map((i: any) => i.product_id).filter(Boolean))]
+    if (ids.length === 0) {
+      setProductCheck({ loading: false, invalid: [] })
+      return
+    }
+    console.log('[预校验] 开始回查商品状态, ids=', ids)
+    try {
+      const { data: dbProds, error } = await supabase
+        .from('products').select('id, price, is_active').in('id', ids)
+      if (error) {
+        console.warn('[预校验] 商品状态查询失败，跳过', error)
+        setProductCheck({ loading: false, invalid: [] })
+        return
+      }
+      console.log('[预校验] 回查结果:', dbProds)
+      const map = new Map((dbProds || []).map((p: any) => [p.id, p]))
+      const invalid: Array<{ product_id: string; name: string; reason: string }> = []
+      for (const item of loadedItems) {
+        const p: any = map.get(item.product_id)
+        if (!p) invalid.push({ product_id: item.product_id, name: item.product_name || '商品', reason: '商品已下架或不存在' })
+        else if (!p.price || Number(p.price) <= 0) invalid.push({ product_id: item.product_id, name: item.product_name || '商品', reason: '商品价格未设置' })
+      }
+      setProductCheck({ loading: false, invalid })
+      if (invalid.length > 0) console.warn('[预校验] 发现失效商品:', invalid)
+      else console.log('[预校验] 全部商品有效')
+    } catch (e) {
+      console.warn('[预校验] 异常，跳过', e)
+      setProductCheck({ loading: false, invalid: [] })
+    }
+  }
+
   // 加载购物车商品 + 金豆余额 + 用户消费数据 + 收货地址
   const loadData = useCallback(async () => {
+
     const [bal, profile, addrList] = await Promise.all([
       getMyBalance(),
       getMyProfile().catch(() => null), // 获取用户资料（含累计消费）
@@ -137,6 +244,7 @@ function PaymentPage() {
     const totalConsumption = profile?.total_consumption || 0
     setUserTotalConsumption(totalConsumption)
 
+    let loadedItems: any[] = []
     if (cartIds.length > 0) {
       const cartItems = await getCartItems()
       const selected = cartItems.filter(i => cartIds.includes(i.id))
@@ -146,6 +254,7 @@ function PaymentPage() {
         product_image: i.products?.image_url || null,
         price: i.products?.price || 0, quantity: i.quantity,
       }))
+      loadedItems = mapped
       setItems(mapped)
       setTotalAmount(toFixed4(mapped.reduce((s, i) => s + toFixed4(i.price * i.quantity), 0)))
     } else if (productIdParam) {
@@ -158,13 +267,21 @@ function PaymentPage() {
           product_image: prod.image_url || null,
           price: prod.price, quantity: 1,
         }]
+        loadedItems = mapped
         setItems(mapped)
         setTotalAmount(toFixed4(prod.price))
       }
     }
-  }, [cartIds])
+    // 下单前预校验商品状态（拦截已下架 / 无价 / 售罄），避免点到 createOrderV2 才报 INVALID_PRODUCT
+    await verifyProducts(loadedItems)
+  }, [cartIds, productIdParam])
 
+  // 挂载即拉一次（余额/地址等首屏数据）
   useEffect(() => { loadData() }, [loadData])
+
+  // 页面每次显示都重拉商品：覆盖「首渲染 router.params 尚未就绪、后续才填充」的时序，
+  // 以及「冷启动/热重载后停留在支付页、params 恢复」等场景。loadData 内 setState 不触发 useDidShow，无死循环。
+  useDidShow(() => { loadData() })
 
   // 从地址管理页返回后，重新加载地址列表
   useDidShow(() => {
@@ -213,20 +330,22 @@ function PaymentPage() {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }, [countdown])
 
-  const [serviceType, setServiceType] = useState<'dine_in' | 'self_pickup' | 'delivery'>('delivery')
+  const [serviceType, setServiceType] = useState<'dine_in' | 'delivery'>('delivery')
 
   // 实时计算：金豆最大可用 & 实付金额
   const maxGoldBeans = useMemo(() => Math.min(balance, Math.floor(totalAmount / GOLD_BEAN_RATE)), [balance, totalAmount])
   const deductYuan = useMemo(() => toFixed4(Math.min(goldBeansToUse, maxGoldBeans) * GOLD_BEAN_RATE), [goldBeansToUse, maxGoldBeans])
   const wxpayAmount = useMemo(() => toFixed4(totalAmount - deductYuan), [totalAmount, deductYuan])
   const actualGoldBeansUsed = useMemo(() => Math.min(goldBeansToUse, maxGoldBeans), [goldBeansToUse, maxGoldBeans])
+  const fullGoldNeeded = useMemo(() => Math.ceil(totalAmount / GOLD_BEAN_RATE), [totalAmount])
+  const pureGoldShort = useMemo(() => Math.max(0, fullGoldNeeded - balance), [fullGoldNeeded, balance])
 
   // 切换支付方式时同步金豆使用量
   const handleModeChange = (mode: PayMode) => {
     setPayMode(mode)
-    if (mode === 'pure_gold') setGoldBeansToUse(maxGoldBeans)
+    // 纯金豆 / 混合均默认用满可用金豆，微信支付则清零
+    if (mode === 'pure_gold' || mode === 'hybrid') setGoldBeansToUse(maxGoldBeans)
     else if (mode === 'wxpay') setGoldBeansToUse(0)
-    // hybrid 保持当前输入
   }
 
   // 指数退避获取 openid（最多3次）
@@ -242,12 +361,12 @@ function PaymentPage() {
     return null
   }
 
-  // 跨门店订单：支付成功后确认所有子订单
-  const confirmMultiStoreOrders = async (parentOrderNo: string) => {
+  // 跨门店订单：支付成功后确认所有子订单（按履约方式分流状态）
+  const confirmMultiStoreOrders = async (parentOrderNo: string, serviceType: 'dine_in' | 'delivery') => {
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ status: 'pending_ship', paid_at: new Date().toISOString() })
+        .update(paidOrderUpdate(serviceType))
         .eq('parent_order_no', parentOrderNo)
         .eq('status', 'pending_pay')
       
@@ -263,13 +382,34 @@ function PaymentPage() {
 
   const handlePay = async () => {
     if (_payLock.current) { Taro.showToast({ title: '支付处理中，请稍候', icon: 'none' }); return }
-    
-    // 外卖配送必须选地址
+
+    // 预校验尚未完成，禁止点击（避免抢先点到 createOrderV2）
+    if (productCheck.loading) {
+      Taro.showToast({ title: '商品校验中，请稍候', icon: 'none' })
+      return
+    }
+
+    // 失效商品拦截（下单前预校验未通过，避免点到 createOrderV2 才报 INVALID_PRODUCT）
+    if (productCheck.invalid.length > 0) {
+      Taro.showToast({ title: '含失效商品，无法支付', icon: 'none' })
+      return
+    }
+
+    // 配送必须选地址
     if (serviceType === 'delivery' && !selectedAddress) {
       Taro.showToast({ title: '请选择收货地址', icon: 'none' })
       return
     }
-    
+
+    // 商品数据缺失拦截（items 为空说明结算参数未正确传入，禁止伪造订单触发 INVALID_PRODUCT）
+    if (!items || items.length === 0) {
+      Taro.showToast({ title: '商品信息缺失，请重新进入结算', icon: 'none' })
+      console.error('[payment] items 为空，结算参数未正确传入（cartIds/productId 缺失）')
+      _payLock.current = false
+      setPaying(false)
+      return
+    }
+
     _payLock.current = true
     setPaying(true)
 
@@ -281,7 +421,7 @@ function PaymentPage() {
 
       // 1. 创建订单
       const orderResult = await createOrderV2({
-        items: items.length > 0 ? items : [{ product_id: (params as any).productId || '', store_id: '', store_name: '', product_name: '商品', product_image: null, price: totalAmount, quantity: 1 }],
+        items,
         total_amount: totalAmount,
         pay_mode: payMode,
         gold_beans_to_use: actualGoldBeansUsed,
@@ -290,9 +430,15 @@ function PaymentPage() {
         address: serviceType === 'delivery' ? addressStr : undefined,
       })
 
-      if (!orderResult) throw new Error('创建订单失败，请重试')
+      if (!orderResult) {
+        // P0 修复：createOrderV2 内部已 toast 详细错误（含 code+message+hint），
+        // 不要再 throw 覆盖真实错误（之前抛"创建订单失败，请重试"会让用户看不到 RLS/字段错误）
+        console.error('[payment] createOrderV2 returned null')
+        return
+      }
       setOrderNo(orderResult.order.order_no)
       _pendingOrderNo.current = orderResult.order.order_no
+      clearPendingCheckout() // 订单已创建，清除待结算缓存，避免下次热重载误用旧数据
       
       // 跨门店结算：记录父订单号
       if (orderResult.is_multi_store) {
@@ -306,7 +452,17 @@ function PaymentPage() {
       
       // 跨门店结算：确认所有子订单（纯金豆已在服务端完成，这里只是保险）
       if (isMultiStore && parentOrderNo) {
-        await confirmMultiStoreOrders(parentOrderNo)
+        await confirmMultiStoreOrders(parentOrderNo, serviceType)
+      } else if (orderResult?.order?.order_no) {
+        // 单店金豆：补写订单支付后状态（配送=待发货，到店=待评价+已使用）
+        try {
+          await supabase
+            .from('orders')
+            .update(paidOrderUpdate(serviceType))
+            .eq('order_no', orderResult.order.order_no)
+        } catch (e) {
+          console.warn('[金豆支付] 单店状态更新失败', e)
+        }
       }
       
       // V5算法：金豆支付成功后计算佣金并写入订单（含真实推荐人段位）
@@ -315,12 +471,18 @@ function PaymentPage() {
       } catch (err) {
         console.error('[V5] 金豆支付佣金计算失败', err)
       }
-      
-      // 支付成功 → 引导情绪确权（消费即确权路线），由确权页完成/跳过再进订单中心
+
+      // 支付成功即自动确权（下单默认确权，无需跳转）
+      autoClaimAfterPay({
+        orderNo: orderResult?.order?.order_no || '',
+        isMultiStore,
+        parentOrderNo,
+        items,
+      })
+
+      // 支付成功 → 进入「支付成功结果页」（标准确认点；评价改为用户主动，不再被推）
       setTimeout(() => {
-        Taro.navigateTo({
-          url: `/pages/emotion-claim/index?orderNo=${encodeURIComponent(orderResult?.order?.order_no || '')}&productId=${encodeURIComponent(items[0]?.product_id || '')}&storeId=${encodeURIComponent(items[0]?.store_id || '')}`,
-        })
+        Taro.navigateTo({ url: buildResultUrl(orderResult?.order?.order_no || '', totalAmount, serviceType) })
       }, 1500)
         return
       }
@@ -351,18 +513,53 @@ function PaymentPage() {
 
       Taro.showToast({ title: '支付成功！', icon: 'success' })
       
-      // 支付成功 → 更新订单状态为 paid
+      // 支付成功 → 按履约方式流转状态：
+      // 配送: pending_ship → pending_receive → pending_review(verified_at)
+      // 到店消费(堂食): 支付即 pending_review(verified_at)
+      // 注：确权已改为「支付成功自动发放」，下方 autoClaimAfterPay 在状态流转后 best-effort 触发，无需用户手动跳转。
       try {
         if (isMultiStore && parentOrderNo) {
-          await supabase.from('orders').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('parent_order_no', parentOrderNo)
+          await supabase.from('orders').update(paidOrderUpdate(serviceType)).eq('parent_order_no', parentOrderNo)
         } else if (orderResult?.order?.order_no) {
-          await supabase.from('orders').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('order_no', orderResult.order.order_no)
+          await supabase.from('orders').update(paidOrderUpdate(serviceType)).eq('order_no', orderResult.order.order_no)
         }
       } catch (e) { console.warn('[支付成功] 更新状态失败(不影响)', e) }
-      
+
+      // 混合支付：微信支付成功后再扣金豆（订单已记录 gold_beans_used，此处执行实际扣减）
+      if (payMode === 'hybrid' && actualGoldBeansUsed > 0) {
+        try {
+          const prof = await getMyProfile()
+          if (prof?.id) {
+            const { data: p2 } = await supabase.from('profiles').select('gold_beans').eq('id', prof.id).single()
+            if (p2 && p2.gold_beans >= actualGoldBeansUsed) {
+              const { error: derr } = await supabase.from('profiles').update({ gold_beans: p2.gold_beans - actualGoldBeansUsed }).eq('id', prof.id)
+              if (derr) console.warn('[混合支付] 金豆扣减失败(不影响订单)', derr)
+              else {
+                console.log('[混合支付] 金豆扣减成功', actualGoldBeansUsed)
+                // 非阻塞写金豆流水（混合支付消费抵扣）；表缺失(404)也不影响订单
+                supabase.from('gold_bean_logs').insert({
+                  user_id: prof.id,
+                  order_id: null,
+                  type: 'purchase_spend',
+                  delta: -actualGoldBeansUsed,
+                  balance_after: (p2.gold_beans ?? 0) - actualGoldBeansUsed,
+                  remark: '混合支付消费抵扣金豆',
+                }).then(() => {}).catch((e: any) => {
+                  if ((e as any)?.code === '42P01' || (e as any)?.status === 404) {
+                    console.warn('[gold_bean_logs] 表不存在(00076未执行)，流水暂不记录')
+                  }
+                })
+              }
+            } else {
+              console.warn('[混合支付] 金豆余额不足，跳过扣减')
+            }
+          }
+        } catch (e) { console.warn('[混合支付] 金豆扣减异常(不影响订单)', e) }
+      }
+
       // 跨门店结算：确认所有子订单
       if (isMultiStore && parentOrderNo) {
-        await confirmMultiStoreOrders(parentOrderNo)
+        await confirmMultiStoreOrders(parentOrderNo, serviceType)
       }
       
       // V5算法：支付成功后计算佣金并写入订单（含真实推荐人段位）
@@ -371,12 +568,18 @@ function PaymentPage() {
       } catch (err) {
         console.error('[V5] 佣金计算失败', err)
       }
-      
-      // 支付成功 → 引导情绪确权（消费即确权路线），由确权页完成/跳过再进订单中心
+
+      // 支付成功即自动确权（下单默认确权，无需跳转）
+      autoClaimAfterPay({
+        orderNo: orderResult?.order?.order_no || '',
+        isMultiStore,
+        parentOrderNo,
+        items,
+      })
+
+      // 支付成功 → 进入「支付成功结果页」（标准确认点；评价改为用户主动，不再被推）
       setTimeout(() => {
-        Taro.navigateTo({
-          url: `/pages/emotion-claim/index?orderNo=${encodeURIComponent(orderResult?.order?.order_no || '')}&productId=${encodeURIComponent(items[0]?.product_id || '')}&storeId=${encodeURIComponent(items[0]?.store_id || '')}`,
-        })
+        Taro.navigateTo({ url: buildResultUrl(orderResult?.order?.order_no || '', totalAmount, serviceType) })
       }, 1500)
 
     } catch (err: any) {
@@ -400,16 +603,18 @@ function PaymentPage() {
 
   // 支付按钮文案
   const payBtnText = useMemo(() => {
+    if (productCheck.loading) return '商品校验中...'
     if (paying) return '支付中...'
+    if (productCheck.invalid.length > 0) return '含失效商品，无法支付'
     if (payMode === 'pure_gold') return `确认支付 ${actualGoldBeansUsed} 金豆`
     if (payMode === 'hybrid') return `确认支付 ¥${wxpayAmount.toFixed(2)} + ${actualGoldBeansUsed}金豆`
     return `确认支付 ¥${totalAmount.toFixed(2)}`
-  }, [paying, payMode, actualGoldBeansUsed, wxpayAmount, totalAmount])
+  }, [paying, payMode, actualGoldBeansUsed, wxpayAmount, totalAmount, productCheck.loading, productCheck.invalid.length])
 
   const payModes: Array<{ key: PayMode; icon: string; label: string; color: string; desc: string; disabled?: boolean }> = [
     { key: 'wxpay', icon: 'i-mdi-wechat', label: '微信支付', color: '#07C160', desc: `¥${totalAmount.toFixed(2)}` },
     { key: 'hybrid', icon: 'i-mdi-lightning-bolt', label: '金豆+微信混合', color: '#C2410C', desc: `金豆抵 ¥${deductYuan.toFixed(2)}，余付 ¥${wxpayAmount.toFixed(2)}`, disabled: balance <= 0 },
-    { key: 'pure_gold', icon: 'i-mdi-star-circle', label: '纯金豆支付', color: '#D97706', desc: `金豆 ${balance}`, disabled: balance < Math.ceil(totalAmount / GOLD_BEAN_RATE) },
+    { key: 'pure_gold', icon: 'i-mdi-star-circle', label: '纯金豆支付', color: '#D97706', desc: balance >= fullGoldNeeded ? `金豆 ${balance}` : `金豆不足，还需 ${pureGoldShort} 豆`, disabled: balance < fullGoldNeeded },
   ]
 
   return (<RouteGuard>
@@ -455,6 +660,24 @@ function PaymentPage() {
         )}
       </View>
 
+      {/* 失效商品警示（下单前预校验拦截，避免点到 createOrderV2 才报 INVALID_PRODUCT） */}
+      {productCheck.invalid.length > 0 && (
+        <View className="mx-4 mt-4 p-4 rounded-2xl border-2 border-red-500/40 bg-red-500/5">
+          <View className="flex items-center gap-2 mb-2">
+            <View className="i-mdi-alert-circle text-2xl text-red-500" />
+            <Text className="text-xl font-bold text-red-500">部分商品无法购买</Text>
+          </View>
+          {productCheck.invalid.map((it, idx) => (
+            <View key={idx} className="flex items-center gap-2 py-1">
+              <Text className="text-base text-red-500/70">•</Text>
+              <Text className="text-base text-foreground flex-shrink-0">{it.name}</Text>
+              <Text className="text-base text-red-500 flex-1 text-right">{it.reason}</Text>
+            </View>
+          ))}
+          <Text className="text-base text-muted-foreground mt-2">请移除失效商品或联系商家处理后再支付</Text>
+        </View>
+      )}
+
       {/* 服务方式选择 */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
         <View className="px-4 py-3 border-b border-border">
@@ -463,8 +686,7 @@ function PaymentPage() {
         <View className="flex gap-0">
           {([
             { key: 'dine_in', label: '堂食', icon: 'i-mdi-silverware-fork-knife' },
-            { key: 'self_pickup', label: '自取', icon: 'i-mdi-walk' },
-            { key: 'delivery', label: '外卖配送', icon: 'i-mdi-moped' },
+            { key: 'delivery', label: '配送', icon: 'i-mdi-moped' },
           ] as const).map((m, i, arr) => (
             <View key={m.key}
               className={`flex-1 flex flex-col items-center gap-1 py-4 ${i < arr.length - 1 ? 'border-r border-border' : ''} ${serviceType === m.key ? 'bg-primary/5' : ''}`}
@@ -477,7 +699,7 @@ function PaymentPage() {
         </View>
       </View>
 
-      {/* 地址选择（外卖配送时显示） */}
+      {/* 地址选择（配送时显示） */}
       {serviceType === 'delivery' && (
         <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
           <View className="px-4 py-3 border-b border-border flex items-center justify-between">
@@ -517,7 +739,13 @@ function PaymentPage() {
         {payModes.map(m => (
           <View key={m.key}
             className={`flex items-center gap-4 px-4 py-4 border-b border-border last:border-0 ${m.disabled ? 'opacity-40' : ''} ${payMode === m.key ? 'bg-primary/5' : ''}`}
-            onClick={() => !m.disabled && handleModeChange(m.key)}>
+            onClick={() => {
+              if (m.disabled) {
+                if (m.key === 'pure_gold') Taro.showToast({ title: `金豆余额不足，还需 ${pureGoldShort} 豆`, icon: 'none' })
+                return
+              }
+              handleModeChange(m.key)
+            }}>
             <View className={`${m.icon} text-3xl flex-shrink-0`} style={{ color: m.color }} />
             <View className="flex-1">
               <Text className="text-xl font-bold text-foreground">{m.label}</Text>
@@ -565,30 +793,10 @@ function PaymentPage() {
         </View>
       )}
 
-      {/* 分润提示 - V4动态积分预览 */}
-      <View className="mx-4 mt-4 p-3 rounded-xl bg-muted flex items-center gap-2">
-        <View className="i-mdi-gift-outline text-2xl text-primary flex-shrink-0" />
-        <View className="flex-1">
-          <Text className="text-base text-muted-foreground">
-            支付成功后将获得积分奖励
-          </Text>
-          {v5RankInfo && (
-            <View className="flex items-center gap-1 mt-1">
-              <Text className="text-xl text-primary font-bold">
-                {v5RankInfo.rankName} · L1佣金{v5RankInfo.l1Ratio}% · 积分返还{v5RankInfo.pointsRatio}%
-              </Text>
-              <Text className="text-base text-primary font-bold">
-                预计获得 {Math.round(totalAmount * v5RankInfo.pointsRatio / 100)} 积分
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-
       {/* 操作按钮 */}
       <View className="mx-4 mt-4 flex flex-col gap-3">
         <View
-          className={`w-full flex items-center justify-center leading-none rounded-2xl ${paying ? 'bg-primary/50' : 'bg-primary'}`}
+          className={`w-full flex items-center justify-center leading-none rounded-2xl ${productCheck.loading || productCheck.invalid.length > 0 ? 'bg-muted opacity-50' : (paying ? 'bg-primary/50' : 'bg-primary')}`}
           onClick={handlePay}>
           <View className="py-4 text-2xl font-bold text-white">{payBtnText}</View>
         </View>

@@ -61,6 +61,68 @@
   padding: 8px 32px;
 }
 
+// 顶部「去逛逛」CTA（确权已改为支付成功自动发放）
+.emotion-cta {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #C2410C, #EA580C);
+  border-radius: 100px;
+  padding: 8px 18px;
+  box-shadow: 0 4px 14px rgba(194, 65, 12, 0.28);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.emotion-cta--active { transform: scale(0.93); }
+.emotion-cta-text {
+  color: #fff;
+  font-size: 15px;
+  font-weight: bold;
+  display: block;
+}
+
+// sticky 区块子导航
+.emotion-subnav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(255, 251, 247, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+.emotion-subnav-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: #78716C;
+  padding: 8px 0;
+  border-radius: 100px;
+  background: #fff;
+  border: 1px solid rgba(194, 65, 12, 0.12);
+  transition: all 0.18s ease;
+}
+.emotion-subnav-btn--active {
+  color: #C2410C;
+  background: rgba(194, 65, 12, 0.08);
+  transform: scale(0.97);
+}
+
+// 会员权益区块「去逛逛提成长值」按钮（确权已自动发放）
+.emotion-equity-cta {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: bold;
+  color: #C2410C;
+  background: rgba(194, 65, 12, 0.1);
+  padding: 4px 12px;
+  border-radius: 100px;
+  transition: transform 0.18s ease;
+}
+.emotion-equity-cta--active { transform: scale(0.95); }
+.emotion-equity-cta-text { display: block; }
+
 // 顶部徽章条带
 .emotion-badge-strip {
   display: flex;
@@ -106,4 +168,8 @@
   .emotion-chip { background: rgba(234, 88, 12, 0.18); color: #fb923c; }
   .emotion-badge-chip { background: #1c1712; border-color: rgba(234, 88, 12, 0.3); }
   .emotion-badge-name { color: #d6d3d1; }
+  .emotion-subnav { background: rgba(26, 20, 16, 0.92); border-color: rgba(255, 255, 255, 0.08); }
+  .emotion-subnav-btn { background: #1c1712; color: #a8a29e; border-color: rgba(234, 88, 12, 0.25); }
+  .emotion-subnav-btn--active { color: #fb923c; background: rgba(234, 88, 12, 0.18); }
+  .emotion-equity-cta { color: #fb923c; background: rgba(234, 88, 12, 0.2); }
 }

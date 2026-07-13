@@ -59,12 +59,46 @@ export function AuthProvider({children}: {children: ReactNode}) {
         ),
       ])
 
+    // 联网校验 token 有效性（getSession 只读本机，坏 refresh_token 会静默通过）
+    const getUserWithTimeout = () =>
+      Promise.race([
+        supabase.auth.getUser(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('getUser timeout after 8s')), 8000)
+        ),
+      ])
+
     getSessionWithTimeout()
-      .then(({ data: { session } }: any) => {
+      .then(async ({ data: { session } }: any) => {
         if (cancelled) return
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          getProfile(session.user.id).then(setProfile).catch(() => setProfile(null))
+        if (!session) {
+          // 完全无登录态：保持干净未登录
+          setUser(null)
+          setProfile(null)
+          setLoading(false)
+          return
+        }
+        // 本地有 token 但可能已失效（refresh_token 过期/被吊销），联网校验
+        try {
+          const { data: userData, error: userErr } = (await getUserWithTimeout()) as any
+          if (cancelled) return
+          if (userErr || !userData?.user) {
+            // 清理损坏的本地 session，回到干净登录态，避免反复 403 卡死确权流程
+            console.warn('[Auth] 本地 token 已失效，清理并回登录态')
+            await supabase.auth.signOut().catch(() => {})
+            setUser(null)
+            setProfile(null)
+            setLoading(false)
+            return
+          }
+          setUser(userData.user)
+          getProfile(userData.user.id).then(setProfile).catch(() => setProfile(null))
+        } catch {
+          // 校验超时/网络异常：保守清空，由 RouteGuard 引导重新登录
+          console.warn('[Auth] token 校验失败（超时/网络），清理本地 session')
+          await supabase.auth.signOut().catch(() => {})
+          setUser(null)
+          setProfile(null)
         }
         setLoading(false)
       })
@@ -110,8 +144,8 @@ export function AuthProvider({children}: {children: ReactNode}) {
             throw new Error('该手机号未开通密码登录，请使用短信验证码登录')
           }
         } else {
-          // 纯用户名：补 @miaoda.com 后缀
-          email = `${username}@miaoda.com`
+          // 纯用户名：补 @app.example.com 后缀
+          email = `${username}@app.example.com`
         }
       }
       
@@ -157,7 +191,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
 
   const signUpWithUsername = async (username: string, password: string) => {
     try {
-      const email = `${username}@miaoda.com`
+      const email = `${username}@app.example.com`
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -166,11 +200,11 @@ export function AuthProvider({children}: {children: ReactNode}) {
 
       if (error) throw error
       
-      // 【新增】注册成功后，转化预锁客记录
+      // 【新增】注册成功后，转化预归属记录
       if (data.user) {
         const { convertPendingReferral } = await import('@/db/api')
         await convertPendingReferral(data.user.id)
-        console.log('[Auth] 已转化预锁客记录:', data.user.id)
+        console.log('[Auth] 已转化预归属记录:', data.user.id)
       }
       
       return {error: null}
@@ -188,11 +222,11 @@ export function AuthProvider({children}: {children: ReactNode}) {
 
       if (error) throw error
       
-      // 【新增】注册成功后，转化预锁客记录
+      // 【新增】注册成功后，转化预归属记录
       if (data.user) {
         const { convertPendingReferral } = await import('@/db/api')
         await convertPendingReferral(data.user.id)
-        console.log('[Auth] 已转化预锁客记录:', data.user.id)
+        console.log('[Auth] 已转化预归属记录:', data.user.id)
       }
       
       return {error: null}
@@ -257,12 +291,12 @@ export function AuthProvider({children}: {children: ReactNode}) {
         
         if (error) throw error
         
-        // 【新增】登录/注册成功后，转化预锁客记录
+        // 【新增】登录/注册成功后，转化预归属记录
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
           const { convertPendingReferral } = await import('@/db/api')
           await convertPendingReferral(user.id)
-          console.log('[Auth] 已转化预锁客记录:', user.id)
+          console.log('[Auth] 已转化预归属记录:', user.id)
         }
         
         return { error: null }
@@ -276,11 +310,11 @@ export function AuthProvider({children}: {children: ReactNode}) {
       })
       if (error) throw error
       
-      // 【新增】验证成功后，转化预锁客记录
+      // 【新增】验证成功后，转化预归属记录
       if (data.user) {
         const { convertPendingReferral } = await import('@/db/api')
         await convertPendingReferral(data.user.id)
-        console.log('[Auth] 已转化预锁客记录:', data.user.id)
+        console.log('[Auth] 已转化预归属记录:', data.user.id)
       }
       
       return { error: null }
@@ -309,13 +343,13 @@ export function AuthProvider({children}: {children: ReactNode}) {
         throw new Error(errorMsg)
       }
 
-      // Verify OTP token
-      const {error: verifyError} = await supabase.auth.verifyOtp({
-        token_hash: data.token,
-        type: 'magiclink'
+      // 用云函数签发的会话直接建立登录态（无需邮件/OTP）
+      const {error: sessionError} = await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
       })
 
-      if (verifyError) throw verifyError
+      if (sessionError) throw sessionError
       return {error: null}
     } catch (error) {
       return {error: error as Error}

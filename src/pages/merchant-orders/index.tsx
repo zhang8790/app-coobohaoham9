@@ -1,17 +1,19 @@
 // @title 订单管理（商家端）
 import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text } from '@tarojs/components'
-import { getMerchantStore, getMerchantOrders } from '@/db/api'
+import { View, Text, Image } from '@tarojs/components'
+import { getMerchantStore, getMerchantOrders, merchantShipOrder } from '@/db/api'
 import { RouteGuard } from '@/components/RouteGuard'
 
 const STATUS_LABEL: Record<string, string> = {
   pending_pay: '待支付', pending_ship: '待发货', pending_receive: '待收货',
-  pending_review: '待评价', completed: '已完成', after_sale: '售后', cancelled: '已取消',
+  pending_review: '待评价', completed: '已完成',
+  after_sale: '售后', cancelled: '已取消',
 }
 const STATUS_COLOR: Record<string, string> = {
   pending_pay: 'text-orange-500', pending_ship: 'text-primary', pending_receive: 'text-blue-500',
-  completed: 'text-green-600', cancelled: 'text-muted-foreground', after_sale: 'text-red-500', pending_review: 'text-primary',
+  completed: 'text-green-600', cancelled: 'text-muted-foreground',
+  after_sale: 'text-red-500', pending_review: 'text-primary',
 }
 
 function MerchantOrdersPage() {
@@ -31,7 +33,29 @@ function MerchantOrdersPage() {
     })
   }, [])
 
-  const filtered = tab === 'all' ? orders : tab === 'pending_ship' ? orders.filter(o => o.orders?.status === 'pending_ship') : orders.filter(o => o.orders?.status === 'completed')
+  const filtered = tab === 'all' ? orders
+    : tab === 'pending_ship' ? orders.filter(o => o.orders?.status === 'pending_ship')
+    : orders.filter(o => o.orders?.status === 'completed')
+
+  const handleShip = async (order: any) => {
+    Taro.showModal({
+      title: '发货', content: '确认将该订单发货？（配送）',
+      success: async (res) => {
+        if (!res.confirm) return
+        Taro.showLoading({ title: '发货中' })
+        const ok = await merchantShipOrder(order.orders?.id)
+        Taro.hideLoading()
+        if (ok) { Taro.showToast({ title: '已发货', icon: 'success' }); load() }
+        else Taro.showToast({ title: '操作失败', icon: 'none' })
+      }
+    })
+  }
+  const load = () => {
+    getMerchantStore().then(async (s) => {
+      setStore(s)
+      if (s) setOrders(await getMerchantOrders(s.id))
+    })
+  }
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
@@ -78,7 +102,15 @@ function MerchantOrdersPage() {
                 <Text className="text-xs text-muted-foreground">
                   {item.orders?.created_at ? new Date(item.orders.created_at).toLocaleDateString('zh-CN') : ''}
                 </Text>
-                <Text className="text-base font-bold text-foreground">合计 ¥{item.orders?.total_amount?.toFixed(2) || '-'}</Text>
+                <View className="flex items-center gap-2">
+                  {item.orders?.status === 'pending_ship' && (
+                    <View className="flex items-center justify-center leading-none rounded-xl bg-primary"
+                      onClick={() => handleShip(item)}>
+                      <View className="py-1.5 px-3 text-sm text-white font-bold">发货</View>
+                    </View>
+                  )}
+                  <Text className="text-base font-bold text-foreground">合计 ¥{item.orders?.total_amount?.toFixed(2) || '-'}</Text>
+                </View>
               </View>
             </View>
           ))}

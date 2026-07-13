@@ -27,8 +27,10 @@ lerna-debug.log*
 *.sublime-workspace
 *.code-workspace
 
-# local env files
-.env*.local
+# local env files (含真实密钥，勿入库；仅保留 .env.example 模板)
+.env
+.env.*
+!.env.example
 *.rest
 *.http
 

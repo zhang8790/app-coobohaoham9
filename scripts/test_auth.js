@@ -1,5 +1,5 @@
 // 方案：走 Supabase Auth 登录 → 获取 JWT → 读写数据
-const SUPABASE_URL = 'https://backend.appmiaoda.com/projects/supabase330158129083891712'
+const SUPABASE_URL = process.env.SUPABASE_URL || ''
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoyMDk4MTQzMDMyLCJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwic3ViIjoiYW5vbmUifQ.3N9FG29GyKFP5N2bzWBoxb22FrF1aItWRKdkHAfkkFQ'
 
 const h = (token) => ({

@@ -3,7 +3,7 @@
 export type UserRole = 'user' | 'admin'
 export type MemberRank = '江湖散修' | '外门弟子' | '内门弟子' | '核心弟子' | '长老' | '掌门'
 export type MerchantStatus = 'none' | 'pending' | 'approved' | 'rejected'
-export type OrderStatus = 'pending_pay' | 'pending_ship' | 'pending_receive' | 'pending_review' | 'completed' | 'after_sale' | 'cancelled'
+export type OrderStatus = 'pending_pay' | 'pending_ship' | 'pending_receive' | 'pending_pickup' | 'pending_review' | 'completed' | 'after_sale' | 'cancelled'
 export type PaymentMethod = 'wxpay' | 'gold_beans'
 
 export interface Profile {
@@ -16,8 +16,13 @@ export interface Profile {
   openid: string | null
   member_rank: MemberRank
   points: number
-  balance: number          // 现金余额（元，微信充值/退款退回）
-  gold_beans: number       // 金豆余额（1 金豆 = 1 元，平台积分体系）
+  balance: number          // 预留现金账户（当前未启用：无充值入口、不可用于支付/提现、C端不可见）。若未来启用用户储值，必须取得《支付业务许可证》，否则构成非法从事支付结算业务
+  gold_beans: number       // 消费积分（金豆）：仅订单 1:1 抵扣，不可提现、不可兑现金
+  commission_balance: number // 推广佣金账户余额（推广服务费，由推广佣金流水驱动，可提现并代扣个税）
+  tb_balance: number       // 情绪豆余额（会员成长积分，V2）
+  cv_total: number         // 会员贡献值累计（会员权益计算依据，V2）
+  privacy_consented_at: string | null // 隐私政策同意时间（PIPL 合规审计留痕；未同意为 null）
+  allow_behavior_analysis: boolean // 个性化行为分析总闸（true=允许，false=已退出；分析引擎排除）
   coupons_count: number
   merchant_status: MerchantStatus
   invite_code: string | null
@@ -27,7 +32,7 @@ export interface Profile {
   monthly_consumption: number | null      // 当月个人消费金额
   consecutive_zero_months: number | null  // 连续零消费月数
   team_monthly_gmv: number | null         // 团队月度GMV
-  has_new_recruit: boolean | null         // 当月是否有新增下线
+  has_new_recruit: boolean | null         // 当月是否有新增推荐客户
   months_since_last_recruit: number | null // 距离上次拓新月数
   created_at: string
 }
@@ -101,6 +106,7 @@ export interface Product {
   // joined
   stores?: Store
   product_emotion?: ProductEmotion
+  ingredients?: string[] | null
 }
 
 // 商品情绪编译结果缓存（由 emotion-compile Edge Function 写入，详情页直读）
@@ -120,6 +126,27 @@ export interface ProductEmotion {
   dimension_tags?: Record<string, string[]> | null  // 五维标签：function/scene/emotion/identity/sensory
   quality_score?: number | null
   review_status?: 'draft' | 'submitted' | 'approved' | 'rejected'
+  // 食养成分编译（扩展）
+  shiyang_tags?: Record<string, string[]> | null     // 食养成分标签：按性味分类的 ingred key 列表
+  shiyang_copy?: string | null                        // 编译生成的食养卡片文案
+}
+
+// 食养成分（ingredients 字典表，对应迁移 ingredients 表）
+export interface Ingredient {
+  id: string
+  name: string
+  nature: string | null       // 温/凉/平/寒/微温/微寒
+  benefits: string[]           // 食养功效
+  audiences: string[]          // 适用人群
+  scenarios: string[]          // 生活场景
+  icon: string | null
+  color: string | null
+}
+
+// 商品-食养成分关联（product_ingredients 表）
+export interface ProductIngredient {
+  product_id: string
+  ingredient_id: string
 }
 
 // 情绪确权记录（消费即确权路线，由 00052 建表）
@@ -131,19 +158,22 @@ export interface EmotionClaim {
   store_id: string | null
   selected_emotion: string[] | null
   badge_text: string | null
-  tongbao_amount: number | null
+  tongbao_amount: number | null   // 历史兼容（旧版存积分）；V2 起用 tb_amount
+  tb_amount: number | null        // 本次确权发放 情绪豆
+  cv_amount: number | null        // 本次确权发放 会员贡献值
+  badge_code: string | null       // 情绪徽章 code
   created_at: string
 }
 
 // =====================
-// 情绪通宝 + 徽章（V5 P2-1，00053 独立化）
+// 情绪豆 + 徽章（V5 P2-1，00053 独立化）
 // =====================
 
-// 通宝账户
+// 情绪豆账户
 export interface EmotionAsset {
   id: string
   user_id: string
-  balance: number        // 可用通宝
+  balance: number        // 可用情绪豆
   frozen: number         // 冻结中
   total_earned: number   // 累计获得
   total_spent: number    // 累计消耗
@@ -151,13 +181,13 @@ export interface EmotionAsset {
   updated_at: string
 }
 
-// 通宝流水
+// 情绪豆流水
 export type EmotionTongbaoReason =
   | 'emotion_claim'      // 消费即确权奖励
   | 'emotion_feed'       // 情绪喂养消耗
-  | 'emotion_exchange'   // 通宝兑换（未来）
+  | 'emotion_exchange'   // 情绪豆兑换（未来）
   | 'admin_adjust'       // 平台调账
-  | 'share_invite'       // 分享锁客奖励
+  | 'share_invite'       // 分享归属奖励
 export interface EmotionTongbaoLog {
   id: string
   user_id: string
@@ -257,6 +287,8 @@ export interface Order {
   promoter_id: string | null
   staff_id: string | null
   created_at: string
+  // 确权闸门：核销后 verified_at 非空才允许确权（orders 表无 is_used 列）
+  used_at: string | null
   // joined
   order_items?: OrderItem[]
 }
@@ -438,6 +470,8 @@ export interface Withdrawal {
   bank_holder: string | null
   alipay_account: string | null
   withdraw_method: WithdrawMethod
+  real_name: string | null
+  id_card: string | null
   reject_reason: string | null
   remark: string | null
   created_at: string
@@ -512,7 +546,7 @@ export interface RedpacketPayout {
 }
 
 // =====================
-// Pending Referrals（预锁客）
+// Pending Referrals（预归属）
 // =====================
 
 export type PendingReferralStatus = 'pending' | 'converted' | 'expired'

@@ -6,6 +6,7 @@ import { supabase } from '@/client/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { withTimeout } from '@/utils/withTimeout'
+import { maskPhone } from '@/utils/mask'
 
 type RefundRow = {
   id: string
@@ -128,7 +129,7 @@ function AdminRefundsPage() {
               <View className="flex items-start justify-between">
                 <View className="flex flex-col gap-1">
                   <Text className="text-2xl font-bold text-foreground">{r.profiles?.nickname || '侠客'}</Text>
-                  <Text className="text-xl text-muted-foreground">{r.profiles?.phone || '未知手机'}</Text>
+                  <Text className="text-xl text-muted-foreground">{maskPhone(r.profiles?.phone) || '未知手机'}</Text>
                 </View>
                 <Text className="text-3xl font-black text-destructive">¥{Number(r.refund_amount).toFixed(2)}</Text>
               </View>

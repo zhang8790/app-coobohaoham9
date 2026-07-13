@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getMerchantApplications, approveApplication, rejectApplication } from '@/api/admin'
 import { MOCK_MERCHANTS } from '@/mock/data'
 import type { MerchantApplication } from '@/types'
+import { maskPhone } from '@/utils/mask'
 
 const PAGE_SIZE = 10
 const STATUS_TABS = [
@@ -111,7 +112,7 @@ export default function Merchants() {
                   <tr key={r.id}>
                     <td style={{ ...S.td, color: '#E5E7EB', fontWeight: 600 }}>{r.store_name}</td>
                     <td style={{ ...S.td, color: '#9CA3AF' }}>{r.contact_name}</td>
-                    <td style={{ ...S.td, color: '#9CA3AF' }}>{r.contact_phone}</td>
+                    <td style={{ ...S.td, color: '#9CA3AF' }}>{maskPhone(r.contact_phone)}</td>
                     <td style={{ ...S.td, color: '#9CA3AF' }}>{r.business_type}</td>
                     <td style={{ ...S.td, color: '#6B7280', maxWidth: 160 }}>
                       <span style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>

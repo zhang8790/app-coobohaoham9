@@ -178,11 +178,11 @@ export default function MerchantSettings() {
           <div style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 20 }}>
             <h3 style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>🚚 双通道配置</h3>
 
-            {/* 外卖配送 */}
+            {/* 配送 */}
             <div style={{ marginBottom: 20, padding: '16px', background: '#0B0F19', borderRadius: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div>
-                  <p style={{ color: '#E5E7EB', fontSize: 14, fontWeight: 600 }}>外卖配送</p>
+                  <p style={{ color: '#E5E7EB', fontSize: 14, fontWeight: 600 }}>配送</p>
                   <p style={{ color: '#6B7280', fontSize: 12, marginTop: 2 }}>支持送到客户地址</p>
                 </div>
                 <div
@@ -234,21 +234,7 @@ export default function MerchantSettings() {
               )}
             </div>
 
-            {/* 到店自取 */}
-            <div style={{ padding: '16px', background: '#0B0F19', borderRadius: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <p style={{ color: '#E5E7EB', fontSize: 14, fontWeight: 600 }}>到店自取</p>
-                  <p style={{ color: '#6B7280', fontSize: 12, marginTop: 2 }}>客户到店取货</p>
-                </div>
-                <div
-                  onClick={() => updateField('pickup_enabled', !form.pickup_enabled)}
-                  style={{ width: 48, height: 28, background: form.pickup_enabled ? '#059669' : '#374151', borderRadius: 14, position: 'relative', cursor: 'pointer', transition: 'background 0.2s' }}
-                >
-                  <div style={{ width: 22, height: 22, background: 'white', borderRadius: 11, position: 'absolute', top: 3, transition: 'left 0.2s', left: form.pickup_enabled ? 23 : 3 }} />
-                </div>
-              </div>
-            </div>
+            {/* 到店自取（已下架：自取能力已下线） */}
           </div>
 
           {/* 店铺公告 */}

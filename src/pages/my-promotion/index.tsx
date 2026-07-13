@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
 import { generateQrcode } from '@/db/api'
 import { calculateDynamicScore, getRankByDynamicScoreV5, RANK_CONFIG_TABLE_V5 } from '@/utils/commission-calculator-v5'
+import RiskWarning from '@/components/RiskWarning'
 
 const RANK_ORDER = ['江湖散修', '外门弟子', '内门弟子', '核心弟子', '长老', '掌门']
 const RANK_COLORS: Record<string, string> = {
@@ -67,7 +68,7 @@ function MyPromotionPage() {
       // 分别加载，避免一个失败影响其他
       const [rankRes, profileRes, commRes, teamRes] = await Promise.allSettled([
         supabase.rpc('get_rank_progress', { p_user_id: user.id }),
-        supabase.from('profiles').select('invite_code,member_rank,total_consumption,gold_beans').eq('id', user.id).maybeSingle(),
+        supabase.from('profiles').select('invite_code,member_rank,total_consumption,commission_balance').eq('id', user.id).maybeSingle(),
         supabase.from('commissions').select('commission_amount,status,level').eq('beneficiary_id', user.id),
         supabase.from('profiles').select('id,nickname,member_rank,created_at').eq('referrer_id', user.id).order('created_at', { ascending: false }).limit(20),
       ])
@@ -83,7 +84,7 @@ function MyPromotionPage() {
           progress: data.progress || 0,
           total_gmv: data.total_gmv || 0,
           points: data.points || 0,
-          balance: data.gold_beans || 0,
+          balance: data.commission_balance || 0,
         })
       } else {
         // 前端降级计算段位（使用V5算法，保持逻辑一致）
@@ -108,7 +109,7 @@ function MyPromotionPage() {
           progress: Math.round(progress),
           total_gmv: dynamicScore,
           points: Math.floor(dynamicScore * 0.01),
-          balance: profile?.gold_beans || 0,
+          balance: profile?.commission_balance || 0,
         })
       }
 
@@ -225,6 +226,8 @@ function MyPromotionPage() {
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
 
+      <RiskWarning />
+
       {/* 段位英雄卡 */}
       <View className="mx-4 mt-6 rounded-3xl overflow-hidden"
         style={{ background: `linear-gradient(135deg, ${rankColor}dd 0%, ${rankColor}99 100%)` }}>
@@ -235,11 +238,11 @@ function MyPromotionPage() {
                 <View className="i-mdi-medal text-3xl text-white" />
                 <Text className="text-3xl font-bold text-white">{rankData?.current_rank || '江湖散修'}</Text>
               </View>
-              <Text className="text-xl text-white/80">直推: {rankData?.direct_count || 0}人  |  累计GMV: ¥{Number(rankData?.total_gmv || 0).toFixed(0)}</Text>
+              <Text className="text-xl text-white/80">我的好友: {rankData?.direct_count || 0}人  |  累计GMV: ¥{Number(rankData?.total_gmv || 0).toFixed(0)}</Text>
             </View>
             <View className="flex flex-col items-center">
-              <View className="text-4xl font-bold text-white">{rankData?.l1_ratio || 15}%</View>
-              <View className="text-base text-white/70">L1佣金比</View>
+              <View className="text-4xl font-bold text-white">{rankData?.l1_ratio || 40}%</View>
+              <View className="text-base text-white/70">推广佣金比</View>
             </View>
           </View>
 
@@ -263,8 +266,7 @@ function MyPromotionPage() {
                 ))}
               </View>
                 <Text className="text-base text-white/80 mt-2 text-center">
-                  再邀请 {(rankData?.target_count || 0) - (rankData?.direct_count || 0)} 人可晋升 {rankData?.next_rank}
-                  ，L1佣金提升至 {userRankInfo?.l1Ratio || 15}%
+                  继续推广与消费，晋升 {rankData?.next_rank} 后我的好友佣金比例提升至 {userRankInfo?.l1Ratio || 40}%
                 </Text>
             </View>
           )}
@@ -303,7 +305,7 @@ function MyPromotionPage() {
             )}
           </View>
           <Text className="text-xl text-muted-foreground text-center mt-4 leading-relaxed">
-            好友扫码注册，永久锁定为你的一级下线
+            好友扫码注册，成为你的推荐好友
           </Text>
         </View>
 
@@ -354,11 +356,11 @@ function MyPromotionPage() {
         <View className="flex items-center gap-4 px-4 pb-4">
           <View className="flex-1 p-3 bg-muted rounded-xl flex flex-col items-center gap-1">
             <Text className="text-xl font-bold text-foreground">{commSummary?.l1_count || 0}</Text>
-            <Text className="text-base text-muted-foreground">L1佣金 ({userRankInfo?.l1Ratio || 15}%)</Text>
+            <Text className="text-base text-muted-foreground">我的好友佣金 ({userRankInfo?.l1Ratio || 40}%)</Text>
           </View>
           <View className="flex-1 p-3 bg-muted rounded-xl flex flex-col items-center gap-1">
             <Text className="text-xl font-bold text-foreground">{commSummary?.l2_count || 0}</Text>
-            <Text className="text-base text-muted-foreground">L2佣金 ({userRankInfo?.l2Ratio || 6}%)</Text>
+            <Text className="text-base text-muted-foreground">我的粉丝佣金 ({userRankInfo?.l2Ratio || 15}%)</Text>
           </View>
         </View>
       </View>
@@ -377,18 +379,17 @@ function MyPromotionPage() {
         </View>
       </View>
 
-      {/* 二级锁客说明 */}
+      {/* 推广说明（合规版） */}
       <View className="mx-4 mt-4 p-4 bg-muted rounded-2xl">
         <View className="flex items-start gap-2 mb-3">
-          <View className="i-mdi-link-variant text-2xl text-primary flex-shrink-0 mt-0.5" />
-          <Text className="text-xl font-bold text-foreground">二级锁客机制</Text>
+          <View className="i-mdi-information text-2xl text-primary flex-shrink-0 mt-0.5" />
+          <Text className="text-xl font-bold text-foreground">推广佣金说明</Text>
         </View>
         <View className="flex flex-col gap-2">
           {[
-            { icon: 'i-mdi-account-plus', text: `L1：好友用你的推广码注册，你获得其消费 ${userRankInfo?.l1Ratio || 15}% 佣金` },
-            { icon: 'i-mdi-account-group', text: `L2：L1下线再邀请好友，你获得新好友消费 ${userRankInfo?.l2Ratio || 6}% 佣金` },
-            { icon: 'i-mdi-trending-up', text: '段位越高，佣金比例越大，升段永久生效' },
-            { icon: 'i-mdi-lock', text: '推广链条永久绑定，分享文章也可锁定下线' },
+            { icon: 'i-mdi-account-plus', text: `好友通过你的推广码注册并消费，你可获得 ${userRankInfo?.l1Ratio || 40}% 我的好友佣金` },
+            { icon: 'i-mdi-account-multiple', text: `你推荐的我的好友再邀好友消费，你可获得 ${userRankInfo?.l2Ratio || 15}% 我的粉丝佣金` },
+            { icon: 'i-mdi-shield-check', text: '本平台仅二级推广（我的好友+我的粉丝），只有二级、不发展多级、不按团队计酬、无入门费' },
           ].map((item, i) => (
             <View key={i} className="flex items-start gap-2">
               <View className={`${item.icon} text-xl text-primary flex-shrink-0 mt-0.5`} />
@@ -398,16 +399,16 @@ function MyPromotionPage() {
         </View>
         <View className="mt-3 pt-3 border-t border-border text-center"
           onClick={() => Taro.navigateTo({ url: '/pages/commission-rules/index' })}>
-          <Text className="text-base text-primary">查看完整《佣金规则》</Text>
+          <Text className="text-base text-primary">查看完整《推广规则》</Text>
         </View>
       </View>
 
-      {/* 直推团队 */}
+      {/* 我的好友团队 */}
       {directTeam.length > 0 && (
         <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
           <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
             <View className="i-mdi-account-group text-2xl text-primary" />
-            <Text className="text-xl font-bold text-foreground">我的直推团队</Text>
+            <Text className="text-xl font-bold text-foreground">我的好友</Text>
             <Text className="text-base text-muted-foreground ml-1">({directTeam.length}人)</Text>
           </View>
           {directTeam.slice(0, 5).map((m, i) => (
@@ -429,6 +430,27 @@ function MyPromotionPage() {
           )}
         </View>
       )}
+
+      {/* 相关协议入口 */}
+      <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
+        <View className="flex items-center gap-2 mb-2">
+          <View className="i-mdi-file-document-outline text-2xl text-primary" />
+          <Text className="text-xl font-bold text-foreground">相关协议</Text>
+        </View>
+        <View className="flex flex-col gap-1">
+          <View className="flex items-center justify-between py-2"
+            onClick={() => Taro.navigateTo({ url: '/pages/distribution-agreement/index' })}>
+            <Text className="text-base text-muted-foreground">《推广服务协议》</Text>
+            <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+          </View>
+          <View className="flex items-center justify-between py-2"
+            onClick={() => Taro.navigateTo({ url: '/pages/commission-rules/index' })}>
+            <Text className="text-base text-muted-foreground">《佣金规则》</Text>
+            <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+          </View>
+        </View>
+      </View>
+
     </View>
   </RouteGuard>)
 }

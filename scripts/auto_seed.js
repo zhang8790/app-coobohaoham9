@@ -1,7 +1,7 @@
 // 自动检测 + 写入测试数据
 // 运行：node scripts/auto_seed.js
 
-const SUPABASE_URL = 'https://backend.appmiaoda.com/projects/supabase330158129083891712'
+const SUPABASE_URL = process.env.SUPABASE_URL || ''
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoyMDk4MTQzMDMyLCJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwic3ViIjoiYW5vbmUifQ.3N9FG29GyKFP5N2bzWBoxb22FrF1aItWRKdkHAfkkFQ'
 
 const headers = (token) => ({

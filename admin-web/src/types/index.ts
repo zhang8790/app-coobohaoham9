@@ -50,7 +50,19 @@ export interface Product {
   is_active: boolean
   review_status: ReviewStatus
   created_at: string
+  ingredients?: string[] | null   // 原料成分分析：关联食材 key（与小程序端 products.ingredients 同列）
   stores?: { name: string } | null
+}
+
+// 商品情绪编译结果（与小程序端共用 product_emotion 同一张表）
+export interface ProductEmotionData {
+  emotion_title?: string | null
+  emotion_detail?: string | null
+  dimension_tags?: Record<string, string[]> | null
+  quality_score?: number | null
+  review_status?: string | null
+  shiyang_tags?: Record<string, string[]> | null // { shiyang: 食材中文名[] }
+  shiyang_copy?: string | null
 }
 
 export interface OrderItem {
@@ -77,6 +89,8 @@ export interface Withdrawal {
   bank_account: string | null
   bank_holder: string | null
   alipay_account: string | null
+  real_name: string | null
+  id_card: string | null
   reject_reason: string | null
   remark: string | null
   created_at: string
@@ -132,6 +146,54 @@ export interface Refund {
   completed_at: string | null
   created_at: string
   updated_at: string
+}
+
+// ================= 确权（共建股权）总后台治理 =================
+export type EmotionClaimStatus = 'active' | 'voided'
+
+export interface EmotionClaimRow {
+  id: string
+  user_id: string
+  order_no: string | null
+  product_id: string | null
+  store_id: string | null
+  selected_emotion: string | null
+  badge_text: string | null
+  badge_code: string | null
+  tb_amount: number
+  cv_amount: number
+  upline_l1: string | null
+  upline_l2: string | null
+  upline_l1_cv: number
+  upline_l2_cv: number
+  status: EmotionClaimStatus
+  rule_version: string | null
+  voided_at: string | null
+  voided_reason: string | null
+  refund_ratio: number
+  created_at: string
+  nickname: string | null
+  phone: string | null
+  user_is_banned: boolean
+}
+
+export interface EmotionClaimStats {
+  total: number
+  active: number
+  voided: number
+  active_cv: number
+  active_tb: number
+  active_users: number
+}
+
+export interface EmotionRuleVersion {
+  version: string
+  announced_at: string
+  effective_at: string
+  const_json: Record<string, number>
+  note: string | null
+  is_active: boolean
+  created_at: string
 }
 
 // ================= 商家后台领域模型 =================
@@ -209,4 +271,8 @@ export interface WithdrawalRecord {
   status: string
   created_at: string
   transferred_at: string | null
+  real_name?: string | null
+  id_card?: string | null
+  bank_name?: string | null
+  bank_account?: string | null
 }

@@ -14,11 +14,14 @@ function SettingsPage() {
   const [editing, setEditing] = useState(false)
   const [notifyOrder, setNotifyOrder] = useState(true)
   const [notifyPromo, setNotifyPromo] = useState(true)
+  const [allowBehaviorAnalysis, setAllowBehaviorAnalysis] = useState(true)
+  const [togglingAnalysis, setTogglingAnalysis] = useState(false)
 
   useEffect(() => {
     if (ctxProfile) {
       setNickname(ctxProfile.nickname || '')
       setAvatarUrl(ctxProfile.avatar_url || '')
+      setAllowBehaviorAnalysis(ctxProfile.allow_behavior_analysis ?? true)
     }
     // 从本地存储读取通知设置
     const orderNotify = Taro.getStorageSync('notify_order')
@@ -77,6 +80,20 @@ function SettingsPage() {
       },
     })
   }
+
+  const handleToggleAnalysis = useCallback(async () => {
+    const next = !allowBehaviorAnalysis
+    setAllowBehaviorAnalysis(next)
+    setTogglingAnalysis(true)
+    const ok = await updateUserProfile({ allow_behavior_analysis: next })
+    setTogglingAnalysis(false)
+    if (!ok) {
+      setAllowBehaviorAnalysis(!next)
+      Taro.showToast({ title: '设置失败，请重试', icon: 'none' })
+    } else {
+      Taro.showToast({ title: next ? '已开启个性化' : '已退出个性化', icon: 'success' })
+    }
+  }, [allowBehaviorAnalysis])
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-10">
@@ -189,6 +206,33 @@ function SettingsPage() {
         })}
       </View>
 
+      {/* 隐私与个性化 */}
+      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+        <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <View className="i-mdi-shield-lock-outline text-2xl text-primary" />
+          <Text className="text-xl font-bold text-foreground">隐私与个性化</Text>
+        </View>
+        <View className="flex items-center justify-between px-4 py-4"
+          onClick={togglingAnalysis ? undefined : handleToggleAnalysis}>
+          <View className="flex flex-col gap-1">
+            <Text className="text-xl text-foreground">允许行为分析</Text>
+            <Text className="text-base text-muted-foreground">用于优化推荐与成长体验；关闭后后台分析将排除您的数据</Text>
+          </View>
+          <View
+            className="w-12 h-7 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: allowBehaviorAnalysis ? '#22C55E' : '#D1D5DB', padding: '2px' }}>
+            <View
+              className="w-6 h-6 rounded-full bg-white"
+              style={{
+                boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                alignSelf: allowBehaviorAnalysis ? 'flex-end' : 'flex-start',
+                transition: 'all 0.2s',
+              }}
+            />
+          </View>
+        </View>
+      </View>
+
       {/* 账号安全 */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
         <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
@@ -220,7 +264,7 @@ function SettingsPage() {
           { label: '提现规则', handler: () => Taro.navigateTo({ url: '/pages/withdraw-rules/index' }) },
           { label: '佣金规则', handler: () => Taro.navigateTo({ url: '/pages/commission-rules/index' }) },
           { label: '段位规则', handler: () => Taro.navigateTo({ url: '/pages/rank-rules/index' }) },
-          { label: '积分规则', handler: () => Taro.navigateTo({ url: '/pages/points-rules/index' }) },
+          { label: '资产规则', handler: () => Taro.navigateTo({ url: '/pages/points-rules/index' }) },
           { label: '商家入驻协议', handler: () => Taro.navigateTo({ url: '/pages/merchant-agreement/index' }) },
           { label: '版本信息', handler: () => Taro.showToast({ title: 'v1.0.0 来电有喜', icon: 'none' }) },
         ].map(item => (

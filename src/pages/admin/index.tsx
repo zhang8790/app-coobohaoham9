@@ -15,7 +15,11 @@ function AdminPage() {
 
   const load = useCallback(async () => {
     if (authLoading) return
-    if (profile?.role !== 'admin') {
+    // 关键修复:AuthContext 先 setLoading(false) 再异步 setProfile,存在竞态窗口。
+    // profile 为 null 时不能用 profile?.role 误判"无权限"并 reLaunch,否则真实 admin 也会被踢回首页。
+    // 必须等 profile 就绪后再判断权限。
+    if (!profile) return
+    if (profile.role !== 'admin') {
       Taro.showToast({ title: '无权限', icon: 'none' })
       Taro.reLaunch({ url: '/pages/index/index' })
       return
@@ -42,7 +46,7 @@ function AdminPage() {
   const cards = [
     { label: '门派大典', sub: '商家入驻审核', count: stats.merchants, icon: 'i-mdi-store-check', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', url: '/pages/admin-merchants/index' },
     { label: '宝贝审阅', sub: '商品上架审核', count: stats.products, icon: 'i-mdi-package-variant-closed', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', url: '/pages/admin-products/index' },
-    { label: '银票兑付', sub: '提现申请审核', count: stats.withdrawals, icon: 'i-mdi-cash-fast', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', url: '/pages/admin-withdrawals/index' },
+    { label: '佣金兑付', sub: '提现申请审核', count: stats.withdrawals, icon: 'i-mdi-cash-fast', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', url: '/pages/admin-withdrawals/index' },
     { label: '武林贴管理', sub: 'UGC内容管理', count: stats.ugc, icon: 'i-mdi-newspaper-variant', color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200', url: '/pages/admin-ugc/index' },
   ]
 

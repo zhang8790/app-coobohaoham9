@@ -2,36 +2,36 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
-import { getNearbyProducts, getCartCount, addToCart, getProducts, getProductsByEmotion } from '@/db/api'
+import { getNearbyProducts, addToCart, getProducts, getProductsByEmotion } from '@/db/api'
+import { useCartCount, refreshCartCount } from '@/utils/cartStore'
 import { recordEmotionPreference, getEmotionBasedRecommendations } from '@/utils/emotion-recommendation'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import { useLocation } from '@/contexts/LocationContext'
 import LazyImage from '@/components/LazyImage'
+import StoreStrip from '@/components/StoreStrip'
+import { generateEmotionDescription } from '@/utils/emotion-description'
+import { UNIFIED_EMOTION_FILTERS } from '@/utils/category-emotion'
 import type { NearbyProduct } from '@/db/api'
 
+// 探索(自营)商品类目：后端按 products.category exact 匹配（不可改名）。
+// 语义对齐见 category-emotion.ts 的 EXPLORE_PRODUCT_CATEGORY_TO_LOCAL_LIFE（商品类目 → 本地生活业态），
+// 与犒赏铺门店类目(REWARD_SHOP_CATEGORY_TO_LOCAL_LIFE)统一到「本地生活」框架。
 const CATEGORIES = ['全部', '图书', '美食', '饮品', '零食', '日用', '礼品', '情绪']
 
-// 情绪筛选选项
-const EMOTION_FILTERS = [
-  { tag: '快乐', icon: '😊' },
-  { tag: '温馨', icon: '🏠' },
-  { tag: '清爽', icon: '🍃' },
-  { tag: '奢华', icon: '👑' },
-  { tag: '有趣', icon: '🎈' },
-  { tag: '平静', icon: '🧘' },
-]
+// 情绪筛选层：与犒赏铺共用统一情绪筛选 chips（category-emotion.ts: UNIFIED_EMOTION_FILTERS），
+// 实现「探索 / 犒赏铺」两类目体系共享同一情绪维度。
+const EMOTION_FILTERS = UNIFIED_EMOTION_FILTERS
 
 const STORE_CATEGORY_MAP: Record<string, string> = {
   '图书': '图书', '美食': '美食', '饮品': '饮品', '零食': '零食', '日用': '日用', '礼品': '礼品'
 }
 
-// 图片加载失败时的占位组件
+// 图片加载失败时的占位组件（柔和暖底 + emoji，与门店占位统一风格）
 function ProductImagePlaceholder({ name }: { name: string }) {
   return (
-    <View className="w-full flex items-center justify-center bg-muted"
-      style={{ height: '120px' }}>
+    <View className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#F7F3EF' }}>
       <View className="flex flex-col items-center gap-1">
-        <View className="i-mdi-image-off text-3xl text-muted-foreground" />
+        <Text style={{ fontSize: '26px' }}>🛍️</Text>
         <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
       </View>
     </View>
@@ -44,7 +44,7 @@ export default function ExplorePage() {
   const [products, setProducts] = useState<NearbyProduct[]>([])
   const [emotionProducts, setEmotionProducts] = useState<Product[]>([]) // 情绪推荐商品
   const [showEmotionSection, setShowEmotionSection] = useState(false) // 是否显示情绪推荐区
-  const [cartCount, setCartCount] = useState(0)
+  const cartCount = useCartCount()
   const [addingId, setAddingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const page = useRef(0)
@@ -118,8 +118,7 @@ export default function ExplorePage() {
   }, [loading, location])
 
   const refreshCart = useCallback(async () => {
-    const c = await getCartCount()
-    setCartCount(c)
+    await refreshCartCount()
   }, [])
 
   // 加载商品（城市信息从 LocationContext 获取）
@@ -164,7 +163,6 @@ export default function ExplorePage() {
     setAddingId(product.product_id)
     await addToCart(product.product_id, product.store_id)
     setAddingId(null)
-    setCartCount(c => c + 1)
     Taro.showToast({ title: '已加入行囊', icon: 'success' })
   }
 
@@ -222,32 +220,34 @@ export default function ExplorePage() {
 
         {/* 右侧内容 */}
         <View className="flex-1 overflow-y-auto px-3 py-3">
+          {/* 精选好店 横向滑动 */}
+          <StoreStrip />
           {/* 情绪推荐区 */}
           {showEmotionSection && emotionProducts.length > 0 && (
             <View className="mb-4">
               <View className="flex items-center gap-2 mb-3">
                 <Text className="text-xl font-bold text-foreground">😊 根据你的情绪偏好推荐</Text>
               </View>
-              <View className="grid grid-cols-2 gap-3">
+              <View className="flex flex-col gap-2">
                 {emotionProducts.slice(0, 4).map((p: any) => (
-                  <View key={p.id} className="bg-card rounded-2xl overflow-hidden border border-border"
+                  <View key={p.id} className="bg-card rounded-xl border border-border relative flex items-stretch gap-3 p-2.5"
                     onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}>
                     <LazyImage 
                       src={p.main_image || p.image_url || ''} 
                       mode="aspectFill"
-                      className="w-full"
-                      style={{ height: '100px' }}
+                      className="rounded-lg flex-shrink-0 bg-muted"
+                      style={{ width: '88px', height: '88px' }}
                     />
-                    <View className="p-2">
-                      <Text className="text-xl font-bold text-foreground leading-tight line-clamp-2">{p.name}</Text>
+                    <View className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                      <Text className="text-base font-bold text-foreground leading-tight line-clamp-2">{p.name}</Text>
                       {p.mood_tags && p.mood_tags.length > 0 && (
                         <View className="flex gap-1 mt-1 flex-wrap">
                           {p.mood_tags.slice(0, 2).map((t: string) => (
-                            <Text key={t} className="px-2 py-0.5 rounded-full text-base bg-primary/10 text-primary">{t}</Text>
+                            <Text key={t} className="px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary">{t}</Text>
                           ))}
                         </View>
                       )}
-                      <Text className="text-xl font-bold text-primary mt-1">¥{p.price}</Text>
+                      <Text className="text-lg font-bold text-primary mt-1">¥{p.price}</Text>
                     </View>
                   </View>
                 ))}
@@ -300,48 +300,48 @@ export default function ExplorePage() {
               <View className="i-mdi-loading text-3xl text-primary animate-spin" />
             </View>
           ) : (
-            <View className="grid grid-cols-2 gap-3">
+            <View className="flex flex-col gap-2">
               {products.map(p => (
-                <View key={p.product_id} className="bg-card rounded-2xl overflow-hidden border border-border relative"
+                <View key={p.product_id} className="bg-card rounded-xl border border-border relative flex items-stretch gap-3 p-2.5"
                   onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.product_id}` })}>
                   {!p.product_image_url ? (
-                    <ProductImagePlaceholder name={p.product_name} />
+                    <View className="rounded-lg overflow-hidden bg-muted flex-shrink-0" style={{ width: '88px', height: '88px' }}>
+                      <ProductImagePlaceholder name={p.product_name} />
+                    </View>
                   ) : (
                     <LazyImage 
                       src={p.product_image_url} 
                       mode="aspectFill"
-                      className="w-full"
-                      style={{ height: '120px' }}
+                      className="rounded-lg flex-shrink-0 bg-muted"
+                      style={{ width: '88px', height: '88px' }}
                     />
                   )}
-                  <View className="p-3">
-                    <Text className="text-xl font-bold text-foreground leading-tight line-clamp-2">{p.product_name}</Text>
-                    {/* 显示距离 */}
-                    {p.distance_km > 0 && (
-                      <Text className="text-base text-primary mt-1">📍 {p.distance_km}km</Text>
-                    )}
-                    {/* 显示门店名称 */}
-                    {p.store_name && (
-                      <Text className="text-base text-muted-foreground mt-1">{p.store_name}</Text>
-                    )}
+                  <View className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                    <Text className="text-base font-bold text-foreground leading-tight line-clamp-2">{p.product_name}</Text>
+                    <Text className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{generateEmotionDescription({ name: p.product_name }, p.product_mood_tags || [])}</Text>
                     {p.product_mood_tags && p.product_mood_tags.length > 0 && (
                       <View className="flex gap-1 mt-1 flex-wrap">
                         {p.product_mood_tags.slice(0, 3).map(t => (
-                          <Text key={t} className="px-2 py-0.5 rounded-full text-base bg-primary/10 text-primary">{t}</Text>
+                          <Text key={t} className="px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary">{t}</Text>
                         ))}
                       </View>
                     )}
                     <View className="flex items-center gap-2 mt-1">
-                      <Text className="text-xl font-bold text-primary">¥{p.product_price}</Text>
+                      <Text className="text-lg font-bold text-primary">¥{p.product_price}</Text>
+                      {p.distance_km > 0 && (
+                        <Text className="text-xs text-primary">📍 {p.distance_km}km</Text>
+                      )}
                     </View>
                   </View>
-                  <Button type="button"
-                    className="absolute bottom-3 right-3 w-7 h-7 rounded-full bg-primary flex items-center justify-center"
-                    onClick={e => { e.stopPropagation(); handleAddCart(p) }}>
-                    {addingId === p.product_id
-                      ? <View className="i-mdi-loading text-white text-base animate-spin" />
-                      : <View className="i-mdi-plus text-white text-base" />}
-                  </Button>
+                  <View className="flex items-center">
+                    <Button type="button"
+                      className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0"
+                      onClick={e => { e.stopPropagation(); handleAddCart(p) }}>
+                      {addingId === p.product_id
+                        ? <View className="i-mdi-loading text-white text-base animate-spin" />
+                        : <View className="i-mdi-plus text-white text-base" />}
+                    </Button>
+                  </View>
                 </View>
               ))}
             </View>

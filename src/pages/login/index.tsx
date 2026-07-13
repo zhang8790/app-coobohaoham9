@@ -307,9 +307,21 @@ export default function LoginPage() {
             </View>
             <View className="flex flex-wrap gap-1 text-xl text-muted-foreground">
               <Text>我已阅读并同意</Text>
-              <Text className="text-primary">《用户服务协议》</Text>
+              <Text
+                className="text-primary"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  Taro.navigateTo({ url: '/pages/user-agreement/index' })
+                }}
+              >《用户服务协议》</Text>
               <Text>及</Text>
-              <Text className="text-primary">《隐私政策》</Text>
+              <Text
+                className="text-primary"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  Taro.navigateTo({ url: '/pages/privacy-policy/index' })
+                }}
+              >《隐私政策》</Text>
             </View>
           </View>
         </View>

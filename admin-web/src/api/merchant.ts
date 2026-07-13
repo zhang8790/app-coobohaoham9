@@ -4,6 +4,13 @@ import type {
   Product, MerchantCoupon, MarketingCampaign, MerchantMessage, MerchantAnalytics, WithdrawalRecord,
 } from '@/types'
 
+// 违禁词库（与 src/utils/compliance-words 保持一致，全站营销文案统一拦截）
+const AD_ILLEGAL_WORDS = ['国家级','最高级','最佳','最好','第一','顶级','极品','万能','100%','绝对','唯一','保本','稳赚','躺赚','零风险','翻倍','升值','资产增值','中奖','开奖','抽奖','必中']
+function checkIllegalWords(text: string | undefined | null): string[] {
+  if (!text) return []
+  return Array.from(new Set(AD_ILLEGAL_WORDS.filter(w => text.includes(w))))
+}
+
 // ── 门店解析 ───────────────────────────────────────────────────────────
 export async function getMyMerchantStore(userId: string): Promise<{ id: string; name: string } | null> {
   const { data } = await supabase
@@ -95,6 +102,14 @@ export async function createCampaign(
     commission_rate: number
   },
 ): Promise<boolean> {
+  // 违禁词校验（活动名称 + 礼品名称）
+  const badCampaignName = checkIllegalWords(payload.campaign_name)
+  const badGiftName = checkIllegalWords(payload.gift_name)
+  if (badCampaignName.length || badGiftName.length) {
+    const hits = [...badCampaignName, ...badGiftName]
+    throw new Error(`文案含违禁词：${Array.from(new Set(hits)).join('、')}，请修改后重试`)
+  }
+
   const { error } = await supabase.from('marketing_campaigns').insert({
     store_id: storeId,
     ...payload,
@@ -241,6 +256,10 @@ export async function getMerchantWithdrawals(userId: string): Promise<Withdrawal
     status: w.status,
     created_at: fmtTime(w.created_at),
     transferred_at: w.status === 'paid' ? fmtTime(w.updated_at) : null,
+    real_name: w.real_name || w.bank_holder || null,
+    id_card: w.id_card || null,
+    bank_name: w.bank_name || null,
+    bank_account: w.bank_account || null,
   }))
 }
 
@@ -275,15 +294,25 @@ export async function createWithdrawal(payload: {
   method: 'bank' | 'alipay' | 'wechat'
   account: string
   name: string
+  idCard?: string
+  bankName?: string
 }): Promise<boolean> {
+  // P0 修复：提现必须绑定当前登录用户，禁用任意 userId 传入（防提现盗用链路）。
+  // 真实登录态下强制使用会话用户；演示/未登录态回退到传入 userId（仅演示可用）。
+  const { data: { user } } = await supabase.auth.getUser()
+  const userId = user?.id ?? payload.userId
+  if (!userId) throw new Error('无法识别用户，请先登录')
   const { error } = await supabase.from('withdrawals').insert({
-    user_id: payload.userId,
+    user_id: userId,
     store_id: payload.storeId,
     amount: payload.amount,
     withdraw_method: payload.method,
     alipay_account: payload.method === 'alipay' ? payload.account : null,
     bank_account: payload.method === 'bank' ? payload.account : null,
-    bank_holder: payload.name,
+    bank_holder: payload.method === 'bank' ? payload.name : null,
+    bank_name: payload.method === 'bank' ? (payload.bankName || null) : null,
+    real_name: payload.name || null,
+    id_card: payload.idCard || null,
     status: 'pending',
   })
   if (error) throw error
@@ -292,13 +321,7 @@ export async function createWithdrawal(payload: {
 
 // ── 情绪系统：门店商品 + 转化漏斗 ─────────────────────────────────────
 export type ProductWithEmotion = Product & {
-  product_emotion?: {
-    emotion_title?: string | null
-    emotion_detail?: string | null
-    dimension_tags?: Record<string, string[]> | null
-    quality_score?: number | null
-    review_status?: string | null
-  } | null
+  product_emotion?: import('@/types').ProductEmotionData | null
 }
 
 /** 某门店下商品列表（含 product_emotion 编译结果），供情绪工作台使用 */
