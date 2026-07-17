@@ -9,7 +9,8 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL || ''
 const SERVICE_KEY = process.argv[2] || process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-const PHONE = '+8618565613635'
+const PHONE = '18565613635'
+const PHONE_E164 = '+8618565613635'
 const EMAIL = 'test18565613635@test.com'
 const PASSWORD = '12345678'
 
@@ -48,7 +49,7 @@ async function authAdminUpdate(userId, body) {
 
 async function main() {
   console.log(`--- 1) 在 profiles 查找 ${PHONE} 对应的 auth id ---`)
-  const profiles = await rest(`profiles?phone=eq.${PHONE}&select=id,phone,referrer_id,referral_code&limit=1`)
+  const profiles = await rest(`profiles?or=(phone.eq.${PHONE},phone.eq.${PHONE_E164})&select=id,phone,referrer_id,referral_code&limit=1`)
   if (!profiles || !profiles.length) {
     console.error(`❌ 找不到 phone=${PHONE} 的 profile；请确认账号已创建`)
     return
