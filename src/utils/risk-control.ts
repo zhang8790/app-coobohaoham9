@@ -371,16 +371,16 @@ export async function recoverPoints(
   
   if (!order || !order.buyer_points || order.buyer_points <= 0) return;
   
-  // 扣回买家获赠金豆（points 已并入 gold_beans）
+  // 扣回买家获赠金豆（points 已并入 balance）
   const { data: prof } = await supabase
     .from('profiles')
-    .select('gold_beans')
+    .select('balance')
     .eq('id', order.user_id)
     .maybeSingle();
-  const cur = Number((prof as any)?.gold_beans || 0);
+  const cur = Number((prof as any)?.balance || 0);
   const next = Math.max(0, cur - Number(order.buyer_points || 0));
   await supabase
     .from('profiles')
-    .update({ gold_beans: next })
+    .update({ balance: next })
     .eq('id', order.user_id);
 }

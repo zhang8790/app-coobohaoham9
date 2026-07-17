@@ -1,9 +1,11 @@
 // @title 支付
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
-import { View, Text, Input, Button } from '@tarojs/components'
-import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile, getMyAddresses, grantEmotionClaim } from '@/db/api'
+import { View, Text, Input } from '@tarojs/components'
+import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile, getMyAddresses, grantEmotionClaim, trackFoodTherapyEvent } from '@/db/api'
 import { supabase } from '@/client/supabase'
+import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
+import { toFoodTherapyInput, checkCartConflicts, type CartConflict } from '@/utils/food-therapy'
 import { RouteGuard } from '@/components/RouteGuard'
 import { getPendingCheckout, clearPendingCheckout } from '@/utils/checkoutCache'
 import type { PayMode } from '@/db/types'
@@ -53,15 +55,13 @@ async function runV5Commission(orderId: string, storeId: string, totalAmount: nu
       referrerId: referrerId2,
       referrerTotalConsumption: ref2Consumption,
       buyerId: profile.id,
-      buyerTotalConsumption: profile.total_consumption || 0,
-    })
+      buyerTotalConsumption: profile.total_consumption || 0})
     await supabase.from('orders').update({
       l1_commission: commissionResult.l1Commission,
       l2_commission: commissionResult.l2Commission,
       buyer_points: Math.round(commissionResult.buyerPoints),
       platform_income: commissionResult.platformTotalIncome,
-      commission_calculated: true,
-    }).eq('id', orderId)
+      commission_calculated: true}).eq('id', orderId)
     console.log('[V5] 佣金计算完成', commissionResult)
   } catch (err) {
     console.error('[V5] 佣金计算失败', err)
@@ -76,8 +76,7 @@ async function grantOneClaim(orderNo: string, item: any) {
       productId: item.product_id || '',
       storeId: item.store_id || '',
       selectedEmotion: [],
-      badgeText: '情绪确权',
-    })
+      badgeText: '情绪确权'})
     if (res.ok) console.log('[确权] 支付后自动确权成功', orderNo)
     else console.warn('[确权] 支付后自动确权跳过', orderNo, res?.already ? '已确权' : '未过闸')
   } catch (e) {
@@ -108,7 +107,7 @@ async function autoClaimAfterPay(ctx: {
     console.warn('[确权] 自动确权批量异常(不影响订单)', e)
   }
 }
-// 金豆抵扣比例：1 金豆 = 1 元（金豆与人民币 1:1 锚定，余额即抵扣额，与数据库 profiles.gold_beans 单位一致）
+// 金豆抵扣比例：1 金豆 = 1 元（金豆与人民币 1:1 锚定，余额即抵扣额，与数据库 profiles.balance 单位一致）
 const GOLD_BEAN_RATE = 1
 
 // 支付成功后的订单状态：配送走「待发货」；到店消费（堂食）当场使用，支付即「待评价+已使用」，跳过待核销
@@ -123,6 +122,23 @@ function paidOrderUpdate(serviceType?: 'dine_in' | 'delivery'): {
   }
   // 堂食到店消费，无需核销，支付成功即视为已使用（用 verified_at 标记）
   return { status: 'pending_review', verified_at: now, paid_at: now }
+}
+
+// 结算风险校验：购物车冲突（温补叠加/寒热对冲/同属性过量/相克）+ 当前体质禁忌（avoid 档）
+function computeCheckoutRisks(items: any[], classifyProduct: (p: any) => any): {
+  conflicts: CartConflict[]
+  avoidNames: string[]
+} {
+  const inputs = items.map((i) => i.products).filter(Boolean).map((p) => toFoodTherapyInput(p))
+  const conflicts = checkCartConflicts(inputs)
+  const avoidNames: string[] = []
+  for (const i of items) {
+    const p = i.products
+    if (!p) continue
+    const tier = classifyProduct(p)
+    if (tier === 'avoid') avoidNames.push(p.name)
+  }
+  return { conflicts, avoidNames }
 }
 
 // 支付成功落地页：标准确认点，用户主动选择下一步（查看订单 / 继续逛），
@@ -160,6 +176,10 @@ function PaymentPage() {
   const [countdown, setCountdown] = useState(30 * 60)
   const [paying, setPaying] = useState(false)
   const [orderNo, setOrderNo] = useState('')
+  // 结算风险弹窗（购物车冲突 + 当前体质禁忌）
+  const [riskModal, setRiskModal] = useState<{ conflicts: CartConflict[]; avoidNames: string[] } | null>(null)
+  const _riskAck = useRef(false)
+  const { classifyProduct } = useFoodTherapy()
   const [items, setItems] = useState<any[]>([])
   const [totalAmount, setTotalAmount] = useState(totalParam)
   // 下单前预校验：加载商品后回查 products 真实状态，拦截失效商品（已下架/无价/售罄）
@@ -176,6 +196,9 @@ function PaymentPage() {
   // 防重复支付双重锁
   const _payLock = useRef(false)
   const _pendingOrderNo = useRef('')
+  // 用户推荐人（上级）ID：loadData 时缓存，下单时透传给订单，
+  // 供服务端 distribute-commission 真正发放佣金（修复之前 orders.referrer_id 恒为 NULL 的发佣断点）
+  const referrerIdRef = useRef<string | null>(null)
 
   // 下单前预校验：回查 products 真实状态，拦截失效商品（已下架 / 无价）
   // 与 createOrderV2 的价格防伪完全同源（同样受 products RLS `is_active=true` 约束），
@@ -218,20 +241,19 @@ function PaymentPage() {
 
   // 加载购物车商品 + 金豆余额 + 用户消费数据 + 收货地址
   const loadData = useCallback(async () => {
-
     const [bal, profile, addrList] = await Promise.all([
       getMyBalance(),
       getMyProfile().catch(() => null), // 获取用户资料（含累计消费）
       getMyAddresses().catch(() => []),  // 获取收货地址列表
     ])
 
-    // 余额优先取已验证正确的 getMyProfile.gold_beans，getMyBalance 作兜底（双保险防 RLS 偏差导致读成 0）
-    const finalBalance = profile?.gold_beans ?? bal.gold_beans ?? 0
-    console.log('[Payment] balance 加载结果:', { profileGold: profile?.gold_beans, apiGold: bal.gold_beans, final: finalBalance, version: '2026-07-07-v3' })
+    // 余额优先取已验证正确的 getMyProfile.balance，getMyBalance 作兜底（双保险防 RLS 偏差导致读成 0）
+    const finalBalance = profile?.balance ?? bal.balance ?? 0
+    console.log('[Payment] balance 加载结果:', { profileBalance: profile?.balance, apiBalance: bal.balance, final: finalBalance, version: '2026-07-17-v4' })
     setBalance(finalBalance)
     // 调试用：开发模式下弹出当前余额+版本号，确认真机代码是否已更新（生产环境不显示）
     if (process.env.NODE_ENV !== 'production') {
-      Taro.showToast({ title: `余额${finalBalance}·v3`, icon: 'none', duration: 2000 })
+      Taro.showToast({ title: `余额${finalBalance}·v4`, icon: 'none', duration: 2000 })
     }
     setAddresses(addrList)
 
@@ -243,6 +265,8 @@ function PaymentPage() {
     // 个人累计消费
     const totalConsumption = profile?.total_consumption || 0
     setUserTotalConsumption(totalConsumption)
+    // 缓存推荐人（上级）ID，下单时透传订单
+    referrerIdRef.current = profile?.referrer_id || null
 
     let loadedItems: any[] = []
     if (cartIds.length > 0) {
@@ -252,8 +276,7 @@ function PaymentPage() {
         product_id: i.product_id, store_id: i.store_id,
         store_name: i.stores?.name || '', product_name: i.products?.name || '',
         product_image: i.products?.image_url || null,
-        price: i.products?.price || 0, quantity: i.quantity,
-      }))
+        price: i.products?.price || 0, quantity: i.quantity}))
       loadedItems = mapped
       setItems(mapped)
       setTotalAmount(toFixed4(mapped.reduce((s, i) => s + toFixed4(i.price * i.quantity), 0)))
@@ -265,8 +288,7 @@ function PaymentPage() {
           product_id: prod.id, store_id: prod.store_id,
           store_name: '', product_name: prod.name,
           product_image: prod.image_url || null,
-          price: prod.price, quantity: 1,
-        }]
+          price: prod.price, quantity: 1}]
         loadedItems = mapped
         setItems(mapped)
         setTotalAmount(toFixed4(prod.price))
@@ -330,12 +352,17 @@ function PaymentPage() {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }, [countdown])
 
-  const [serviceType, setServiceType] = useState<'dine_in' | 'delivery'>('delivery')
+  const [serviceType, setServiceType] = useState<'dine_in' | 'delivery'>('dine_in')
 
   // 实时计算：金豆最大可用 & 实付金额
-  const maxGoldBeans = useMemo(() => Math.min(balance, Math.floor(totalAmount / GOLD_BEAN_RATE)), [balance, totalAmount])
+  // 纯金豆必须用「向上取整」的额度才能足额覆盖订单（金豆是整数，1 豆=1 元，100.2 元需 101 豆）；
+  // 混合/微信则按「向下取整」——零头留给微信支付，避免微信端出现 <0.01 元的不可支付金额。
+  const maxGoldBeans = useMemo(() => {
+    if (payMode === 'pure_gold') return Math.min(balance, Math.ceil(totalAmount / GOLD_BEAN_RATE))
+    return Math.min(balance, Math.floor(totalAmount / GOLD_BEAN_RATE))
+  }, [balance, totalAmount, payMode])
   const deductYuan = useMemo(() => toFixed4(Math.min(goldBeansToUse, maxGoldBeans) * GOLD_BEAN_RATE), [goldBeansToUse, maxGoldBeans])
-  const wxpayAmount = useMemo(() => toFixed4(totalAmount - deductYuan), [totalAmount, deductYuan])
+  const wxpayAmount = useMemo(() => toFixed4(Math.max(0, totalAmount - deductYuan)), [totalAmount, deductYuan])
   const actualGoldBeansUsed = useMemo(() => Math.min(goldBeansToUse, maxGoldBeans), [goldBeansToUse, maxGoldBeans])
   const fullGoldNeeded = useMemo(() => Math.ceil(totalAmount / GOLD_BEAN_RATE), [totalAmount])
   const pureGoldShort = useMemo(() => Math.max(0, fullGoldNeeded - balance), [fullGoldNeeded, balance])
@@ -343,8 +370,10 @@ function PaymentPage() {
   // 切换支付方式时同步金豆使用量
   const handleModeChange = (mode: PayMode) => {
     setPayMode(mode)
-    // 纯金豆 / 混合均默认用满可用金豆，微信支付则清零
-    if (mode === 'pure_gold' || mode === 'hybrid') setGoldBeansToUse(maxGoldBeans)
+    // 纯金豆：默认用满「足额覆盖所需豆数」(fullGoldNeeded=ceil)，确保订单 100% 付清不留零头缺口
+    if (mode === 'pure_gold') setGoldBeansToUse(Math.min(balance, fullGoldNeeded))
+    // 混合：默认用满可用金豆（向下取整，零头走微信）
+    else if (mode === 'hybrid') setGoldBeansToUse(maxGoldBeans)
     else if (mode === 'wxpay') setGoldBeansToUse(0)
   }
 
@@ -410,6 +439,19 @@ function PaymentPage() {
       return
     }
 
+    // 结算风险校验（购物车冲突 + 当前体质禁忌），有风险弹窗提醒；danger 需二次确认
+    if (!_riskAck.current) {
+      const risks = computeCheckoutRisks(items, classifyProduct)
+      if (risks.conflicts.length > 0 || risks.avoidNames.length > 0) {
+        setRiskModal(risks)
+        _payLock.current = false
+        setPaying(false)
+        return
+      }
+    } else {
+      _riskAck.current = false // 用户已确认风险，本次跳过校验
+    }
+
     _payLock.current = true
     setPaying(true)
 
@@ -428,7 +470,8 @@ function PaymentPage() {
         idempotency_key: `pay_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         service_type: serviceType,
         address: serviceType === 'delivery' ? addressStr : undefined,
-      })
+        // 透传推荐人（上级）：服务端 distribute-commission 据此向 profiles.referrer_id 实际发佣
+        referrer_id: referrerIdRef.current || undefined})
 
       if (!orderResult) {
         // P0 修复：createOrderV2 内部已 toast 详细错误（含 code+message+hint），
@@ -439,7 +482,13 @@ function PaymentPage() {
       setOrderNo(orderResult.order.order_no)
       _pendingOrderNo.current = orderResult.order.order_no
       clearPendingCheckout() // 订单已创建，清除待结算缓存，避免下次热重载误用旧数据
-      
+
+      // 导购反馈回流：购买事件（每个商品记一次，个性化权重学习）
+      for (const it of items) {
+        const p = it.products
+        if (p) trackFoodTherapyEvent({ productId: it.product_id, eventType: 'purchase', healthTag: (p as any).health_tag ?? [], emotionTag: (p as any).emotion_tag ?? [] }).catch(() => {})
+      }
+
       // 跨门店结算：记录父订单号
       if (orderResult.is_multi_store) {
         setIsMultiStore(true)
@@ -477,8 +526,7 @@ function PaymentPage() {
         orderNo: orderResult?.order?.order_no || '',
         isMultiStore,
         parentOrderNo,
-        items,
-      })
+        items})
 
       // 支付成功 → 进入「支付成功结果页」（标准确认点；评价改为用户主动，不再被推）
       setTimeout(() => {
@@ -508,8 +556,7 @@ function PaymentPage() {
         nonceStr: payParams.nonceStr,
         package: payParams.package,
         signType: payParams.signType as 'RSA',
-        paySign: payParams.paySign,
-      })
+        paySign: payParams.paySign})
 
       Taro.showToast({ title: '支付成功！', icon: 'success' })
       
@@ -530,9 +577,9 @@ function PaymentPage() {
         try {
           const prof = await getMyProfile()
           if (prof?.id) {
-            const { data: p2 } = await supabase.from('profiles').select('gold_beans').eq('id', prof.id).single()
-            if (p2 && p2.gold_beans >= actualGoldBeansUsed) {
-              const { error: derr } = await supabase.from('profiles').update({ gold_beans: p2.gold_beans - actualGoldBeansUsed }).eq('id', prof.id)
+            const { data: p2 } = await supabase.from('profiles').select('balance').eq('id', prof.id).single()
+            if (p2 && p2.balance >= actualGoldBeansUsed) {
+              const { error: derr } = await supabase.from('profiles').update({ balance: p2.balance - actualGoldBeansUsed }).eq('id', prof.id)
               if (derr) console.warn('[混合支付] 金豆扣减失败(不影响订单)', derr)
               else {
                 console.log('[混合支付] 金豆扣减成功', actualGoldBeansUsed)
@@ -542,9 +589,8 @@ function PaymentPage() {
                   order_id: null,
                   type: 'purchase_spend',
                   delta: -actualGoldBeansUsed,
-                  balance_after: (p2.gold_beans ?? 0) - actualGoldBeansUsed,
-                  remark: '混合支付消费抵扣金豆',
-                }).then(() => {}).catch((e: any) => {
+                  balance_after: (p2.balance ?? 0) - actualGoldBeansUsed,
+                  remark: '混合支付消费抵扣金豆'}).then(() => {}).catch((e: any) => {
                   if ((e as any)?.code === '42P01' || (e as any)?.status === 404) {
                     console.warn('[gold_bean_logs] 表不存在(00076未执行)，流水暂不记录')
                   }
@@ -574,15 +620,12 @@ function PaymentPage() {
         orderNo: orderResult?.order?.order_no || '',
         isMultiStore,
         parentOrderNo,
-        items,
-      })
+        items})
 
       // 支付成功 → 进入「支付成功结果页」（标准确认点；评价改为用户主动，不再被推）
       setTimeout(() => {
         Taro.navigateTo({ url: buildResultUrl(orderResult?.order?.order_no || '', totalAmount, serviceType) })
-      }, 1500)
-
-    } catch (err: any) {
+      }, 1500)} catch (err: any) {
       const msg = err?.message || ''
       if (msg.includes('cancel') || msg.includes('用户取消')) {
         Taro.showToast({ title: '已取消支付', icon: 'none' })
@@ -811,6 +854,45 @@ function PaymentPage() {
         onClick={() => Taro.navigateTo({ url: '/pages/trade-rules/index' })}>
         <Text className="text-base text-muted-foreground text-center">支付即视为同意<Text className="text-primary">《来电有喜交易规则》</Text></Text>
       </View>
+
+      {/* 结算风险弹窗（食疗冲突 + 体质禁忌） */}
+      {riskModal && (
+        <View className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <View className="w-10/12 max-h-4/5 bg-card rounded-3xl p-6 overflow-y-auto">
+            <Text className="text-2xl font-bold text-foreground text-center block mb-1">🍲 结算健康小贴士</Text>
+            <Text className="text-base text-muted-foreground text-center block mb-4">为你做了食疗冲突与体质适配检测</Text>
+            <View className="gap-3 mb-6">
+              {riskModal.conflicts.map((c, idx) => (
+                <View key={idx} className="p-3 rounded-2xl border" style={{ background: c.level === 'danger' ? '#FEE2E2' : '#FEF3C7', borderColor: c.level === 'danger' ? '#FCA5A5' : '#FDE68A' }}>
+                  <View className="flex items-center gap-2 mb-1">
+                    <Text className="text-xl">{c.level === 'danger' ? '⚠️' : '🟡'}</Text>
+                    <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#92400E' }}>
+                      {c.type === 'warm_overlap' ? '温补叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
+                    </Text>
+                  </View>
+                  <Text className="text-base text-muted-foreground" style={{ display: 'block', lineHeight: '1.5' }}>{c.message}</Text>
+                </View>
+              ))}
+              {riskModal.avoidNames.length > 0 && (
+                <View className="p-3 rounded-2xl border" style={{ background: '#FEE2E2', borderColor: '#FCA5A5' }}>
+                  <View className="flex items-center gap-2 mb-1">
+                    <Text className="text-xl">⚠️</Text>
+                    <Text className="text-base font-bold" style={{ color: '#B91C1C' }}>体质暂不适宜</Text>
+                  </View>
+                  <Text className="text-base text-muted-foreground" style={{ display: 'block', lineHeight: '1.5' }}>
+                    根据当前所选状态，「{riskModal.avoidNames.join('、')}」属于不建议点范畴，建议替换或少量尝鲜。
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View className="flex gap-3">
+              <View className="flex-1 py-3 rounded-2xl bg-muted text-muted-foreground text-center text-xl font-bold" onClick={() => setRiskModal(null)}>去调整</View>
+              <View className="flex-1 py-3 rounded-2xl bg-primary text-white text-center text-xl font-bold"
+                onClick={() => { setRiskModal(null); _riskAck.current = true; handlePay() }}>仍要支付</View>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   </RouteGuard>)
 }

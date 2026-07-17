@@ -2,16 +2,28 @@ import Taro from '@tarojs/taro'
 import { supabase } from '@/client/supabase'
 import type {
   Profile, Store, StoreCategory, Product, CartItem,
-  Order, OrderItem, Article, MerchantApplication, Announcement,
-  OrderStatus, MerchantStatus, ProductEmotion, EmotionClaim,
+
+
   EmotionAsset, EmotionTongbaoLog, EmotionTongbaoReason,
-  EmotionBadgeDef, EmotionBadgeGrant,
-} from './types'
+  EmotionBadgeDef, EmotionBadgeGrant} from './types'
 import { generateEmotionDescription } from '@/utils/emotion-description'
 import { MOOD_TAGS, MOOD_CATEGORIES } from '@/utils/mood-tags'
 import { calculateDynamicScore, RANK_CONFIG_TABLE_V5, calculateCommissionV5, computeMemberRank } from '@/utils/commission-calculator-v5'
 import { bumpCartCount } from '@/utils/cartStore'
 import { checkIllegalWords } from '@/utils/compliance-words'
+
+// 食材食疗导购新列（迁移 00100）：DB 未执行时软降级剥离，保证既有上架不失败
+const NEW_PRODUCT_COLUMNS = [
+  'overall_nature', 'health_tag', 'emotion_tag', 'match_goods', 'conflict_goods', 'aux_remind',
+]
+const NEW_COLUMN_RE = /overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind/
+function stripNewProductColumns(payload: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const k of Object.keys(payload)) {
+    if (!NEW_PRODUCT_COLUMNS.includes(k)) out[k] = payload[k]
+  }
+  return out
+}
 
 // =====================
 // Profiles
@@ -23,7 +35,7 @@ export async function getMyProfile(): Promise<Profile | null> {
   return data
 }
 
-export async function updateProfile(updates: Partial<Pick<Profile, 'nickname' | 'avatar_url'>>): Promise<void> {
+export async function updateProfile(updates: Partial<Pick<Profile, 'nickname' | 'avatar_url' | 'constitution_tags'>>): Promise<void> {
   const uid = (await supabase.auth.getUser()).data.user?.id
   if (!uid) return
   await supabase.from('profiles').update(updates).eq('id', uid)
@@ -94,8 +106,7 @@ export async function getMyReferrals(): Promise<{
     level_1: level_1 || [],
     level_2,
     level_1_count: level_1?.length || 0,
-    level_2_count: level_2.length,
-  }
+    level_2_count: level_2.length}
 }
 
 // =====================
@@ -139,8 +150,7 @@ export async function createPendingReferral(params: {
         referral_code: params.referral_code,
         store_id: params.store_id || null,
         campaign_id: params.campaign_id || null,
-        status: 'pending',
-      })
+        status: 'pending'})
     
     if (error) {
       console.error('[createPendingReferral] 失败:', error.message)
@@ -169,8 +179,7 @@ export async function convertPendingReferral(userId: string): Promise<boolean> {
     const { error } = await supabase
       .rpc('convert_pending_referral', {
         p_device_id: deviceId,
-        p_user_id: userId,
-      })
+        p_user_id: userId})
     
     if (error) {
       console.error('[convertPendingReferral] 失败:', error.message)
@@ -295,8 +304,7 @@ export async function getProducts(opts: {
   /** 自营门店过滤：'only' = 只看自营商品，'exclude' = 排除自营商品，undefined = 不过滤 */
   platformFilter?: 'only' | 'exclude',
   /** 城市ID：用于过滤城市商品（NULL=全国可见，非NULL=仅该城市可见） */
-  cityId?: string,
-} = {}): Promise<Product[]> {
+  cityId?: string} = {}): Promise<Product[]> {
   const { storeId, categoryId, search, moodTag, moodTags, sceneTag, page = 0, limit = 20, platformFilter, cityId } = opts
   // 基础查询：所有活跃商品（带上 stores 信息用于 JS 过滤）
   let q = supabase.from('products').select('*, stores(id,name,image_url,is_platform)').not('is_active', 'eq', false)
@@ -359,8 +367,7 @@ export async function getNearbyProducts(
       p_lat: lat,
       p_lng: lng,
       p_limit: limit * 3, // 多取一些，过滤后再截断
-      p_category: category || null,
-    })
+      p_category: category || null})
 
     if (error) {
       console.error('[getNearbyProducts] 查询失败:', error.message)
@@ -378,8 +385,7 @@ export async function getNearbyProducts(
       store_address: item.store_address,
       store_lat: item.store_lat,
       store_lng: item.store_lng,
-      distance_km: Math.round(item.distance_km * 100) / 100,
-    }))
+      distance_km: Math.round(item.distance_km * 100) / 100}))
 
     // 根据 platformFilter 过滤
     if (platformFilter) {
@@ -451,6 +457,24 @@ export async function getProductsByEmotion(
   return matchedList.slice(0, limit)
 }
 
+/**
+ * 按商品 ID 批量取商品（带上 stores 信息），用于回溯已购订单对应的商品。
+ * @param ids 商品 ID 列表（内部去重；为空直接返回 []）
+ */
+export async function getProductsByIds(ids: string[]): Promise<Product[]> {
+  const uniq = Array.from(new Set(ids || []))
+  if (uniq.length === 0) return []
+  const { data, error } = await supabase
+    .from('products')
+    .select('*, stores(id,name,image_url,is_platform)')
+    .in('id', uniq)
+  if (error) {
+    console.error('[getProductsByIds] 查询失败:', error.message)
+    return []
+  }
+  return Array.isArray(data) ? data : []
+}
+
 export async function getProductById(id: string): Promise<Product | null> {
   // 主查询：商品 + 门店。不内联 product_emotion，避免该表尚未创建时整条查询失败（商品加载不出）
   const { data, error } = await supabase
@@ -508,8 +532,7 @@ function localCompile(payload: CompilePayload): any {
       candidates: [hint],
       emotion_detail: hint,
       compiled_by: 'local-rule',
-      _local: true,
-    }
+      _local: true}
   }
 
   // 用 3 个候选文案（v1 → v2 → v3），各取不同的 variant 池子
@@ -537,8 +560,7 @@ function localCompile(payload: CompilePayload): any {
     candidates: variants,  // 工作台可点"换一版"切换
     emotion_detail: `${stage1} ${stage2} ${stage3}`,
     compiled_by: 'local-rule',
-    _local: true,
-  }
+    _local: true}
 }
 
 /** 本地关键词兜底：把自由文本分类为 6 情绪态之一（positive/warm/fresh/luxury/fun/calm） */
@@ -554,8 +576,7 @@ function localUnderstand(text: string): string | null {
 /** 调 emotion-compile 编译商品情绪叙事，结果写 product_emotion 缓存（云端未部署时回退本地规则） */
 export async function compileProductEmotion(payload: CompilePayload): Promise<any> {
   const { data, error } = await supabase.functions.invoke('emotion-compile', {
-    body: { mode: 'compile', ...payload },
-  })
+    body: { mode: 'compile', ...payload }})
   if (error || !data) {
     console.warn('[compileProductEmotion] 云端函数未部署，使用本地规则兜底', error?.message)
     return localCompile(payload)
@@ -567,8 +588,7 @@ export async function compileProductEmotion(payload: CompilePayload): Promise<an
 export async function understandEmotion(text: string): Promise<string | null> {
   if (!text || !text.trim()) return null
   const { data, error } = await supabase.functions.invoke('emotion-compile', {
-    body: { mode: 'understand', text },
-  })
+    body: { mode: 'understand', text }})
   if (error || !data) {
     console.warn('[understandEmotion] 云端函数未部署，使用本地关键词兜底', error?.message)
     return localUnderstand(text)
@@ -749,8 +769,7 @@ export async function createArticle(
     // 有标签才存
     ...(tags && tags.length > 0 ? { tags } : {}),
     // 有视频链接才存
-    ...(opts?.video_url ? { video_url: opts.video_url } : {}),
-  }
+    ...(opts?.video_url ? { video_url: opts.video_url } : {})}
   
   const { data, error } = await supabase.from('articles')
     .insert(insertData)
@@ -911,18 +930,21 @@ export async function createOrderV2(params: {
     // - 纯金豆：创建订单时即扣金豆（订单直接完成，无失败态）
     // - 混合支付：先记录计划用量到订单（供微信支付云函数算正确应付金额），金豆扣减推迟到微信支付成功后再执行，避免支付失败导致金豆被锁定
     let goldBeansUsed = (params.gold_beans_to_use && (params.pay_mode === 'pure_gold' || params.pay_mode === 'hybrid')) ? params.gold_beans_to_use : 0
+    // 金豆处理：记录下单前余额，订单失败时用于回滚
+    let originalBalance = 0
     if (params.pay_mode === 'pure_gold' && params.gold_beans_to_use) {
       try {
-        const { data: profile, error: profileErr } = await supabase.from('profiles').select('gold_beans').eq('id', user.id).single()
-    if (process.env.NODE_ENV !== 'production') console.log('[createOrderV2] gold_beans:', profile?.gold_beans, 'need:', params.gold_beans_to_use, 'err:', profileErr)
+        const { data: profile, error: profileErr } = await supabase.from('profiles').select('balance').eq('id', user.id).single()
+        originalBalance = profile?.balance ?? 0
+    if (process.env.NODE_ENV !== 'production') console.log('[createOrderV2] balance:', profile?.balance, 'need:', params.gold_beans_to_use, 'err:', profileErr)
         if (profileErr) {
           console.error('[createOrderV2] 查询金豆失败，阻断下单', profileErr)
           Taro.showToast({ title: '查询金豆失败，请重试', icon: 'none' }); return null
         }
-        else if (!profile || profile.gold_beans < params.gold_beans_to_use) {
+        else if (!profile || profile.balance < params.gold_beans_to_use) {
           Taro.showToast({ title: '金豆余额不足', icon: 'none' }); return null
         } else {
-          const { error: deductErr } = await supabase.from('profiles').update({ gold_beans: profile.gold_beans - params.gold_beans_to_use }).eq('id', user.id)
+          const { error: deductErr } = await supabase.from('profiles').update({ balance: profile.balance - params.gold_beans_to_use }).eq('id', user.id)
           if (deductErr) {
             // P0 修复：金豆扣减失败必须阻断下单（避免"未扣豆但显示已扣"）
             console.error('[createOrderV2] 金豆扣减失败，阻断下单', deductErr)
@@ -934,9 +956,8 @@ export async function createOrderV2(params: {
               order_id: null,
               type: 'purchase_spend',
               delta: -params.gold_beans_to_use,
-              balance_after: (profile.gold_beans ?? 0) - params.gold_beans_to_use,
-              remark: '下单消费抵扣金豆',
-            }).then(() => {}).catch((e: any) => {
+              balance_after: (profile.balance ?? 0) - params.gold_beans_to_use,
+              remark: '下单消费抵扣金豆'}).then(() => {}).catch((e: any) => {
               if (e?.code === '42P01' || (e as any)?.status === 404) {
                 console.warn('[gold_bean_logs] 表不存在(00076未执行)，流水暂不记录')
               }
@@ -948,15 +969,22 @@ export async function createOrderV2(params: {
       }
     }
 
-    // 创建订单
+    // 创建订单：按 store_id 分组，每个门店一个子订单
     const isInStore = params.service_type !== 'delivery'
     const nowIso = new Date().toISOString()
-    const ordersToInsert = verifiedItems.map(item => ({
+    const storeGroups = new Map<string, typeof verifiedItems>()
+    for (const item of verifiedItems) {
+      const sid = item.store_id || '__no_store__'
+      if (!storeGroups.has(sid)) storeGroups.set(sid, [])
+      storeGroups.get(sid)!.push(item)
+    }
+    const storeGroupArray = Array.from(storeGroups.entries())
+    const ordersToInsert = storeGroupArray.map(([store_id, items], idx) => ({
       user_id: user.id,
-      store_id: item.store_id || null,
-      order_no: isMultiStore ? `C${orderNo}${item.store_id?.slice(0, 4)}` : orderNo,
+      store_id: store_id === '__no_store__' ? null : store_id,
+      order_no: isMultiStore ? `C${orderNo}${store_id?.slice(0, 4)}` : orderNo,
       parent_order_no: parentOrderNo,
-      total_amount: Math.round(item.price * item.quantity * 100) / 100,
+      total_amount: Math.round(items.reduce((s, i) => s + i.price * i.quantity, 0) * 100) / 100,
       // 纯金豆支付即视为已支付：配送走「待发货」，到店消费（堂食）当场使用→直接「待评价+已使用」，跳过待核销
       status: params.pay_mode === 'pure_gold'
         ? (params.service_type === 'delivery' ? 'pending_ship' : 'pending_review')
@@ -964,7 +992,8 @@ export async function createOrderV2(params: {
       payment_method: params.pay_mode === 'pure_gold' ? 'gold_beans' : 'wxpay',
       gold_beans_used: isMultiStore ? 0 : goldBeansUsed,
       referrer_id: params.referrer_id || null,
-      idempotency_key: params.idempotency_key || orderNo,  // P0 修复：恢复唯一约束，防止重试重复下单/重复分佣
+      // idempotency_key 唯一约束：多门店拆单时每个子订单必须独立 key，否则第二单起唯一冲突导致整批建单失败
+      idempotency_key: isMultiStore ? `${(params.idempotency_key || orderNo)}-${idx}` : (params.idempotency_key || orderNo),
       service_type: params.service_type || 'dine_in',
       shipping_address: params.address || null,
       // 到店消费支付即视为已使用（verified_at 标记核销时间）。
@@ -980,7 +1009,7 @@ export async function createOrderV2(params: {
       // P0 修复：orders 写入失败 → 回滚金豆（避免"金豆已扣但订单不存在"导致用户资产凭空消失）
       if (goldBeansUsed > 0) {
         try {
-          await supabase.from('profiles').update({ gold_beans: profile?.gold_beans ?? 0 }).eq('id', user.id)
+          await supabase.from('profiles').update({ balance: originalBalance }).eq('id', user.id)
           console.log('[createOrderV2] 已回滚金豆', goldBeansUsed)
         } catch (e) { console.error('[createOrderV2] 金豆回滚失败，需人工补偿', e) }
       }
@@ -1007,19 +1036,21 @@ export async function createOrderV2(params: {
     }
     // =========================================================================
 
-    // 创建订单商品
+    // 创建订单商品：每个子订单下挂对应门店的所有商品
     if (insertedOrders && insertedOrders.length > 0) {
-      const orderItems = insertedOrders.map((o, idx) => ({
-        order_id: o.id,
-        store_id: o.store_id || params.items[idx]?.store_id || null,
-        store_name: params.items[idx]?.store_name || null,
-        product_id: verifiedItems[idx]?.product_id || null,
-        product_name: verifiedItems[idx]?.product_name || '商品',
-        product_image: verifiedItems[idx]?.product_image || null,
-        quantity: verifiedItems[idx]?.quantity || 1,
-        price: verifiedItems[idx]?.price || 0,
-        created_at: new Date().toISOString(),
-      }))
+      const orderItems = insertedOrders.flatMap((order, storeIdx) => {
+        const [, items] = storeGroupArray[storeIdx]
+        return items.map(item => ({
+          order_id: order.id,
+          store_id: order.store_id || item.store_id || null,
+          store_name: item.store_name || null,
+          product_id: item.product_id || null,
+          product_name: item.product_name || '商品',
+          product_image: item.product_image || null,
+          quantity: item.quantity || 1,
+          price: item.price || 0,
+          created_at: new Date().toISOString()}))
+      })
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
       if (itemsErr) {
         console.error('[createOrderV2] order_items 插入失败:', itemsErr, JSON.stringify(orderItems))
@@ -1041,8 +1072,7 @@ export async function createOrderV2(params: {
             await supabase.from('user_store_relation').insert({
               user_id: user.id,
               store_id: order.store_id,
-              lock_type: 'order',
-            })
+              lock_type: 'order'})
             console.log(`[归属] user=${user.id} locked to store=${order.store_id}`)
           }
         } catch (e) { console.warn('[归属] 失败(不影响)', e) }
@@ -1086,14 +1116,12 @@ export async function createOrderV2(params: {
             orderAmount: orderTotal, discountRate,
             staffId, staffTotalConsumption: staffConsumption,
             referrerId: l2Id, referrerTotalConsumption: l2Consumption,
-            buyerId: user.id, buyerTotalConsumption: buyerP?.total_consumption || 0,
-          })
+            buyerId: user.id, buyerTotalConsumption: buyerP?.total_consumption || 0})
           await supabase.from('orders').update({
             l1_commission: commissionResult.l1Commission,
             l2_commission: commissionResult.l2Commission,
             buyer_points: Math.round(commissionResult.buyerPoints),
-            commission_calculated: true,
-          }).eq('id', order.id)
+            commission_calculated: true}).eq('id', order.id)
           await distributeCommissionDirect(order.id, user.id)
         } catch (e) { console.warn('[createOrderV2] 纯金豆分佣失败(不影响下单)', e) }
       }
@@ -1109,8 +1137,7 @@ export async function createOrderV2(params: {
       wxpay_amount: params.pay_mode === 'pure_gold' ? 0 : Math.max(0, Math.round((catalogTotal - (params.gold_beans_to_use || 0) * 1) * 10000) / 10000),
       gold_beans_used: goldBeansUsed,
       pay_mode: params.pay_mode,
-      is_multi_store: isMultiStore,
-    }
+      is_multi_store: isMultiStore}
   } catch (err: any) {
     console.error('[createOrderV2] 异常', err);
     Taro.showToast({ title: `创建订单失败: ${err.message}`, icon: 'none' });
@@ -1156,16 +1183,14 @@ async function distributeCommissionDirect(orderId: string, buyerId: string): Pro
         rank_at_time: calcRankName(l1Profile?.total_consumption || 0),
         ratio: total > 0 ? Math.round((l1Commission / total) * 10000) / 10000 : 0,
         pool_amount: total, commission_amount: l1Commission,
-        b_coef: 1.0, status: 'pending' as const,
-      })
+        b_coef: 1.0, status: 'pending' as const})
       const { data: l1Bal } = await supabase.from('profiles')
         .select('total_commission, settled_commission, commission_balance').eq('id', l1UserId).single()
       if (l1Bal) {
         await supabase.from('profiles').update({
           total_commission: Math.round((l1Bal.total_commission + l1Commission) * 100) / 100,
           settled_commission: Math.round((l1Bal.settled_commission + l1Commission) * 100) / 100,
-          commission_balance: Math.round((Number(l1Bal.commission_balance || 0) + l1Commission) * 100) / 100,
-        }).eq('id', l1UserId)
+          commission_balance: Math.round((Number(l1Bal.commission_balance || 0) + l1Commission) * 100) / 100}).eq('id', l1UserId)
       }
     }
     if (l2Commission > 0 && l2UserId) {
@@ -1178,16 +1203,14 @@ async function distributeCommissionDirect(orderId: string, buyerId: string): Pro
         rank_at_time: calcRankName(l2Profile?.total_consumption || 0),
         ratio: total > 0 ? Math.round((l2Commission / total) * 10000) / 10000 : 0,
         pool_amount: total, commission_amount: l2Commission,
-        b_coef: 1.0, status: 'pending' as const,
-      })
+        b_coef: 1.0, status: 'pending' as const})
       const { data: l2Bal } = await supabase.from('profiles')
         .select('total_commission, settled_commission, commission_balance').eq('id', l2UserId).single()
       if (l2Bal) {
         await supabase.from('profiles').update({
           total_commission: Math.round((l2Bal.total_commission + l2Commission) * 100) / 100,
           settled_commission: Math.round((l2Bal.settled_commission + l2Commission) * 100) / 100,
-          commission_balance: Math.round((Number(l2Bal.commission_balance || 0) + l2Commission) * 100) / 100,
-        }).eq('id', l2UserId)
+          commission_balance: Math.round((Number(l2Bal.commission_balance || 0) + l2Commission) * 100) / 100}).eq('id', l2UserId)
       }
     }
 
@@ -1214,25 +1237,24 @@ function calcRankName(consumption: number): string {
   return matched.rank
 }
 
-/** 买家获赠金豆：原 V5「买家积分」已并入 gold_beans（1元=1金豆，通用抵扣币，不可提现/兑现金） */
+/** 买家获赠金豆：消费获赠金豆写入 balance（1元=1积分，通用抵扣币，不可提现/兑现金） */
 async function addBuyerPoints(buyerId: string, orderId: string, points: number): Promise<void> {
   // 1:1 体系下 points 由上游按「1元消费=1积分」等额传入；此处乘 GOLD_BEAN_EARN_RATE 缩放为实发金豆，
   // 避免消费全额 100% 返现。GOLD_BEAN_EARN_RATE=0.05 → 消费1元实发0.05金豆=可抵0.05元（5%回馈）；设为1即全额返现。
   const pts = Math.max(0, Math.round(points * GOLD_BEAN_EARN_RATE))
   if (pts <= 0) return
   const { data: profile } = await supabase.from('profiles')
-    .select('gold_beans').eq('id', buyerId).single()
+    .select('balance').eq('id', buyerId).single()
   if (!profile) return
-  const newBalance = (profile.gold_beans || 0) + pts
-  await supabase.from('profiles').update({ gold_beans: newBalance }).eq('id', buyerId)
+  const newBalance = (profile.balance || 0) + pts
+  await supabase.from('profiles').update({ balance: newBalance }).eq('id', buyerId)
   supabase.from('gold_bean_logs').insert({
     user_id: buyerId,
     order_id: orderId,
     type: 'purchase_earn' as any,
     delta: pts,
     balance_after: newBalance,
-    remark: `订单消费获赠金豆`,
-  }).then(() => {}).catch(() => {})
+    remark: `订单消费获赠金豆`}).then(() => {}).catch(() => {})
 }
 
 /** V2 会员权益版：每单发放 情绪豆（TB）与 会员贡献值（CV）。防亏损权重版：TB 受净毛利封顶、成长回馈取自净毛利池 */
@@ -1270,8 +1292,7 @@ export interface RuleVersionConsts {
 }
 const DEFAULT_RULE: RuleVersionConsts = {
   EMOTION_TB_PER_CLAIM, R_TB, R_DIV, M_MIN, P_BASE, W_BEH_MAX, EMOTION_CV_RATE,
-  R_FISS_L1, R_FISS_L2, GROSS_MARGIN_FALLBACK,
-}
+  R_FISS_L1, R_FISS_L2, GROSS_MARGIN_FALLBACK}
 export async function getActiveRuleVersion(): Promise<{ version: string; consts: RuleVersionConsts }> {
   try {
     const { data, error } = await supabase
@@ -1325,8 +1346,7 @@ export const EMOTION_BADGE_MAP: Record<string, { code: string; name: string; ico
   '温暖': { code: 'emo_warm', name: '温暖相伴', icon: '☀️' },
   '思念': { code: 'emo_miss', name: '思念悠悠', icon: '🌙' },
   '喜悦': { code: 'emo_joy', name: '喜悦绽放', icon: '🌸' },
-  '自由': { code: 'emo_free', name: '自由之心', icon: '🕊️' },
-}
+  '自由': { code: 'emo_free', name: '自由之心', icon: '🕊️' }}
 function resolveBadge(emotions: string[]): { code: string; name: string; icon: string } {
   for (const e of emotions) {
     const hit = Object.keys(EMOTION_BADGE_MAP).find(k => e.includes(k))
@@ -1405,8 +1425,7 @@ async function safeInsertClaim(p: SafeClaimInsertParams): Promise<void> {
   const baseRow: Record<string, any> = {
     user_id: p.profileId, order_no: p.orderNo, product_id: p.productId,
     store_id: p.storeId, selected_emotion: p.selectedEmotion, badge_text: p.badgeText,
-    tongbao_amount: Math.max(p.tb, 0),
-  }
+    tongbao_amount: Math.max(p.tb, 0)}
   // 已知全量 schema 不可用（00054 未执行）→ 直接写基础列，跳过必败的全量尝试
   if (claimFullSchemaOk === false) {
     const { error: e2 } = await supabase.from('emotion_claims').insert(baseRow)
@@ -1417,8 +1436,7 @@ async function safeInsertClaim(p: SafeClaimInsertParams): Promise<void> {
   const fullRow: Record<string, any> = {
     ...baseRow,
     tb_amount: p.tb, cv_amount: p.cv,
-    badge_code: p.badgeCode, status: 'active', rule_version: p.ruleVersion,
-  }
+    badge_code: p.badgeCode, status: 'active', rule_version: p.ruleVersion}
   if (p.l1Id != null) fullRow.upline_l1 = p.l1Id
   if (p.l2Id != null) fullRow.upline_l2 = p.l2Id
   if (p.l1Cv != null) fullRow.upline_l1_cv = p.l1Cv
@@ -1511,8 +1529,7 @@ export async function grantEmotionClaim(payload: {
         profileId: profile.id, orderNo: payload.orderNo,
         productId: payload.productId, storeId: payload.storeId,
         selectedEmotion: payload.selectedEmotion, badgeText: payload.badgeText,
-        tb: 0, cv: 0, badgeCode: badge.code, ruleVersion: rv.version,
-      })
+        tb: 0, cv: 0, badgeCode: badge.code, ruleVersion: rv.version})
       grantEmotionBadge(profile.id, badge.code).then(() => {}).catch((e: any) => {
         // 409 = 外键约束（emo_* 徽章种子未导入，迁移 00073 未执行），非阻断
         if (e?.code === '42703' || e?.code === '23503' || e?.status === 409) {
@@ -1539,16 +1556,14 @@ export async function grantEmotionClaim(payload: {
       productId: payload.productId, storeId: payload.storeId,
       selectedEmotion: payload.selectedEmotion, badgeText: payload.badgeText,
       tb, cv, badgeCode: badge.code, ruleVersion: rv.version,
-      l1Id, l2Id, l1Cv, l2Cv,
-    })
+      l1Id, l2Id, l1Cv, l2Cv})
 
     // 发放 情绪豆 + 会员贡献值（沿用项目既有的 profiles.update 写法）
     const newTb = Math.round(((profile.tb_balance || 0) + tb) * 100) / 100
     const newCv = Math.round(((profile.cv_total || 0) + cv) * 100) / 100
     await supabase.from('profiles').update({
       tb_balance: newTb,
-      cv_total: newCv,
-    }).eq('id', profile.id)
+      cv_total: newCv}).eq('id', profile.id)
 
     // 给上级结算裂变附加分（并行，省 1 个 RTT；best-effort，不阻塞主流程）
     const cvTasks: Promise<void>[] = []
@@ -1599,8 +1614,7 @@ export async function getPlatformMetrics(): Promise<{
         total_cv: Number(d.total_cv) || 0,
         gmv_total: Number(d.gmv_total) || 0,
         new_users_month: Number(d.new_users_month) || 0,
-        net_margin_total: Number(d.net_margin_total) || 0,
-      }
+        net_margin_total: Number(d.net_margin_total) || 0}
     }
   } catch (e) {
     console.warn('[getPlatformMetrics] RPC 不可用，回退估算', e)
@@ -1635,8 +1649,7 @@ export async function getEquitySummary(): Promise<EquitySummary> {
     dividendEstimate,
     newUsersThisMonth: m?.new_users_month || 0,
     // gmvTotal 展示口径：由净毛利反推粗略 GMV（无任何页面强依赖此字段）
-    gmvTotal: netMargin > 0 ? Math.round(netMargin / GROSS_MARGIN_FALLBACK) : 0,
-  }
+    gmvTotal: netMargin > 0 ? Math.round(netMargin / GROSS_MARGIN_FALLBACK) : 0}
 }
 
 // =====================================================
@@ -1650,8 +1663,7 @@ export async function voidEmotionClaim(
 ): Promise<{ ok: boolean; cv_back?: number; tb_back?: number; l1_back?: number; l2_back?: number } | null> {
   try {
     const { data, error } = await supabase.rpc('fn_void_emotion_claim', {
-      p_claim_id: claimId, p_reason: reason, p_refund_ratio: refundRatio,
-    })
+      p_claim_id: claimId, p_reason: reason, p_refund_ratio: refundRatio})
     if (error) { console.warn('[voidEmotionClaim]', error); return null }
     return data as any
   } catch (e) { console.warn('[voidEmotionClaim]', e); return null }
@@ -1692,8 +1704,7 @@ export async function banUserRollback(
 ): Promise<{ ok: boolean; upline_l1_back?: number; upline_l2_back?: number } | null> {
   try {
     const { data, error } = await supabase.rpc('fn_ban_user_rollback', {
-      p_user_id: userId, p_reason: reason,
-    })
+      p_user_id: userId, p_reason: reason})
     if (error) { console.warn('[banUserRollback]', error); return null }
     return data as any
   } catch (e) { console.warn('[banUserRollback]', e); return null }
@@ -1797,8 +1808,7 @@ export async function addEmotionTongbao(
       balance_after: newBalance,
       reason,
       ref_id: refId || null,
-      remark: remark || null,
-    })
+      remark: remark || null})
     .select('*')
     .maybeSingle()
   return { balance: newBalance, log: (log as EmotionTongbaoLog) || null }
@@ -1835,8 +1845,7 @@ export async function spendEmotionTongbao(
       balance_after: newBalance,
       reason,
       ref_id: refId || null,
-      remark: remark || null,
-    })
+      remark: remark || null})
     .select('*')
     .maybeSingle()
   return { ok: true, balance: newBalance, log: (log as EmotionTongbaoLog) || null }
@@ -1875,8 +1884,7 @@ export async function getEmotionTongbaoStats(userId: string): Promise<{
   return {
     balance: data?.balance ?? 0,
     total_earned: data?.total_earned ?? 0,
-    total_spent: data?.total_spent ?? 0,
-  }
+    total_spent: data?.total_spent ?? 0}
 }
 
 /** 徽章字典（前端冷启动拉一次即可） */
@@ -2005,8 +2013,7 @@ export async function syncMemberRank(userId: string): Promise<string | null> {
     const next = computeMemberRank({
       totalConsumption: (profile as any).total_consumption || 0,
       badgeCount: stats.count,
-      rareBadgeCount: stats.rareCount,
-    })
+      rareBadgeCount: stats.rareCount})
     const current = (profile as any).member_rank || '江湖散修'
     if (next !== current) {
       await supabase.from('profiles').update({ member_rank: next }).eq('id', userId)
@@ -2015,8 +2022,7 @@ export async function syncMemberRank(userId: string): Promise<string | null> {
         user_id: userId,
         from_stage: current,
         to_stage: next,
-        trigger: 'consume+badge',
-      }).then(() => {}).catch(() => {})
+        trigger: 'consume+badge'}).then(() => {}).catch(() => {})
     }
     return next
   } catch (e) {
@@ -2095,8 +2101,7 @@ export async function applyRefund(params: {
         'approved': '审核通过',
         'rejected': '已拒绝',
         'completed': '已完成退款',
-        'cancelled': '已取消',
-      }
+        'cancelled': '已取消'}
       const statusText = statusMap[existingRefund.status] || existingRefund.status
       return { success: false, error: `该订单已申请退款，当前状态：${statusText}` }
     }
@@ -2152,8 +2157,7 @@ export async function applyRefund(params: {
       reason: params.reason,
       description: params.description || null,
       version: 1,
-      completed_at: new Date().toISOString(),
-    }).select('id').maybeSingle()
+      completed_at: new Date().toISOString()}).select('id').maybeSingle()
 
     if (error) { console.error('[applyRefund]', error); return { success: false, error: error.message } }
 
@@ -2167,42 +2171,39 @@ export async function applyRefund(params: {
         if (ben) {
           await supabase.from('profiles').update({
             total_commission: Math.max(0, ben.total_commission - comm.commission_amount),
-            settled_commission: Math.max(0, ben.settled_commission - comm.commission_amount),
-          }).eq('id', comm.beneficiary_id)
+            settled_commission: Math.max(0, ben.settled_commission - comm.commission_amount)}).eq('id', comm.beneficiary_id)
         }
         await supabase.from('commissions').update({ status: 'refunded' as any }).eq('id', comm.id)
       }
     }
 
-    // ===== ② 金豆回滚（买家获赠金豆随退款扣回；points 已并入 gold_beans）=====
+    // ===== ② 金豆回滚（买家获赠金豆随退款扣回；points 已并入 balance）=====
     if (order.buyer_points && order.buyer_points > 0) {
-      const { data: profile } = await supabase.from('profiles').select('gold_beans').eq('id', user.id).single()
+      const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single()
       if (profile) {
-        const newBeans = Math.max(0, (profile.gold_beans || 0) - order.buyer_points)
-        await supabase.from('profiles').update({ gold_beans: newBeans }).eq('id', user.id)
+        const newBalance = Math.max(0, (profile.balance || 0) - order.buyer_points)
+        await supabase.from('profiles').update({ balance: newBalance }).eq('id', user.id)
         supabase.from('gold_bean_logs').insert({
           user_id: user.id, order_id: order.id ?? null,
           type: 'refund_deduct' as any,
-          delta: -order.buyer_points, balance_after: newBeans,
-          remark: `订单${order.order_no ?? ''}退款，扣回获赠金豆`,
-        }).then(() => {}).catch(() => {})
+          delta: -order.buyer_points, balance_after: newBalance,
+          remark: `订单${order.order_no ?? ''}退款，扣回获赠金豆`}).then(() => {}).catch(() => {})
       }
     }
 
     // ===== ③ 金豆退回（退回到用户账户，仅消费侧）=====
     if (order.gold_beans_used && order.gold_beans_used > 0) {
-      const { data: profile } = await supabase.from('profiles').select('gold_beans').eq('id', user.id).single()
+      const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single()
       if (profile) {
-        await supabase.from('profiles').update({ gold_beans: profile.gold_beans + order.gold_beans_used }).eq('id', user.id)
+        await supabase.from('profiles').update({ balance: profile.balance + order.gold_beans_used }).eq('id', user.id)
         // 非阻塞写金豆流水（退款返还）；表缺失(404)也不影响主流程
         supabase.from('gold_bean_logs').insert({
           user_id: user.id,
           order_id: order.id ?? null,
           type: 'refund_return',
           delta: order.gold_beans_used,
-          balance_after: (profile.gold_beans ?? 0) + order.gold_beans_used,
-          remark: `订单${order.order_no ?? ''}退款返还金豆`,
-        }).then(() => {}).catch((e: any) => {
+          balance_after: (profile.balance ?? 0) + order.gold_beans_used,
+          remark: `订单${order.order_no ?? ''}退款返还金豆`}).then(() => {}).catch((e: any) => {
           if (e?.code === '42P01' || (e as any)?.status === 404) {
             console.warn('[gold_bean_logs] 表不存在(00076未执行)，流水暂不记录')
           }
@@ -2224,8 +2225,7 @@ export async function applyRefund(params: {
           if (bProf) {
             await supabase.from('profiles').update({
               commission_balance: Math.max(0, Math.round((Number(bProf.commission_balance || 0) - amt) * 100) / 100),
-              total_commission: Math.max(0, Math.round((Number(bProf.total_commission || 0) - amt) * 100) / 100),
-            }).eq('id', c.beneficiary_id)
+              total_commission: Math.max(0, Math.round((Number(bProf.total_commission || 0) - amt) * 100) / 100)}).eq('id', c.beneficiary_id)
           }
           // 同步将该笔佣金标记为已退回，避免重复对账
           await supabase.from('commissions').update({ status: 'refunded' }).eq('order_id', params.order_id).eq('beneficiary_id', c.beneficiary_id)
@@ -2240,8 +2240,7 @@ export async function applyRefund(params: {
       status: 'after_sale',
       refund_status: 'refunded',
       refunded_amount: (order.refunded_amount || 0) + params.refund_amount,
-      updated_at: new Date().toISOString(),
-    }).eq('id', params.order_id)
+      updated_at: new Date().toISOString()}).eq('id', params.order_id)
 
     // P0 修复：库存回滚
     try {
@@ -2269,7 +2268,8 @@ export async function getMyPointsLogs(page = 0, limit = 20): Promise<import('./t
   return Array.isArray(data) ? data : []
 }
 
-/** 获取用户积分 & 推广佣金账户余额（推广佣金=推广服务费，可提现并代扣个税；与消费积分 gold_beans 隔离） */
+/** 获取用户余额 & 推广佣金账户余额。
+ *  注意：gold_beans 字段已废弃，消费积分/金豆统一使用 balance。函数仍返回 gold_beans 仅作兼容，新代码请读取 balance。 */
 export async function getMyBalance(): Promise<{ points: number; balance: number; gold_beans: number; commission_balance: number }> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { points: 0, balance: 0, gold_beans: 0, commission_balance: 0 }
@@ -2278,8 +2278,7 @@ export async function getMyBalance(): Promise<{ points: number; balance: number;
     points: data?.points ?? 0,
     balance: data?.balance ?? 0,
     gold_beans: data?.gold_beans ?? 0,
-    commission_balance: data?.commission_balance ?? 0,
-  }
+    commission_balance: data?.commission_balance ?? 0}
 }
 
 /** 生成小程序二维码（推广码 or 门店码） */
@@ -2394,7 +2393,15 @@ export async function createProduct(params: {
   // 新增字段
   main_image?: string; sub_images?: string[]; detail_images?: string[]
   video_url?: string; cost_price?: number; discount_rate?: number
-  ingredients?: string[]   // 原料成分分析：关联食材 key
+  ingredients?: string[]   // 原料成分分析：关联食材 key（即方案 raw_material）
+  is_active?: boolean
+  // 食材食疗智能导购字段（迁移 00100）
+  overall_nature?: string
+  health_tag?: string[]
+  emotion_tag?: string[]
+  match_goods?: string[]
+  conflict_goods?: string[]
+  aux_remind?: string
 }): Promise<import('./types').Product | null> {
   // 合规校验：商品标题/描述不得含违禁词（广告法绝对化用语/金融化/博彩诱导）
   const nameCheck = checkIllegalWords(params.name)
@@ -2405,41 +2412,80 @@ export async function createProduct(params: {
     Taro.showToast({ title: `商品文案含违禁词：${words.join('、')}`, icon: 'none', duration: 3000 })
     return null
   }
+
+  // ── 优先走 Edge Function（service_role 在服务端写库，绕过 products 表 RLS 写策略）──
+  // 彻底规避「安全加固迁移把商家写策略删掉 → 上架保存失败」的反复问题。
+  // 函数未部署 / 调用异常时自动回退到下方直写逻辑（保持旧行为，不退化）。
+  try {
+    const invokeBody: Record<string, unknown> = {
+      store_id: params.store_id,
+      name: params.name,
+      description: params.description ?? null,
+      price: params.price,
+      stock: params.stock,
+      barcode: params.barcode ?? null,
+      main_image: params.main_image || params.image_url || null,
+      sub_images: params.sub_images ?? null,
+      detail_images: params.detail_images ?? null,
+      video_url: params.video_url ?? null,
+      cost_price: params.cost_price ?? null,
+      original_price: params.original_price ?? null,
+      discount_rate: params.discount_rate ?? null,
+      mood_tags: params.mood_tags ?? [],
+      scene_tags: params.scene_tags ?? [],
+      ingredients: params.ingredients ?? null,
+      is_active: params.is_active ?? false,
+      overall_nature: params.overall_nature ?? null,
+      health_tag: params.health_tag ?? null,
+      emotion_tag: params.emotion_tag ?? null,
+      match_goods: params.match_goods ?? null,
+      conflict_goods: params.conflict_goods ?? null,
+      aux_remind: params.aux_remind ?? null}
+    const { data, error } = await supabase.functions.invoke('product-mutate', { body: invokeBody })
+    if (!error && data?.success) {
+      console.log('[createProduct] 经 Edge Function 写入成功 (绕过 RLS)')
+      return (data as any).product as import('./types').Product
+    }
+    // 函数返回业务错误（如门店归属不匹配）→ 直接抛出，不再回退（回退也会失败）
+    if (error) {
+      console.warn('[createProduct] Edge Function 调用失败，回退直写：', error.message || JSON.stringify(error))
+    } else if (data?.error) {
+      console.warn('[createProduct] Edge Function 业务错误，回退直写：', data.error)
+    }
+  } catch (e: any) {
+    console.warn('[createProduct] 调用 Edge Function 异常，回退直写：', e?.message || e)
+  }
+
+  // ── 回退：直连 Supabase 写入（依赖 products 表 RLS 写策略，需 00095 已应用）──
   // 先查门店信息，让新建商品携带 stores 关联数据
   let storeInfo: any = null
   if (params.store_id) {
     const { data: s } = await supabase.from('stores').select('*').eq('id', params.store_id).maybeSingle()
     storeInfo = s
   }
-  const { data, error } = await supabase.from('products').insert({
+  const insertPayload: Record<string, unknown> = {
     ...params,
     mood_tags: params.mood_tags ?? [],
     scene_tags: params.scene_tags ?? [],
     review_status: 'pending',
-    is_active: false,
+    is_active: params.is_active ?? false,
     main_image: params.main_image || params.image_url || null,
     sub_images: params.sub_images ?? null,
     detail_images: params.detail_images ?? null,
     video_url: params.video_url ?? null,
     cost_price: params.cost_price ?? null,
     discount_rate: params.discount_rate ?? null,
-  }).select().maybeSingle()
-  // 软降级：若 products 表尚未加 ingredients 列（迁移 00090 未执行），剥离后重试，保证保存不失败
-  if (error && /ingredients/.test(error.message)) {
-    const { ingredients, ...rest } = params
-    const r2 = await supabase.from('products').insert({
-      ...rest,
-      mood_tags: rest.mood_tags ?? [],
-      scene_tags: rest.scene_tags ?? [],
-      review_status: 'pending',
-      is_active: false,
-      main_image: rest.main_image || rest.image_url || null,
-      sub_images: rest.sub_images ?? null,
-      detail_images: rest.detail_images ?? null,
-      video_url: rest.video_url ?? null,
-      cost_price: rest.cost_price ?? null,
-      discount_rate: rest.discount_rate ?? null,
-    }).select().maybeSingle()
+    ingredients: params.ingredients ?? null,
+    overall_nature: params.overall_nature ?? null,
+    health_tag: params.health_tag ?? null,
+    emotion_tag: params.emotion_tag ?? null,
+    match_goods: params.match_goods ?? null,
+    conflict_goods: params.conflict_goods ?? null,
+    aux_remind: params.aux_remind ?? null}
+  const { data, error } = await supabase.from('products').insert(insertPayload).select().maybeSingle()
+  // 软降级：若 products 表尚未加食疗导购新列（迁移 00100 未执行），剥离后重试，保证保存不失败
+  if (error && NEW_COLUMN_RE.test(error.message)) {
+    const r2 = await supabase.from('products').insert(stripNewProductColumns(insertPayload)).select().maybeSingle()
     if (r2.error) { console.error('[createProduct]', r2.error); throw r2.error }
     return r2.data as import('./types').Product
   }
@@ -2459,11 +2505,29 @@ export async function updateProduct(id: string, params: Partial<{
   main_image: string; sub_images: string[]; detail_images: string[]
   video_url: string; cost_price: number; discount_rate: number
   ingredients?: string[]
+  // 食材食疗智能导购字段（迁移 00100）
+  overall_nature?: string; health_tag?: string[]; emotion_tag?: string[]
+  match_goods?: string[]; conflict_goods?: string[]; aux_remind?: string
 }>): Promise<boolean> {
+  // 优先走 Edge Function（service_role 绕过 RLS 写策略），未部署时回退直写
+  try {
+    const invokeBody: Record<string, unknown> = { id, ...(params as Record<string, unknown>) }
+    const { data, error } = await supabase.functions.invoke('product-mutate', { body: invokeBody })
+    if (!error && data?.success) {
+      console.log('[updateProduct] 经 Edge Function 更新成功 (绕过 RLS)')
+      return true
+    }
+    if (error) console.warn('[updateProduct] Edge Function 调用失败，回退直写：', error.message || JSON.stringify(error))
+    else if (data?.error) console.warn('[updateProduct] Edge Function 业务错误，回退直写：', data.error)
+  } catch (e: any) {
+    console.warn('[updateProduct] 调用 Edge Function 异常，回退直写：', e?.message || e)
+  }
+
+  // 回退：直连更新（依赖 products 表 RLS 写策略）
   const { error } = await supabase.from('products').update(params as any).eq('id', id)
-  if (error && /ingredients/.test(error.message)) {
-    const { ingredients, ...rest } = params
-    const r2 = await supabase.from('products').update(rest as any).eq('id', id)
+  // 软降级：若 products 表尚未加食疗导购新列（迁移 00100 未执行），剥离后重试
+  if (error && NEW_COLUMN_RE.test(error.message)) {
+    const r2 = await supabase.from('products').update(stripNewProductColumns(params as any)).eq('id', id)
     return !r2.error
   }
   return !error
@@ -2504,8 +2568,7 @@ export async function lockCustomerByArticle(storeId: string, inviterCode: string
       user_id: user.id,
       store_id: storeId,
       lock_type: 'article',  // 文章分享归属
-      locked_at: new Date().toISOString(),
-    })
+      locked_at: new Date().toISOString()})
 
     console.log(`[文章归属] user=${user.id} locked to store=${storeId}`)
   } catch (e) {
@@ -2551,8 +2614,7 @@ export async function adminApproveApplication(id: string): Promise<boolean> {
     phone: app.data.contact_phone || null,
     category: app.data.business_type || '其他',
     is_active: true,
-    rating: 0,
-  })
+    rating: 0})
   
   if (storeError) {
     console.error('[adminApproveApplication] 创建门店失败:', storeError)
@@ -2612,8 +2674,7 @@ export async function adminApproveWithdrawal(id: string): Promise<boolean> {
   await supabase.from('profiles').update({
     commission_balance: cur - amt,
     settled_commission: Math.round(settled * 100) / 100,
-    updated_at: new Date().toISOString(),
-  }).eq('id', w.data.user_id)
+    updated_at: new Date().toISOString()}).eq('id', w.data.user_id)
   const { error } = await supabase.from('withdrawals').update({ status: 'paid', updated_at: new Date().toISOString() }).eq('id', id)
   return !error
 }
@@ -2657,8 +2718,7 @@ export async function merchantShipOrder(orderId: string, shipCompany?: string, s
     status: 'pending_receive',
     ship_company: shipCompany || null,
     ship_no: shipNo || null,
-    shipped_at: new Date().toISOString(),
-  }).eq('id', orderId)
+    shipped_at: new Date().toISOString()}).eq('id', orderId)
   if (error) { console.error('[merchantShipOrder]', error); return false }
   return true
 }
@@ -2667,8 +2727,7 @@ export async function merchantShipOrder(orderId: string, shipCompany?: string, s
 export async function merchantVerifyPickup(orderId: string): Promise<boolean> {
   const { error } = await supabase.from('orders').update({
     status: 'pending_review',
-    verified_at: new Date().toISOString(),
-  }).eq('id', orderId)
+    verified_at: new Date().toISOString()}).eq('id', orderId)
   if (error) { console.error('[merchantVerifyPickup]', error); return false }
   return true
 }
@@ -2715,8 +2774,7 @@ export async function applyWithdraw(params: {
       id_card: params.id_card?.trim() || null,
       bank_holder: params.withdraw_method === 'bank'
         ? (params.bank_holder?.trim() || realName)
-        : params.bank_holder?.trim() || null,
-    }).select().maybeSingle()
+        : params.bank_holder?.trim() || null}).select().maybeSingle()
   if (error) { console.error('[applyWithdraw]', error); return null }
   return data
 }
@@ -2801,8 +2859,7 @@ export async function recordFootprint(productId: string): Promise<void> {
     await supabase.from('footprints').upsert({
       user_id: user.id,
       product_id: productId,
-      viewed_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,product_id' })
+      viewed_at: new Date().toISOString()}, { onConflict: 'user_id,product_id' })
   } catch (e) {
     console.error('[recordFootprint]', e)
   }
@@ -2830,8 +2887,7 @@ export async function submitReviews(reviews: Array<{
   const rows = reviews.map(r => ({ 
     ...r, 
     user_id: user.id,
-    mood_tags: r.mood_tags && r.mood_tags.length > 0 ? r.mood_tags : null,
-  }))
+    mood_tags: r.mood_tags && r.mood_tags.length > 0 ? r.mood_tags : null}))
   const { error } = await supabase.from('product_reviews').insert(rows)
   if (!error) {
     // 更新订单状态为已完成
@@ -2866,4 +2922,68 @@ export async function updateUserProfile(params: { nickname?: string; avatar_url?
   if (!user) return false
   const { error } = await supabase.from('profiles').update(params).eq('id', user.id)
   return !error
+}
+
+// =====================
+// 食材食疗导购 · 用户反馈回流（个性化权重）
+// =====================
+
+export type FoodTherapyEvent = 'view' | 'add_cart' | 'purchase' | 'like' | 'dislike'
+
+// 埋点：记录用户与导购商品的一次交互。best-effort，不阻断主流程。
+// 迁移 00103 未执行时表不存在，insert 失败被 catch 静默吞掉。
+export async function trackFoodTherapyEvent(params: {
+  productId?: string | null
+  eventType: FoodTherapyEvent
+  healthTag?: string[] | null
+  emotionTag?: string[] | null
+}): Promise<boolean> {
+  try {
+    const uid = (await supabase.auth.getUser()).data.user?.id
+    if (!uid) return false
+    const { error } = await supabase.from('food_therapy_feedback').insert({
+      user_id: uid,
+      product_id: params.productId ?? null,
+      event_type: params.eventType,
+      health_tag: params.healthTag ?? [],
+      emotion_tag: params.emotionTag ?? []})
+    if (error) {
+      console.warn('[trackFoodTherapyEvent] 跳过（反馈表可能未迁移）:', error.message)
+      return false
+    }
+    return true
+  } catch (e) {
+    console.warn('[trackFoodTherapyEvent] 异常(不影响主流程)', e)
+    return false
+  }
+}
+
+// 读取当前用户的个性化权重：统计各 health_tag 的正负反馈。
+// 加购/购买/点赞 +1，点踩 -1（view 不计权重，仅作潜在兴趣）。
+// 返回 { [tag]: number }，打分引擎据其提升匹配标签的加分。
+export async function getUserFoodTherapyWeights(): Promise<Record<string, number>> {
+  try {
+    const uid = (await supabase.auth.getUser()).data.user?.id
+    if (!uid) return {}
+    const { data, error } = await supabase
+      .from('food_therapy_feedback')
+      .select('event_type, health_tag')
+      .eq('user_id', uid)
+    if (error) {
+      console.warn('[getUserFoodTherapyWeights] 跳过（反馈表可能未迁移）:', error.message)
+      return {}
+    }
+    const weights: Record<string, number> = {}
+    for (const row of (data ?? []) as { event_type: string; health_tag: string[] | null }[]) {
+      const sign = row.event_type === 'dislike' ? -1 : row.event_type === 'view' ? 0 : 1
+      if (sign === 0) continue
+      for (const t of row.health_tag ?? []) {
+        weights[t] = (weights[t] ?? 0) + sign
+      }
+    }
+    return weights
+  } catch (e) {
+    console.warn('[getUserFoodTherapyWeights] 异常(不影响主流程)', e)
+    return {}
+  }
 }

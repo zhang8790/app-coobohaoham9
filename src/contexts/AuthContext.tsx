@@ -85,6 +85,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
           if (userErr || !userData?.user) {
             // 清理损坏的本地 session，回到干净登录态，避免反复 403 卡死确权流程
             console.warn('[Auth] 本地 token 已失效，清理并回登录态')
+            Taro.showToast({ title: '登录已失效，请重新登录', icon: 'none', duration: 2500 })
             await supabase.auth.signOut().catch(() => {})
             setUser(null)
             setProfile(null)
@@ -107,6 +108,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
         console.warn('[Auth] getSession 失败（已超时或网络错误）:', error?.message || error)
         // 清理可能损坏的本地 session（坏 refresh_token 会一直阻塞自动登录），
         // 让用户能以干净状态重新登录，避免反复 Invalid Refresh Token
+        Taro.showToast({ title: '登录校验失败，请重新登录', icon: 'none', duration: 2500 })
         supabase.auth.signOut().catch(() => {})
         setUser(null)
         setProfile(null)
@@ -139,7 +141,9 @@ export function AuthProvider({children}: {children: ReactNode}) {
       if (/^1[3-9]\d{9}$/.test(username)) {
         if (username === '18701410500' || username === '18710410500' || username === '187101410500') {
             email = 'test18701410500@test.com'
-          } else {
+        } else if (username === '18565613635') {
+          email = 'test18565613635@test.com'
+        } else {
             // 生产环境：此处应通过 backend API 按手机号查邮箱
             throw new Error('该手机号未开通密码登录，请使用短信验证码登录')
           }

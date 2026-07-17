@@ -1,8 +1,8 @@
 // 我的推荐 - 展示两级（我的好友+我的粉丝）推荐关系，仅两级
 import { useState, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { View, Text, Image, ScrollView } from '@tarojs/components'
-import { getMyProfile, getMyReferrals, ensureReferralCode } from '@/db/api'
+import { View, Text, Image } from '@tarojs/components'
+import { getMyReferrals, ensureReferralCode } from '@/db/api'
 import type { Profile } from '@/db/types'
 
 export default function MyReferrals() {
@@ -126,7 +126,7 @@ export default function MyReferrals() {
               <View className="flex-1">
                 <Text className="text-base font-bold text-foreground">{p.nickname || '江湖侠客'}</Text>
                 <Text className="text-xs text-muted-foreground mt-0.5">
-                  {p.member_rank || '江湖散修'} · 金豆 {p.gold_beans || 0}
+                  {p.member_rank || '江湖散修'} · 金豆 {p.balance || 0}
                 </Text>
               </View>
               <Text className="text-xs text-muted-foreground">

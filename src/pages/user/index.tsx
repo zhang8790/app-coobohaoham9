@@ -1,5 +1,5 @@
 // @title 侠客
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image, Input } from '@tarojs/components'
 import { getMyProfile, getMyMerchantApplication, getOrderCounts, updateProfile, getEquitySummary } from '@/db/api'
@@ -230,7 +230,7 @@ function UserPage() {
         {user && profile && (
           <View className="grid grid-cols-3 gap-3 mt-4">
             {[
-              { label: '金豆', value: profile.gold_beans || 0, icon: 'i-mdi-wallet' },
+              { label: '金豆', value: profile.balance || 0, icon: 'i-mdi-wallet' },
               { label: '情绪豆', value: profile.tb_balance || 0, icon: 'i-mdi-emoticon-happy' },
               { label: '优惠券', value: `${profile.coupons_count || 0}张`, icon: 'i-mdi-ticket' },
             ].map(item => (
@@ -325,8 +325,7 @@ function UserPage() {
                   flexDirection: 'column',
                   alignItems: 'center',
                   padding: '12px 0',
-                  gap: '8px',
-                }}>
+                  gap: '8px'}}>
                 <Text style={{ fontSize: '32px' }}>{item.icon}</Text>
                 <Text style={{ fontSize: '14px', color: '#333', fontWeight: 'bold' }}>{item.name}</Text>
                 <Text style={{ fontSize: '12px', color: '#999' }}>{item.desc}</Text>
@@ -358,8 +357,7 @@ function UserPage() {
               {item.badge === 'unread' && unreadCount > 0 && (
                 <View style={{
                   minWidth: 20, height: 20, padding: '0 6px', borderRadius: 10,
-                  background: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
+                  background: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                   <Text style={{ color: 'white', fontSize: 11, fontWeight: 600, lineHeight: '20px' }}>
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </Text>

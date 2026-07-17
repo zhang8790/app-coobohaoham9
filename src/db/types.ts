@@ -16,8 +16,8 @@ export interface Profile {
   openid: string | null
   member_rank: MemberRank
   points: number
-  balance: number          // 预留现金账户（当前未启用：无充值入口、不可用于支付/提现、C端不可见）。若未来启用用户储值，必须取得《支付业务许可证》，否则构成非法从事支付结算业务
-  gold_beans: number       // 消费积分（金豆）：仅订单 1:1 抵扣，不可提现、不可兑现金
+  balance: number          // 金豆消费抵扣余额（用户视角"金豆"）：1:1 抵扣订单金额，充值/消费获赠均写入此字段；gold_beans 为历史遗留字段，不再使用
+  gold_beans: number       // 【历史遗留/已废弃】原消费积分字段，00058 已将其值并入 commission_balance；严禁新业务读写此字段，统一使用 balance 作为金豆余额
   commission_balance: number // 推广佣金账户余额（推广服务费，由推广佣金流水驱动，可提现并代扣个税）
   tb_balance: number       // 情绪豆余额（会员成长积分，V2）
   cv_total: number         // 会员贡献值累计（会员权益计算依据，V2）
@@ -34,6 +34,7 @@ export interface Profile {
   team_monthly_gmv: number | null         // 团队月度GMV
   has_new_recruit: boolean | null         // 当月是否有新增推荐客户
   months_since_last_recruit: number | null // 距离上次拓新月数
+  constitution_tags: string[] | null // 用户自填体质/健康状况标签（宫寒量少/高血压…），食疗匹配用；仅食养参考不替代医嘱
   created_at: string
 }
 
@@ -107,6 +108,13 @@ export interface Product {
   stores?: Store
   product_emotion?: ProductEmotion
   ingredients?: string[] | null
+  // 食材食疗智能导购字段（迁移 00100；raw_material 复用 ingredients 列）
+  overall_nature?: string | null          // 商品整体性味：大寒/寒凉/平性/微温/温热/大热
+  health_tag?: string[] | null            // 固定食疗标签库 9 项
+  emotion_tag?: string[] | null           // 固定情绪标签库 8 项
+  match_goods?: string[] | null           // 推荐搭配商品 id 列表
+  conflict_goods?: string[] | null        // 冲突/慎搭商品 id 列表
+  aux_remind?: string | null              // 辅料自适应提醒文案
 }
 
 // 商品情绪编译结果缓存（由 emotion-compile Edge Function 写入，详情页直读）
