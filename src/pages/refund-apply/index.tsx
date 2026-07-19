@@ -215,8 +215,8 @@ function RefundApplyPage() {
           <View>
             <Text className="text-xl font-bold text-foreground mb-2">退款说明</Text>
             <Text className="text-base text-muted-foreground leading-relaxed">• 退款将原路退回至您的支付账户</Text>
-            <Text className="text-base text-muted-foreground leading-relaxed">• 使用情绪豆抵扣部分将退还至情绪豆余额</Text>
-            <Text className="text-base text-muted-foreground leading-relaxed">• 退款对应的积分奖励将同步扣回</Text>
+            <Text className="text-base text-muted-foreground leading-relaxed">• 使用金豆抵扣部分将退还至金豆余额</Text>
+            <Text className="text-base text-muted-foreground leading-relaxed">• 退款对应的金豆奖励将同步扣回</Text>
             <Text className="text-base text-muted-foreground leading-relaxed">• 微信退款通常1-3个工作日到账</Text>
           </View>
         </View>

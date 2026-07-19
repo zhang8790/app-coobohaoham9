@@ -87,7 +87,7 @@ function EmotionBadgesPage() {
         <View className="grid grid-cols-3 gap-3 mt-5">
           {[
             { label: '已获徽章', value: `${ownedCount}`, sub: `/ ${defs.length}` },
-            { label: '情绪豆', value: `${balance}`, sub: '可用' },
+            { label: '金豆', value: `${balance}`, sub: '可用' },
             { label: '获取进度', value: defs.length ? `${Math.round((ownedCount / defs.length) * 100)}%` : '0%', sub: '完成度' },
           ].map(s => (
             <View key={s.label} className="emotion-badges-stat">

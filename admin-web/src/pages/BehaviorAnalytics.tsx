@@ -8,9 +8,9 @@ import { executeCare } from '@/utils/behavior-analytics'
 
 // ── 通用样式（对齐 FinanceDashboard）────────────────────────────────────
 const C = {
-  bg: '#0B0F19', card: '#0F172A', border: '#1F2937', text: '#E5E7EB',
-  sub: '#9CA3AF', dim: '#6B7280', accent: '#C2410C', green: '#10B981',
-  blue: '#3B82F6', purple: '#8B5CF6', gold: '#F59E0B', red: '#EF4444',
+  bg: 'var(--bg)', card: 'var(--card)', border: 'var(--border)', text: 'var(--text)',
+  sub: 'var(--text-muted)', dim: 'var(--text-dim)', accent: 'var(--primary)', green: 'var(--success-strong)',
+  blue: 'var(--info)', purple: 'var(--accent)', gold: 'var(--warning)', red: 'var(--danger)',
 }
 const cardStyle: React.CSSProperties = {
   background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 20px',
@@ -101,7 +101,7 @@ function TriggerPanel({ triggers, onCare, caring }: {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {triggers.slice(0, 12).map((t, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 12px', background: '#0B1220', border: `1px solid ${C.border}`, borderRadius: 8 }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 12px', background: 'var(--surface)', border: `1px solid ${C.border}`, borderRadius: 8 }}>
           <div style={{ minWidth: 0 }}>
             <p style={{ color: C.text, fontSize: 13, fontWeight: 600 }}>{t.nickname} <span style={{ color: C.dim, fontWeight: 400 }}>· {t.reason}</span></p>
             <p style={{ color: C.gold, fontSize: 12, marginTop: 2 }}>→ {t.action}</p>
@@ -244,14 +244,14 @@ export default function BehaviorAnalytics() {
         <h3 style={{ color: C.text, fontSize: 15, fontWeight: 700, margin: '0 0 12px' }}>流失风险名单（按风险分排序）</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {report.churn.slice(0, 15).map(u => (
-            <div key={u.userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 10px', background: '#0B1220', borderRadius: 8 }}>
+            <div key={u.userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 10px', background: 'var(--surface)', borderRadius: 8 }}>
               <div>
                 <span style={{ color: C.text, fontSize: 13, fontWeight: 600 }}>{u.nickname}</span>
                 <span style={{ color: C.dim, fontSize: 12, marginLeft: 8 }}>末单 {u.lastOrder} · 已 {u.daysSince} 天</span>
               </div>
               <span style={{
                 fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                background: u.score > 0.66 ? 'rgba(239,68,68,0.18)' : 'rgba(245,158,11,0.18)',
+                background: u.score > 0.66 ? 'var(--danger-soft)' : 'rgba(245,158,11,0.18)',
                 color: u.score > 0.66 ? C.red : C.gold,
               }}>{Math.round(u.score * 100)}%</span>
             </div>

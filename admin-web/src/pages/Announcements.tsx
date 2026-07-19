@@ -63,41 +63,41 @@ export default function Announcements() {
   }
 
   const S = {
-    card: { background: '#0F172A', border: '1px solid #1F2937', borderRadius: 12, padding: '16px 20px' } as React.CSSProperties,
-    th: { color: '#6B7280', fontSize: 12, fontWeight: 500, padding: '10px 16px', textAlign: 'left' as const, background: '#0B0F19' },
-    td: { padding: '14px 16px', fontSize: 14, borderBottom: '1px solid #1F2937' } as React.CSSProperties,
+    card: { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px' } as React.CSSProperties,
+    th: { color: 'var(--text-dim)', fontSize: 12, fontWeight: 500, padding: '10px 16px', textAlign: 'left' as const, background: 'var(--bg)' },
+    td: { padding: '14px 16px', fontSize: 14, borderBottom: '1px solid var(--border)' } as React.CSSProperties,
     btn: (bg: string, fg = 'white') => ({ padding: '6px 14px', background: bg, color: fg, border: 'none', borderRadius: 6, fontSize: 13, cursor: 'pointer' }),
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <h1 style={{ color: '#E5E7EB', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>公告管理</h1>
-        <p style={{ color: '#6B7280', fontSize: 14 }}>发布平台公告，按 sort_order 升序展示</p>
+        <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>公告管理</h1>
+        <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>发布平台公告，按 sort_order 升序展示</p>
       </div>
 
       {/* 新增 */}
       <div style={S.card}>
-        <p style={{ color: '#E5E7EB', fontSize: 15, fontWeight: 600, marginBottom: 12 }}>新增公告</p>
+        <p style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600, marginBottom: 12 }}>新增公告</p>
         <div style={{ display: 'flex', gap: 12 }}>
           <input
             value={newContent}
             onChange={e => setNewContent(e.target.value)}
             placeholder="公告内容"
-            style={{ flex: 1, padding: '8px 12px', background: '#0B0F19', border: '1px solid #1F2937', borderRadius: 6, color: '#E5E7EB', fontSize: 14, outline: 'none' }}
+            style={{ flex: 1, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 14, outline: 'none' }}
           />
           <input
             type="number"
             value={newSort}
             onChange={e => setNewSort(Number(e.target.value))}
             placeholder="排序"
-            style={{ width: 80, padding: '8px 12px', background: '#0B0F19', border: '1px solid #1F2937', borderRadius: 6, color: '#E5E7EB', fontSize: 14, outline: 'none' }}
+            style={{ width: 80, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 14, outline: 'none' }}
           />
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#9CA3AF', fontSize: 13, cursor: 'pointer', userSelect: 'none' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', userSelect: 'none' }}>
             <input type="checkbox" checked={pushToAll} onChange={e => setPushToAll(e.target.checked)} style={{ cursor: 'pointer' }} />
             同时推送给所有用户
           </label>
-          <button onClick={handleAdd} disabled={pushing} style={S.btn('#C2410C')}>
+          <button onClick={handleAdd} disabled={pushing} style={S.btn('var(--primary)')}>
             {pushing ? '推送中…' : '发布'}
           </button>
         </div>
@@ -117,24 +117,24 @@ export default function Announcements() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ ...S.td, textAlign: 'center', color: '#6B7280' }}>加载中...</td></tr>
+              <tr><td colSpan={5} style={{ ...S.td, textAlign: 'center', color: 'var(--text-dim)' }}>加载中...</td></tr>
             ) : list.length === 0 ? (
-              <tr><td colSpan={5} style={{ ...S.td, textAlign: 'center', color: '#6B7280' }}>暂无公告</td></tr>
+              <tr><td colSpan={5} style={{ ...S.td, textAlign: 'center', color: 'var(--text-dim)' }}>暂无公告</td></tr>
             ) : list.map(a => (
               <tr key={a.id}>
                 <td style={S.td}>{a.sort_order}</td>
-                <td style={{ ...S.td, color: '#E5E7EB' }}>{a.content}</td>
+                <td style={{ ...S.td, color: 'var(--text)' }}>{a.content}</td>
                 <td style={S.td}>
-                  <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: a.is_active ? '#10B98122' : '#EF444422', color: a.is_active ? '#10B981' : '#EF4444' }}>
+                  <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: a.is_active ? 'var(--success-soft)' : 'var(--danger-soft)', color: a.is_active ? 'var(--success-strong)' : 'var(--danger)' }}>
                     {a.is_active ? '启用' : '停用'}
                   </span>
                 </td>
-                <td style={{ ...S.td, color: '#9CA3AF', fontSize: 12 }}>{new Date(a.created_at).toLocaleString('zh-CN')}</td>
+                <td style={{ ...S.td, color: 'var(--text-muted)', fontSize: 12 }}>{new Date(a.created_at).toLocaleString('zh-CN')}</td>
                 <td style={S.td}>
-                  <button onClick={() => handleToggle(a)} style={{ ...S.btn(a.is_active ? '#374151' : '#10B981'), marginRight: 8 }}>
+                  <button onClick={() => handleToggle(a)} style={{ ...S.btn(a.is_active ? 'var(--border-soft)' : 'var(--success-strong)'), marginRight: 8 }}>
                     {a.is_active ? '停用' : '启用'}
                   </button>
-                  <button onClick={() => handleDelete(a)} style={S.btn('#EF4444')}>删除</button>
+                  <button onClick={() => handleDelete(a)} style={S.btn('var(--danger)')}>删除</button>
                 </td>
               </tr>
             ))}

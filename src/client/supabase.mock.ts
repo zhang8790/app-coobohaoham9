@@ -410,12 +410,12 @@ export const mockSupabase = {
           const goldBeanYuan = goldBeansToUse * 1
           const wxpayAmount = Math.max(0, total - goldBeanYuan)
 
-          // 纯情绪豆支付：扣除情绪豆余额，订单状态直接为 pending_receive
+          // 纯金豆支付：扣除金豆余额，订单状态直接为 pending_receive
           if (payMode === 'pure_gold') {
             mockProfile.tb_balance = Math.max(0, (mockProfile.tb_balance || 0) - goldBeansToUse)
             mockProfile.points = Math.max(0, (mockProfile.points || 0) - goldBeansToUse)
           } else if (payMode === 'hybrid') {
-            // 混合支付：扣除部分情绪豆
+            // 混合支付：扣除部分金豆
             mockProfile.tb_balance = Math.max(0, (mockProfile.tb_balance || 0) - goldBeansToUse)
             mockProfile.points = Math.max(0, (mockProfile.points || 0) - goldBeansToUse)
           }
@@ -433,7 +433,7 @@ export const mockSupabase = {
           // 模拟佣金计算（V4算法）
           if (referrerId) {
             // 简化版V4计算（避免require()在浏览器报错）
-            const discountPool = total * 0.20  // 让利池 = 订单金额 × 20%
+            const discountPool = total * 0.20  // 平台让利 = 订单金额 × 20%
             const l1Rate = 0.15  // 凡心L1比例
             const l2Rate = 0.06  // 凡心L2比例
             const pointsRate = 0.10  // 凡心积分比例
@@ -503,7 +503,7 @@ export const mockSupabase = {
             }
           }
 
-          // 模拟积分发放（消费金额的 1%，最低 1 积分；纯情绪豆支付也发积分）
+          // 模拟积分发放（消费金额的 1%，最低 1 积分；纯金豆支付也发积分）
           const pointsEarned = Math.max(1, Math.floor(total * 0.01))
           const oldPoints = mockProfile.points || 0
           mockProfile.points = oldPoints + pointsEarned
@@ -515,7 +515,7 @@ export const mockSupabase = {
             remark: `购物奖励积分（订单 ${orderNo}）`,
             created_at: new Date().toISOString()} as any)
 
-          console.log(`[Mock] create-order: 模式=${payMode}, 情绪豆扣=${goldBeansToUse}, 微信付=${wxpayAmount}, 积分+${pointsEarned}`)
+          console.log(`[Mock] create-order: 模式=${payMode}, 金豆扣=${goldBeansToUse}, 微信付=${wxpayAmount}, 积分+${pointsEarned}`)
           return {
             data: {
               success: true, order: newOrder,

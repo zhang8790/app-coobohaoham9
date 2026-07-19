@@ -72,7 +72,7 @@ const pages = [
   'pages/merchant-emotion-funnel/index',
   // V5：消费即确权页（支付成功后引导）
   'pages/emotion-claim/index',
-  // V5：我的情绪账单（用户侧确权集 + 情绪豆）
+  // V5：我的情绪账单（用户侧确权集 + 金豆）
   'pages/emotion-bill/index',
   // V5 P2-1：我的情绪徽章
   'pages/emotion-badges/index',

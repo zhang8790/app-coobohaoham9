@@ -27,12 +27,12 @@ export default function MerchantLayout() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0B0F19' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
       {/* 侧边栏 */}
       <aside style={{
         width: collapsed ? 64 : 220,
-        background: '#080C14',
-        borderRight: '1px solid #1F2937',
+        background: 'var(--surface)',
+        borderRight: '1px solid var(--border)',
         display: 'flex', flexDirection: 'column',
         transition: 'width 0.2s',
         flexShrink: 0,
@@ -40,14 +40,14 @@ export default function MerchantLayout() {
         zIndex: 40,
       }}>
         {/* Logo */}
-        <div style={{ padding: collapsed ? '20px 16px' : '20px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #1F2937', minHeight: 64 }}>
-          <div style={{ width: 32, height: 32, background: '#059669', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ padding: collapsed ? '20px 16px' : '20px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)', minHeight: 64 }}>
+          <div style={{ width: 32, height: 32, background: 'var(--success-strong)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <span style={{ color: 'white', fontSize: 16 }}>🏪</span>
           </div>
           {!collapsed && (
             <div>
-              <p style={{ color: '#E5E7EB', fontWeight: 700, fontSize: 14, lineHeight: 1 }}>商家中心</p>
-              <p style={{ color: '#6B7280', fontSize: 11, marginTop: 2 }}>来电有喜</p>
+              <p style={{ color: 'var(--text)', fontWeight: 700, fontSize: 14, lineHeight: 1 }}>商家中心</p>
+              <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 2 }}>来电有喜</p>
             </div>
           )}
         </div>
@@ -62,10 +62,10 @@ export default function MerchantLayout() {
                 padding: collapsed ? '10px 14px' : '10px 12px',
                 borderRadius: 8,
                 background: isActive ? 'rgba(5,150,105,0.15)' : 'transparent',
-                color: isActive ? '#059669' : '#9CA3AF',
+                color: isActive ? 'var(--success-strong)' : 'var(--text-muted)',
                 textDecoration: 'none', fontSize: 14, fontWeight: isActive ? 600 : 400,
                 transition: 'all 0.15s',
-                borderLeft: isActive ? '2px solid #059669' : '2px solid transparent',
+                borderLeft: isActive ? '2px solid var(--success-strong)' : '2px solid transparent',
               })}
             >
               <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
@@ -77,7 +77,7 @@ export default function MerchantLayout() {
         {/* 折叠按钮 */}
         <button
           onClick={() => setCollapsed(v => !v)}
-          style={{ margin: '8px', padding: '8px', background: 'transparent', border: '1px solid #1F2937', borderRadius: 6, color: '#6B7280', cursor: 'pointer', fontSize: 12 }}
+          style={{ margin: '8px', padding: '8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-dim)', cursor: 'pointer', fontSize: 12 }}
         >
           {collapsed ? '→' : '← 收起'}
         </button>
@@ -87,26 +87,26 @@ export default function MerchantLayout() {
       <div style={{ flex: 1, marginLeft: collapsed ? 64 : 220, display: 'flex', flexDirection: 'column', transition: 'margin-left 0.2s', minHeight: '100vh' }}>
         {/* 顶部 Header */}
         <header style={{
-          height: 64, background: '#080C14', borderBottom: '1px solid #1F2937',
+          height: 64, background: 'var(--surface)', borderBottom: '1px solid var(--border)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0 24px', position: 'sticky', top: 0, zIndex: 30,
         }}>
-          <h1 style={{ color: '#E5E7EB', fontSize: 18, fontWeight: 700 }}>商家管理后台</h1>
+          <h1 style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>商家管理后台</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 32, height: 32, background: '#1F2937', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 32, height: 32, background: 'var(--border)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: 14 }}>🏪</span>
               </div>
               <div>
-                <p style={{ color: '#E5E7EB', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>
+                <p style={{ color: 'var(--text)', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>
                   {profile?.nickname || '商家'}
                 </p>
-                <p style={{ color: '#6B7280', fontSize: 11, marginTop: 2 }}>商家账号</p>
+                <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 2 }}>商家账号</p>
               </div>
             </div>
             <button
               onClick={handleSignOut}
-              style={{ padding: '6px 14px', background: 'transparent', border: '1px solid #374151', borderRadius: 6, color: '#9CA3AF', cursor: 'pointer', fontSize: 13 }}
+              style={{ padding: '6px 14px', background: 'transparent', border: '1px solid var(--border-soft)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}
             >
               退出
             </button>

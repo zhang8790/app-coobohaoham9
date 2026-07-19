@@ -5,7 +5,7 @@ import Taro from '@tarojs/taro'
 import { createArticle } from '@/db/api'
 import { RouteGuard } from '@/components/RouteGuard'
 
-const TAG_OPTIONS = ['美食', '购物', '治愈', '分享', '推荐', '好物', '打卡', '日记']
+const TAG_OPTIONS = ['美食', '购物', '舒心', '分享', '推荐', '好物', '打卡', '日记']
 
 function UGCPublishPage() {
   const [title, setTitle] = useState('')

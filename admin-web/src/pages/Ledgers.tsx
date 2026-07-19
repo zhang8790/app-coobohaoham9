@@ -8,9 +8,9 @@ import { downloadCSV, csvTimestamp, type CsvColumn } from '@/lib/csv'
 import { maskPhone } from '@/utils/mask'
 
 const C = {
-  bg: '#0B0F19', card: '#0F172A', border: '#1F2937', text: '#E5E7EB',
-  sub: '#9CA3AF', dim: '#6B7280', accent: '#C2410C', green: '#10B981',
-  blue: '#3B82F6', purple: '#8B5CF6', gold: '#F59E0B', red: '#EF4444',
+  bg: 'var(--bg)', card: 'var(--card)', border: 'var(--border)', text: 'var(--text)',
+  sub: 'var(--text-muted)', dim: 'var(--text-dim)', accent: 'var(--primary)', green: 'var(--success-strong)',
+  blue: 'var(--info)', purple: 'var(--accent)', gold: 'var(--warning)', red: 'var(--danger)',
 }
 const cardStyle: React.CSSProperties = {
   background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 20px',
@@ -39,16 +39,16 @@ const csLabel = (s: string) => COMMISSION_STATUS.find(([k]) => k === s)?.[1] ?? 
 
 const GOLD_TYPES: [string, string][] = [
   ['purchase_spend', '消费抵扣'], ['refund_return', '退款返还'],
-  ['recharge', '情绪豆充值'], ['admin_grant', '后台发放'], ['admin_deduct', '后台扣减'],
+  ['recharge', '金豆充值'], ['admin_grant', '后台发放'], ['admin_deduct', '后台扣减'],
 ]
 const gbLabel = (t: string) => GOLD_TYPES.find(([k]) => k === t)?.[1] ?? t
 
 type Tab = 'points' | 'emotion' | 'commission' | 'gold'
 const TABS: [Tab, string, string][] = [
-  ['points', '🟢 积分流水', 'points_logs'],
-  ['emotion', '🔵 情绪通宝流水', 'emotion_tongbao_logs'],
-  ['commission', '🟠 佣金流水', 'commissions'],
-  ['gold', '🟡 情绪豆流水', 'tongbao_logs'],
+  ['points', '积分流水', 'points_logs'],
+  ['emotion', '金豆流水', 'emotion_tongbao_logs'],
+  ['commission', '佣金流水', 'commissions'],
+  ['gold', '金豆流水', 'tongbao_logs'],
 ]
 
 export default function Ledgers() {
@@ -90,7 +90,7 @@ export default function Ledgers() {
           { key: 'ref_id', label: '关联ID' }, { key: 'remark', label: '备注' },
         ]
         const rows = data.map(r => ({ ...r, reason: reasonLabel(r.reason), created_at: fmtT(r.created_at) }))
-        downloadCSV(`情绪豆流水_${csvTimestamp()}.csv`, rows as unknown as Record<string, unknown>[], cols)
+        downloadCSV(`金豆流水_${csvTimestamp()}.csv`, rows as unknown as Record<string, unknown>[], cols)
       } else if (tab === 'gold') {
         const data = await exportGoldBeanLedger({ type, keyword: kw })
         const cols: CsvColumn[] = [
@@ -100,14 +100,14 @@ export default function Ledgers() {
           { key: 'order_id', label: '关联订单' }, { key: 'remark', label: '备注' },
         ]
         const rows = data.map(r => ({ ...r, type: gbLabel(r.type), created_at: fmtT(r.created_at) }))
-        downloadCSV(`情绪豆流水_${csvTimestamp()}.csv`, rows as unknown as Record<string, unknown>[], cols)
+        downloadCSV(`金豆流水_${csvTimestamp()}.csv`, rows as unknown as Record<string, unknown>[], cols)
       } else {
         const data = await exportCommissionLedger({ status, level, keyword: kw })
         const cols: CsvColumn[] = [
           { key: 'created_at', label: '时间' }, { key: 'order_no', label: '订单号' },
           { key: 'beneficiary_nickname', label: '受益人' }, { key: 'payer_nickname', label: '付款人' },
           { key: 'level', label: '层级' }, { key: 'rank_at_time', label: '段位' },
-          { key: 'ratio', label: '比例' }, { key: 'pool_amount', label: '让利池' },
+          { key: 'ratio', label: '比例' }, { key: 'pool_amount', label: '平台让利' },
           { key: 'commission_amount', label: '佣金' }, { key: 'status', label: '状态' },
         ]
         const rows = data.map(r => ({
@@ -159,8 +159,8 @@ export default function Ledgers() {
   if (tab === 'points' || tab === 'emotion' || tab === 'gold') {
     const inc = (rows as any[]).reduce((s, r) => s + (r.delta > 0 ? r.delta : 0), 0)
     const dec = (rows as any[]).reduce((s, r) => s + (r.delta < 0 ? -r.delta : 0), 0)
-    const incLabel = tab === 'points' ? '本页积分+ ' : tab === 'emotion' ? '本页通宝发放+ ' : '本页情绪豆+ '
-    const decLabel = tab === 'points' ? '本页积分− ' : tab === 'emotion' ? '本页通宝消耗− ' : '本页情绪豆− '
+    const incLabel = tab === 'points' ? '本页积分+ ' : tab === 'emotion' ? '本页通宝发放+ ' : '本页金豆+ '
+    const decLabel = tab === 'points' ? '本页积分− ' : tab === 'emotion' ? '本页通宝消耗− ' : '本页金豆− '
     kpis = [
       { label: '本页笔数', value: fmt(rows.length), color: C.text },
       { label: incLabel, value: fmt(inc), color: C.green },
@@ -182,8 +182,8 @@ export default function Ledgers() {
       {/* 标题 + 标签页 */}
       <div>
         <h1 style={{ color: C.text, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>资产流水中心</h1>
-        <p style={{ color: C.dim, fontSize: 14 }}>积分 / 情绪通宝 / 佣金 / 情绪豆 — 全平台逐笔明细，与用户端同源</p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 12px', borderRadius: 8, background: isPrivileged ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${isPrivileged ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+        <p style={{ color: C.dim, fontSize: 14 }}>积分 / 金豆 / 佣金 / 金豆 — 全平台逐笔明细，与用户端同源</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 12px', borderRadius: 8, background: isPrivileged ? 'var(--success-soft)' : 'var(--danger-soft)', border: `1px solid ${isPrivileged ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
           <span style={{ fontSize: 13, color: isPrivileged ? C.green : C.red }}>
             {isPrivileged ? '✅ 已启用 service_role 特权客户端，可读取全平台流水' : '⚠️ 当前使用 anon 客户端，00081 加固后无法读取流水；请在 .env.local 配置 VITE_SUPABASE_SERVICE_ROLE_KEY'}
           </span>
@@ -247,7 +247,7 @@ export default function Ledgers() {
           style={{ ...selStyle, width: 220 }} />
         <button onClick={reload} style={btnStyle(false)}>查询</button>
         <button onClick={resetFilters} style={btnStyle(false)}>重置</button>
-        <button onClick={handleExport} disabled={exporting} style={btnStyle(exporting)}>{exporting ? '导出中…' : '⬇ 导出全部'}</button>
+        <button onClick={handleExport} disabled={exporting} style={btnStyle(exporting)}>{exporting ? '导出中…' : '导出全部'}</button>
       </div>
 
       {/* 表格 */}
@@ -255,7 +255,7 @@ export default function Ledgers() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 760 }}>
             <thead>
-              <tr style={{ background: '#080C14', borderBottom: `1px solid ${C.border}` }}>
+              <tr style={{ background: 'var(--surface)', borderBottom: `1px solid ${C.border}` }}>
                 {headCols(tab).map(h => (
                   <th key={h} style={{ color: C.dim, fontWeight: 500, padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
@@ -315,9 +315,9 @@ export default function Ledgers() {
                       <span style={{ color: C.red }}>查询失败：{error}</span>
                       {!isPrivileged && (
                         <span style={{ fontSize: 13, maxWidth: 520, lineHeight: 1.6 }}>
-                          当前未配置 <code style={{ color: C.text, background: '#1F2937', padding: '2px 6px', borderRadius: 4 }}>VITE_SUPABASE_SERVICE_ROLE_KEY</code>，
+                          当前未配置 <code style={{ color: C.text, background: 'var(--border)', padding: '2px 6px', borderRadius: 4 }}>VITE_SUPABASE_SERVICE_ROLE_KEY</code>，
                           后台客户端以 <strong>anon</strong> 角色请求，已被 00081 生产 RLS 加固拦截。
-                          请在 <code style={{ color: C.text, background: '#1F2937', padding: '2px 6px', borderRadius: 4 }}>admin-web/.env.local</code> 中填入 service_role key 并重启服务。
+                          请在 <code style={{ color: C.text, background: 'var(--border)', padding: '2px 6px', borderRadius: 4 }}>admin-web/.env.local</code> 中填入 service_role key 并重启服务。
                         </span>
                       )}
                       {isPrivileged && (
@@ -325,7 +325,7 @@ export default function Ledgers() {
                       )}
                     </div>
                   ) : tab === 'gold' ? (
-                    '暂无情绪豆流水（请先确认本机已执行 00096 迁移建 tongbao_logs 表，且小程序已写入）'
+                    '暂无金豆流水（请先确认本机已执行 00096 迁移建 tongbao_logs 表，且小程序已写入）'
                   ) : (
                     '暂无流水数据'
                   )}
@@ -352,12 +352,12 @@ function headCols(tab: Tab): string[] {
   if (tab === 'points') return ['时间', '用户', '类型', '变动', '变动后余额', '关联订单', '备注']
   if (tab === 'emotion') return ['时间', '用户', '原因', '变动', '变动后余额', '关联ID', '备注']
   if (tab === 'gold') return ['时间', '用户', '类型', '变动', '变动后余额', '关联订单', '备注']
-  return ['时间', '订单号', '受益人 / 付款人', '层级', '段位', '比例', '让利池', '佣金', '状态']
+  return ['时间', '订单号', '受益人 / 付款人', '层级', '段位', '比例', '平台让利', '佣金', '状态']
 }
 const csColor = (s: string) => s === 'settled' ? C.green : s === 'refunded' ? C.red : C.blue
 
 const selStyle: React.CSSProperties = {
-  background: '#080C14', border: `1px solid ${C.border}`, borderRadius: 8,
+  background: 'var(--surface)', border: `1px solid ${C.border}`, borderRadius: 8,
   color: C.text, padding: '8px 12px', fontSize: 13,
 }
 const tdText: React.CSSProperties = { padding: '10px 12px', color: C.text }

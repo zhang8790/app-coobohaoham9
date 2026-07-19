@@ -17,8 +17,8 @@ export interface Profile {
   member_rank: MemberRank
   points: number
   balance: number          // 【已合并/废弃】原金豆消费币，值已并入 tb_balance 且列已清零；严禁新业务读写，统一使用 tb_balance
-  commission_balance: number // 推广佣金账户余额（推广服务费，由推广佣金流水驱动，可提现并代扣个税）
-  tb_balance: number       // 情绪豆余额（统一平台货币：消费抵扣 + 会员成长，人民币1:1锚定，仅平台内消费，不可提现/兑现金）
+  commission_balance: number // 推广佣金账户余额（推广佣金，由推广佣金流水驱动，可提现并代扣个税）
+  tb_balance: number       // 金豆余额（统一平台货币：消费抵扣 + 会员成长，人民币1:1锚定，仅平台内消费，不可提现/兑现金）
   cv_total: number         // 会员贡献值累计（会员权益计算依据，V2）
   privacy_consented_at: string | null // 隐私政策同意时间（PIPL 合规审计留痕；未同意为 null）
   allow_behavior_analysis: boolean // 个性化行为分析总闸（true=允许，false=已退出；分析引擎排除）
@@ -27,12 +27,12 @@ export interface Profile {
   invite_code: string | null
   referrer_id: string | null
   total_consumption: number | null  // 个人累计消费金额（用于计算段位）
-  // V4分佣算法字段
+  // V4佣金算法字段
   monthly_consumption: number | null      // 当月个人消费金额
   consecutive_zero_months: number | null  // 连续零消费月数
-  team_monthly_gmv: number | null         // 团队月度GMV
+  team_monthly_gmv: number | null         // 团队月度累计消费额
   has_new_recruit: boolean | null         // 当月是否有新增推荐客户
-  months_since_last_recruit: number | null // 距离上次拓新月数
+  months_since_last_recruit: number | null // 距离上次邀请新用户月数
   constitution_tags: string[] | null // 用户自填体质/健康状况标签（宫寒量少/高血压…），食疗匹配用；仅食养参考不替代医嘱
   created_at: string
 }
@@ -170,21 +170,21 @@ export interface EmotionClaim {
   selected_emotion: string[] | null
   badge_text: string | null
   tongbao_amount: number | null   // 历史兼容（旧版存积分）；V2 起用 tb_amount
-  tb_amount: number | null        // 本次确权发放 情绪豆
+  tb_amount: number | null        // 本次确权发放 金豆
   cv_amount: number | null        // 本次确权发放 会员贡献值
   badge_code: string | null       // 情绪徽章 code
   created_at: string
 }
 
 // =====================
-// 情绪豆 + 徽章（V5 P2-1，00053 独立化）
+// 金豆 + 徽章（V5 P2-1，00053 独立化）
 // =====================
 
-// 情绪豆账户
+// 金豆账户
 export interface EmotionAsset {
   id: string
   user_id: string
-  balance: number        // 可用情绪豆
+  balance: number        // 可用金豆
   frozen: number         // 冻结中
   total_earned: number   // 累计获得
   total_spent: number    // 累计消耗
@@ -192,11 +192,11 @@ export interface EmotionAsset {
   updated_at: string
 }
 
-// 情绪豆流水
+// 金豆流水
 export type EmotionTongbaoReason =
   | 'emotion_claim'      // 消费即确权奖励
   | 'emotion_feed'       // 情绪喂养消耗
-  | 'emotion_exchange'   // 情绪豆兑换（未来）
+  | 'emotion_exchange'   // 金豆兑换（未来）
   | 'admin_adjust'       // 平台调账
   | 'share_invite'       // 分享归属奖励
 export interface EmotionTongbaoLog {
@@ -372,7 +372,7 @@ export interface PointsLog {
   created_at: string
 }
 
-/** 情绪豆流水（tongbao_logs）- 平台统一货币账户 */
+/** 金豆流水（tongbao_logs）- 平台统一货币账户 */
 export interface TongbaoLog {
   id: string
   user_id: string

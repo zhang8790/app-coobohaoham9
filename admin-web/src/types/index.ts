@@ -134,10 +134,10 @@ export interface MerchantSettlement {
   order_id: string
   order_no: string | null
   total_amount: number
-  tb_portion: number        // 情绪豆抵扣部分（平台垫付）
+  tb_portion: number        // 金豆抵扣部分（平台垫付）
   cash_portion: number      // 微信现金部分
   referral_rate: number     // 让利率快照（小数）
-  discount_pool: number     // 让利池
+  discount_pool: number     // 平台让利
   channel_fee: number       // 微信通道费
   settle_amount: number     // 商家应收货款
   status: string            // settled | reversed

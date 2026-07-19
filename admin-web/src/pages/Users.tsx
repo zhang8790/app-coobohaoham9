@@ -56,7 +56,7 @@ export default function Users() {
     setRcBusy(false)
     if (res.ok) {
       setList(prev => prev.map(u => u.id === rcTarget.id ? { ...u, tb_balance: (res.balanceAfter ?? u.tb_balance ?? 0) } : u))
-      setRcMsg({ ok: true, text: `✅ 已充值 ${amt} 情绪豆，当前余额 ${res.balanceAfter}` })
+      setRcMsg({ ok: true, text: `✅ 已充值 ${amt} 金豆，当前余额 ${res.balanceAfter}` })
       setRcAmt(''); setRcRemark('')
     } else {
       setRcMsg({ ok: false, text: res.error || '充值失败' })
@@ -86,7 +86,7 @@ export default function Users() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['昵称', '手机号', '段位', '积分', '情绪豆', '角色', '注册时间', '操作'].map(h => (
+                {['昵称', '手机号', '段位', '积分', '金豆', '角色', '注册时间', '操作'].map(h => (
                   <th key={h} style={S.th}>{h}</th>
                 ))}
               </tr>
@@ -105,7 +105,7 @@ export default function Users() {
                       </span>
                     </td>
                     <td style={{ ...S.td, color: '#9CA3AF' }}>{u.points}</td>
-                    <td style={{ ...S.td, color: '#9CA3AF' }}>情绪豆 {Number(u.tb_balance || 0).toFixed(2)}</td>
+                    <td style={{ ...S.td, color: '#9CA3AF' }}>金豆 {Number(u.tb_balance || 0).toFixed(2)}</td>
                     <td style={S.td}>
                       <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
                         background: u.role === 'admin' ? '#C2410C22' : '#1F2937', color: u.role === 'admin' ? '#C2410C' : '#9CA3AF' }}>
@@ -149,23 +149,23 @@ export default function Users() {
         )}
       </div>
 
-      {/* 情绪豆充值弹窗 */}
+      {/* 金豆充值弹窗 */}
       {rcTarget && (
         <div onClick={closeRecharge}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()}
             style={{ width: 420, maxWidth: '92vw', background: '#0F172A', border: '1px solid #1F2937', borderRadius: 14, padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ color: '#E5E7EB', fontSize: 18, fontWeight: 700 }}>💎 情绪豆充值</h2>
+              <h2 style={{ color: '#E5E7EB', fontSize: 18, fontWeight: 700 }}>💎 金豆充值</h2>
               <button onClick={closeRecharge} disabled={rcBusy}
                 style={{ background: 'transparent', border: 'none', color: '#6B7280', fontSize: 22, lineHeight: 1, cursor: rcBusy ? 'not-allowed' : 'pointer' }}>×</button>
             </div>
             <p style={{ color: '#9CA3AF', fontSize: 13, marginBottom: 16 }}>
               用户：<span style={{ color: '#E5E7EB' }}>{rcTarget.nickname || '侠客'}</span>
-              （{maskPhone(rcTarget.phone)}）｜当前情绪豆：<span style={{ color: '#F59E0B', fontWeight: 600 }}>{Number(rcTarget.tb_balance).toFixed(2)}</span>
+              （{maskPhone(rcTarget.phone)}）｜当前金豆：<span style={{ color: '#F59E0B', fontWeight: 600 }}>{Number(rcTarget.tb_balance).toFixed(2)}</span>
             </p>
             <input value={rcAmt} onChange={e => setRcAmt(e.target.value)} inputMode="decimal"
-              placeholder="充值情绪豆数量（1 情绪豆 = 1 元）"
+              placeholder="充值金豆数量（1 金豆 = 1 元）"
               style={{ width: '100%', boxSizing: 'border-box', background: '#080C14', border: '1px solid #1F2937', borderRadius: 8, color: '#E5E7EB', padding: '10px 12px', fontSize: 14, marginBottom: 12 }} />
             <input value={rcRemark} onChange={e => setRcRemark(e.target.value)}
               placeholder="备注（如：活动奖励 / 客服补偿）"

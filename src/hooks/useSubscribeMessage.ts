@@ -4,7 +4,7 @@
 //   2) 持久化授权记录到本地（localStorage / Taro.setStorageSync）
 //   3) 提供「已授权 + 5 模板 ID 都 OK」的查询
 // 设计：
-//   - 用户进首页/订单中心/分佣页时，弹一次 wx.requestSubscribeMessage（5 个模板）
+//   - 用户进首页/订单中心/佣金页时，弹一次 wx.requestSubscribeMessage（5 个模板）
 //   - 拒绝则 7 天内不再弹
 //   - 微信订阅消息每次推送都需要「用户主动订阅」，本钩子仅给"已订阅过"的状态查询
 import Taro from '@tarojs/taro'

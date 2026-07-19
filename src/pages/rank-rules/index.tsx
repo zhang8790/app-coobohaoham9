@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import './index.scss'
 
 // 六阶高端段位（颜色与 commission-calculator-v5 RANK_CONFIG_TABLE_V5 保持一致）
-// 段位由个人【近 6 个月滚动消费】决定基础门槛，高段位叠加「徽章收集度」软门槛；团队 / 拓新仅作推广佣金系数，不进入段位。
+// 段位由个人【近 6 个月滚动消费】决定基础门槛，高段位叠加「徽章收集度」软门槛；团队 / 邀请新用户仅作推广佣金系数，不进入段位。
 const RANK_TIERS = [
   {
     rank: '无心境', score: '≥ 20,000', color: '#D4AF37',
@@ -109,7 +109,7 @@ function RankRules() {
       <View className="mx-4 mt-2 bg-card rounded-2xl border border-border p-4">
         <Text className="block text-foreground text-base font-bold mb-2" style={{ display: 'block' }}>机制与合规</Text>
         <Text className="block text-muted-foreground text-xs leading-loose" style={{ display: 'block' }}>
-          1. 团队 / 拓新仅作推广佣金（真实服务费，可提现并代扣个税）的系数，不进入段位，避免「等级靠拉人」观感。
+          1. 团队 / 邀请新用户仅作推广佣金（真实服务费）的系数，不进入段位，避免「等级靠拉人」观感；推广佣金以金豆发放，不可提现。
         </Text>
         <Text className="block text-muted-foreground text-xs leading-loose" style={{ display: 'block' }}>
           2. 高段位（悟心 / 无心境）晋升参考「徽章收集度」作为软门槛（悟心 ≥ 4 枚，无心境 ≥ 8 枚且含史诗 / 传说），不硬卡升级。
@@ -118,7 +118,7 @@ function RankRules() {
           3. 徽章来自每次情绪确权，按稀有度（普通→稀有→史诗→传说）收藏，详见「徽章图鉴」。
         </Text>
         <Text className="block text-muted-foreground text-xs leading-loose mt-1" style={{ display: 'block' }}>
-          情绪豆为平台唯一内部资产，由人民币充值获得，仅限平台内消费，不可提现、不可兑现金、不可二级转让；与推广佣金（commission_balance，可提现）严格隔离。
+          金豆为平台唯一内部资产，由人民币充值获得，仅限平台内消费，不可提现、不可兑现金、不可二级转让；推广佣金已以金豆发放，与之同源。
         </Text>
       </View>
     </View>

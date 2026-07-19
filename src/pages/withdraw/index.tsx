@@ -229,11 +229,11 @@ function WithdrawPage() {
         <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}>
           <Text className="text-xl text-white/80 mb-1">可结算货款（元）</Text>
           <Text className="text-4xl font-bold text-white">{merchantBalance.toLocaleString()}<Text className="text-xl ml-1">元</Text></Text>
-          <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}（含情绪豆支付等值部分，由平台垫付）</Text>
+          <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}（含金豆支付等值部分，由平台垫付）</Text>
         </View>
       ) : (
         <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)' }}>
-          <Text className="text-xl text-white/80 mb-1">我的情绪豆（推广佣金发放至此）</Text>
+          <Text className="text-xl text-white/80 mb-1">我的金豆（推广佣金发放至此）</Text>
           <Text className="text-4xl font-bold text-white">{balance.toLocaleString()}<Text className="text-xl ml-1">豆</Text></Text>
           <Text className="text-xl text-white/70 mt-2">可直接在平台内消费支付 · 不可提现</Text>
         </View>
@@ -250,18 +250,18 @@ function WithdrawPage() {
         ))}
       </View>
 
-      {/* 申请表单（仅货款模式可提现；佣金已转为情绪豆，不可提现） */}
+      {/* 申请表单（仅货款模式可提现；佣金已转为金豆，不可提现） */}
       {tab === 'apply' && mode === 'commission' && (
         <View className="px-4 mt-4">
           <View className="bg-card rounded-2xl border border-border p-5 flex flex-col gap-2">
             <View className="flex items-center gap-2">
               <View className="i-mdi-emoticon-happy text-3xl text-primary" />
-              <Text className="text-xl font-bold text-foreground">推广佣金已升级为「情绪豆」</Text>
+              <Text className="text-xl font-bold text-foreground">推广佣金已升级为「金豆」</Text>
             </View>
-            <Text className="text-base text-muted-foreground">你的推广佣金（含好友/粉丝佣金）已直接发放至「情绪豆」钱包，可在平台内消费支付、兑换专属体验，形成消费回流飞轮。</Text>
-            <Text className="text-base text-muted-foreground">情绪豆为平台内部货币，按规则不可提现/兑现金，故佣金提现通道已关闭。</Text>
+            <Text className="text-base text-muted-foreground">你的推广佣金（含好友/粉丝佣金）已直接发放至「金豆」钱包，可在平台内消费支付、兑换专属体验，形成消费回流边花边赚。</Text>
+            <Text className="text-base text-muted-foreground">金豆为平台内部货币，按规则不可提现/兑现金，故佣金提现通道已关闭。</Text>
             <View className="mt-2 p-3 rounded-xl bg-primary/5">
-              <Text className="text-base text-primary">👉 前往「我的推广」可查看累计佣金（情绪豆）与我的情绪豆余额</Text>
+              <Text className="text-base text-primary">👉 前往「我的推广」可查看累计佣金（金豆）与我的金豆余额</Text>
             </View>
           </View>
         </View>
@@ -400,12 +400,12 @@ function WithdrawPage() {
               </View>
             </View>
 
-            {/* 身份证号（打款核对，财务可见） */}
+            {/* 身份证号（打款核对，打款核对） */}
             <View className="mb-3">
               <Text className="text-xl text-foreground mb-1">身份证号 <Text className="text-red-500">*</Text></Text>
               <View className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden">
                 <Input className="w-full text-xl text-foreground bg-transparent outline-none"
-                  placeholder="用于打款核对，仅平台财务可见"
+                  placeholder="用于打款核对，仅平台打款核对"
                   value={idCard}
                   onInput={e => { const ev = e as any; setIdCard(ev.detail?.value ?? ev.target?.value ?? '') }} />
               </View>
@@ -465,7 +465,7 @@ function WithdrawPage() {
           </Button>
           <Text className="text-base text-muted-foreground text-center mt-3">
             {mode === 'settlement'
-              ? '货款提现为商家销售货款结算，审核通过后通过微信服务商分账直达您的子商户号；如含情绪豆垫付部分，由平台自有资金打款。'
+              ? '货款提现为商家销售货款结算，审核通过后由微信直接打款到您的账户；如含金豆垫付部分，由平台自有资金打款。'
               : '提现按申请金额发放，审核 1-3 个工作日到账；推广佣金为劳务报酬所得，请依法履行纳税申报义务'}
           </Text>
           <View className="mt-2 text-center" onClick={() => Taro.navigateTo({ url: '/pages/withdraw-rules/index' })}>

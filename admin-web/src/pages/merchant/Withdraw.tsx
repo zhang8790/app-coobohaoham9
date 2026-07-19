@@ -242,7 +242,7 @@ export default function MerchantWithdraw() {
                   </div>
                   <div>
                     <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>身份证号 <span style={{ color: '#EF4444' }}>*</span></label>
-                    <input value={idCard} onChange={e => setIdCard(e.target.value)} placeholder="用于打款核对，仅平台财务可见" style={{ width: '100%', padding: '12px 16px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                    <input value={idCard} onChange={e => setIdCard(e.target.value)} placeholder="用于打款核对，仅平台打款核对" style={{ width: '100%', padding: '12px 16px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   {method === 'bank' && (
                     <div>

@@ -54,15 +54,15 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  pending_pay: '#F59E0B',
-  pending_ship: '#C2410C',
-  pending_receive: '#3B82F6',
-  pending_pickup: '#8B5CF6',
+  pending_pay: 'var(--warning)',
+  pending_ship: 'var(--primary)',
+  pending_receive: 'var(--info)',
+  pending_pickup: 'var(--accent)',
   pending_review: '#7B1FA2',
-  completed: '#059669',
-  after_sale: '#EF4444',
-  refund: '#EF4444',
-  cancelled: '#6B7280',
+  completed: 'var(--success-strong)',
+  after_sale: 'var(--danger)',
+  refund: 'var(--danger)',
+  cancelled: 'var(--text-dim)',
 }
 
 export default function MerchantOrders() {
@@ -155,7 +155,7 @@ export default function MerchantOrders() {
 
   return (
     <div>
-      <h2 style={{ color: '#E5E7EB', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>📦 订单管理</h2>
+      <h2 style={{ color: 'var(--text)', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>订单管理</h2>
 
       {/* 状态 Tab */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 24, overflowX: 'auto', paddingBottom: 8 }}>
@@ -165,10 +165,10 @@ export default function MerchantOrders() {
             onClick={() => setActiveTab(tab.key)}
             style={{
               padding: '8px 16px',
-              background: activeTab === tab.key ? '#059669' : '#111827',
-              border: `1px solid ${activeTab === tab.key ? '#059669' : '#1F2937'}`,
+              background: activeTab === tab.key ? 'var(--success-strong)' : 'var(--surface-2)',
+              border: `1px solid ${activeTab === tab.key ? 'var(--success-strong)' : 'var(--border)'}`,
               borderRadius: 8,
-              color: activeTab === tab.key ? 'white' : '#9CA3AF',
+              color: activeTab === tab.key ? 'white' : 'var(--text-muted)',
               fontSize: 13,
               fontWeight: activeTab === tab.key ? 600 : 400,
               cursor: 'pointer',
@@ -181,39 +181,39 @@ export default function MerchantOrders() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#6B7280' }}>加载中...</div>
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)' }}>加载中...</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 60, color: '#6B7280', fontSize: 14 }}>暂无订单</div>
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)', fontSize: 14 }}>暂无订单</div>
           ) : (
             filtered.map(order => (
-              <div key={order.id + order.orders.order_no} style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 20 }}>
+              <div key={order.id + order.orders.order_no} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <span style={{ color: '#6B7280', fontSize: 13 }}>订单号：{order.orders.order_no}</span>
+                  <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>订单号：{order.orders.order_no}</span>
                   <span style={{ color: STATUS_COLOR[order.orders.status], fontSize: 14, fontWeight: 700 }}>{STATUS_LABEL[order.orders.status] || order.orders.status}</span>
                 </div>
 
                 <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-                  <div style={{ width: 64, height: 64, background: '#1F2937', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <span style={{ color: '#374151', fontSize: 24 }}>📦</span>
+                  <div style={{ width: 64, height: 64, background: 'var(--border)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ color: 'var(--border-soft)', fontSize: 24 }}>📦</span>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ color: '#E5E7EB', fontSize: 15, fontWeight: 600 }}>{order.product_name}</p>
-                    <p style={{ color: '#9CA3AF', fontSize: 13, marginTop: 4 }}>x{order.quantity} · ¥{order.price}</p>
-                    <p style={{ color: '#6B7280', fontSize: 12, marginTop: 4 }}>
+                    <p style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600 }}>{order.product_name}</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>x{order.quantity} · ¥{order.price}</p>
+                    <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 4 }}>
                       {order.orders.delivery_type === 'delivery' ? '🚚 配送' : order.orders.delivery_type === 'dine_in' ? '🏪 堂食' : '🚶 自取'}
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <p style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700 }}>¥{order.orders.total_amount?.toFixed(2)}</p>
+                    <p style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700 }}>¥{order.orders.total_amount?.toFixed(2)}</p>
                   </div>
                 </div>
 
                 {order.orders.address && (
-                  <div style={{ padding: '8px 12px', background: '#0B0F19', borderRadius: 6, marginBottom: 12 }}>
-                    <p style={{ color: '#9CA3AF', fontSize: 12 }}>📍 {order.orders.address}</p>
-                    {order.orders.buyer_phone && <p style={{ color: '#9CA3AF', fontSize: 12, marginTop: 2 }}>📞 {order.orders.buyer_phone}</p>}
+                  <div style={{ padding: '8px 12px', background: 'var(--bg)', borderRadius: 6, marginBottom: 12 }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>📍 {order.orders.address}</p>
+                    {order.orders.buyer_phone && <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 2 }}>📞 {order.orders.buyer_phone}</p>}
                   </div>
                 )}
 
@@ -221,7 +221,7 @@ export default function MerchantOrders() {
                   {order.orders.status === 'pending_ship' && (
                     <button
                       onClick={() => setShipModal(order)}
-                      style={{ padding: '8px 16px', background: '#059669', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, cursor: 'pointer' }}
+                      style={{ padding: '8px 16px', background: 'var(--success-strong)', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, cursor: 'pointer' }}
                     >
                       发货
                     </button>
@@ -229,7 +229,7 @@ export default function MerchantOrders() {
                   {order.orders.status === 'pending_pickup' && (
                     <button
                       onClick={() => handleVerify(order)}
-                      style={{ padding: '8px 16px', background: '#8B5CF6', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, cursor: 'pointer' }}
+                      style={{ padding: '8px 16px', background: 'var(--accent)', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, cursor: 'pointer' }}
                     >
                       核销
                     </button>
@@ -237,7 +237,7 @@ export default function MerchantOrders() {
                   {['pending_receive', 'pending_pickup', 'pending_review'].includes(order.orders.status) && (
                     <button
                       onClick={() => handleComplete(order)}
-                      style={{ padding: '8px 16px', background: '#10B981', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, cursor: 'pointer' }}
+                      style={{ padding: '8px 16px', background: 'var(--success-strong)', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, cursor: 'pointer' }}
                     >
                       确认完成
                     </button>
@@ -252,15 +252,15 @@ export default function MerchantOrders() {
       {/* 发货弹窗 */}
       {shipModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={() => setShipModal(null)}>
-          <div style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 16, padding: 24, width: 400 }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ color: '#E5E7EB', fontSize: 18, fontWeight: 700, marginBottom: 20 }}>📦 发货</h3>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, width: 400 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700, marginBottom: 20 }}>发货</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
               <div>
-                <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 6 }}>物流公司 *</label>
+                <label style={{ color: 'var(--text-muted)', fontSize: 13, display: 'block', marginBottom: 6 }}>物流公司 *</label>
                 <select
                   value={shipCompany}
                   onChange={e => setShipCompany(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, outline: 'none' }}
                 >
                   <option value="">请选择</option>
                   <option value="顺丰">顺丰</option>
@@ -272,18 +272,18 @@ export default function MerchantOrders() {
                 </select>
               </div>
               <div>
-                <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 6 }}>物流单号 *</label>
+                <label style={{ color: 'var(--text-muted)', fontSize: 13, display: 'block', marginBottom: 6 }}>物流单号 *</label>
                 <input
                   value={shipNo}
                   onChange={e => setShipNo(e.target.value)}
                   placeholder="请输入物流单号"
-                  style={{ width: '100%', padding: '10px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, outline: 'none' }}
                 />
               </div>
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setShipModal(null)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid #374151', borderRadius: 8, color: '#9CA3AF', fontSize: 14, cursor: 'pointer' }}>取消</button>
-              <button onClick={() => handleShip()} style={{ flex: 1, padding: '10px', background: '#059669', border: 'none', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>确认发货</button>
+              <button onClick={() => setShipModal(null)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text-muted)', fontSize: 14, cursor: 'pointer' }}>取消</button>
+              <button onClick={() => handleShip()} style={{ flex: 1, padding: '10px', background: 'var(--success-strong)', border: 'none', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>确认发货</button>
             </div>
           </div>
         </div>

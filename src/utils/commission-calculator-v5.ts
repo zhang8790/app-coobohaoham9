@@ -4,11 +4,11 @@
  * 2026-07-18 优化（针对「段位逻辑不对 / 躺平收益高」）：
  * 1. 段位口径改为【近 6 个月滚动消费】决定（原终身累计消费只增不减 → 躺平者永久高段位）。
  *    窗口外消费自动过期，停止消费即自动降级，从源头消除「躺平高收益」。
- * 2. 情绪豆(人民币 1:1 锚定)仍计入滚动消费口径（维持现状），但被 6 月窗口锁死，不会变成永久杠杆。
+ * 2. 金豆(人民币 1:1 锚定)仍计入滚动消费口径（维持现状），但被 6 月窗口锁死，不会变成永久杠杆。
  * 3. 佣金比例收敛微调：L1 上限 0.60 → 0.50，L2 上限 0.25 → 0.18（保留梯度）。
  * 4. 叠加两层真实门槛（原 checkCommissionEligibility 写死 true 从未生效）：
  *    - 活跃系数 activeMult：近 30 天有推荐成交 = 1.0；30~60 天有 = 0.5（宽限）；连续 60 天无 = 0（暂停）。
- *    - 拓新衰减 recruitMult：距上次拓新 ≤ 90 天 = 1.0；> 90 天 = 0.4（最低不低于基准 40%）；从未拓新不惩罚。
+ *    - 邀请新用户衰减 recruitMult：距上次邀请新用户 ≤ 90 天 = 1.0；> 90 天 = 0.4（最低不低于基准 40%）；从未邀请新用户不惩罚。
  * 5. 最终佣金 = 剩余池 × 段位比例 × activeMult × recruitMult。
  */
 
@@ -112,7 +112,7 @@ export interface CommissionInputV5 {
   staffTotalConsumption?: number;       // 兼容旧调用（缺省回退为滚动消费）
   staffRollingConsumption?: number;     // 近6月滚动消费（决定段位）
   staffActiveMult?: number;             // 活跃系数（默认 1）
-  staffRecruitMult?: number;            // 拓新衰减系数（默认 1）
+  staffRecruitMult?: number;            // 邀请新用户衰减系数（默认 1）
 
   // 静态二级（推荐人的推荐人）
   referrerId?: string | null;
@@ -130,15 +130,15 @@ export interface CommissionInputV5 {
 // ============ 计算结果 ============
 export interface CommissionResultV5 {
   orderAmount: number;
-  discountPool: number;          // 让利池
+  discountPool: number;          // 平台让利
   platformMinIncome: number;     // 平台最低抽成（10%）
-  remainingPool: number;         // 剩余池（让利池 - 平台最低抽成）
+  remainingPool: number;         // 剩余池（平台让利 - 平台最低抽成）
 
   l1Commission: number;          // 流动一级佣金
   l2Commission: number;          // 静态二级佣金
   buyerPoints: number;           // 买家积分
   platformExtraIncome: number;   // 平台额外收入
-  platformTotalIncome: number;   // 平台总收入（仅让利池内抽成，不承受通道费/税费）
+  platformTotalIncome: number;   // 平台总收入（仅平台让利内抽成，不承受通道费/税费）
 
   // 用户侧（承担支付通道费 + 代扣个税）
   userGrossCommission: number;   // 用户名义现金佣金（L1+L2，未扣费税前）
@@ -158,7 +158,7 @@ export interface CommissionResultV5 {
   buyerRank: string;
 }
 
-// ============ 活跃 / 拓新 系数（纯函数，前后端复用，保证一致） ============
+// ============ 活跃 / 邀请新用户 系数（纯函数，前后端复用，保证一致） ============
 
 /**
  * 活跃系数：依据「推荐成交」活跃度（近 30 天 / 30~60 天的被推荐人下单数）。
@@ -173,10 +173,10 @@ export function getActiveMultiplier(recent30dReferredOrders: number, prev30dRefe
 }
 
 /**
- * 拓新衰减系数：依据「距上次拓新（下级注册）天数」。
- * - ≤ 90 天 → 1.0（持续拓新）
- * - > 90 天 → 0.4（连续 3 月未拓新，逐级衰减至基准 40%，最低不低于 40%）
- * - 从未拓新(NULL) → 1.0（给新推广员缓冲，不惩罚）
+ * 邀请新用户衰减系数：依据「距上次邀请新用户（下级注册）天数」。
+ * - ≤ 90 天 → 1.0（持续邀请新用户）
+ * - > 90 天 → 0.4（连续 3 月未邀请新用户，逐级衰减至基准 40%，最低不低于 40%）
+ * - 从未邀请新用户(NULL) → 1.0（给新推广员缓冲，不惩罚）
  */
 export function getRecruitMultiplier(daysSinceLastRecruit: number | null): number {
   if (daysSinceLastRecruit == null) return 1.0
@@ -195,7 +195,7 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
     buyerRollingConsumption = input.buyerTotalConsumption ?? 0,
   } = input
 
-  // 1. 计算让利池
+  // 1. 计算平台让利
   const discountPool = toPrecision(orderAmount * discountRate)
 
   // 2. 平台最低抽成（10%）
@@ -214,7 +214,7 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
   const buyerDynamicScore = calculateDynamicScore(buyerRollingConsumption)
   const buyerRank = getRankByScore(buyerDynamicScore, sortedRanks)
 
-  // 4. 计算佣金（剩余池 × 段位比例 × 活跃系数 × 拓新衰减）
+  // 4. 计算佣金（剩余池 × 段位比例 × 活跃系数 × 邀请新用户衰减）
   let l1Commission = 0
   let l2Commission = 0
 
@@ -374,7 +374,7 @@ export function calcWithholdingTax(income: number): number {
 export function testV5Algorithm(): void {
   console.log('===== V5 算法测试（2026-07-18 滚动段位 + 收敛比例）=====')
 
-  // 测试1：全无心境（滚动消费=终身，最高段位，活跃+拓新）
+  // 测试1：全无心境（滚动消费=终身，最高段位，活跃+邀请新用户）
   const result1 = calculateCommissionV5({
     orderAmount: 100,
     discountRate: 0.10,
@@ -391,7 +391,7 @@ export function testV5Algorithm(): void {
   })
 
   console.log('【全无心境】订单100元，让利率10%')
-  console.log('让利池：', result1.discountPool)
+  console.log('平台让利：', result1.discountPool)
   console.log('平台最低抽成（10%）：', result1.platformMinIncome)
   console.log('剩余池：', result1.remainingPool)
   console.log('流动一级佣金：', result1.l1Commission, `(${(result1.l1Rate * 100).toFixed(1)}%)`)
@@ -404,7 +404,7 @@ export function testV5Algorithm(): void {
   console.log('代扣个税(用户承担)：', result1.taxWithheld)
   console.log('用户净到手：', result1.userNetCommission)
 
-  // 测试2：全散修（最低段位，无活跃/无拓新 → 系数归零）
+  // 测试2：全散修（最低段位，无活跃/无邀请新用户 → 系数归零）
   const result2 = calculateCommissionV5({
     orderAmount: 100,
     discountRate: 0.10,

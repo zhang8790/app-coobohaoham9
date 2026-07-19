@@ -22,7 +22,7 @@ const NAV = [
   { to: '/symptom-rules', icon: 'tea', label: '食疗规则库' },
   { to: '/marketing-templates', icon: 'chat', label: '导购话术库' },
   { to: '/self-stores', icon: 'building', label: '自营门店' },
-  { to: '/commission-guide', icon: 'calculator', label: '分佣说明' },
+  { to: '/commission-guide', icon: 'calculator', label: '佣金说明' },
 ]
 
 // NavIcon 已抽到 ./icons 共享组件

@@ -647,7 +647,7 @@ export interface SelfStoreOrder {
   total_amount: number
   tb_used: number
   settle_amount: number | null   // 让利后商家实收（merchant_settlements，未完成订单为 null）
-  discount_pool: number | null   // 让利池（已分出去的推广/积分/平台部分）
+  discount_pool: number | null   // 平台让利（已分出去的推广/积分/平台部分）
   status: string
   refund_status: string | null
   created_at: string
@@ -694,7 +694,7 @@ export interface SelfStoreStats {
   gmv: number
 }
 
-/** 门店概览：商品数/在售数/订单数/GMV */
+/** 门店概览：商品数/在售数/订单数/累计消费额 */
 export async function getSelfStoreStats(storeId: string): Promise<SelfStoreStats> {
   return safeQuery(async () => {
     const [{ count: productTotal }, { count: productActive }, { count: orderTotal }] = await Promise.all([
@@ -702,7 +702,7 @@ export async function getSelfStoreStats(storeId: string): Promise<SelfStoreStats
       supabase.from('products').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('is_active', true),
       supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId),
     ])
-    // GMV：聚合函数需先在 Dashboard 开启 db-aggregates；失败降级 0
+    // 累计消费额：聚合函数需先在 Dashboard 开启 db-aggregates；失败降级 0
     let gmv = 0
     try {
       const { data } = await supabase.from('orders').select('total_amount.sum()').eq('store_id', storeId)

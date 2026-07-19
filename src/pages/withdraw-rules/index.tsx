@@ -7,12 +7,16 @@ function WithdrawRules() {
     <View className="min-h-screen bg-background pb-10">
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4 text-muted-foreground text-sm leading-loose">
         <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜提现规则</Text>
-        <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月1日\n生效日期：2026年7月1日'}</Text>
+        <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月20日\n生效日期：2026年7月20日'}</Text>
+
+        <View className="mb-3 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
+          <Text className="block text-amber-800 text-xs leading-relaxed">提示：推广佣金已以金豆形式发放至金豆余额，可在平台内消费支付抵扣，不可提现或兑现金。以下提现规则仅适用于商家货款。</Text>
+        </View>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">一、可提现范围</Text>
-          <Text className="block">1. 可提现金额为已结算的推广佣金（推广服务费），待结算金额需结算后方可提现。</Text>
-          <Text className="block">2. 单笔提现最低金额为 ¥1.00，最高不超过账户可用佣金。</Text>
+          <Text className="block">1. 可提现金额为已结算的商家货款（人民币），待结算金额需订单完成结算后方可提现。</Text>
+          <Text className="block">2. 单笔提现最低金额为 ¥1.00，最高不超过可结算货款。</Text>
         </View>
 
         <View className="mb-4">
@@ -23,17 +27,17 @@ function WithdrawRules() {
         </View>
 
         <View className="mb-4">
-          <Text className="block text-foreground font-semibold mb-1 leading-snug">三、佣金与税费说明</Text>
-          <Text className="block">1. 推广佣金来源于真实商品交易的让利池，平台基础服务费已在让利阶段计提，不额外从您的佣金中扣除。</Text>
-          <Text className="block">2. 提现按您申请的金额发放，不额外扣除平台服务费。</Text>
-          <Text className="block">3. 推广佣金属于依法应申报的劳务报酬所得，请推广员依法履行个人所得税纳税申报义务。</Text>
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">三、货款与税费说明</Text>
+          <Text className="block">1. 商家货款来源于真实商品交易的平台让利结算，平台基础服务费已在结算阶段计提。</Text>
+          <Text className="block">2. 货款提现按申请金额发放，不额外扣除平台服务费。</Text>
+          <Text className="block">3. 货款属于商家经营收入，请依法申报纳税。</Text>
         </View>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">四、到账周期</Text>
           <Text className="block">1. 提现申请提交后进入审核，审核通常需要 1-3 个工作日。</Text>
           <Text className="block">2. 审核通过后打款，到账时间以各支付渠道为准（一般 1-2 个工作日）。</Text>
-          <Text className="block">3. 审核未通过将退回申请金额至账户佣金余额，可在提现记录查看拒绝原因。</Text>
+          <Text className="block">3. 审核未通过将退回申请金额至可结算货款余额，可在提现记录查看拒绝原因。</Text>
         </View>
 
         <View className="mb-4">

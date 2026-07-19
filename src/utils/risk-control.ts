@@ -371,7 +371,7 @@ export async function recoverPoints(
   
   if (!order || !order.buyer_points || order.buyer_points <= 0) return;
   
-  // 扣回买家获赠情绪豆（buyer_points 已并入 tb_balance 统一钱包）
+  // 扣回买家获赠金豆（buyer_points 已并入 tb_balance 统一钱包）
   const { data: prof } = await supabase
     .from('profiles')
     .select('tb_balance')

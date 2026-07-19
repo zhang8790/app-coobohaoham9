@@ -1,5 +1,5 @@
 // @title 消息中心
-// @description 展示用户全部业务通知（订单/分佣/退款/提现/公告）
+// @description 展示用户全部业务通知（订单/佣金/退款/提现/公告）
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { View, Text, ScrollView } from '@tarojs/components'
@@ -20,7 +20,7 @@ interface Notification {
 
 const TYPE_META: Record<string, { icon: string; color: string; label: string }> = {
   order_paid:         { icon: '🛒', color: '#10B981', label: '订单' },
-  commission_arrived: { icon: '💰', color: '#F59E0B', label: '分佣' },
+  commission_arrived: { icon: '💰', color: '#F59E0B', label: '佣金' },
   withdraw_progress:  { icon: '💸', color: '#3B82F6', label: '提现' },
   refund_result:      { icon: '↩',  color: '#EF4444', label: '退款' },
   announcement:       { icon: '📢', color: '#C2410C', label: '公告' },
@@ -139,7 +139,7 @@ export default function MessagesPage() {
           <Text style={{ fontSize: 48, display: 'block', marginBottom: 12 }}>📭</Text>
           <Text style={{ color: '#9CA3AF', fontSize: 14, display: 'block' }}>暂无消息</Text>
           <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 8, display: 'block' }}>
-            订单支付成功、分佣到账、退款结果、提现进度都会在这里通知
+            订单支付成功、佣金到账、退款结果、提现进度都会在这里通知
           </Text>
         </View>
       ) : (

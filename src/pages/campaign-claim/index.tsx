@@ -245,7 +245,7 @@ function CampaignClaimPage() {
           领取成功！
         </Text>
         <Text className="text-xl text-muted-foreground text-center">
-          到店核销消费后，推荐人可获得推广奖励
+          到店核销消费后，推荐人可获得推广佣金
         </Text>
         {payoutDone && payoutMsg ? (
           <View className="w-full py-3 rounded-2xl bg-primary/10 border border-primary/30 text-primary text-center text-lg font-semibold">
@@ -280,10 +280,10 @@ function CampaignClaimPage() {
                   📌 领取仅记录推荐溯源轨迹，单纯注册、领取福利无任何推广佣金、多级收益。
                 </Text>
                 <Text className="text-base text-foreground">
-                  📌 仅线下本店真实到店核销消费（抵扣后实付满10元），才会产生推广奖励。
+                  📌 仅线下本店真实到店核销消费（抵扣后实付满10元），才会产生推广佣金。
                 </Text>
                 <Text className="text-base text-foreground">
-                  📌 推广奖励仅两级，无多层返利，禁止以拉人头、注册数量获利。
+                  📌 推广佣金仅两级，无多层返利，禁止以拉人头、注册数量获利。
                 </Text>
                 <Text className="text-base text-foreground mt-2 pt-2" style={{ borderTop: '1px solid #E7DDD0' }}>
                   ⚠️ 本店员工、亲属、关联账号禁止领取付费红包/实物。
@@ -328,8 +328,8 @@ function CampaignClaimPage() {
           <View className="gap-2">
             <Text className="text-base text-muted-foreground">• 领取后72小时内到店核销，否则红包失效</Text>
             <Text className="text-base text-muted-foreground">• 单用户单店每日限领1份</Text>
-            <Text className="text-base text-muted-foreground">• 仅记录推荐轨迹，核销消费后才激活分佣</Text>
-            <Text className="text-base text-muted-foreground">• 推广奖励仅两级，无多层返利</Text>
+            <Text className="text-base text-muted-foreground">• 仅记录推荐轨迹，核销消费后才激活佣金</Text>
+            <Text className="text-base text-muted-foreground">• 推广佣金仅两级，无多层返利</Text>
           </View>
         </View>
 

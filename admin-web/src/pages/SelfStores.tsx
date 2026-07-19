@@ -240,7 +240,7 @@ function OverviewTab({ storeId }: { storeId: string }) {
     { label: '商品总数', value: stats ? `${stats.productTotal}` : '—', color: C.blue },
     { label: '在售商品', value: stats ? `${stats.productActive}` : '—', color: C.green },
     { label: '订单总数', value: stats ? `${stats.orderTotal}` : '—', color: C.purple },
-    { label: 'GMV 累计', value: stats ? fmtMoney(stats.gmv) : '—', color: C.gold },
+    { label: '累计消费额 累计', value: stats ? fmtMoney(stats.gmv) : '—', color: C.gold },
   ]
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
@@ -251,7 +251,7 @@ function OverviewTab({ storeId }: { storeId: string }) {
         </div>
       ))}
       <p style={{ gridColumn: '1 / -1', color: C.dim, fontSize: 12, marginTop: 4 }}>
-        提示：GMV 依赖 Supabase 聚合函数（db-aggregates），若显示 ¥0 请在 Dashboard 执行
+        提示：累计消费额 依赖 Supabase 聚合函数（db-aggregates），若显示 ¥0 请在 Dashboard 执行
         <code style={{ color: C.sub }}> ALTER ROLE authenticator SET pgrst.db_aggregates_enabled='true'; NOTIFY pgrst,'reload config';</code>
       </p>
     </div>
@@ -396,7 +396,7 @@ function OrdersTab({ storeId }: { storeId: string }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: C.bg }}>
-              {['订单号', '买家', '成交额', '让利后收益', '情绪豆抵扣', '状态', '时间'].map(h => (
+              {['订单号', '买家', '成交额', '让利后收益', '金豆抵扣', '状态', '时间'].map(h => (
                 <th key={h} style={thStyle}>{h}</th>
               ))}
             </tr>
@@ -509,7 +509,7 @@ function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSav
               <span style={{ position: 'absolute', top: 3, left: form.referral_rate_enabled ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
             </button>
             <span style={{ color: form.referral_rate_enabled ? C.green : C.sub, fontSize: 13, fontWeight: 600 }}>
-              {form.referral_rate_enabled ? '开启（门店默认让利率参与分佣回退）' : '关闭（仅商品级让利生效）'}
+              {form.referral_rate_enabled ? '开启（门店默认让利率参与佣金回退）' : '关闭（仅商品级让利生效）'}
             </span>
           </div>
         </Field>

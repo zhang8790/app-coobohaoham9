@@ -22,19 +22,19 @@ export const mockProfile: Profile = {
   openid: 'mock-openid-001',
   member_rank: '初心',
   points: 500,
-  tb_balance: 100.00,       // 情绪豆余额（统一货币，本地 mock 支付用）
+  tb_balance: 100.00,       // 金豆余额（统一货币，本地 mock 支付用）
   balance: 100.00,          // 历史遗留字段，保留以满足 Profile 类型；实际以 tb_balance 为准
   coupons_count: 3,
   merchant_status: 'approved',
   referral_code: 'ABC123',
   referrer_id: null,
   total_consumption: 500,  // 个人累计消费500元
-  // V4分佣算法字段
+  // V4佣金算法字段
   monthly_consumption: 100,       // 当月消费100元（达标）
   consecutive_zero_months: 0,     // 未连续零消费
-  team_monthly_gmv: 0,            // 团队月度GMV（暂无推荐）
+  team_monthly_gmv: 0,            // 团队月度累计消费额（暂无推荐）
   has_new_recruit: false,          // 当月无新增推荐
-  months_since_last_recruit: 2,    // 2个月无拓新（未满3个月）
+  months_since_last_recruit: 2,    // 2个月无邀请新用户（未满3个月）
   
   // 添加西瓜商品（让利10%）
   // 注意：实际数据库中已有，这里仅用于本地测试
@@ -400,7 +400,7 @@ export const mockProducts: Product[] = [
 export let mockAnnouncements: Announcement[] = [
   { id: 'ann-001', content: '🎉 欢迎来到来电有喜！首单享九折优惠~', is_active: true, sort_order: 1, created_at: new Date().toISOString() },
   { id: 'ann-002', content: '【新店入驻】茶语轩精品茶饮正式上线，满50减10！', is_active: true, sort_order: 2, created_at: new Date().toISOString() },
-  { id: 'ann-003', content: '本周末双倍积分活动，消费即送积分！', is_active: true, sort_order: 3, created_at: new Date().toISOString() },
+  { id: 'ann-003', content: '本周末双倍金豆活动，消费即送金豆！', is_active: true, sort_order: 3, created_at: new Date().toISOString() },
 ]
 
 // =====================

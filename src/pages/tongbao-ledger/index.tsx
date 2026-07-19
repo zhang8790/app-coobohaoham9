@@ -1,4 +1,4 @@
-// @title 情绪豆明细
+// @title 金豆明细
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
@@ -100,7 +100,7 @@ function TongbaoLedgerPage() {
         {/* 顶部汇总 */}
         <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)' }}>
           <View className="px-4 pt-5 pb-3">
-            <Text className="text-white/80 text-base">当前情绪豆余额</Text>
+            <Text className="text-white/80 text-base">当前金豆余额</Text>
             <Text className="text-white text-4xl font-black mt-1">{balance.toFixed(2)}</Text>
           </View>
           <View className="grid grid-cols-2 py-4 border-t border-white/20">
@@ -135,8 +135,8 @@ function TongbaoLedgerPage() {
           ) : filtered.length === 0 ? (
             <View className="flex flex-col items-center py-16 gap-3">
               <View className="i-mdi-cash-remove text-6xl text-muted-foreground/30" />
-              <Text className="text-xl text-muted-foreground">暂无情绪豆明细</Text>
-              <Text className="text-base text-muted-foreground text-center px-8">分佣、充值、消费都会在这里记录</Text>
+              <Text className="text-xl text-muted-foreground">暂无金豆明细</Text>
+              <Text className="text-base text-muted-foreground text-center px-8">佣金、充值、消费都会在这里记录</Text>
             </View>
           ) : (
             <View className="flex flex-col gap-3">

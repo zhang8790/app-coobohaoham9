@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   { to: '/pages/merchant-analytics/index', icon: 'i-mdi-chart-line', label: '数据分析', color: 'bg-green-500', key: 'analytics' },
   { to: '/pages/merchant-emotion-funnel/index', icon: 'i-mdi-emoticon-happy-outline', label: '情绪漏斗', color: 'bg-pink-500', key: 'emofunnel' },
   { to: '/pages/merchant-settings/index', icon: 'i-mdi-store-cog', label: '店铺设置', color: 'bg-gray-500', key: 'settings' },
-  { to: '/pages/withdraw/index', icon: 'i-mdi-cash-multiple', label: '佣金提现', color: 'bg-yellow-500', key: 'withdraw' },
+  { to: '/pages/withdraw/index', icon: 'i-mdi-cash-multiple', label: '货款提现', color: 'bg-yellow-500', key: 'withdraw' },
 ]
 
 function MerchantCenterPage() {
@@ -322,7 +322,7 @@ function MerchantCenterPage() {
           </Button>
         </View>
         <Text className="text-sm text-muted-foreground mt-2">
-          货款以人民币结算（含情绪豆支付等值部分，由平台垫付），通过微信服务商分账直达您的子商户号，可提现。
+          货款以人民币结算（含金豆支付等值部分，由平台垫付），由微信直接打款到您的账户，可提现。
         </Text>
       </View>
 
@@ -478,7 +478,7 @@ function MerchantCenterPage() {
               {/* 提示文字 */}
               <Text className="text-sm text-muted-foreground text-center mt-5 leading-relaxed"
                 style={{ maxWidth: '280px' }}>
-                扫码自动进入「{store?.name}」，新用户注册即成为您的推荐关系，享受推广奖励
+                扫码自动进入「{store?.name}」，新用户注册即成为您的推荐关系，享受推广佣金
               </Text>
             </View>
 

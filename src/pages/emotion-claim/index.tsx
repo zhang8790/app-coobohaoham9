@@ -251,7 +251,7 @@ export default function EmotionClaimPage() {
               <Text className="emo-equity-mini-label">我的会员贡献值</Text>
               <Text className="emo-equity-mini-val">{fmtNum(equity.myCv)}</Text>
               <Text className="emo-equity-mini-sub">
-                全平台成长占比 {fmtPct(equity.shareRatio)} · 年度成长回馈约 {fmtNum(equity.dividendEstimate)} 情绪豆
+                全平台成长占比 {fmtPct(equity.shareRatio)} · 年度成长回馈约 {fmtNum(equity.dividendEstimate)} 金豆
               </Text>
             </View>
           )}
@@ -286,7 +286,7 @@ export default function EmotionClaimPage() {
             >
               {submitting || autoConfirming
                 ? `${autoConfirming ? '自动' : ''}确权中…`
-                : `确认确权 · 得 ${EMOTION_TB_PER_CLAIM} 情绪豆`
+                : `确认确权 · 得 ${EMOTION_TB_PER_CLAIM} 金豆`
               }
             </Button>
           </View>
@@ -303,7 +303,7 @@ export default function EmotionClaimPage() {
               <Text className="emo-card-badge-icon">{badgeIcon}</Text>
               <View className="emo-card-badge-text">
                 <Text className="emo-card-badge-name">「{badgeName}」徽章</Text>
-                <Text className="emo-card-badge-tb">+ {tb} 情绪豆</Text>
+                <Text className="emo-card-badge-tb">+ {tb} 金豆</Text>
               </View>
             </View>
 
@@ -326,7 +326,7 @@ export default function EmotionClaimPage() {
                   <Text className="emo-card-line-text">全平台成长占比：<Text className="emo-card-line-hl">{fmtPct(equity?.shareRatio || 0)}</Text></Text>
                 </View>
                 <View className="emo-card-line">
-                  <Text className="emo-card-line-text">年度成长回馈：约 <Text className="emo-card-line-hl">{fmtNum(equity?.dividendEstimate || 0)} 情绪豆</Text></Text>
+                  <Text className="emo-card-line-text">年度成长回馈：约 <Text className="emo-card-line-hl">{fmtNum(equity?.dividendEstimate || 0)} 金豆</Text></Text>
                 </View>
                 <View className="emo-card-line">
                   <Text className="emo-card-line-text">平台本月新增用户：<Text className="emo-card-line-hl">{fmtNum(equity?.newUsersThisMonth || 0)} 人</Text></Text>

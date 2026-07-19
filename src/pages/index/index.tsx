@@ -17,7 +17,7 @@ import { analyzeConsumption, recommendByConsumption, type ConsumptionProfile } f
 import ProductGridCard from '@/components/ProductGridCard'
 
 const SCENES = [
-  { name: '治愈空间', icon: 'i-mdi-leaf', color: '#4CAF50' },
+  { name: '舒心空间', icon: 'i-mdi-leaf', color: '#4CAF50' },
   { name: '用餐时光', icon: 'i-mdi-food', color: '#FF7043' },
   { name: '购物时刻', icon: 'i-mdi-shopping', color: '#7B1FA2' },
   { name: '学习空间', icon: 'i-mdi-book-open', color: '#1976D2' },
@@ -681,9 +681,6 @@ export default function IndexPage() {
             </View>
           )}
 
-          {matchItems.length > 0 && (
-            <Text className="text-xs text-muted-foreground mt-2">食养参考 · 不替代医嘱</Text>
-          )}
           {matchAvoid > 0 && (
             <Text className="text-xs text-muted-foreground mt-1">另有 {matchAvoid} 件建议避开（食养参考 · 不替代医嘱）</Text>
           )}
@@ -722,8 +719,7 @@ export default function IndexPage() {
               <FitCard key={product.id} product={product}
                 onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })} />
             ))}
-          </View>
-          <Text className="text-xs text-muted-foreground mt-2">食养参考 · 不替代医嘱</Text>
+            </View>
         </View>
       )}
 

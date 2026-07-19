@@ -19,7 +19,7 @@ function MerchantAgreement() {
           <Text className="block text-foreground font-semibold mb-1 leading-snug">二、平台服务与抽成</Text>
           <Text className="block">1. 平台为商家提供门店展示、订单管理、营销工具、分账结算等服务。</Text>
           <Text className="block">2. 平台按订单实付金额收取技术服务费，具体抽成比例以双方约定及后台配置为准。</Text>
-          <Text className="block">3. 推广分佣（我的好友+我的粉丝）从订单让利池中支出，不额外向商家收取。</Text>
+          <Text className="block">3. 推广佣金（我的好友+我的粉丝）从订单平台让利中支出，不额外向商家收取。</Text>
         </View>
 
         <View className="mb-4">

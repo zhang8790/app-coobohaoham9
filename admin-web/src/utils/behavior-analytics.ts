@@ -27,7 +27,7 @@ export async function loadBehaviorData(): Promise<RawBehavior> {
     .map(pr => pr.id)
   const optedOutCount = allProfiles.length - allowedIds.length
 
-  // 退出用户不参与任何维度计算：订单/确权/情绪豆/段位事件均按允许集合过滤
+  // 退出用户不参与任何维度计算：订单/确权/金豆/段位事件均按允许集合过滤
   const scope = (q: any) =>
     allowedIds.length ? q.in('user_id', allowedIds) : q
 
@@ -326,7 +326,7 @@ export function buildTriggers(raw: RawBehavior, churn: ChurnUser[], decay: Decay
       triggers.push({
         userId: u.userId, nickname: u.nickname, type: 'churn_care',
         reason: `已 ${u.daysSince} 天未购（复购周期约 ${u.cycle} 天）`,
-        action: '推送情绪豆关怀 + 回归券',
+        action: '推送金豆关怀 + 回归券',
       })
     }
   }

@@ -239,7 +239,7 @@ function MyPromotionPage() {
                 <View className="i-mdi-medal text-3xl text-white" />
                 <Text className="text-3xl font-bold text-white">{rankData?.current_rank || '凡心'}</Text>
               </View>
-              <Text className="text-xl text-white/80">我的好友: {rankData?.direct_count || 0}人  |  累计GMV: ¥{Number(rankData?.total_gmv || 0).toFixed(0)}</Text>
+              <Text className="text-xl text-white/80">我的好友: {rankData?.direct_count || 0}人  |  累计累计消费额: ¥{Number(rankData?.total_gmv || 0).toFixed(0)}</Text>
             </View>
             <View className="flex flex-col items-center">
               <View className="text-4xl font-bold text-white">{rankData?.l1_ratio || 40}%</View>
@@ -366,25 +366,25 @@ function MyPromotionPage() {
         </View>
       </View>
 
-        {/* 余额与佣金（佣金已改为情绪豆发放，可在平台内直接消费支付） */}
+        {/* 余额与佣金（佣金已改为金豆发放，可在平台内直接消费支付） */}
         <View className="mx-4 mt-4 grid grid-cols-3 gap-3">
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
             onClick={() => Taro.navigateTo({ url: '/pages/tongbao-ledger/index' })}>
             <View className="i-mdi-star-circle text-3xl text-primary" />
             <Text className="text-2xl font-bold text-foreground">{rankData?.points || 0}</Text>
-            <Text className="text-base text-muted-foreground">我的积分</Text>
+            <Text className="text-base text-muted-foreground">我的贡献值</Text>
           </View>
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
             onClick={() => Taro.navigateTo({ url: '/pages/tongbao-ledger/index' })}>
             <View className="i-mdi-wallet text-3xl text-primary" />
             <Text className="text-2xl font-bold text-foreground">{Number(rankData?.balance || 0).toFixed(2)}</Text>
-            <Text className="text-base text-muted-foreground">我的情绪豆</Text>
+            <Text className="text-base text-muted-foreground">我的金豆</Text>
           </View>
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
             onClick={() => Taro.navigateTo({ url: '/pages/commission-detail/index' })}>
             <View className="i-mdi-cash-multiple text-3xl text-primary" />
             <Text className="text-2xl font-bold text-foreground">{Number(commSummary?.total_earned || 0).toFixed(2)}</Text>
-            <Text className="text-base text-muted-foreground">累计佣金(情绪豆)</Text>
+            <Text className="text-base text-muted-foreground">累计佣金(金豆)</Text>
           </View>
         </View>
 
@@ -398,7 +398,7 @@ function MyPromotionPage() {
           {[
             { icon: 'i-mdi-account-plus', text: `好友通过你的推广码注册并消费，你可获得 ${userRankInfo?.l1Ratio || 40}% 我的好友佣金` },
             { icon: 'i-mdi-account-multiple', text: `你推荐的我的好友再邀好友消费，你可获得 ${userRankInfo?.l2Ratio || 15}% 我的粉丝佣金` },
-            { icon: 'i-mdi-emoticon-happy', text: '推广佣金以「情绪豆」发放，可直接在平台内消费支付，形成消费回流飞轮' },
+            { icon: 'i-mdi-emoticon-happy', text: '推广佣金以「金豆」发放，可直接在平台内消费支付，形成消费回流边花边赚' },
             { icon: 'i-mdi-shield-check', text: '本平台仅二级推广（我的好友+我的粉丝），只有二级、不发展多级、不按团队计酬、无入门费' },
           ].map((item, i) => (
             <View key={i} className="flex items-start gap-2">

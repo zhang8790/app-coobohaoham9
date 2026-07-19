@@ -31,12 +31,12 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: '已取消',
 }
 const STATUS_COLOR: Record<string, string> = {
-  pending_pay: '#F59E0B',
-  pending_ship: '#C2410C',
-  pending_receive: '#3B82F6',
-  completed: '#059669',
-  refund: '#EF4444',
-  cancelled: '#6B7280',
+  pending_pay: 'var(--warning)',
+  pending_ship: 'var(--primary)',
+  pending_receive: 'var(--info)',
+  completed: 'var(--success-strong)',
+  refund: 'var(--danger)',
+  cancelled: 'var(--text-dim)',
 }
 
 // 判断是否有商家权限
@@ -164,24 +164,24 @@ export default function MerchantDashboard() {
   }, [useMock, storeId])
 
   const cards = [
-    { label: '今日营收', value: `¥${stats.todayRevenue.toFixed(2)}`, icon: '💰', color: '#059669' },
-    { label: '本月营收', value: `¥${(stats.monthRevenue / 10000).toFixed(2)}万`, icon: '📈', color: '#3B82F6' },
-    { label: '今日订单', value: stats.todayOrders, icon: '📦', color: '#C2410C' },
-    { label: '累积客户', value: stats.totalCustomers, icon: '👥', color: '#7C3AED' },
+    { label: '今日营收', value: `¥${stats.todayRevenue.toFixed(2)}`, icon: '💰', color: 'var(--success-strong)' },
+    { label: '本月营收', value: `¥${(stats.monthRevenue / 10000).toFixed(2)}万`, icon: '📈', color: 'var(--info)' },
+    { label: '今日订单', value: stats.todayOrders, icon: '📦', color: 'var(--primary)' },
+    { label: '累积客户', value: stats.totalCustomers, icon: '👥', color: 'var(--accent)' },
   ]
 
   return (
     <div>
       {/* 页面标题 */}
-      <h2 style={{ color: '#E5E7EB', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>店铺概况</h2>
+      <h2 style={{ color: 'var(--text)', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>店铺概况</h2>
 
       {/* 核心指标卡片 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 32 }}>
         {cards.map((c, i) => (
-          <div key={i} style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 20 }}>
+          <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <span style={{ fontSize: 24 }}>{c.icon}</span>
-              <span style={{ color: '#6B7280', fontSize: 13 }}>{c.label}</span>
+              <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>{c.label}</span>
             </div>
             <p style={{ color: c.color, fontSize: 28, fontWeight: 800 }}>{c.value}</p>
           </div>
@@ -200,66 +200,66 @@ export default function MerchantDashboard() {
         ].map((btn, i) => (
           <div key={i}
             onClick={() => nav(btn.to)}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#059669')}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#1F2937')}
-            style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 20, cursor: 'pointer', transition: 'all 0.2s' }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--success-strong)')}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, cursor: 'pointer', transition: 'all 0.2s' }}
           >
             <span style={{ fontSize: 28, display: 'block', marginBottom: 8 }}>{btn.icon}</span>
-            <p style={{ color: '#E5E7EB', fontSize: 14, fontWeight: 600 }}>{btn.label}</p>
+            <p style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>{btn.label}</p>
           </div>
         ))}
       </div>
 
       {/* 待处理事项 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32 }}>
-        <div style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 20 }}>
-          <h3 style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>⚠️ 待处理</h3>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+          <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>待处理</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#9CA3AF', fontSize: 14 }}>待发货订单</span>
-              <span style={{ color: '#C2410C', fontSize: 20, fontWeight: 800 }}>{stats.pendingOrders}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>待发货订单</span>
+              <span style={{ color: 'var(--primary)', fontSize: 20, fontWeight: 800 }}>{stats.pendingOrders}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#9CA3AF', fontSize: 14 }}>可提现佣金</span>
-              <span style={{ color: '#059669', fontSize: 20, fontWeight: 800 }}>¥{stats.pendingWithdraw.toFixed(2)}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>可提现佣金</span>
+              <span style={{ color: 'var(--success-strong)', fontSize: 20, fontWeight: 800 }}>¥{stats.pendingWithdraw.toFixed(2)}</span>
             </div>
           </div>
         </div>
 
-        <div style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 20 }}>
-          <h3 style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>📈 今日数据</h3>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+          <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>今日数据</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#9CA3AF', fontSize: 14 }}>访客数</span>
-              <span style={{ color: '#E5E7EB', fontSize: 18, fontWeight: 700 }}>128</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>访客数</span>
+              <span style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>128</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#9CA3AF', fontSize: 14 }}>浏览量</span>
-              <span style={{ color: '#E5E7EB', fontSize: 18, fontWeight: 700 }}>456</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>浏览量</span>
+              <span style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>456</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#9CA3AF', fontSize: 14 }}>转化率</span>
-              <span style={{ color: '#059669', fontSize: 18, fontWeight: 700 }}>17.9%</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>转化率</span>
+              <span style={{ color: 'var(--success-strong)', fontSize: 18, fontWeight: 700 }}>17.9%</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* 最新订单 */}
-      <div style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 20 }}>
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h3 style={{ color: '#E5E7EB', fontSize: 16, fontWeight: 700 }}>📋 最新订单</h3>
-          <button onClick={() => nav('/merchant/orders')} style={{ background: 'transparent', border: 'none', color: '#059669', cursor: 'pointer', fontSize: 13 }}>查看全部 →</button>
+          <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700 }}>最新订单</h3>
+          <button onClick={() => nav('/merchant/orders')} style={{ background: 'transparent', border: 'none', color: 'var(--success-strong)', cursor: 'pointer', fontSize: 13 }}>查看全部 →</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {recentOrders.map(order => (
-            <div key={order.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#0B0F19', borderRadius: 8 }}>
+            <div key={order.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg)', borderRadius: 8 }}>
               <div>
-                <p style={{ color: '#E5E7EB', fontSize: 14, fontWeight: 600 }}>{order.product_name} x{order.quantity}</p>
-                <p style={{ color: '#6B7280', fontSize: 12, marginTop: 2 }}>{order.created_at}</p>
+                <p style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>{order.product_name} x{order.quantity}</p>
+                <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 2 }}>{order.created_at}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <p style={{ color: '#E5E7EB', fontSize: 14, fontWeight: 700 }}>¥{order.price}</p>
+                <p style={{ color: 'var(--text)', fontSize: 14, fontWeight: 700 }}>¥{order.price}</p>
                 <span style={{ color: STATUS_COLOR[order.status], fontSize: 12, fontWeight: 600 }}>{STATUS_LABEL[order.status]}</span>
               </div>
             </div>

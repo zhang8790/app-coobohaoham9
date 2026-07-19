@@ -22,7 +22,7 @@ function CommissionRules() {
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">二、佣金比例（二级）</Text>
-          <Text className="block">1. 我的好友佣金比例由您的「段位」决定，段位越高比例越大：约 40% ~ 50%（基于订单让利池在扣除平台基础服务费后的剩余部分计算，并非订单全额）。</Text>
+          <Text className="block">1. 我的好友佣金比例由您的「段位」决定，段位越高比例越大：约 40% ~ 50%（基于订单平台让利在扣除平台基础服务费后的剩余部分计算，并非订单全额）。</Text>
           <Text className="block">2. 我的粉丝佣金比例为 15% ~ 18%，随您的段位提升而提高。</Text>
           <Text className="block">3. 仅二级（我的好友+我的粉丝），不设置第三级及多层返利。</Text>
           <Text className="block">说明：段位由您「近 6 个月滚动消费」决定，停止消费则窗口外消费过期、段位自动下调，不会出现长期不消费仍拿高比例的情况。</Text>
@@ -33,7 +33,7 @@ function CommissionRules() {
           <Text className="block text-foreground font-semibold mb-1 leading-snug">三、结算与提现</Text>
           <Text className="block">1. 订单完成后佣金进入「待结算」状态。</Text>
           <Text className="block">2. 订单无退款纠纷且超过售后周期后，佣金转为「已结算」。</Text>
-          <Text className="block">3. 已结算佣金可发起提现，提现按您申请的金额发放，到账周期 1-3 个工作日。推广佣金属于依法应申报的劳务报酬所得，请依法履行个人所得税纳税申报义务。</Text>
+          <Text className="block">3. 已结算佣金以金豆形式发放至金豆余额，可在平台内消费支付抵扣，不可提现或兑现金。推广佣金属于依法应申报的劳务报酬所得，请依法履行个人所得税纳税申报义务。</Text>
         </View>
 
         <View className="mb-4">
@@ -46,7 +46,7 @@ function CommissionRules() {
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">五、回扣与风控（已真实落地）</Text>
           <Text className="block">1. 若推荐好友订单发生退款，对应佣金将同步回扣。</Text>
-          <Text className="block">2. 连续 3 个月（90 天）未拓新（无新下级注册），推广佣金系数衰减至基准的 40%，最低不低于基准比例 40%。</Text>
+          <Text className="block">2. 连续 3 个月（90 天）未邀请新用户（无新下级注册），推广佣金系数衰减至基准的 40%，最低不低于基准比例 40%。</Text>
           <Text className="block">3. 平台严禁刷单、套现等作弊行为，违规佣金将被冻结或清零。</Text>
         </View>
 

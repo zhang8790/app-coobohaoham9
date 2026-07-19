@@ -230,7 +230,7 @@ function UserPage() {
         {user && profile && (
           <View className="grid grid-cols-3 gap-3 mt-4">
             {[
-              { label: '情绪豆', value: profile.tb_balance || 0, icon: 'i-mdi-wallet' },
+              { label: '金豆', value: profile.tb_balance || 0, icon: 'i-mdi-wallet' },
               { label: '佣金', value: `¥${(profile.commission_balance || 0).toFixed(2)}`, icon: 'i-mdi-cash' },
               { label: '优惠券', value: `${profile.coupons_count || 0}张`, icon: 'i-mdi-ticket' },
             ].map(item => (
@@ -310,7 +310,7 @@ function UserPage() {
           <View className="grid grid-cols-4 py-3">
             {[
               { name: '我的段位', icon: '🏅', page: '/pages/my-promotion/index', desc: '查看推广码' },
-              { name: '我的佣金', icon: '💰', page: '/pages/withdraw/index', desc: '提现管理' },
+              { name: '我的金豆', icon: '💰', page: '/pages/withdraw/index', desc: '金豆明细' },
               { name: '我的好友', icon: '👥', page: '/pages/my-referrals/index', desc: '查看推荐' },
               { name: '情绪账单', icon: '🎭', page: '/pages/emotion-bill/index', desc: '确权集' },
             ].map(item => (

@@ -98,7 +98,7 @@ function AdminUsersPage() {
                 </View>
                 <View className="flex flex-col items-end">
                   <Text className="text-xl font-bold text-primary">{u.member_rank || '凡心'}</Text>
-                  <Text className="text-base text-muted-foreground">情绪豆 {Number(u.tb_balance ?? 0).toFixed(2)}</Text>
+                  <Text className="text-base text-muted-foreground">金豆 {Number(u.tb_balance ?? 0).toFixed(2)}</Text>
                 </View>
               </View>
               <View className="flex items-center justify-between">

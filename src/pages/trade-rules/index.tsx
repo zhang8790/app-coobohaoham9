@@ -17,14 +17,14 @@ function TradeRules() {
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">二、价格与让利</Text>
           <Text className="block">1. 平台商品标注「原价」与「到手价」，到手价已包含商家让利及平台补贴。</Text>
-          <Text className="block">2. 每笔订单平台将提取不超过 9% 的让利池，用于分佣、积分返还及平台运营。</Text>
+          <Text className="block">2. 每笔订单平台将提取不超过 9% 的平台让利，用于佣金、金豆返还及平台运营。</Text>
           <Text className="block">3. 商品实际价格以订单提交时页面显示为准，商家有权根据库存与活动调整。</Text>
         </View>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">三、下单与支付</Text>
           <Text className="block">1. 提交订单即视为购买意向确认，订单在支付完成前可取消。</Text>
-          <Text className="block">2. 支付方式支持微信支付、情绪豆支付及混合支付，具体以订单页展示为准。</Text>
+          <Text className="block">2. 支付方式支持微信支付、金豆支付及混合支付，具体以订单页展示为准。</Text>
           <Text className="block">3. 订单生成后请在有效支付时间内完成付款，超时订单将自动取消。</Text>
         </View>
 
@@ -39,7 +39,7 @@ function TradeRules() {
           <Text className="block text-foreground font-semibold mb-1 leading-snug">五、退款规则</Text>
           <Text className="block">1. 未核销/未发货订单可申请全额退款，原路退回。</Text>
           <Text className="block">2. 已核销订单如需退款，由商家核实后处理，平台不强制担保。</Text>
-          <Text className="block">3. 退款时，该订单产生的推广佣金将同步回扣，已发放积分将相应扣减。</Text>
+          <Text className="block">3. 退款时，该订单产生的推广佣金将同步回扣，已发放金豆将相应扣减。</Text>
         </View>
 
         <View className="mb-4">

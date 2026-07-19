@@ -9,7 +9,7 @@ import type { Product } from '@/db/types'
 
 const HOT_WORDS = ['手账套装', '奶茶', '咖啡', '礼品盒', '人间失格', '香薰', '红烧肉', '零食大礼包']
 // 心情引导词：让用户知道搜索框也能"说心情"
-const MOOD_HINTS = ['我失恋了', '今天好累', '想要治愈', '需要放松', '有点孤独', '想犒赏自己']
+const MOOD_HINTS = ['我失恋了', '今天好累', '想要放松', '需要放松', '有点孤独', '想犒赏自己']
 
 interface EmotionState {
   bubble: string      // IP 回应气泡

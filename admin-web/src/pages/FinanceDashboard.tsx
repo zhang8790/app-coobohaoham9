@@ -6,9 +6,9 @@ import { supabase } from '@/lib/supabase'
 
 // ── 通用样式 ───────────────────────────────────────────────────────────
 const C = {
-  bg: '#0B0F19', card: '#0F172A', border: '#1F2937', text: '#E5E7EB',
-  sub: '#9CA3AF', dim: '#6B7280', accent: '#C2410C', green: '#10B981',
-  blue: '#3B82F6', purple: '#8B5CF6', gold: '#F59E0B',
+  bg: 'var(--bg)', card: 'var(--card)', border: 'var(--border)', text: 'var(--text)',
+  sub: 'var(--text-muted)', dim: 'var(--text-dim)', accent: 'var(--primary)', green: 'var(--success-strong)',
+  blue: 'var(--info)', purple: 'var(--accent)', gold: 'var(--warning)',
 }
 const cardStyle: React.CSSProperties = {
   background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 20px',
@@ -76,13 +76,13 @@ function Kpi({ label, value, color, sub, to }: {
 // ── 财务明细对比表 ──────────────────────────────────────────────────────
 function FinanceTable({ o }: { o: FinanceOverview }) {
   const rows: { name: string; val: number; kind: string }[] = [
-    { name: '成交额 GMV', val: o.gmv, kind: 'money' },
-    { name: '情绪豆抵扣总额', val: o.concession, kind: 'money' },
+    { name: '成交额 累计消费额', val: o.gmv, kind: 'money' },
+    { name: '金豆抵扣总额', val: o.concession, kind: 'money' },
     { name: '推广佣金支出', val: o.commissionPaid, kind: 'money' },
     { name: '平台净收益', val: o.platformNet, kind: 'money' },
-    { name: '情绪豆流通量', val: o.goldBeans, kind: 'num' },
+    { name: '金豆流通量', val: o.goldBeans, kind: 'num' },
     { name: '积分流通量', val: o.points, kind: 'num' },
-    { name: '情绪豆发放总量', val: o.tbTotal, kind: 'num' },
+    { name: '金豆发放总量', val: o.tbTotal, kind: 'num' },
     { name: '贡献值 CV 总量', val: o.cvTotal, kind: 'num' },
   ]
   const gmv = Math.max(1, o.gmv)
@@ -90,12 +90,12 @@ function FinanceTable({ o }: { o: FinanceOverview }) {
     <div style={cardStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2 style={{ color: C.text, fontSize: 16, fontWeight: 600 }}>财务明细总表</h2>
-        <button onClick={() => exportFinanceTable(o)} style={exportBtn}>⬇ 导出 CSV</button>
+        <button onClick={() => exportFinanceTable(o)} style={exportBtn}>导出 CSV</button>
       </div>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-            {['指标', '数值', '占 GMV 比'].map(h => (
+            {['指标', '数值', '占 累计消费额 比'].map(h => (
               <th key={h} style={{ color: C.dim, fontSize: 12, fontWeight: 500, padding: '8px 12px', textAlign: 'left' }}>{h}</th>
             ))}
           </tr>
@@ -108,7 +108,7 @@ function FinanceTable({ o }: { o: FinanceOverview }) {
                 {r.kind === 'money' ? fmtMoney(r.val) : fmt(r.val)}
               </td>
               <td style={{ padding: '11px 12px', color: C.sub, fontSize: 13 }}>
-                {r.kind === 'money' && r.name !== '成交额 GMV'
+                {r.kind === 'money' && r.name !== '成交额 累计消费额'
                   ? `${((r.val / gmv) * 100).toFixed(2)}%` : '—'}
               </td>
             </tr>
@@ -203,9 +203,9 @@ export default function FinanceDashboard() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {alerts.map((a, i) => (
             <div key={i} style={{
-              background: a.lvl === 'danger' ? 'rgba(194,65,12,0.12)' : 'rgba(245,158,11,0.10)',
+              background: a.lvl === 'danger' ? 'var(--primary-soft)' : 'rgba(245,158,11,0.10)',
               border: `1px solid ${a.lvl === 'danger' ? C.accent : C.gold}`,
-              borderRadius: 10, padding: '12px 16px', color: a.lvl === 'danger' ? '#FCA5A5' : '#FCD34D', fontSize: 13, fontWeight: 500,
+              borderRadius: 10, padding: '12px 16px', color: a.lvl === 'danger' ? 'var(--danger-text)' : 'var(--warning)', fontSize: 13, fontWeight: 500,
             }}>{a.text}</div>
           ))}
         </div>
@@ -222,18 +222,18 @@ export default function FinanceDashboard() {
       {/* 成交 / 收益 */}
       <Section title="成交与收益" icon="📈">
         <Kpi label="成交订单数" value={fmt(o.ordersPaid)} color={C.accent} to="/orders" sub={dChg(momOrders)} />
-        <Kpi label="成交额 GMV" value={fmtMoney(o.gmv)} color={C.green} sub={dChg(mom)} />
-        <Kpi label="情绪豆抵扣" value={fmtMoney(o.concession)} color={C.gold} sub={`占GMV ${((o.concession / Math.max(1, o.gmv)) * 100).toFixed(2)}%`} />
-        <Kpi label="平台净收益" value={fmtMoney(o.platformNet)} color={C.blue} sub="GMV−情绪豆抵扣−佣金" />
+        <Kpi label="成交额 累计消费额" value={fmtMoney(o.gmv)} color={C.green} sub={dChg(mom)} />
+        <Kpi label="金豆抵扣" value={fmtMoney(o.concession)} color={C.gold} sub={`占累计消费额 ${((o.concession / Math.max(1, o.gmv)) * 100).toFixed(2)}%`} />
+        <Kpi label="平台净收益" value={fmtMoney(o.platformNet)} color={C.blue} sub="累计消费额−金豆抵扣−佣金" />
       </Section>
 
       {/* 资产流通 */}
       <Section title="资产流通（数字化）" icon="💎">
-        <Kpi label="情绪豆余额" value={fmt(o.goldBeans)} color={C.gold} sub="1情绪豆=1元" to="/ledgers" />
-        <Kpi label="情绪豆累计发放" value={fmt(o.goldBeanIssued)} color={C.green} sub="tongbao_logs +" />
-        <Kpi label="情绪豆累计消耗" value={fmt(o.goldBeanConsumed)} color={C.accent} sub="tongbao_logs −" />
+        <Kpi label="金豆余额" value={fmt(o.goldBeans)} color={C.gold} sub="1金豆=1元" to="/ledgers" />
+        <Kpi label="金豆累计发放" value={fmt(o.goldBeanIssued)} color={C.green} sub="tongbao_logs +" />
+        <Kpi label="金豆累计消耗" value={fmt(o.goldBeanConsumed)} color={C.accent} sub="tongbao_logs −" />
         <Kpi label="积分流通量" value={fmt(o.points)} color={C.blue} />
-        <Kpi label="情绪豆发放总量" value={fmt(o.tbTotal)} color={C.purple} to="/emotion-claims" />
+        <Kpi label="金豆发放总量" value={fmt(o.tbTotal)} color={C.purple} to="/emotion-claims" />
         <Kpi label="贡献值 CV 总量" value={fmt(o.cvTotal)} color={C.green} />
       </Section>
 
@@ -248,13 +248,13 @@ export default function FinanceDashboard() {
                 {anomaly.anomalies.map(a => (
                   <div key={a.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
-                    background: a.level === 'high' ? 'rgba(239,68,68,0.12)' : a.level === 'medium' ? 'rgba(245,158,11,0.10)' : 'rgba(59,130,246,0.10)',
-                    border: `1px solid ${a.level === 'high' ? '#F87171' : a.level === 'medium' ? C.gold : C.blue}`,
+                    background: a.level === 'high' ? 'var(--danger-soft)' : a.level === 'medium' ? 'rgba(245,158,11,0.10)' : 'var(--info-soft)',
+                    border: `1px solid ${a.level === 'high' ? 'var(--danger-text)' : a.level === 'medium' ? C.gold : C.blue}`,
                     borderRadius: 10, padding: '12px 16px',
                   }}>
                     <span style={{
                       fontSize: 12, fontWeight: 700, flexShrink: 0, width: 44, textAlign: 'center',
-                      color: a.level === 'high' ? '#FCA5A5' : a.level === 'medium' ? '#FCD34D' : '#93C5FD',
+                      color: a.level === 'high' ? 'var(--danger-text)' : a.level === 'medium' ? 'var(--warning)' : 'var(--info-text)',
                     }}>{a.level === 'high' ? '高危' : a.level === 'medium' ? '关注' : '提示'}</span>
                     <div style={{ flex: 1 }}>
                       <p style={{ color: C.text, fontSize: 13, fontWeight: 600 }}>{a.title}</p>
@@ -275,7 +275,7 @@ export default function FinanceDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
         <div style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600 }}>每日成交额 (GMV)</h3>
+            <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600 }}>每日成交额 (累计消费额)</h3>
             <span style={{ color: C.green, fontSize: 12 }}>近30日</span>
           </div>
           <TrendChart points={trend} valueKey="gmv" color={C.green} />
@@ -299,19 +299,19 @@ export default function FinanceDashboard() {
       {/* 收益结构 & 资产分布 环形图（智能化可视化）*/}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
         <div style={cardStyle}>
-          <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>收益结构（GMV 去向）</h3>
+          <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>收益结构（累计消费额 去向）</h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
             <DonutChart data={[
-              { label: '情绪豆抵扣', value: o.concession, color: C.gold },
+              { label: '金豆抵扣', value: o.concession, color: C.gold },
               { label: '推广佣金', value: o.commissionPaid, color: C.purple },
               { label: '平台净收益', value: Math.max(0, o.platformNet), color: C.blue },
-            ]} centerLabel={`GMV\n${fmtMoney(o.gmv)}`} />
+            ]} centerLabel={`累计消费额\n${fmtMoney(o.gmv)}`} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-              <Legend color={C.gold} label="情绪豆抵扣" value={fmtMoney(o.concession)} />
+              <Legend color={C.gold} label="金豆抵扣" value={fmtMoney(o.concession)} />
               <Legend color={C.purple} label="推广佣金" value={fmtMoney(o.commissionPaid)} />
               <Legend color={C.blue} label="平台净收益" value={fmtMoney(o.platformNet)} />
               <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, marginTop: 2 }}>
-                <Legend color={C.green} label="GMV 合计" value={fmtMoney(o.gmv)} />
+                <Legend color={C.green} label="累计消费额 合计" value={fmtMoney(o.gmv)} />
               </div>
             </div>
           </div>
@@ -320,15 +320,15 @@ export default function FinanceDashboard() {
           <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>数字资产发行结构</h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
             <DonutChart data={[
-              { label: '情绪豆', value: o.goldBeans, color: C.gold },
+              { label: '金豆', value: o.goldBeans, color: C.gold },
               { label: '积分', value: o.points, color: C.blue },
-              { label: '情绪豆', value: o.tbTotal, color: C.purple },
+              { label: '金豆', value: o.tbTotal, color: C.purple },
               { label: '贡献值CV', value: o.cvTotal, color: C.green },
             ]} centerLabel="资产\n总览" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-              <Legend color={C.gold} label="情绪豆 (1=1元)" value={fmt(o.goldBeans)} />
+              <Legend color={C.gold} label="金豆 (1=1元)" value={fmt(o.goldBeans)} />
               <Legend color={C.blue} label="积分" value={fmt(o.points)} />
-              <Legend color={C.purple} label="情绪豆" value={fmt(o.tbTotal)} />
+              <Legend color={C.purple} label="金豆" value={fmt(o.tbTotal)} />
               <Legend color={C.green} label="贡献值 CV" value={fmt(o.cvTotal)} />
             </div>
           </div>
@@ -412,19 +412,19 @@ function Legend({ color, label, value }: { color: string; label: string; value: 
 function exportFinanceTable(o: FinanceOverview) {
   const gmv = Math.max(1, o.gmv)
   const rows = [
-    { 指标: '成交额 GMV', 数值: o.gmv, 占GMV比: '—' },
-    { 指标: '情绪豆抵扣', 数值: o.concession, 占GMV比: ((o.concession / gmv) * 100).toFixed(2) + '%' },
-    { 指标: '推广佣金支出', 数值: o.commissionPaid, 占GMV比: ((o.commissionPaid / gmv) * 100).toFixed(2) + '%' },
-    { 指标: '平台净收益', 数值: o.platformNet, 占GMV比: ((o.platformNet / gmv) * 100).toFixed(2) + '%' },
-    { 指标: '情绪豆流通量', 数值: o.goldBeans, 占GMV比: '—' },
-    { 指标: '积分流通量', 数值: o.points, 占GMV比: '—' },
-    { 指标: '情绪豆发放总量', 数值: o.tbTotal, 占GMV比: '—' },
-    { 指标: '贡献值 CV 总量', 数值: o.cvTotal, 占GMV比: '—' },
+    { 指标: '成交额 累计消费额', 数值: o.gmv, 占累计消费额比: '—' },
+    { 指标: '金豆抵扣', 数值: o.concession, 占累计消费额比: ((o.concession / gmv) * 100).toFixed(2) + '%' },
+    { 指标: '推广佣金支出', 数值: o.commissionPaid, 占累计消费额比: ((o.commissionPaid / gmv) * 100).toFixed(2) + '%' },
+    { 指标: '平台净收益', 数值: o.platformNet, 占累计消费额比: ((o.platformNet / gmv) * 100).toFixed(2) + '%' },
+    { 指标: '金豆流通量', 数值: o.goldBeans, 占累计消费额比: '—' },
+    { 指标: '积分流通量', 数值: o.points, 占累计消费额比: '—' },
+    { 指标: '金豆发放总量', 数值: o.tbTotal, 占累计消费额比: '—' },
+    { 指标: '贡献值 CV 总量', 数值: o.cvTotal, 占累计消费额比: '—' },
   ]
   const cols: CsvColumn[] = [
     { key: '指标', label: '指标' },
     { key: '数值', label: '数值' },
-    { key: '占GMV比', label: '占GMV比' },
+    { key: '占累计消费额比', label: '占累计消费额比' },
   ]
   downloadCSV(`财务明细总表_${csvTimestamp()}.csv`, rows as unknown as Record<string, unknown>[], cols)
 }

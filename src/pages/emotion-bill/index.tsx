@@ -121,7 +121,7 @@ function EmotionBillPage() {
         </View>
         <View className="grid grid-cols-3 gap-3 mt-5">
           {[
-            { label: '情绪豆', value: `${tbBalance}`, sub: '可用' },
+            { label: '金豆', value: `${tbBalance}`, sub: '可用' },
             { label: '会员贡献值', value: `${cvTotal}`, sub: '会员权益依据' },
             { label: '确权次数', value: `${claims.length}`, sub: '累计确权' },
           ].map(s => (
@@ -171,7 +171,7 @@ function EmotionBillPage() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#DC2626' }}>{(equity.dividendEstimate || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</Text>
-                <Text style={{ fontSize: '12px', color: '#999', display: 'block' }}>年度成长回馈(情绪豆)</Text>
+                <Text style={{ fontSize: '12px', color: '#999', display: 'block' }}>年度成长回馈(金豆)</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: '20px', fontWeight: 'bold' }}>{(equity.newUsersThisMonth || 0).toLocaleString('zh-CN')}</Text>
@@ -233,7 +233,7 @@ function EmotionBillPage() {
                   </View>
                 </View>
                 <View className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-                  <Text className="text-base text-muted-foreground">+{c.tb_amount || 0} 情绪豆 · {fmtDate(c.created_at)}</Text>
+                  <Text className="text-base text-muted-foreground">+{c.tb_amount || 0} 金豆 · {fmtDate(c.created_at)}</Text>
                   <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
                 </View>
               </View>
