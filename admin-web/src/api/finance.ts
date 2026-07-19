@@ -145,7 +145,7 @@ export async function getFinanceOverview(): Promise<FinanceOverview> {
     countOf('profiles', { eq: ['is_banned', true] }),
   ])
 
-  // 情绪豆流水闭环：从 tongbao_logs 累计发放 / 消耗（00076 未建时 sumOf 降级为 0，不阻塞）
+  // 金豆流水闭环：从 tongbao_logs 累计发放 / 消耗（00076 未建时 sumOf 降级为 0，不阻塞）
   const [gbRefund, gbRecharge, gbGrant, gbSpend, gbDeduct, gbEarn, gbRefundDeduct] = await Promise.all([
     sumOf('tongbao_logs', 'delta', { eq: ['type', 'refund_return'] }),
     sumOf('tongbao_logs', 'delta', { eq: ['type', 'recharge'] }),
@@ -263,7 +263,7 @@ export async function getMembers(
   }
 }
 
-// ── 会员详情（情绪豆明细）────────────────────────────────────────────────
+// ── 会员详情（金豆明细）────────────────────────────────────────────────
 export async function getMemberDetail(userId: string): Promise<MemberDetail> {
   try {
     const [{ data: p }, { data: claims }, { count }] = await Promise.all([
@@ -594,7 +594,7 @@ export async function getOrderCommissionBreakdown(orderId: string): Promise<Comm
 // =====================================================
 // 资产流水中心（三张逐笔明细表）
 //  - 积分流水 points_logs
-//  - 情绪豆流水 emotion_tongbao_logs
+//  - 金豆流水 emotion_tongbao_logs
 //  - 佣金流水 commissions
 // 均用两步直读解析用户昵称/手机（profiles 无 FK，沿用已修通范式）
 // =====================================================
@@ -697,7 +697,7 @@ export async function getPointsLedger(
   }
 }
 
-// ── 情绪豆流水 ──────────────────────────────────────────────
+// ── 金豆流水 ──────────────────────────────────────────────
 export async function getEmotionLedger(
   page: number,
   pageSize: number,
@@ -786,7 +786,7 @@ export async function getCommissionLedger(
   }
 }
 
-// ── 情绪豆流水 ────────────────────────────────────────────────
+// ── 金豆流水 ────────────────────────────────────────────────
 export async function getGoldBeanLedger(
   page: number,
   pageSize: number,
@@ -826,9 +826,9 @@ export async function getGoldBeanLedger(
   }
 }
 
-// ── 情绪豆后台发放 / 扣减（admin 运营动作）──────────────────────────────
-// 写 tongbao_logs（admin_grant/admin_deduct）+ 同步更新 profiles.tb_balance（情绪豆消费余额）
-// 与「用户管理-充值」共用同一 balance 字段，确保两页口径一致（情绪豆 = 消费抵扣余额，1:1）
+// ── 金豆后台发放 / 扣减（admin 运营动作）──────────────────────────────
+// 写 tongbao_logs（admin_grant/admin_deduct）+ 同步更新 profiles.tb_balance（金豆消费余额）
+// 与「用户管理-充值」共用同一 balance 字段，确保两页口径一致（金豆 = 消费抵扣余额，1:1）
 // 调用方可 .then().catch() 不阻塞主流程；单步失败返回结构化错误
 export interface GoldBeanAdjustResult {
   ok: boolean
@@ -867,9 +867,9 @@ export async function adminAdjustGoldBean(
   }
 }
 
-// ── 情绪豆充值（admin 给用户充值，余额增加）──────────────────────────────
-// 写 tongbao_logs（type='recharge'）+ 同步更新 profiles.tb_balance（情绪豆消费余额）
-// 注意：仅动 tb_balance（情绪豆消费账户，人民币1:1锚定），不动 commission_balance（可提现佣金，按 00058 设计隔离）
+// ── 金豆充值（admin 给用户充值，余额增加）──────────────────────────────
+// 写 tongbao_logs（type='recharge'）+ 同步更新 profiles.tb_balance（金豆消费余额）
+// 注意：仅动 tb_balance（金豆消费账户，人民币1:1锚定），不动 commission_balance（可提现佣金，按 00058 设计隔离）
 // 调用方可 .then().catch() 不阻塞主流程；单步失败返回结构化错误
 export interface GoldBeanRechargeResult {
   ok: boolean
@@ -991,7 +991,7 @@ export async function getAnomalyReport(): Promise<AnomalyReport> {
       }
     }
 
-    // R2 · 单日 GMV 骤降（较昨日下降 >50%，且今日已有成交，避免凌晨空窗误报）
+    // R2 · 单日 累计消费额 骤降（较昨日下降 >50%，且今日已有成交，避免凌晨空窗误报）
     const trend = await getDailyTrend(2)
     if (trend.length >= 2) {
       const today = trend[trend.length - 1].gmv
@@ -1001,7 +1001,7 @@ export async function getAnomalyReport(): Promise<AnomalyReport> {
           id: 'gmv-drop',
           level: 'medium',
           title: '成交额骤降',
-          detail: `今日 GMV ¥${today.toLocaleString('zh-CN')} 较昨日 ¥${yest.toLocaleString('zh-CN')} 下降 ${((1 - today / yest) * 100).toFixed(1)}%`,
+          detail: `今日 累计消费额 ¥${today.toLocaleString('zh-CN')} 较昨日 ¥${yest.toLocaleString('zh-CN')} 下降 ${((1 - today / yest) * 100).toFixed(1)}%`,
         })
       }
     }
@@ -1064,4 +1064,85 @@ export async function getAnomalyReport(): Promise<AnomalyReport> {
     /* 单规则异常不影响其它规则，降级为空报告 */
   }
   return { anomalies, checkedAt: new Date().toISOString() }
+}
+
+// =====================================================
+// 会员上线调拨（仅允许无上线会员指定上线）
+// 约束：
+//  1. 只能给 referrer_id 为 null 的会员设置上线；
+//  2. 不能设自己为上线；
+//  3. 不能形成推荐回环（沿目标上线链向上追溯最多 5 层）；
+//  4. 必须由 admin-web 的 service_role 或真实 admin 会话执行。
+// =====================================================
+export interface CandidateReferrer {
+  id: string
+  nickname: string
+  phone: string | null
+  member_rank: string
+}
+
+export async function searchCandidateReferrers(
+  keyword: string,
+  excludeUserId: string,
+): Promise<{ data: CandidateReferrer[]; error?: string }> {
+  try {
+    let q = supabase.from('profiles').select('id,nickname,phone,member_rank')
+    if (keyword) q = q.or(`phone.ilike.%${keyword}%,nickname.ilike.%${keyword}%`)
+    const { data, error } = await q
+      .neq('id', excludeUserId)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    if (error) return { data: [], error: error.message }
+    return {
+      data: (data as any[] ?? []).map(r => ({
+        id: r.id,
+        nickname: r.nickname ?? '无名',
+        phone: r.phone ?? null,
+        member_rank: r.member_rank ?? '凡心',
+      })),
+    }
+  } catch (e: any) {
+    return { data: [], error: e?.message || '搜索失败' }
+  }
+}
+
+async function wouldCreateCycle(userId: string, referrerId: string): Promise<boolean> {
+  if (userId === referrerId) return true
+  let current = referrerId
+  for (let i = 0; i < 5; i++) {
+    const { data } = await supabase.from('profiles').select('referrer_id').eq('id', current).maybeSingle()
+    if (!data || !data.referrer_id) return false
+    if (data.referrer_id === userId) return true
+    current = data.referrer_id
+  }
+  return false
+}
+
+export async function adminUpdateReferrer(
+  userId: string,
+  referrerId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    if (!userId || !referrerId) return { ok: false, error: '参数缺失' }
+    if (userId === referrerId) return { ok: false, error: '不能将自己设为自己的上线' }
+
+    const [{ data: user, error: userErr }, { data: ref, error: refErr }] = await Promise.all([
+      supabase.from('profiles').select('referrer_id').eq('id', userId).maybeSingle(),
+      supabase.from('profiles').select('id').eq('id', referrerId).maybeSingle(),
+    ])
+    if (userErr) return { ok: false, error: userErr.message }
+    if (refErr) return { ok: false, error: refErr.message }
+    if (!user) return { ok: false, error: '会员不存在' }
+    if (user.referrer_id) return { ok: false, error: '该会员已有上线，不能调整。若必须变更，请走申诉流程。' }
+    if (!ref) return { ok: false, error: '目标上线不存在' }
+
+    const cycle = await wouldCreateCycle(userId, referrerId)
+    if (cycle) return { ok: false, error: '不能将上线调到该会员的下游，会形成循环推荐关系' }
+
+    const { error } = await supabase.from('profiles').update({ referrer_id: referrerId }).eq('id', userId)
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || '调整失败' }
+  }
 }

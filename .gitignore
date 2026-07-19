@@ -61,3 +61,6 @@ history/*.json
 .workbuddy/tmp/
 oxlint_out.txt
 *.zip
+
+# WorkBuddy local memory (not project source)
+.workbuddy/memory/
