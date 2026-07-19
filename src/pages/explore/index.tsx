@@ -2,13 +2,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
-import { getNearbyProducts, addToCart, getProducts, getProductsByEmotion } from '@/db/api'
+import { getNearbyProducts, addToCart, getProducts } from '@/db/api'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
-import { recordEmotionPreference, getEmotionBasedRecommendations } from '@/utils/emotion-recommendation'
+import { getEmotionBasedRecommendations } from '@/utils/emotion-recommendation'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import { useLocation } from '@/contexts/LocationContext'
 import LazyImage from '@/components/LazyImage'
 import StoreStrip from '@/components/StoreStrip'
+import ProductGridCard from '@/components/ProductGridCard'
 import { generateEmotionDescription } from '@/utils/emotion-description'
 import { UNIFIED_EMOTION_FILTERS } from '@/utils/category-emotion'
 import type { NearbyProduct } from '@/db/api'
@@ -26,15 +27,47 @@ const STORE_CATEGORY_MAP: Record<string, string> = {
   '图书': '图书', '美食': '美食', '饮品': '饮品', '零食': '零食', '日用': '日用', '礼品': '礼品'
 }
 
-// 图片加载失败时的占位组件（柔和暖底 + emoji，与门店占位统一风格）
-function ProductImagePlaceholder({ name }: { name: string }) {
-  return (
-    <View className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#F7F3EF' }}>
-      <View className="flex flex-col items-center gap-1">
-        <Text style={{ fontSize: '26px' }}>🛍️</Text>
-        <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
+// 探索页商品图：全宽 16:10 + 缺失占位
+function ExploreProductImage({ src, name }: { src: string | null | undefined; name: string }) {
+  if (!src) {
+    return (
+      <View className="w-full flex items-center justify-center" style={{ height: '150px', backgroundColor: '#F7F3EF' }}>
+        <View className="flex flex-col items-center gap-1">
+          <Text style={{ fontSize: '28px' }}>🛍️</Text>
+          <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
+        </View>
       </View>
-    </View>
+    )
+  }
+  return (
+    <LazyImage
+      src={src}
+      mode="aspectFill"
+      className="w-full bg-muted"
+      style={{ height: '150px' }}
+    />
+  )
+}
+
+// 情绪推荐商品图：全宽 16:10 + 缺失占位
+function EmotionProductImage({ src, name }: { src: string | null | undefined; name: string }) {
+  if (!src) {
+    return (
+      <View className="w-full flex items-center justify-center" style={{ height: '150px', backgroundColor: '#F7F3EF' }}>
+        <View className="flex flex-col items-center gap-1">
+          <Text style={{ fontSize: '28px' }}>🎁</Text>
+          <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
+        </View>
+      </View>
+    )
+  }
+  return (
+    <LazyImage
+      src={src}
+      mode="aspectFill"
+      className="w-full bg-muted"
+      style={{ height: '150px' }}
+    />
   )
 }
 
@@ -46,6 +79,7 @@ export default function ExplorePage() {
   const [showEmotionSection, setShowEmotionSection] = useState(false) // 是否显示情绪推荐区
   const cartCount = useCartCount()
   const [addingId, setAddingId] = useState<string | null>(null)
+  const [addingEmotionId, setAddingEmotionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const page = useRef(0)
   const hasMore = useRef(true)
@@ -78,8 +112,7 @@ export default function ExplorePage() {
       const data = await getProducts({
         page: p, limit: 20,
         platformFilter: 'only',  // ✅ 只显示自营门店商品
-        ...(cat !== '全部' ? { search: cat } : {}),
-      })
+        ...(cat !== '全部' ? { search: cat } : {})})
       if (reset) {
         setProducts(data.map(p => ({
           product_id: p.id,
@@ -92,8 +125,7 @@ export default function ExplorePage() {
           store_address: '',
           store_lat: 0,
           store_lng: 0,
-          distance_km: 0,
-        })))
+          distance_km: 0})))
         page.current = 1
       } else {
         setProducts(prev => [...prev, ...data.map(p => ({
@@ -107,8 +139,7 @@ export default function ExplorePage() {
           store_address: '',
           store_lat: 0,
           store_lng: 0,
-          distance_km: 0,
-        }))])
+          distance_km: 0}))])
         page.current = p + 1
       }
       hasMore.current = data.length === 20
@@ -148,8 +179,7 @@ export default function ExplorePage() {
   useShareWithReferral({
     title: '来电有喜 · 探索江湖好物',
     path: '/pages/explore/index',
-    timelineTitle: '来电有喜 · 发现品质好物',
-  })
+    timelineTitle: '来电有喜 · 发现品质好物'})
 
   const handleCatSelect = (cat: string) => {
     setActiveCat(cat)
@@ -163,6 +193,17 @@ export default function ExplorePage() {
     setAddingId(product.product_id)
     await addToCart(product.product_id, product.store_id)
     setAddingId(null)
+    Taro.showToast({ title: '已加入行囊', icon: 'success' })
+  }
+
+  // 情绪推荐卡片的加购（商品为 Product 类型，id/store_id 字段不同）
+  const handleAddCartEmotion = async (p: any) => {
+    const { supabase } = await import('@/client/supabase')
+    const uid = (await supabase.auth.getUser()).data.user
+    if (!uid) { Taro.navigateTo({ url: '/pages/login/index' }); return }
+    setAddingEmotionId(p.id)
+    await addToCart(p.id, p.store_id)
+    setAddingEmotionId(null)
     Taro.showToast({ title: '已加入行囊', icon: 'success' })
   }
 
@@ -184,9 +225,7 @@ export default function ExplorePage() {
             Taro.scanCode({
               onlyFromCamera: false,
               success: (res) => {
-                console.log('[Explore] 扫码结果:', res.result)
-                // 处理扫码结果（可能是商品条码或推广码）
-                Taro.showToast({ title: '扫码成功', icon: 'success' })
+                Taro.navigateTo({ url: `/pages/scan-result/index?code=${encodeURIComponent(res.result)}` })
               },
               fail: (err) => {
                 console.log('[Explore] 扫码取消或失败:', err)
@@ -228,28 +267,19 @@ export default function ExplorePage() {
               <View className="flex items-center gap-2 mb-3">
                 <Text className="text-xl font-bold text-foreground">😊 根据你的情绪偏好推荐</Text>
               </View>
-              <View className="flex flex-col gap-2">
+              <View className="flex flex-wrap justify-between">
                 {emotionProducts.slice(0, 4).map((p: any) => (
-                  <View key={p.id} className="bg-card rounded-xl border border-border relative flex items-stretch gap-3 p-2.5"
-                    onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}>
-                    <LazyImage 
-                      src={p.main_image || p.image_url || ''} 
-                      mode="aspectFill"
-                      className="rounded-lg flex-shrink-0 bg-muted"
-                      style={{ width: '88px', height: '88px' }}
-                    />
-                    <View className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                      <Text className="text-base font-bold text-foreground leading-tight line-clamp-2">{p.name}</Text>
-                      {p.mood_tags && p.mood_tags.length > 0 && (
-                        <View className="flex gap-1 mt-1 flex-wrap">
-                          {p.mood_tags.slice(0, 2).map((t: string) => (
-                            <Text key={t} className="px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary">{t}</Text>
-                          ))}
-                        </View>
-                      )}
-                      <Text className="text-lg font-bold text-primary mt-1">¥{p.price}</Text>
-                    </View>
-                  </View>
+                  <ProductGridCard
+                    key={p.id}
+                    id={p.id}
+                    name={p.name}
+                    price={p.price}
+                    imageSlot={<EmotionProductImage src={p.main_image || p.image_url} name={p.name} />}
+                    moodTags={p.mood_tags}
+                    onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}
+                    onAddCart={() => handleAddCartEmotion(p)}
+                    adding={addingEmotionId === p.id}
+                  />
                 ))}
               </View>
             </View>
@@ -277,16 +307,14 @@ export default function ExplorePage() {
                         store_address: '',
                         store_lat: 0,
                         store_lng: 0,
-                        distance_km: 0,
-                      })))
+                        distance_km: 0})))
                       setLoading(false)
                     }}
                     style={{
                       padding: '8px 16px',
                       borderRadius: '20px',
                       background: '#F5F5F5',
-                      border: '1.5px solid #EEE',
-                    }}>
+                      border: '1.5px solid #EEE'}}>
                     <Text style={{ fontSize: '14px' }}>{item.icon} {item.tag}</Text>
                   </View>
                 ))}
@@ -296,53 +324,34 @@ export default function ExplorePage() {
 
           {/* 商品网格 */}
           {loading && products.length === 0 ? (
-            <View className="flex items-center justify-center pt-20">
-              <View className="i-mdi-loading text-3xl text-primary animate-spin" />
-            </View>
-          ) : (
-            <View className="flex flex-col gap-2">
-              {products.map(p => (
-                <View key={p.product_id} className="bg-card rounded-xl border border-border relative flex items-stretch gap-3 p-2.5"
-                  onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.product_id}` })}>
-                  {!p.product_image_url ? (
-                    <View className="rounded-lg overflow-hidden bg-muted flex-shrink-0" style={{ width: '88px', height: '88px' }}>
-                      <ProductImagePlaceholder name={p.product_name} />
-                    </View>
-                  ) : (
-                    <LazyImage 
-                      src={p.product_image_url} 
-                      mode="aspectFill"
-                      className="rounded-lg flex-shrink-0 bg-muted"
-                      style={{ width: '88px', height: '88px' }}
-                    />
-                  )}
-                  <View className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                    <Text className="text-base font-bold text-foreground leading-tight line-clamp-2">{p.product_name}</Text>
-                    <Text className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{generateEmotionDescription({ name: p.product_name }, p.product_mood_tags || [])}</Text>
-                    {p.product_mood_tags && p.product_mood_tags.length > 0 && (
-                      <View className="flex gap-1 mt-1 flex-wrap">
-                        {p.product_mood_tags.slice(0, 3).map(t => (
-                          <Text key={t} className="px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary">{t}</Text>
-                        ))}
-                      </View>
-                    )}
-                    <View className="flex items-center gap-2 mt-1">
-                      <Text className="text-lg font-bold text-primary">¥{p.product_price}</Text>
-                      {p.distance_km > 0 && (
-                        <Text className="text-xs text-primary">📍 {p.distance_km}km</Text>
-                      )}
-                    </View>
-                  </View>
-                  <View className="flex items-center">
-                    <Button type="button"
-                      className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0"
-                      onClick={e => { e.stopPropagation(); handleAddCart(p) }}>
-                      {addingId === p.product_id
-                        ? <View className="i-mdi-loading text-white text-base animate-spin" />
-                        : <View className="i-mdi-plus text-white text-base" />}
-                    </Button>
+            <View className="flex flex-wrap justify-between">
+              {[0, 1, 2, 3].map(i => (
+                <View key={i} className="bg-card rounded-2xl border border-border animate-pulse flex flex-col overflow-hidden" style={{ width: '48%', marginBottom: '12px' }}>
+                  <View className="bg-muted w-full" style={{ height: '150px' }} />
+                  <View className="p-2.5 flex flex-col gap-2">
+                    <View className="h-4 bg-muted rounded w-3/4" />
+                    <View className="h-3 bg-muted rounded w-1/2" />
+                    <View className="h-4 bg-muted rounded w-1/3" />
                   </View>
                 </View>
+              ))}
+            </View>
+          ) : (
+            <View className="flex flex-wrap justify-between">
+              {products.map(p => (
+                <ProductGridCard
+                  key={p.product_id}
+                  id={p.product_id}
+                  name={p.product_name}
+                  price={p.product_price}
+                  imageSlot={<ExploreProductImage src={p.product_image_url} name={p.product_name} />}
+                  moodTags={p.product_mood_tags}
+                  subtitle={generateEmotionDescription({ name: p.product_name }, p.product_mood_tags || [])}
+                  footerExtra={p.distance_km > 0 ? <Text className="text-xs text-primary">📍 {p.distance_km}km</Text> : null}
+                  onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.product_id}` })}
+                  onAddCart={() => handleAddCart(p)}
+                  adding={addingId === p.product_id}
+                />
               ))}
             </View>
           )}

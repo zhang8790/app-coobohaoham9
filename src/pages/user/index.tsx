@@ -10,7 +10,7 @@ import { RouteGuard } from '@/components/RouteGuard'
 import { supabase } from '@/client/supabase'
 
 const WUXIA_NAMES = ['剑影飘鸿', '凌云一笑', '碧落寒烟', '寒光碎月', '幽谷清风', '紫电青霜', '千机云鹤', '翠微长啸', '玉骨冰心', '逍遥散人']
-const RANK_COLORS: Record<string, string> = { '江湖散修': '#78350F', '外门弟子': '#B45309', '内门弟子': '#92400E', '核心弟子': '#C2410C', '长老': '#9333EA', '掌门': '#DC2626' }
+const RANK_COLORS: Record<string, string> = { '凡心': '#78350F', '初心': '#B45309', '明心': '#92400E', '静心': '#C2410C', '悟心': '#9333EA', '无心境': '#DC2626' }
 
 const MENU_GROUPS = [
   {
@@ -207,7 +207,7 @@ function UserPage() {
                 </View>
               ) : (
                 <View className="flex items-center gap-2">
-                  <Text className="text-2xl font-bold text-foreground">{profile?.nickname || '江湖散修'}</Text>
+                  <Text className="text-2xl font-bold text-foreground">{profile?.nickname || '无名'}</Text>
                   <View className="w-7 h-7 flex items-center justify-center" onClick={handleRandomNick}>
                     <View className="i-mdi-shuffle text-xl text-muted-foreground" />
                   </View>
@@ -219,7 +219,7 @@ function UserPage() {
               )}
               <View className="flex items-center gap-2 mt-1">
                 <Text className="px-2 py-0.5 rounded-full text-base font-bold text-white" style={{ background: rankColor }}>
-                  {profile?.member_rank || '江湖散修'}
+                  {profile?.member_rank || '凡心'}
                 </Text>
               </View>
             </View>
@@ -230,8 +230,8 @@ function UserPage() {
         {user && profile && (
           <View className="grid grid-cols-3 gap-3 mt-4">
             {[
-              { label: '金豆', value: profile.balance || 0, icon: 'i-mdi-wallet' },
-              { label: '情绪豆', value: profile.tb_balance || 0, icon: 'i-mdi-emoticon-happy' },
+              { label: '情绪豆', value: profile.tb_balance || 0, icon: 'i-mdi-wallet' },
+              { label: '佣金', value: `¥${(profile.commission_balance || 0).toFixed(2)}`, icon: 'i-mdi-cash' },
               { label: '优惠券', value: `${profile.coupons_count || 0}张`, icon: 'i-mdi-ticket' },
             ].map(item => (
               <View key={item.label} className="bg-card rounded-2xl flex flex-col items-center py-4 border border-border">

@@ -1,10 +1,10 @@
 // 数据库类型定义
 
 export type UserRole = 'user' | 'admin'
-export type MemberRank = '江湖散修' | '外门弟子' | '内门弟子' | '核心弟子' | '长老' | '掌门'
+export type MemberRank = '凡心' | '初心' | '明心' | '静心' | '悟心' | '无心境'
 export type MerchantStatus = 'none' | 'pending' | 'approved' | 'rejected'
 export type OrderStatus = 'pending_pay' | 'pending_ship' | 'pending_receive' | 'pending_pickup' | 'pending_review' | 'completed' | 'after_sale' | 'cancelled'
-export type PaymentMethod = 'wxpay' | 'gold_beans'
+export type PaymentMethod = 'wxpay' | 'emotion_beans'
 
 export interface Profile {
   id: string
@@ -16,10 +16,9 @@ export interface Profile {
   openid: string | null
   member_rank: MemberRank
   points: number
-  balance: number          // 金豆消费抵扣余额（用户视角"金豆"）：1:1 抵扣订单金额，充值/消费获赠均写入此字段；gold_beans 为历史遗留字段，不再使用
-  gold_beans: number       // 【历史遗留/已废弃】原消费积分字段，00058 已将其值并入 commission_balance；严禁新业务读写此字段，统一使用 balance 作为金豆余额
+  balance: number          // 【已合并/废弃】原金豆消费币，值已并入 tb_balance 且列已清零；严禁新业务读写，统一使用 tb_balance
   commission_balance: number // 推广佣金账户余额（推广服务费，由推广佣金流水驱动，可提现并代扣个税）
-  tb_balance: number       // 情绪豆余额（会员成长积分，V2）
+  tb_balance: number       // 情绪豆余额（统一平台货币：消费抵扣 + 会员成长，人民币1:1锚定，仅平台内消费，不可提现/兑现金）
   cv_total: number         // 会员贡献值累计（会员权益计算依据，V2）
   privacy_consented_at: string | null // 隐私政策同意时间（PIPL 合规审计留痕；未同意为 null）
   allow_behavior_analysis: boolean // 个性化行为分析总闸（true=允许，false=已退出；分析引擎排除）
@@ -69,6 +68,10 @@ export interface Store {
   // 合作商家建模（犒赏铺等合作品牌体系）
   partner_brand: string | null
   partner_tier: string | null
+  // 商家货款结算（迁移 00120）
+  merchant_balance: number          // 可结算货款余额（人民币元，可提现）
+  settlement_frozen: number         // 冻结中货款（退款/争议期间）
+  wx_sub_mch_id: string | null      // 微信支付服务商子商户号（分账直达）
   created_at: string
 }
 
@@ -279,7 +282,7 @@ export interface Order {
   payment_method: PaymentMethod | null
   pay_expired_at: string | null
   paid_at: string | null
-  gold_beans_used: number
+  tb_used: number
   referrer_id: string | null
   commission_distributed: boolean
   service_type: 'dine_in' | 'self_pickup' | 'delivery'
@@ -369,6 +372,18 @@ export interface PointsLog {
   created_at: string
 }
 
+/** 情绪豆流水（tongbao_logs）- 平台统一货币账户 */
+export interface TongbaoLog {
+  id: string
+  user_id: string
+  order_id: string | null
+  type: 'purchase_spend' | 'refund_return' | 'recharge' | 'admin_grant' | 'admin_deduct' | 'purchase_earn' | 'refund_deduct' | 'commission_earn'
+  delta: number
+  balance_after: number
+  remark: string | null
+  created_at: string
+}
+
 export interface Article {
   id: string
   user_id: string
@@ -405,6 +420,16 @@ export interface Announcement {
   content: string
   is_active: boolean
   sort_order: number
+  created_at: string
+}
+
+// 首页「江湖动态」：实时下单脱敏聚合（由 get_recent_order_feed RPC 返回）
+export interface OrderFeedItem {
+  id: string
+  masked_name: string
+  store_name: string | null
+  product_name: string
+  amount: number
   created_at: string
 }
 
@@ -473,6 +498,8 @@ export interface Withdrawal {
   store_id: string | null
   amount: number
   status: WithdrawStatus
+  method: string                 // wechat | alipay | bank（withdrawals.method 列）
+  account_info: any | null       // jsonb（微信/支付宝账号等）
   bank_name: string | null
   bank_account: string | null
   bank_holder: string | null
@@ -482,6 +509,25 @@ export interface Withdrawal {
   id_card: string | null
   reject_reason: string | null
   remark: string | null
+  kind: string                   // commission | settlement（迁移 00120）
+  merchant_settlement_ids: string[] | null
+  created_at: string
+  updated_at: string
+}
+
+// 已保存收款账户（迁移 00123）：绑定一次后持久化，提现可复用，免二次填写
+export interface SavedWithdrawalAccount {
+  id: string
+  owner_id: string
+  owner_type: 'user' | 'store'
+  method: WithdrawMethod
+  real_name: string | null
+  id_card: string | null
+  bank_name: string | null
+  bank_account: string | null
+  bank_holder: string | null
+  alipay_account: string | null
+  is_default: boolean
   created_at: string
   updated_at: string
 }

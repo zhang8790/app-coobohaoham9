@@ -153,10 +153,10 @@ export default function BehaviorAnalytics() {
     return space === 'lifecycle' ? report.lifecycle : space === 'rank' ? report.rank : report.claim
   }, [report, space])
 
-  // 选中态的预测示例：取矩阵中“活跃/核心弟子/已确权”等代表态，预测 1 步
+  // 选中态的预测示例：取矩阵中“活跃/静心/已确权”等代表态，预测 1 步
   const samplePredict = useMemo(() => {
     if (!matrix) return null
-    const probe = space === 'lifecycle' ? '活跃' : space === 'rank' ? '核心弟子' : '已确权'
+    const probe = space === 'lifecycle' ? '活跃' : space === 'rank' ? '静心' : '已确权'
     const dist = predictNext(matrix, probe, 1)
     return { probe, dist }
   }, [matrix, space])

@@ -1,5 +1,5 @@
 // @title 商家后台数据 API
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseAuth } from '@/lib/supabase'
 import type {
   Product, MerchantCoupon, MarketingCampaign, MerchantMessage, MerchantAnalytics, WithdrawalRecord,
 } from '@/types'
@@ -141,7 +141,10 @@ export async function getMerchantAnalytics(storeId: string): Promise<MerchantAna
     .select('product_name, price, quantity')
     .eq('store_id', storeId)
 
-  const paid = (orders || []).filter(o => o.status === 'paid' || o.status === 'completed')
+  // order_status 枚举无 'paid'（合法值见 00001：pending_pay/pending_ship/pending_receive/pending_review/completed/after_sale/cancelled）
+  // 已付款（含履约中、已完成）计入商家营收；未付款/取消/售后退款不计入
+  const REVENUE_STATUSES = ['pending_ship', 'pending_receive', 'pending_review', 'completed']
+  const paid = (orders || []).filter(o => REVENUE_STATUSES.includes(o.status || ''))
   const today = new Date().toISOString().slice(0, 10)
   const thisMonth = today.slice(0, 7)
 
@@ -299,7 +302,7 @@ export async function createWithdrawal(payload: {
 }): Promise<boolean> {
   // P0 修复：提现必须绑定当前登录用户，禁用任意 userId 传入（防提现盗用链路）。
   // 真实登录态下强制使用会话用户；演示/未登录态回退到传入 userId（仅演示可用）。
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await supabaseAuth.auth.getUser()
   const userId = user?.id ?? payload.userId
   if (!userId) throw new Error('无法识别用户，请先登录')
   const { error } = await supabase.from('withdrawals').insert({

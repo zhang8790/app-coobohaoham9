@@ -4,11 +4,17 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { localCompileEmotion, recommendDimensions } from '@/utils/emotion'
 import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/utils/shiyang'
+import { NATURE_SCALE, CROWD_OPTIONS, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
 
 interface ProductWithExt extends Product {
   status: 'online' | 'offline'
   sales: number
+  // 真实销量/营收：从 order_items 聚合得到（products 表无 sales 列，原代码读到 undefined→0）
+  revenue?: number
 }
+
+// 仅已付款/完成订单计入商品收益（与数据分析页 merchant.ts 的 REVENUE_STATUSES 对齐）
+const REVENUE_STATUSES = ['pending_ship', 'pending_receive', 'pending_review', 'completed']
 
 function calcMargin(price: number, cost?: number): string {
   if (!cost || cost <= 0 || price <= 0) return '-'
@@ -107,6 +113,7 @@ export default function MerchantProducts() {
   const [list, setList] = useState<ProductWithExt[]>([])
   const [storeId, setStoreId] = useState<string | null>(null)
   const [storeCategory, setStoreCategory] = useState<string | null>(null)
+  const [storeRefEnabled, setStoreRefEnabled] = useState(false)
   const [emotionFlash, setEmotionFlash] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [showModal, setShowModal] = useState(false)
@@ -116,6 +123,28 @@ export default function MerchantProducts() {
     main_image: '', sub_images: [] as string[], detail_images: [] as string[], video_url: '',
     discount_rate: '',
     ingredients: [] as string[],
+    // 食材食疗智能导购属性
+    overall_nature: '',
+    health_tag: [] as string[],
+    emotion_tag: [] as string[],
+    match_goods: [] as string[],
+    conflict_goods: [] as string[],
+    aux_remind: '',
+    // 00104：商品食疗智能系统完整录入
+    food_category: '',
+    positive_effect: '',
+    risk_warning: '',
+    emotion_copy: '',
+    scenes: [] as string[],
+    rec_crowds: [] as string[],
+    cautious_crowds: [] as string[],
+    cautious_notes: '',
+    forbidden_crowds: [] as string[],
+    forbidden_reasons: '',
+    combo_product_ids: [] as string[],
+    guide_sentence: '',
+    moments_copy: '',
+    taboo_warning: '',
   })
   const mainImgRef   = useRef<HTMLInputElement>(null)
   const subImgRef    = useRef<HTMLInputElement>(null)
@@ -124,6 +153,7 @@ export default function MerchantProducts() {
 
   // 判断是否有商家权限
   const isMerchantUser = profile?.merchant_status === 'approved' || profile?.role === 'merchant'
+  const [customScene, setCustomScene] = useState('')
 
   // 获取当前商家的 store_id
   useEffect(() => {
@@ -132,11 +162,12 @@ export default function MerchantProducts() {
     const fetchStore = async () => {
       const { data } = await supabase
         .from('stores')
-        .select('id, category')
+        .select('id, category, referral_rate_enabled')
         .eq('owner_id', profile.id)
         .maybeSingle()
       setStoreId(data?.id ?? null)
       setStoreCategory(data?.category ?? null)
+      setStoreRefEnabled(data?.referral_rate_enabled ?? false)
     }
     fetchStore()
   }, [profile, useMock])
@@ -160,10 +191,34 @@ export default function MerchantProducts() {
         .eq('store_id', storeId || '')
         .order('created_at', { ascending: false })
       if (error) throw error
+
+      // 从真实订单明细聚合每个商品的销量与营收（products 表无 sales 列，须从 order_items 推导）
+      let items: any[] = []
+      try {
+        const { data: itemData } = await supabase
+          .from('order_items')
+          .select('product_id, price, quantity, orders!inner(store_id, status)')
+          .eq('orders.store_id', storeId || '')
+          .in('orders.status', REVENUE_STATUSES)
+        items = itemData || []
+      } catch (ie) {
+        console.warn('[Products] 订单明细聚合失败，销量/营收置 0:', ie)
+      }
+      const agg: Record<string, { sales: number; revenue: number }> = {}
+      ;(items || []).forEach((it: any) => {
+        const pid = it.product_id
+        if (!pid) return
+        if (!agg[pid]) agg[pid] = { sales: 0, revenue: 0 }
+        const qty = Number(it.quantity || 0)
+        agg[pid].sales += qty
+        agg[pid].revenue += Number(it.price || 0) * qty
+      })
+
       setList((data ?? []).map(p => ({
         ...p,
         status: p.is_active ? 'online' : 'offline',
-        sales: (p as any).sales ?? 0,
+        sales: agg[p.id]?.sales ?? 0,
+        revenue: agg[p.id]?.revenue ?? 0,
       } as ProductWithExt)))
     } catch (e) {
       console.warn('[Products] 加载失败，使用 Mock:', e)
@@ -177,16 +232,27 @@ export default function MerchantProducts() {
     const item = list.find(p => p.id === id)
     if (!item) return
     const newActive = !item.is_active
-    if (!useMock && storeId) {
+    if (!useMock) {
+      if (!storeId) {
+        window.alert('未找到关联门店，无法修改上架状态。')
+        return
+      }
       const { error } = await supabase.from('products').update({ is_active: newActive }).eq('id', id)
-      if (error) { console.warn('[Products] 更新状态失败:', error); return }
+      if (error) {
+        window.alert(`上架状态更新失败：\n${error.message}${error.hint ? '\n提示：' + error.hint : ''}`)
+        console.warn('[Products] 更新状态失败:', error); return
+      }
     }
     setList(prev => prev.map(p => p.id === id ? { ...p, is_active: newActive, status: (newActive ? 'online' : 'offline') as 'online' | 'offline' } : p))
   }
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', main_image: '', sub_images: [], detail_images: [], video_url: '', discount_rate: '', ingredients: [] })
+    setForm({ name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', main_image: '', sub_images: [], detail_images: [], video_url: '', discount_rate: '', ingredients: [],
+      overall_nature: '', health_tag: [], emotion_tag: [], match_goods: [], conflict_goods: [], aux_remind: '',
+      food_category: '', positive_effect: '', risk_warning: '', emotion_copy: '', scenes: [],
+      rec_crowds: [], cautious_crowds: [], cautious_notes: '', forbidden_crowds: [], forbidden_reasons: '',
+      combo_product_ids: [], guide_sentence: '', moments_copy: '', taboo_warning: '' })
     setShowModal(true)
   }
 
@@ -205,6 +271,26 @@ export default function MerchantProducts() {
       video_url: p.video_url || '',
       discount_rate: p.discount_rate != null ? String(p.discount_rate) : '',
       ingredients: p.ingredients ?? [],
+      overall_nature: p.overall_nature ?? '',
+      health_tag: p.health_tag ?? [],
+      emotion_tag: p.emotion_tag ?? [],
+      match_goods: p.match_goods ?? [],
+      conflict_goods: p.conflict_goods ?? [],
+      aux_remind: p.aux_remind ?? '',
+      food_category: (p as any).food_category ?? '',
+      positive_effect: (p as any).positive_effect ?? '',
+      risk_warning: (p as any).risk_warning ?? '',
+      emotion_copy: (p as any).emotion_copy ?? '',
+      scenes: (p as any).scenes ?? [],
+      rec_crowds: (p as any).rec_crowds ?? [],
+      cautious_crowds: (p as any).cautious_crowds ?? [],
+      cautious_notes: (p as any).cautious_notes ?? '',
+      forbidden_crowds: (p as any).forbidden_crowds ?? [],
+      forbidden_reasons: (p as any).forbidden_reasons ?? '',
+      combo_product_ids: (p as any).combo_product_ids ?? [],
+      guide_sentence: (p as any).guide_sentence ?? '',
+      moments_copy: (p as any).moments_copy ?? '',
+      taboo_warning: (p as any).taboo_warning ?? '',
     })
     setShowModal(true)
   }
@@ -269,6 +355,13 @@ export default function MerchantProducts() {
     const keys = matchIngredientKeys(form.name)
     setForm(f => ({ ...f, ingredients: Array.from(new Set([...f.ingredients, ...keys])) }))
   }
+  // 通用多选数组 toggle（场景 / 三类人群 / 升单套餐）
+  const toggleArr = (key: 'scenes' | 'rec_crowds' | 'cautious_crowds' | 'forbidden_crowds' | 'combo_product_ids', val: string) => {
+    setForm(f => {
+      const arr = f[key] as string[]
+      return { ...f, [key]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] }
+    })
+  }
 
   const handleSubmit = async () => {
     const cost = Number(form.cost_price) || 0
@@ -286,18 +379,45 @@ export default function MerchantProducts() {
       video_url: form.video_url,
       discount_rate: dr || null,
     }
-    const body = { ...payload, ingredients: form.ingredients.length > 0 ? form.ingredients : null }
+    const body = {
+      ...payload,
+      ingredients: form.ingredients.length > 0 ? form.ingredients : null,
+      // 食材食疗智能导购属性（迁移 00100_food_therapy_fields.sql）
+      overall_nature: form.overall_nature || null,
+      health_tag: form.health_tag.length ? form.health_tag : null,
+      emotion_tag: form.emotion_tag.length ? form.emotion_tag : null,
+      match_goods: form.match_goods.length ? form.match_goods : null,
+      conflict_goods: form.conflict_goods.length ? form.conflict_goods : null,
+      aux_remind: form.aux_remind || null,
+      // 00104：商品食疗智能系统完整录入
+      food_category: form.food_category || null,
+      positive_effect: form.positive_effect || null,
+      risk_warning: form.risk_warning || null,
+      emotion_copy: form.emotion_copy || null,
+      scenes: form.scenes.length ? form.scenes : null,
+      rec_crowds: form.rec_crowds.length ? form.rec_crowds : null,
+      cautious_crowds: form.cautious_crowds.length ? form.cautious_crowds : null,
+      cautious_notes: form.cautious_notes || null,
+      forbidden_crowds: form.forbidden_crowds.length ? form.forbidden_crowds : null,
+      forbidden_reasons: form.forbidden_reasons || null,
+      combo_product_ids: form.combo_product_ids.length ? form.combo_product_ids : null,
+      guide_sentence: form.guide_sentence || null,
+      moments_copy: form.moments_copy || null,
+      taboo_warning: form.taboo_warning || null,
+    }
     // 真实模式：写库，保证网页版与小程序商家中心同步
-    if (!useMock && storeId) {
+    if (!useMock) {
+      if (!storeId) {
+        window.alert('未找到关联门店（stores.owner_id 未匹配当前账号），无法保存商品。\n请确认：①本账号已通过商家审核；②门店 owner_id 已设为当前登录账号。')
+        return
+      }
       const persist = (b: any) =>
         editing
           ? supabase.from('products').update(b).eq('id', editing.id)
           : supabase.from('products').insert({
               ...b,
               store_id: storeId,
-              status: 'offline',
               review_status: 'pending',
-              sales: 0,
               is_active: false,
               created_at: new Date().toISOString().slice(0, 10),
             })
@@ -305,13 +425,22 @@ export default function MerchantProducts() {
         const { error } = await persist(body)
         if (error) throw error
       } catch (e: any) {
-        // 软降级：若 products 表尚未加 ingredients 列（迁移 00090 未执行），剥离后重试，保证保存不失败（与小程序端 api.ts 一致）
-        if (e?.message && /ingredients/.test(e.message)) {
-          const { ingredients, ...rest } = body
+        const msg = e?.message || ''
+        // 软降级：若 products 表尚未加导购相关列（迁移 00090 / 00100 / 00104 未执行），
+        // 或部分核心列缺失，剥离后重试，保证保存不失败（与小程序端 api.ts 一致）
+        if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scenes|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|combo_product_ids|guide_sentence|moments_copy|taboo_warning/.test(msg)) {
+          const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind,
+            food_category, positive_effect, risk_warning, emotion_copy, scenes, rec_crowds, cautious_crowds,
+            cautious_notes, forbidden_crowds, forbidden_reasons, combo_product_ids, guide_sentence, moments_copy,
+            taboo_warning, ...rest } = body
           const { error } = await persist(rest)
-          if (error) { console.error('[Products] 软降级仍失败:', error); return }
-          console.warn('[Products] 已软降级保存（忽略 ingredients 列，请在本机执行迁移 00090 加列）')
+          if (error) {
+            window.alert(`保存失败（已尝试剥离可选列仍失败）：\n${error.message}${error.hint ? '\n提示：' + error.hint : ''}`)
+            console.error('[Products] 软降级仍失败:', error); return
+          }
+          console.warn('[Products] 已软降级保存（忽略食疗导购/部分列，请在本机执行迁移 00100/00104 加列）')
         } else {
+          window.alert(`保存失败：\n${msg}${e?.hint ? '\n提示：' + e.hint : ''}`)
           console.error('[Products] 保存失败:', e); return
         }
       }
@@ -372,8 +501,9 @@ export default function MerchantProducts() {
   }
 
   const totalCost    = list.reduce((s, p) => s + (p.cost_price || 0) * p.sales, 0)
-  const totalRevenue = list.reduce((s, p) => s + p.price * p.sales, 0)
-  const totalProfit  = list.reduce((s, p) => s + ((p.price - (p.cost_price || 0)) * p.sales), 0)
+  // 营收取 order_items 聚合值（revenue）；Mock 商品无 revenue 时回退 price*sales
+  const totalRevenue = list.reduce((s, p) => s + (p.revenue ?? (p.price * p.sales)), 0)
+  const totalProfit  = list.reduce((s, p) => s + ((p.revenue ?? (p.price * p.sales)) - (p.cost_price || 0) * p.sales), 0)
   const avgMargin    = totalRevenue > 0 ? (totalProfit / totalRevenue * 100).toFixed(1) : '-'
 
   return (
@@ -517,6 +647,14 @@ export default function MerchantProducts() {
                   <div style={{ marginTop: 4 }}>
                     <span style={{ background: 'rgba(99,102,241,0.2)', color: '#818CF8', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>
                       详情图 {p.detail_images.length} 张
+                    </span>
+                  </div>
+                )}
+                {/* 食疗导购配置指示 */}
+                {(p.overall_nature || (p.health_tag && p.health_tag.length) || (p.emotion_tag && p.emotion_tag.length)) && (
+                  <div style={{ marginTop: 4 }}>
+                    <span style={{ background: 'rgba(16,185,129,0.18)', color: '#34D399', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>
+                      导购已配
                     </span>
                   </div>
                 )}
@@ -715,6 +853,16 @@ export default function MerchantProducts() {
                   <span style={{ color: '#9CA3AF', fontSize: 13 }}>商品让利 %</span>
                   <input value={form.discount_rate} onChange={e => setForm(f => ({ ...f, discount_rate: e.target.value }))} type="number" placeholder="0" min={0} max={100} style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, boxSizing: 'border-box' }} />
                   <span style={{ color: '#6B7280', fontSize: 11 }}>用户端显示让利标签（如"立减33%"）</span>
+                  {Number(form.discount_rate) > 0 && (
+                    <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, fontSize: 12,
+                      background: storeRefEnabled ? 'rgba(194,65,12,0.12)' : 'rgba(59,130,246,0.12)',
+                      border: `1px solid ${storeRefEnabled ? '#C2410C' : '#3B82F6'}`,
+                      color: storeRefEnabled ? '#C2410C' : '#3B82F6' }}>
+                      {storeRefEnabled
+                        ? `提示：该店已开启「整体让利」，商品让利 ${form.discount_rate}% 将与门店默认让利率按金额加权合并计算，不会叠加放大。`
+                        : `提示：该店「整体让利」已关闭，此商品让利 ${form.discount_rate}% 为唯一让利来源（无商品让利则该单让利为 0）。`}
+                    </div>
+                  )}
                 </label>
               </div>
               {/* real-time margin preview */}
@@ -741,6 +889,17 @@ export default function MerchantProducts() {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* 商品分类（spec 基础信息区） */}
+            <div style={{ marginBottom: 14 }}>
+              <span style={{ color: '#9CA3AF', fontSize: 13 }}>商品分类</span>
+              <select value={form.food_category} onChange={e => setForm(f => ({ ...f, food_category: e.target.value }))}
+                style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, boxSizing: 'border-box' }}>
+                <option value="">未分类</option>
+                {FOOD_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <span style={{ color: '#6B7280', fontSize: 11 }}>粉面 / 炖汤 / 热饮 / 小菜，驱动食疗导购分类筛选</span>
             </div>
 
             {/* 🥗 原料成分分析（可选） */}
@@ -781,6 +940,153 @@ export default function MerchantProducts() {
                 })}
               </div>
               <p style={{ color: '#4B5563', fontSize: 11, margin: '8px 0 0' }}>{SHIYANG_DISCLAIMER}</p>
+            </div>
+
+            {/* 🍵 商品食疗智能系统 · 完整录入（商家一次录入，前端自动匹配） */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ color: '#E5E7EB', fontSize: 14, fontWeight: 600 }}>🍵 商品食疗智能系统（录入后前端自动匹配）</span>
+                <span style={{ color: '#6B7280', fontSize: 12 }}>填全后，小程序端筛选三栏、详情六模块即基于真实数据</span>
+              </div>
+
+              {/* 整体性味（系统自动计算适配逻辑用） */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>整体性味</span>
+                <select value={form.overall_nature} onChange={e => setForm(f => ({ ...f, overall_nature: e.target.value }))}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, boxSizing: 'border-box' }}>
+                  <option value="">未设置（将按原料自动聚合）</option>
+                  {NATURE_SCALE.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <span style={{ color: '#6B7280', fontSize: 11 }}>由凉到热：大寒 / 寒凉 / 平性 / 微温 / 温热 / 大热（系统据此绑定场景/人群）</span>
+              </div>
+
+              {/* 食疗滋养效果：正向 + 风险 分离 */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>正向调理作用</span>
+                <textarea value={form.positive_effect} onChange={e => setForm(f => ({ ...f, positive_effect: e.target.value }))} placeholder="如：补气养血、改善气虚乏力；温热滋补" rows={2}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>食用风险提示</span>
+                <textarea value={form.risk_warning} onChange={e => setForm(f => ({ ...f, risk_warning: e.target.value }))} placeholder="如：上火、经期量大人群会加重不适" rows={2}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                <span style={{ color: '#6B7280', fontSize: 11 }}>与正向作用分开填写，详情页分别展示</span>
+              </div>
+
+              {/* 情绪价值文案（固定三段式模板填空） */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>情绪价值文案（三段式）</span>
+                <textarea value={form.emotion_copy} onChange={e => setForm(f => ({ ...f, emotion_copy: e.target.value }))} placeholder={'第一段：热汤通体暖意\n第二段：治愈经期低落\n第三段：犒劳长期疲惫的自己'} rows={3}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                <span style={{ color: '#6B7280', fontSize: 11 }}>温暖陪伴 / 治愈低落 / 犒劳自己，三段换行填写</span>
+              </div>
+
+              {/* 适配消费场景（预设 + 自定义） */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>适配消费场景（多选 + 可补充）</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {SCENE_OPTIONS.map(s => {
+                    const active = form.scenes.includes(s)
+                    return (
+                      <button key={s} type="button" onClick={() => toggleArr('scenes', s)}
+                        style={{ padding: '4px 10px', background: active ? '#065F46' : '#0B0F19', border: `1px solid ${active ? '#059669' : '#374151'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#ECFDF5' : '#9CA3AF' }}>
+                        {s}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <input value={customScene} onChange={e => setCustomScene(e.target.value)} placeholder="补充自定义场景，如：出差途中" style={{ flex: 1, padding: '6px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 13, boxSizing: 'border-box' }} />
+                  <button type="button" disabled={!customScene.trim()} onClick={() => { if (customScene.trim()) { toggleArr('scenes', customScene.trim()); setCustomScene('') } }}
+                    style={{ padding: '6px 14px', background: customScene.trim() ? '#1F2937' : '#374151', border: '1px solid #374151', borderRadius: 8, color: customScene.trim() ? '#E5E7EB' : '#6B7280', cursor: customScene.trim() ? 'pointer' : 'not-allowed', fontSize: 13 }}>添加</button>
+                </div>
+                {form.scenes.length > 0 && (
+                  <div style={{ marginTop: 6, color: '#34D399', fontSize: 12 }}>已选：{form.scenes.join('、')}</div>
+                )}
+              </div>
+
+              {/* 人群标签配置：①五星推荐 ②谨慎+说明 ③禁止+原因 */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>① 五星推荐人群（多选）</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {CROWD_OPTIONS.map(c => {
+                    const active = form.rec_crowds.includes(c)
+                    return (
+                      <button key={c} type="button" onClick={() => toggleArr('rec_crowds', c)}
+                        style={{ padding: '4px 10px', background: active ? '#065F46' : '#0B0F19', border: `1px solid ${active ? '#059669' : '#374151'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#ECFDF5' : '#9CA3AF' }}>
+                        {c}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>② 谨慎食用人群（多选）+ 限制说明</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {CROWD_OPTIONS.map(c => {
+                    const active = form.cautious_crowds.includes(c)
+                    return (
+                      <button key={c} type="button" onClick={() => toggleArr('cautious_crowds', c)}
+                        style={{ padding: '4px 10px', background: active ? '#B45309' : '#0B0F19', border: `1px solid ${active ? '#D97706' : '#374151'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#FEF3C7' : '#9CA3AF' }}>
+                        {c}
+                      </button>
+                    )
+                  })}
+                </div>
+                <textarea value={form.cautious_notes} onChange={e => setForm(f => ({ ...f, cautious_notes: e.target.value }))} placeholder="如：少量饮用、去辣减油" rows={2}
+                  style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>③ 禁止食用人群（多选）+ 风险原因</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {CROWD_OPTIONS.map(c => {
+                    const active = form.forbidden_crowds.includes(c)
+                    return (
+                      <button key={c} type="button" onClick={() => toggleArr('forbidden_crowds', c)}
+                        style={{ padding: '4px 10px', background: active ? '#7F1D1D' : '#0B0F19', border: `1px solid ${active ? '#DC2626' : '#374151'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#FECACA' : '#9CA3AF' }}>
+                        {c}
+                      </button>
+                    )
+                  })}
+                </div>
+                <textarea value={form.forbidden_reasons} onChange={e => setForm(f => ({ ...f, forbidden_reasons: e.target.value }))} placeholder="如：加重不适、诱发痛风" rows={2}
+                  style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+              </div>
+
+              {/* 门店营销配套录入区 */}
+              <div style={{ borderTop: '1px solid #1F2937', paddingTop: 14, marginTop: 4 }}>
+                <span style={{ color: '#E5E7EB', fontSize: 14, fontWeight: 600 }}>🏪 门店营销配套（自动同步前端 / 海报 / 导购）</span>
+              </div>
+              <div style={{ marginBottom: 14, marginTop: 10 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>店内升单搭配套餐（绑定其他商品）</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {list.filter(p => p.id !== (editing?.id)).map(p => {
+                    const active = form.combo_product_ids.includes(p.id)
+                    return (
+                      <button key={p.id} type="button" onClick={() => toggleArr('combo_product_ids', p.id)}
+                        style={{ padding: '4px 10px', background: active ? '#065F46' : '#0B0F19', border: `1px solid ${active ? '#059669' : '#374151'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#ECFDF5' : '#9CA3AF' }}>
+                        {p.name}
+                      </button>
+                    )
+                  })}
+                  {list.filter(p => p.id !== (editing?.id)).length === 0 && (
+                    <span style={{ color: '#6B7280', fontSize: 12 }}>暂无其他商品可选（先创建商品）</span>
+                  )}
+                </div>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>店员导购短句</span>
+                <input value={form.guide_sentence} onChange={e => setForm(f => ({ ...f, guide_sentence: e.target.value }))} placeholder="如：这碗鸡汤温补，特别适合您现在的状态" style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>朋友圈种草文案</span>
+                <textarea value={form.moments_copy} onChange={e => setForm(f => ({ ...f, moments_copy: e.target.value }))} placeholder="如：今天被这碗鸡汤治愈了，暖到心底✨" rows={2}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 4 }}>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>忌口红字警示语</span>
+                <input value={form.taboo_warning} onChange={e => setForm(f => ({ ...f, taboo_warning: e.target.value }))} placeholder="如：经期量大、痛风人群慎点" style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 14, boxSizing: 'border-box' }} />
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>

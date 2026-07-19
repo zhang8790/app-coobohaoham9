@@ -3,7 +3,6 @@ import { useState, useCallback, useEffect } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
 import { View, Button, Text } from '@tarojs/components'
 import { getMyArticles, deleteArticle, getMyProfile } from '@/db/api'
-import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import type { Article } from '@/db/types'
 
 type Tab = 'all' | 'published' | 'draft'
@@ -30,13 +29,11 @@ export default function MyArticlesPage() {
     title: shareArticle
       ? `【来电有喜】${shareArticle.title}`
       : '我在来电有喜发现了好内容，快来看看！',
-    path: `/pages/content-center/my-articles/index${shareArticle ? `?articleId=${shareArticle.id}` : ''}`,
-  }))
+    path: `/pages/content-center/my-articles/index${shareArticle ? `?articleId=${shareArticle.id}` : ''}`}))
   useShareTimeline(() => ({
     title: shareArticle
       ? `【来电有喜】${shareArticle.title}`
-      : '来电有喜 · 武侠生活平台',
-  }))
+      : '来电有喜 · 武侠生活平台'}))
 
   const loadArticles = useCallback(async () => {
     setLoading(true)

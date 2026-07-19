@@ -3,15 +3,19 @@ import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { Image, View, Text, Input, Textarea, Switch } from '@tarojs/components'
 import {
-  getMerchantStore, getMerchantProducts,
+  getMerchantStore, getMerchantProducts, getMerchantOrders,
   createProduct, updateProduct, deleteProduct, getProductByBarcode,
 } from '@/db/api'
+import { supabase } from '@/client/supabase'
 import { uploadImage, uploadVideo } from '@/utils/upload'
 import { MOOD_CATEGORIES, MOOD_TAGS, SCENE_TAGS, type MoodTag } from '@/utils/mood-tags'
 import { generateEmotionDescriptions } from '@/utils/emotion-description'
-import { matchIngredientKeys, getIngredientEntries } from '@/utils/ingredient-analysis'
+import { matchIngredientKeys, getIngredientEntries, searchIngredients } from '@/utils/ingredient-analysis'
 import type { Product, Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
+
+// 仅已付款/完成订单计入商品收益（与数据分析页 merchant-analytics 的 REVENUE_STATUSES 对齐）
+const REVENUE_STATUSES = ['pending_ship', 'pending_receive', 'pending_review', 'completed']
 
 type FormState = {
   name: string; price: string; original_price: string; cost_price: string
@@ -51,6 +55,9 @@ function MerchantProductsPage() {
   const [activeMoodCategory, setActiveMoodCategory] = useState<string>('positive') // 当前选中的情绪分类
   const [generating, setGenerating] = useState(false) // 是否正在生成描述
   const [descriptionCandidates, setDescriptionCandidates] = useState<string[]>([]) // 候选描述列表
+  const [ingredientQuery, setIngredientQuery] = useState('')
+  const [ingredientResults, setIngredientResults] = useState<string[]>([])
+  const [revenue, setRevenue] = useState({ totalRevenue: 0, totalProfit: 0, totalSales: 0 })
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -60,6 +67,32 @@ function MerchantProductsPage() {
       if (s) {
         const prods = await getMerchantProducts(s.id)
         setProducts(Array.isArray(prods) ? prods : [])
+        // 商品收益：从订单明细聚合（order_items 无 store_id 列，复用已按门店过滤的 getMerchantOrders）
+        try {
+          const items = (await getMerchantOrders(s.id, 0, 10000) || [])
+            .filter((it: any) => REVENUE_STATUSES.includes(it.orders?.status))
+          const agg: Record<string, { sales: number; revenue: number }> = {}
+          ;(items || []).forEach((it: any) => {
+            const pid = it.product_id
+            if (!pid) return
+            if (!agg[pid]) agg[pid] = { sales: 0, revenue: 0 }
+            const qty = Number(it.quantity || 0)
+            const price = Number(it.price ?? it.unit_price ?? 0)
+            agg[pid].sales += qty
+            agg[pid].revenue += price * qty
+          })
+          const costMap: Record<string, number> = {}
+          ;(prods || []).forEach((p: any) => { costMap[p.id] = Number(p.cost_price || 0) })
+          let totalSales = 0, totalRevenue = 0, totalProfit = 0
+          Object.keys(agg).forEach(pid => {
+            totalSales += agg[pid].sales
+            totalRevenue += agg[pid].revenue
+            totalProfit += agg[pid].revenue - costMap[pid] * agg[pid].sales
+          })
+          setRevenue({ totalSales, totalRevenue, totalProfit })
+        } catch (re) {
+          console.error('[商品管理] 商品收益聚合失败', re)
+        }
       }
     } catch (e) {
       console.error('[商品管理] load 失败', e)
@@ -141,6 +174,28 @@ function MerchantProductsPage() {
     if (isNaN(stock) || stock < 0) { Taro.showToast({ title: '库存不正确', icon: 'none' }); return }
     setSaving(true)
     try {
+      // 诊断：保存前打印当前用户与 store 归属，便于定位 RLS 拒绝根因
+      const { data: authData, error: authErr } = await supabase.auth.getUser()
+      const uid = authData.user?.id
+      const ownerId = (store as any).owner_id
+      const ownerMatch = !!uid && !!ownerId && uid === ownerId
+      console.log('[商品管理] 诊断 → 当前用户 uid:', uid,
+        '| store.id:', store.id, '| store.owner_id:', ownerId,
+        '| uid===owner_id:', ownerMatch,
+        '| authErr:', authErr?.message || 'none')
+
+      // 关键守卫：session 失效（refresh_token 过期/被吊销）时，auth.uid() 为 null，
+      // RLS 必然拒绝写入。此时应明确提示重新登录，而不是让用户看到「安全策略拒绝」的困惑报错。
+      if (!uid) {
+        Taro.showToast({ title: '登录已过期，请重新登录', icon: 'none', duration: 2500 })
+        setSaving(false)
+        setTimeout(() => Taro.navigateTo({ url: '/pages/login/index' }), 600)
+        return
+      }
+      // 归属不匹配：store.owner_id 与当前登录用户不一致，RLS 同样会拒绝
+      if (!ownerMatch) {
+        console.error('[商品管理] 归属不匹配：当前登录用户不是该门店 owner，RLS 将拒绝写入')
+      }
       const payload: any = {
         name: form.name, description: form.description, price,
         stock, barcode: form.barcode && form.barcode.trim() ? form.barcode.trim() : null,
@@ -154,6 +209,7 @@ function MerchantProductsPage() {
         mood_tags: form.mood_tags.length > 0 ? form.mood_tags : undefined,
         scene_tags: form.scene_tags.length > 0 ? form.scene_tags : undefined,
         ingredients: form.ingredients.length > 0 ? form.ingredients : undefined,
+        is_active: form.is_active,
       }
       if (editId) {
         await updateProduct(editId, payload)
@@ -169,7 +225,14 @@ function MerchantProductsPage() {
       setShowForm(false); load()
     } catch (e: any) {
       console.error('[商品管理] 保存失败', e)
-      Taro.showToast({ title: `保存失败：${(e?.message || '未知错误').slice(0, 30)}`, icon: 'error' })
+      const msg: string = e?.message || '未知错误'
+      const code: string = e?.code || ''
+      console.error('[商品管理] 错误码(code):', code, '| details:', e?.details)
+      if (/row-level security|policy/.test(msg)) {
+        Taro.showToast({ title: '被安全策略拒绝(权限不足)', icon: 'none', duration: 4000 })
+      } else {
+        Taro.showToast({ title: `保存失败：${msg.slice(0, 60)}`, icon: 'none', duration: 4000 })
+      }
     } finally {
       setSaving(false)
     }
@@ -267,6 +330,25 @@ function MerchantProductsPage() {
           <Text style={{ fontSize: '14px', color: '#888' }}>{store.name}</Text>
         </View>
       )}
+
+      {/* 商品收益（对齐网页版商家后台） */}
+      <View style={{ margin: '10px 14px 0', padding: '14px', borderRadius: '16px', background: 'linear-gradient(135deg, #FFF3EC, #FFE7D6)', border: '1px solid #F8D9C0' }}>
+        <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#C2410C' }}>📊 商品收益</Text>
+        <View style={{ display: 'flex', marginTop: '10px' }}>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#C2410C' }}>¥{revenue.totalRevenue.toFixed(2)}</Text>
+            <Text style={{ fontSize: '12px', color: '#A86A4A', marginTop: '2px' }}>总营收</Text>
+          </View>
+          <View style={{ flex: 1, alignItems: 'center', borderLeftWidth: '1px', borderLeftColor: '#F0D3BC', borderLeftStyle: 'solid', borderRightWidth: '1px', borderRightColor: '#F0D3BC', borderRightStyle: 'solid' }}>
+            <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#16A34A' }}>¥{revenue.totalProfit.toFixed(2)}</Text>
+            <Text style={{ fontSize: '12px', color: '#A86A4A', marginTop: '2px' }}>总利润</Text>
+          </View>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>{revenue.totalSales}</Text>
+            <Text style={{ fontSize: '12px', color: '#A86A4A', marginTop: '2px' }}>总销量</Text>
+          </View>
+        </View>
+      </View>
 
       {/* 搜索框 */}
       <View style={{ padding: '10px 14px 0' }}>
@@ -839,7 +921,7 @@ function MerchantProductsPage() {
             {/* 原料成分分析 */}
             <View style={{ marginBottom: '14px' }}>
               <Text style={{ fontSize: '14px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>🥗 原料成分分析（可选）</Text>
-              <Text style={{ fontSize: '11px', color: '#AAA', marginBottom: '8px', display: 'block' }}>① 先填好商品名称 → ② 点「智能识别原料」自动带出食材 → 功效/人群/场景展示在商品详情页</Text>
+              <Text style={{ fontSize: '11px', color: '#AAA', marginBottom: '8px', display: 'block' }}>① 填商品名称点「智能识别原料」自动带出，或直接输入原料名搜索添加 → 功效/人群/场景展示在商品详情页</Text>
               <View
                 onClick={handleIdentifyIngredients}
                 style={{
@@ -848,6 +930,38 @@ function MerchantProductsPage() {
                 }}>
                 <Text style={{ color: '#34A853', fontSize: '13px', fontWeight: 'bold' }}>🤖 智能识别原料</Text>
               </View>
+
+              {/* 输入原料名快速添加 */}
+              <View style={{ marginTop: '10px' }}>
+                <Input
+                  value={ingredientQuery}
+                  onInput={(e: any) => {
+                    const v = e.detail.value
+                    setIngredientQuery(v)
+                    setIngredientResults(searchIngredients(v))
+                  }}
+                  placeholder='或直接输入原料名（如：姜、梨、番茄）快速添加'
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E0E0E0', fontSize: '13px', background: '#FFF' }}
+                />
+                {ingredientResults.length > 0 && (
+                  <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                    {ingredientResults.map(key => {
+                      const e = getIngredientEntries([key])[0]
+                      if (!e) return null
+                      const selected = form.ingredients.includes(key)
+                      return (
+                        <View
+                          key={key}
+                          onClick={() => { toggleIngredient(key); setIngredientQuery(''); setIngredientResults([]) }}
+                          style={{ padding: '4px 10px', borderRadius: '14px', border: `1px solid ${selected ? '#34A853' : '#D1D5DB'}`, background: selected ? '#E8F7EC' : '#FFF' }}>
+                          <Text style={{ fontSize: '13px', color: selected ? '#34A853' : '#374151' }}>{e.icon} {e.zh}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                )}
+              </View>
+
               {!form.name?.trim() && (
                 <Text style={{ fontSize: '11px', color: '#E08A00', marginTop: '6px', display: 'block' }}>👆 提示：先填写商品名称，识别更准确</Text>
               )}

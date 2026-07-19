@@ -42,7 +42,7 @@ Deno.serve(async (req: Request) => {
 
     // 1. 查订单 & 权限
     const { data: order } = await supabase.from('orders')
-      .select('id,order_no,user_id,status,total_amount,refunded_amount,wechat_transaction_id,payment_method,gold_beans_used')
+      .select('id,order_no,user_id,status,total_amount,refunded_amount,wechat_transaction_id,payment_method,tb_used')
       .eq('id', order_id).maybeSingle()
 
     if (!order) return Response.json({ success: false, error: '订单不存在' }, { status: 404, headers: corsHeaders })
@@ -72,9 +72,10 @@ Deno.serve(async (req: Request) => {
     }
 
     // 4. 发起微信退款（如有微信支付部分）
+    // 注意：00096 后 tb_used 已统一为「元」口径（1 豆 = 1 元），直接按比例扣减，勿再 ×0.01
     const wxRefundAmount = Math.max(
       0,
-      Math.round((refund_amount - (Number(order.gold_beans_used ?? 0) * 0.01 * (refund_amount / Number(order.total_amount)))) * 100)
+      Math.round((refund_amount - (Number(order.tb_used ?? 0) * (refund_amount / Number(order.total_amount)))) * 100)
     )
 
     const MERCHANT_ID = Deno.env.get('MERCHANT_ID') ?? ''
@@ -115,12 +116,12 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 5. 无微信支付（纯金豆订单）→ 直接退还金豆
+    // 5. 无微信支付（纯情绪豆订单）→ 直接退还情绪豆
     if (wxRefundAmount === 0) {
       const goldBeansToReturn = Math.floor(refund_amount / 0.01)
       if (goldBeansToReturn > 0) {
-        const { data: profile } = await supabase.from('profiles').select('gold_beans').eq('id', user.id).maybeSingle()
-        await supabase.from('profiles').update({ gold_beans: (profile?.gold_beans ?? 0) + goldBeansToReturn }).eq('id', user.id)
+        const { data: profile } = await supabase.from('profiles').select('tb_balance').eq('id', user.id).maybeSingle()
+        await supabase.from('profiles').update({ tb_balance: (profile?.tb_balance ?? 0) + goldBeansToReturn }).eq('id', user.id)
       }
       // 直接完成退款
       await supabase.from('refunds').update({ status: 'completed', wechat_refund_id: null, completed_at: new Date().toISOString() }).eq('id', refundRecord.id)
@@ -136,7 +137,7 @@ Deno.serve(async (req: Request) => {
           user_id: user.id,
           type: 'refund_result',
           title: '退款成功',
-          body: `订单 ${order.order_no} 的退款 ¥${refund_amount.toFixed(2)} 已成功（以金豆形式到账）`,
+          body: `订单 ${order.order_no} 的退款 ¥${refund_amount.toFixed(2)} 已成功（以情绪豆形式到账）`,
           order_id: order_id,
           payload: {
             order_no: order.order_no,
@@ -148,7 +149,7 @@ Deno.serve(async (req: Request) => {
         }
       }).catch(e => console.warn('[refund-order] send-notification error:', e))
 
-      return Response.json({ success: true, refund_id: refundRecord.id, refund_no: refundNo, method: 'gold_beans' }, { headers: corsHeaders })
+      return Response.json({ success: true, refund_id: refundRecord.id, refund_no: refundNo, method: 'emotion_beans' }, { headers: corsHeaders })
     }
 
     // 6. 更新退款记录 wechat_refund_id（等待回调完成最终状态）

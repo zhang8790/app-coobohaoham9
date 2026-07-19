@@ -1,6 +1,6 @@
 import { View, Text } from '@tarojs/components'
 // @title 推广服务协议
-import Taro from '@tarojs/taro'
+
 
 function DistributionAgreement() {
   return (

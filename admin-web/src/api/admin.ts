@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type {
   AdminStats, MerchantApplication, Product,
-  Withdrawal, Article, Profile, Announcement, Refund,
+  Withdrawal, MerchantSettlement, Article, Profile, Announcement, Refund,
 } from '@/types'
 import {
   MOCK_ADMIN_STATS,
@@ -258,12 +258,13 @@ async function profileMap(ids: (string | null)[]): Promise<Map<string, any>> {
   return new Map((data as any[]).map(p => [p.id, p]))
 }
 
-export async function getPendingWithdrawals(page: number, pageSize: number, status: string = 'pending'): Promise<{ data: Withdrawal[]; total: number }> {
+export async function getPendingWithdrawals(page: number, pageSize: number, status: string = 'pending', kind?: string): Promise<{ data: Withdrawal[]; total: number }> {
   return safeQuery(async () => {
     let q = supabase.from('withdrawals')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
     if (status !== 'all') q = q.eq('status', status)
+    if (kind) q = q.eq('kind', kind)
     const { data, count } = await q.range(page * pageSize, (page + 1) * pageSize - 1)
     const rows = Array.isArray(data) ? (data as any[]) : []
     const pmap = await profileMap(rows.map(r => r.user_id))
@@ -329,6 +330,110 @@ export async function rejectWithdrawal(_id: string, reason: string, remark?: str
     remark: remark || null,
     updated_at: new Date().toISOString(),
   }).eq('id', _id).then(() => true), true)
+}
+
+// ── 商家货款结算（迁移 00120）──────────────────────────────────────────
+
+/** 商家货款结算台账（全局，含门店名 / 子商户号） */
+export async function getMerchantSettlements(page: number, pageSize: number, status: string = 'all'): Promise<{ data: MerchantSettlement[]; total: number }> {
+  return safeQuery(async () => {
+    let q = supabase
+      .from('merchant_settlements')
+      .select('*, stores(name, wx_sub_mch_id)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+    if (status !== 'all') q = q.eq('status', status)
+    const { data, count } = await q.range(page * pageSize, (page + 1) * pageSize - 1)
+    const rows = Array.isArray(data) ? (data as any[]) : []
+    return { data: rows as MerchantSettlement[], total: count ?? 0 }
+  }, { data: [], total: 0 })
+}
+
+/** 货款结算汇总（累计已结算货款 / 笔数） */
+export async function getMerchantSettlementSummary(): Promise<{ total_settled: number; count: number; store_count: number }> {
+  return safeQuery(async () => {
+    const { data } = await supabase
+      .from('merchant_settlements')
+      .select('settle_amount, store_id')
+      .eq('status', 'settled')
+    const rows = Array.isArray(data) ? (data as any[]) : []
+    const total = rows.reduce((s, r) => s + Number(r.settle_amount || 0), 0)
+    const stores = new Set(rows.map(r => r.store_id).filter(Boolean))
+    return { total_settled: Math.round(total * 100) / 100, count: rows.length, store_count: stores.size }
+  }, { total_settled: 0, count: 0, store_count: 0 })
+}
+
+/** 各门店货款余额概览（merchant_balance） */
+export async function getStoreSettlementBalances(): Promise<{ id: string; name: string | null; merchant_balance: number; wx_sub_mch_id: string | null }[]> {
+  return safeQuery(async () => {
+    const { data } = await supabase
+      .from('stores')
+      .select('id, name, merchant_balance, wx_sub_mch_id')
+      .order('merchant_balance', { ascending: false })
+    return (Array.isArray(data) ? data : []) as any[]
+  }, [])
+}
+
+/** 历史补结算：将已完成未结算的订单补跑结算 RPC（调用 merchant-payout Edge Function） */
+export async function triggerSettlementBackfill(): Promise<{ ok: boolean; backfilled?: number; skipped?: number; error?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('merchant-payout', { body: { action: 'backfill' } })
+    if (error) return { ok: false, error: error.message }
+    return { ok: true, backfilled: data?.backfilled, skipped: data?.skipped }
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? '调用失败' }
+  }
+}
+
+/** 对货款提现单执行微信服务商分账（资金直达商家子商户号；缺配置返回 NEED_CONFIG） */
+export async function triggerSettlementPayout(withdrawalId: string): Promise<{ ok: boolean; status?: string; message?: string; error?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('merchant-payout', {
+      body: { action: 'payout', withdrawal_id: withdrawalId },
+    })
+    if (error) return { ok: false, error: error.message }
+    // 分账成功（PROFITSHARING_SENT / MANUAL_PAYOUT）后，本地置为已打款
+    if (data?.ok && (data.status === 'PROFITSHARING_SENT' || data.status === 'MANUAL_PAYOUT')) {
+      await paySettlementWithdrawal(withdrawalId)
+      return { ok: true, status: data.status, message: data.message }
+    }
+    return { ok: !!data?.ok, status: data?.status, message: data?.message, error: data?.error }
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? '调用失败' }
+  }
+}
+
+/** 货款提现打款完成：仅置状态 paid（货款余额已在申请时扣减，无需再扣） */
+export async function paySettlementWithdrawal(_id: string, remark?: string): Promise<boolean> {
+  return safeQuery(() => supabase.from('withdrawals').update({
+    status: 'paid', remark: remark || null, updated_at: new Date().toISOString(),
+  }).eq('id', _id).eq('status', 'approved').then(() => true), true)
+}
+
+/** 货款提现驳回：退回货款到门店 merchant_balance（申请时已扣，需回补），
+ *  并释放关联的 merchant_settlements 行（清除 withdrawal_id），然后置 rejected。 */
+export async function rejectSettlementWithdrawal(_id: string, reason: string, remark?: string): Promise<boolean> {
+  return safeQuery(async () => {
+    const { data: w } = await supabase
+      .from('withdrawals').select('store_id, amount, status, merchant_settlement_ids').eq('id', _id).maybeSingle()
+    if (!w) return false
+    // 仅对 approved / pending 的退回货款余额（已扣状态）
+    if (w.status === 'pending' || w.status === 'approved') {
+      const amt = Number(w.amount || 0)
+      const { data: st } = await supabase.from('stores').select('merchant_balance').eq('id', w.store_id).maybeSingle()
+      const cur = Number((st as any)?.merchant_balance || 0)
+      await supabase.from('stores').update({
+        merchant_balance: Math.round((cur + amt) * 100) / 100,
+      }).eq('id', w.store_id)
+      // 释放占用的结算台账行，允许重新提现
+      if ((w.merchant_settlement_ids || []).length > 0) {
+        await supabase.from('merchant_settlements').update({ withdrawal_id: null }).in('id', w.merchant_settlement_ids as string[])
+      }
+    }
+    await supabase.from('withdrawals').update({
+      status: 'rejected', reject_reason: reason || null, remark: remark || null, updated_at: new Date().toISOString(),
+    }).eq('id', _id)
+    return true
+  }, true)
 }
 
 // ── 退款管理 ──────────────────────────────────────────────────────────
@@ -425,4 +530,190 @@ export async function updateAnnouncement(_id: string, _updates: Partial<Announce
 
 export async function deleteAnnouncement(_id: string): Promise<boolean> {
   return safeQuery(() => supabase.from('announcements').delete().eq('id', _id).then(() => true), true)
+}
+
+// ── 自营门店管理（探索页）──────────────────────────────────────────────
+// 平台自有旗舰渠道（探索页）靠 is_platform=true 识别，不走商家申请流。
+// 管理员经 admin_all_stores RLS 策略可直接增改 stores 表。
+const PLATFORM_OWNER_ID = 'd6b38349-dded-4879-9eac-3165a646436a'
+
+/** 列表：filter='self' 仅自营店(is_platform=true)，'all' 全部门店 */
+export async function getSelfStores(
+  filter: 'self' | 'all', page: number, pageSize: number
+): Promise<{ data: any[]; total: number }> {
+  return safeQuery(async () => {
+    let q = supabase.from('stores').select('*', { count: 'exact' }).order('created_at', { ascending: false })
+    if (filter === 'self') q = q.eq('is_platform', true)
+    const { data, count } = await q.range(page * pageSize, (page + 1) * pageSize - 1)
+    return { data: Array.isArray(data) ? data : [], total: count ?? 0 }
+  }, { data: [], total: 0 })
+}
+
+/** 更新门店字段（店名/简介/类目/让利率/营业时间/自营开关等） */
+export async function updateSelfStore(id: string, patch: Record<string, any>): Promise<boolean> {
+  return safeQuery(() => supabase.from('stores').update(patch).eq('id', id).then(() => true), true)
+}
+
+/** 新建自营店：自动 is_platform=true、owner=平台账号、生成唯一 short_code */
+export async function createSelfStore(input: {
+  name: string; description?: string; category: string; referral_rate: number
+  open_time?: string; close_time?: string; image_url?: string; banner_url?: string
+  referral_rate_enabled?: boolean
+}): Promise<boolean> {
+  return safeQuery(async () => {
+    const shortCode = await generateUniqueShortCode()
+    const { error } = await supabase.from('stores').insert({
+      owner_id: PLATFORM_OWNER_ID,
+      name: input.name,
+      description: input.description || null,
+      category: input.category,
+      referral_rate: input.referral_rate,
+      referral_rate_enabled: input.referral_rate_enabled ?? true,
+      is_platform: true,
+      is_active: true,
+      is_open: true,
+      open_time: input.open_time || '08:00',
+      close_time: input.close_time || '22:00',
+      short_code: shortCode,
+      rating: 5.0,
+      image_url: input.image_url || null,
+      banner_url: input.banner_url || null,
+    })
+    if (error) { console.error('[createSelfStore] 失败:', error); return false }
+    return true
+  }, true)
+}
+
+// ── 自营门店 · 店内商品 ────────────────────────────────────────────────
+export interface SelfStoreProduct {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  original_price: number | null
+  stock: number
+  category: string | null
+  image_url: string | null
+  discount_rate: number | null   // 商品让利% (0~100)
+  is_active: boolean
+  review_status: string
+}
+
+/** 门店商品列表（按 store_id 过滤；自营店平台自有，默认可直接上下架） */
+export async function getSelfStoreProducts(storeId: string, page: number, pageSize: number): Promise<{ data: SelfStoreProduct[]; total: number }> {
+  return safeQuery(async () => {
+    const { data, count } = await supabase.from('products')
+      .select('id,name,description,price,original_price,stock,category,image_url,discount_rate,is_active,review_status', { count: 'exact' })
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1)
+    return { data: Array.isArray(data) ? (data as SelfStoreProduct[]) : [], total: count ?? 0 }
+  }, { data: [], total: 0 })
+}
+
+/** 新建自营店商品：平台自有，直接 approved + 上架，无需走审核流 */
+export async function createSelfStoreProduct(storeId: string, input: {
+  name: string; description?: string; price: number; original_price?: number | null
+  stock?: number; category?: string; image_url?: string; discount_rate?: number | null
+}): Promise<boolean> {
+  return safeQuery(async () => {
+    const { error } = await supabase.from('products').insert({
+      store_id: storeId,
+      name: input.name.trim(),
+      description: input.description?.trim() || null,
+      price: input.price,
+      original_price: input.original_price ?? null,
+      stock: input.stock ?? 999,
+      category: input.category || null,
+      image_url: input.image_url?.trim() || null,
+      discount_rate: input.discount_rate ?? null,
+      is_active: true,
+      review_status: 'approved',
+    })
+    if (error) { console.error('[createSelfStoreProduct] 失败:', error); return false }
+    return true
+  }, true)
+}
+
+/** 更新门店商品（改价/改库存/上下架/让利点等） */
+export async function updateSelfStoreProduct(id: string, patch: Record<string, any>): Promise<boolean> {
+  return safeQuery(() => supabase.from('products').update(patch).eq('id', id).then(() => true), true)
+}
+
+// ── 自营门店 · 订单 ────────────────────────────────────────────────────
+export interface SelfStoreOrder {
+  id: string
+  order_no: string
+  total_amount: number
+  tb_used: number
+  settle_amount: number | null   // 让利后商家实收（merchant_settlements，未完成订单为 null）
+  discount_pool: number | null   // 让利池（已分出去的推广/积分/平台部分）
+  status: string
+  refund_status: string | null
+  created_at: string
+  buyer_nickname: string | null
+  buyer_phone: string | null
+}
+
+/** 门店订单列表（按 store_id 过滤），buyer 用两步直读避免 profiles 无 FK 导致 join 失败 */
+export async function getSelfStoreOrders(storeId: string, page: number, pageSize: number): Promise<{ data: SelfStoreOrder[]; total: number }> {
+  return safeQuery(async () => {
+    const { data, count } = await supabase.from('orders')
+      .select('id,order_no,total_amount,tb_used,status,refund_status,created_at,user_id, merchant_settlements(settle_amount, discount_pool)', { count: 'exact' })
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false })
+      .range(page * pageSize, (page + 1) * pageSize - 1)
+    const rows = Array.isArray(data) ? (data as any[]) : []
+    const pmap = await profileMap(rows.map(r => r.user_id))
+    return {
+      data: rows.map(r => {
+        // orders → merchant_settlements 是一对多（FK 在 settlements 侧），取首条
+        const ms = Array.isArray(r.merchant_settlements)
+          ? (r.merchant_settlements[0] ?? null)
+          : (r.merchant_settlements ?? null)
+        return {
+          id: r.id, order_no: r.order_no, total_amount: Number(r.total_amount),
+          tb_used: Number(r.tb_used ?? 0), status: r.status, refund_status: r.refund_status ?? null,
+          created_at: r.created_at,
+          settle_amount: ms ? Number(ms.settle_amount ?? null) : null,
+          discount_pool: ms ? Number(ms.discount_pool ?? null) : null,
+          buyer_nickname: pmap.get(r.user_id)?.nickname ?? null,
+          buyer_phone: pmap.get(r.user_id)?.phone ?? null,
+        }
+      }) as SelfStoreOrder[],
+      total: count ?? 0,
+    }
+  }, { data: [], total: 0 })
+}
+
+// ── 自营门店 · 概览统计 ───────────────────────────────────────────────
+export interface SelfStoreStats {
+  productTotal: number
+  productActive: number
+  orderTotal: number
+  gmv: number
+}
+
+/** 门店概览：商品数/在售数/订单数/GMV */
+export async function getSelfStoreStats(storeId: string): Promise<SelfStoreStats> {
+  return safeQuery(async () => {
+    const [{ count: productTotal }, { count: productActive }, { count: orderTotal }] = await Promise.all([
+      supabase.from('products').select('*', { count: 'exact', head: true }).eq('store_id', storeId),
+      supabase.from('products').select('*', { count: 'exact', head: true }).eq('store_id', storeId).eq('is_active', true),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('store_id', storeId),
+    ])
+    // GMV：聚合函数需先在 Dashboard 开启 db-aggregates；失败降级 0
+    let gmv = 0
+    try {
+      const { data } = await supabase.from('orders').select('total_amount.sum()').eq('store_id', storeId)
+      const row = Array.isArray(data) && data[0] ? (data[0] as any) : null
+      gmv = row && typeof row.sum === 'number' ? row.sum : 0
+    } catch { gmv = 0 }
+    return {
+      productTotal: productTotal ?? 0,
+      productActive: productActive ?? 0,
+      orderTotal: orderTotal ?? 0,
+      gmv: Math.round(gmv * 100) / 100,
+    }
+  }, { productTotal: 0, productActive: 0, orderTotal: 0, gmv: 0 })
 }

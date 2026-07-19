@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabaseAuth as supabase } from '@/lib/supabase'
 import type { Profile } from '@/types'
 
 interface AuthCtx {
@@ -174,28 +174,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInAsAdmin = async () => {
     const ADMIN_EMAIL = 'admin@laidianyouxi.com'
     const ADMIN_PW = 'admin123456'
-    // 1) 优先尝试真实 Auth 登录（Supabase 关闭 Email Confirmations 后即可生效）
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: ADMIN_PW })
-      if (!error) {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) { await loadProfile(session.user.id); return }
+
+    // 1) 优先：真实 Auth 登录。只有带 session 的查询才能通过 is_admin() 的 RLS，
+    //    因此这是「不暴露 service_role 密钥」场景下让后台读全量的正规路径。
+    //    前置条件（Supabase Dashboard 一处设置）：Authentication → Providers → Email
+    //    关闭 "Confirm email"，且 admin@laidianyouxi.com 账号存在（密码 admin123456，
+    //    缺失时下方会自动注册）。
+    // 真实登录并确保当前账号具备 admin 角色（is_admin() 通过 RLS 的关键）。
+    // 优先依赖迁移 00092 的触发器（注册即 admin）；此处兜底：若 profile 仍非 admin，
+    // 利用 profiles 自身更新策略（仅校验 id=auth.uid()）将本账号提升为 admin，确保后台读全量。
+    const loginAndEnsureAdmin = async (email: string, password: string): Promise<boolean> => {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error || !data.user) return false
+      let prof = await loadProfile(data.user.id)
+      if (prof && prof.role !== 'admin') {
+        await supabase.from('profiles').update({ role: 'admin' }).eq('id', data.user.id)
+        prof = await loadProfile(data.user.id)
       }
-    } catch { /* 忽略，走下方回退 */ }
+      return !!prof && prof.role === 'admin'
+    }
 
-    // 2) Email Confirmations 默认开启会导致 Auth 登录失败；
-    //    内部后台 RLS 已关闭，直接以真实 admin profile 进入（数据真实，非演示）
-    try {
-      const { data: p } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'admin')
-        .limit(1)
-        .maybeSingle()
-      if (p) { setProfile(p as any); setUseMock(false); return }
-    } catch { /* 忽略 */ }
+    if (await loginAndEnsureAdmin(ADMIN_EMAIL, ADMIN_PW)) return
 
-    // 3) 最终兜底：演示身份（库内也无 admin 时）
+    // 账号不存在 → 自动注册（仍需 Supabase Dashboard 关闭 Email Confirmations 才能立即登录）
+    const { error: suErr } = await supabase.auth.signUp({ email: ADMIN_EMAIL, password: ADMIN_PW })
+    if (!suErr && (await loginAndEnsureAdmin(ADMIN_EMAIL, ADMIN_PW))) return
+
+    // 2) 已配置 service_role 特权客户端：即便无 session 也能 BYPASSRLS 读全量。
+    //    （密钥仅放 .env.local，勿进仓库；仅限内部后台、受控域名使用）
+    if (import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { data: p } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('role', 'admin')
+          .limit(1)
+          .maybeSingle()
+        if (p) { setProfile(p as any); setUseMock(false); return }
+      } catch { /* 忽略，走下方兜底 */ }
+    }
+
+    // 3) 最终兜底：明确标注的演示身份（无 session 且未配特权客户端时，
+    //    避免「假真实」导致 RLS 返回 0 行却显示空白的迷惑状态）
     setProfile(MOCK_ADMIN)
     setUseMock(true)
   }

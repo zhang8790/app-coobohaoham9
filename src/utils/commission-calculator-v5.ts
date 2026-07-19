@@ -1,82 +1,88 @@
 /**
- * V5 流动性二级推广算法（防亏损 + 防刷单版）
- * 基于 V4，新增：
- * 1. 平台最低抽成 10%（让利池先抽）
- * 2. 流动一级机制（按单动态）
- * 3. 调整后的段位系数（保证平台收入）
- * 4. 风控检测集成
+ * V5 流动性二级推广算法（防亏损 + 防躺平版）
+ *
+ * 2026-07-18 优化（针对「段位逻辑不对 / 躺平收益高」）：
+ * 1. 段位口径改为【近 6 个月滚动消费】决定（原终身累计消费只增不减 → 躺平者永久高段位）。
+ *    窗口外消费自动过期，停止消费即自动降级，从源头消除「躺平高收益」。
+ * 2. 情绪豆(人民币 1:1 锚定)仍计入滚动消费口径（维持现状），但被 6 月窗口锁死，不会变成永久杠杆。
+ * 3. 佣金比例收敛微调：L1 上限 0.60 → 0.50，L2 上限 0.25 → 0.18（保留梯度）。
+ * 4. 叠加两层真实门槛（原 checkCommissionEligibility 写死 true 从未生效）：
+ *    - 活跃系数 activeMult：近 30 天有推荐成交 = 1.0；30~60 天有 = 0.5（宽限）；连续 60 天无 = 0（暂停）。
+ *    - 拓新衰减 recruitMult：距上次拓新 ≤ 90 天 = 1.0；> 90 天 = 0.4（最低不低于基准 40%）；从未拓新不惩罚。
+ * 5. 最终佣金 = 剩余池 × 段位比例 × activeMult × recruitMult。
  */
 
-// ============ 段位配置（调整后） ============
+// ============ 段位配置（收敛后） ============
 export interface RankConfigV5 {
   rank: MemberRankV5;
   minDynamicScore: number;
-  l1CommissionRate: number;   // 流动一级比例
-  l2CommissionRate: number;   // 静态二级比例
+  l1CommissionRate: number;   // 流动一级比例（上限 0.50）
+  l2CommissionRate: number;   // 静态二级比例（上限 0.18）
   pointsRate: number;         // 积分比例
   icon: string;
   color: string;
 }
 
-export type MemberRankV5 = 
-  | '江湖散修' 
-  | '外门弟子' 
-  | '内门弟子' 
-  | '核心弟子' 
-  | '长老' 
-  | '掌门'
+export type MemberRankV5 =
+  | '凡心'
+  | '初心'
+  | '明心'
+  | '静心'
+  | '悟心'
+  | '无心境'
 
+// L1 上限收敛至 0.50，L2 上限收敛至 0.18，保留梯度（凡心最低，无心境最高）
 export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
-  { 
-    rank: '江湖散修', 
-    minDynamicScore: 0, 
-    l1CommissionRate: 0.40, 
-    l2CommissionRate: 0.15, 
+  {
+    rank: '凡心',
+    minDynamicScore: 0,
+    l1CommissionRate: 0.40,
+    l2CommissionRate: 0.15,
     pointsRate: 0.10,
     icon: '🍃',
     color: '#90EE90'
   },
-  { 
-    rank: '外门弟子', 
-    minDynamicScore: 200, 
-    l1CommissionRate: 0.45, 
-    l2CommissionRate: 0.18, 
+  {
+    rank: '初心',
+    minDynamicScore: 200,
+    l1CommissionRate: 0.42,
+    l2CommissionRate: 0.16,
     pointsRate: 0.12,
     icon: '🌿',
     color: '#50C878'
   },
-  { 
-    rank: '内门弟子', 
-    minDynamicScore: 800, 
-    l1CommissionRate: 0.50, 
-    l2CommissionRate: 0.20, 
+  {
+    rank: '明心',
+    minDynamicScore: 800,
+    l1CommissionRate: 0.44,
+    l2CommissionRate: 0.17,
     pointsRate: 0.13,
     icon: '📚',
     color: '#4A90D9'
   },
-  { 
-    rank: '核心弟子', 
-    minDynamicScore: 2000, 
-    l1CommissionRate: 0.54, 
-    l2CommissionRate: 0.22, 
+  {
+    rank: '静心',
+    minDynamicScore: 2000,
+    l1CommissionRate: 0.46,
+    l2CommissionRate: 0.18,
     pointsRate: 0.14,
     icon: '⚔️',
     color: '#CD7F32'
   },
-  { 
-    rank: '长老', 
-    minDynamicScore: 6000, 
-    l1CommissionRate: 0.57, 
-    l2CommissionRate: 0.24, 
+  {
+    rank: '悟心',
+    minDynamicScore: 6000,
+    l1CommissionRate: 0.48,
+    l2CommissionRate: 0.18,
     pointsRate: 0.15,
     icon: '🏯',
     color: '#C0C0C0'
   },
-  { 
-    rank: '掌门', 
-    minDynamicScore: 20000, 
-    l1CommissionRate: 0.60, 
-    l2CommissionRate: 0.25, 
+  {
+    rank: '无心境',
+    minDynamicScore: 20000,
+    l1CommissionRate: 0.50,
+    l2CommissionRate: 0.18,
     pointsRate: 0.15,
     icon: '👑',
     color: '#FFD700'
@@ -99,19 +105,26 @@ export const PLATFORM_CONFIG = {
 // ============ 输入参数 ============
 export interface CommissionInputV5 {
   orderAmount: number;           // 订单金额
-  discountRate: number;          // 商家让利率
-  
-  // 流动一级（服务人员/推广员）
-  staffId?: string | null;        // 服务人员ID
-  staffTotalConsumption?: number; // 服务人员个人累计消费
+  discountRate?: number;         // 商家让利率
 
-  // 静态二级（推荐人）
-  referrerId?: string | null;     // 推荐人ID
+  // 流动一级（服务人员/推广员 = 直接推荐人）
+  staffId?: string | null;
+  staffTotalConsumption?: number;       // 兼容旧调用（缺省回退为滚动消费）
+  staffRollingConsumption?: number;     // 近6月滚动消费（决定段位）
+  staffActiveMult?: number;             // 活跃系数（默认 1）
+  staffRecruitMult?: number;            // 拓新衰减系数（默认 1）
+
+  // 静态二级（推荐人的推荐人）
+  referrerId?: string | null;
   referrerTotalConsumption?: number;
+  referrerRollingConsumption?: number;
+  referrerActiveMult?: number;
+  referrerRecruitMult?: number;
 
   // 买家
   buyerId: string;
   buyerTotalConsumption?: number;
+  buyerRollingConsumption?: number;
 }
 
 // ============ 计算结果 ============
@@ -120,7 +133,7 @@ export interface CommissionResultV5 {
   discountPool: number;          // 让利池
   platformMinIncome: number;     // 平台最低抽成（10%）
   remainingPool: number;         // 剩余池（让利池 - 平台最低抽成）
-  
+
   l1Commission: number;          // 流动一级佣金
   l2Commission: number;          // 静态二级佣金
   buyerPoints: number;           // 买家积分
@@ -132,17 +145,43 @@ export interface CommissionResultV5 {
   channelFee: number;            // 支付通道费 = 现金基数 × 费率（**用户承担**，从佣金扣除）
   taxWithheld: number;           // 代扣个税（**用户承担**，从佣金扣除）
   userNetCommission: number;     // 用户净到手 = 名义佣金 − 通道费 − 代扣税
-  
+
   // 比例（基于剩余池）
   l1Rate: number;
   l2Rate: number;
   pointsRate: number;
   platformExtraRate: number;
-  
+
   // 段位信息
   staffRank: string;
   referrerRank: string;
   buyerRank: string;
+}
+
+// ============ 活跃 / 拓新 系数（纯函数，前后端复用，保证一致） ============
+
+/**
+ * 活跃系数：依据「推荐成交」活跃度（近 30 天 / 30~60 天的被推荐人下单数）。
+ * - 近 30 天有推荐成交 → 1.0（全额）
+ * - 仅 30~60 天有 → 0.5（宽限期减半）
+ * - 连续 60 天无推荐成交 → 0（暂停资格，杜绝零活跃躺赚）
+ */
+export function getActiveMultiplier(recent30dReferredOrders: number, prev30dReferredOrders: number): number {
+  if (recent30dReferredOrders > 0) return 1.0
+  if (prev30dReferredOrders > 0) return 0.5
+  return 0
+}
+
+/**
+ * 拓新衰减系数：依据「距上次拓新（下级注册）天数」。
+ * - ≤ 90 天 → 1.0（持续拓新）
+ * - > 90 天 → 0.4（连续 3 月未拓新，逐级衰减至基准 40%，最低不低于 40%）
+ * - 从未拓新(NULL) → 1.0（给新推广员缓冲，不惩罚）
+ */
+export function getRecruitMultiplier(daysSinceLastRecruit: number | null): number {
+  if (daysSinceLastRecruit == null) return 1.0
+  if (daysSinceLastRecruit > 90) return 0.4
+  return 1.0
 }
 
 // ============ 核心计算函数 ============
@@ -150,67 +189,72 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
   const {
     orderAmount,
     discountRate = 0.09,
-    staffTotalConsumption = 0,
-    referrerTotalConsumption = 0,
-    buyerTotalConsumption = 0,
-  } = input;
-  
+    // 滚动消费优先；旧调用只传 total_consumption 时回退为滚动近似（预览位兼容）
+    staffRollingConsumption = input.staffTotalConsumption ?? 0,
+    referrerRollingConsumption = input.referrerTotalConsumption ?? 0,
+    buyerRollingConsumption = input.buyerTotalConsumption ?? 0,
+  } = input
+
   // 1. 计算让利池
-  const discountPool = toPrecision(orderAmount * discountRate);
-  
+  const discountPool = toPrecision(orderAmount * discountRate)
+
   // 2. 平台最低抽成（10%）
-  const platformMinIncome = toPrecision(discountPool * PLATFORM_CONFIG.MIN_PLATFORM_RATE);
-  const remainingPool = toPrecision(discountPool - platformMinIncome);
-  
-  // 3. 计算段位（按 低→高 排序后遍历）
-  const sortedRanks = [...RANK_CONFIG_TABLE_V5].sort((a, b) => a.minDynamicScore - b.minDynamicScore);
-  
-  const staffDynamicScore = calculateDynamicScore(staffTotalConsumption);
-  const staffRank = getRankByScore(staffDynamicScore, sortedRanks);
+  const platformMinIncome = toPrecision(discountPool * PLATFORM_CONFIG.MIN_PLATFORM_RATE)
+  const remainingPool = toPrecision(discountPool - platformMinIncome)
 
-  const referrerDynamicScore = calculateDynamicScore(referrerTotalConsumption);
-  const referrerRank = getRankByScore(referrerDynamicScore, sortedRanks);
+  // 3. 计算段位（按 低→高 排序后遍历；段位由【近6月滚动消费】决定）
+  const sortedRanks = [...RANK_CONFIG_TABLE_V5].sort((a, b) => a.minDynamicScore - b.minDynamicScore)
 
-  const buyerDynamicScore = calculateDynamicScore(buyerTotalConsumption);
-  const buyerRank = getRankByScore(buyerDynamicScore, sortedRanks);
-  
-  // 4. 计算佣金（基于剩余池）
-  let l1Commission = 0;
-  let l2Commission = 0;
-  
+  const staffDynamicScore = calculateDynamicScore(staffRollingConsumption)
+  const staffRank = getRankByScore(staffDynamicScore, sortedRanks)
+
+  const referrerDynamicScore = calculateDynamicScore(referrerRollingConsumption)
+  const referrerRank = getRankByScore(referrerDynamicScore, sortedRanks)
+
+  const buyerDynamicScore = calculateDynamicScore(buyerRollingConsumption)
+  const buyerRank = getRankByScore(buyerDynamicScore, sortedRanks)
+
+  // 4. 计算佣金（剩余池 × 段位比例 × 活跃系数 × 拓新衰减）
+  let l1Commission = 0
+  let l2Commission = 0
+
   if (input.staffId) {
-    l1Commission = toPrecision(remainingPool * staffRank.l1CommissionRate);
+    const active = input.staffActiveMult ?? 1
+    const recruit = input.staffRecruitMult ?? 1
+    l1Commission = toPrecision(remainingPool * staffRank.l1CommissionRate * active * recruit)
   }
-  
+
   if (input.referrerId) {
-    l2Commission = toPrecision(remainingPool * referrerRank.l2CommissionRate);
+    const active = input.referrerActiveMult ?? 1
+    const recruit = input.referrerRecruitMult ?? 1
+    l2Commission = toPrecision(remainingPool * referrerRank.l2CommissionRate * active * recruit)
   }
-  
+
   // 5. 计算积分
-  const buyerPoints = toPrecision(remainingPool * buyerRank.pointsRate);
-  
+  const buyerPoints = toPrecision(remainingPool * buyerRank.pointsRate)
+
   // 6. 平台额外收入
   const platformExtraIncome = toPrecision(
     remainingPool - l1Commission - l2Commission - buyerPoints
-  );
-  
+  )
+
   // 7. 平台总收入
-  const platformTotalIncome = toPrecision(platformMinIncome + platformExtraIncome);
+  const platformTotalIncome = toPrecision(platformMinIncome + platformExtraIncome)
 
   // 7.1 用户名义现金佣金（L1+L2，可提现部分；买家积分是虚拟币，不在此列）
-  const userGrossCommission = toPrecision(l1Commission + l2Commission);
+  const userGrossCommission = toPrecision(l1Commission + l2Commission)
 
   // 7.2 支付通道费（微信约0.6%）：**由用户承担**，从佣金扣除（商家/平台不承担）
-  const channelFee = toPrecision(orderAmount * PLATFORM_CONFIG.CHANNEL_FEE_RATE);
+  const channelFee = toPrecision(orderAmount * PLATFORM_CONFIG.CHANNEL_FEE_RATE)
 
   // 7.3 通道费后佣金
-  const afterChannel = Math.max(0, userGrossCommission - channelFee);
+  const afterChannel = Math.max(0, userGrossCommission - channelFee)
 
   // 7.4 代扣个税（劳务报酬/佣金所得）
-  const taxWithheld = toPrecision(calcWithholdingTax(afterChannel));
+  const taxWithheld = toPrecision(calcWithholdingTax(afterChannel))
 
   // 7.5 用户净到手 = 名义佣金 − 通道费 − 代扣税
-  const userNetCommission = toPrecision(afterChannel - taxWithheld);
+  const userNetCommission = toPrecision(afterChannel - taxWithheld)
 
   return {
     orderAmount,
@@ -233,18 +277,17 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
     staffRank: staffRank.rank,
     referrerRank: referrerRank.rank,
     buyerRank: buyerRank.rank,
-  };
+  }
 }
 
 // ============ 工具函数 ============
 /**
- * 计算段位动态分数（V5：仅基于个人累计消费，1:1）
- * 不再包含团队维度，段位完全由个人消费决定。
+ * 计算段位动态分数（V5：基于消费额，1:1；此处消费额已为「近6月滚动消费」口径）
  */
 export function calculateDynamicScore(
   personalTotalConsumption: number
 ): number {
-  return Math.round((personalTotalConsumption || 0) * 100) / 100;
+  return Math.round((personalTotalConsumption || 0) * 100) / 100
 }
 
 /** 根据动态分数判定段位（导出给页面复用，保证前后端一致） */
@@ -260,13 +303,13 @@ export function getRankByDynamicScoreV5(dynamicScore: number): RankConfigV5 {
 
 /**
  * 段位-徽章关联（#74）：会员「身份段位」= 个人累计消费决定基础段位，
- * 高段位（长老 / 掌门）叠加「徽章收集度」软门槛——消费达标但徽章不足则向下封顶，
+ * 高段位（悟心 / 无心境）叠加「徽章收集度」软门槛——消费达标但徽章不足则向下封顶，
  * 不硬卡升级（体验优先）。佣金比例仍由消费段位决定（见 calculateCommissionV5），
  * 身份段位与佣金段位解耦，确保「等级不靠拉人」且合规。
  */
 export const RANK_BADGE_SOFT_GATE: Partial<Record<MemberRankV5, { minBadges: number; minRare: number }>> = {
-  '长老': { minBadges: 4, minRare: 0 },
-  '掌门': { minBadges: 8, minRare: 1 },
+  '悟心': { minBadges: 4, minRare: 0 },
+  '无心境': { minBadges: 8, minRare: 1 },
 }
 
 export interface MemberRankInput {
@@ -280,37 +323,37 @@ export function computeMemberRank(input: MemberRankInput): MemberRankV5 {
   const badgeCount = input.badgeCount ?? 0
   const rareBadgeCount = input.rareBadgeCount ?? 0
 
-  // 掌门：需徽章收集度 ≥ 8 且含 ≥ 1 史诗/传说；不足则退守长老（长老也不满足则核心弟子）
-  if (base === '掌门') {
-    const g = RANK_BADGE_SOFT_GATE['掌门']!
+  // 无心境：需徽章收集度 ≥ 8 且含 ≥ 1 史诗/传说；不足则退守悟心（悟心也不满足则静心）
+  if (base === '无心境') {
+    const g = RANK_BADGE_SOFT_GATE['无心境']!
     if (badgeCount < g.minBadges || rareBadgeCount < g.minRare) {
-      const lg = RANK_BADGE_SOFT_GATE['长老']!
-      if (badgeCount >= lg.minBadges) return '长老'
-      return '核心弟子'
+      const lg = RANK_BADGE_SOFT_GATE['悟心']!
+      if (badgeCount >= lg.minBadges) return '悟心'
+      return '静心'
     }
   }
-  // 长老：需徽章收集度 ≥ 4；不足则封顶核心弟子
-  if (base === '长老') {
-    const g = RANK_BADGE_SOFT_GATE['长老']!
-    if (badgeCount < g.minBadges) return '核心弟子'
+  // 悟心：需徽章收集度 ≥ 4；不足则封顶静心
+  if (base === '悟心') {
+    const g = RANK_BADGE_SOFT_GATE['悟心']!
+    if (badgeCount < g.minBadges) return '静心'
   }
   return base
 }
 
 function getRankByScore(score: number, sortedRanks: RankConfigV5[]): RankConfigV5 {
-  const s = Math.max(0, score || 0);
-  let matched = sortedRanks[0];
+  const s = Math.max(0, score || 0)
+  let matched = sortedRanks[0]
   for (const config of sortedRanks) {
     if (s >= config.minDynamicScore) {
-      matched = config;
+      matched = config
     }
   }
-  return matched;
+  return matched
 }
 
 function toPrecision(n: number): number {
-  if (typeof n !== 'number' || isNaN(n)) return 0;
-  return Math.round(n * 10000) / 10000;
+  if (typeof n !== 'number' || isNaN(n)) return 0
+  return Math.round(n * 10000) / 10000
 }
 
 /**
@@ -320,7 +363,7 @@ function toPrecision(n: number): number {
  * - 单次收入 ≤ 4000：应纳税所得额 = 收入 − 800，税率 20%
  * - 单次收入 > 4000：应纳税所得额 = 收入 × (1 − 20%)，税率 20%
  */
-function calcWithholdingTax(income: number): number {
+export function calcWithholdingTax(income: number): number {
   const base = Math.max(0, income)
   if (base <= PLATFORM_CONFIG.TAX_THRESHOLD) return 0
   if (base <= 4000) return toPrecision((base - 800) * PLATFORM_CONFIG.TAX_RATE)
@@ -329,48 +372,54 @@ function calcWithholdingTax(income: number): number {
 
 // ============ 测试函数 ============
 export function testV5Algorithm(): void {
-  console.log('===== V5 算法测试 =====');
-  
-  // 测试1：全掌门（最高段位）
+  console.log('===== V5 算法测试（2026-07-18 滚动段位 + 收敛比例）=====')
+
+  // 测试1：全无心境（滚动消费=终身，最高段位，活跃+拓新）
   const result1 = calculateCommissionV5({
     orderAmount: 100,
     discountRate: 0.10,
     staffId: 'staff-1',
-    staffTotalConsumption: 50000,
+    staffRollingConsumption: 50000,
+    staffActiveMult: 1,
+    staffRecruitMult: 1,
     referrerId: 'ref-1',
-    referrerTotalConsumption: 50000,
+    referrerRollingConsumption: 50000,
+    referrerActiveMult: 1,
+    referrerRecruitMult: 1,
     buyerId: 'buyer-1',
-    buyerTotalConsumption: 50000,
-  });
-  
-  console.log('【全掌门】订单100元，让利率10%');
-  console.log('让利池：', result1.discountPool);
-  console.log('平台最低抽成（10%）：', result1.platformMinIncome);
-  console.log('剩余池：', result1.remainingPool);
-  console.log('流动一级佣金：', result1.l1Commission, `(${(result1.l1Rate * 100).toFixed(1)}%)`);
-  console.log('静态二级佣金：', result1.l2Commission, `(${(result1.l2Rate * 100).toFixed(1)}%)`);
-  console.log('买家积分：', result1.buyerPoints, `(${(result1.pointsRate * 100).toFixed(1)}%)`);
-  console.log('平台额外收入：', result1.platformExtraIncome);
-  console.log('平台总收入：', result1.platformTotalIncome, `(${(result1.platformTotalIncome / result1.discountPool * 100).toFixed(1)}%)`);
-  console.log('用户名义佣金(L1+L2)：', result1.userGrossCommission);
-  console.log('支付通道费(用户承担)：', result1.channelFee);
-  console.log('代扣个税(用户承担)：', result1.taxWithheld);
-  console.log('用户净到手：', result1.userNetCommission);
-  
-  // 测试2：全散修（最低段位）
+    buyerRollingConsumption: 50000,
+  })
+
+  console.log('【全无心境】订单100元，让利率10%')
+  console.log('让利池：', result1.discountPool)
+  console.log('平台最低抽成（10%）：', result1.platformMinIncome)
+  console.log('剩余池：', result1.remainingPool)
+  console.log('流动一级佣金：', result1.l1Commission, `(${(result1.l1Rate * 100).toFixed(1)}%)`)
+  console.log('静态二级佣金：', result1.l2Commission, `(${(result1.l2Rate * 100).toFixed(1)}%)`)
+  console.log('买家积分：', result1.buyerPoints, `(${(result1.pointsRate * 100).toFixed(1)}%)`)
+  console.log('平台额外收入：', result1.platformExtraIncome)
+  console.log('平台总收入：', result1.platformTotalIncome, `(${(result1.platformTotalIncome / result1.discountPool * 100).toFixed(1)}%)`)
+  console.log('用户名义佣金(L1+L2)：', result1.userGrossCommission)
+  console.log('支付通道费(用户承担)：', result1.channelFee)
+  console.log('代扣个税(用户承担)：', result1.taxWithheld)
+  console.log('用户净到手：', result1.userNetCommission)
+
+  // 测试2：全散修（最低段位，无活跃/无拓新 → 系数归零）
   const result2 = calculateCommissionV5({
     orderAmount: 100,
     discountRate: 0.10,
+    staffId: 'staff-2',
+    staffRollingConsumption: 0,
+    staffActiveMult: 0,
+    staffRecruitMult: 1,
     buyerId: 'buyer-2',
-  });
-  
-  console.log('\n【全散修】订单100元，让利率10%');
-  console.log('让利池：', result2.discountPool);
-  console.log('平台最低抽成（10%）：', result2.platformMinIncome);
-  console.log('剩余池：', result2.remainingPool);
-  console.log('平台总收入：', result2.platformTotalIncome, `(${(result2.platformTotalIncome / result2.discountPool * 100).toFixed(1)}%)`);
+  })
+
+  console.log('\n【全散修·躺平】订单100元，让利率10%（近6月0消费+60天无推荐成交）')
+  console.log('流动一级佣金：', result2.l1Commission, '(活跃系数=0 → 归零，杜绝躺赚)')
+  console.log('平台总收入：', result2.platformTotalIncome, `(${(result2.platformTotalIncome / result2.discountPool * 100).toFixed(1)}%)`)
 }
 
 if (typeof window !== 'undefined') {
-  (window as any).testV5Algorithm = testV5Algorithm;
+  (window as any).testV5Algorithm = testV5Algorithm
 }

@@ -7,7 +7,7 @@ import LazyImage from '@/components/LazyImage'
 
 // 关键：必须从 common.js 导入至少一项，否则 Rollup 会 tree-sh掉 common.js 和 vendors.js
 // 导致小程序运行时缺少必要代码 → 页面空白崩溃
-import { getStoreById, getStoreCategories, getProducts } from '@/db/api'
+import { getStoreById, getStoreCategories, getProducts, addToCart, bindStoreReferrer } from '@/db/api'
 import type { Store, StoreCategory, Product } from '@/db/types'
 import { supabase } from '@/client/supabase'
 
@@ -18,6 +18,7 @@ export default function StoreHomePage() {
   const [products, setProducts] = useState<Product[]>([])
   const [activeCat, setActiveCat] = useState<string>('all')
   const [loading, setLoading] = useState(true)
+  const [addingId, setAddingId] = useState<string | null>(null)
   // 门店专属红包（进店领→归属）
   const [storeCampaign, setStoreCampaign] = useState<any | null>(null)
 
@@ -90,6 +91,8 @@ export default function StoreHomePage() {
     ]).then(([s, cats, prods, campRes]) => {
       if (s) {
         setStore(s)
+        // 强引导门店自推码：进店即绑门店 owner 推广码（让利佣金回流门店）
+        bindStoreReferrer(storeId).catch(() => {})
         // 动态设置导航栏标题为商家名字
         Taro.setNavigationBarTitle({ title: s.name })
       }
@@ -115,6 +118,16 @@ export default function StoreHomePage() {
   const filteredProducts = activeCat === 'all'
     ? products
     : products.filter(p => p.category_id === activeCat)
+
+  // 加入购物车（门店详情页商品）
+  const handleAddCart = async (product: Product) => {
+    const uid = (await supabase.auth.getUser()).data.user
+    if (!uid) { Taro.navigateTo({ url: '/pages/login/index' }); return }
+    setAddingId(product.id)
+    await addToCart(product.id, product.store_id || storeId)
+    setAddingId(null)
+    Taro.showToast({ title: '已加入行囊', icon: 'success' })
+  }
 
   // 加载中
   if (loading && !store) {
@@ -326,6 +339,8 @@ export default function StoreHomePage() {
                     overflow: 'hidden',
                     borderWidth: '1px',
                     borderColor: '#EDEDED',
+                    display: 'flex',
+                    flexDirection: 'column',
                   }}>
                   {(() => {
                     const img = p.main_image || p.image_url || ''
@@ -347,7 +362,7 @@ export default function StoreHomePage() {
                       </View>
                     )
                   })()}
-                  <View style={{ padding: '10px' }}>
+                  <View style={{ padding: '10px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                     <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#333' }} numberOfLines={2}>{p.name}</Text>
 
                     {/* 情绪标签 */}
@@ -367,7 +382,27 @@ export default function StoreHomePage() {
                       </View>
                     )}
 
-                    <Text style={{ fontSize: '17px', fontWeight: 'bold', color: '#C2410C', marginTop: '6px' }}>¥{p.price}</Text>
+                    {/* 价格 + 加入购物车 */}
+                    <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '8px' }}>
+                      <Text style={{ fontSize: '17px', fontWeight: 'bold', color: '#C2410C' }}>¥{p.price}</Text>
+                      <View
+                        onClick={(e) => { e.stopPropagation(); handleAddCart(p) }}
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '9999px',
+                          backgroundColor: '#C2410C',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 4px 12px rgba(194,65,12,0.35)',
+                          flexShrink: 0,
+                        }}>
+                        {addingId === p.id
+                          ? <View className="i-mdi-loading text-white text-lg animate-spin" />
+                          : <View className="i-mdi-cart-plus text-white text-lg" />}
+                      </View>
+                    </View>
                   </View>
                 </View>
               ))}

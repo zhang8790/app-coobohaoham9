@@ -1,13 +1,12 @@
 // 本地开发模式：Mock Supabase Client
 // @ts-nocheck
 import {
-  mockUser, mockProfile, mockStore, mockProducts,
+  mockUser, mockProfile, mockProducts,
   mockCartItems, mockOrders, mockAnnouncements, mockCoupons,
   mockAddresses, mockFavorites, mockFootprints,
   mockMerchantApps, mockRefunds, mockWithdrawals, mockStores,
   mockArticles, mockStoreCategories,
-  mockCommissions, mockPointsLogs,
-} from './mockData'
+  mockCommissions, mockPointsLogs} from './mockData'
 
 // ═══ 本地存储持久化工具（微信小程序用 Taro API） ═══
 const MOCK_STORAGE_KEY = 'mock_store_data'
@@ -69,8 +68,7 @@ const store: Record<string, any[]> = {
   footprints:        persisted.footprints ?? mockFootprints.map(f => ({ ...f })),
   product_reviews:   persisted.product_reviews ?? [],
   coupons:           persisted.coupons ?? mockCoupons.map(c => ({ ...c })),
-  user_addresses:    persisted.user_addresses ?? mockAddresses.map(a => ({ ...a })),
-}
+  user_addresses:    persisted.user_addresses ?? mockAddresses.map(a => ({ ...a }))}
 
 // 浅表同步：让直接修改 mockProfile 也能反映到 store.profiles[0]
 store.profiles[0] = { ...mockProfile, ...store.profiles[0] }
@@ -257,15 +255,13 @@ class MockQueryBuilder {
         newItem = {
           ...newItem,
           status: 'pending_pay',
-          order_no: `MOCK${Date.now()}`,
-        }
+          order_no: `MOCK${Date.now()}`}
       }
       if (this.table === 'articles') {
         newItem = {
           ...newItem,
           user_id: mockUser.id,
-          is_published: this._data?.is_published ?? (this._data?.status === 'published'),
-        }
+          is_published: this._data?.is_published ?? (this._data?.status === 'published')}
       }
 
       // 写入 store（核心修复：之前只处理了 cart_items / orders / articles）
@@ -359,8 +355,7 @@ class MockQueryBuilder {
       data = (data as any[]).map((item: any) => ({
         ...item,
         products: products.find((p: any) => p.id === item.product_id) || null,
-        stores: stores.find((s: any) => s.id === item.store_id) || null,
-      }))
+        stores: stores.find((s: any) => s.id === item.store_id) || null}))
       console.log('[Mock] cart_items 已关联 products/stores, 共', data.length, '条')
     }
 
@@ -408,20 +403,20 @@ export const mockSupabase = {
           const orderNo = `MO${Date.now().toString(36).toUpperCase()}`
           const total = body.total_amount || 0
           const payMode = body.pay_mode || 'wxpay'
-          const goldBeansToUse = body.gold_beans_to_use || 0
+          const goldBeansToUse = body.tb_used || 0
           const referrerId = body.referrer_id || null
 
           // 计算推广佣金抵扣金额（1 推广佣金 = 1 元）
           const goldBeanYuan = goldBeansToUse * 1
           const wxpayAmount = Math.max(0, total - goldBeanYuan)
 
-          // 纯金豆支付：扣除金豆余额，订单状态直接为 pending_receive
+          // 纯情绪豆支付：扣除情绪豆余额，订单状态直接为 pending_receive
           if (payMode === 'pure_gold') {
-            mockProfile.balance = Math.max(0, (mockProfile.balance || 0) - goldBeansToUse)
+            mockProfile.tb_balance = Math.max(0, (mockProfile.tb_balance || 0) - goldBeansToUse)
             mockProfile.points = Math.max(0, (mockProfile.points || 0) - goldBeansToUse)
           } else if (payMode === 'hybrid') {
-            // 混合支付：扣除部分金豆
-            mockProfile.balance = Math.max(0, (mockProfile.balance || 0) - goldBeansToUse)
+            // 混合支付：扣除部分情绪豆
+            mockProfile.tb_balance = Math.max(0, (mockProfile.tb_balance || 0) - goldBeansToUse)
             mockProfile.points = Math.max(0, (mockProfile.points || 0) - goldBeansToUse)
           }
 
@@ -429,20 +424,19 @@ export const mockSupabase = {
             id: orderId, order_no: orderNo,
             status: payMode === 'pure_gold' ? 'pending_receive' : 'pending_pay',
             total_amount: total, pay_mode: payMode,
-            gold_beans_used: goldBeansToUse,
+            tb_used: goldBeansToUse,
             referrer_id: referrerId, commission_distributed: false,
             user_id: mockUser.id,
-            created_at: new Date().toISOString(),
-          }
+            created_at: new Date().toISOString()}
           mockOrders.push(newOrder as any)
 
           // 模拟佣金计算（V4算法）
           if (referrerId) {
             // 简化版V4计算（避免require()在浏览器报错）
             const discountPool = total * 0.20  // 让利池 = 订单金额 × 20%
-            const l1Rate = 0.15  // 江湖散修L1比例
-            const l2Rate = 0.06  // 江湖散修L2比例
-            const pointsRate = 0.10  // 江湖散修积分比例
+            const l1Rate = 0.15  // 凡心L1比例
+            const l2Rate = 0.06  // 凡心L2比例
+            const pointsRate = 0.10  // 凡心积分比例
             
             const l1Amount = Math.round(discountPool * l1Rate * 100) / 100
             const l2Amount = Math.round(discountPool * l2Rate * 100) / 100
@@ -454,12 +448,11 @@ export const mockSupabase = {
                 id: `comm-mock-${Date.now()}-1`,
                 order_id: orderId, order_no: orderNo,
                 beneficiary_id: referrerId, payer_id: mockUser.id,
-                level: 1, rank_at_time: '江湖散修',
+                level: 1, rank_at_time: '凡心',
                 ratio: l1Rate, pool_amount: discountPool, 
                 commission_amount: l1Amount,
                 b_coef: 1.0, status: 'pending', settle_at: null,
-                created_at: new Date().toISOString(),
-              } as any)
+                created_at: new Date().toISOString()} as any)
             }
             
             // 写入L2佣金
@@ -468,12 +461,11 @@ export const mockSupabase = {
                 id: `comm-mock-${Date.now()}-2`,
                 order_id: orderId, order_no: orderNo,
                 beneficiary_id: mockProfile.referrer_id, payer_id: mockUser.id,
-                level: 2, rank_at_time: '江湖散修',
+                level: 2, rank_at_time: '凡心',
                 ratio: l2Rate, pool_amount: discountPool, 
                 commission_amount: l2Amount,
                 b_coef: 1.0, status: 'pending', settle_at: null,
-                created_at: new Date().toISOString(),
-              } as any)
+                created_at: new Date().toISOString()} as any)
             }
             
             // 写入积分
@@ -489,8 +481,7 @@ export const mockSupabase = {
                 ratio: v4Result.l1Ratio, pool_amount: v4Result.discountPool, 
                 commission_amount: v4Result.level1Commission,
                 b_coef: 1.0, status: 'pending', settle_at: null,
-                created_at: new Date().toISOString(),
-              } as any)
+                created_at: new Date().toISOString()} as any)
             }
             
             // 写入L2佣金
@@ -503,8 +494,7 @@ export const mockSupabase = {
                 ratio: v4Result.l2Ratio, pool_amount: v4Result.discountPool, 
                 commission_amount: v4Result.level2Commission,
                 b_coef: 1.0, status: 'pending', settle_at: null,
-                created_at: new Date().toISOString(),
-              } as any)
+                created_at: new Date().toISOString()} as any)
             }
             
             // 写入积分
@@ -513,7 +503,7 @@ export const mockSupabase = {
             }
           }
 
-          // 模拟积分发放（消费金额的 1%，最低 1 积分；纯金豆支付也发积分）
+          // 模拟积分发放（消费金额的 1%，最低 1 积分；纯情绪豆支付也发积分）
           const pointsEarned = Math.max(1, Math.floor(total * 0.01))
           const oldPoints = mockProfile.points || 0
           mockProfile.points = oldPoints + pointsEarned
@@ -523,20 +513,17 @@ export const mockSupabase = {
             type: 'purchase_earn', delta: pointsEarned,
             balance_after: mockProfile.points,
             remark: `购物奖励积分（订单 ${orderNo}）`,
-            created_at: new Date().toISOString(),
-          } as any)
+            created_at: new Date().toISOString()} as any)
 
-          console.log(`[Mock] create-order: 模式=${payMode}, 金豆扣=${goldBeansToUse}, 微信付=${wxpayAmount}, 积分+${pointsEarned}`)
+          console.log(`[Mock] create-order: 模式=${payMode}, 情绪豆扣=${goldBeansToUse}, 微信付=${wxpayAmount}, 积分+${pointsEarned}`)
           return {
             data: {
               success: true, order: newOrder,
               wxpay_amount: wxpayAmount,
-              gold_beans_used: goldBeansToUse,
+              tb_used: goldBeansToUse,
               pay_mode: payMode,
-              points_earned: pointsEarned,
-            },
-            error: null,
-          }
+              points_earned: pointsEarned},
+            error: null}
         }
         case 'create-wechat-payment':
           return { data: { success: true, paymentParams: { timeStamp: String(Math.floor(Date.now() / 1000)), nonceStr: 'mocknonce', package: 'prepay_id=mock', signType: 'RSA', paySign: 'mocksign' } }, error: null }
@@ -576,8 +563,7 @@ export const mockSupabase = {
           console.warn('[Mock] Unhandled Edge Function:', name)
           return { data: { success: true }, error: null }
       }
-    },
-  },
+    }},
 
   from(table: string) {
     return new MockQueryBuilder(table)

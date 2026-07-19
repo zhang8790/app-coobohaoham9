@@ -9,10 +9,10 @@ import { generateQrcode } from '@/db/api'
 import { calculateDynamicScore, getRankByDynamicScoreV5, RANK_CONFIG_TABLE_V5 } from '@/utils/commission-calculator-v5'
 import RiskWarning from '@/components/RiskWarning'
 
-const RANK_ORDER = ['江湖散修', '外门弟子', '内门弟子', '核心弟子', '长老', '掌门']
+const RANK_ORDER = ['凡心', '初心', '明心', '静心', '悟心', '无心境']
 const RANK_COLORS: Record<string, string> = {
-  '江湖散修': '#78350F', '外门弟子': '#B45309', '内门弟子': '#92400E',
-  '核心弟子': '#C2410C', '长老': '#9333EA', '掌门': '#DC2626',
+  '凡心': '#78350F', '初心': '#B45309', '明心': '#92400E',
+  '静心': '#C2410C', '悟心': '#9333EA', '无心境': '#DC2626',
 }
 // 段位配置从V4算法动态获取（不再硬编码）
 
@@ -68,7 +68,7 @@ function MyPromotionPage() {
       // 分别加载，避免一个失败影响其他
       const [rankRes, profileRes, commRes, teamRes] = await Promise.allSettled([
         supabase.rpc('get_rank_progress', { p_user_id: user.id }),
-        supabase.from('profiles').select('invite_code,member_rank,total_consumption,commission_balance').eq('id', user.id).maybeSingle(),
+        supabase.from('profiles').select('invite_code,member_rank,total_consumption,tb_balance').eq('id', user.id).maybeSingle(),
         supabase.from('commissions').select('commission_amount,status,level').eq('beneficiary_id', user.id),
         supabase.from('profiles').select('id,nickname,member_rank,created_at').eq('referrer_id', user.id).order('created_at', { ascending: false }).limit(20),
       ])
@@ -77,14 +77,14 @@ function MyPromotionPage() {
       if (rankRes.status === 'fulfilled' && rankRes.value?.data) {
         const data = rankRes.value.data as any
         setRankData({
-          current_rank: data.current_rank || '江湖散修',
+          current_rank: data.current_rank || '凡心',
           next_rank: data.next_rank || '',
           direct_count: data.direct_count || 0,
           target_count: data.target_count || 5,
           progress: data.progress || 0,
           total_gmv: data.total_gmv || 0,
           points: data.points || 0,
-          balance: data.commission_balance || 0,
+          balance: (profileRes.status === 'fulfilled' ? (profileRes.value?.data as any)?.tb_balance : 0) || 0,
         })
       } else {
         // 前端降级计算段位（使用V5算法，保持逻辑一致）
@@ -109,7 +109,7 @@ function MyPromotionPage() {
           progress: Math.round(progress),
           total_gmv: dynamicScore,
           points: Math.floor(dynamicScore * 0.01),
-          balance: profile?.commission_balance || 0,
+          balance: profile?.tb_balance || 0,
         })
       }
 
@@ -129,6 +129,7 @@ function MyPromotionPage() {
           total_pending: rows.filter(r => r.status === 'pending').reduce((s, r) => s + Number(r.commission_amount), 0),
           total_settled: rows.filter(r => r.status === 'settled').reduce((s, r) => s + Number(r.commission_amount), 0),
           total_count: rows.length,
+          total_earned: rows.filter(r => r.status !== 'refunded').reduce((s, r) => s + Number(r.commission_amount), 0),
           l1_count: rows.filter(r => r.level === 1).length,
           l2_count: rows.filter(r => r.level === 2).length,
         })
@@ -148,8 +149,8 @@ function MyPromotionPage() {
       setReferralCode('LDYX001')
       if (!rankData) {
         setRankData({
-          current_rank: '江湖散修',
-          next_rank: '外门弟子',
+          current_rank: '凡心',
+          next_rank: '初心',
           direct_count: 0,
           target_count: 5,
           progress: 0,
@@ -215,7 +216,7 @@ function MyPromotionPage() {
   }
 
   const rankColor = userRankInfo?.rankName ? (RANK_COLORS[userRankInfo.rankName] || '#C2410C') : '#C2410C'
-  const rankIdx = RANK_ORDER.indexOf(rankData?.current_rank || '江湖散修')
+  const rankIdx = RANK_ORDER.indexOf(rankData?.current_rank || '凡心')
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
@@ -236,7 +237,7 @@ function MyPromotionPage() {
             <View>
               <View className="flex items-center gap-2 mb-1">
                 <View className="i-mdi-medal text-3xl text-white" />
-                <Text className="text-3xl font-bold text-white">{rankData?.current_rank || '江湖散修'}</Text>
+                <Text className="text-3xl font-bold text-white">{rankData?.current_rank || '凡心'}</Text>
               </View>
               <Text className="text-xl text-white/80">我的好友: {rankData?.direct_count || 0}人  |  累计GMV: ¥{Number(rankData?.total_gmv || 0).toFixed(0)}</Text>
             </View>
@@ -261,7 +262,7 @@ function MyPromotionPage() {
                 {RANK_ORDER.map((r, i) => (
                   <View key={r} className={`flex flex-col items-center gap-1 ${i <= rankIdx ? 'opacity-100' : 'opacity-40'}`}>
                     <View className={`w-3 h-3 rounded-full ${i <= rankIdx ? 'bg-white' : 'bg-white/40'}`} />
-                    <Text className="text-xs text-white">{r.replace('江湖散修', '散修').replace('弟子', '')}</Text>
+                    <Text className="text-xs text-white">{r}</Text>
                   </View>
                 ))}
               </View>
@@ -272,7 +273,7 @@ function MyPromotionPage() {
           )}
           {rankData?.next_rank === '已是最高段位' && (
             <View className="text-center py-2">
-              <Text className="text-2xl text-white font-bold">🎉 江湖至尊，掌门传人</Text>
+              <Text className="text-2xl text-white font-bold">🎉 登临绝顶，无心境传人</Text>
             </View>
           )}
         </View>
@@ -365,19 +366,27 @@ function MyPromotionPage() {
         </View>
       </View>
 
-      {/* 积分余额 */}
-      <View className="mx-4 mt-4 grid grid-cols-2 gap-3">
-        <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2">
-          <View className="i-mdi-star-circle text-3xl text-primary" />
-          <Text className="text-2xl font-bold text-foreground">{rankData?.points || 0}</Text>
-          <Text className="text-base text-muted-foreground">我的积分</Text>
+        {/* 余额与佣金（佣金已改为情绪豆发放，可在平台内直接消费支付） */}
+        <View className="mx-4 mt-4 grid grid-cols-3 gap-3">
+          <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
+            onClick={() => Taro.navigateTo({ url: '/pages/tongbao-ledger/index' })}>
+            <View className="i-mdi-star-circle text-3xl text-primary" />
+            <Text className="text-2xl font-bold text-foreground">{rankData?.points || 0}</Text>
+            <Text className="text-base text-muted-foreground">我的积分</Text>
+          </View>
+          <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
+            onClick={() => Taro.navigateTo({ url: '/pages/tongbao-ledger/index' })}>
+            <View className="i-mdi-wallet text-3xl text-primary" />
+            <Text className="text-2xl font-bold text-foreground">{Number(rankData?.balance || 0).toFixed(2)}</Text>
+            <Text className="text-base text-muted-foreground">我的情绪豆</Text>
+          </View>
+          <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
+            onClick={() => Taro.navigateTo({ url: '/pages/commission-detail/index' })}>
+            <View className="i-mdi-cash-multiple text-3xl text-primary" />
+            <Text className="text-2xl font-bold text-foreground">{Number(commSummary?.total_earned || 0).toFixed(2)}</Text>
+            <Text className="text-base text-muted-foreground">累计佣金(情绪豆)</Text>
+          </View>
         </View>
-        <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2">
-          <View className="i-mdi-wallet text-3xl text-primary" />
-          <Text className="text-2xl font-bold text-foreground">¥{Number(rankData?.balance || 0).toFixed(2)}</Text>
-          <Text className="text-base text-muted-foreground">金豆余额</Text>
-        </View>
-      </View>
 
       {/* 推广说明（合规版） */}
       <View className="mx-4 mt-4 p-4 bg-muted rounded-2xl">
@@ -389,6 +398,7 @@ function MyPromotionPage() {
           {[
             { icon: 'i-mdi-account-plus', text: `好友通过你的推广码注册并消费，你可获得 ${userRankInfo?.l1Ratio || 40}% 我的好友佣金` },
             { icon: 'i-mdi-account-multiple', text: `你推荐的我的好友再邀好友消费，你可获得 ${userRankInfo?.l2Ratio || 15}% 我的粉丝佣金` },
+            { icon: 'i-mdi-emoticon-happy', text: '推广佣金以「情绪豆」发放，可直接在平台内消费支付，形成消费回流飞轮' },
             { icon: 'i-mdi-shield-check', text: '本平台仅二级推广（我的好友+我的粉丝），只有二级、不发展多级、不按团队计酬、无入门费' },
           ].map((item, i) => (
             <View key={i} className="flex items-start gap-2">

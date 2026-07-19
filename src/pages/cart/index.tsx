@@ -7,14 +7,16 @@ import { updateCartBadge } from '@/utils/cartBadge'
 import { subscribeCartCount, bumpCartCount } from '@/utils/cartStore'
 import { setPendingCheckout } from '@/utils/checkoutCache'
 import { generateEmotionHeadline } from '@/utils/emotion-description'
-import type { CartItem } from '@/db/types'
+import type { CartItem, Product } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
+import { checkCartConflicts, toFoodTherapyInput, type CartConflict } from '@/utils/food-therapy'
 
 function CartPage() {
   const { user } = useAuth()
   const [items, setItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [conflictModal, setConflictModal] = useState<CartConflict[] | null>(null)
 
   const loadCart = useCallback(async () => {
     if (!user) return
@@ -81,17 +83,27 @@ function CartPage() {
     }})
   }
 
-  // 统一结算：结算所有已选商品（跨门店）
-  const goCheckoutAll = () => {
-    const selectedItems = items.filter(i => i.selected)
-    if (selectedItems.length === 0) {
-      Taro.showToast({ title: '请先勾选商品', icon: 'none' }); return
-    }
+  // 结算前：食疗冲突校验（有冲突弹窗提示，否则直接结算）
+  const proceedCheckout = (selectedItems: CartItem[]) => {
     const total = selectedItems.reduce((s, i) => s + (i.products?.price || 0) * i.quantity, 0)
     const ids = selectedItems.map(i => i.id).join(',')
     // 写入待结算缓存：覆盖冷启动/热重载停在支付页时 router.params 为空的情况
     setPendingCheckout({ cartIds: ids ? ids.split(',') : [], total })
     Taro.navigateTo({ url: `/pages/payment/index?cartIds=${encodeURIComponent(ids)}&total=${total.toFixed(2)}` })
+  }
+
+  const goCheckoutAll = () => {
+    const selectedItems = items.filter(i => i.selected)
+    if (selectedItems.length === 0) {
+      Taro.showToast({ title: '请先勾选商品', icon: 'none' }); return
+    }
+    const valid = selectedItems.filter(i => i.products) as CartItem[]
+    const conflicts = checkCartConflicts(valid.map(i => toFoodTherapyInput(i.products as Product)))
+    if (conflicts.length > 0) {
+      setConflictModal(conflicts)
+      return
+    }
+    proceedCheckout(valid)
   }
 
   // 计算已选商品的总金额和数量
@@ -167,7 +179,7 @@ function CartPage() {
                       <View className="flex-1">
                         <Text className="text-xl text-foreground font-bold line-clamp-2">{item.products?.name}</Text>
                         <Text className="text-xl font-bold text-primary mt-1">¥{item.products?.price}</Text>
-                        {/* v3.1 AI 卖点标题：行囊里也露一次脸，强化转化前的心智锚点 */}
+                        {/* v3.1 智能卖点标题：行囊里也露一次脸，强化转化前的心智锚点 */}
                         {(item.products?.mood_tags?.length ?? 0) > 0 && (
                           <Text className="text-xs text-muted-foreground mt-1" style={{ display: 'block' }}>
                             {generateEmotionHeadline(item.products as any, item.products?.mood_tags || [], item.products?.scene_tags || [])}
@@ -229,6 +241,35 @@ function CartPage() {
             onClick={goCheckoutAll}>
             <View className="py-3 px-6 text-xl text-white font-bold">
               去结算
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 食疗冲突校验弹窗 */}
+      {conflictModal && (
+        <View className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <View className="w-10/12 max-h-4/5 bg-card rounded-3xl p-6 overflow-y-auto">
+            <Text className="text-2xl font-bold text-foreground text-center block mb-1">🍲 搭配小贴士</Text>
+            <Text className="text-base text-muted-foreground text-center block mb-4">结算前为你做了食疗冲突检测</Text>
+            <View className="gap-3 mb-6">
+              {conflictModal.map((c, idx) => (
+                <View key={idx} className="p-3 rounded-2xl border"
+                  style={{ background: c.level === 'danger' ? '#FEE2E2' : '#FEF3C7', borderColor: c.level === 'danger' ? '#FCA5A5' : '#FDE68A' }}>
+                  <View className="flex items-center gap-2 mb-1">
+                    <Text className="text-xl">{c.level === 'danger' ? '⚠️' : '🟡'}</Text>
+                    <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#92400E' }}>
+                      {c.type === 'warm_overlap' ? '温补叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
+                    </Text>
+                  </View>
+                  <Text className="text-base text-muted-foreground" style={{ display: 'block', lineHeight: '1.5' }}>{c.message}</Text>
+                </View>
+              ))}
+            </View>
+            <View className="flex gap-3">
+              <View className="flex-1 py-3 rounded-2xl bg-muted text-muted-foreground text-center text-xl font-bold" onClick={() => setConflictModal(null)}>去调整</View>
+              <View className="flex-1 py-3 rounded-2xl bg-primary text-white text-center text-xl font-bold"
+                onClick={() => { const sel = items.filter(i => i.selected && i.products) as CartItem[]; setConflictModal(null); proceedCheckout(sel) }}>仍要结算</View>
             </View>
           </View>
         </View>

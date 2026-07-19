@@ -49,14 +49,15 @@ Deno.serve(async (req: Request) => {
     if (!order_id || !openid) return Response.json({ error: '缺少参数 order_id 或 openid' }, { status: 400, headers: corsHeaders })
 
     // 查订单
-    const { data: order } = await supabase.from('orders').select('id,order_no,total_amount,gold_beans_used,status,user_id').eq('id', order_id).maybeSingle()
+    const { data: order } = await supabase.from('orders').select('id,order_no,total_amount,tb_used,status,user_id').eq('id', order_id).maybeSingle()
     if (!order) return Response.json({ error: '订单不存在' }, { status: 404, headers: corsHeaders })
     if (order.user_id !== user.id) return Response.json({ error: '无权操作此订单' }, { status: 403, headers: corsHeaders })
     if (order.status !== 'pending_pay') return Response.json({ error: `订单状态异常(${order.status})，无法发起支付` }, { status: 400, headers: corsHeaders })
 
-    // 实际微信支付金额 = 总金额 - 金豆抵扣（金豆1豆=0.01元）
-    const wxAmount = Math.round((order.total_amount - (order.gold_beans_used ?? 0) * 0.01) * 100) // 分
-    if (wxAmount <= 0) return Response.json({ error: '微信支付金额为0，请使用纯金豆支付' }, { status: 400, headers: corsHeaders })
+    // 实际微信支付金额 = 总金额 - 情绪豆抵扣
+    // 注意：00096 后 tb_used 已统一为「元」口径（1 豆 = 1 元，与 tb_balance 一致），直接相减即可，勿再 ×0.01
+    const wxAmount = Math.round((order.total_amount - (order.tb_used ?? 0)) * 100) // 分
+    if (wxAmount <= 0) return Response.json({ error: '微信支付金额为0，请使用纯情绪豆支付' }, { status: 400, headers: corsHeaders })
 
     const notifyUrl = `${SUPABASE_URL}/functions/v1/wechat-payment-callback`
 

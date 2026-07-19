@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "来电有喜",
+    "slug": "laidianyouxi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "laidianyouxi",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.laidianyouxi.app"
+    },
+    "android": {
+      "package": "com.laidianyouxi.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "plugins": []
+  }
+}

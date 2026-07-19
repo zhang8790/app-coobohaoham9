@@ -1,7 +1,7 @@
 // @title 店铺设置（商家端）— 与管理后台保持一致
 import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text, Input, Textarea, Button, Image, Picker } from '@tarojs/components'
+import { View, Text, Input, Textarea, Button, Image } from '@tarojs/components'
 import { getMerchantStore, updateStore } from '@/db/api'
 import { uploadToStorage } from '@/utils/upload'
 import type { Store } from '@/db/types'
@@ -33,6 +33,7 @@ interface StoreForm {
   announcement: string
   scene_tags: string[]
   referral_rate: number  // 让利率（0.03 = 3%）
+  referral_rate_enabled: boolean  // 店铺整体让利开关
 }
 
 function MerchantSettingsPage() {
@@ -46,8 +47,7 @@ function MerchantSettingsPage() {
     delivery_radius: 3, delivery_fee: 2,
     free_delivery_threshold: 30, min_order_amount: 20,
     announcement: '', scene_tags: [],
-    referral_rate: 0.09,
-  })
+    referral_rate: 0.09, referral_rate_enabled: true})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -81,7 +81,7 @@ function MerchantSettingsPage() {
           announcement: (s as any).announcement ?? '',
           scene_tags: (s as any).scene_tags ?? [],
           referral_rate: (s as any).referral_rate ?? 0.09,
-        }))
+          referral_rate_enabled: (s as any).referral_rate_enabled ?? true}))
         // 初始化预览路径（DB 中存储的公网 URL 或空）
         const dbUrl = s.banner_url ?? ''
         // 过滤掉无效的 base64 和本地临时路径
@@ -100,8 +100,7 @@ function MerchantSettingsPage() {
       const res = await Taro.chooseMedia({
         mediaType: ['image'],
         count: 1,
-        sizeType: ['compressed'],
-      })
+        sizeType: ['compressed']})
       if (!res.tempFiles?.length) return
 
       const tempPath = res.tempFiles[0].tempFilePath
@@ -387,6 +386,23 @@ function MerchantSettingsPage() {
           <Text className="text-xs text-orange-600">
             示例：让利率 10%，订单 100 元 → 让利池 10 元，用于推广员佣金 + 积分返还 + 平台收入
           </Text>
+        </View>
+        {/* 店铺整体让利开关 */}
+        <View className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+          <View>
+            <Text className="text-sm text-gray-700 font-medium">店铺整体让利</Text>
+            <Text className="text-xs text-gray-400 mt-0.5 block">
+              {form.referral_rate_enabled
+                ? '开启：商品未单独设让利时，按此门店率参与分佣'
+                : '关闭：仅商品级让利生效，整店不被统一让利吃掉利润'}
+            </Text>
+          </View>
+          <View
+            className={`w-12 h-7 rounded-full relative ${form.referral_rate_enabled ? 'bg-green-500' : 'bg-gray-300'}`}
+            onClick={() => updateField('referral_rate_enabled', !form.referral_rate_enabled)}
+          >
+            <View className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${form.referral_rate_enabled ? 'right-0.5' : 'left-0.5'}`} />
+          </View>
         </View>
       </View>
 

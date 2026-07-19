@@ -1,9 +1,9 @@
 // @title 创作江湖令
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text, Image, ScrollView, Input, Textarea, Button } from '@tarojs/components'
+import { View, Text, Image, ScrollView, Input, Textarea } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
-import { createArticle, getArticleById, updateArticle, searchProducts } from '@/db/api'
+import { createArticle, updateArticle, searchProducts } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import './index.scss'
 
@@ -19,8 +19,7 @@ const MODES = [
     title: '空白原创',
     desc: '从零开始，尽情挥毫',
     bg: '#FFF0E8',
-    border: '#F59E0B',
-  },
+    border: '#F59E0B'},
   {
     key: 'fetch' as EditMode,
     icon: 'i-mdi-link-variant',
@@ -28,8 +27,7 @@ const MODES = [
     title: '链接导入',
     desc: '导入好文，改编再创',
     bg: '#EFF6FF',
-    border: '#3B82F6',
-  },
+    border: '#3B82F6'},
   {
     key: 'template' as EditMode,
     icon: 'i-mdi-file-document-outline',
@@ -37,8 +35,7 @@ const MODES = [
     title: '模板套用',
     desc: '套用范式，快速成文',
     bg: '#F0FDF4',
-    border: '#22C55E',
-  },
+    border: '#22C55E'},
 ]
 
 // 内置模板
@@ -150,8 +147,7 @@ export default function MakePage() {
     try {
       // 尝试调用后端 Edge Function（如果已部署）
       const { data, error } = await supabase.functions.invoke('article-fetch', {
-        body: { url: fetchUrl.trim() },
-      })
+        body: { url: fetchUrl.trim() }})
 
       if (!error && data?.title) {
         // 后端提取成功 — 去掉内容末尾的【原文图片】段落（图片单独展示）
@@ -202,8 +198,7 @@ export default function MakePage() {
 
         setFetchResult({
           title: guessedTitle || '我的转载文章',
-          content: `【原文链接】\n${url}\n\n【引用内容】\n\n请在此粘贴或输入原文主要内容...\n\n【个人观点】\n\n`,
-        })
+          content: `【原文链接】\n${url}\n\n【引用内容】\n\n请在此粘贴或输入原文主要内容...\n\n【个人观点】\n\n`})
 
         Taro.showToast({ title: '已自动填充模板，请补充内容', icon: 'none', duration: 2000 })
       }
@@ -211,8 +206,7 @@ export default function MakePage() {
       // 网络异常等 → 也走辅助模式
       setFetchResult({
         title: '我的转载文章',
-        content: `【原文链接】\n${fetchUrl.trim()}\n\n【引用内容】\n\n请在此粘贴或输入原文主要内容...\n\n【个人观点】\n\n`,
-      })
+        content: `【原文链接】\n${fetchUrl.trim()}\n\n【引用内容】\n\n请在此粘贴或输入原文主要内容...\n\n【个人观点】\n\n`})
       Taro.showToast({ title: '已生成编辑模板', icon: 'none' })
     }
     setFetchLoading(false)
@@ -255,8 +249,7 @@ export default function MakePage() {
       Taro.showToast({
         title: e.message || '保存失败，请重试',
         icon: 'none',
-        duration: 3000,
-      })
+        duration: 3000})
     }
     setSaving(false)
   }
@@ -290,8 +283,7 @@ export default function MakePage() {
       Taro.showToast({
         title: e.message || '发布失败，请重试',
         icon: 'none',
-        duration: 3000,
-      })
+        duration: 3000})
       setPublishing(false)
     }
   }
@@ -441,8 +433,7 @@ export default function MakePage() {
                         <View style={{
                           position: 'absolute', bottom: 2, right: 4,
                           background: 'rgba(0,0,0,0.5)', borderRadius: '8px',
-                          padding: '1px 6px',
-                        }}>
+                          padding: '1px 6px'}}>
                           <Text style={{ fontSize: '10px', color: '#FFF' }}>🔍</Text>
                         </View>
                       </View>

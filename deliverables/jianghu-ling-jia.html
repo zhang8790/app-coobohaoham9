@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>江湖令 · 墨韵</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* 甲 · 墨韵留白 —— 宣纸 / 墨 / 单一朱砂焦点 / 金极少 */
+  --paper:#F4EFE3;
+  --paper-2:#ECE3D2;
+  --paper-3:#E3D8C2;
+  --ink:#2b2b2b;
+  --ink-2:#6b6258;
+  --ink-3:#9a907f;
+  --cinnabar:#C0392B;
+  --cinnabar-dp:#9E2A20;
+  --gold:#B8902F;
+  --line:rgba(43,43,43,.12);
+  --line-2:rgba(43,43,43,.22);
+  --scrn-bg:#ececE8; /* 手机外底色 */
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  font-family:"Noto Serif SC",serif;
+  color:var(--ink);
+  background:
+    radial-gradient(120% 80% at 50% -10%, #f3f0e8 0%, #e7e6df 60%, #dedcd3 100%);
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;padding:24px;
+}
+/* 宣纸纹理（纯 CSS） */
+.paper-tex{
+  background-color:var(--paper);
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(184,144,47,.04) 0 1px, transparent 1px),
+    radial-gradient(circle at 70% 60%, rgba(43,43,43,.03) 0 1px, transparent 1px),
+    radial-gradient(circle at 40% 80%, rgba(192,57,43,.02) 0 1px, transparent 1px);
+  background-size:7px 7px, 11px 11px, 9px 9px;
+}
+/* 手机框 */
+.phone{
+  width:390px;height:844px;max-height:92vh;
+  border-radius:42px;
+  background:#1c1a17;
+  padding:11px;
+  box-shadow:0 30px 70px rgba(0,0,0,.35), inset 0 0 0 2px #3a352e;
+  position:relative;
+}
+.screen{
+  position:relative;width:100%;height:100%;
+  border-radius:32px;overflow:hidden;
+  background:var(--paper);
+  display:flex;flex-direction:column;
+}
+/* 状态栏 */
+.statusbar{
+  height:38px;flex:0 0 38px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 22px;font-size:13px;color:var(--ink-2);
+  background:var(--paper);
+}
+.statusbar .dots{display:flex;gap:5px;align-items:center;}
+.statusbar .dots i{width:6px;height:6px;border-radius:50%;background:var(--ink-3);display:block;}
+/* 内容滚动区 */
+.viewport{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;}
+.viewport::-webkit-scrollbar{width:0;}
+.page{display:none;padding:0 20px 28px;}
+.page.active{display:block;animation:fadeIn .4s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* 顶部标题区 */
+.topbar{
+  position:sticky;top:0;z-index:20;
+  background:linear-gradient(var(--paper) 70%, rgba(244,239,227,0));
+  padding:6px 20px 12px;
+}
+.topbar .row{display:flex;align-items:center;gap:12px;}
+.seal{
+  width:34px;height:34px;border-radius:7px;flex:0 0 34px;
+  background:var(--cinnabar);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-family:"Ma Shan Zheng",serif;font-size:21px;line-height:1;
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35);
+}
+.brand{
+  font-family:"Ma Shan Zheng",serif;font-size:25px;color:var(--ink);
+  letter-spacing:2px;flex:1;
+}
+.brand small{font-family:"Noto Serif SC";font-size:11px;color:var(--ink-3);letter-spacing:1px;display:block;margin-top:1px;}
+.avatar{
+  width:32px;height:32px;border-radius:50%;flex:0 0 32px;
+  background:var(--paper-3);border:1px solid var(--line-2);
+  display:flex;align-items:center;justify-content:center;color:var(--ink-2);
+  font-size:15px;cursor:pointer;
+}
+/* 搜索 */
+.search{
+  margin-top:12px;display:flex;align-items:center;gap:9px;
+  border:1px solid var(--line-2);border-radius:20px;
+  padding:9px 16px;background:rgba(255,255,255,.35);
+}
+.search svg{flex:0 0 16px;color:var(--ink-2);}
+.search input{
+  border:0;outline:0;background:transparent;flex:1;font-family:inherit;font-size:14px;color:var(--ink);
+}
+.search input::placeholder{color:var(--ink-3);}
+
+/* 宗门驿站条（克制） */
+.station-strip{
+  margin:14px 0 4px;display:flex;align-items:center;gap:10px;
+  border:1px solid var(--line);border-left:3px solid var(--cinnabar);
+  border-radius:8px;padding:10px 14px;background:rgba(192,57,43,.04);
+  cursor:pointer;
+}
+.station-strip .st{font-family:"Ma Shan Zheng";font-size:18px;color:var(--cinnabar);}
+.station-strip .txt{flex:1;font-size:12.5px;color:var(--ink-2);line-height:1.4;}
+.station-strip .arrow{color:var(--ink-3);font-size:13px;}
+
+/* 章节标题 */
+.sec{display:flex;align-items:center;gap:10px;margin:26px 0 14px;}
+.sec .t{font-family:"Ma Shan Zheng";font-size:19px;color:var(--ink);letter-spacing:2px;}
+.sec .rule{flex:1;height:1px;background:linear-gradient(90deg,var(--line-2),transparent);}
+.sec .dot{width:6px;height:6px;border-radius:50%;background:var(--cinnabar);}
+
+/* 分类胶囊 */
+.caps{display:flex;gap:9px;overflow-x:auto;padding:4px 0 2px;margin-top:14px;}
+.caps::-webkit-scrollbar{height:0;}
+.cap{
+  flex:0 0 auto;padding:7px 15px;border-radius:16px;font-size:13px;
+  border:1px solid var(--line-2);color:var(--ink-2);background:transparent;
+  cursor:pointer;transition:.2s;white-space:nowrap;
+}
+.cap.on{background:var(--cinnabar);color:#fff;border-color:var(--cinnabar);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);}
+.cap .ico{margin-right:5px;}
+
+/* 商品双列 */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px;}
+.card{
+  background:var(--paper-2);border:1px solid var(--line);border-radius:12px;
+  overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .2s;
+}
+.card:active{transform:scale(.97);}
+.card .thumb{
+  height:118px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--paper-3),var(--paper-2));
+  font-size:40px;color:var(--ink-3);position:relative;
+}
+.card .badge{
+  position:absolute;top:8px;left:8px;font-size:10.5px;color:#fff;background:var(--cinnabar);
+  padding:2px 7px;border-radius:9px;letter-spacing:.5px;
+}
+.card .body{padding:10px 11px 12px;}
+.card .nm{font-size:14px;font-weight:600;color:var(--ink);line-height:1.35;height:38px;overflow:hidden;}
+.card .meta{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+.card .price{font-size:16px;font-weight:700;color:var(--ink);}
+.card .price b{font-size:11px;font-weight:400;color:var(--ink-3);margin-right:1px;}
+.card .add{
+  width:26px;height:26px;border-radius:50%;border:0;background:var(--cinnabar);color:#fff;
+  font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+
+/* 店铺列表 */
+.store{
+  display:flex;align-items:center;gap:13px;padding:14px;border:1px solid var(--line);
+  border-radius:12px;background:var(--paper-2);margin-bottom:12px;cursor:pointer;
+}
+.store .em{
+  width:46px;height:46px;border-radius:10px;flex:0 0 46px;display:flex;align-items:center;justify-content:center;
+  background:var(--paper-3);color:var(--ink-2);font-size:22px;border:1px solid var(--line);
+}
+.store .info{flex:1;}
+.store .nm{font-size:15px;font-weight:600;}
+.store .sub{font-size:12px;color:var(--ink-3);margin-top:3px;}
+.store .star{color:var(--gold);font-size:12px;letter-spacing:1px;}
+
+/* 购物车 */
+.cart-group{margin-bottom:18px;}
+.cart-group .gh{font-family:"Ma Shan Zheng";font-size:16px;color:var(--ink);margin-bottom:10px;padding-left:2px;}
+.citem{display:flex;align-items:center;gap:12px;padding:11px;background:var(--paper-2);border:1px solid var(--line);border-radius:11px;margin-bottom:9px;}
+.citem .em{width:42px;height:42px;border-radius:8px;flex:0 0 42px;background:var(--paper-3);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-3);}
+.citem .nm{flex:1;font-size:14px;font-weight:600;}
+.citem .pr{font-size:13px;color:var(--ink-2);margin-top:2px;}
+.stepper{display:flex;align-items:center;gap:0;}
+.stepper button{
+  width:26px;height:26px;border-radius:50%;border:1px solid var(--line-2);background:var(--paper);
+  color:var(--ink);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.stepper button.plus{background:var(--cinnabar);color:#fff;border-color:var(--cinnabar);}
+.stepper span{width:30px;text-align:center;font-size:14px;font-weight:600;}
+
+/* 个人中心 */
+.hero{
+  margin-top:8px;padding:20px 18px;border:1px solid var(--line);border-radius:14px;
+  background:var(--paper-2);display:flex;align-items:center;gap:16px;position:relative;overflow:hidden;
+}
+.hero .sil{
+  width:64px;height:64px;flex:0 0 64px;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%, var(--paper-3), var(--ink-3));
+  display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--paper);
+  border:1px solid var(--line-2);
+}
+.hero .nm{font-family:"Ma Shan Zheng";font-size:23px;color:var(--ink);}
+.hero .rank{font-size:12.5px;color:var(--cinnabar);margin-top:4px;letter-spacing:1px;}
+.hero .rk-seal{
+  position:absolute;right:14px;top:14px;width:30px;height:30px;border-radius:6px;
+  background:var(--cinnabar);color:#fff;font-family:"Ma Shan Zheng";font-size:17px;
+  display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);
+}
+/* 资产令牌 */
+.assets{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px;margin-top:16px;}
+.asset{
+  border:1px solid var(--line);border-radius:11px;padding:14px 10px;text-align:center;background:var(--paper-2);
+}
+.asset.focal{border-color:var(--cinnabar);background:rgba(192,57,43,.05);}
+.asset .v{font-size:21px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
+.asset.focal .v{color:var(--cinnabar);}
+.asset .l{font-size:11px;color:var(--ink-3);margin-top:5px;letter-spacing:.5px;}
+/* 菜单 */
+.menu{margin-top:18px;}
+.mitem{
+  display:flex;align-items:center;gap:13px;padding:14px 4px;border-bottom:1px solid var(--line);
+  cursor:pointer;font-size:14.5px;color:var(--ink);
+}
+.mitem .mi{font-size:18px;color:var(--cinnabar);width:22px;text-align:center;}
+.mitem .ar{margin-left:auto;color:var(--ink-3);}
+.empty{text-align:center;color:var(--ink-3);font-size:13px;padding:50px 20px;}
+
+/* 底部 Tab */
+.tabbar{
+  flex:0 0 60px;display:flex;background:var(--paper);border-top:1px solid var(--line);
+  padding:6px 0 4px;
+}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--ink-3);}
+.tab svg{width:22px;height:22px;}
+.tab .lb{font-size:10.5px;letter-spacing:.5px;}
+.tab.on{color:var(--cinnabar);}
+.tab.on .ind{width:18px;height:2.5px;border-radius:2px;background:var(--cinnabar);}
+
+/* 弹层 */
+.mask{position:absolute;inset:0;background:rgba(28,26,23,.45);z-index:40;display:none;align-items:flex-end;}
+.mask.show{display:flex;animation:fadeIn .2s;}
+.sheet{
+  width:100%;background:var(--paper);border-radius:20px 20px 0 0;padding:22px 22px 30px;
+  animation:slideUp .32s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:none;}}
+.sheet h3{font-family:"Ma Shan Zheng";font-size:21px;margin:0 0 14px;color:var(--ink);letter-spacing:1px;}
+.sheet .close{float:right;color:var(--ink-3);font-size:20px;cursor:pointer;margin-top:-4px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;color:var(--ink-3);margin-bottom:6px;letter-spacing:.5px;}
+.field input{
+  width:100%;border:1px solid var(--line-2);border-radius:9px;padding:11px 13px;font-family:inherit;
+  font-size:14px;background:rgba(255,255,255,.4);color:var(--ink);outline:none;
+}
+.field input:focus{border-color:var(--cinnabar);}
+.btn{
+  width:100%;border:0;border-radius:10px;padding:13px;font-family:inherit;font-size:15px;font-weight:600;
+  background:var(--cinnabar);color:#fff;cursor:pointer;letter-spacing:2px;margin-top:6px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.2);
+}
+.btn.ghost{background:transparent;color:var(--ink-2);border:1px solid var(--line-2);box-shadow:none;}
+.btn:active{transform:scale(.98);}
+.seg{display:flex;gap:8px;margin-bottom:16px;}
+.seg div{flex:1;text-align:center;padding:9px;border-radius:9px;border:1px solid var(--line-2);font-size:13px;color:var(--ink-2);cursor:pointer;}
+.seg div.on{background:var(--cinnabar);color:#fff;border-color:var(--cinnabar);}
+.otp-row{display:flex;gap:9px;}
+.otp-row .btn{flex:0 0 110px;margin-top:0;}
+
+/* 令牌成功弹窗（居中） */
+.token-mask{position:absolute;inset:0;background:rgba(28,26,23,.5);z-index:50;display:none;align-items:center;justify-content:center;}
+.token-mask.show{display:flex;}
+.token-pop{
+  width:240px;padding:30px 22px;text-align:center;background:var(--paper);border-radius:16px;
+  border:2px solid var(--cinnabar);position:relative;animation:pop .4s cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes pop{from{transform:scale(.6);opacity:0;}to{transform:scale(1);opacity:1;}}
+.token-pop .tk{font-family:"Ma Shan Zheng";font-size:30px;color:var(--cinnabar);}
+.token-pop .t1{font-size:14px;color:var(--ink);margin-top:10px;}
+.token-pop .t2{font-size:12px;color:var(--ink-3);margin-top:6px;line-height:1.5;}
+.floatword{
+  position:absolute;left:50%;top:30%;transform:translateX(-50%);
+  font-family:"Ma Shan Zheng";font-size:22px;color:var(--gold);pointer-events:none;
+  animation:floatUp 1.6s ease forwards;
+}
+@keyframes floatUp{0%{opacity:0;transform:translate(-50%,10px);}20%{opacity:1;}100%{opacity:0;transform:translate(-50%,-60px);}}
+
+/* 加载：墨印淡入 */
+.loading{position:absolute;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .6s;}
+.loading.hide{opacity:0;pointer-events:none;}
+.loading .stamp{width:74px;height:74px;border-radius:14px;background:var(--cinnabar);color:#fff;font-family:"Ma Shan Zheng";font-size:46px;display:flex;align-items:center;justify-content:center;animation:stampIn .7s ease;box-shadow:inset 0 0 0 2px rgba(255,255,255,.3);}
+@keyframes stampIn{0%{transform:scale(1.8);opacity:0;}60%{transform:scale(.92);}100%{transform:scale(1);opacity:1;}}
+.loading .lt{font-family:"Ma Shan Zheng";font-size:17px;color:var(--ink-2);letter-spacing:3px;}
+.loading .ld{width:54px;height:1.5px;background:var(--line-2);overflow:hidden;position:relative;}
+.loading .ld i{position:absolute;left:-40%;top:0;width:40%;height:100%;background:var(--cinnabar);animation:load 1.1s infinite;}
+@keyframes load{from{left:-40%;}to{left:100%;}}
+
+/* 演示横幅 */
+.banner{position:absolute;top:38px;left:0;right:0;z-index:30;background:rgba(184,144,47,.92);color:#fff;font-size:11.5px;text-align:center;padding:4px;letter-spacing:.5px;display:none;}
+.banner.show{display:block;}
+.banner b{cursor:pointer;text-decoration:underline;}
+
+/* 配置面板 */
+.cfg{position:absolute;inset:0;z-index:70;background:rgba(28,26,23,.55);display:none;align-items:center;justify-content:center;padding:24px;}
+.cfg.show{display:flex;}
+.cfg .box{width:100%;background:var(--paper);border-radius:16px;padding:22px;}
+.cfg .box h3{font-family:"Ma Shan Zheng";font-size:20px;margin:0 0 4px;}
+.cfg .box p{font-size:12px;color:var(--ink-3);margin:0 0 14px;line-height:1.5;}
+
+/* 商品详情 */
+.detail .thumb{height:170px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--paper-3),var(--paper-2));font-size:62px;color:var(--ink-3);}
+.detail .dnm{font-family:"Ma Shan Zheng";font-size:24px;color:var(--ink);margin:16px 0 4px;}
+.detail .dpr{font-size:20px;font-weight:700;color:var(--cinnabar);margin-bottom:14px;}
+.detail .tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+.detail .tg{font-size:12px;padding:4px 11px;border-radius:13px;border:1px solid var(--line-2);color:var(--ink-2);}
+.detail .tg.cinnabar{background:var(--cinnabar);color:#fff;border-color:var(--cinnabar);}
+.detail .blk{margin-bottom:16px;}
+.detail .blk .h{font-size:13px;color:var(--cinnabar);font-weight:600;margin-bottom:7px;letter-spacing:1px;}
+.detail .blk .c{font-size:13.5px;color:var(--ink-2);line-height:1.7;}
+.detail .blk .c .em{color:var(--ink);}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="screen paper-tex">
+    <div class="statusbar">
+      <span id="clock">辰时</span>
+      <span class="dots"><i></i><i></i><i></i>江湖令</span>
+    </div>
+
+    <div class="banner" id="banner">当前为演示数据（未连接 Supabase）<b id="cfgLink">· 点此配置</b></div>
+
+    <div class="viewport">
+      <!-- 天机探索 -->
+      <section class="page active" id="p-home">
+        <div class="topbar">
+          <div class="row">
+            <div class="seal">令</div>
+            <div class="brand">江湖令<small>宗门主城 · 天机探索</small></div>
+            <div class="avatar" id="avatarBtn">侠</div>
+          </div>
+          <div class="search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 14c3-4 9-7 15-6-1 5-4 10-8 11-3 .8-6-1-7-5z"/><path d="M3 14l3-1"/></svg>
+            <input id="searchInput" placeholder="天机搜寻台 · 寻一味食养" />
+          </div>
+        </div>
+
+        <div class="station-strip" id="stationStrip">
+          <span class="st">驿</span>
+          <span class="txt">宗门驿站 · 全域坊主免费清泉饮、休憩阁</span>
+          <span class="arrow">›</span>
+        </div>
+
+        <div class="caps" id="homeCaps"></div>
+
+        <div class="sec"><span class="dot"></span><span class="t">秘境据点</span><span class="rule"></span></div>
+        <div class="grid" id="homeGrid"></div>
+      </section>
+
+      <!-- 坊主秘境集市 -->
+      <section class="page" id="p-market">
+        <div class="topbar">
+          <div class="row">
+            <div class="seal">市</div>
+            <div class="brand">坊主秘境<small>集市 · 寻良铺</small></div>
+          </div>
+          <div class="search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+            <input placeholder="搜店铺 · 行当" />
+          </div>
+        </div>
+        <div class="caps" id="marketCaps"></div>
+        <div class="sec"><span class="dot"></span><span class="t">入驻坊主</span><span class="rule"></span></div>
+        <div id="storeList"></div>
+      </section>
+
+      <!-- 宗门锦囊仓 -->
+      <section class="page" id="p-cart">
+        <div class="topbar">
+          <div class="row">
+            <div class="seal">囊</div>
+            <div class="brand">宗门锦囊<small>仓 · 待启程</small></div>
+          </div>
+        </div>
+        <div class="sec"><span class="dot"></span><span class="t">锦囊清单</span><span class="rule"></span></div>
+        <div id="cartList"></div>
+        <div id="cartEmpty" class="empty">锦囊空空，去天机探索寻一味吧</div>
+      </section>
+
+      <!-- 侠客洞府 -->
+      <section class="page" id="p-me">
+        <div class="topbar">
+          <div class="row">
+            <div class="seal">侠</div>
+            <div class="brand">侠客洞府<small>个人 · 修行册</small></div>
+          </div>
+        </div>
+        <div class="hero">
+          <div class="sil" id="meSil">侠</div>
+          <div>
+            <div class="nm" id="meName">未入宗门</div>
+            <div class="rank" id="meRank">点右上「侠」入洞府</div>
+          </div>
+          <div class="rk-seal" id="meSeal">客</div>
+        </div>
+        <div class="assets">
+          <div class="asset focal"><div class="v" id="aXiu">—</div><div class="l">心境修为值</div></div>
+          <div class="asset"><div class="v" id="aGong">—</div><div class="l">师门供奉</div></div>
+          <div class="asset"><div class="v" id="aTong">—</div><div class="l">秘境通行牒</div></div>
+        </div>
+        <div class="menu" id="meMenu"></div>
+      </section>
+    </div>
+
+    <!-- Tab -->
+    <div class="tabbar" id="tabbar">
+      <div class="tab on" data-tab="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18" stroke-width="1.2"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/></svg>
+        <span class="lb">天机</span><span class="ind"></span>
+      </div>
+      <div class="tab" data-tab="market">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9l1.5-4h13L20 9M5 9v10h14V9M9 19v-6M15 19v-6"/></svg>
+        <span class="lb">秘境</span><span class="ind"></span>
+      </div>
+      <div class="tab" data-tab="cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 7h14l-1 12H6L5 7zM9 7a3 3 0 016 0"/></svg>
+        <span class="lb">锦囊</span><span class="ind"></span>
+      </div>
+      <div class="tab" data-tab="me">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M5 20c1.5-4 12.5-4 14 0"/></svg>
+        <span class="lb">洞府</span><span class="ind"></span>
+      </div>
+    </div>
+
+    <!-- 加载 -->
+    <div class="loading" id="loading">
+      <div class="stamp">令</div>
+      <div class="lt">墨韵初展</div>
+      <div class="ld"><i></i></div>
+    </div>
+
+    <!-- 驿站卷轴 -->
+    <div class="mask" id="stationMask">
+      <div class="sheet">
+        <span class="close" data-close="stationMask">✕</span>
+        <h3>宗门驿站 · 告示</h3>
+        <div class="blk" style="border:1px solid var(--line);border-left:3px solid var(--cinnabar);border-radius:8px;padding:14px;background:rgba(192,57,43,.04);">
+          <div style="font-family:'Ma Shan Zheng';font-size:17px;color:var(--cinnabar);margin-bottom:8px;">全域坊主同享</div>
+          <div style="font-size:13.5px;color:var(--ink-2);line-height:1.8;">
+            · 清泉饮：所至坊主皆得免费清泉一盏，涤心明目<br>
+            · 休憩阁：长途跋涉可入阁安歇，免去了露宿风餐<br>
+            · 传书：凭宗门令牌可遥寄檄文于同门
+          </div>
+        </div>
+        <button class="btn" data-close="stationMask" style="margin-top:16px;">领令谢过</button>
+      </div>
+    </div>
+
+    <!-- 登录 -->
+    <div class="mask" id="loginMask">
+      <div class="sheet">
+        <span class="close" data-close="loginMask">✕</span>
+        <h3>入宗门</h3>
+        <div class="seg" id="loginSeg">
+          <div class="on" data-mode="otp">手机验证码</div>
+          <div data-mode="pwd">手机密码</div>
+        </div>
+        <div class="field">
+          <label>手机号</label>
+          <input id="phoneInput" placeholder="11 位手机号" inputmode="numeric" />
+        </div>
+        <div class="field" id="otpField">
+          <label>验证码</label>
+          <div class="otp-row">
+            <input id="otpInput" placeholder="6 位验证码" inputmode="numeric" />
+            <button class="btn" id="sendOtp">发送</button>
+          </div>
+        </div>
+        <div class="field" id="pwdField" style="display:none;">
+          <label>密码</label>
+          <input id="pwdInput" type="password" placeholder="账户密码" />
+        </div>
+        <button class="btn" id="loginBtn">入洞府</button>
+        <button class="btn ghost" data-close="loginMask" style="margin-top:9px;">暂不</button>
+      </div>
+    </div>
+
+    <!-- 商品详情 -->
+    <div class="mask" id="detailMask">
+      <div class="sheet detail" style="max-height:86%;overflow-y:auto;">
+        <span class="close" data-close="detailMask">✕</span>
+        <div class="thumb" id="dThumb">🍵</div>
+        <div class="dnm" id="dName">—</div>
+        <div class="dpr" id="dPrice">—</div>
+        <div class="tags" id="dTags"></div>
+        <div class="blk"><div class="h">性味 · 食养</div><div class="c" id="dNature">—</div></div>
+        <div class="blk"><div class="h">食材配伍</div><div class="c" id="dIng">—</div></div>
+        <div class="blk"><div class="h">宜 · 慎</div><div class="c" id="dMatch">—</div></div>
+        <button class="btn" id="dAdd" style="margin-top:8px;">收入锦囊</button>
+      </div>
+    </div>
+
+    <!-- 令牌成功 -->
+    <div class="token-mask" id="tokenMask">
+      <div class="token-pop">
+        <div class="tk">令</div>
+        <div class="t1" id="tokenT1">启程成功</div>
+        <div class="t2" id="tokenT2">秘境修行已记入修行册</div>
+        <div class="floatword" id="floatWord">修为 +1</div>
+      </div>
+    </div>
+
+    <!-- 配置 Supabase -->
+    <div class="cfg" id="cfgMask">
+      <div class="box">
+        <h3>连接宗门数据库</h3>
+        <p>填入 Supabase 项目地址与公开 anon key（与 mobile-app 一致）。仅存于本机浏览器，不会上传。</p>
+        <div class="field"><label>Supabase URL</label><input id="cfgUrl" placeholder="https://xxxx.supabase.co" /></div>
+        <div class="field"><label>Anon Key</label><input id="cfgKey" placeholder="eyJxxxx" /></div>
+        <button class="btn" id="cfgSave">保存并连接</button>
+        <button class="btn ghost" id="cfgCancel" style="margin-top:9px;">取消</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+/* ===== 配置 ===== */
+const LS_URL='jh_supabase_url', LS_KEY='jh_supabase_key';
+const CONFIG={
+  url: localStorage.getItem(LS_URL)||'',
+  anon: localStorage.getItem(LS_KEY)||''
+};
+let supabase=null;
+if(CONFIG.url && CONFIG.anon){
+  try{ supabase=createClient(CONFIG.url, CONFIG.anon); }catch(e){ console.warn('supabase init failed',e); }
+}
+const USE_MOCK = !supabase;
+if(USE_MOCK) document.getElementById('banner').classList.add('show');
+
+/* ===== 模拟数据（未配置时） ===== */
+const MOCK_PRODUCTS=[
+  {id:'p1',name:'当归红枣桂圆茶',price:39,image_url:'',ingredients:['当归','红枣','桂圆'],overall_nature:'温',health_tag:['补血'],emotion_tag:['安神'],match_goods:['羊肉'],conflict_goods:['绿豆'],store_id:'s1',cat:'琼浆'},
+  {id:'p2',name:'茯苓薏米祛湿糕',price:29,image_url:'',ingredients:['茯苓','薏米'],overall_nature:'平',health_tag:['祛湿'],emotion_tag:['舒心'],match_goods:['山药'],conflict_goods:['柿子'],store_id:'s1',cat:'烟火'},
+  {id:'p3',name:'枸杞菊花明目饮',price:25,image_url:'',ingredients:['枸杞','菊花'],overall_nature:'凉',health_tag:['明目'],emotion_tag:['清神'],match_goods:['决明子'],conflict_goods:['辛辣'],store_id:'s2',cat:'琼浆'},
+  {id:'p4',name:'黄芪党参补气汤',price:45,image_url:'',ingredients:['黄芪','党参'],overall_nature:'温',health_tag:['补气'],emotion_tag:['提神'],match_goods:['鸡肉'],conflict_goods:['萝卜'],store_id:'s2',cat:'烟火'},
+  {id:'p5',name:'酸枣仁安神膏',price:52,image_url:'',ingredients:['酸枣仁'],overall_nature:'平',health_tag:['安神'],emotion_tag:['安眠'],match_goods:['牛奶'],conflict_goods:['浓茶'],store_id:'s1',cat:'典籍'},
+  {id:'p6',name:'陈皮山楂消食卷',price:22,image_url:'',ingredients:['陈皮','山楂'],overall_nature:'温',health_tag:['消食'],emotion_tag:['开胃'],match_goods:['麦芽'],conflict_goods:['人参'],store_id:'s2',cat:'烟火'},
+];
+const MOCK_STORES=[
+  {id:'s1',name:'济世堂食养铺',desc:'温补调理 · 古法手作',rank:4,products:3},
+  {id:'s2',name:'清露山房',desc:'凉润清饮 · 节气鲜制',rank:3,products:3},
+];
+const MOCK_PROFILE={ tb_balance:10603, commission_balance:174, member_rank:'玄字·三阶', name:'云游侠客', pass:0 };
+
+const CATS=[
+  {k:'all',n:'全部',ico:'◈'},
+  {k:'典籍',n:'典籍',ico:'📜'},
+  {k:'烟火',n:'烟火',ico:'🔥'},
+  {k:'琼浆',n:'琼浆',ico:'🍶'},
+  {k:'休憩',n:'休憩',ico:'🏮'},
+  {k:'段位',n:'段位',ico:'⚔'},
+  {k:'清泉',n:'清泉',ico:'💧'},
+];
+
+/* ===== 状态 ===== */
+let products=[], stores=[], profile=null, user=null;
+let cart={}; // id -> {product, qty}
+let curCat='all', curDetail=null;
+
+/* ===== 工具 ===== */
+const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
+const yuan=n=>'¥'+(n||0);
+function restoreCart(){ try{ cart=JSON.parse(localStorage.getItem('jh_cart')||'{}'); }catch(e){ cart={}; } }
+function saveCart(){ localStorage.setItem('jh_cart', JSON.stringify(cart)); }
+
+/* ===== 数据加载 ===== */
+async function loadData(){
+  if(USE_MOCK){
+    products=MOCK_PRODUCTS; stores=MOCK_STORES;
+  } else {
+    try{
+      const {data:p}=await supabase.from('products').select('id,name,price,image_url,ingredients,overall_nature,health_tag,emotion_tag,match_goods,conflict_goods,store_id');
+      if(p&&p.length) products=p; else products=MOCK_PRODUCTS;
+    }catch(e){ console.warn('products load fail',e); products=MOCK_PRODUCTS; }
+    try{
+      const {data:s}=await supabase.from('stores').select('id,name,desc,rank,products');
+      if(s&&s.length) stores=s; else stores=MOCK_STORES;
+    }catch(e){ console.warn('stores load fail',e); stores=MOCK_STORES; }
+  }
+  renderHome(); renderMarket(); renderCart();
+}
+async function loadProfile(){
+  if(USE_MOCK){ profile=MOCK_PROFILE; renderMe(); return; }
+  if(!user) { profile=null; renderMe(); return; }
+  try{
+    const {data}=await supabase.from('profiles').select('tb_balance,commission_balance,member_rank,name').eq('id',user.id).single();
+    if(data){ profile=data; if(!profile.name) profile.name='云游侠客'; }
+  }catch(e){ console.warn('profile load fail',e); }
+  renderMe();
+}
+
+/* ===== 渲染：首页 ===== */
+function renderHome(){
+  const caps=$('#homeCaps');
+  caps.innerHTML=CATS.map(c=>`<div class="cap ${c.k==='all'?'on':''}" data-cat="${c.k}"><span class="ico">${c.ico}</span>${c.n}</div>`).join('');
+  caps.querySelectorAll('.cap').forEach(el=>el.onclick=()=>{
+    caps.querySelectorAll('.cap').forEach(x=>x.classList.remove('on'));
+    el.classList.add('on'); curCat=el.dataset.cat; renderHomeGrid();
+  });
+  renderHomeGrid();
+}
+function renderHomeGrid(){
+  const list = curCat==='all'?products:products.filter(p=>p.cat===curCat || (curCat==='休憩'&&p.emotion_tag&&p.emotion_tag.includes('安眠')) || (curCat==='段位') || (curCat==='清泉'&&p.cat==='琼浆'));
+  const grid=$('#homeGrid');
+  if(!list.length){ grid.innerHTML='<div class="empty">此秘境暂无据点</div>'; return; }
+  grid.innerHTML=list.map(p=>`
+    <div class="card" data-id="${p.id}">
+      <div class="thumb">${p.image_url?`<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover">`:'🍵'}
+        ${p.emotion_tag&&p.emotion_tag[0]?`<div class="badge">${p.emotion_tag[0]}</div>`:''}
+      </div>
+      <div class="body">
+        <div class="nm">${p.name}</div>
+        <div class="meta">
+          <div class="price"><b>¥</b>${p.price}</div>
+          <button class="add" data-add="${p.id}">+</button>
+        </div>
+      </div>
+    </div>`).join('');
+  grid.querySelectorAll('.card').forEach(c=>c.onclick=e=>{
+    if(e.target.dataset.add) return;
+    openDetail(c.dataset.id);
+  });
+  grid.querySelectorAll('[data-add]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation(); addToCart(b.dataset.add);
+  });
+}
+
+/* ===== 渲染：集市 ===== */
+function renderMarket(){
+  const caps=$('#marketCaps');
+  const cats=[{k:'all',n:'全部'}].concat([...new Set(stores.map(s=>s.desc&&s.desc.split('·')[0]||'铺'))].map(n=>({k:n,n})));
+  caps.innerHTML=cats.map((c,i)=>`<div class="cap ${i===0?'on':''}" data-cat="${c.k}">${c.n}</div>`).join('');
+  caps.querySelectorAll('.cap').forEach(el=>el.onclick=()=>{
+    caps.querySelectorAll('.cap').forEach(x=>x.classList.remove('on')); el.classList.add('on'); renderStoreList(el.dataset.cat);
+  });
+  renderStoreList('all');
+}
+function renderStoreList(filter){
+  const list = filter==='all'?stores:stores.filter(s=>(s.desc||'').includes(filter));
+  const wrap=$('#storeList');
+  if(!list.length){ wrap.innerHTML='<div class="empty">暂无入驻坊主</div>'; return; }
+  wrap.innerHTML=list.map(s=>`
+    <div class="store" data-store="${s.id}">
+      <div class="em">🏮</div>
+      <div class="info">
+        <div class="nm">${s.name}</div>
+        <div class="sub">${s.desc||'宗门良铺'} · ${s.products||(products.filter(p=>p.store_id===s.id).length)||0} 味</div>
+        <div class="star">${'★'.repeat(s.rank||3)}${'☆'.repeat(5-(s.rank||3))}</div>
+      </div>
+      <span class="arrow" style="color:var(--ink-3)">›</span>
+    </div>`).join('');
+  wrap.querySelectorAll('.store').forEach(el=>el.onclick=()=>{
+    curCat='all'; const st=stores.find(s=>s.id===el.dataset.store);
+    if(st){ /* 过滤该店商品 */ const save=products; products=products.filter(p=>p.store_id===st.id); renderHomeGrid(); products=save; switchTab('home'); }
+  });
+}
+
+/* ===== 渲染：购物车 ===== */
+function renderCart(){
+  const wrap=$('#cartList'), empty=$('#cartEmpty');
+  const ids=Object.keys(cart);
+  if(!ids.length){ wrap.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  // 按 store 分组
+  const groups={};
+  ids.forEach(id=>{ const it=cart[id]; const sid=it.product.store_id||'s0'; (groups[sid]=groups[sid]||[]).push(it); });
+  let total=0, html='';
+  Object.keys(groups).forEach(sid=>{
+    const st=stores.find(s=>s.id===sid);
+    html+=`<div class="cart-group"><div class="gh">${st?st.name:'杂货铺'}</div>`;
+    groups[sid].forEach(it=>{
+      total+=it.product.price*it.qty;
+      html+=`<div class="citem">
+        <div class="em">🍵</div>
+        <div><div class="nm">${it.product.name}</div><div class="pr">¥${it.product.price} / 味</div></div>
+        <div class="stepper">
+          <button class="minus" data-id="${it.product.id}">−</button>
+          <span>${it.qty}</span>
+          <button class="plus" data-id="${it.product.id}">+</button>
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+  html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin:6px 2px 14px;">
+      <span style="font-size:13px;color:var(--ink-2)">合计</span>
+      <span style="font-family:'Ma Shan Zheng';font-size:22px;color:var(--cinnabar)">${yuan(total)}</span>
+    </div>
+    <button class="btn" id="checkoutBtn">启程秘境修行</button>`;
+  wrap.innerHTML=html;
+  wrap.querySelectorAll('.plus').forEach(b=>b.onclick=()=>changeQty(b.dataset.id,1));
+  wrap.querySelectorAll('.minus').forEach(b=>b.onclick=()=>changeQty(b.dataset.id,-1));
+  $('#checkoutBtn').onclick=checkout;
+}
+function addToCart(id){
+  const p=products.find(x=>x.id===id); if(!p) return;
+  if(!cart[id]) cart[id]={product:p,qty:0};
+  cart[id].qty++; saveCart(); renderCart();
+  // 轻提示
+  flashFloat('已入锦囊');
+}
+function changeQty(id,d){
+  if(!cart[id]) return;
+  cart[id].qty+=d;
+  if(cart[id].qty<=0) delete cart[id];
+  saveCart(); renderCart();
+}
+async function checkout(){
+  const ids=Object.keys(cart);
+  if(!ids.length) return;
+  if(!user){
+    openLogin(); flashFloat('请先入宗门'); return;
+  }
+  // 真实下单（如已配置）：尝试写入 orders；失败则模拟
+  let real=false;
+  if(!USE_MOCK){
+    try{
+      const items=ids.map(id=>({product_id:cart[id].product.id, qty:cart[id].qty, price:cart[id].product.price}));
+      const total=ids.reduce((s,id)=>s+cart[id].product.price*cart[id].qty,0);
+      await supabase.from('orders').insert({ user_id:user.id, items, total_amount:total, status:'pending' });
+      real=true;
+    }catch(e){ console.warn('order insert skipped',e); }
+  }
+  cart={}; saveCart(); renderCart();
+  showToken('启程成功', real?'秘境修行已记入门派册':'演示：秘境修行已记入（未写入真实库）', '修为 +'+ids.length);
+}
+
+/* ===== 渲染：个人 ===== */
+function renderMe(){
+  if(user&&profile){
+    $('#meName').textContent=profile.name||'云游侠客';
+    $('#meRank').textContent=profile.member_rank||'初入宗门';
+    $('#meSeal').textContent=(profile.member_rank||'客').replace(/[^一-龥]/g,'').slice(0,1)||'客';
+    $('#aXiu').textContent=profile.tb_balance??'—';
+    $('#aGong').textContent=profile.commission_balance??'—';
+    $('#aTong').textContent=profile.pass??0;
+    $('#meSil').textContent='侠';
+  } else {
+    $('#meName').textContent='未入宗门';
+    $('#meRank').textContent='点右上「侠」入洞府';
+    $('#meSeal').textContent='客';
+    $('#aXiu').textContent='—'; $('#aGong').textContent='—'; $('#aTong').textContent='—';
+  }
+  const menu=[
+    {ico:'📜',t:'我的檄文',ar:''},
+    {ico:'🎖',t:'段位铭牌',ar:''},
+    {ico:'🏮',t:'宗门驿站权益',ar:''},
+    {ico:'⚔',t:'门徒与师承',ar:''},
+    {ico:'⚙',t:'设置',ar:''},
+  ];
+  $('#meMenu').innerHTML=menu.map(m=>`<div class="mitem"><span class="mi">${m.ico}</span>${m.t}<span class="ar">›</span></div>`).join('');
+  $('#meMenu').querySelectorAll('.mitem').forEach((el,i)=>el.onclick=()=>{
+    if(i===2) openStation();
+    else flashFloat('此卷宗待启');
+  });
+}
+
+/* ===== 商品详情 ===== */
+function openDetail(id){
+  const p=products.find(x=>x.id===id); if(!p) return; curDetail=p;
+  $('#dThumb').textContent=p.image_url?'':['🍵','🍶','🍲','🌿'][id.charCodeAt(1)%4];
+  $('#dName').textContent=p.name;
+  $('#dPrice').textContent=yuan(p.price);
+  $('#dTags').innerHTML=(p.emotion_tag||[]).map(t=>`<span class="tg cinnabar">${t}</span>`).join('')
+    + (p.health_tag||[]).map(t=>`<span class="tg">${t}</span>`).join('');
+  $('#dNature').innerHTML=`<span class="em">${p.overall_nature||'—'}</span>性 · 宜${p.health_tag?p.health_tag.join('、'):'常养'}`;
+  $('#dIng').innerHTML=(p.ingredients||[]).map(i=>`<span class="em">${i}</span>`).join('、')||'—';
+  $('#dMatch').innerHTML=`宜配 <span class="em">${(p.match_goods||[]).join('、')||'—'}</span> ／ 慎同 <span class="em">${(p.conflict_goods||[]).join('、')||'—'}</span>`;
+  $('#dAdd').onclick=()=>{ addToCart(p.id); closeMask('detailMask'); };
+  openMask('detailMask');
+}
+
+/* ===== Tab 切换 ===== */
+function switchTab(name){
+  $$('.page').forEach(p=>p.classList.remove('active'));
+  $('#p-'+name).classList.add('active');
+  $$('.tab').forEach(t=>t.classList.toggle('on', t.dataset.tab===name));
+  $('.viewport').scrollTop=0;
+}
+$$('.tab').forEach(t=>t.onclick=()=>switchTab(t.dataset.tab));
+
+/* ===== 弹层 ===== */
+function openMask(id){ $('#'+id).classList.add('show'); }
+function closeMask(id){ $('#'+id).classList.remove('show'); }
+$$('[data-close]').forEach(el=>el.onclick=()=>closeMask(el.dataset.close));
+$('#stationStrip').onclick=openStation;
+function openStation(){ openMask('stationMask'); }
+
+/* ===== 令牌 / 飘字 ===== */
+function showToken(t1,t2,float){
+  $('#tokenT1').textContent=t1; $('#tokenT2').textContent=t2;
+  const fw=$('#floatWord'); fw.textContent=float||'修为 +1';
+  fw.style.animation='none'; void fw.offsetWidth; fw.style.animation='';
+  openMask('tokenMask');
+  setTimeout(()=>closeMask('tokenMask'), 1900);
+}
+function flashFloat(txt){
+  const fw=document.createElement('div'); fw.className='floatword'; fw.textContent=txt;
+  fw.style.position='fixed'; fw.style.left='50%'; fw.style.top='46%';
+  $('.screen').appendChild(fw);
+  setTimeout(()=>fw.remove(),1600);
+}
+
+/* ===== 登录 ===== */
+let loginMode='otp';
+$('#loginSeg').querySelectorAll('div').forEach(el=>el.onclick=()=>{
+  $('#loginSeg').querySelectorAll('div').forEach(x=>x.classList.remove('on'));
+  el.classList.add('on'); loginMode=el.dataset.mode;
+  $('#otpField').style.display=loginMode==='otp'?'block':'none';
+  $('#pwdField').style.display=loginMode==='pwd'?'block':'none';
+});
+function openLogin(){ openMask('loginMask'); }
+$('#avatarBtn').onclick=()=>{ if(user){ switchTab('me'); } else openLogin(); };
+$('#sendOtp').onclick=async()=>{
+  const phone=$('#phoneInput').value.trim();
+  if(!/^1\d{10}$/.test(phone)){ flashFloat('手机号格式不对'); return; }
+  if(USE_MOCK){ flashFloat('演示：验证码已发(123456)'); $('#otpInput').value='123456'; return; }
+  try{ await supabase.auth.signInWithOtp({ phone }); flashFloat('验证码已发送'); }
+  catch(e){ flashFloat('发送失败'); console.warn(e); }
+};
+$('#loginBtn').onclick=async()=>{
+  const phone=$('#phoneInput').value.trim();
+  if(!/^1\d{10}$/.test(phone)){ flashFloat('手机号格式不对'); return; }
+  try{
+    if(USE_MOCK){
+      user={id:'mock-'+phone}; profile={...MOCK_PROFILE, name:'云游侠客'};
+    } else if(loginMode==='otp'){
+      const code=$('#otpInput').value.trim();
+      const {data,error}=await supabase.auth.verifyOtp({phone, token:code, type:'sms'});
+      if(error) throw error; user=data.user;
+    } else {
+      const pwd=$('#pwdInput').value;
+      const {data,error}=await supabase.auth.signInWithPassword({phone, password:pwd});
+      if(error) throw error; user=data.user;
+    }
+    closeMask('loginMask');
+    await loadProfile();
+    flashFloat('入宗门 · 安');
+  }catch(e){ flashFloat('入宗门失败'); console.warn(e); }
+};
+
+/* ===== 配置 ===== */
+$('#cfgLink').onclick=()=>{ $('#cfgUrl').value=CONFIG.url; $('#cfgKey').value=CONFIG.anon; $('#cfgMask').classList.add('show'); };
+$('#cfgCancel').onclick=()=>$('#cfgMask').classList.remove('show');
+$('#cfgSave').onclick=()=>{
+  const u=$('#cfgUrl').value.trim(), k=$('#cfgKey').value.trim();
+  if(!u||!k){ flashFloat('两项都需填'); return; }
+  localStorage.setItem(LS_URL,u); localStorage.setItem(LS_KEY,k);
+  location.reload();
+};
+
+/* ===== 时钟（时辰） ===== */
+const SHICHEN=['子时','丑时','寅时','卯时','辰时','巳时','午时','未时','申时','酉时','戌时','亥时'];
+function tick(){ const h=new Date().getHours(); $('#clock').textContent=SHICHEN[(h+1)%12]; }
+tick(); setInterval(tick,60000);
+
+/* ===== 搜索 ===== */
+$('#searchInput').addEventListener('input',e=>{
+  const q=e.target.value.trim();
+  if(!q){ renderHomeGrid(); return; }
+  const list=products.filter(p=>p.name.includes(q)||(p.emotion_tag||[]).join('').includes(q));
+  const grid=$('#homeGrid');
+  if(!list.length){ grid.innerHTML='<div class="empty">天机无所获</div>'; return; }
+  curCat='all'; $('#homeCaps').querySelectorAll('.cap').forEach(x=>x.classList.remove('on'));
+  $('#homeCaps').querySelector('.cap').classList.add('on');
+  grid.innerHTML=list.map(p=>`
+    <div class="card" data-id="${p.id}"><div class="thumb">🍵${p.emotion_tag&&p.emotion_tag[0]?`<div class="badge">${p.emotion_tag[0]}</div>`:''}</div>
+    <div class="body"><div class="nm">${p.name}</div><div class="meta"><div class="price"><b>¥</b>${p.price}</div><button class="add" data-add="${p.id}">+</button></div></div></div>`).join('');
+  grid.querySelectorAll('.card').forEach(c=>c.onclick=ev=>{ if(!ev.target.dataset.add) openDetail(c.dataset.id); });
+  grid.querySelectorAll('[data-add]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); addToCart(b.dataset.add); });
+});
+
+/* ===== 启动 ===== */
+restoreCart();
+loadData().then(()=>{
+  if(!USE_MOCK && supabase) supabase.auth.getUser().then(({data})=>{ if(data.user){ user=data.user; loadProfile(); } });
+  setTimeout(()=>$('#loading').classList.add('hide'), 1300);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会员健康信息采集表 · 可填写</title>
+<style>
+  :root{
+    --ink:#2b2b2b; --sub:#6b6b6b; --line:#d9d4c8; --paper:#f7f3ea;
+    --card:#fffdf8; --accent:#b8902f; --accent-soft:#f3e8cf;
+    --fill:#fdeede; --head:#3a342c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+    background:#e9e3d6; color:var(--ink); line-height:1.6; padding:0 0 60px;
+  }
+  .toolbar{
+    position:sticky; top:0; z-index:50; background:#3a342c; color:#fff;
+    display:flex; gap:12px; align-items:center; justify-content:center;
+    padding:12px 16px; box-shadow:0 2px 10px rgba(0,0,0,.25); flex-wrap:wrap;
+  }
+  .toolbar span{font-size:13px; opacity:.85}
+  .btn{
+    background:var(--accent); color:#fff; border:none; border-radius:6px;
+    padding:9px 18px; font-size:13px; font-weight:700; cursor:pointer; letter-spacing:1px;
+    transition:transform .15s, background .15s;
+  }
+  .btn:hover{background:#a07d27; transform:translateY(-1px)}
+  .btn.ghost{background:transparent; border:1px solid #fff8; color:#fff}
+  .btn.ghost:hover{background:#fff2}
+  .sheet{
+    max-width:880px; margin:22px auto 0; background:var(--paper);
+    border:1px solid var(--line); border-radius:10px;
+    box-shadow:0 8px 30px rgba(0,0,0,.12); overflow:hidden;
+  }
+  .sheet-head{
+    background:linear-gradient(135deg,var(--head),#52483c); color:#fff;
+    padding:22px 28px; text-align:center; border-bottom:4px solid var(--accent);
+  }
+  .sheet-head h1{font-size:24px; letter-spacing:3px; font-weight:700}
+  .sheet-head p{font-size:12px; opacity:.85; margin-top:6px; letter-spacing:1px}
+  .body{padding:24px 28px}
+  .section-title{
+    font-size:15px; font-weight:700; color:var(--head); background:var(--accent-soft);
+    border-left:5px solid var(--accent); padding:8px 14px; margin:22px 0 14px;
+    border-radius:4px; letter-spacing:1px;
+  }
+  .grid{display:grid; gap:10px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  .field{
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    padding:8px 14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .field label{font-weight:700; font-size:13px; white-space:nowrap; color:var(--sub)}
+  .field input[type=text],.field select{
+    flex:1; min-width:80px; border:none; border-bottom:1.5px dotted #c9c2b2;
+    background:transparent; font-size:14px; padding:4px 2px; color:var(--ink);
+    outline:none;
+  }
+  .field input:focus,.field select:focus{border-bottom-color:var(--accent)}
+  /* 点选控件 */
+  .pills{display:inline-flex; gap:8px; flex-wrap:wrap}
+  .pill{
+    border:1px solid var(--accent); color:var(--accent); background:#fff;
+    border-radius:20px; padding:5px 18px; font-size:13px; font-weight:700;
+    cursor:pointer; transition:all .15s; user-select:none;
+  }
+  .pill.on{background:var(--accent); color:#fff; box-shadow:0 2px 8px rgba(184,144,47,.4)}
+  .chips{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px}
+  .chip{
+    border:1px solid #c9b78a; color:#8a6d2f; background:#fff; border-radius:6px;
+    padding:3px 12px; font-size:12px; cursor:pointer; transition:all .15s; user-select:none;
+  }
+  .chip.on{background:var(--accent-soft); color:#7a5c1f; border-color:var(--accent); font-weight:700}
+  .qhint{font-size:11px; color:#b08a45; margin-bottom:4px}
+  .photo-box{
+    border:2px dashed var(--accent); border-radius:8px; background:var(--fill);
+    padding:16px 10px; color:#a07a3a; font-size:13px; text-align:center;
+  }
+  .photo-box input[type=file]{margin-top:8px; font-size:12px; max-width:100%}
+  .photo-preview{margin-top:10px; display:none; max-width:100%; max-height:180px; border-radius:6px; border:1px solid var(--line)}
+  .photo-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  table{width:100%; border-collapse:collapse; background:var(--card); border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.05)}
+  thead th{background:var(--head); color:#fff; font-size:13px; font-weight:600; padding:10px 12px; text-align:left; letter-spacing:1px}
+  thead th:first-child{width:42px; text-align:center}
+  thead th:nth-child(2){width:108px}
+  thead th:nth-child(3){width:270px}
+  tbody td{border:1px solid var(--line); padding:10px 12px; font-size:13px; vertical-align:top}
+  tbody td.idx{text-align:center; font-weight:700; color:var(--accent); background:var(--accent-soft)}
+  tbody td.proj{font-weight:700}
+  tbody td.q{color:var(--sub); font-size:12px; line-height:1.55}
+  tbody td.ans{background:var(--fill); min-width:220px}
+  tbody td.ans textarea{
+    width:100%; min-height:58px; border:none; background:transparent; resize:vertical;
+    font-size:13px; color:var(--ink); outline:none; font-family:inherit; line-height:1.6;
+  }
+  tbody td.ans textarea:focus{background:#fff7ea}
+  .tips{background:#fff8ec; border:1px solid var(--line); border-radius:8px; padding:14px 18px}
+  .tips ol{margin-left:18px; font-size:13px; color:var(--ink)}
+  .tips li{margin:5px 0}
+  .sign{display:flex; gap:24px; margin-top:20px; font-weight:700; font-size:14px; flex-wrap:wrap}
+  .sign .row{display:flex; align-items:center; gap:8px}
+  .sign input{border:none; border-bottom:1.5px solid var(--ink); background:transparent; font-size:14px; outline:none; padding:2px 4px}
+  .stamp{
+    position:fixed; right:26px; bottom:26px; width:96px; height:96px; border:3px solid #c0392b;
+    border-radius:50%; color:#c0392b; display:flex; align-items:center; justify-content:center;
+    text-align:center; font-weight:800; font-size:15px; transform:rotate(-14deg); opacity:.82;
+    font-family:"KaiTi","STKaiti",serif; letter-spacing:2px; pointer-events:none; z-index:40;
+  }
+  @media print{
+    body{padding:0; background:#fff}
+    .toolbar{display:none}
+    .sheet{box-shadow:none; border:none; max-width:100%; margin:0}
+    .stamp{position:absolute}
+    .section-title,.field,.tips,.photo-box{break-inside:avoid}
+    table{break-inside:auto} thead{display:table-header-group}
+    .photo-box,.chip.on,tbody td.ans{ -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    .pill,.chip{cursor:default}
+    textarea,.field input,.sign input{border-bottom:1.5px dotted #999!important}
+    tbody td.ans{background:#fdeede!important}
+    .chip.on{background:var(--accent-soft)!important}
+  }
+</style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <span>会员健康信息采集表</span>
+    <button class="btn" onclick="saveDraft()">保存草稿</button>
+    <button class="btn ghost" onclick="loadDraft()">读取草稿</button>
+    <button class="btn ghost" onclick="clearForm()">清空</button>
+    <button class="btn" onclick="window.print()">打印 / 导出PDF</button>
+  </div>
+
+  <div class="sheet">
+    <div class="sheet-head">
+      <h1>会 员 健 康 信 息 采 集 表</h1>
+      <p>请认真填写 · 信息越完整，调理方案越精准 · 舌象请参照文末《拍照参考》</p>
+    </div>
+    <div class="body">
+
+      <div class="section-title">一、基础信息</div>
+      <div class="grid g3">
+        <div class="field">
+          <label>性别</label>
+          <div class="pills" data-radio="gender">
+            <span class="pill" data-val="男">男</span>
+            <span class="pill" data-val="女">女</span>
+          </div>
+          <input type="hidden" name="gender">
+        </div>
+        <div class="field"><label>年龄</label><input type="text" name="age" placeholder="周岁" inputmode="numeric"></div>
+        <div class="field">
+          <label>生肖属相</label>
+          <select name="zodiac">
+            <option value="">请选择</option>
+            <option>鼠</option><option>牛</option><option>虎</option><option>兔</option>
+            <option>龙</option><option>蛇</option><option>马</option><option>羊</option>
+            <option>猴</option><option>鸡</option><option>狗</option><option>猪</option>
+          </select>
+        </div>
+        <div class="field"><label>身高(cm)</label><input type="text" name="height" placeholder="如：168" inputmode="numeric"></div>
+        <div class="field"><label>体重(kg)</label><input type="text" name="weight" placeholder="如：60" inputmode="numeric"></div>
+        <div class="field"><label>联系电话</label><input type="text" name="phone" placeholder="手机号"></div>
+      </div>
+
+      <div class="section-title">二、舌象照片</div>
+      <div class="photo-grid">
+        <div class="photo-box">
+          正面舌象（光线柔和 · 自然伸出 · 原图 · 见舌根与舌苔）
+          <input type="file" accept="image/*" onchange="preview(this,'prev1')">
+          <img id="prev1" class="photo-preview">
+        </div>
+        <div class="photo-box">
+          舌下静脉（舌尖上卷 · 拍摄舌底静脉）
+          <input type="file" accept="image/*" onchange="preview(this,'prev2')">
+          <img id="prev2" class="photo-preview">
+        </div>
+      </div>
+
+      <div class="section-title">三、健康问诊（请逐题点选 / 填写）</div>
+      <table>
+        <thead>
+          <tr><th>序号</th><th>项目</th><th>具体问题</th><th>填写区</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="idx">1</td><td class="proj">饮食偏好</td>
+            <td class="q">请勾选平时偏爱吃的食物（可多选）。</td>
+            <td class="ans">
+              <div class="chips" data-chip="q1">
+                <span class="chip" data-val="水果">水果</span>
+                <span class="chip" data-val="冷饮">冷饮</span>
+                <span class="chip" data-val="甜食">甜食</span>
+                <span class="chip" data-val="辛辣刺激">辛辣刺激</span>
+                <span class="chip" data-val="油炸">油炸</span>
+                <span class="chip" data-val="油腻">油腻</span>
+                <span class="chip" data-val="海鲜">海鲜</span>
+                <span class="chip" data-val="奶茶">奶茶</span>
+                <span class="chip" data-val="烟酒">烟酒</span>
+              </div>
+              <input type="hidden" name="q1">
+              <textarea name="q1_detail" placeholder="其他偏好或补充说明…"></textarea>
+            </td>
+          </tr>
+          <tr>
+            <td class="idx">2</td><td class="proj">食欲消化</td>
+            <td class="q">胃口如何？有无以下不适？（点选，可补充）</td>
+            <td class="ans">
+              <div class="chips" data-chip="q2">
+                <span class="chip" data-val="胃口好">胃口好</span>
+                <span class="chip" data-val="食欲不振">食欲不振</span>
+                <span class="chip" data-val="反酸">反酸</span>
+                <span class="chip" data-val="打嗝嗳气">打嗝嗳气</span>
+                <span class="chip" data-val="腹胀">腹胀</span>
+                <span class="chip" data-val="不消化">不消化</span>
+                <span class="chip" data-val="口苦">口苦</span>
+                <span class="chip" data-val="口臭">口臭</span>
+              </div>
+              <input type="hidden" name="q2">
+              <textarea name="q2_detail" placeholder="补充说明…"></textarea>
+            </td>
+          </tr>
+          <tr>
+            <td class="idx">3</td><td class="proj">二便情况</td>
+            <td class="q">小便 / 大便情况？（点选，可补充）</td>
+            <td class="ans">
+              <div class="chips" data-chip="q3">
+                <span class="chip" data-val="小便黄">小便黄</span>
+                <span class="chip" data-val="大便干结">大便干结</span>
+                <span class="chip" data-val="便秘">便秘</span>
+                <span class="chip" data-val="黏腻难冲">黏腻难冲</span>
+                <span class="chip" data-val="腹泻">腹泻</span>
+                <span class="chip" data-val="排便费力">排便费力</span>
+              </div>
+              <input type="hidden" name="q3">
+              <textarea name="q3_detail" placeholder="次数 / 颜色等补充说明…"></textarea>
+            </td>
+          </tr>
+          <tr>
+            <td class="idx">4</td><td class="proj">专项问诊</td>
+            <td class="q"><b>女性：</b>月经规律？痛经（小腹/后腰）？经前胸胀/头痛？经血色？量？天数？生育/流产？<br><b>男性：</b>烟酒？夜尿？夫妻生活？腰酸乏力？</td>
+            <td class="ans">
+              <div class="chips" data-chip="q4">
+                <span class="chip" data-val="月经规律">月经规律</span>
+                <span class="chip" data-val="痛经(小腹)">痛经·小腹</span>
+                <span class="chip" data-val="痛经(后腰)">痛经·后腰</span>
+                <span class="chip" data-val="经前胸胀">经前胸胀</span>
+                <span class="chip" data-val="经前头痛">经前头痛</span>
+                <span class="chip" data-val="经血色暗">经血色暗</span>
+                <span class="chip" data-val="量偏多">量偏多</span>
+                <span class="chip" data-val="已生育">已生育</span>
+                <span class="chip" data-val="吸烟">吸烟</span>
+                <span class="chip" data-val="饮酒">饮酒</span>
+                <span class="chip" data-val="夜尿多">夜尿多</span>
+              </div>
+              <input type="hidden" name="q4">
+              <textarea name="q4_detail" placeholder="细节补充（如天数、量、第几胎等）…"></textarea>
+            </td>
+          </tr>
+          <tr>
+            <td class="idx">5</td><td class="proj">全身状态</td>
+            <td class="q">整体身体感受？（点选，可补充）</td>
+            <td class="ans">
+              <div class="chips" data-chip="q5">
+                <span class="chip" data-val="易疲乏">易疲乏</span>
+                <span class="chip" data-val="犯困">犯困</span>
+                <span class="chip" data-val="浑身酸痛">浑身酸痛</span>
+                <span class="chip" data-val="气短胸闷">气短胸闷</span>
+                <span class="chip" data-val="心慌">心慌</span>
+                <span class="chip" data-val="易感冒">易感冒</span>
+                <span class="chip" data-val="怕冷">怕冷</span>
+                <span class="chip" data-val="怕热">怕热</span>
+                <span class="chip" data-val="上热下寒">上热下寒</span>
+              </div>
+              <input type="hidden" name="q5">
+              <textarea name="q5_detail" placeholder="补充说明…"></textarea>
+            </td>
+          </tr>
+          <tr>
+            <td class="idx">6</td><td class="proj">情绪状态</td>
+            <td class="q">近期情绪倾向？（点选，可补充）</td>
+            <td class="ans">
+              <div class="chips" data-chip="q6">
+                <span class="chip" data-val="焦虑">焦虑</span>
+                <span class="chip" data-val="抑郁">抑郁</span>
+                <span class="chip" data-val="易怒">易怒</span>
+                <span class="chip" data-val="悲伤">悲伤</span>
+                <span class="chip" data-val="恐惧">恐惧</span>
+                <span class="chip" data-val="健忘">健忘</span>
+                <span class="chip" data-val="精神紧张">精神紧张</span>
+              </div>
+              <input type="hidden" name="q6">
+              <textarea name="q6_detail" placeholder="补充说明…"></textarea>
+            </td>
+          </tr>
+          <tr>
+            <td class="idx">7</td><td class="proj">睡眠情况</td>
+            <td class="q">睡眠相关问题？（点选，可补充）</td>
+            <td class="ans">
+              <div class="chips" data-chip="q7">
+                <span class="chip" data-val="入睡困难">入睡困难</span>
+                <span class="chip" data-val="多梦">多梦</span>
+                <span class="chip" data-val="易惊醒">易惊醒</span>
+                <span class="chip" data-val="睡眠浅">睡眠浅</span>
+                <span class="chip" data-val="早醒">早醒</span>
+                <span class="chip" data-val="白天困倦">白天困倦</span>
+              </div>
+              <input type="hidden" name="q7">
+              <textarea name="q7_detail" placeholder="一般几点睡等补充…"></textarea>
+            </td>
+          </tr>
+          <tr>
+            <td class="idx">8</td><td class="proj">疾病/用药</td>
+            <td class="q">已确诊疾病 / 手术史 / 近期用药？（点选，详填）</td>
+            <td class="ans">
+              <div class="chips" data-chip="q8">
+                <span class="chip" data-val="高血压">高血压</span>
+                <span class="chip" data-val="糖尿病">糖尿病</span>
+                <span class="chip" data-val="胃病">胃病</span>
+                <span class="chip" data-val="手术史">手术史</span>
+                <span class="chip" data-val="服西药">服西药</span>
+                <span class="chip" data-val="服中药">服中药</span>
+              </div>
+              <input type="hidden" name="q8">
+              <textarea name="q8_detail" placeholder="确诊时间、用药名称等…"></textarea>
+            </td>
+          </tr>
+          <tr>
+            <td class="idx">9</td><td class="proj">疫苗情况</td>
+            <td class="q">新冠疫苗接种情况？</td>
+            <td class="ans">
+              <div class="chips" data-chip="q9">
+                <span class="chip" data-val="已接种">已接种</span>
+                <span class="chip" data-val="未接种">未接种</span>
+                <span class="chip" data-val="接种后不适">接种后不适</span>
+              </div>
+              <input type="hidden" name="q9">
+              <textarea name="q9_detail" placeholder="接种时间、不适表现等…"></textarea>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-title">四、拍照参考（舌象拍摄要求）</div>
+      <div class="tips">
+        <ol>
+          <li>选择光线柔和、自然的拍照环境，避免强光或背光。</li>
+          <li>舌体自然伸出，不要用力、不要卷曲，避免舌头僵硬。</li>
+          <li>相机/手机不要开美颜、滤镜，需提交原图。</li>
+          <li>从舌的正前方拍摄，最好能看清舌根；不能用俯视或侧视角度。</li>
+          <li>请别人帮你拍摄，能清楚看到舌根部。</li>
+          <li>照片要露出鼻尖、下巴，鼻唇沟与下巴正中成直线。</li>
+          <li>建议拍摄两张：正面舌象（苔色、舌质）+ 舌下静脉（卷起舌尖）。</li>
+        </ol>
+        <p style="margin-top:8px;font-size:12px;color:#a07a3a">
+          舌面脏腑对应：舌尖→心肺，舌中→脾胃，舌根→肾，舌边→肝胆。
+        </p>
+      </div>
+
+      <div class="sign">
+        <div class="row">会员签名：<input type="text" name="sign" placeholder="请签名" style="min-width:140px"></div>
+        <div class="row">填写日期：<input type="date" name="date" style="min-width:160px"></div>
+      </div>
+    </div>
+  </div>
+  <div class="stamp">来电有喜<br>健康档案</div>
+
+<script>
+  const KEY = 'health_form_draft_v2';
+
+  // 点选：单选（性别）
+  document.querySelectorAll('[data-radio]').forEach(group=>{
+    const name = group.dataset.radio;
+    group.querySelectorAll('.pill').forEach(p=>{
+      p.addEventListener('click',()=>{
+        group.querySelectorAll('.pill').forEach(x=>x.classList.remove('on'));
+        p.classList.add('on');
+        group.parentElement.querySelector('input[type=hidden]').value = p.dataset.val;
+      });
+    });
+  });
+
+  // 点选：多选（各题标签）
+  document.querySelectorAll('[data-chip]').forEach(group=>{
+    const name = group.dataset.chip;
+    group.querySelectorAll('.chip').forEach(c=>{
+      c.addEventListener('click',()=>{
+        c.classList.toggle('on');
+        const sel = [...group.querySelectorAll('.chip.on')].map(x=>x.dataset.val);
+        group.parentElement.querySelector('input[type=hidden][name="'+name+'"]').value = sel.join('、');
+      });
+    });
+  });
+
+  function preview(input, imgId){
+    const img = document.getElementById(imgId);
+    if(input.files && input.files[0]){
+      const reader = new FileReader();
+      reader.onload = e => { img.src = e.target.result; img.style.display='block'; };
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+
+  function saveDraft(){
+    const data = {};
+    document.querySelectorAll('input[name],select[name],textarea[name]').forEach(el=>{
+      if(el.type==='file') return;
+      data[el.name] = el.value;
+    });
+    // 点选状态
+    document.querySelectorAll('[data-chip]').forEach(g=>{
+      const sel=[...g.querySelectorAll('.chip.on')].map(x=>x.dataset.val);
+      data['_chip_'+g.dataset.chip]=sel;
+    });
+    document.querySelectorAll('[data-radio]').forEach(g=>{
+      const on=g.querySelector('.pill.on');
+      data['_radio_'+g.dataset.radio]= on? on.dataset.val : '';
+    });
+    localStorage.setItem(KEY, JSON.stringify(data));
+    alert('草稿已保存到本机浏览器');
+  }
+
+  function loadDraft(){
+    const raw = localStorage.getItem(KEY);
+    if(!raw){ alert('没有找到已保存的草稿'); return; }
+    const data = JSON.parse(raw);
+    document.querySelectorAll('input[name],select[name],textarea[name]').forEach(el=>{
+      if(data[el.name]!==undefined) el.value=data[el.name];
+    });
+    document.querySelectorAll('[data-chip]').forEach(g=>{
+      const key='_chip_'+g.dataset.chip;
+      if(data[key]){
+        g.querySelectorAll('.chip').forEach(c=>{
+          c.classList.toggle('on', data[key].includes(c.dataset.val));
+        });
+      }
+    });
+    document.querySelectorAll('[data-radio]').forEach(g=>{
+      const key='_radio_'+g.dataset.radio;
+      if(data[key]){
+        g.querySelectorAll('.pill').forEach(p=>{
+          p.classList.toggle('on', p.dataset.val===data[key]);
+        });
+      }
+    });
+    alert('草稿已读取');
+  }
+
+  function clearForm(){
+    if(!confirm('确认清空所有已填内容？')) return;
+    document.querySelectorAll('input[name],select[name],textarea[name]').forEach(el=>{ if(el.type!=='file') el.value=''; });
+    document.querySelectorAll('.chip.on,.pill.on').forEach(el=>el.classList.remove('on'));
+    localStorage.removeItem(KEY);
+  }
+</script>
+</body>
+</html>

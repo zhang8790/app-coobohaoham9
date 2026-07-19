@@ -3,7 +3,7 @@
 // 说明: 提供情绪匹配、内容获取等功能
 
 import { supabase } from '@/client/supabase'
-import type { EmotionKeyword, EmotionContent } from './types'
+import type { EmotionContent } from './types'
 
 /**
  * 匹配用户输入的情绪
@@ -134,6 +134,5 @@ export async function getEmotionResponse(inner_label: string) {
     inner_label,
     translation,
     sceneCards,
-    feedTitles,
-  }
+    feedTitles}
 }

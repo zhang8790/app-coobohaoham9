@@ -27,6 +27,7 @@ const pages = [
   'pages/settings/index',
   'pages/review/index',
   'pages/commission-detail/index',
+  'pages/tongbao-ledger/index',
   'pages/admin/index',
   'pages/admin-merchants/index',
   'pages/admin-products/index',
@@ -77,6 +78,8 @@ const pages = [
   'pages/emotion-badges/index',
   // 通知中心
   'pages/messages/index',
+  // 扫码购物结果页（扫码 → 展示商品/价格 → 加入购物车）
+  'pages/scan-result/index',
 ]
 
 export default defineAppConfig({

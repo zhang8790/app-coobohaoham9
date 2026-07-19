@@ -121,11 +121,11 @@ async function testDbSchema() {
   section('② 数据库表结构（10 张关键表）')
 
   const tables = [
-    { name: 'profiles', cols: ['id', 'gold_beans', 'commission_balance', 'openid', 'referrer_id'] },
+    { name: 'profiles', cols: ['id', 'tb_balance', 'commission_balance', 'openid', 'referrer_id'] },
     { name: 'orders', cols: ['id', 'user_id', 'store_id', 'total_amount', 'status', 'channel_fee', 'tax_withheld', 'verified_at'] },
     { name: 'commissions', cols: ['id', 'order_id', 'beneficiary_id', 'commission_amount', 'channel_fee', 'tax_withheld', 'net_amount'] },
     { name: 'withdrawals', cols: ['id', 'user_id', 'amount', 'status', 'real_name', 'id_card'] },
-    { name: 'gold_bean_logs', cols: ['id', 'user_id', 'type', 'delta', 'balance_after'] },
+    { name: 'tongbao_logs', cols: ['id', 'user_id', 'type', 'delta', 'balance_after'] },
     { name: 'notifications', cols: ['id', 'user_id', 'type', 'title', 'body', 'read_at', 'sent_at'] },
     { name: 'products', cols: ['id', 'price', 'discount_rate'] },
     { name: 'stores', cols: ['id', 'referral_rate'] },
@@ -152,7 +152,7 @@ async function testGoldBeanOrder() {
   section('③ 金豆下单模拟（dry-run，检查权限/字段）')
 
   // 找一个已有 user 用于查询
-  const { json: profiles } = await probe('find-user', `${URL}/rest/v1/profiles?select=id,nickname,gold_beans&limit=3`, {
+  const { json: profiles } = await probe('find-user', `${URL}/rest/v1/profiles?select=id,nickname,tb_balance&limit=3`, {
     headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
   })
 
@@ -162,7 +162,7 @@ async function testGoldBeanOrder() {
   }
 
   const testUser = profiles[0]
-  log(`  测试用户：${testUser.nickname || testUser.id.slice(0, 8)}... 金豆余额：${testUser.gold_beans}`)
+  log(`  测试用户：${testUser.nickname || testUser.id.slice(0, 8)}... 情绪豆余额：${testUser.tb_balance}`)
 
   // 找一个商品
   const { json: products } = await probe('find-product', `${URL}/rest/v1/products?select=id,name,price,store_id&limit=3`, {
@@ -185,7 +185,7 @@ async function testGoldBeanOrder() {
     total_amount: Number(product.price),
     status: 'pending_pay',
     payment_method: 'wxpay',
-    gold_beans_used: 0,
+    tb_used: 0,
     idempotency_key: `e2e-${Date.now()}`,
   }
   const r = await probe('insert-order', `${URL}/rest/v1/orders`, {

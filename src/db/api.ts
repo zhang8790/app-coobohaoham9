@@ -8,7 +8,7 @@ import type {
   EmotionBadgeDef, EmotionBadgeGrant} from './types'
 import { generateEmotionDescription } from '@/utils/emotion-description'
 import { MOOD_TAGS, MOOD_CATEGORIES } from '@/utils/mood-tags'
-import { calculateDynamicScore, RANK_CONFIG_TABLE_V5, calculateCommissionV5, computeMemberRank } from '@/utils/commission-calculator-v5'
+import { calculateDynamicScore, RANK_CONFIG_TABLE_V5, calculateCommissionV5, computeMemberRank, getActiveMultiplier, getRecruitMultiplier, calcWithholdingTax, PLATFORM_CONFIG } from '@/utils/commission-calculator-v5'
 import { bumpCartCount } from '@/utils/cartStore'
 import { checkIllegalWords } from '@/utils/compliance-words'
 
@@ -65,12 +65,37 @@ export async function deleteUserAccount(): Promise<boolean> {
 // Referrals（推荐关系）
 // =====================
 
-// 获取我的推广码
+function generateReferralCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let code = ''
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return code
+}
+
+// 获取我的推广码（无则自动生成）
+// 兼容 profiles 同时存在 referral_code 与 invite_code 两列的历史情况
 export async function ensureReferralCode(): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
-  const { data: profile } = await supabase.from('profiles').select('invite_code').eq('id', user.id).maybeSingle()
-  return profile?.invite_code || null
+  const { data: profile } = await supabase.from('profiles')
+    .select('referral_code, invite_code')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (profile?.referral_code) return profile.referral_code
+  if (profile?.invite_code) return profile.invite_code
+
+  // 生成并写入，失败则重试一次（避免唯一冲突）
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const code = generateReferralCode()
+    const { error } = await supabase.from('profiles')
+      .update({ invite_code: code, referral_code: code })
+      .eq('id', user.id)
+    if (!error) return code
+    console.warn('[ensureReferralCode] 生成失败，重试:', error.message)
+  }
+  return null
 }
 
 // 获取我的推荐列表
@@ -204,19 +229,30 @@ export async function checkAndBindReferralCode(userId: string): Promise<boolean>
   try {
     const referralCode = Taro.getStorageSync('pending_referral_code')
     if (!referralCode) return false
-    
-    // 更新 profiles.invited_by
+
+    // 通过 invite_code / referral_code 找到推荐人，并把 referrer_id 设为其用户 ID
+    const { data: referrer } = await supabase
+      .from('profiles')
+      .select('id')
+      .or(`invite_code.eq.${referralCode},referral_code.eq.${referralCode}`)
+      .maybeSingle()
+    if (!referrer) {
+      console.warn('[checkAndBindReferralCode] 未找到推广码:', referralCode)
+      return false
+    }
+
     const { error } = await supabase
       .from('profiles')
-      .update({ invited_by: referralCode })
+      .update({ referrer_id: referrer.id })
       .eq('id', userId)
-    
+      .is('referrer_id', null)
+
     if (error) {
       console.error('[checkAndBindReferralCode] 失败:', error.message)
       return false
     }
-    
-    console.log('[checkAndBindReferralCode] 成功绑定:', referralCode)
+
+    console.log('[checkAndBindReferralCode] 成功绑定 referrer_id:', referrer.id)
     return true
   } catch (e) {
     console.error('[checkAndBindReferralCode] 异常:', e)
@@ -687,7 +723,7 @@ export async function updateCartBadge(): Promise<void> {
 export async function createOrder(items: Array<{
   product_id: string, store_id: string, store_name: string,
   product_name: string, product_image: string | null, price: number, quantity: number
-}>, totalAmount: number, paymentMethod: 'wxpay' | 'gold_beans'): Promise<Order | null> {
+}>, totalAmount: number, paymentMethod: 'wxpay' | 'emotion_beans'): Promise<Order | null> {
   const { data: order } = await supabase.from('orders')
     .insert({ order_no: '', total_amount: totalAmount, payment_method: paymentMethod })
     .select().maybeSingle()
@@ -861,6 +897,16 @@ export async function getAnnouncements(): Promise<Announcement[]> {
   return Array.isArray(data) ? data : []
 }
 
+// 首页「江湖动态」：拉取全站实时下单脱敏聚合（SECURITY DEFINER RPC，绕过 orders RLS）
+export async function getOrderFeed(limit = 20): Promise<import('./types').OrderFeedItem[]> {
+  const { data, error } = await supabase.rpc('get_recent_order_feed', { p_limit: limit })
+  if (error) {
+    console.error('[getOrderFeed]', error)
+    return []
+  }
+  return (data as import('./types').OrderFeedItem[]) ?? []
+}
+
 // =====================
 // Search
 // =====================
@@ -877,12 +923,12 @@ export async function createOrderV2(params: {
   items: Array<{ product_id: string; store_id: string; store_name: string; product_name: string; product_image: string | null; price: number; quantity: number }>
   total_amount: number
   pay_mode: import('./types').PayMode
-  gold_beans_to_use?: number
+  tb_used?: number
   referrer_id?: string
   idempotency_key?: string
   service_type?: 'dine_in' | 'self_pickup' | 'delivery'
   address?: string  // 收货地址（配送时必填）
-}): Promise<{ order: { id: string; order_no: string; status: string; parent_order_no: string | null }; wxpay_amount: number; gold_beans_used: number; pay_mode: string; is_multi_store: boolean } | null> {
+}): Promise<{ order: { id: string; order_no: string; status: string; parent_order_no: string | null }; wxpay_amount: number; tb_used: number; pay_mode: string; is_multi_store: boolean } | null> {
   try {
     const { data: { user } } = await supabase.auth.getUser()
     console.log('[createOrderV2] user:', user?.id)
@@ -926,46 +972,49 @@ export async function createOrderV2(params: {
     console.log('[createOrderV2] items:', JSON.stringify(params.items))
     console.log('[createOrderV2] pay_mode:', params.pay_mode, 'isMultiStore:', isMultiStore)
 
-    // 金豆处理：
-    // - 纯金豆：创建订单时即扣金豆（订单直接完成，无失败态）
-    // - 混合支付：先记录计划用量到订单（供微信支付云函数算正确应付金额），金豆扣减推迟到微信支付成功后再执行，避免支付失败导致金豆被锁定
-    let goldBeansUsed = (params.gold_beans_to_use && (params.pay_mode === 'pure_gold' || params.pay_mode === 'hybrid')) ? params.gold_beans_to_use : 0
-    // 金豆处理：记录下单前余额，订单失败时用于回滚
+    // 情绪豆处理：
+    // - 纯情绪豆：创建订单时即扣情绪豆（订单直接完成，无失败态）
+    // - 混合支付：先记录计划用量到订单（供微信支付云函数算正确应付金额），情绪豆扣减推迟到微信支付成功后再执行，避免支付失败导致情绪豆被锁定
+    let tbUsed = (params.tb_used && (params.pay_mode === 'pure_gold' || params.pay_mode === 'hybrid')) ? params.tb_used : 0
+    // 防御：情绪豆抵扣不得超过订单实际成交额（防止向上取整/输入错误导致平台现金实收为负）
+    tbUsed = Math.min(tbUsed, catalogTotal)
+    tbUsed = Math.max(0, tbUsed)
+    // 情绪豆处理：记录下单前余额，订单失败时用于回滚
     let originalBalance = 0
-    if (params.pay_mode === 'pure_gold' && params.gold_beans_to_use) {
+    if (params.pay_mode === 'pure_gold' && tbUsed) {
       try {
-        const { data: profile, error: profileErr } = await supabase.from('profiles').select('balance').eq('id', user.id).single()
-        originalBalance = profile?.balance ?? 0
-    if (process.env.NODE_ENV !== 'production') console.log('[createOrderV2] balance:', profile?.balance, 'need:', params.gold_beans_to_use, 'err:', profileErr)
+        const { data: profile, error: profileErr } = await supabase.from('profiles').select('tb_balance').eq('id', user.id).single()
+        originalBalance = profile?.tb_balance ?? 0
+    if (process.env.NODE_ENV !== 'production') console.log('[createOrderV2] tb_balance:', profile?.tb_balance, 'need:', tbUsed, 'err:', profileErr)
         if (profileErr) {
-          console.error('[createOrderV2] 查询金豆失败，阻断下单', profileErr)
-          Taro.showToast({ title: '查询金豆失败，请重试', icon: 'none' }); return null
+          console.error('[createOrderV2] 查询情绪豆失败，阻断下单', profileErr)
+          Taro.showToast({ title: '查询情绪豆失败，请重试', icon: 'none' }); return null
         }
-        else if (!profile || profile.balance < params.gold_beans_to_use) {
-          Taro.showToast({ title: '金豆余额不足', icon: 'none' }); return null
+        else if (!profile || profile.tb_balance < tbUsed) {
+          Taro.showToast({ title: '情绪豆余额不足', icon: 'none' }); return null
         } else {
-          const { error: deductErr } = await supabase.from('profiles').update({ balance: profile.balance - params.gold_beans_to_use }).eq('id', user.id)
+          const { error: deductErr } = await supabase.from('profiles').update({ tb_balance: profile.tb_balance - tbUsed }).eq('id', user.id)
           if (deductErr) {
-            // P0 修复：金豆扣减失败必须阻断下单（避免"未扣豆但显示已扣"）
-            console.error('[createOrderV2] 金豆扣减失败，阻断下单', deductErr)
-            Taro.showToast({ title: `金豆扣减失败: ${deductErr.message}`, icon: 'none', duration: 4000 }); return null
+            // P0 修复：情绪豆扣减失败必须阻断下单（避免"未扣豆但显示已扣"）
+            console.error('[createOrderV2] 情绪豆扣减失败，阻断下单', deductErr)
+            Taro.showToast({ title: `情绪豆扣减失败: ${deductErr.message}`, icon: 'none', duration: 4000 }); return null
           } else {
-            // 非阻塞写金豆流水（下单消费抵扣）；表缺失(404)也不影响主流程
-            supabase.from('gold_bean_logs').insert({
+            // 非阻塞写情绪豆流水（下单消费抵扣）；表缺失(404)也不影响主流程
+            supabase.from('tongbao_logs').insert({
               user_id: user.id,
               order_id: null,
               type: 'purchase_spend',
-              delta: -params.gold_beans_to_use,
-              balance_after: (profile.balance ?? 0) - params.gold_beans_to_use,
-              remark: '下单消费抵扣金豆'}).then(() => {}).catch((e: any) => {
+              delta: -tbUsed,
+              balance_after: (profile.tb_balance ?? 0) - tbUsed,
+              remark: '下单消费抵扣情绪豆'}).then(() => {}).catch((e: any) => {
               if (e?.code === '42P01' || (e as any)?.status === 404) {
-                console.warn('[gold_bean_logs] 表不存在(00076未执行)，流水暂不记录')
+                console.warn('[tongbao_logs] 表不存在(00096未执行)，流水暂不记录')
               }
             })
           }
         }
       } catch (e) {
-        console.warn('[createOrderV2] 金豆操作异常，跳过', e)
+        console.warn('[createOrderV2] 情绪豆操作异常，跳过', e)
       }
     }
 
@@ -985,12 +1034,12 @@ export async function createOrderV2(params: {
       order_no: isMultiStore ? `C${orderNo}${store_id?.slice(0, 4)}` : orderNo,
       parent_order_no: parentOrderNo,
       total_amount: Math.round(items.reduce((s, i) => s + i.price * i.quantity, 0) * 100) / 100,
-      // 纯金豆支付即视为已支付：配送走「待发货」，到店消费（堂食）当场使用→直接「待评价+已使用」，跳过待核销
+      // 纯情绪豆支付即视为已支付：配送走「待发货」，到店消费（堂食）当场使用→直接「待评价+已使用」，跳过待核销
       status: params.pay_mode === 'pure_gold'
         ? (params.service_type === 'delivery' ? 'pending_ship' : 'pending_review')
         : 'pending_pay',
-      payment_method: params.pay_mode === 'pure_gold' ? 'gold_beans' : 'wxpay',
-      gold_beans_used: isMultiStore ? 0 : goldBeansUsed,
+      payment_method: params.pay_mode === 'pure_gold' ? 'emotion_beans' : 'wxpay',
+      tb_used: isMultiStore ? 0 : tbUsed,
       referrer_id: params.referrer_id || null,
       // idempotency_key 唯一约束：多门店拆单时每个子订单必须独立 key，否则第二单起唯一冲突导致整批建单失败
       idempotency_key: isMultiStore ? `${(params.idempotency_key || orderNo)}-${idx}` : (params.idempotency_key || orderNo),
@@ -998,7 +1047,7 @@ export async function createOrderV2(params: {
       shipping_address: params.address || null,
       // 到店消费支付即视为已使用（verified_at 标记核销时间）。
       // ⚠️ 韧性修复：不在 insert 内写入 verified_at —— 若该列缺失(00055 未执行)会整单 insert 失败、
-      // 纯金豆支付直接卡死。改为插入成功后用容错 update 补标（见下方「verified_at 韧性补标」）。
+      // 纯情绪豆支付直接卡死。改为插入成功后用容错 update 补标（见下方「verified_at 韧性补标」）。
     }))
 
     console.log('[createOrderV2] ordersToInsert:', JSON.stringify(ordersToInsert))
@@ -1006,12 +1055,12 @@ export async function createOrderV2(params: {
     const { data: insertedOrders, error: orderErr } = await supabase.from('orders').insert(ordersToInsert).select('id, order_no, status')
     console.log('[createOrderV2] insert result:', insertedOrders, 'error:', orderErr)
     if (orderErr) {
-      // P0 修复：orders 写入失败 → 回滚金豆（避免"金豆已扣但订单不存在"导致用户资产凭空消失）
-      if (goldBeansUsed > 0) {
+      // P0 修复：orders 写入失败 → 回滚情绪豆（避免"情绪豆已扣但订单不存在"导致用户资产凭空消失）
+      if (tbUsed > 0) {
         try {
-          await supabase.from('profiles').update({ balance: originalBalance }).eq('id', user.id)
-          console.log('[createOrderV2] 已回滚金豆', goldBeansUsed)
-        } catch (e) { console.error('[createOrderV2] 金豆回滚失败，需人工补偿', e) }
+          await supabase.from('profiles').update({ tb_balance: originalBalance }).eq('id', user.id)
+          console.log('[createOrderV2] 已回滚情绪豆', tbUsed)
+        } catch (e) { console.error('[createOrderV2] 情绪豆回滚失败，需人工补偿', e) }
       }
       // 详细错误信息：包含 code + message + hint
       const errMsg = orderErr.message || '未知错误'
@@ -1023,8 +1072,8 @@ export async function createOrderV2(params: {
       return null
     }
 
-    // ===== verified_at 韧性补标（P0 修复：避免纯金豆到店消费因列缺失而整单失败）=====
-    // 到店消费(堂食)纯金豆订单支付即视为已使用，用 verified_at 标记。
+    // ===== verified_at 韧性补标（P0 修复：避免纯情绪豆到店消费因列缺失而整单失败）=====
+    // 到店消费(堂食)纯情绪豆订单支付即视为已使用，用 verified_at 标记。
     // 若 00055 迁移未执行（verified_at 列不存在），update 静默失败，订单已创建/已支付不受影响。
     if (params.pay_mode === 'pure_gold' && isInStore && insertedOrders && insertedOrders.length > 0) {
       const ids = (insertedOrders as any[]).map(o => o.id)
@@ -1081,49 +1130,86 @@ export async function createOrderV2(params: {
     // =========================================================================
 
     // ===== 分佣 + 积分处理 =====
-    // P0 修复：分佣必须延后到「支付成功」后触发。纯金豆在下方已支付分支处理；微信/混合支付由
+    // P0 修复：分佣必须延后到「支付成功」后触发。纯情绪豆在下方已支付分支处理；微信/混合支付由
     // wechat-payment-callback → distribute-commission 云函数处理（T4 已修 commission_balance 累加）。
     // =========================================================================
 
-    // ===== 纯金豆订单分佣 + 积分（P1-A 修复：此前纯金豆永不分佣/不发积分）=====
-    // 与微信支付路径一致：用 V5 算法写出订单 l1/l2/buyer_points，再触发 distributeCommissionDirect
-    // （该函数已含 commission_balance += 累加，纯金豆推广员终于能拿到可提现佣金）。
+    // ===== 纯情绪豆订单分佣 + 积分（P1-A 修复：此前纯情绪豆永不分佣/不发积分）=====
+    // 分佣主路径走服务端 distribute-commission（service_role 绕过 RLS，可靠发佣+积分+余额）；
+    // 客户端 distributeCommissionDirect 仅作快速路径，受 RLS 限制必然失败，失败无害、不阻断兜底。
     if (params.pay_mode === 'pure_gold' && insertedOrders && insertedOrders.length > 0) {
       for (const order of insertedOrders) {
+        const orderTotal = Number((order as any).total_amount) || 0
+        if (orderTotal <= 0) continue
+        // 推荐人（L1）= 订单落库的 referrer_id（下单时已透传 1870.profile.referrer_id=1856）
+        const directReferrerId: string | null = (order as any).referrer_id || null
+        let discountRate = 0.09
         try {
-          const orderTotal = Number((order as any).total_amount) || 0
-          if (orderTotal <= 0) continue
-          // 门店让利率（与 payment 页一致）
-          let discountRate = 0.09
           if (order.store_id) {
             const { data: storeData } = await supabase.from('stores').select('referral_rate').eq('id', order.store_id).maybeSingle()
             discountRate = (storeData as any)?.referral_rate ?? 0.09
           }
-          // 推广关系：L1=直接推荐人(order.referrer_id)，L2=L1 的 invited_by（与 payment 页一致）
-          const directReferrerId = (order as any).referrer_id || null
-          let staffId: string | undefined, staffConsumption = 0
-          let l2Id: string | undefined, l2Consumption = 0
+          // 让利点合并规则（按商品自身，金额加权）：每商品用自身 discount_rate（整数%÷100），未设则回退店铺率；
+          // 按商品金额(price×qty)加权得到整单混合率，高利润品主导让利池、低利润品少分，绝不二次叠加。
+          const { data: itemRows } = await supabase
+            .from('order_items').select('price, quantity, products(discount_rate)').eq('order_id', order.id)
+          const items = (itemRows || []) as Array<{ price?: any; quantity?: any; products?: { discount_rate?: any } | null }>
+          let totalAmt = 0, weightedSum = 0
+          for (const it of items) {
+            const amt = (Number(it.price) || 0) * (Number(it.quantity) || 0)
+            const pct = it?.products?.discount_rate
+            const pRate = (typeof pct === 'number' && pct > 0) ? pct / 100 : discountRate
+            totalAmt += amt
+            weightedSum += amt * pRate
+          }
+          if (totalAmt > 0) discountRate = weightedSum / totalAmt
+          let staffId: string | undefined, staffMet = { rolling: 0, active: 1, recruit: 1 }
+          let l2Id: string | undefined, l2Met = { rolling: 0, active: 1, recruit: 1 }
           if (directReferrerId) {
-            const { data: refP } = await supabase.from('profiles').select('total_consumption, invited_by').eq('id', directReferrerId).maybeSingle()
-            staffId = directReferrerId; staffConsumption = refP?.total_consumption || 0
-            if (refP?.invited_by) {
-              const { data: ref2P } = await supabase.from('profiles').select('total_consumption').eq('id', refP.invited_by).maybeSingle()
-              l2Id = refP.invited_by; l2Consumption = ref2P?.total_consumption || 0
+            staffId = directReferrerId
+            staffMet = await fetchCommissionMetrics(directReferrerId)
+            // L2 = 直接推荐人的上级（统一用 profiles.referrer_id，uuid 上级链；原 invited_by 是邀请码文本，非用户id）
+            const { data: refP } = await supabase.from('profiles').select('referrer_id').eq('id', directReferrerId).maybeSingle()
+            if (refP?.referrer_id) {
+              l2Id = refP.referrer_id
+              l2Met = await fetchCommissionMetrics(refP.referrer_id)
             }
           }
-          const { data: buyerP } = await supabase.from('profiles').select('total_consumption').eq('id', user.id).maybeSingle()
+          const buyerMet = await fetchCommissionMetrics(user.id)
           const commissionResult = calculateCommissionV5({
             orderAmount: orderTotal, discountRate,
-            staffId, staffTotalConsumption: staffConsumption,
-            referrerId: l2Id, referrerTotalConsumption: l2Consumption,
-            buyerId: user.id, buyerTotalConsumption: buyerP?.total_consumption || 0})
+            staffId,
+            staffRollingConsumption: staffMet.rolling, staffActiveMult: staffMet.active, staffRecruitMult: staffMet.recruit,
+            referrerId: l2Id,
+            referrerRollingConsumption: l2Met.rolling, referrerActiveMult: l2Met.active, referrerRecruitMult: l2Met.recruit,
+            buyerId: user.id,
+            buyerRollingConsumption: buyerMet.rolling})
+          // 仅落库展示字段（l1/l2/buyer_points），真实发放交给服务端 distribute-commission
           await supabase.from('orders').update({
             l1_commission: commissionResult.l1Commission,
             l2_commission: commissionResult.l2Commission,
             buyer_points: Math.round(commissionResult.buyerPoints),
             commission_calculated: true}).eq('id', order.id)
-          await distributeCommissionDirect(order.id, user.id)
-        } catch (e) { console.warn('[createOrderV2] 纯金豆分佣失败(不影响下单)', e) }
+        } catch (e) { console.warn('[createOrderV2] 纯情绪豆分佣预算失败(不影响下单):', e) }
+
+        // 快速路径：客户端直写分佣（受 RLS 限制会失败，无害）
+        try { await distributeCommissionDirect(order.id, user.id) }
+        catch (e) { console.warn('[createOrderV2] 客户端直写分佣失败，转服务端兜底:', e) }
+
+        // 兜底主路径：服务端 distribute-commission（service_role 绕过 RLS，幂等，必发佣+积分+余额）
+        try {
+          await supabase.functions.invoke('distribute-commission', {
+            body: {
+              order_id: order.id,
+              order_no: order.order_no,
+              payer_id: user.id,
+              total_amount: orderTotal,
+              net_amount: 0,
+              referrer_id: directReferrerId ?? null,
+              discount_rate: discountRate,
+            },
+          })
+        } catch (fe) { console.warn('[createOrderV2] 服务端分佣兜底调用失败(不影响下单):', fe) }
       }
     }
     // =========================================================================
@@ -1133,9 +1219,9 @@ export async function createOrderV2(params: {
 
     return {
       order: { id: mainOrder.id, order_no: isMultiStore ? parentOrderNo! : mainOrder.order_no, status: mainOrder.status, parent_order_no: parentOrderNo },
-      // 金豆1豆=1元（与人民币1:1锚定）：纯金豆应付0，混合=目录价总额-金豆抵扣（均基于回查目录价，防压价）
-      wxpay_amount: params.pay_mode === 'pure_gold' ? 0 : Math.max(0, Math.round((catalogTotal - (params.gold_beans_to_use || 0) * 1) * 10000) / 10000),
-      gold_beans_used: goldBeansUsed,
+      // 情绪豆1豆=1元（与人民币1:1锚定）：纯情绪豆应付0，混合=目录价总额-情绪豆抵扣（均基于回查目录价，防压价）
+      wxpay_amount: params.pay_mode === 'pure_gold' ? 0 : Math.max(0, Math.round((catalogTotal - (params.tb_used || 0) * 1) * 10000) / 10000),
+      tb_used: tbUsed,
       pay_mode: params.pay_mode,
       is_multi_store: isMultiStore}
   } catch (err: any) {
@@ -1162,55 +1248,91 @@ async function distributeCommissionDirect(orderId: string, buyerId: string): Pro
     const l2Commission = Number(order.l2_commission) || 0
     const buyerPoints = Math.round(Number(order.buyer_points) || 0)
 
-    // 3. 推广关系（与前端一致：L1 = 直接推荐人，L2 = 推荐人的推荐人）
+    // 3. 推广关系（与前端/Edge Function 一致：L1 = 直接推荐人，L2 = 推荐人的上级）
     const l1UserId = order.referrer_id || null
     if (!l1UserId && buyerPoints <= 0) {
       await supabase.from('orders').update({ commission_distributed: true }).eq('id', orderId)
       return
     }
     const { data: l1Profile } = l1UserId
-      ? await supabase.from('profiles').select('invited_by, total_consumption').eq('id', l1UserId).single()
+      ? await supabase.from('profiles').select('referrer_id').eq('id', l1UserId).single()
       : { data: null }
-    const l2UserId = l1Profile?.invited_by || null
+    // L2 上级链统一用 profiles.referrer_id（uuid 上级），原 invited_by 是邀请码文本非用户id
+    const l2UserId = (l1Profile as any)?.referrer_id || null
+    // 取近6月滚动指标用于 commissions 历史展示的段位（与 Edge Function 一致）
+    const l1Met = l1UserId ? await fetchCommissionMetrics(l1UserId) : { rolling: 0, active: 1, recruit: 1 }
+    const l2Met = l2UserId ? await fetchCommissionMetrics(l2UserId) : { rolling: 0, active: 1, recruit: 1 }
 
-    // 4. 写入分佣记录 + 更新受益人余额（金额严格采用订单落库 V5 值）
+    // 4. 净额（与 distribute-commission Edge Function 完全一致）：
+    //    通道费(微信0.6%)仅对微信实付(net_amount)计提，从佣金扣除，由用户承担；纯情绪豆订单(net_amount=0)通道费=0。
+    //    佣金额度来自支付页落库的 l1_commission/l2_commission（已按 total_amount 全额口径计算），此处不重算基数。
+    const cashBase = Number(order.total_amount) || 0
+    const isGoldOrder = Number(order.net_amount || 0) <= 0 && cashBase > 0
+    const channelFee = Math.round((Number(order.net_amount) || 0) * PLATFORM_CONFIG.CHANNEL_FEE_RATE * 10000) / 10000
+    const gross = l1Commission + l2Commission
+    const afterChannel = Math.max(0, gross - channelFee)
+    const taxWithheld = calcWithholdingTax(afterChannel)
+    // 按各行佣金占比分摊通道费/个税 → 净到手（与 Edge Function allocCommission 同公式）
+    const netOf = (rowGross: number): number => {
+      if (gross <= 0) return 0
+      const net = rowGross - channelFee * (rowGross / gross) - taxWithheld * (rowGross / gross)
+      return Math.round(net * 100) / 100
+    }
+    const netL1 = netOf(l1Commission)
+    const netL2 = netOf(l2Commission)
+
+    // 写入分佣记录 + 更新受益人余额。
+    // commission_amount = 名义毛佣（展示/对账，与 Edge Function 一致）；net_amount = 实际净到手；余额记净额。
     const commissions = []
     if (l1Commission > 0 && l1UserId) {
+      const cf = gross > 0 ? Math.round(channelFee * (l1Commission / gross) * 100) / 100 : 0
+      const tx = gross > 0 ? Math.round(taxWithheld * (l1Commission / gross) * 100) / 100 : 0
       commissions.push({
         order_id: orderId, order_no: order.order_no,
         beneficiary_id: l1UserId, payer_id: buyerId,
         level: 1,
-        rank_at_time: calcRankName(l1Profile?.total_consumption || 0),
+        rank_at_time: calcRankNameFromRolling(l1Met.rolling),
         ratio: total > 0 ? Math.round((l1Commission / total) * 10000) / 10000 : 0,
         pool_amount: total, commission_amount: l1Commission,
+        channel_fee: cf, tax_withheld: tx, net_amount: netL1,
         b_coef: 1.0, status: 'pending' as const})
       const { data: l1Bal } = await supabase.from('profiles')
-        .select('total_commission, settled_commission, commission_balance').eq('id', l1UserId).single()
+        .select('total_commission, tb_balance').eq('id', l1UserId).single()
       if (l1Bal) {
+        const newTb = Math.round((Number(l1Bal.tb_balance || 0) + netL1) * 100) / 100
+        // 累计佣金记净额；实际发放改为「情绪豆」(tb_balance)，与 Edge Function 一致（覆盖原资产隔离铁律）
         await supabase.from('profiles').update({
-          total_commission: Math.round((l1Bal.total_commission + l1Commission) * 100) / 100,
-          settled_commission: Math.round((l1Bal.settled_commission + l1Commission) * 100) / 100,
-          commission_balance: Math.round((Number(l1Bal.commission_balance || 0) + l1Commission) * 100) / 100}).eq('id', l1UserId)
+          total_commission: Math.round((Number(l1Bal.total_commission || 0) + netL1) * 100) / 100,
+          tb_balance: newTb}).eq('id', l1UserId)
+        supabase.from('tongbao_logs').insert({
+          user_id: l1UserId, order_id: orderId, type: 'commission_earn',
+          delta: netL1, balance_after: newTb, remark: `订单${order?.order_no}推广佣金(情绪豆)`,
+        }).then(() => {}).catch(() => {})
       }
     }
     if (l2Commission > 0 && l2UserId) {
-      const { data: l2Profile } = await supabase.from('profiles')
-        .select('total_consumption').eq('id', l2UserId).single()
+      const cf = gross > 0 ? Math.round(channelFee * (l2Commission / gross) * 100) / 100 : 0
+      const tx = gross > 0 ? Math.round(taxWithheld * (l2Commission / gross) * 100) / 100 : 0
       commissions.push({
         order_id: orderId, order_no: order.order_no,
         beneficiary_id: l2UserId, payer_id: buyerId,
         level: 2,
-        rank_at_time: calcRankName(l2Profile?.total_consumption || 0),
+        rank_at_time: calcRankNameFromRolling(l2Met.rolling),
         ratio: total > 0 ? Math.round((l2Commission / total) * 10000) / 10000 : 0,
         pool_amount: total, commission_amount: l2Commission,
+        channel_fee: cf, tax_withheld: tx, net_amount: netL2,
         b_coef: 1.0, status: 'pending' as const})
       const { data: l2Bal } = await supabase.from('profiles')
-        .select('total_commission, settled_commission, commission_balance').eq('id', l2UserId).single()
+        .select('total_commission, tb_balance').eq('id', l2UserId).single()
       if (l2Bal) {
+        const newTb = Math.round((Number(l2Bal.tb_balance || 0) + netL2) * 100) / 100
         await supabase.from('profiles').update({
-          total_commission: Math.round((l2Bal.total_commission + l2Commission) * 100) / 100,
-          settled_commission: Math.round((l2Bal.settled_commission + l2Commission) * 100) / 100,
-          commission_balance: Math.round((Number(l2Bal.commission_balance || 0) + l2Commission) * 100) / 100}).eq('id', l2UserId)
+          total_commission: Math.round((Number(l2Bal.total_commission || 0) + netL2) * 100) / 100,
+          tb_balance: newTb}).eq('id', l2UserId)
+        supabase.from('tongbao_logs').insert({
+          user_id: l2UserId, order_id: orderId, type: 'commission_earn',
+          delta: netL2, balance_after: newTb, remark: `订单${order?.order_no}推广佣金(情绪豆)`,
+        }).then(() => {}).catch(() => {})
       }
     }
 
@@ -1218,7 +1340,7 @@ async function distributeCommissionDirect(orderId: string, buyerId: string): Pro
       await supabase.from('commissions').insert(commissions)
     }
 
-    // 5. 买家获赠金豆：points 按「1元=1积分」等额传入，实发在 addBuyerPoints 内乘 GOLD_BEAN_EARN_RATE 缩放（1:1 体系下即消费回馈比例）
+    // 5. 买家获赠情绪豆：points 按「1元=1积分」等额传入，实发在 addBuyerPoints 内乘 GOLD_BEAN_EARN_RATE 缩放（1:1 体系下即消费回馈比例）
     await addBuyerPoints(buyerId, orderId, buyerPoints > 0 ? buyerPoints : Math.round(total))
 
     // 6. 标记订单已分佣
@@ -1228,33 +1350,82 @@ async function distributeCommissionDirect(orderId: string, buyerId: string): Pro
   }
 }
 
-/** 根据个人累计消费计算 V5 段位名（用于 commissions 历史展示） */
-function calcRankName(consumption: number): string {
-  const score = calculateDynamicScore(consumption)
+/**
+ * 取受益人近6月滚动指标（与 distribute-commission Edge Function 完全一致）：
+ * - rolling：本人近 6 月有效成交订单的现金基数（现金取 net_amount，纯情绪豆取 total_amount）之和
+ * - active：活跃系数（近 30 天 / 30~60 天推荐成交分布）
+ * - recruit：拓新衰减系数（距上次拓新天数）
+ * 失败降级：读 profiles.total_consumption（终身）作为滚动近似、系数不设衰减（保证不出错）。
+ */
+async function fetchCommissionMetrics(userId: string): Promise<{ rolling: number; active: number; recruit: number }> {
+  try {
+    const since6 = new Date(Date.now() - 180 * 86400000).toISOString()
+    const { data: cons } = await supabase.from('orders')
+      .select('total_amount, status')
+      .eq('user_id', userId).gte('created_at', since6)
+      .in('status', ['completed', 'pending_ship', 'pending_receive', 'pending_review', 'pending_pickup'])
+    let rolling = 0
+    for (const o of (cons as any[]) ?? []) {
+      rolling += Number((o as any).total_amount) || 0
+    }
+    rolling = Math.round(rolling * 100) / 100
+
+    const since60 = new Date(Date.now() - 60 * 86400000).toISOString()
+    const { data: ref } = await supabase.from('orders')
+      .select('created_at').eq('referrer_id', userId).gte('created_at', since60)
+      .in('status', ['completed', 'pending_ship', 'pending_receive', 'pending_review', 'pending_pickup'])
+    let r30 = 0, r3060 = 0
+    const now = Date.now()
+    for (const o of (ref as any[]) ?? []) {
+      const d = (now - new Date((o as any).created_at).getTime()) / 86400000
+      if (d <= 30) r30++
+      else if (d <= 60) r3060++
+    }
+    const active = getActiveMultiplier(r30, r3060)
+
+    const { data: rec } = await supabase.from('profiles')
+      .select('created_at').eq('referrer_id', userId).order('created_at', { ascending: false }).limit(1)
+    let daysSince: number | null = null
+    if ((rec as any[])?.length) {
+      daysSince = (now - new Date((rec as any[])[0].created_at).getTime()) / 86400000
+    }
+    const recruit = getRecruitMultiplier(daysSince)
+
+    return { rolling, active, recruit }
+  } catch (e) {
+    console.warn('[fetchCommissionMetrics] 失败降级为终身消费/无衰减:', e)
+    const { data: p } = await supabase.from('profiles').select('total_consumption').eq('id', userId).maybeSingle()
+    return { rolling: (p as any)?.total_consumption ?? 0, active: 1, recruit: 1 }
+  }
+}
+
+/** 根据近6月滚动消费计算 V5 段位名（用于 commissions 历史展示，与 Edge Function 一致） */
+function calcRankNameFromRolling(rollingConsumption: number): string {
+  const score = calculateDynamicScore(rollingConsumption)
   const sorted = [...RANK_CONFIG_TABLE_V5].sort((a, b) => a.minDynamicScore - b.minDynamicScore)
   let matched = sorted[0]
   for (const r of sorted) { if (score >= r.minDynamicScore) matched = r }
   return matched.rank
 }
 
-/** 买家获赠金豆：消费获赠金豆写入 balance（1元=1积分，通用抵扣币，不可提现/兑现金） */
+/** 买家获赠情绪豆（忠诚度返利）：消费获赠情绪豆写入 tb_balance（1元=1豆，与人民币1:1锚定，平台内消费币，不可提现/兑现金） */
 async function addBuyerPoints(buyerId: string, orderId: string, points: number): Promise<void> {
-  // 1:1 体系下 points 由上游按「1元消费=1积分」等额传入；此处乘 GOLD_BEAN_EARN_RATE 缩放为实发金豆，
-  // 避免消费全额 100% 返现。GOLD_BEAN_EARN_RATE=0.05 → 消费1元实发0.05金豆=可抵0.05元（5%回馈）；设为1即全额返现。
+  // 1:1 体系下 points 由上游按「1元消费=1积分」等额传入；此处乘 GOLD_BEAN_EARN_RATE 缩放为实发情绪豆，
+  // 避免消费全额 100% 返现。GOLD_BEAN_EARN_RATE=0.05 → 消费1元实发0.05情绪豆=可抵0.05元（5%回馈）；设为1即全额返现。
   const pts = Math.max(0, Math.round(points * GOLD_BEAN_EARN_RATE))
   if (pts <= 0) return
   const { data: profile } = await supabase.from('profiles')
-    .select('balance').eq('id', buyerId).single()
+    .select('tb_balance').eq('id', buyerId).single()
   if (!profile) return
-  const newBalance = (profile.balance || 0) + pts
-  await supabase.from('profiles').update({ balance: newBalance }).eq('id', buyerId)
-  supabase.from('gold_bean_logs').insert({
+  const newBalance = (profile.tb_balance || 0) + pts
+  await supabase.from('profiles').update({ tb_balance: newBalance }).eq('id', buyerId)
+  supabase.from('tongbao_logs').insert({
     user_id: buyerId,
     order_id: orderId,
-    type: 'purchase_earn' as any,
+    type: 'purchase_earn',
     delta: pts,
     balance_after: newBalance,
-    remark: `订单消费获赠金豆`}).then(() => {}).catch(() => {})
+    remark: `订单消费获赠情绪豆`}).then(() => {}).catch(() => {})
 }
 
 /** V2 会员权益版：每单发放 情绪豆（TB）与 会员贡献值（CV）。防亏损权重版：TB 受净毛利封顶、成长回馈取自净毛利池 */
@@ -1263,8 +1434,8 @@ export const EMOTION_TB_PER_CLAIM = 10
 export const EMOTION_CV_RATE = 0.12
 /** 平台毛利率估算（下行兼容占位，防亏损版改用净毛利 net_margin_total） */
 export const PLATFORM_GROSS_MARGIN = 0.15
-// 金豆下发比率：1:1 体系下「消费1元=1积分」等额传入，此处按比例缩放为实发金豆，避免消费全额 100% 返现。
-export const GOLD_BEAN_EARN_RATE = 0.05  // 消费回馈比例（5%）：消费1元实发0.05金豆=可抵0.05元；设为 1 = 恢复全额返现
+// 情绪豆下发比率：1:1 体系下「消费1元=1积分」等额传入，此处按比例缩放为实发情绪豆，避免消费全额 100% 返现。
+export const GOLD_BEAN_EARN_RATE = 0.05  // 消费回馈比例（5%）：消费1元实发0.05情绪豆=可抵0.05元；设为 1 = 恢复全额返现
 
 // ===== 防亏损权重配置（硬约束：R_TB + R_DIV ≤ 0.5，平台永远留 ≥50% 净利） =====
 const R_TB = 0.15                  // 单笔 TB 负债上限 = 该笔净毛利 × 15%
@@ -1360,7 +1531,7 @@ function resolveBadge(emotions: string[]): { code: string; name: string; icon: s
  * 入口：支付成功自动发放（payment/index.tsx → autoClaimAfterPay → grantEmotionClaim），
  *       订单中心「去确权」按钮已于 2026-07 移除，分享卡仍可由 emotion-claim 页承接。发放逻辑：
  *  - 净毛利 = orders.platform_income（缺则 total_amount × 毛利率 估算）
- *  - 情绪豆 TB = min(EMOTION_TB_PER_CLAIM, 净毛利 × R_TB)；净毛利 ≤ 0 时才只发徽章(零负债)；其余按实赚比例发放（金豆/小额单不再被误杀）
+ *  - 情绪豆 TB = min(EMOTION_TB_PER_CLAIM, 净毛利 × R_TB)；净毛利 ≤ 0 时才只发徽章(零负债)；其余按实赚比例发放（情绪豆/小额单不再被误杀）
  *  - 会员贡献值 CV = TB × EMOTION_CV_RATE × 权重（权重 = 经济贡献 × 行为，仅放大贡献值、不增负债）
  *  - 裂变附加分：本人 CV 的 R_FISS_L1/R_FISS_L2 给二级推荐人（退款时同步回滚）
  *  - 情绪徽章按所选首个情绪映射
@@ -1497,7 +1668,7 @@ export async function grantEmotionClaim(payload: {
       ord.verified_at != null ||
       // 放宽闸门：支付成功后(pending_ship/pending_receive)即视为可确权，
       // 支持「下单即默认确权」流程（堂食支付即 pending_review 本就在列）。
-      ['paid', 'completed', 'used', 'pending_review', 'pending_ship', 'pending_receive'].includes(ord.status)
+      ['completed', 'pending_ship', 'pending_receive', 'pending_review', 'pending_pickup'].includes(ord.status)
     )
     if (!owned || !verified) {
       console.warn('[grantEmotionClaim] 订单校验未通过(非本人或未核销)，拒绝确权', { orderNo: payload.orderNo })
@@ -1519,7 +1690,7 @@ export async function grantEmotionClaim(payload: {
 
     const badge = resolveBadge(payload.selectedEmotion)
     // 仅当净毛利 ≤ 0（订单对平台毫无价值）才只发徽章、零负债。
-    // 不再用 M_MIN 硬门槛跳过小额真实订单（金豆单 platform_income≈3.27、微信小额单 fallback≈5.9 曾被误杀）。
+    // 不再用 M_MIN 硬门槛跳过小额真实订单（情绪豆单 platform_income≈3.27、微信小额单 fallback≈5.9 曾被误杀）。
     // 防亏损由下方 tb = min(上限, netMargin×R_TB) 兜底：TB 永不超过本笔平台实赚。
     const skipped = netMargin <= 0
 
@@ -2014,7 +2185,7 @@ export async function syncMemberRank(userId: string): Promise<string | null> {
       totalConsumption: (profile as any).total_consumption || 0,
       badgeCount: stats.count,
       rareBadgeCount: stats.rareCount})
-    const current = (profile as any).member_rank || '江湖散修'
+    const current = (profile as any).member_rank || '凡心'
     if (next !== current) {
       await supabase.from('profiles').update({ member_rank: next }).eq('id', userId)
       // 段位跃迁写事件表：支撑阶段间时间窗口 + 段位态马尔可夫（非阻断）
@@ -2068,6 +2239,14 @@ export async function getMyCommissions(page = 0, limit = 20): Promise<import('./
   return Array.isArray(data) ? data : []
 }
 
+/** 获取我的情绪豆流水（收益+支出） */
+export async function getMyTongbaoLogs(page = 0, limit = 30): Promise<import('./types').TongbaoLog[]> {
+  const { data } = await supabase.from('tongbao_logs')
+    .select('*').order('created_at', { ascending: false })
+    .range(page * limit, (page + 1) * limit - 1)
+  return Array.isArray(data) ? data : []
+}
+
 /** 获取我的退款记录 */
 export async function getMyRefunds(): Promise<import('./types').Refund[]> {
   const { data } = await supabase.from('refunds').select('*').order('created_at', { ascending: false })
@@ -2081,7 +2260,7 @@ export async function getRefundsByOrderId(orderId: string): Promise<import('./ty
 }
 
 /** 提交退款申请（直接 DB 操作，绕过 Edge Function）
- *  退款成功后自动处理：分佣退回、积分退回、金豆退回
+ *  退款成功后自动处理：分佣退回、积分退回、情绪豆退回
  */
 export async function applyRefund(params: {
   order_id: string; order_no: string; item_index: number
@@ -2106,7 +2285,7 @@ export async function applyRefund(params: {
       return { success: false, error: `该订单已申请退款，当前状态：${statusText}` }
     }
 
-    // 获取订单详情（用于分佣/积分/金豆退回 + 校验退款金额）
+    // 获取订单详情（用于分佣/积分/情绪豆退回 + 校验退款金额）
     const { data: order, error: orderErr } = await supabase
       .from('orders').select('*').eq('id', params.order_id).single()
     if (orderErr || !order) {
@@ -2169,62 +2348,65 @@ export async function applyRefund(params: {
         const { data: ben } = await supabase
           .from('profiles').select('total_commission,settled_commission').eq('id', comm.beneficiary_id).single()
         if (ben) {
+          // commissions 表无 net_amount 列，commission_amount 为名义毛佣；此处按 commission_amount 回滚（与原逻辑一致）
+          const amt = Number(((comm as any).net_amount ?? (comm as any).commission_amount) || 0)
           await supabase.from('profiles').update({
-            total_commission: Math.max(0, ben.total_commission - comm.commission_amount),
-            settled_commission: Math.max(0, ben.settled_commission - comm.commission_amount)}).eq('id', comm.beneficiary_id)
+            total_commission: Math.max(0, ben.total_commission - amt),
+            settled_commission: Math.max(0, ben.settled_commission - amt)}).eq('id', comm.beneficiary_id)
         }
         await supabase.from('commissions').update({ status: 'refunded' as any }).eq('id', comm.id)
       }
     }
 
-    // ===== ② 金豆回滚（买家获赠金豆随退款扣回；points 已并入 balance）=====
+    // ===== ② 情绪豆回滚（买家获赠情绪豆随退款扣回；buyer_points 即获赠情绪豆）=====
     if (order.buyer_points && order.buyer_points > 0) {
-      const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single()
+      const { data: profile } = await supabase.from('profiles').select('tb_balance').eq('id', user.id).single()
       if (profile) {
-        const newBalance = Math.max(0, (profile.balance || 0) - order.buyer_points)
-        await supabase.from('profiles').update({ balance: newBalance }).eq('id', user.id)
-        supabase.from('gold_bean_logs').insert({
+        const newBalance = Math.max(0, (profile.tb_balance || 0) - order.buyer_points)
+        await supabase.from('profiles').update({ tb_balance: newBalance }).eq('id', user.id)
+        supabase.from('tongbao_logs').insert({
           user_id: user.id, order_id: order.id ?? null,
-          type: 'refund_deduct' as any,
+          type: 'refund_deduct',
           delta: -order.buyer_points, balance_after: newBalance,
-          remark: `订单${order.order_no ?? ''}退款，扣回获赠金豆`}).then(() => {}).catch(() => {})
+          remark: `订单${order.order_no ?? ''}退款，扣回获赠情绪豆`}).then(() => {}).catch(() => {})
       }
     }
 
-    // ===== ③ 金豆退回（退回到用户账户，仅消费侧）=====
-    if (order.gold_beans_used && order.gold_beans_used > 0) {
-      const { data: profile } = await supabase.from('profiles').select('balance').eq('id', user.id).single()
+    // ===== ③ 情绪豆退回（退回到用户账户，仅消费侧）=====
+    if (order.tb_used && order.tb_used > 0) {
+      const { data: profile } = await supabase.from('profiles').select('tb_balance').eq('id', user.id).single()
       if (profile) {
-        await supabase.from('profiles').update({ balance: profile.balance + order.gold_beans_used }).eq('id', user.id)
-        // 非阻塞写金豆流水（退款返还）；表缺失(404)也不影响主流程
-        supabase.from('gold_bean_logs').insert({
+        await supabase.from('profiles').update({ tb_balance: profile.tb_balance + order.tb_used }).eq('id', user.id)
+        // 非阻塞写情绪豆流水（退款返还）；表缺失(404)也不影响主流程
+        supabase.from('tongbao_logs').insert({
           user_id: user.id,
           order_id: order.id ?? null,
           type: 'refund_return',
-          delta: order.gold_beans_used,
-          balance_after: (profile.balance ?? 0) + order.gold_beans_used,
-          remark: `订单${order.order_no ?? ''}退款返还金豆`}).then(() => {}).catch((e: any) => {
+          delta: order.tb_used,
+          balance_after: (profile.tb_balance ?? 0) + order.tb_used,
+          remark: `订单${order.order_no ?? ''}退款返还情绪豆`}).then(() => {}).catch((e: any) => {
           if (e?.code === '42P01' || (e as any)?.status === 404) {
-            console.warn('[gold_bean_logs] 表不存在(00076未执行)，流水暂不记录')
+            console.warn('[tongbao_logs] 表不存在(00096未执行)，流水暂不记录')
           }
         })
       }
     }
 
-    // ===== ③b 佣金回滚（防止已退款订单仍产生可提现佣金 = 资损）=====
-    // 该订单产生的推广佣金从对应受益人的「推广佣金账户 + 累计佣金」中扣回。
+    // ===== ③b 佣金回滚（防止已退款订单仍产生可用佣金 = 资损）=====
+    // 该订单产生的推广佣金从对应受益人的「情绪豆钱包 + 累计佣金」中扣回（佣金已改发情绪豆，见 2026-07-19 决策）。
     try {
       const { data: comms } = await supabase.from('commissions')
-        .select('beneficiary_id, commission_amount').eq('order_id', params.order_id)
+        .select('beneficiary_id, commission_amount, net_amount').eq('order_id', params.order_id)
       if (comms && comms.length > 0) {
         for (const c of comms) {
-          const amt = Number(c.commission_amount || 0)
+          // commissions 表优先用 net_amount（实际到手情绪豆），无则回退 commission_amount
+          const amt = Number(((c as any).net_amount ?? (c as any).commission_amount) || 0)
           if (amt <= 0 || !c.beneficiary_id) continue
           const { data: bProf } = await supabase.from('profiles')
-            .select('commission_balance, total_commission').eq('id', c.beneficiary_id).maybeSingle()
+            .select('tb_balance, total_commission').eq('id', c.beneficiary_id).maybeSingle()
           if (bProf) {
             await supabase.from('profiles').update({
-              commission_balance: Math.max(0, Math.round((Number(bProf.commission_balance || 0) - amt) * 100) / 100),
+              tb_balance: Math.max(0, Math.round((Number(bProf.tb_balance || 0) - amt) * 100) / 100),
               total_commission: Math.max(0, Math.round((Number(bProf.total_commission || 0) - amt) * 100) / 100)}).eq('id', c.beneficiary_id)
           }
           // 同步将该笔佣金标记为已退回，避免重复对账
@@ -2269,16 +2451,78 @@ export async function getMyPointsLogs(page = 0, limit = 20): Promise<import('./t
 }
 
 /** 获取用户余额 & 推广佣金账户余额。
- *  注意：gold_beans 字段已废弃，消费积分/金豆统一使用 balance。函数仍返回 gold_beans 仅作兼容，新代码请读取 balance。 */
-export async function getMyBalance(): Promise<{ points: number; balance: number; gold_beans: number; commission_balance: number }> {
+ *  注意：情绪豆已合并为情绪豆，统一平台内部货币 = tb_balance（人民币1:1锚定，仅平台内消费，不可提现/兑现金）。
+ *        历史遗留 gold_beans 已并入佣金，balance 已并入 tb_balance，均不再作为消费币。 */
+export async function getMyBalance(): Promise<{ points: number; tb_balance: number; commission_balance: number }> {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { points: 0, balance: 0, gold_beans: 0, commission_balance: 0 }
-  const { data } = await supabase.from('profiles').select('points, balance, gold_beans, commission_balance').eq('id', user.id).maybeSingle()
+  if (!user) return { points: 0, tb_balance: 0, commission_balance: 0 }
+  const { data } = await supabase.from('profiles').select('points, tb_balance, commission_balance').eq('id', user.id).maybeSingle()
   return {
     points: data?.points ?? 0,
-    balance: data?.balance ?? 0,
-    gold_beans: data?.gold_beans ?? 0,
+    tb_balance: data?.tb_balance ?? 0,
     commission_balance: data?.commission_balance ?? 0}
+}
+
+// =====================
+// 商家货款结算（迁移 00120）
+// =====================
+
+/** 读取门店货款结算概览（可结算余额 / 累计已结算 / 笔数 / 子商户号）
+ *  走 SECURITY DEFINER RPC 绕过 stores RLS，anon 可读。 */
+export async function getMerchantSettlement(storeId: string): Promise<{
+  ok: boolean; merchant_balance: number; settlement_frozen: number; total_settled: number; settlement_count: number; wx_sub_mch_id: string | null
+} | null> {
+  if (!storeId) return null
+  const { data, error } = await supabase.rpc('fn_get_store_settlement', { p_store_id: storeId })
+  if (error) { console.error('[getMerchantSettlement]', error); return null }
+  const d = (data as any) || {}
+  return {
+    ok: !!d.ok,
+    merchant_balance: Number(d.merchant_balance ?? 0),
+    settlement_frozen: Number(d.settlement_frozen ?? 0),
+    total_settled: Number(d.total_settled ?? 0),
+    settlement_count: Number(d.settlement_count ?? 0),
+    wx_sub_mch_id: d.wx_sub_mch_id ?? null,
+  }
+}
+
+/** 商家货款结算台账列表（按门店） */
+export async function getMerchantSettlements(storeId: string, page = 0, limit = 20): Promise<any[]> {
+  if (!storeId) return []
+  const { data, error } = await supabase
+    .from('merchant_settlements')
+    .select('*')
+    .eq('store_id', storeId)
+    .order('created_at', { ascending: false })
+    .range(page * limit, (page + 1) * limit - 1)
+  if (error) { console.error('[getMerchantSettlements]', error); return [] }
+  return data ?? []
+}
+
+/** 商家货款提现申请（原子 RPC：校验余额 + 扣减 + 写 withdrawals(kind='settlement')） */
+export async function applyMerchantWithdrawal(params: {
+  store_id: string
+  amount: number
+  method: 'wechat' | 'alipay' | 'bank'
+  account_info?: Record<string, unknown>
+}): Promise<{ ok: boolean; withdrawal_id?: string; amount?: number; error?: string }> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '未登录' }
+  const amt = Number(params.amount) || 0
+  if (!amt || amt <= 0) return { ok: false, error: '提现金额无效' }
+  if (!params.store_id) return { ok: false, error: '缺少门店' }
+
+  const { data, error } = await supabase.rpc('fn_merchant_withdraw', {
+    p_store_id: params.store_id,
+    p_user_id: user.id,
+    p_amount: amt,
+    p_method: params.method,
+    p_account: params.account_info ?? null,
+  })
+  if (error) { console.error('[applyMerchantWithdrawal]', error); return { ok: false, error: error.message } }
+  const d = (data as any) || {}
+  if (!d.ok) return { ok: false, error: d.error || '提现失败' }
+  return { ok: true, withdrawal_id: d.withdrawal_id, amount: d.amount }
 }
 
 /** 生成小程序二维码（推广码 or 门店码） */
@@ -2342,6 +2586,7 @@ export async function updateStore(storeId: string, params: Partial<{
   free_delivery_threshold: number | string; min_order_amount: number | string
   announcement: string; contact: string; scene_tags: string[]
   referral_rate: number | string
+  referral_rate_enabled: boolean
 }>): Promise<boolean> {
   // 清理字段类型：Input 返回 string，DB 要 numeric/boolean
   // 注意：image_url/banner_url 为 null 时也需要传（用于清空旧值）
@@ -2551,16 +2796,36 @@ export async function deleteProduct(id: string): Promise<boolean> {
 export async function lockCustomerByArticle(storeId: string, inviterCode: string): Promise<void> {
   try {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !storeId || !inviterCode) return
+    if (!user || !storeId) return
 
-    // 检查是否已归属
+    // 1) 文章分享带推广码 → 同步绑定推广链（先到先得，已绑则跳过）
+    //    规则：全部分佣「谁先锁客谁先拿」——门店锁客只做业绩归因、不参与分佣；
+    //    此步确保「先锁客的推广员」拿到佣金，不被门店锁客挤掉。
+    if (inviterCode) {
+      try {
+        const code = String(inviterCode).trim()
+        const { data: referrer } = await supabase
+          .from('profiles')
+          .select('id')
+          .or(`invite_code.eq.${code},referral_code.eq.${code}`)
+          .maybeSingle()
+        if (referrer && referrer.id !== user.id) {
+          await supabase
+            .from('profiles')
+            .update({ referrer_id: referrer.id })
+            .eq('id', user.id)
+            .is('referrer_id', null)
+        }
+      } catch (e) { console.warn('[文章归因] 推广绑定失败(不影响)', e) }
+    }
+
+    // 2) 门店归属（业绩归因，不参与分佣）
     const { data: exist } = await supabase
       .from('user_store_relation')
       .select('id')
       .eq('user_id', user.id)
       .eq('store_id', storeId)
       .maybeSingle()
-
     if (exist) return  // 已归属，不重复插入
 
     // 插入归属关系
@@ -2573,6 +2838,52 @@ export async function lockCustomerByArticle(storeId: string, inviterCode: string
     console.log(`[文章归属] user=${user.id} locked to store=${storeId}`)
   } catch (e) {
     console.warn('[文章归属] 失败(不影响)', e)
+  }
+}
+
+// 强引导门店自推码：客户进入门店域（门店主页/商品详情）时，
+// 若尚未绑定推广链（referrer_id 为空），自动用门店 owner 的推广码绑定，
+// 使门店让利产生的佣金回流门店自身（门店 = 卖家 + 推广员，自己让利自己挣）。
+// 已绑定则跳过（先绑先得，保护既有推广员权益，不二次覆盖）。
+export async function bindStoreReferrer(storeId: string): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user || !storeId) return
+
+    // 已绑则跳过（先绑先得）
+    const { data: me } = await supabase
+      .from('profiles')
+      .select('referrer_id')
+      .eq('id', user.id)
+      .maybeSingle()
+    if ((me as any)?.referrer_id) return
+
+    // 取门店 owner 的推广码
+    const { data: store } = await supabase
+      .from('stores')
+      .select('owner_id')
+      .eq('id', storeId)
+      .maybeSingle()
+    const ownerId = (store as any)?.owner_id
+    if (!ownerId || ownerId === user.id) return
+
+    const { data: owner } = await supabase
+      .from('profiles')
+      .select('referral_code, invite_code')
+      .eq('id', ownerId)
+      .maybeSingle()
+    const code = (owner as any)?.referral_code || (owner as any)?.invite_code
+    if (!code) return
+
+    // 绑定（仅当为空，防二次覆盖）
+    const { error } = await supabase
+      .from('profiles')
+      .update({ referrer_id: ownerId })
+      .eq('id', user.id)
+      .is('referrer_id', null)
+    if (!error) console.log('[bindStoreReferrer] 门店码绑定成功 store=', storeId, 'referrer=', ownerId)
+  } catch (e) {
+    console.warn('[bindStoreReferrer] 失败(不影响)', e)
   }
 }
 
@@ -2706,7 +3017,7 @@ export async function adminDeleteArticle(id: string): Promise<boolean> {
 // 因此必须按「关联订单的 store_id」过滤，否则商家永远查不到订单。
 export async function getMerchantOrders(storeId: string, page = 0, limit = 20): Promise<any[]> {
   const { data } = await supabase.from('order_items')
-    .select('*, orders(id,order_no,status,total_amount,created_at,payment_method)')
+    .select('*, orders(id,order_no,status,total_amount,created_at,payment_method, merchant_settlements(settle_amount, discount_pool))')
     .eq('orders.store_id', storeId).order('created_at', { ascending: false })
     .range(page * limit, (page + 1) * limit - 1)
   return data ?? []
@@ -2729,6 +3040,18 @@ export async function merchantVerifyPickup(orderId: string): Promise<boolean> {
     status: 'pending_review',
     verified_at: new Date().toISOString()}).eq('id', orderId)
   if (error) { console.error('[merchantVerifyPickup]', error); return false }
+  return true
+}
+
+// 商家确认完成订单：触发 trg_orders_settle 自动结算货款到 stores.merchant_balance
+// 适用状态：pending_receive(已发货待收货) / pending_pickup(待核销) / pending_review(待评价)
+// —— 让商家成为完成的最终确认方，不等买家评价（契合水果店到店/自提场景）
+export async function merchantCompleteOrder(orderId: string): Promise<boolean> {
+  const { error } = await supabase.from('orders').update({
+    status: 'completed',
+    paid_at: new Date().toISOString(),
+  }).eq('id', orderId)
+  if (error) { console.error('[merchantCompleteOrder]', error); return false }
   return true
 }
 
@@ -2784,6 +3107,61 @@ export async function getMyWithdrawals(page = 0, limit = 20): Promise<import('./
     .order('created_at', { ascending: false }).range(page * limit, (page + 1) * limit - 1)
   return (data ?? []) as import('./types').Withdrawal[]
 }
+
+// =====================
+// 已保存收款账户（迁移 00123）：绑定一次，免二次填写
+// =====================
+export async function getWithdrawalAccounts(
+  ownerId: string,
+  ownerType: 'user' | 'store',
+): Promise<import('./types').SavedWithdrawalAccount[]> {
+  if (!ownerId) return []
+  const { data, error } = await supabase.rpc('fn_get_withdrawal_accounts', {
+    p_owner_id: ownerId,
+    p_owner_type: ownerType,
+  })
+  if (error) { console.error('[getWithdrawalAccounts]', error); return [] }
+  const d = (data as any) || {}
+  if (!d.ok) return []
+  return (d.accounts ?? []) as import('./types').SavedWithdrawalAccount[]
+}
+
+export async function saveWithdrawalAccount(params: {
+  ownerId: string
+  ownerType: 'user' | 'store'
+  method: import('./types').WithdrawMethod
+  realName?: string
+  idCard?: string
+  bankName?: string
+  bankAccount?: string
+  bankHolder?: string
+  alipayAccount?: string
+  makeDefault?: boolean
+}): Promise<boolean> {
+  if (!params.ownerId) return false
+  const { error } = await supabase.rpc('fn_save_withdrawal_account', {
+    p_owner_id: params.ownerId,
+    p_owner_type: params.ownerType,
+    p_method: params.method,
+    p_real_name: params.realName ?? null,
+    p_id_card: params.idCard ?? null,
+    p_bank_name: params.bankName ?? null,
+    p_bank_account: params.bankAccount ?? null,
+    p_bank_holder: params.bankHolder ?? null,
+    p_alipay_account: params.alipayAccount ?? null,
+    p_make_default: params.makeDefault ?? true,
+  })
+  if (error) { console.error('[saveWithdrawalAccount]', error); return false }
+  return true
+}
+
+export async function deleteWithdrawalAccount(id: string): Promise<boolean> {
+  if (!id) return false
+  const { error } = await supabase.rpc('fn_delete_withdrawal_account', { p_id: id })
+  if (error) { console.error('[deleteWithdrawalAccount]', error); return false }
+  return true
+}
+
 
 // =====================
 // 收货地址

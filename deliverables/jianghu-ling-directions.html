@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>江湖令 · 视觉方向对比</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#0e0e10;color:#e8e3da;padding:28px 16px 48px}
+  h1{text-align:center;font-size:19px;font-weight:600;letter-spacing:2px;color:#e8c87a;margin-bottom:6px}
+  .sub{text-align:center;font-size:13px;color:#8a857c;margin-bottom:30px}
+  .compare{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .dir{width:228px}
+  .dir h2{font-size:15px;font-weight:600;text-align:center;margin-bottom:4px}
+  .dir .tag{font-size:11px;text-align:center;color:#9a948a;margin-bottom:14px;line-height:1.5;min-height:32px}
+  /* phone shell */
+  .phone{width:228px;height:470px;border-radius:30px;padding:10px;position:relative;box-shadow:0 14px 40px rgba(0,0,0,.45)}
+  .screen{width:100%;height:100%;border-radius:22px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+  .statusbar{display:flex;justify-content:space-between;font-size:10px;padding:6px 12px 2px;opacity:.7}
+  .hd{display:flex;align-items:center;gap:8px;padding:10px 14px}
+  .seal{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+  .hdtitle{font-size:15px;font-weight:600;letter-spacing:1px}
+  .asset{margin:8px 12px;padding:12px 14px;border-radius:14px}
+  .asset .lbl{font-size:10px;opacity:.7}
+  .asset .num{font-size:26px;font-weight:700;letter-spacing:1px;margin-top:2px}
+  .asset .unit{font-size:11px;opacity:.65;margin-left:4px}
+  .sec{font-size:11px;padding:4px 14px;opacity:.6;letter-spacing:1px}
+  .card{margin:6px 12px;padding:10px;border-radius:12px;display:flex;gap:8px;align-items:center}
+  .thumb{width:38px;height:38px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px}
+  .cname{font-size:12px;font-weight:500}
+  .cprice{font-size:13px;font-weight:700;margin-top:2px}
+  .ctag{font-size:9px;padding:1px 6px;border-radius:6px;display:inline-block;margin-top:3px}
+  .tabbar{margin-top:auto;display:flex;border-top:1px solid}
+  .tab{flex:1;text-align:center;padding:8px 0;font-size:9px}
+  .tab .ic{font-size:15px;display:block;margin-bottom:1px}
+  .swatches{display:flex;gap:5px;justify-content:center;margin-top:14px}
+  .sw{width:30px;height:30px;border-radius:7px;border:1px solid rgba(255,255,255,.12)}
+
+  /* ===== 方向 A：墨韵留白 ===== */
+  .A .phone{background:#3a342b}
+  .A .screen{background:#F4EFE3}
+  .A .statusbar{color:#2b2b2b}
+  .A .hd{color:#2b2b2b}
+  .A .seal{background:#C0392B;color:#fff}
+  .A .hdtitle{font-family:"STKaiti","KaiTi",serif}
+  .A .asset{background:#fff;border:1px solid #d8d0c0}
+  .A .asset .lbl{color:#6b6256}
+  .A .asset .num{color:#C0392B}
+  .A .sec{color:#8a8070}
+  .A .card{background:#fffdf8;border:1px solid #e3dccd}
+  .A .thumb{background:#efe9db;color:#C0392B}
+  .A .cname{color:#2b2b2b}
+  .A .cprice{color:#C0392B}
+  .A .ctag{background:#f0e9da;color:#8a7d5e}
+  .A .tabbar{background:#fbf7ee;border-color:#e3dccd}
+  .A .tab{color:#b3a890}
+  .A .tab.on{color:#C0392B}
+
+  /* ===== 方向 B：玄漆鎏金 ===== */
+  .B .phone{background:#000}
+  .B .screen{background:radial-gradient(circle at 50% 0%,#241d14,#14110E 70%)}
+  .B .statusbar{color:#e8c87a}
+  .B .hd{color:#e8c87a}
+  .B .seal{background:linear-gradient(135deg,#C0392B,#8E2A20);color:#fff}
+  .B .hdtitle{font-family:"STKaiti","KaiTi",serif}
+  .B .asset{background:#1F1A15;border:1px solid rgba(212,175,55,.35)}
+  .B .asset .lbl{color:#9a8f78}
+  .B .asset .num{color:#E8C87A;text-shadow:0 0 12px rgba(212,175,55,.4)}
+  .B .sec{color:#8a8068}
+  .B .card{background:#1C1813;border:1px solid rgba(212,175,55,.18)}
+  .B .thumb{background:#2a241b;color:#E8C87A}
+  .B .cname{color:#e8e3da}
+  .B .cprice{color:#E8C87A}
+  .B .ctag{background:rgba(212,175,55,.12);color:#c9a94e}
+  .B .tabbar{background:#100d0a;border-color:rgba(212,175,55,.15)}
+  .B .tab{color:#7a7263}
+  .B .tab.on{color:#E8C87A}
+
+  /* ===== 方向 C：朱砂卷轴 ===== */
+  .C .phone{background:#7a4a3a}
+  .C .screen{background:#E8DFD0}
+  .C .statusbar{color:#5a3a2a}
+  .C .hd{background:#C0392B;color:#fff;border-radius:0}
+  .C .seal{background:#fff;color:#C0392B}
+  .C .hdtitle{font-family:"STKaiti","KaiTi",serif}
+  .C .asset{background:#C0392B;color:#fff}
+  .C .asset .lbl{color:rgba(255,255,255,.8)}
+  .C .asset .num{color:#fff}
+  .C .sec{color:#8a6a52}
+  .C .card{background:#f3ecdf;border:1px solid #d8c4ac}
+  .C .thumb{background:#e6d8c2;color:#C0392B}
+  .C .cname{color:#3a2a1f}
+  .C .cprice{color:#C0392B}
+  .C .ctag{background:#f0e2d2;color:#a06a4a}
+  .C .tabbar{background:#ded2bd;border-color:#cdb89c}
+  .C .tab{color:#a08a6a}
+  .C .tab.on{color:#C0392B}
+
+  .pick{margin-top:18px;text-align:center;font-size:13px;color:#e8c87a}
+</style>
+</head>
+<body>
+  <h1>江 湖 令 · 视 觉 方 向 对 比</h1>
+  <div class="sub">三个全新方向（均避开：浅底生鲜感 / 堆装饰乱 / 绿调暗底）· 点选你最对味的一个</div>
+
+  <div class="compare">
+
+    <!-- 方向 A -->
+    <div class="dir A">
+      <h2>甲 · 墨韵留白</h2>
+      <div class="tag">素雅古籍风<br/>极致留白 + 单一朱砂焦点</div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>江湖令</span><span>5G ▮</span></div>
+        <div class="hd"><div class="seal">令</div><div class="hdtitle">天机探索</div></div>
+        <div class="asset"><div class="lbl">心境修为值</div><div class="num">10603<span class="unit">修</span></div></div>
+        <div class="sec">秘境据点</div>
+        <div class="card"><div class="thumb">☯</div><div><div class="cname">青灵养元露</div><div class="cprice">¥38</div><span class="ctag">温润</span></div></div>
+        <div class="card"><div class="thumb">♨</div><div><div class="cname">玄参润喉膏</div><div class="cprice">¥52</div><span class="ctag">清润</span></div></div>
+        <div class="tabbar">
+          <div class="tab on"><span class="ic">☰</span>探索</div>
+          <div class="tab"><span class="ic">⚑</span>集市</div>
+          <div class="tab"><span class="ic">❀</span>锦囊</div>
+          <div class="tab"><span class="ic">✦</span>洞府</div>
+        </div>
+      </div></div>
+      <div class="swatches">
+        <div class="sw" style="background:#F4EFE3" title="宣纸底"></div>
+        <div class="sw" style="background:#2b2b2b" title="墨"></div>
+        <div class="sw" style="background:#C0392B" title="朱砂"></div>
+        <div class="sw" style="background:#B8902F" title="金(极克制)"></div>
+        <div class="sw" style="background:#fffdf8" title="卡面"></div>
+      </div>
+    </div>
+
+    <!-- 方向 B -->
+    <div class="dir B">
+      <h2>乙 · 玄漆鎏金</h2>
+      <div class="tag">精致暗色漆器<br/>黑金对比 + 角色面板感</div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>江湖令</span><span>5G ▮</span></div>
+        <div class="hd"><div class="seal">令</div><div class="hdtitle">天机探索</div></div>
+        <div class="asset"><div class="lbl">心境修为值</div><div class="num">10603<span class="unit">修</span></div></div>
+        <div class="sec">秘境据点</div>
+        <div class="card"><div class="thumb">☯</div><div><div class="cname">青灵养元露</div><div class="cprice">¥38</div><span class="ctag">温润</span></div></div>
+        <div class="card"><div class="thumb">♨</div><div><div class="cname">玄参润喉膏</div><div class="cprice">¥52</div><span class="ctag">清润</span></div></div>
+        <div class="tabbar">
+          <div class="tab on"><span class="ic">☰</span>探索</div>
+          <div class="tab"><span class="ic">⚑</span>集市</div>
+          <div class="tab"><span class="ic">❀</span>锦囊</div>
+          <div class="tab"><span class="ic">✦</span>洞府</div>
+        </div>
+      </div></div>
+      <div class="swatches">
+        <div class="sw" style="background:#14110E" title="玄底"></div>
+        <div class="sw" style="background:#1F1A15" title="漆面"></div>
+        <div class="sw" style="background:#E8C87A" title="鎏金"></div>
+        <div class="sw" style="background:#C0392B" title="朱砂"></div>
+        <div class="sw" style="background:#5B8C7B" title="玉青(点缀)"></div>
+      </div>
+    </div>
+
+    <!-- 方向 C -->
+    <div class="dir C">
+      <h2>丙 · 朱砂卷轴</h2>
+      <div class="tag">暖色门派公告<br/>朱砂主导 + 卷轴令牌容器</div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>江湖令</span><span>5G ▮</span></div>
+        <div class="hd"><div class="seal">令</div><div class="hdtitle">天机探索</div></div>
+        <div class="asset"><div class="lbl">心境修为值</div><div class="num">10603<span class="unit">修</span></div></div>
+        <div class="sec">秘境据点</div>
+        <div class="card"><div class="thumb">☯</div><div><div class="cname">青灵养元露</div><div class="cprice">¥38</div><span class="ctag">温润</span></div></div>
+        <div class="card"><div class="thumb">♨</div><div><div class="cname">玄参润喉膏</div><div class="cprice">¥52</div><span class="ctag">清润</span></div></div>
+        <div class="tabbar">
+          <div class="tab on"><span class="ic">☰</span>探索</div>
+          <div class="tab"><span class="ic">⚑</span>集市</div>
+          <div class="tab"><span class="ic">❀</span>锦囊</div>
+          <div class="tab"><span class="ic">✦</span>洞府</div>
+        </div>
+      </div></div>
+      <div class="swatches">
+        <div class="sw" style="background:#E8DFD0" title="卷轴底"></div>
+        <div class="sw" style="background:#C0392B" title="朱砂(主)"></div>
+        <div class="sw" style="background:#2b2b2b" title="墨"></div>
+        <div class="sw" style="background:#B8902F" title="金(铭牌)"></div>
+        <div class="sw" style="background:#f3ecdf" title="卡面"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="pick">回复「甲 / 乙 / 丙」选方向 → 我据此接入 Supabase 真数据做完整原型</div>
+</body>
+</html>

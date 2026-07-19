@@ -1,7 +1,7 @@
 // @title 会员管理（商家端）—— 展示本店真实归属客户名单
 import { useState, useEffect } from 'react'
-import Taro from '@tarojs/taro'
-import { View, Text, Input, Button, Image } from '@tarojs/components'
+
+import { View, Text, Input, Image } from '@tarojs/components'
 import { getMerchantStore } from '@/db/api'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
@@ -22,8 +22,7 @@ const LOCK_TYPE_LABEL: Record<string, string> = {
   scan: '扫码进店',
   share: '分享绑定',
   invite: '邀请绑定',
-  campaign: '红包绑定',
-}
+  campaign: '红包绑定'}
 
 function MerchantMembersPage() {
   const [store, setStore] = useState<Store | null>(null)
@@ -54,8 +53,7 @@ function MerchantMembersPage() {
             phone_last4: r.phone_last4 || '',
             avatar_url: r.avatar_url || '',
             locked_at: r.locked_at,
-            lock_type: r.lock_type || 'first_order',
-          }))
+            lock_type: r.lock_type || 'first_order'}))
           if (!cancelled) setMembers(list)
         }
       } catch (err) {

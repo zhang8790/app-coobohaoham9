@@ -1,6 +1,6 @@
 // @title 隐私政策
-import Taro from '@tarojs/taro'
-import { Text, View, Button } from '@tarojs/components'
+
+import { Text, View } from '@tarojs/components'
 
 function PrivacyPolicy() {
   return (

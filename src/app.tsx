@@ -1,10 +1,8 @@
 /**
  * @file Taro application entry file
  */
-
-import { useEffect } from 'react'
 import { View } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import { useDidShow } from '@tarojs/taro'
 import type { PropsWithChildren } from 'react'
 import { useTabBarPageClass } from '@/hooks/useTabBarPageClass'
 import { useSwipeToHome } from '@/hooks/useSwipeToHome'
@@ -12,6 +10,7 @@ import { useSwipeToHome } from '@/hooks/useSwipeToHome'
 import './app.scss'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { LocationProvider } from '@/contexts/LocationContext'
+import { FoodTherapyProvider } from '@/contexts/FoodTherapyContext'
 import { handleInviterFromQuery } from '@/utils/share'
 import PrivacyModal from '@/components/PrivacyModal'
 
@@ -27,10 +26,12 @@ const App: React.FC = ({ children }: PropsWithChildren<unknown>) => {
   return (
     <AuthProvider>
       <LocationProvider>
-        <View onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-          {children}
-        </View>
-        <PrivacyModal />
+        <FoodTherapyProvider>
+          <View onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+            {children}
+          </View>
+          <PrivacyModal />
+        </FoodTherapyProvider>
       </LocationProvider>
     </AuthProvider>
   )

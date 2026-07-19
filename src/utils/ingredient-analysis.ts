@@ -10,14 +10,27 @@ export const SHIYANG_DISCLAIMER =
   '以上为传统食养文化参考，个体差异较大，不替代专业医疗建议。如身体不适应及时休息，症状持续或加重请及时就医。'
 
 // 商品名称/描述 → 命中的食材 key 列表
-// 最长关键词优先，避免短串被长串包含的误匹配（如已命中「红茶」则忽略「茶」）
+// 双向匹配：① 商品名包含食材全名/别名；② 用户输入的某片段包含候选（支持单字/简称）
+// 如「姜茶」命中生姜、「姜」命中生姜、「番茄」命中番茄
+function candidateTerms(e: IngredientEntry): string[] {
+  return [e.zh, ...(e.aliases || [])].map(s => s.toLowerCase()).filter(Boolean)
+}
+
 export function matchIngredientKeys(text: string): string[] {
   const t = (text || '').toLowerCase()
   if (!t.trim()) return []
+  // 切词：兼容「姜茶」「冰糖雪梨羹」「番茄,土豆」等写法
+  const tokens = t.split(/[\s,，、/()（）\-+]+/).filter(Boolean)
   const hits: { key: string; len: number }[] = []
   for (const [key, e] of Object.entries(INGREDIENT_DICT)) {
-    const zh = e.zh.toLowerCase()
-    if (zh && t.includes(zh)) hits.push({ key, len: zh.length })
+    const cands = candidateTerms(e)
+    if (!cands.length) continue
+    // 正向：商品名包含食材全名/别名
+    const forward = cands.some(c => t.includes(c))
+    // 反向：用户输入片段包含候选（如「姜」包含「姜」）。用 tok.includes(c)
+    // 天然避免「红」误命中「红枣」（「红」不包含「红枣」）
+    const backward = tokens.some(tok => cands.some(c => tok.includes(c)))
+    if (forward || backward) hits.push({ key, len: Math.max(...cands.map(c => c.length)) })
   }
   if (hits.length === 0) return []
   hits.sort((a, b) => b.len - a.len)
@@ -30,6 +43,17 @@ export function matchIngredientKeys(text: string): string[] {
     if (!covered) result.push(h.key)
   }
   return result
+}
+
+// 原料名搜索：编辑页「输入原料名快速添加」入口，按名称/别名模糊匹配
+export function searchIngredients(query: string, limit = 30): string[] {
+  const q = (query || '').trim().toLowerCase()
+  if (!q) return []
+  const result: string[] = []
+  for (const [key, e] of Object.entries(INGREDIENT_DICT)) {
+    if (candidateTerms(e).some(c => c.includes(q) || q.includes(c))) result.push(key)
+  }
+  return result.slice(0, limit)
 }
 
 // 食材 key → 完整条目

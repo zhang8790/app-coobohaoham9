@@ -29,6 +29,7 @@ FUNCS=(
   distribute-commission
   wechat-payment-callback
   wechat-refund-callback
+  force-login
 )
 
 echo "==> 部署 $PROJECT_REF 的 ${#FUNCS[@]} 个云函数"

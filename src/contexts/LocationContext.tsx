@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import Taro from '@tarojs/taro'
-import { getCityList, getUserLocation, matchCityByLocation } from '@/utils/lbs-service'
+import { getUserLocation, matchCityByLocation } from '@/utils/lbs-service'
 import type { City } from '@/db/types'
 
 interface LocationContextValue {
@@ -35,8 +35,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         lng: 121.4737,
         lat: 31.2304,
         status: 'active',
-        created_at: '',
-      } as City)
+        created_at: ''} as City)
     }
   }, [])
 
@@ -59,8 +58,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       Taro.showToast({
         title: `已定位到${city.city_name}`,
         icon: 'success',
-        duration: 1500,
-      })
+        duration: 1500})
     } catch (err: any) {
       console.error('[Location] detectLocation error:', err)
       setError(err.message || '定位失败')
@@ -74,8 +72,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
           lng: 121.4737,
           lat: 31.2304,
           status: 'active',
-          created_at: '',
-        } as City
+          created_at: ''} as City
         setCurrentCity(defaultCity)
         Taro.setStorageSync('currentCity', defaultCity)
       }
@@ -97,8 +94,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       loading,
       error,
       setCity,
-      detectLocation,
-    }}>
+      detectLocation}}>
       {children}
     </LocationContext.Provider>
   )

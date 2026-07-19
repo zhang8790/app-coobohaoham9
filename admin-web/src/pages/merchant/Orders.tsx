@@ -144,6 +144,15 @@ export default function MerchantOrders() {
     if (!error) loadOrders()
   }
 
+  // 商家确认完成订单：触发 trg_orders_settle 自动结算货款到可提现余额
+  const handleComplete = async (order: OrderRow) => {
+    if (!confirm(`确认订单 ${order.orders.order_no} 已完成？（完成后自动结算货款到可提现）`)) return
+    const { error } = await supabase.from('orders').update({
+      status: 'completed', paid_at: new Date().toISOString(),
+    }).eq('id', order.orders.id)
+    if (!error) loadOrders()
+  }
+
   return (
     <div>
       <h2 style={{ color: '#E5E7EB', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>📦 订单管理</h2>
@@ -223,6 +232,14 @@ export default function MerchantOrders() {
                       style={{ padding: '8px 16px', background: '#8B5CF6', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, cursor: 'pointer' }}
                     >
                       核销
+                    </button>
+                  )}
+                  {['pending_receive', 'pending_pickup', 'pending_review'].includes(order.orders.status) && (
+                    <button
+                      onClick={() => handleComplete(order)}
+                      style={{ padding: '8px 16px', background: '#10B981', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, cursor: 'pointer' }}
+                    >
+                      确认完成
                     </button>
                   )}
                 </div>

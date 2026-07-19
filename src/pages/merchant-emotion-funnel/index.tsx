@@ -3,7 +3,7 @@
 // 进入 → 滑到最后一屏(信任闭环) → 点击「立即拥有」。
 // 同时按商品维度排名，帮商家判断哪些商品的「情绪表达」真正带动了购买意向。
 import { useState, useEffect, useMemo } from 'react'
-import Taro from '@tarojs/taro'
+
 import { View, Text } from '@tarojs/components'
 import { supabase } from '@/client/supabase'
 import { getMerchantStore } from '@/db/api'

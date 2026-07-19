@@ -34,6 +34,9 @@ lerna-debug.log*
 *.rest
 *.http
 
+# 本地云函数密钥（含真实密钥，勿入库；仅保留 template）
+supabase/secrets.local.ps1
+
 # 上传沙盒服务的zip
 project.zip
 taro-weapp-template.tar
@@ -51,3 +54,10 @@ history/*.json
 .vite_cache
 /.skills
 /tasks
+
+# 本地二进制/临时/工具产物（勿入库）
+.cli/
+.workbuddy/supabase-bin/
+.workbuddy/tmp/
+oxlint_out.txt
+*.zip

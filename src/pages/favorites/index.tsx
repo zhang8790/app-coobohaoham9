@@ -1,7 +1,7 @@
 // @title 我的收藏
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text, Input, Button } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import { getMyFavorites, toggleFavorite } from '@/db/api'
 import type { Favorite } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'

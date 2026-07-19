@@ -1,25 +1,31 @@
-# 资金安全修复 · 云函数一键部署脚本
-# 用法：在本机（Windows）右键此文件 →「用 PowerShell 运行」
-# 脚本会自动处理：安装 CLI → 登录 → 关联项目 → 部署 4 个云函数
-# 项目 ref 固定为 pyqgsxcjmijtbstwthbn
+﻿# ============================================================
+# 来店有喜 V3 · 全量云函数一键部署脚本
+# 用法：
+#   1) 复制 supabase/secrets.local.template.ps1 -> supabase/secrets.local.ps1，填入真实密钥
+#   2) 本机（Windows）右键此文件 -> [用 PowerShell 运行]
+#
+# 说明：
+#   - Supabase 自动注入 SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY，无需填写
+#   - 部署 supabase/functions/ 下的【全部】函数（幂等 upsert，重复运行安全）
+#   - 缺密钥的函数仍可部署，仅运行时（被调用时）返回 400[配置缺失]，不影响其它函数
+#   - 单个函数部署失败不中断整体，会列出 [失败] 继续下一个
+#   - 若已生成 PAT，运行前先设环境变量避免浏览器登录：
+#       $env:SB_TOKEN = "sbp_xxxxxxx"
+# ============================================================
 
 $ErrorActionPreference = "Stop"
 $PROJECT_REF = "pyqgsxcjmijtbstwthbn"
-# 若你已生成 PAT，可在运行前先设环境变量，避免浏览器登录：
-#   $env:SB_TOKEN = "sbp_xxxxxxx"
-# 不设则脚本会用浏览器 OAuth 登录（会自动弹浏览器授权）
 
 # 切到脚本所在目录（项目根）
 Set-Location $PSScriptRoot
 
-Write-Host "`n[1/5] 检查 supabase CLI ..." -ForegroundColor Cyan
-$hasCli = Get-Command supabase -ErrorAction SilentlyContinue
-if (-not $hasCli) {
+Write-Host "`n[1/6] 检查 supabase CLI ..." -ForegroundColor Cyan
+if (-not (Get-Command supabase -ErrorAction SilentlyContinue)) {
     Write-Host "  未安装，正在 npm 全局安装 supabase CLI ..." -ForegroundColor Yellow
     npm i -g supabase
 }
 
-Write-Host "`n[2/5] 登录 Supabase ..." -ForegroundColor Cyan
+Write-Host "`n[2/6] 登录 Supabase ..." -ForegroundColor Cyan
 if ($env:SB_TOKEN) {
     Write-Host "  使用环境变量 SB_TOKEN 登录 ..." -ForegroundColor Yellow
     supabase login --token $env:SB_TOKEN
@@ -28,18 +34,64 @@ if ($env:SB_TOKEN) {
     supabase login
 }
 
-Write-Host "`n[3/5] 关联项目 ($PROJECT_REF) ..." -ForegroundColor Cyan
+Write-Host "`n[3/6] 关联项目 ($PROJECT_REF) ..." -ForegroundColor Cyan
 supabase link --project-ref $PROJECT_REF
 
-$functions = @("distribute-commission", "create-order", "wechat-payment-callback", "wechat-refund-callback")
-Write-Host "`n[4/5] 依次部署 4 个云函数 ..." -ForegroundColor Cyan
-foreach ($fn in $functions) {
-    Write-Host "  ▶ 部署 $fn ..." -ForegroundColor Green
-    supabase functions deploy $fn
+# 读取本地密钥（不回显，从文件读）
+$secretsFile = Join-Path $PSScriptRoot "supabase/secrets.local.ps1"
+$sec = @{}
+if (Test-Path $secretsFile) {
+    Write-Host "`n[4/6] 读取本地密钥文件 secrets.local.ps1 ..." -ForegroundColor Cyan
+    . $secretsFile
+} else {
+    Write-Host "`n[4/6] 未找到 secrets.local.ps1，将交互询问（留空=跳过该项）..." -ForegroundColor Yellow
 }
 
-Write-Host "`n[5/5] 完成 ✅" -ForegroundColor Green
-Write-Host "部署后请用以下 SQL 验证 commission_balance 是否开始累加：" -ForegroundColor White
-Write-Host "  SELECT id, commission_balance FROM profiles WHERE commission_balance > 0 LIMIT 5;" -ForegroundColor Gray
-Write-Host "  SELECT * FROM commissions ORDER BY created_at DESC LIMIT 5;" -ForegroundColor Gray
+# 交互补全（仅文件里没填的才问）
+function Ask($name, $prompt) {
+    if (-not $sec[$name]) { $sec[$name] = Read-Host -Prompt $prompt }
+}
+Ask "WX_SECRET"                "微信小程序 AppSecret (WX_SECRET)"
+Ask "MERCHANT_APP_ID"         "微信 AppID (MERCHANT_APP_ID)"
+Ask "MERCHANT_ID"             "微信商户号 MERCHANT_ID（留空跳过支付）"
+Ask "MCH_CERT_SERIAL_NO"      "商户证书序列号 MCH_CERT_SERIAL_NO（留空跳过）"
+Ask "MCH_PRIVATE_KEY"         "商户API私钥 MCH_PRIVATE_KEY（留空跳过）"
+Ask "WECHAT_PAY_PUBLIC_KEY_ID" "微信支付公钥ID（留空跳过）"
+Ask "WECHAT_PAY_PUBLIC_KEY"   "微信支付公钥内容（留空跳过）"
+Ask "LLM_API_KEY"             "LLM_API_KEY（留空跳过 food-therapy-ai）"
+Ask "LLM_BASE_URL"            "LLM_BASE_URL（留空用默认）"
+Ask "LLM_MODEL"               "LLM_MODEL（留空用默认）"
+
+# 设置密钥（仅非空；用数组 splat 避免值含空格被拆断）
+$toSet = @()
+foreach ($k in $sec.Keys) {
+    if ($sec[$k]) { $toSet += "$k=$($sec[$k])" }
+}
+if ($toSet.Count) {
+    Write-Host "`n[5/6] 设置 Secrets（仅非空项，$($toSet.Count) 个）..." -ForegroundColor Cyan
+    supabase secrets set @toSet
+} else {
+    Write-Host "`n[5/6] 跳过 Secrets：未提供任何密钥" -ForegroundColor Yellow
+}
+
+# 部署 supabase/functions/ 下的全部函数
+$fnsDir = Join-Path $PSScriptRoot "supabase/functions"
+$fns = Get-ChildItem -Path $fnsDir -Directory | Select-Object -ExpandProperty Name
+Write-Host "`n[6/6] 部署 $($fns.Count) 个云函数 ..." -ForegroundColor Cyan
+$ok = 0; $fail = 0
+foreach ($fn in $fns) {
+    Write-Host "  > 部署 $fn ..." -ForegroundColor Green
+    try {
+        supabase functions deploy $fn
+        $ok++
+    } catch {
+        Write-Host "    [失败] $fn 部署失败：$_" -ForegroundColor Red
+        $fail++
+    }
+}
+
+Write-Host "`n完成 [OK] 成功 $ok / 失败 $fail" -ForegroundColor Green
+if ($fail -gt 0) {
+    Write-Host "失败的请查看上方 [失败] 原因（多为缺密钥或函数代码语法问题）。" -ForegroundColor Yellow
+}
 Read-Host "`n按回车退出"

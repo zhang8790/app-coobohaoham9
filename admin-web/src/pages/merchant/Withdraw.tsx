@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getMyMerchantStore, getMerchantWithdrawals, getCommissionBalance, createWithdrawal } from '@/api/merchant'
-import type { WithdrawalRecord } from '@/types'
+import { supabase } from '@/lib/supabase'
+import type { WithdrawalRecord, SavedWithdrawalAccount } from '@/types'
 
 const STATUS_LABEL: Record<string, string> = { pending: '审核中', approved: '已审核', paid: '已到账', rejected: '已拒绝' }
 const STATUS_COLOR: Record<string, string> = { pending: '#F59E0B', approved: '#3B82F6', paid: '#059669', rejected: '#EF4444' }
@@ -21,6 +22,32 @@ export default function MerchantWithdraw() {
   const [balance, setBalance] = useState<{ available: number; totalEarned: number; withdrawn: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [storeId, setStoreId] = useState<string | null>(null)
+  // 已保存收款账户（迁移 00123）：绑定一次后免二次填写
+  const [savedAccounts, setSavedAccounts] = useState<SavedWithdrawalAccount[]>([])
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null)
+
+  const loadSavedAccounts = async (uid: string) => {
+    try {
+      const { data, error } = await supabase.rpc('fn_get_withdrawal_accounts', {
+        p_owner_id: uid, p_owner_type: 'user',
+      })
+      if (error) return
+      const d = (data as any) || {}
+      const list = (d.accounts ?? []) as SavedWithdrawalAccount[]
+      setSavedAccounts(list)
+      const def = list.find(a => a.is_default) || list[0]
+      if (def) applySavedAccount(def)
+    } catch (e) { console.warn('[merchant/Withdraw] 拉已保存账户失败', e) }
+  }
+
+  const applySavedAccount = (a: SavedWithdrawalAccount) => {
+    setSelectedSavedId(a.id)
+    setMethod(a.method as any)
+    setName(a.real_name || '')
+    setIdCard(a.id_card || '')
+    setBankName(a.bank_name || '')
+    setAccount(a.method === 'bank' ? (a.bank_account || '') : (a.alipay_account || ''))
+  }
 
   useEffect(() => {
     if (!profile) return
@@ -34,6 +61,7 @@ export default function MerchantWithdraw() {
         getCommissionBalance(profile.id).catch(() => null),
       ])
       if (!cancelled) { setRecords(wds); setBalance(bal); setLoading(false) }
+      await loadSavedAccounts(profile.id)
     })()
     return () => { cancelled = true }
   }, [profile])
@@ -59,8 +87,26 @@ export default function MerchantWithdraw() {
     setSubmitting(true)
     try {
       await createWithdrawal({ userId: profile.id, storeId, amount: amt, method, account: account.trim(), name: name.trim(), idCard: idCard.trim(), bankName: method === 'bank' ? bankName.trim() : undefined })
+      // 提交成功后异步保存为「已保存账户」（不阻塞主流程）
+      ;(async () => {
+        try {
+          await supabase.rpc('fn_save_withdrawal_account', {
+            p_owner_id: profile.id, p_owner_type: 'user',
+            p_method: method,
+            p_real_name: name.trim(), p_id_card: idCard.trim(),
+            p_bank_name: method === 'bank' ? bankName.trim() : null,
+            p_bank_account: method === 'bank' ? account.trim() : null,
+            p_bank_holder: method === 'bank' ? name.trim() : null,
+            p_alipay_account: method === 'alipay' ? account.trim() : null,
+            p_make_default: true,
+          })
+          // 刷新一下列表，让"已保存账户"下拉显示新卡
+          await loadSavedAccounts(profile.id)
+        } catch (e) { console.warn('[merchant/Withdraw] 保存收款账户失败', e) }
+      })()
       await reload()
       setAmount(''); setAccount(''); setName(''); setIdCard(''); setBankName('')
+      setSelectedSavedId(null)
       alert('提现申请已提交，预计1-2个工作日到账')
     } catch (e: any) { alert('提交失败：' + (e?.message || e)) }
     finally { setSubmitting(false) }
@@ -132,6 +178,50 @@ export default function MerchantWithdraw() {
                     </div>
                     <p style={{ color: '#6B7280', fontSize: 12, marginTop: 6 }}>可提现佣金：{balance ? balance.available : '0'}</p>
                   </div>
+                  {/* 已保存收款账户（迁移 00123）—— 快速选择 */}
+                  {savedAccounts.length > 0 && (
+                    <div>
+                      <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>
+                        已保存账户
+                        <span style={{ color: '#6B7280', fontSize: 12, marginLeft: 8 }}>选一张免填下方信息</span>
+                      </label>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {savedAccounts.map(a => {
+                          const mask = (s: string | null) => s ? `${s.slice(0, 2)}****${s.slice(-2)}` : ''
+                          const label = a.method === 'bank'
+                            ? `${a.bank_name || '银行卡'} ${mask(a.bank_account)}`
+                            : `支付宝 ${mask(a.alipay_account)}`
+                          const active = selectedSavedId === a.id
+                          return (
+                            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <div onClick={() => applySavedAccount(a)} style={{
+                                padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 13,
+                                background: active ? '#C2410C' : '#0B0F19',
+                                color: active ? 'white' : '#9CA3AF',
+                                border: `1px solid ${active ? '#C2410C' : '#374151'}`,
+                              }}>
+                                {a.is_default && '⭐ '}{label}
+                              </div>
+                              <button onClick={async () => {
+                                if (!confirm(`删除「${label}」？`)) return
+                                const { error } = await supabase.rpc('fn_delete_withdrawal_account', { p_id: a.id })
+                                if (error) { alert('删除失败：' + error.message); return }
+                                setSavedAccounts(prev => prev.filter(x => x.id !== a.id))
+                                if (selectedSavedId === a.id) setSelectedSavedId(null)
+                              }} style={{ padding: '4px 6px', background: 'transparent', border: 'none', color: '#6B7280', cursor: 'pointer', fontSize: 14 }} title="删除">🗑</button>
+                            </div>
+                          )
+                        })}
+                        <div onClick={() => { setSelectedSavedId(null); setName(''); setIdCard(''); setBankName(''); setAccount('') }} style={{
+                          padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 13,
+                          background: 'transparent', color: '#9CA3AF',
+                          border: '1px dashed #374151',
+                        }}>
+                          + 使用新账户
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>到账方式</label>
                     <div style={{ display: 'flex', gap: 12 }}>

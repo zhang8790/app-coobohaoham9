@@ -1,15 +1,52 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
 
+/* ===== 来电有喜 管理后台 · 设计 token（暗色国潮，品牌色对齐小程序 --primary 赤陶橙） ===== */
+:root {
+  --bg: #0B0F19;
+  --surface: #080C14;
+  --surface-2: #111827;
+  --border: #1F2937;
+  --border-soft: #374151;
+  --primary: #C2410C;
+  --primary-hover: #EA580C;
+  --primary-soft: rgba(194, 65, 12, 0.15);
+  --text: #E5E7EB;
+  --text-muted: #9CA3AF;
+  --text-dim: #6B7280;
+  --success: #22C55E;
+  --success-strong: #10B981;
+  --success-soft: rgba(34, 197, 94, 0.15);
+  --warning: #F59E0B;
+  --warning-soft: rgba(245, 158, 11, 0.15);
+  --danger: #EF4444;
+  --danger-soft: rgba(239, 68, 68, 0.15);
+  --danger-bg: rgba(239, 68, 68, 0.07);
+  --danger-text: #FCA5A5;
+  --primary-disabled: #7A2508;
+  --info: #3B82F6;
+  --info-text: #93C5FD;
+  --info-soft: rgba(59, 130, 246, 0.15);
+  --accent: #8B5CF6;
+  --accent-text: #A5B4FC;
+  --accent-soft: rgba(139, 92, 246, 0.15);
+  --card: #0F172A;
+  --hover-bg: #141B2D;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --font-sans: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  background: #0B0F19;
-  color: #E5E7EB;
-  font-family: 'Noto Sans SC', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 ::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #0B0F19; }
-::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 2px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 a { text-decoration: none; color: inherit; }
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; }

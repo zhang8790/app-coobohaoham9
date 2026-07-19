@@ -1,5 +1,5 @@
 // @title 登录
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Input } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
@@ -48,8 +48,8 @@ export default function LoginPage() {
     if (!/^1[3-9]\d{9}$/.test(phone)) { Taro.showToast({ title: '请输入正确的手机号', icon: 'none' }); return }
     if (countdown > 0 && !testMode) return
 
-    // 测试模式：直接跳过短信发送
-    if (testMode || phone === '18710410500' || phone === '18701410500' || phone === '12345678901') {
+    // 测试模式（仅 DEV 构建生效）：直接跳过短信发送
+    if (process.env.TARO_APP_LOCAL_DEV === 'true' && (testMode || phone === '18701410500')) {
       setStep('otp')
       Taro.showToast({ title: '测试模式：请输入 123456', icon: 'none' })
       return

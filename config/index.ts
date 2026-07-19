@@ -1,4 +1,5 @@
 import path from 'node:path'
+import fs from 'node:fs'
 import {defineConfig, type UserConfigExport} from '@tarojs/cli'
 import tailwindcss from 'tailwindcss'
 import type {Plugin} from 'vite'
@@ -7,6 +8,26 @@ import {UnifiedViteWeappTailwindcssPlugin as uvtw} from 'weapp-tailwindcss/vite'
 import devConfig from './dev'
 import lintConfig from './lint'
 import prodConfig from './prod'
+
+// 手动复制 tabBar 图标到 dist（Taro copy 配置在 Vite 模式下不生效）
+function copyIconsPlugin(): Plugin {
+  return {
+    name: 'taro-copy-icons',
+    closeBundle() {
+      const srcDir = path.resolve(__dirname, '../public/assets/icons')
+      const destDir = path.resolve(__dirname, '../dist/assets/icons')
+      if (!fs.existsSync(srcDir)) {
+        console.warn('[taro-copy-icons] 源目录不存在:', srcDir)
+        return
+      }
+      fs.mkdirSync(destDir, { recursive: true })
+      fs.readdirSync(srcDir).forEach(file => {
+        fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file))
+      })
+      console.log('[taro-copy-icons] 已复制图标到 dist/assets/icons')
+    }
+  }
+}
 
 const base = String(process.argv[process.argv.length - 1])
 const publicPath = base.startsWith('http') ? base : '/'
@@ -34,10 +55,6 @@ export default defineConfig<'vite'>(async (merge) => {
       '@supabase/supabase-js': process.env.TARO_ENV === 'h5' ? '@supabase/supabase-js' : 'supabase-wechat-js'
     },
     defineConstants: {},
-    copy: {
-      patterns: [],
-      options: {}
-    },
     framework: 'react',
     compiler: {
       type: 'vite',
@@ -52,6 +69,7 @@ export default defineConfig<'vite'>(async (merge) => {
             }
           }
         },
+        copyIconsPlugin(),
         uvtw({
           // rem转rpx
           rem2rpx: {

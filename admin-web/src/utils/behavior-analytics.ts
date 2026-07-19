@@ -17,7 +17,7 @@ export async function loadBehaviorData(): Promise<RawBehavior> {
   // 先取全量 profiles 以判定「个性化总闸」退出情况（PIPL：退出用户完全排除出分析）
   const pRes = await supabase
     .from('profiles')
-    .select('id,nickname,member_rank,created_at,total_consumption,gold_beans,tb_balance,allow_behavior_analysis')
+    .select('id,nickname,member_rank,created_at,total_consumption,tb_balance,allow_behavior_analysis')
   const allProfiles = (pRes.data as any[]) || []
   if (pRes.error) {
     console.warn('[behavior-analytics] profiles 查询失败（迁移 00085/00087 可能未执行）：', pRes.error.message)
@@ -27,14 +27,14 @@ export async function loadBehaviorData(): Promise<RawBehavior> {
     .map(pr => pr.id)
   const optedOutCount = allProfiles.length - allowedIds.length
 
-  // 退出用户不参与任何维度计算：订单/确权/金豆/段位事件均按允许集合过滤
+  // 退出用户不参与任何维度计算：订单/确权/情绪豆/段位事件均按允许集合过滤
   const scope = (q: any) =>
     allowedIds.length ? q.in('user_id', allowedIds) : q
 
   const [o, c, g, r] = await Promise.all([
     scope(supabase.from('orders').select('user_id,created_at,status,total_amount,verified_at')),
     scope(supabase.from('emotion_claims').select('user_id,created_at,status')),
-    scope(supabase.from('gold_bean_logs').select('user_id,created_at,type,delta')),
+    scope(supabase.from('tongbao_logs').select('user_id,created_at,type,delta')),
     scope(supabase.from('member_rank_events').select('user_id,from_stage,to_stage,created_at,trigger')),
   ])
   if (r.error) {
@@ -234,7 +234,7 @@ export function markovLifecycle(raw: RawBehavior, asOf = Date.now()): MatrixResu
 }
 
 // ── 3b) 段位六阶马尔可夫 ────────────────────────────────────────────────
-export const RANK_STATES = ['江湖散修', '外门弟子', '内门弟子', '核心弟子', '长老', '掌门']
+export const RANK_STATES = ['凡心', '初心', '明心', '静心', '悟心', '无心境']
 export function markovRank(raw: RawBehavior): MatrixResult {
   const byUser: Record<string, any[]> = {}
   for (const e of raw.rankEvents) (byUser[e.user_id] ||= []).push(e)

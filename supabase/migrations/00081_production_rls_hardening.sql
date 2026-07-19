@@ -99,6 +99,15 @@ BEGIN
     EXECUTE format($f$CREATE POLICY %I ON public.%I FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());$f$,
                    'rls81_'||t||'_admin', t);
   END LOOP;
+  -- 修正：products 无 owner_id 列但归属到 store；给门店 owner 加写权限，避免商家上架被 RLS 拦死
+  --       （stores 的 owner 写策略由第 5 节 rls81_stores_owner 处理）
+  IF to_regclass('public.products') IS NOT NULL THEN
+    CREATE POLICY rls81_products_owner ON public.products FOR ALL TO authenticated
+      USING (public.is_admin() OR EXISTS (
+               SELECT 1 FROM stores s WHERE s.id = products.store_id AND s.owner_id = auth.uid()))
+      WITH CHECK (public.is_admin() OR EXISTS (
+               SELECT 1 FROM stores s WHERE s.id = products.store_id AND s.owner_id = auth.uid()));
+  END IF;
 END $$;
 
 -- ============================================================================
@@ -164,10 +173,26 @@ BEGIN
                         USING (public.is_admin());$f$,
                      'rls81_'||t||'_adminread', t);
     END IF;
-    -- 管理员全权（含写）；普通用户写入一律走 service_role Edge Function
+    -- 管理员全权（含写）
     EXECUTE format($f$CREATE POLICY %I ON public.%I FOR ALL TO authenticated
                       USING (public.is_admin()) WITH CHECK (public.is_admin());$f$,
                    'rls81_'||t||'_admin', t);
+
+    -- 修正：买家本人可写自己的订单 / 金豆流水（小程序前端直写架构，无 Edge Function 代理）
+    --       否则 00081 会把 orders/order_items/gold_bean_logs 收成 admin-only，导致下单失败
+    IF has_uid AND t IN ('orders','gold_bean_logs') THEN
+      EXECUTE format($f$CREATE POLICY %I ON public.%I FOR ALL TO authenticated
+                        USING (user_id = auth.uid() OR public.is_admin())
+                        WITH CHECK (user_id = auth.uid() OR public.is_admin());$f$,
+                     'rls81_'||t||'_owner', t);
+    ELSIF (NOT has_uid) AND t = 'order_items' THEN
+      EXECUTE format($f$CREATE POLICY %I ON public.%I FOR ALL TO authenticated
+                        USING (public.is_admin() OR EXISTS (
+                                 SELECT 1 FROM orders o WHERE o.id = order_items.order_id AND o.user_id = auth.uid()))
+                        WITH CHECK (public.is_admin() OR EXISTS (
+                                 SELECT 1 FROM orders o WHERE o.id = order_items.order_id AND o.user_id = auth.uid()));$f$,
+                     'rls81_order_items_owner', t);
+    END IF;
   END LOOP;
 END $$;
 

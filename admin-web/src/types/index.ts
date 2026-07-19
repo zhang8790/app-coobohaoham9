@@ -14,6 +14,7 @@ export interface Profile {
   member_rank: string
   points: number
   balance: number
+  tb_balance?: number
   merchant_status: MerchantStatus
   created_at: string
 }
@@ -51,6 +52,13 @@ export interface Product {
   review_status: ReviewStatus
   created_at: string
   ingredients?: string[] | null   // 原料成分分析：关联食材 key（与小程序端 products.ingredients 同列）
+  // 食材食疗智能导购属性（与小程序端迁移 00100_food_therapy_fields.sql 一致）
+  overall_nature?: string | null   // 商品整体性味 6 档：大寒/寒凉/平性/微温/温热/大热
+  health_tag?: string[] | null     // 固定食疗标签库 9 项
+  emotion_tag?: string[] | null    // 固定情绪标签库 8 项
+  match_goods?: string[] | null    // 推荐搭配（商品名[]）
+  conflict_goods?: string[] | null // 相克/慎搭提示（商品名[]）
+  aux_remind?: string | null       // 辅料/加料建议（自由文本）
   stores?: { name: string } | null
 }
 
@@ -84,6 +92,8 @@ export interface Withdrawal {
   store_id: string | null
   amount: number
   status: WithdrawStatus
+  method?: string
+  account_info?: any | null
   withdraw_method: WithdrawMethod
   bank_name: string | null
   bank_account: string | null
@@ -93,9 +103,49 @@ export interface Withdrawal {
   id_card: string | null
   reject_reason: string | null
   remark: string | null
+  kind?: string                 // commission | settlement（迁移 00120）
+  merchant_settlement_ids?: string[] | null
   created_at: string
   updated_at: string
   profiles?: { nickname: string | null; phone: string | null } | null
+}
+
+/** 已保存收款账户（迁移 00123）：绑定一次后持久化，提现可复用 */
+export interface SavedWithdrawalAccount {
+  id: string
+  owner_id: string
+  owner_type: 'user' | 'store'
+  method: WithdrawMethod
+  real_name: string | null
+  id_card: string | null
+  bank_name: string | null
+  bank_account: string | null
+  bank_holder: string | null
+  alipay_account: string | null
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+/** 商家货款结算台账（迁移 00120） */
+export interface MerchantSettlement {
+  id: string
+  store_id: string
+  order_id: string
+  order_no: string | null
+  total_amount: number
+  tb_portion: number        // 情绪豆抵扣部分（平台垫付）
+  cash_portion: number      // 微信现金部分
+  referral_rate: number     // 让利率快照（小数）
+  discount_pool: number     // 让利池
+  channel_fee: number       // 微信通道费
+  settle_amount: number     // 商家应收货款
+  status: string            // settled | reversed
+  settled_at: string | null
+  reversed_at: string | null
+  withdrawal_id?: string | null  // 关联的货款提现单 ID（00121）
+  created_at: string
+  stores?: { name: string | null; wx_sub_mch_id: string | null } | null
 }
 
 export interface Article {

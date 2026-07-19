@@ -4,14 +4,13 @@ import { useState, useEffect, useMemo } from 'react'
 import Taro, { getCurrentInstance } from '@tarojs/taro'
 import { View, Text, Input, Textarea, Image } from '@tarojs/components'
 import {
-  getProductById, getProductEmotion, saveProductEmotion, compileProductEmotion,
-} from '@/db/api'
+  getProductById, getProductEmotion, saveProductEmotion, compileProductEmotion} from '@/db/api'
 import type { Product, ProductEmotion } from '@/db/types'
 import { scoreCompilation } from '@/utils/emotion-scoring'
 import {
   EMOTION_DIMENSION_TAGS, EMOTION_DIMENSION_ORDER, EMOTION_DIMENSION_LABELS,
   EMOTION_DIMENSION_MAX, recommendDimensions,
-  SHIYANG_CATEGORIES, SHIYANG_DIMENSION_KEY, SHIYANG_DIMENSION_LABEL, SHIYANG_DIMENSION_MAX,
+  SHIYANG_CATEGORIES, SHIYANG_DIMENSION_KEY, SHIYANG_DIMENSION_MAX,
 } from '@/utils/emotion-dimensions'
 import { RouteGuard } from '@/components/RouteGuard'
 import { generateEmotionHeadline } from '@/utils/emotion-description'
@@ -29,8 +28,7 @@ function MerchantEmotionCompilePage() {
 
   // 五维标签选择
   const [dims, setDims] = useState<Record<DimKey, string[]>>({
-    function: [], scene: [], emotion: [], identity: [], sensory: [],
-  })
+    function: [], scene: [], emotion: [], identity: [], sensory: []})
   // 食养成分标签选择
   const [shiyangDims, setShiyangDims] = useState<string[]>([])
   // 推荐标签（根据商品描述）
@@ -43,7 +41,7 @@ function MerchantEmotionCompilePage() {
   const [stage3, setStage3] = useState('') // 身份确认
   // 多段候选（云端/本地编译返回的 3 段候选文案，用于"换一版"切换）
   const [candidates, setCandidates] = useState<string[]>([])
-  // 候选对应的「AI 卖点标题」（与 candidates 同序，工作台展示每条文案的卖点角度）
+  // 候选对应的「智能卖点标题」（与 candidates 同序，工作台展示每条文案的卖点角度）
   const [candidateHeadlines, setCandidateHeadlines] = useState<string[]>([])
   const [curHeadline, setCurHeadline] = useState('')
 
@@ -64,8 +62,7 @@ function MerchantEmotionCompilePage() {
           const dt = (emo.dimension_tags || {}) as Record<DimKey, string[]>
           setDims({
             function: dt.function || [], scene: dt.scene || [],
-            emotion: dt.emotion || [], identity: dt.identity || [], sensory: dt.sensory || [],
-          })
+            emotion: dt.emotion || [], identity: dt.identity || [], sensory: dt.sensory || []})
           if (emo.shiyang_tags?.[SHIYANG_DIMENSION_KEY]) {
             setShiyangDims(emo.shiyang_tags[SHIYANG_DIMENSION_KEY] || [])
           }
@@ -135,8 +132,7 @@ function MerchantEmotionCompilePage() {
         name: product.name,
         description: product.description ?? '',
         mood_tags: dims.emotion,
-        scene_tags: dims.scene,
-      })
+        scene_tags: dims.scene})
       if (res) {
         if (res.emotion_title) setTitle(res.emotion_title)
         if (res.stage1) setStage1(res.stage1)
@@ -144,7 +140,7 @@ function MerchantEmotionCompilePage() {
         if (res.stage3) setStage3(res.stage3)
         if (res.candidates && Array.isArray(res.candidates)) setCandidates(res.candidates)
         if (!res.stage1 && res.emotion_detail) setStage2(res.emotion_detail)
-        // 为候选文案生成「AI 卖点标题」，让商家一眼分辨每条角度
+        // 为候选文案生成「智能卖点标题」，让商家一眼分辨每条角度
         const srcList = (res.candidates && Array.isArray(res.candidates) && res.candidates.length)
           ? res.candidates
           : (res.emotion_detail ? [res.emotion_detail] : [])
@@ -189,8 +185,7 @@ function MerchantEmotionCompilePage() {
       hasFunctionInfo: Boolean(product?.description && product.description.trim().length > 5),
       sceneBound: (dims.scene?.length || 0) > 0,
       claimVerifiable: true, // 本地生活实物可消费验证
-      shiyangTagCount: shiyangDims.length,
-    })
+      shiyangTagCount: shiyangDims.length})
   }, [dims, title, stage1, stage2, stage3, product])
 
   const tierInfo = useMemo(() => {
@@ -219,8 +214,7 @@ function MerchantEmotionCompilePage() {
         shiyang_tags: { [SHIYANG_DIMENSION_KEY]: shiyangDims },
         shiyang_copy: shiyangDims.length > 0
           ? `食材：${shiyangDims.join('、')}（传统食养参考）`
-          : null,
-      })
+          : null})
       if (ok) {
         Taro.showToast({ title: submit ? '已提交审核' : '已存草稿', icon: 'success' })
         if (submit) setTimeout(() => Taro.navigateBack(), 800)
@@ -308,8 +302,7 @@ function MerchantEmotionCompilePage() {
                         padding: '5px 10px', borderRadius: '14px',
                         background: on ? (tag.color || '#CCC') : (isRec ? '#F3F0FF' : '#F5F5F5'),
                         border: `1px solid ${on ? (tag.color || '#CCC') : (isRec ? '#6C5CE7' : '#EEE')}`,
-                        display: 'flex', alignItems: 'center', gap: '3px',
-                      }}>
+                        display: 'flex', alignItems: 'center', gap: '3px'}}>
                       <Text style={{ fontSize: '12px', color: on ? '#FFF' : (isRec ? '#6C5CE7' : '#666') }}>
                         {tag.icon} {tag.zh}
                       </Text>
@@ -341,8 +334,7 @@ function MerchantEmotionCompilePage() {
                       padding: '5px 10px', borderRadius: '14px',
                       background: on ? (tag.color || '#CCC') : '#F5F5F5',
                       border: `1px solid ${on ? (tag.color || '#CCC') : '#EEE'}`,
-                      display: 'flex', alignItems: 'center', gap: '3px',
-                    }}>
+                      display: 'flex', alignItems: 'center', gap: '3px'}}>
                     <Text style={{ fontSize: '12px', color: on ? '#FFF' : '#666' }}>
                       {tag.icon} {tag.zh}
                     </Text>
@@ -363,8 +355,7 @@ function MerchantEmotionCompilePage() {
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px',
             borderRadius: '12px', background: compiling ? '#C9C2F0' : '#6C5CE7',
-            boxShadow: compiling ? 'none' : '0 3px 10px rgba(108,92,231,0.3)',
-          }}>
+            boxShadow: compiling ? 'none' : '0 3px 10px rgba(108,92,231,0.3)'}}>
           <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#FFF' }}>{compiling ? '编译中…' : '✨ 一键生成情绪文案'}</Text>
         </View>
       </View>
@@ -405,8 +396,7 @@ function MerchantEmotionCompilePage() {
               onClick={handleNextCandidate}
               style={{
                 marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px',
-                padding: '5px 12px', borderRadius: '12px', background: '#F3F0FF', border: '1px solid #C9C2F0',
-              }}>
+                padding: '5px 12px', borderRadius: '12px', background: '#F3F0FF', border: '1px solid #C9C2F0'}}>
               <Text style={{ fontSize: '12px', color: '#6C5CE7', fontWeight: 'bold' }}>
                 🔄 换一版（{candidateIdx + 1}/{candidates.length}）
               </Text>
@@ -432,8 +422,7 @@ function MerchantEmotionCompilePage() {
           <View style={{
             width: '64px', height: '64px', borderRadius: '32px',
             background: '#FFF8F0', border: `3px solid ${tierInfo.color}`,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          }}>
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
             <Text style={{ fontSize: '22px', fontWeight: 'bold', color: tierInfo.color, lineHeight: '1' }}>{score.total}</Text>
             <Text style={{ fontSize: '10px', color: '#999' }}>/100</Text>
           </View>
@@ -464,8 +453,7 @@ function MerchantEmotionCompilePage() {
             {score.violations.map((v, i) => (
               <View key={i} style={{
                 padding: '7px 10px', borderRadius: '8px', marginBottom: '5px',
-                background: v.level === 'redline' ? '#FEE2E2' : v.level === 'demote' ? '#FFEDD5' : '#F3F0FF',
-              }}>
+                background: v.level === 'redline' ? '#FEE2E2' : v.level === 'demote' ? '#FFEDD5' : '#F3F0FF'}}>
                 <Text style={{ fontSize: '11px', color: v.level === 'redline' ? '#DC2626' : v.level === 'demote' ? '#C2410C' : '#6C5CE7' }}>
                   {v.level === 'redline' ? '⛔ ' : v.level === 'demote' ? '⚠️ ' : '💡 '}{v.message}
                 </Text>
@@ -487,14 +475,12 @@ function MerchantEmotionCompilePage() {
       <View style={{
         position: 'fixed', left: 0, right: 0, bottom: 0,
         display: 'flex', gap: '10px', padding: '10px 14px',
-        background: '#FFF', borderTop: '1px solid #F0E6D8',
-      }}>
+        background: '#FFF', borderTop: '1px solid #F0E6D8'}}>
         <View
           onClick={() => handleSave(false)}
           style={{
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '13px',
-            borderRadius: '14px', background: '#FFF', border: '2px solid #CCC',
-          }}>
+            borderRadius: '14px', background: '#FFF', border: '2px solid #CCC'}}>
           <Text style={{ fontSize: '15px', color: '#666', fontWeight: 'bold' }}>💾 存草稿</Text>
         </View>
         <View
@@ -502,8 +488,7 @@ function MerchantEmotionCompilePage() {
           style={{
             flex: 1.4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '13px',
             borderRadius: '14px', background: saving ? '#FFB899' : 'linear-gradient(135deg,#FF8A65,#FF5722)',
-            boxShadow: saving ? 'none' : '0 3px 12px rgba(255,87,34,0.3)',
-          }}>
+            boxShadow: saving ? 'none' : '0 3px 12px rgba(255,87,34,0.3)'}}>
           <Text style={{ fontSize: '15px', color: '#FFF', fontWeight: 'bold' }}>{saving ? '提交中…' : '🚀 提交审核'}</Text>
         </View>
       </View>
@@ -515,12 +500,10 @@ function MerchantEmotionCompilePage() {
 const inputBox: any = {
   width: '100%', height: '42px', borderRadius: '10px',
   background: '#FAFAFA', border: '1.5px solid #EEE',
-  fontSize: '14px', color: '#333', padding: '0 12px', boxSizing: 'border-box',
-}
+  fontSize: '14px', color: '#333', padding: '0 12px', boxSizing: 'border-box'}
 const areaBox: any = {
   width: '100%', minHeight: '60px', borderRadius: '10px',
   background: '#FAFAFA', border: '1.5px solid #EEE',
-  fontSize: '13px', color: '#333', padding: '10px 12px', boxSizing: 'border-box',
-}
+  fontSize: '13px', color: '#333', padding: '10px 12px', boxSizing: 'border-box'}
 
 export default MerchantEmotionCompilePage

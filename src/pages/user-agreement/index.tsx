@@ -1,6 +1,6 @@
-import { View, Button, Text } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 // @title 用户服务协议
-import Taro from '@tarojs/taro'
+
 
 function UserAgreement() {
   return (

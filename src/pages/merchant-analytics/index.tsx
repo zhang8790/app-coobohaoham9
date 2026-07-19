@@ -1,16 +1,18 @@
 // @title 数据分析（商家端）
 import { useState, useEffect } from 'react'
-import Taro from '@tarojs/taro'
+
 import { View, Text } from '@tarojs/components'
 import { getMerchantStore, getMerchantProducts, getMerchantOrders } from '@/db/api'
 import { RouteGuard } from '@/components/RouteGuard'
+
+// 仅已付款/完成订单计入营收（与网页版商家后台 merchant.ts 的 REVENUE_STATUSES 对齐）
+const REVENUE_STATUSES = ['pending_ship', 'pending_receive', 'pending_review', 'completed']
 
 function MerchantAnalyticsPage() {
   const [store, setStore] = useState<any>(null)
   const [stats, setStats] = useState({
     todayOrders: 0, todayRevenue: 0, weekOrders: 0, weekRevenue: 0,
-    totalProducts: 0, onlineProducts: 0, totalMembers: 5, crossStoreOrders: 2,
-  })
+    totalProducts: 0, onlineProducts: 0, totalMembers: 5, crossStoreOrders: 2})
 
   useEffect(() => {
     getMerchantStore().then(async (s) => {
@@ -20,10 +22,12 @@ function MerchantAnalyticsPage() {
           getMerchantProducts(s.id),
           getMerchantOrders(s.id),
         ])
+        // 仅已付款/完成订单计入营收，与网页版商家后台口径一致（排除未付款、取消、售后退款）
+        const paid = (ords || []).filter(o => REVENUE_STATUSES.includes(o.orders?.status))
         const today = new Date().toISOString().slice(0, 10)
         const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)
-        const todayOrders = ords.filter(o => (o.orders?.created_at || '').startsWith(today))
-        const weekOrders = ords.filter(o => (o.orders?.created_at || '') >= weekAgo)
+        const todayOrders = paid.filter(o => (o.orders?.created_at || '').startsWith(today))
+        const weekOrders = paid.filter(o => (o.orders?.created_at || '') >= weekAgo)
         setStats({
           todayOrders: todayOrders.length,
           todayRevenue: todayOrders.reduce((s, o) => s + (o.orders?.total_amount || 0), 0),
@@ -32,8 +36,7 @@ function MerchantAnalyticsPage() {
           totalProducts: prods.length,
           onlineProducts: prods.filter(p => p.is_active).length,
           totalMembers: 5,
-          crossStoreOrders: 2,
-        })
+          crossStoreOrders: 2})
       }
     })
   }, [])

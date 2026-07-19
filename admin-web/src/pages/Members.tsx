@@ -48,7 +48,7 @@ export default function Members() {
     const res = await adminAdjustGoldBean(detail.row.id, amt, adjDir, adjReason)
     setAdjBusy(false)
     if (res.ok) {
-      setAdjMsg({ ok: true, text: `已${adjDir === 'grant' ? '发放' : '扣减'} ${amt} 金豆，余额 ${res.balanceAfter ?? ''}` })
+      setAdjMsg({ ok: true, text: `已${adjDir === 'grant' ? '发放' : '扣减'} ${amt} 情绪豆，余额 ${res.balanceAfter ?? ''}` })
       setAdjAmt(''); setAdjReason('')
       const data = await getMemberDetail(detail.row.id)
       setDetail({ row: data.profile ?? detail.row, data })
@@ -65,7 +65,7 @@ export default function Members() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ color: C.text, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>会员明细</h1>
-          <p style={{ color: C.dim, fontSize: 14 }}>会员 ID · 手机号 · 上线 · 注册时间 · 地址 · 积分 · 金豆 · 情绪豆</p>
+          <p style={{ color: C.dim, fontSize: 14 }}>会员 ID · 手机号 · 上线 · 注册时间 · 地址 · 积分 · 情绪豆</p>
         </div>
         <input
           placeholder="搜索手机号 / 昵称"
@@ -80,7 +80,7 @@ export default function Members() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: '#080C14', borderBottom: `1px solid ${C.border}` }}>
-              {['会员ID', '昵称/手机号', '上线', '段位', '注册时间', '地址', '积分', '金豆', '情绪豆', '状态'].map(h => (
+              {['会员ID', '昵称/手机号', '上线', '段位', '注册时间', '地址', '积分', '情绪豆', '状态'].map(h => (
                 <th key={h} style={{ color: C.dim, fontWeight: 500, padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -101,7 +101,6 @@ export default function Members() {
                 <td style={{ padding: '10px 12px', color: C.dim, whiteSpace: 'nowrap' }}>{fmtDate(r.created_at).slice(0, 10)}</td>
                 <td style={{ padding: '10px 12px', color: C.sub, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{maskAddress(r.address)}</td>
                 <td style={{ padding: '10px 12px', color: C.blue, fontWeight: 600 }}>{fmt(r.points)}</td>
-                <td style={{ padding: '10px 12px', color: C.gold, fontWeight: 600 }}>{fmt(r.gold_beans)}</td>
                 <td style={{ padding: '10px 12px', color: C.purple, fontWeight: 600 }}>{fmt(r.tb_balance)}</td>
                 <td style={{ padding: '10px 12px' }}>
                   {r.is_banned
@@ -111,7 +110,7 @@ export default function Members() {
               </tr>
             ))}
             {rows.length === 0 && !loading && (
-              <tr><td colSpan={10} style={{ padding: 32, textAlign: 'center', color: C.dim }}>暂无会员数据</td></tr>
+              <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: C.dim }}>暂无会员数据</td></tr>
             )}
           </tbody>
         </table>
@@ -142,11 +141,11 @@ export default function Members() {
 
             <ProfileBlock d={detail} />
 
-            {/* 金豆后台发放 / 扣减 */}
+            {/* 情绪豆后台发放 / 扣减 */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
-              <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600 }}>金豆管理</h3>
+              <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600 }}>情绪豆管理</h3>
               <button onClick={() => { setShowAdjust(v => !v); setAdjMsg(null) }} style={btnStyle(false)}>
-                {showAdjust ? '收起' : '💎 调整金豆'}
+                {showAdjust ? '收起' : '💎 调整情绪豆'}
               </button>
             </div>
             {showAdjust && (
@@ -173,7 +172,7 @@ export default function Members() {
                 {adjMsg && (
                   <p style={{ fontSize: 12, color: adjMsg.ok ? C.green : '#FCA5A5' }}>{adjMsg.ok ? '✅ ' : '⚠️ '}{adjMsg.text}</p>
                 )}
-                <p style={{ fontSize: 11, color: C.dim }}>写入 gold_bean_logs 并同步 profiles.gold_beans；扣减不会使余额低于 0。</p>
+                <p style={{ fontSize: 11, color: C.dim }}>写入 tongbao_logs 并同步 profiles.tb_balance（情绪豆消费余额，与「用户管理-充值」同一字段）；扣减不会使余额低于 0。</p>
               </div>
             )}
 
@@ -220,7 +219,6 @@ function ProfileBlock({ d }: { d: { row: MemberRow; data: MemberDetail } }) {
     ['注册时间', fmtDate(r.created_at)],
     ['地址', maskAddress(r.address)],
     ['积分', fmt(r.points)],
-    ['金豆', fmt(r.gold_beans)],
     ['情绪豆余额', fmt(r.tb_balance)],
     ['下单次数', fmt(d.data.orderCount)],
     ['情绪豆发放笔数', fmt(d.data.emotionClaims.length)],

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
-import { getMerchantStore, getMerchantOrders, merchantShipOrder } from '@/db/api'
+import { getMerchantStore, getMerchantOrders, merchantShipOrder, merchantCompleteOrder } from '@/db/api'
 import { RouteGuard } from '@/components/RouteGuard'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -46,6 +46,20 @@ function MerchantOrdersPage() {
         const ok = await merchantShipOrder(order.orders?.id)
         Taro.hideLoading()
         if (ok) { Taro.showToast({ title: '已发货', icon: 'success' }); load() }
+        else Taro.showToast({ title: '操作失败', icon: 'none' })
+      }
+    })
+  }
+  const handleComplete = async (order: any) => {
+    Taro.showModal({
+      title: '确认完成订单',
+      content: '确认该订单已完成？完成后将自动结算货款到「可结算货款」。',
+      success: async (res) => {
+        if (!res.confirm) return
+        Taro.showLoading({ title: '处理中' })
+        const ok = await merchantCompleteOrder(order.orders?.id)
+        Taro.hideLoading()
+        if (ok) { Taro.showToast({ title: '已完成，货款已结算', icon: 'success' }); load() }
         else Taro.showToast({ title: '操作失败', icon: 'none' })
       }
     })
@@ -109,7 +123,27 @@ function MerchantOrdersPage() {
                       <View className="py-1.5 px-3 text-sm text-white font-bold">发货</View>
                     </View>
                   )}
-                  <Text className="text-base font-bold text-foreground">合计 ¥{item.orders?.total_amount?.toFixed(2) || '-'}</Text>
+                  {(item.orders?.status === 'pending_receive' || item.orders?.status === 'pending_pickup' || item.orders?.status === 'pending_review') && (
+                    <View className="flex items-center justify-center leading-none rounded-xl bg-green-600"
+                      onClick={() => handleComplete(item)}>
+                      <View className="py-1.5 px-3 text-sm text-white font-bold">确认完成</View>
+                    </View>
+                  )}
+                  <View className="flex flex-col items-end">
+                    <Text className="text-xs text-muted-foreground">合计 ¥{item.orders?.total_amount?.toFixed(2) || '-'}</Text>
+                    {(() => {
+                      const ms = Array.isArray(item.orders?.merchant_settlements)
+                        ? (item.orders?.merchant_settlements[0] ?? null)
+                        : (item.orders?.merchant_settlements ?? null)
+                      if (!ms || ms.settle_amount == null) return null
+                      return (
+                        <Text className="text-sm font-bold text-emerald-600">
+                          实收 ¥{Number(ms.settle_amount).toFixed(2)}
+                          {ms.discount_pool > 0 ? `（让利 ¥${Number(ms.discount_pool).toFixed(2)}）` : ''}
+                        </Text>
+                      )
+                    })()}
+                  </View>
                 </View>
               </View>
             </View>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getPendingWithdrawals, approveWithdrawal, payWithdrawal, rejectWithdrawal } from '@/api/admin'
+import { getPendingWithdrawals, approveWithdrawal, payWithdrawal, rejectWithdrawal, triggerSettlementPayout, rejectSettlementWithdrawal } from '@/api/admin'
 import type { Withdrawal } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { maskIdCard, maskName, maskPhone, maskAccount } from '@/utils/mask'
@@ -20,11 +20,19 @@ const FILTERS: { key: string; label: string }[] = [
   { key: 'all', label: '全部' },
 ]
 
+// 提现类型切换（迁移 00120：佣金 / 货款）
+const KIND_TABS: { key: 'commission' | 'settlement'; label: string }[] = [
+  { key: 'commission', label: '佣金提现' },
+  { key: 'settlement', label: '货款提现' },
+]
+const KIND_LABEL: Record<string, string> = { commission: '佣金', settlement: '货款' }
+
 // 脱敏函数统一来自 @/utils/mask（maskIdCard / maskName / maskPhone / maskAccount）
 
 export default function Withdrawals() {
   const [page, setPage] = useState(0)
   const [status, setStatus] = useState('pending')
+  const [kind, setKind] = useState<'commission' | 'settlement'>('commission')
   const [list, setList] = useState<Withdrawal[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -37,9 +45,9 @@ export default function Withdrawals() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data, total: t } = await getPendingWithdrawals(page, PAGE_SIZE, status)
+    const { data, total: t } = await getPendingWithdrawals(page, PAGE_SIZE, status, kind)
     setList(data); setTotal(t); setLoading(false)
-  }, [page, status])
+  }, [page, status, kind])
 
   useEffect(() => { load() }, [load])
 
@@ -74,6 +82,20 @@ export default function Withdrawals() {
   }
 
   const handlePay = async (w: Withdrawal) => {
+    if (w.kind === 'settlement') {
+      // 货款提现：执行微信服务商分账（资金直达商家子商户号）；缺配置则提示手动打款
+      if (!confirm(`确认执行货款分账打款 ¥${Number(w.amount).toFixed(2)}？\n将通过微信服务商分账直达商家子商户号；若未配置子商户号/证书，需线下银行转账后手动置为已打款。`)) return
+      setProcessing(w.id)
+      const r = await triggerSettlementPayout(w.id)
+      setProcessing(null)
+      if (r.ok) {
+        alert(r.message || '分账已发起/打款完成')
+      } else {
+        alert(`分账失败：${r.error || r.message || '未知错误'}\n如为 NEED_SUB_MCH/NEED_CONFIG，请配置门店子商户号或微信证书后重试，或线下转账后手动置为已打款。`)
+      }
+      setDrawerOpen(false); setSelected(null); load()
+      return
+    }
     if (!confirm(`确认已完成打款 ¥${Number(w.amount).toFixed(2)}？代付后请在微信商户平台/银行完成实际转账，状态将变为"已打款"。`)) return
     setProcessing(w.id)
     const ok = await payWithdrawal(w.id, remark || undefined)
@@ -100,12 +122,16 @@ export default function Withdrawals() {
   }
 
   const handleReject = async (w: Withdrawal) => {
-    const reason = prompt('请输入驳回原因（将通知用户；佣金保留在其账户余额中，未扣减）：')
+    const reason = prompt(w.kind === 'settlement'
+      ? '请输入驳回原因（将通知商家，并退回货款到门店可结算余额）：'
+      : '请输入驳回原因（将通知用户；佣金保留在其账户余额中，未扣减）：')
     if (reason === null) return
     if (!reason.trim()) { alert('请填写驳回原因'); return }
     setProcessing(w.id)
-    const ok = await rejectWithdrawal(w.id, reason.trim(), remark || undefined)
-    if (ok) {
+    const ok = w.kind === 'settlement'
+      ? await rejectSettlementWithdrawal(w.id, reason.trim(), remark || undefined)
+      : await rejectWithdrawal(w.id, reason.trim(), remark || undefined)
+    if (ok && w.kind !== 'settlement') {
       // 推送「提现被驳回」通知
       supabase.functions.invoke('send-notification', {
         body: {
@@ -141,8 +167,21 @@ export default function Withdrawals() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <h1 style={{ color: '#E5E7EB', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>佣金兑付</h1>
-        <p style={{ color: '#6B7280', fontSize: 14 }}>提现申请审核 · 当前筛选「{FILTERS.find(f => f.key === status)?.label}」共 {total} 条 · 合计 ¥{totalAmount.toFixed(2)}</p>
+        <h1 style={{ color: '#E5E7EB', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{kind === 'settlement' ? '货款兑付' : '佣金兑付'}</h1>
+        <p style={{ color: '#6B7280', fontSize: 14 }}>{kind === 'settlement' ? '商家货款提现审核 · 微信服务商分账直达' : '推广佣金提现审核'} · 当前筛选「{FILTERS.find(f => f.key === status)?.label}」共 {total} 条 · 合计 ¥{totalAmount.toFixed(2)}</p>
+      </div>
+
+      {/* 类型切换（佣金 / 货款） */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {KIND_TABS.map(k => (
+          <button key={k.key} onClick={() => { setPage(0); setKind(k.key) }}
+            style={{ padding: '8px 18px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              background: kind === k.key ? (k.key === 'settlement' ? '#10B981' : '#C2410C') : '#111827',
+              color: kind === k.key ? '#fff' : '#9CA3AF',
+              border: `1px solid ${kind === k.key ? (k.key === 'settlement' ? '#10B981' : '#C2410C') : '#1F2937'}` }}>
+            {k.label}
+          </button>
+        ))}
       </div>
 
       {/* 状态筛选 */}
@@ -158,18 +197,30 @@ export default function Withdrawals() {
       </div>
 
       {/* 汇总卡 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
-        {[
-          { label: '筛选条数', val: total, color: '#F59E0B' },
-          { label: '提现总额', val: `¥${totalAmount.toFixed(2)}`, color: '#C2410C' },
-          { label: '应缴个税(20%)后预估', val: `¥${totalActual.toFixed(2)}`, color: '#10B981' },
-        ].map(c => (
-          <div key={c.label} style={{ ...S.card, padding: '16px 20px' }}>
-            <p style={{ color: '#6B7280', fontSize: 12, marginBottom: 6 }}>{c.label}</p>
-            <p style={{ color: c.color, fontSize: 24, fontWeight: 700 }}>{c.val}</p>
+      {(() => {
+        const cards =
+          kind === 'settlement'
+            ? [
+                { label: '筛选条数', val: total, color: '#F59E0B' },
+                { label: '货款提现总额', val: `¥${totalAmount.toFixed(2)}`, color: '#10B981' },
+                { label: '说明', val: '含情绪豆垫付', color: '#A78BFA' },
+              ]
+            : [
+                { label: '筛选条数', val: total, color: '#F59E0B' },
+                { label: '提现总额', val: `¥${totalAmount.toFixed(2)}`, color: '#C2410C' },
+                { label: '应缴个税(20%)后预估', val: `¥${totalActual.toFixed(2)}`, color: '#10B981' },
+              ]
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+            {cards.map(c => (
+              <div key={c.label} style={{ ...S.card, padding: '16px 20px' }}>
+                <p style={{ color: '#6B7280', fontSize: 12, marginBottom: 6 }}>{c.label}</p>
+                <p style={{ color: c.color, fontSize: 24, fontWeight: 700 }}>{c.val}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        )
+      })()}
 
       <div style={S.card}>
         {loading ? (
@@ -181,7 +232,7 @@ export default function Withdrawals() {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 920 }}>
               <thead>
                 <tr>
-                  {['申请人', '手机', '提现金额', '应缴个税(20%)', '税后预估到账', '方式', '开户行', '状态', '操作'].map(h => (
+                  {['申请人', '手机', '提现金额', '应缴个税(20%)', '税后预估到账', '方式', '开户行', '状态', '类型', '操作'].map(h => (
                     <th key={h} style={S.th}>{h}</th>
                   ))}
                 </tr>
@@ -209,6 +260,11 @@ export default function Withdrawals() {
                       <td style={S.td}>
                         <span style={{ color: STATUS_COLOR[w.status], fontSize: 12, fontWeight: 600, padding: '2px 8px', background: `${STATUS_COLOR[w.status]}22`, borderRadius: 4 }}>
                           {STATUS_LABEL[w.status] || w.status}
+                        </span>
+                      </td>
+                      <td style={S.td}>
+                        <span style={{ color: w.kind === 'settlement' ? '#10B981' : '#C2410C', fontSize: 12, fontWeight: 600 }}>
+                          {KIND_LABEL[w.kind || 'commission']}
                         </span>
                       </td>
                       <td style={S.td}>
@@ -267,8 +323,17 @@ export default function Withdrawals() {
             {/* 金额 */}
             <div style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Field label="提现金额" value={`¥${Number(selected.amount).toFixed(2)}`} strong />
-              <Field label="应缴个税(20%)" value={`-¥${calcWithholdingTax(Number(selected.amount)).toFixed(2)}`} />
-              <Field label="税后预估到账" value={`¥${(Number(selected.amount) - calcWithholdingTax(Number(selected.amount))).toFixed(2)}`} strong />
+              {selected.kind === 'settlement' ? (
+                <>
+                  <Field label="类型" value="商家货款结算（含情绪豆垫付等值部分）" />
+                  <Field label="税务说明" value="货款结算属商家销售回款，不涉及推广佣金个税" />
+                </>
+              ) : (
+                <>
+                  <Field label="应缴个税(20%)" value={`-¥${calcWithholdingTax(Number(selected.amount)).toFixed(2)}`} />
+                  <Field label="税后预估到账" value={`¥${(Number(selected.amount) - calcWithholdingTax(Number(selected.amount))).toFixed(2)}`} strong />
+                </>
+              )}
               <Field label="申请时间" value={new Date(selected.created_at).toLocaleString('zh-CN')} />
               {selected.remark && <Field label="备注" value={selected.remark} />}
               {selected.reject_reason && <Field label="驳回原因" value={selected.reject_reason} />}
@@ -300,7 +365,7 @@ export default function Withdrawals() {
                 <>
                   <button disabled={processing === selected.id} onClick={() => handlePay(selected)}
                     style={{ padding: '12px', background: '#10B981', border: 'none', borderRadius: 8, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-                    确认打款
+                    {selected.kind === 'settlement' ? '执行分账打款' : '确认打款'}
                   </button>
                   <button disabled={processing === selected.id} onClick={() => handleReject(selected)}
                     style={{ padding: '12px', background: 'transparent', border: '1px solid #EF4444', borderRadius: 8, color: '#EF4444', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>

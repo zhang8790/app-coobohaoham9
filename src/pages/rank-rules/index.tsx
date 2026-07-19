@@ -1,50 +1,44 @@
 import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 // @title 段位 · 身份与权益
-import Taro from '@tarojs/taro'
+
 import { getMyProfile } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
 import './index.scss'
 
 // 六阶高端段位（颜色与 commission-calculator-v5 RANK_CONFIG_TABLE_V5 保持一致）
-// 段位由个人累计消费决定基础门槛，高段位叠加「徽章收集度」软门槛；团队 / 拓新仅作推广佣金系数，不进入段位。
+// 段位由个人【近 6 个月滚动消费】决定基础门槛，高段位叠加「徽章收集度」软门槛；团队 / 拓新仅作推广佣金系数，不进入段位。
 const RANK_TIERS = [
   {
-    rank: '掌门', score: '≥ 20,000', color: '#D4AF37',
+    rank: '无心境', score: '≥ 20,000', color: '#D4AF37',
     identity: '荣誉身份',
-    benefits: ['荣誉身份铭牌', '年度成长盛典邀约', '掌门专属客服'],
-    gate: '徽章 ≥ 8 且含史诗/传说',
-  },
+    benefits: ['荣誉身份铭牌', '年度成长盛典邀约', '无心境专属客服'],
+    gate: '徽章 ≥ 8 且含史诗/传说'},
   {
-    rank: '长老', score: '≥ 6,000', color: '#9CA3AF',
+    rank: '悟心', score: '≥ 6,000', color: '#9CA3AF',
     identity: '高阶 · 共创',
     benefits: ['食养·情绪 共创权（命名 / 配方投票）', '私享品鉴'],
-    gate: '徽章收集度 ≥ 4',
-  },
+    gate: '徽章收集度 ≥ 4'},
   {
-    rank: '核心弟子', score: '≥ 2,000', color: '#CD7F32',
+    rank: '静心', score: '≥ 2,000', color: '#CD7F32',
     identity: '中坚 · 专属',
     benefits: ['1v1 情绪管家（季度）× 1', '线下主题沙龙邀约'],
-    gate: '累计确权 ≥ N',
-  },
+    gate: '累计确权 ≥ N'},
   {
-    rank: '内门弟子', score: '≥ 800', color: '#4A90D9',
+    rank: '明心', score: '≥ 800', color: '#4A90D9',
     identity: '进阶 · 优先',
     benefits: ['新品优先体验', '专属食养配方卡'],
-    gate: '—',
-  },
+    gate: '—'},
   {
-    rank: '外门弟子', score: '≥ 200', color: '#50C878',
+    rank: '初心', score: '≥ 200', color: '#50C878',
     identity: '入门 + · 关怀',
     benefits: ['月度「情绪顾问」轻咨询 × 1', '生日情绪礼'],
-    gate: '—',
-  },
+    gate: '—'},
   {
-    rank: '江湖散修', score: '≥ 0', color: '#90EE90',
+    rank: '凡心', score: '≥ 0', color: '#90EE90',
     identity: '入门',
     benefits: ['情绪确权基础礼包'],
-    gate: '—',
-  },
+    gate: '—'},
 ]
 
 function RankRules() {
@@ -65,7 +59,7 @@ function RankRules() {
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4">
         <Text className="block text-foreground text-xl font-bold mb-1" style={{ display: 'block' }}>段位 · 身份与权益</Text>
         <Text className="block text-muted-foreground text-xs" style={{ display: 'block' }}>
-          段位由个人累计消费决定基础门槛，高段位（长老 / 掌门）叠加徽章收集度软门槛，达到即晋升。
+          段位由个人【近 6 个月滚动消费】决定基础门槛（窗口外消费自动过期）；高段位（悟心 / 无心境）叠加徽章收集度软门槛，达到即晋升。停止消费即自动降级，杜绝长期不消费仍享高段位。
         </Text>
         <Text className="block text-muted-foreground text-xs mt-1" style={{ display: 'block' }}>
           权益为专属服务 / 体验 / 共创权，不承诺现金回报或保本，不含分红 / 股权表述。
@@ -118,13 +112,13 @@ function RankRules() {
           1. 团队 / 拓新仅作推广佣金（真实服务费，可提现并代扣个税）的系数，不进入段位，避免「等级靠拉人」观感。
         </Text>
         <Text className="block text-muted-foreground text-xs leading-loose" style={{ display: 'block' }}>
-          2. 高段位（长老 / 掌门）晋升参考「徽章收集度」作为软门槛（长老 ≥ 4 枚，掌门 ≥ 8 枚且含史诗 / 传说），不硬卡升级。
+          2. 高段位（悟心 / 无心境）晋升参考「徽章收集度」作为软门槛（悟心 ≥ 4 枚，无心境 ≥ 8 枚且含史诗 / 传说），不硬卡升级。
         </Text>
         <Text className="block text-muted-foreground text-xs leading-loose" style={{ display: 'block' }}>
           3. 徽章来自每次情绪确权，按稀有度（普通→稀有→史诗→传说）收藏，详见「徽章图鉴」。
         </Text>
         <Text className="block text-muted-foreground text-xs leading-loose mt-1" style={{ display: 'block' }}>
-          金豆 / 情绪豆均为平台内资产，不可提现、不可兑现金、不可二级转让，与推广佣金严格隔离。
+          情绪豆为平台唯一内部资产，由人民币充值获得，仅限平台内消费，不可提现、不可兑现金、不可二级转让；与推广佣金（commission_balance，可提现）严格隔离。
         </Text>
       </View>
     </View>

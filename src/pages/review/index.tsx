@@ -5,7 +5,7 @@ import { View, Text, Image, Textarea } from '@tarojs/components'
 import { getOrders, submitReviews } from '@/db/api'
 import type { Order } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
-import { MOOD_CATEGORIES, MOOD_TAGS_ALL, type MoodTag } from '@/utils/mood-tags'
+import { MOOD_CATEGORIES, MOOD_TAGS_ALL } from '@/utils/mood-tags'
 
 interface ReviewItem {
   order_item_id: string
@@ -44,8 +44,7 @@ function ReviewPage() {
           product_image: item.product_image ?? null,
           rating: 5,
           content: '',
-          mood_tags: [],
-        })))
+          mood_tags: []})))
       }
     } catch (e) {
       console.warn('[ReviewPage] load error', e)
@@ -80,8 +79,7 @@ function ReviewPage() {
       order_item_id: r.order_item_id,
       rating: r.rating,
       content: r.content || undefined,
-      mood_tags: r.mood_tags.length > 0 ? r.mood_tags : undefined,
-    })))
+      mood_tags: r.mood_tags.length > 0 ? r.mood_tags : undefined})))
     setSubmitting(false)
     if (ok) {
       Taro.showToast({ title: '评价成功，感谢您的反馈', icon: 'success' })

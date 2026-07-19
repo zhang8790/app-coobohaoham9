@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { View, Text, Button, Image } from '@tarojs/components'
-import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMyMerchantApplication, generateQrcode } from '@/db/api'
+import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMyMerchantApplication, generateQrcode, getMerchantSettlement } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
@@ -26,6 +26,11 @@ function MerchantCenterPage() {
   const [statsLoaded, setStatsLoaded] = useState(false)
   const [merchantAppStatus, setMerchantAppStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // 商家货款结算概览（迁移 00120）
+  const [settlement, setSettlement] = useState<{
+    merchant_balance: number; settlement_frozen: number; total_settled: number; settlement_count: number; wx_sub_mch_id: string | null
+  } | null>(null)
 
   // 门店二维码相关状态
   const [showQrModal, setShowQrModal] = useState(false)
@@ -119,8 +124,10 @@ function MerchantCenterPage() {
     Promise.all([
       getMerchantProducts(store.id),
       getMerchantOrders(store.id),
-    ]).then(([prods, ords]) => {
+      getMerchantSettlement(store.id).catch(() => null),
+    ]).then(([prods, ords, sett]) => {
       if (cancelled) return
+      if (sett) setSettlement(sett)
       const online = prods.filter(p => p.is_active).length
       const today = new Date().toISOString().slice(0, 10)
       const todayOrders = ords.filter(o => (o.orders?.created_at || '').startsWith(today)).length
@@ -287,6 +294,36 @@ function MerchantCenterPage() {
             <Text className="text-base text-muted-foreground">{s.sub}</Text>
           </View>
         ))}
+      </View>
+
+      {/* ============ 商家货款结算卡（迁移 00120） ============ */}
+      <View className="mx-4 mt-3 p-4 rounded-2xl border border-emerald-500/30"
+        style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.10), rgba(5,150,105,0.04))' }}>
+        <View className="flex items-center justify-between">
+          <View className="flex items-center gap-2">
+            <View className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+              <View className="i-mdi-cash-multiple text-emerald-500 text-xl" />
+            </View>
+            <Text className="text-lg font-bold text-foreground">可结算货款</Text>
+          </View>
+          <Text className="text-base text-muted-foreground">已结算 {settlement?.settlement_count ?? 0} 笔</Text>
+        </View>
+        <View className="flex items-end justify-between mt-3">
+          <View>
+            <Text className="text-base text-muted-foreground">当前可提现</Text>
+            <Text className="text-4xl font-bold text-emerald-600">¥{((settlement?.merchant_balance ?? 0)).toFixed(2)}</Text>
+          </View>
+          <Button
+            className="!m-0 !p-0 !bg-emerald-500 !border-none !rounded-2xl !leading-none"
+            onClick={() => Taro.navigateTo({ url: `/pages/withdraw/index?kind=settlement&storeId=${store.id}` })}>
+            <View className="px-5 py-2.5 flex items-center gap-1">
+              <Text className="text-base font-bold text-white">货款提现</Text>
+            </View>
+          </Button>
+        </View>
+        <Text className="text-sm text-muted-foreground mt-2">
+          货款以人民币结算（含情绪豆支付等值部分，由平台垫付），通过微信服务商分账直达您的子商户号，可提现。
+        </Text>
       </View>
 
       {/* 功能导航网格 */}

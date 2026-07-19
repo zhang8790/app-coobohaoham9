@@ -3,11 +3,10 @@ import { View, Text, Image, Button } from '@tarojs/components'
 import { useState, useEffect, useRef } from 'react'
 import {
   getProductById, getMyProfile, grantEmotionClaim, getOrderForClaim,
-  getEquitySummary, EMOTION_TB_PER_CLAIM,
-} from '@/db/api'
+  getEquitySummary, EMOTION_TB_PER_CLAIM} from '@/db/api'
 import type { EquitySummary } from '@/db/api'
 import type { Product } from '@/db/types'
-import { MOOD_TAGS, getAllMoodTags } from '@/utils/mood-tags'
+import { getAllMoodTags } from '@/utils/mood-tags'
 import './index.scss'
 
 // 30 个标准情绪标签（6 类 × 5），作为确权多选候选
@@ -135,8 +134,7 @@ export default function EmotionClaimPage() {
   useShareAppMessage(() => ({
     title: `我在来电有喜给「${product?.name || '好物'}」做了情绪确权 🎭`,
     path: `/pages/index/index?inviterCode=${inviteCode || ''}`,
-    imageUrl: product?.main_image ?? undefined,
-  }))
+    imageUrl: product?.main_image ?? undefined}))
 
   const toggle = (zh: string) => {
     setSelected((prev) => {

@@ -1,6 +1,6 @@
 import { View, Text } from '@tarojs/components'
 // @title 推广规则
-import Taro from '@tarojs/taro'
+
 import RiskWarning from '@/components/RiskWarning'
 
 function CommissionRules() {
@@ -22,9 +22,10 @@ function CommissionRules() {
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">二、佣金比例（二级）</Text>
-          <Text className="block">1. 我的好友佣金比例由您的「段位」决定，段位越高比例越大：约 40% ~ 60%（基于订单让利池在扣除平台基础服务费后的剩余部分计算，并非订单全额）。</Text>
-          <Text className="block">2. 我的粉丝佣金比例为 15% ~ 25%，随您的段位提升而提高。</Text>
+          <Text className="block">1. 我的好友佣金比例由您的「段位」决定，段位越高比例越大：约 40% ~ 50%（基于订单让利池在扣除平台基础服务费后的剩余部分计算，并非订单全额）。</Text>
+          <Text className="block">2. 我的粉丝佣金比例为 15% ~ 18%，随您的段位提升而提高。</Text>
           <Text className="block">3. 仅二级（我的好友+我的粉丝），不设置第三级及多层返利。</Text>
+          <Text className="block">说明：段位由您「近 6 个月滚动消费」决定，停止消费则窗口外消费过期、段位自动下调，不会出现长期不消费仍拿高比例的情况。</Text>
           <Text className="block">具体比例以推广中心当前段位展示为准。</Text>
         </View>
 
@@ -36,16 +37,16 @@ function CommissionRules() {
         </View>
 
         <View className="mb-4">
-          <Text className="block text-foreground font-semibold mb-1 leading-snug">四、活跃门槛</Text>
-          <Text className="block">1. 推广人须保持推广活跃：当月您推荐的好友产生有效成交订单，方可获得全额推广佣金。</Text>
-          <Text className="block">2. 当月无推荐成交（首次）：推广佣金减半（宽限期）。</Text>
-          <Text className="block">3. 连续 2 个月无推荐成交：暂停推广佣金资格，恢复推广活跃后重新激活。</Text>
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">四、活跃门槛（已真实落地）</Text>
+          <Text className="block">1. 推广人须保持推广活跃：近 30 天您推荐的好友产生有效成交订单，方可获得全额推广佣金。</Text>
+          <Text className="block">2. 仅 30~60 天前有推荐成交（首次断档）：推广佣金减半（宽限期）。</Text>
+          <Text className="block">3. 连续 60 天无推荐成交：暂停推广佣金资格，恢复推广活跃（产生新的推荐成交）后自动重新激活。</Text>
         </View>
 
         <View className="mb-4">
-          <Text className="block text-foreground font-semibold mb-1 leading-snug">五、回扣与风控</Text>
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">五、回扣与风控（已真实落地）</Text>
           <Text className="block">1. 若推荐好友订单发生退款，对应佣金将同步回扣。</Text>
-          <Text className="block">2. 连续 3 个月未拓新，推广佣金逐级衰减（最低不低于基准比例的 40%）。</Text>
+          <Text className="block">2. 连续 3 个月（90 天）未拓新（无新下级注册），推广佣金系数衰减至基准的 40%，最低不低于基准比例 40%。</Text>
           <Text className="block">3. 平台严禁刷单、套现等作弊行为，违规佣金将被冻结或清零。</Text>
         </View>
 

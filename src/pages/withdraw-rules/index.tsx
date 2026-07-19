@@ -1,6 +1,6 @@
 import { View, Text } from '@tarojs/components'
 // @title 提现规则
-import Taro from '@tarojs/taro'
+
 
 function WithdrawRules() {
   return (

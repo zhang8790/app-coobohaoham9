@@ -1,7 +1,7 @@
 /**
  * create-order Edge Function (V2 - 支持跨门店拆单)
- * 三种支付模式：pure_gold（纯金豆）| hybrid（混合）| wxpay（纯微信）
- * 金豆优先扣减，防重复提交（order_no 幂等）
+ * 三种支付模式：pure_gold（纯情绪豆）| hybrid（混合）| wxpay（纯微信）
+ * 情绪豆优先扣减，防重复提交（order_no 幂等）
  * 跨门店结算：自动按 store_id 拆分成多个子订单，共享同一 parent_order_no
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2'
@@ -16,8 +16,8 @@ function toFixed4(n: number): number {
   return Math.round(n * 10000) / 10000
 }
 
-// 金豆换算比例：1金豆 = 0.01元
-const GOLD_BEAN_RATE = 0.01
+// 情绪豆换算比例：与前端 api.ts / payment 页保持一致，1 情绪豆 = 1 元（人民币 1:1 锚定，tb_balance 单位即元）
+const GOLD_BEAN_RATE = 1
 
 type PayMode = 'pure_gold' | 'hybrid' | 'wxpay'
 
@@ -47,7 +47,7 @@ Deno.serve(async (req: Request) => {
       }>
       total_amount: number
       pay_mode: PayMode
-      gold_beans_to_use?: number
+      tb_used?: number
       referrer_id?: string
       idempotency_key?: string
     }
@@ -80,24 +80,24 @@ Deno.serve(async (req: Request) => {
 
     const isMultiStore = storeGroups.size > 1
 
-    // 查用户金豆余额
-    const { data: profile } = await supabase.from('profiles').select('gold_beans, points').eq('id', user.id).maybeSingle()
-    const goldBeanBalance = profile?.gold_beans ?? 0
+    // 查用户情绪豆余额
+    const { data: profile } = await supabase.from('profiles').select('tb_balance, points').eq('id', user.id).maybeSingle()
+    const goldBeanBalance = profile?.tb_balance ?? 0
 
-    // 计算金豆抵扣（按总金额计算）
+    // 计算情绪豆抵扣（按总金额计算）
     let goldBeansUsed = 0
     let wxpayAmount = toFixed4(totalAmount)
 
     if (pay_mode === 'pure_gold' || pay_mode === 'hybrid') {
-      const requested = body.gold_beans_to_use ?? goldBeanBalance
+      const requested = body.tb_used ?? goldBeanBalance
       const maxDeductYuan = toFixed4(goldBeanBalance * GOLD_BEAN_RATE)
 
       if (pay_mode === 'pure_gold') {
-        const needed = Math.ceil(totalAmount / GOLD_BEAN_RATE)
+        const needed = toFixed4(totalAmount / GOLD_BEAN_RATE)
         if (goldBeanBalance < needed) {
-          return Response.json({ error: `金豆不足，需要${needed}豆，当前${goldBeanBalance}豆`, code: 'INSUFFICIENT_GOLD_BEANS' }, { status: 400, headers: corsHeaders })
+          return Response.json({ error: `情绪豆不足，需要${needed}豆，当前${goldBeanBalance}豆`, code: 'INSUFFICIENT_GOLD_BEANS' }, { status: 400, headers: corsHeaders })
         }
-        goldBeansUsed = needed
+        goldBeansUsed = Math.min(needed, toFixed4(totalAmount / GOLD_BEAN_RATE))
         wxpayAmount = 0
       } else {
         const beansToUse = Math.min(requested, goldBeanBalance)
@@ -124,13 +124,13 @@ Deno.serve(async (req: Request) => {
     // 生成父订单号（跨门店结算时共享）
     const parentOrderNo = isMultiStore ? `PARENT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}` : null
 
-    // 扣金豆（如有）— 先扣，失败则回滚
+    // 扣情绪豆（如有）— 先扣，失败则回滚
     if (goldBeansUsed > 0) {
       const { error: balErr } = await supabase.from('profiles')
-        .update({ gold_beans: goldBeanBalance - goldBeansUsed })
+        .update({ tb_balance: goldBeanBalance - goldBeansUsed })
         .eq('id', user.id)
-        .gte('gold_beans', goldBeansUsed)
-      if (balErr) return Response.json({ error: '金豆扣减失败，请重试', code: 'GOLD_DEDUCT_FAIL' }, { status: 500, headers: corsHeaders })
+        .gte('tb_balance', goldBeansUsed)
+      if (balErr) return Response.json({ error: '情绪豆扣减失败，请重试', code: 'GOLD_DEDUCT_FAIL' }, { status: 500, headers: corsHeaders })
     }
 
     // 创建订单（单门店或跨门店）
@@ -152,8 +152,8 @@ Deno.serve(async (req: Request) => {
           user_id: user.id,
           store_id: storeId,
           total_amount: storeAmount,
-          payment_method: pay_mode === 'wxpay' ? 'wxpay' : pay_mode === 'pure_gold' ? 'gold_beans' : 'wxpay',
-          gold_beans_used: isMultiStore ? 0 : goldBeansUsed, // 金豆只扣一次，记在第一个订单
+          payment_method: pay_mode === 'wxpay' ? 'wxpay' : pay_mode === 'pure_gold' ? 'emotion_beans' : 'wxpay',
+          tb_used: isMultiStore ? 0 : goldBeansUsed, // 情绪豆只扣一次，记在第一个订单
           status: pay_mode === 'pure_gold' ? 'pending_ship' : 'pending_pay',
           referrer_id: referrer_id ?? null,
           parent_order_no: parentOrderNo,
@@ -177,10 +177,37 @@ Deno.serve(async (req: Request) => {
         })
       }
 
-      // 纯金豆支付 → 标记所有订单已分润
+      // 纯情绪豆支付 → 触发分佣（fix: 此前干标 commission_distributed=true 却零发放，导致「假分佣」且补跑被跳过）
+      // 与小程序 createOrderV2 对齐：调用 distribute-commission 把佣金以情绪豆(tb_balance)发给上线，纯豆全部分佣。
       if (pay_mode === 'pure_gold') {
         for (const order of createdOrders) {
-          await supabase.from('orders').update({ commission_distributed: true }).eq('id', order.id)
+          const orderTotal = Number(order.total_amount) || 0
+          if (orderTotal <= 0) continue
+          let discountRate = 0.09
+          try {
+            if (order.store_id) {
+              const { data: sd } = await supabase
+                .from('stores')
+                .select('referral_rate, referral_rate_enabled')
+                .eq('id', order.store_id)
+                .maybeSingle()
+              const enabled = sd?.referral_rate_enabled !== false
+              discountRate = enabled ? (Number(sd?.referral_rate ?? 0.09)) : 0
+            }
+            await supabase.functions.invoke('distribute-commission', {
+              body: {
+                order_id: order.id,
+                order_no: order.order_no,
+                payer_id: user.id,
+                total_amount: orderTotal,
+                net_amount: 0,
+                referrer_id: order.referrer_id ?? null,
+                discount_rate: discountRate,
+              },
+            })
+          } catch (e) {
+            console.error('[create-order] 纯情绪豆分佣触发失败(不影响下单):', (e as any)?.message)
+          }
         }
       }
 
@@ -199,14 +226,14 @@ Deno.serve(async (req: Request) => {
         is_multi_store: isMultiStore,
         total_amount: totalAmount,
         wxpay_amount: wxpayAmount,
-        gold_beans_used: goldBeansUsed,
+        tb_used: goldBeansUsed,
         pay_mode,
       }, { headers: corsHeaders })
 
     } catch (err) {
-      // 创建订单失败，回滚金豆
+      // 创建订单失败，回滚情绪豆
       if (goldBeansUsed > 0) {
-        await supabase.from('profiles').update({ gold_beans: goldBeanBalance }).eq('id', user.id)
+        await supabase.from('profiles').update({ tb_balance: goldBeanBalance }).eq('id', user.id)
       }
       // 删除已创建的订单（回滚）
       for (const order of createdOrders) {

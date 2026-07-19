@@ -1,4 +1,4 @@
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -37,8 +37,7 @@ export function useShareWithReferral(options: {
     return {
       title: options.title,
       path: sharePath,
-      imageUrl: options.imageUrl || '',
-    }
+      imageUrl: options.imageUrl || ''}
   })
 
   // 分享到朋友圈
@@ -49,8 +48,7 @@ export function useShareWithReferral(options: {
     return {
       title: options.timelineTitle || options.title,
       query: shareQuery,
-      imageUrl: options.imageUrl || '',
-    }
+      imageUrl: options.imageUrl || ''}
   })
 
   return { myCode }

@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>江湖令 · 武侠游戏化 UI 视觉原型（暗色漆器 · 统一卡片体系）</title>
+<style>
+  :root{
+    /* 双色纪律：金=资产/价值，红=操作/选中/印章 */
+    --red:#C0392B; --red-bright:#D84A3A; --red-deep:#8E2A20;
+    --gold:#EAC25C; --gold-lt:#F7DE9C; --gold-dp:#B8893A;
+    /* 暗色江湖底（暖中性，去掉青绿调，避免红显脏） */
+    --bg-top:#1d1712; --bg-bot:#0c0906;
+    /* 统一漆器 surface（全站唯一卡片语言，暖焦糖暗底） */
+    --surf-1:#241c15; --surf-2:#171210;
+    --line:rgba(234,194,92,.18);        /* 发丝金边 */
+    --line-strong:rgba(234,194,92,.42);
+    /* 文字三级（暖米白 → 暖灰，不再带绿） */
+    --t1:#F4EBD9; --t2:#B3A892; --t3:#6E6456;
+    --r:14px; --r-sm:10px; --r-pill:999px;
+    --pad:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei",-apple-system,sans-serif;
+    background:radial-gradient(circle at 50% -10%,#0c0906,#000 90%);
+    display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;
+    color:var(--t1);
+  }
+
+  /* ===== 手机外框 ===== */
+  .phone{width:390px;height:844px;max-height:94vh;background:var(--bg-bot);
+    border-radius:44px;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 10px #07090a,0 0 0 12px #20262a;
+    position:relative;overflow:hidden;flex-shrink:0;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:150px;height:26px;
+    background:#07090a;border-radius:0 0 18px 18px;z-index:80;}
+
+  /* ===== 暗色江湖底：仅顶部一束极淡灯火辉光 ===== */
+  .bg-shell{position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:radial-gradient(120% 55% at 50% -12%, rgba(234,194,92,.10), transparent 55%),
+               linear-gradient(180deg,var(--bg-top) 0%, var(--bg-bot) 70%);}
+  .bg-mountains{position:absolute;left:0;right:0;bottom:0;height:200px;z-index:0;pointer-events:none;opacity:.12;}
+
+  /* ===== 屏幕滚动容器（统一纵向，底部留 Tab 空间） ===== */
+  .screen{position:absolute;inset:0;z-index:1;overflow-y:auto;overflow-x:hidden;
+    padding-bottom:80px;-webkit-overflow-scrolling:touch;}
+  .screen::-webkit-scrollbar{width:0;}
+  .screen.hidden{display:none;}
+  @keyframes inkFade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  .screen.show-anim{animation:inkFade .32s ease both;}
+
+  /* 全站统一内容栅格：左右 16px */
+  .page{padding:0 var(--pad);}
+
+  /* 字号阶梯 */
+  .kt{font-family:"STKaiti","KaiTi","Songti SC",serif;letter-spacing:1px;}
+  .gold{background:linear-gradient(180deg,var(--gold-lt),var(--gold) 55%,var(--gold-dp));
+    -webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800;}
+  .gold.glow{text-shadow:0 0 16px rgba(234,194,92,.5);}
+
+  /* 篆刻印章（朱砂，唯一标识符号） */
+  .seal{width:36px;height:36px;border-radius:9px;flex-shrink:0;position:relative;
+    background:linear-gradient(180deg,var(--red-bright),var(--red));color:var(--t1);
+    display:flex;align-items:center;justify-content:center;font-family:"STKaiti","KaiTi",serif;
+    font-size:21px;font-weight:700;box-shadow:inset 0 0 0 2px rgba(255,255,255,.30),0 4px 10px rgba(192,57,43,.4);}
+  .seal::after{content:"";position:absolute;inset:3px;border-radius:6px;border:1px solid rgba(255,255,255,.22);}
+
+  /* ===== 统一漆器卡片（全站唯一卡片语言） ===== */
+  .card{background:linear-gradient(180deg,var(--surf-1),var(--surf-2));
+    border:1px solid var(--line);border-radius:var(--r);
+    box-shadow:0 4px 14px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04);
+    padding:14px;position:relative;overflow:hidden;}
+
+  /* ===== 顶部标题栏 ===== */
+  .topbar{display:flex;align-items:center;gap:11px;padding:18px 0 6px;}
+  .topbar .title{font-size:20px;font-weight:800;}
+  .topbar .sub{font-size:11px;color:var(--t2);margin-top:3px;letter-spacing:1px;}
+
+  /* 搜寻台：暗玻璃 + 发丝金边 + 朱砂毛笔 */
+  .search{display:flex;align-items:center;gap:9px;margin:10px 0;
+    background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--r-pill);
+    padding:11px 16px;backdrop-filter:blur(6px);}
+  .search svg{width:17px;height:17px;color:var(--red);flex-shrink:0;}
+  .search input{border:none;outline:none;flex:1;background:transparent;font-size:14px;color:var(--t1);font-family:inherit;}
+  .search input::placeholder{color:var(--t3);}
+
+  /* ===== 焦点 HUD 令牌（首页唯一最亮元素） ===== */
+  .hud{position:relative;border-radius:var(--r);padding:16px 18px;overflow:hidden;margin:12px 0;
+    background:linear-gradient(150deg,#2a2118,#171210);
+    border:1px solid var(--line-strong);
+    box-shadow:0 8px 24px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05);}
+  .hud::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 85% at 82% -10%, rgba(234,194,92,.14), transparent 60%);}
+  .hud .lab{font-size:12px;color:var(--t2);letter-spacing:1px;position:relative;z-index:2;}
+  .hud .val{font-size:40px;font-weight:800;line-height:1.05;margin-top:4px;position:relative;z-index:2;}
+  .hud .val .u{font-size:13px;color:var(--gold);margin-left:6px;font-weight:700;}
+  .hud .tip{font-size:11px;color:var(--t2);margin-top:6px;position:relative;z-index:2;}
+
+  /* 宗门驿站横幅（朱砂上下边 + 暗底） */
+  .station{position:relative;border-radius:var(--r);padding:14px 16px;margin:12px 0;cursor:pointer;overflow:hidden;
+    background:linear-gradient(120deg,#241b1b,#1a1414);
+    border-top:3px solid var(--red);border-bottom:3px solid var(--red);
+    border-left:1px solid var(--line-strong);border-right:1px solid var(--line-strong);
+    box-shadow:0 6px 18px rgba(0,0,0,.45);}
+  .station::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 100% 0%, rgba(234,194,92,.12), transparent 55%);}
+  .station .row{position:relative;z-index:2;display:flex;align-items:center;gap:11px;}
+  .station .ic{width:32px;height:32px;color:var(--gold);flex-shrink:0;}
+  .station b{font-family:"STKaiti","KaiTi",serif;font-size:14.5px;letter-spacing:1px;color:var(--t1);}
+  .station .desc{font-size:11px;color:var(--t2);margin-top:3px;}
+
+  /* ===== 章节标题（全站统一） ===== */
+  .sec{display:flex;align-items:center;gap:9px;margin:20px 0 12px;}
+  .sec .bar{width:3px;height:14px;border-radius:2px;background:var(--red);
+    box-shadow:0 0 6px rgba(192,57,43,.55);flex-shrink:0;}
+  .sec .t{font-size:15px;font-weight:700;color:var(--t1);letter-spacing:1px;}
+  .sec .ln{flex:1;height:1px;background:linear-gradient(90deg,var(--line-strong),transparent);}
+
+  /* ===== 横向胶囊（分类/筛选，全站统一） ===== */
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;}
+  .chips::-webkit-scrollbar{height:0;}
+  .chip{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;font-size:12.5px;
+    padding:7px 13px;border-radius:var(--r-pill);background:rgba(255,255,255,.05);
+    border:1px solid var(--line);color:var(--t2);cursor:pointer;white-space:nowrap;transition:.15s;}
+  .chip svg{width:15px;height:15px;}
+  .chip.on{background:linear-gradient(180deg,var(--red-bright),var(--red));color:#fff;
+    border-color:var(--red-deep);box-shadow:0 3px 9px rgba(192,57,43,.35);}
+  .chip.red{color:var(--red);border-color:rgba(192,57,43,.5);}
+
+  /* ===== 据点横滑卡 ===== */
+  .row-scroll{display:flex;gap:12px;overflow-x:auto;padding:2px 0 6px;}
+  .row-scroll::-webkit-scrollbar{height:0;}
+  .shop{width:130px;flex-shrink:0;text-align:center;}
+  .shop .logo{width:52px;height:52px;border-radius:50%;margin:2px auto 9px;
+    background:radial-gradient(circle at 35% 30%,#3a2e22,#140f0a);
+    display:flex;align-items:center;justify-content:center;color:var(--gold);
+    border:1.5px solid var(--line-strong);font-size:20px;font-family:"STKaiti",serif;position:relative;}
+  .shop .logo .ms{position:absolute;top:-6px;right:-6px;width:18px;height:24px;border-radius:3px;
+    background:linear-gradient(180deg,var(--red-bright),var(--red));color:var(--t1);font-size:10px;
+    display:flex;align-items:center;justify-content:center;font-family:"STKaiti",serif;
+    writing-mode:vertical-rl;box-shadow:0 2px 6px rgba(192,57,43,.5);}
+  .shop .nm{font-size:12.5px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .shop .rk{font-size:11px;color:var(--gold-dp);font-weight:700;margin-top:4px;}
+
+  /* ===== 双列商品网格 ===== */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:6px;}
+  .pcard .thumb{width:100%;height:92px;border-radius:var(--r-sm);margin-bottom:10px;
+    background:radial-gradient(circle at 35% 30%,#3a2e22,#140f0a);
+    display:flex;align-items:center;justify-content:center;color:var(--gold);
+    border:1px solid var(--line-strong);font-size:30px;font-family:"STKaiti",serif;}
+  .pcard .nm{font-size:13.5px;font-weight:600;color:var(--t1);line-height:1.35;min-height:36px;}
+  .pcard .tags{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0;}
+  .pcard .price{font-size:18px;font-weight:800;}
+  .pcard .price .u{font-size:11px;color:var(--gold-dp);font-weight:700;margin-left:3px;}
+
+  /* ===== 按钮（朱砂=操作） ===== */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;
+    border-radius:var(--r-pill);font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:1px;
+    background:linear-gradient(180deg,var(--red-bright),var(--red));color:#fff;
+    box-shadow:0 5px 15px rgba(192,57,43,.45),inset 0 1px 0 rgba(255,255,255,.22);border:1px solid var(--red-deep);}
+  .btn:active{transform:scale(.97);}
+  .btn-lg{height:48px;font-size:15.5px;padding:0 24px;}
+  .btn-sm{height:34px;font-size:12.5px;padding:0 16px;}
+  .btn-block{width:100%;}
+  .btn-ghost{background:rgba(255,255,255,.05);border:1px solid var(--line-strong);color:var(--gold);
+    box-shadow:none;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(234,194,92,.5),0 5px 15px rgba(192,57,43,.45);}
+    100%{box-shadow:0 0 0 16px rgba(234,194,92,0),0 5px 15px rgba(192,57,43,.45);}}
+  .btn.pulse{animation:pulse .7s ease-out;}
+  .halo{position:absolute;left:50%;top:50%;width:14px;height:14px;border-radius:50%;
+    transform:translate(-50%,-50%) scale(1);pointer-events:none;border:2px solid var(--gold-lt);
+    animation:haloExp .6s ease-out forwards;}
+  @keyframes haloExp{0%{opacity:.85;transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(-50%,-50%) scale(11);}}
+
+  /* 悬浮锦囊钮（朱砂，稳定） */
+  .fab{position:absolute;right:16px;bottom:88px;width:54px;height:54px;border-radius:50%;z-index:30;
+    background:linear-gradient(180deg,var(--red-bright),var(--red));color:#fff;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 22px rgba(192,57,43,.5),inset 0 1px 0 rgba(255,255,255,.22);cursor:pointer;border:1px solid var(--red-deep);}
+  .fab svg{width:26px;height:26px;}
+
+  /* ===== 锦囊仓：条目 ===== */
+  .bitem{display:flex;gap:12px;align-items:center;margin-bottom:12px;}
+  .bitem .thumb{width:54px;height:54px;border-radius:var(--r-sm);flex-shrink:0;
+    background:radial-gradient(circle at 35% 30%,#3a2e22,#140f0a);display:flex;align-items:center;justify-content:center;
+    color:var(--gold);border:1px solid var(--line-strong);font-size:20px;font-family:"STKaiti",serif;}
+  .bitem .info{flex:1;min-width:0;}
+  .bitem .nm{font-size:13.5px;font-weight:600;color:var(--t1);}
+  .bitem .price{font-size:14px;font-weight:800;margin-top:4px;}
+  .stepper{display:flex;align-items:center;gap:10px;}
+  .step{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--red);color:var(--red);
+    background:transparent;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;cursor:pointer;}
+  .step:active{transform:scale(.9);}
+  .step-n{min-width:18px;text-align:center;font-weight:700;font-size:15px;color:var(--t1);}
+  .checkout{position:absolute;left:0;right:0;bottom:66px;z-index:35;
+    background:rgba(12,15,16,.96);border-top:1px solid var(--line-strong);
+    padding:11px var(--pad);display:flex;align-items:center;gap:12px;box-shadow:0 -6px 20px rgba(0,0,0,.5);}
+  .checkout .lab{font-size:11px;color:var(--t2);}
+  .checkout .num{font-size:22px;}
+
+  /* ===== 洞府：资产令牌（全页焦点，仅此处发光） ===== */
+  .assets{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
+  .asset{position:relative;border-radius:var(--r);padding:13px 16px;overflow:hidden;
+    background:linear-gradient(150deg,#2a2118,#171210);border:1px solid var(--line-strong);
+    display:flex;align-items:center;justify-content:space-between;
+    box-shadow:0 6px 18px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.04);}
+  .asset::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:linear-gradient(180deg,var(--red-bright),var(--red));box-shadow:0 0 8px rgba(192,57,43,.55);}
+  .asset .k{font-size:12px;color:var(--t2);position:relative;z-index:2;}
+  .asset .v{font-size:30px;font-weight:800;line-height:1;position:relative;z-index:2;}
+  .asset .v .u{font-size:11px;color:var(--gold);margin-left:4px;font-weight:700;}
+
+  /* 洞府名片 */
+  .hero{display:flex;gap:14px;align-items:center;}
+  .hero .ava{width:60px;height:60px;border-radius:50%;border:2px solid var(--gold);flex-shrink:0;
+    background:radial-gradient(circle at 35% 30%,#3a2e22,#140f0a);display:flex;align-items:center;justify-content:center;
+    color:var(--gold);font-size:24px;font-family:"STKaiti",serif;box-shadow:0 0 12px rgba(234,194,92,.4);}
+  .hero .name{font-size:18px;font-weight:800;font-family:"STKaiti","KaiTi",serif;letter-spacing:1px;}
+  .hero .no{font-size:11px;color:var(--t2);margin-top:5px;display:flex;align-items:center;gap:7px;}
+
+  /* 共建权益三栏 */
+  .stats{display:flex;gap:10px;margin-top:12px;}
+  .stats>div{flex:1;text-align:center;}
+  .stats .k{font-size:10.5px;color:var(--t3);}
+  .stats .v{font-size:16px;font-weight:800;margin-top:5px;}
+
+  /* 菜单列表 */
+  .mlist{margin-top:6px;padding:4px 4px;}
+  .mitem{display:flex;align-items:center;gap:12px;padding:14px 6px;cursor:pointer;position:relative;color:var(--t1);}
+  .mitem:not(:last-child)::after{content:"";position:absolute;left:48px;right:0;bottom:0;height:1px;background:var(--line);}
+  .mitem .ic{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.05);
+    border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--red);flex-shrink:0;}
+  .mitem .ic svg{width:20px;height:20px;}
+  .mitem .tx{flex:1;font-size:14px;font-weight:500;}
+  .mitem .ar{color:var(--t3);}
+
+  /* ===== 底部 Tab（静态金+朱砂指示，无无限闪烁） ===== */
+  .tabbar{position:absolute;left:0;right:0;bottom:0;height:66px;z-index:40;
+    background:rgba(11,14,15,.97);border-top:1px solid var(--line-strong);
+    display:flex;padding:6px 2px calc(6px + env(safe-area-inset-bottom));backdrop-filter:blur(10px);}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    cursor:pointer;color:var(--t3);position:relative;}
+  .tab svg{width:23px;height:23px;}
+  .tab .t{font-size:10px;letter-spacing:.5px;}
+  .tab.on{color:var(--gold);}
+  .tab.on::before{content:"";position:absolute;top:3px;width:26px;height:3px;border-radius:2px;
+    background:linear-gradient(90deg,var(--red-bright),var(--red));box-shadow:0 0 6px rgba(192,57,43,.55);}
+
+  /* ===== 罗盘加载 ===== */
+  .loader{position:absolute;inset:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    background:radial-gradient(circle at 50% 40%,#171210,#07090a);transition:opacity .6s ease;}
+  .loader.hide{opacity:0;pointer-events:none;}
+  .loader .ring{width:88px;height:88px;animation:spin 1.8s linear infinite;transform-origin:center;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loader .ltxt{font-family:"STKaiti","KaiTi",serif;font-size:15px;letter-spacing:3px;color:var(--t1);}
+
+  /* 水墨切换（克制淡入） */
+  .ink{position:absolute;inset:0;z-index:70;pointer-events:none;opacity:0;
+    background:radial-gradient(circle at 50% 50%,rgba(0,0,0,.4),rgba(0,0,0,0));}
+  .ink.flash{animation:inkFlash .32s ease;}
+  @keyframes inkFlash{0%{opacity:0;}30%{opacity:.5;}100%{opacity:0;}}
+
+  /* 令牌成功弹窗 */
+  .mask{position:absolute;inset:0;background:rgba(7,9,10,.62);z-index:75;display:none;align-items:center;justify-content:center;}
+  .mask.show{display:flex;}
+  @keyframes tokenUp{0%{opacity:0;transform:translateY(40px) scale(.94);}100%{opacity:1;transform:translateY(0) scale(1);}}
+  .success{width:268px;animation:tokenUp .45s cubic-bezier(.2,.8,.3,1) both;}
+  .success .body{padding:22px 18px;text-align:center;}
+  .float{font-size:17px;font-weight:700;animation:floatUp 1.4s ease forwards;}
+  @keyframes floatUp{0%{transform:translateY(16px);opacity:0;}30%{opacity:1;}100%{transform:translateY(-28px);opacity:0;}}
+
+  /* 驿站卷轴弹窗 */
+  .smask{position:absolute;inset:0;background:rgba(7,9,10,.55);z-index:78;display:none;}
+  .smask.show{display:block;}
+  .sheet{position:absolute;left:0;right:0;bottom:0;z-index:79;max-height:78%;overflow-y:auto;
+    background:linear-gradient(180deg,var(--surf-1),var(--surf-2));border-top:5px solid var(--red);
+    border-radius:22px 22px 0 0;padding:18px 18px 26px;transform:translateY(100%);
+    transition:transform .42s cubic-bezier(.2,.8,.3,1);box-shadow:0 -8px 28px rgba(0,0,0,.5);}
+  .sheet.show{transform:translateY(0);}
+  .sheet .grip{width:42px;height:4px;border-radius:2px;background:var(--gold);margin:0 auto 14px;}
+  .sheet .stitle{display:flex;align-items:center;gap:8px;font-family:"STKaiti","KaiTi",serif;font-size:18px;font-weight:700;color:var(--red);}
+  .sheet .benefit{display:flex;gap:12px;align-items:center;padding:14px;margin-top:12px;
+    background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--r-sm);}
+  .sheet .benefit .b-ic{width:38px;height:38px;flex-shrink:0;color:var(--red);}
+  .sheet .benefit b{font-size:14px;color:var(--t1);}
+  .sheet .benefit div{font-size:11px;color:var(--t2);margin-top:3px;}
+  .sheet .cx{position:absolute;right:16px;top:14px;width:30px;height:30px;border-radius:50%;
+    background:rgba(192,57,43,.12);color:var(--red);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;}
+</style>
+</head>
+<body>
+
+<!-- ===== SVG 图标库（水墨线性） ===== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="ic-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width=".8" opacity=".5"/><path d="M12 7 L14 12 L12 17 L10 12 Z" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="#fff"/><path d="M12 3 V5 M12 19 V21 M3 12 H5 M19 12 H21" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="ic-store" viewBox="0 0 24 24"><path d="M4 9 L6 4 H18 L20 9 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M5 9 V19 H19 V9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 19 V13 H15 V19" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-scroll" viewBox="0 0 24 24"><path d="M6 4 H17 a2 2 0 0 1 2 2 V17 a2 2 0 0 1-2 2 H8 a2 2 0 0 1-2-2 V4 Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 4 a2 2 0 0 0-2 2 V18" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="9" y1="9" x2="15" y2="9" stroke="currentColor" stroke-width="1.2"/><line x1="9" y1="13" x2="15" y2="13" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="ic-pouch" viewBox="0 0 24 24"><path d="M8 8 Q12 5 16 8 L15 10 Q17 12 17 16 Q17 20 12 20 Q7 20 7 16 Q7 12 9 10 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 8 Q12 6 15 8" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="14" r="1.4" fill="currentColor"/></symbol>
+    <symbol id="ic-avatar" viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 20 Q5 14 12 14 Q19 14 19 20" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-rank" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7 L13.4 10.4 L17 10.8 L14.2 13.2 L15 16.8 L12 14.8 L9 16.8 L9.8 13.2 L7 10.8 L10.6 10.4 Z" fill="currentColor"/></symbol>
+    <symbol id="ic-disciple" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="9" r="2.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 19 Q3 14 9 14 Q15 14 15 19" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M14 19 Q14 16 16 16 Q19 16 19 19" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="ic-water" viewBox="0 0 24 24"><path d="M12 4 C12 4 18 11 18 15 A6 6 0 0 1 6 15 C6 11 12 4 12 4 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-rest" viewBox="0 0 24 24"><path d="M4 11 L12 5 L20 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6 11 V19 H18 V11" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 19 V15 H14 V19" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+    <symbol id="ic-brush" viewBox="0 0 24 24"><path d="M5 19 C5 19 7 15 11 11 C13 9 15 7 15 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13 5 L17 9 L15 11 L11 7 Z" fill="currentColor"/></symbol>
+    <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 5 H11 V19 H4 Z M13 5 H20 V19 H13 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="1.2"/></symbol>
+    <symbol id="ic-fire" viewBox="0 0 24 24"><path d="M12 3 Q15 8 15 12 Q15 16 12 17 Q9 16 9 12 Q9 8 12 3 Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 9 Q13.5 11 13.5 13 Q13.5 15 12 15.5 Q10.5 15 10.5 13 Q10.5 11 12 9 Z" fill="currentColor" opacity=".5"/></symbol>
+    <symbol id="ic-cup" viewBox="0 0 24 24"><path d="M7 4 H17 L15 14 H9 Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><line x1="12" y1="14" x2="12" y2="20" stroke="currentColor" stroke-width="1.4"/></symbol>
+  </defs>
+</svg>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="bg-shell"></div>
+  <svg class="bg-mountains" viewBox="0 0 390 200" preserveAspectRatio="none">
+    <path d="M0 100 Q70 50 150 95 T300 85 T390 110 V200 H0 Z" fill="#2C3333"/>
+  </svg>
+
+  <!-- ========== 屏幕1：天机探索 ========== -->
+  <div class="screen" id="screen-explore">
+    <div class="page">
+      <div class="topbar">
+        <div class="seal">令</div>
+        <div><div class="title kt gold">江湖令 · 宗门主城</div><div class="sub">天机探索</div></div>
+      </div>
+
+      <div class="search">
+        <svg><use href="#ic-brush"/></svg>
+        <input placeholder="天机搜寻台 · 觅秘境修行物资" />
+      </div>
+
+      <!-- 唯一焦点：今日修为 -->
+      <div class="hud">
+        <div class="lab">宗门令牌 · 今日心境修为</div>
+        <div class="val gold glow">10603<span class="u">修为</span></div>
+        <div class="tip">凭令通行全域坊主据点 ⟶</div>
+      </div>
+
+      <div class="station" onclick="openStation()">
+        <div class="row">
+          <svg class="ic"><use href="#ic-rest"/></svg>
+          <div><b>宗门驿站 · 免费清泉饮 · 休憩阁</b><div class="desc">全域坊主据点通用 · 示令牌即享</div></div>
+        </div>
+      </div>
+
+      <div class="chips" id="explore-cat">
+        <span class="chip on"><svg><use href="#ic-compass"/></svg>全部秘境</span>
+        <span class="chip"><svg><use href="#ic-book"/></svg>典籍坊</span>
+        <span class="chip"><svg><use href="#ic-fire"/></svg>烟火秘境</span>
+        <span class="chip"><svg><use href="#ic-cup"/></svg>琼浆阁</span>
+        <span class="chip"><svg><use href="#ic-pouch"/></svg>零嘴驿站</span>
+        <span class="chip"><svg><use href="#ic-rest"/></svg>日用仓</span>
+        <span class="chip"><svg><use href="#ic-rank"/></svg>信物铺</span>
+      </div>
+
+      <div class="sec"><span class="bar"></span><span class="t">秘境据点</span><span class="ln"></span></div>
+      <div class="row-scroll">
+        <div class="card shop">
+          <div class="logo">青<span class="ms">青</span></div>
+          <div class="nm">青霞鲜果坊</div><div class="rk">★ 4 阶据点</div>
+        </div>
+        <div class="card shop">
+          <div class="logo">醉<span class="ms">醉</span></div>
+          <div class="nm">醉仙楼烟火</div><div class="rk">★ 5 阶据点</div>
+        </div>
+        <div class="card shop">
+          <div class="logo">墨<span class="ms">墨</span></div>
+          <div class="nm">墨香典籍阁</div><div class="rk">★ 3 阶据点</div>
+        </div>
+      </div>
+
+      <div class="sec"><span class="bar"></span><span class="t">秘境修行物资</span><span class="ln"></span></div>
+      <div class="grid">
+        <div class="card pcard">
+          <div class="thumb">灵</div>
+          <div class="nm">清心安神花果茶</div>
+          <div class="tags"><span class="chip on">治愈心境</span><span class="chip">放松</span></div>
+          <div class="price gold">38<span class="u">鎏金</span></div>
+        </div>
+        <div class="card pcard">
+          <div class="thumb">膳</div>
+          <div class="nm">烟火暖胃养生粥</div>
+          <div class="tags"><span class="chip on">温馨心境</span></div>
+          <div class="price gold">26<span class="u">鎏金</span></div>
+        </div>
+        <div class="card pcard">
+          <div class="thumb">卷</div>
+          <div class="nm">江湖行气手札</div>
+          <div class="tags"><span class="chip on">快乐心境</span><span class="chip">放松</span></div>
+          <div class="price gold">52<span class="u">鎏金</span></div>
+        </div>
+        <div class="card pcard">
+          <div class="thumb">泉</div>
+          <div class="nm">宗门清泉甘露</div>
+          <div class="tags"><span class="chip on">治愈心境</span></div>
+          <div class="price gold">18<span class="u">鎏金</span></div>
+        </div>
+      </div>
+      <div style="height:8px"></div>
+    </div>
+    <div class="fab" onclick="halo(this)"><svg><use href="#ic-pouch"/></svg></div>
+  </div>
+
+  <!-- ========== 屏幕2：坊主秘境集市 ========== -->
+  <div class="screen hidden" id="screen-market">
+    <div class="page">
+      <div class="topbar">
+        <div class="seal">市</div>
+        <div><div class="title kt gold">坊主秘境集市</div><div class="sub">搜寻江湖坊主据点</div></div>
+      </div>
+
+      <div class="search">
+        <svg><use href="#ic-brush"/></svg>
+        <input placeholder="天机搜寻台 · 觅江湖坊主" />
+      </div>
+
+      <div class="chips" id="market-filter">
+        <span class="chip on">全部心境</span>
+        <span class="chip">快乐心境</span>
+        <span class="chip">温馨心境</span>
+        <span class="chip">治愈心境</span>
+      </div>
+      <div class="chips">
+        <span class="chip red">驿站 · 免费饮水</span>
+        <span class="chip red">驿站 · 休憩阁</span>
+      </div>
+
+      <div class="sec"><span class="bar"></span><span class="t">江湖坊主据点</span><span class="ln"></span></div>
+      <div class="grid">
+        <div class="card pcard">
+          <div class="thumb">醉</div>
+          <div class="nm">醉仙楼 · 烟火餐饮</div>
+          <div class="tags"><span class="chip on">★ 5 阶口碑</span></div>
+          <button class="btn btn-sm btn-ghost btn-block" style="margin-top:10px" onclick="halo(this)">探查</button>
+        </div>
+        <div class="card pcard">
+          <div class="thumb">青</div>
+          <div class="nm">青霞坊 · 鲜果行当</div>
+          <div class="tags"><span class="chip on">★ 4 阶口碑</span></div>
+          <button class="btn btn-sm btn-ghost btn-block" style="margin-top:10px" onclick="halo(this)">探查</button>
+        </div>
+        <div class="card pcard">
+          <div class="thumb">容</div>
+          <div class="nm">容颜轩 · 容颜坊</div>
+          <div class="tags"><span class="chip on">★ 3 阶口碑</span></div>
+          <button class="btn btn-sm btn-ghost btn-block" style="margin-top:10px" onclick="halo(this)">探查</button>
+        </div>
+        <div class="card pcard">
+          <div class="thumb">墨</div>
+          <div class="nm">墨香阁 · 典籍坊</div>
+          <div class="tags"><span class="chip on">★ 3 阶口碑</span></div>
+          <button class="btn btn-sm btn-ghost btn-block" style="margin-top:10px" onclick="halo(this)">探查</button>
+        </div>
+      </div>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+
+  <!-- ========== 屏幕3：宗门锦囊仓 ========== -->
+  <div class="screen hidden" id="screen-bag">
+    <div class="page">
+      <div class="topbar">
+        <div class="seal">囊</div>
+        <div><div class="title kt gold">宗门锦囊仓</div><div class="sub" id="bag-sub">全选修行物资 · 共 3 件秘境物资</div></div>
+      </div>
+
+      <div class="sec"><span class="bar"></span><span class="t">青霞坊主 · 秘境备货</span><span class="ln"></span></div>
+      <div class="card bitem">
+        <div class="thumb">灵</div>
+        <div class="info"><div class="nm">清心安神花果茶</div><div class="price gold">38<span class="u" style="font-size:11px;color:var(--gold-dp)">鎏金</span></div></div>
+        <div class="stepper"><div class="step" onclick="step(this,-1)">−</div><div class="step-n">1</div><div class="step" onclick="step(this,1)">+</div></div>
+      </div>
+      <div class="card bitem">
+        <div class="thumb">膳</div>
+        <div class="info"><div class="nm">烟火暖胃养生粥</div><div class="price gold">26<span class="u" style="font-size:11px;color:var(--gold-dp)">鎏金</span></div></div>
+        <div class="stepper"><div class="step" onclick="step(this,-1)">−</div><div class="step-n">2</div><div class="step" onclick="step(this,1)">+</div></div>
+      </div>
+      <div class="card bitem">
+        <div class="thumb">卷</div>
+        <div class="info"><div class="nm">江湖行气手札</div><div class="price gold">52<span class="u" style="font-size:11px;color:var(--gold-dp)">鎏金</span></div></div>
+        <div class="stepper"><div class="step" onclick="step(this,-1)">−</div><div class="step-n">1</div><div class="step" onclick="step(this,1)">+</div></div>
+      </div>
+      <div style="height:8px"></div>
+    </div>
+
+    <div class="checkout">
+      <div style="flex:1"><div class="lab">合计修行资粮</div><div class="num gold glow" id="bag-total">116 鎏金</div></div>
+      <button class="btn btn-lg" onclick="checkout(this)">启程秘境修行</button>
+    </div>
+
+    <div class="mask" id="bag-mask">
+      <div class="card success">
+        <div class="lab" style="text-align:center;color:var(--t2)">宗门令牌 · 收纳完成</div>
+        <div class="body">
+          <div class="seal" style="width:50px;height:50px;margin:0 auto 10px;font-size:28px">令</div>
+          <div class="float gold glow">修行物资已封存</div>
+          <div style="font-size:12px;color:var(--t2);margin-top:14px">资粮封存于宗门锦囊，待君启程</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 屏幕4：侠客洞府 ========== -->
+  <div class="screen hidden" id="screen-hero">
+    <div class="page">
+      <div class="topbar">
+        <div class="seal">侠</div>
+        <div><div class="title kt gold">侠客洞府</div><div class="sub">江湖字号 · 心境修行录</div></div>
+      </div>
+
+      <div class="card">
+        <div class="hero">
+          <div class="ava">侠</div>
+          <div>
+            <div class="name gold">醉里挑灯</div>
+            <div class="no">江湖字号 · <span class="chip on" style="font-size:11px">玄字 · 三阶</span></div>
+          </div>
+        </div>
+
+        <!-- 全页焦点：三大资产 -->
+        <div class="assets">
+          <div class="asset"><div class="k">心境修为值</div><div class="v gold glow">10603<span class="u">修为</span></div></div>
+          <div class="asset"><div class="k">师门供奉</div><div class="v gold glow">¥174<span class="u">供奉</span></div></div>
+          <div class="asset"><div class="k">秘境通行牒</div><div class="v gold glow">0<span class="u">张</span></div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="kt" style="font-size:15px;color:var(--red)">宗门共建权益</div>
+        <div class="stats">
+          <div><div class="k">消费占比</div><div class="v gold">12.4%</div></div>
+          <div><div class="k">年度回馈</div><div class="v gold">¥38.6</div></div>
+          <div><div class="k">贡献声望</div><div class="v gold">920</div></div>
+        </div>
+      </div>
+
+      <div class="sec"><span class="bar"></span><span class="t">秘境修行订单</span><span class="ln"></span></div>
+      <div class="card" style="padding:14px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--t1)">
+          <span>青霞坊主 · 花果茶 ×1</span><span class="gold">38 鎏金</span></div>
+        <div style="font-size:11px;color:var(--t3);margin-top:6px">修行已封存 · 待启程</div>
+      </div>
+
+      <div class="sec"><span class="bar"></span><span class="t">江湖行藏</span><span class="ln"></span></div>
+      <div class="card mlist">
+        <div class="mitem"><div class="ic"><svg><use href="#ic-rank"/></svg></div><div class="tx">我的段位</div><div class="ar">›</div></div>
+        <div class="mitem"><div class="ic"><svg><use href="#ic-pouch"/></svg></div><div class="tx">我的供奉</div><div class="ar">›</div></div>
+        <div class="mitem"><div class="ic"><svg><use href="#ic-disciple"/></svg></div><div class="tx">门下门徒</div><div class="ar">›</div></div>
+        <div class="mitem"><div class="ic"><svg><use href="#ic-water"/></svg></div><div class="tx">心境修行录</div><div class="ar">›</div></div>
+      </div>
+
+      <div class="card" style="margin-top:12px;cursor:pointer" onclick="openStation()">
+        <div class="sec" style="margin:0 0 10px"><span class="bar"></span><span class="t">宗门驿站权益</span><span class="ln"></span></div>
+        <div style="font-size:13px;line-height:1.9;color:var(--t1)">
+          凭侠客令牌，全域门店通用：<br/>
+          <span class="chip on" style="margin-right:6px">免费清泉饮</span><span class="chip on">驿站休憩阁</span>
+        </div>
+      </div>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+
+  <!-- ========== 底部 Tab ========== -->
+  <nav class="tabbar" id="tabbar">
+    <div class="tab on" data-target="screen-explore"><svg><use href="#ic-compass"/></svg><span class="t">天机探索</span></div>
+    <div class="tab" data-target="screen-market"><svg><use href="#ic-store"/></svg><span class="t">秘境集市</span></div>
+    <div class="tab" data-target="screen-edit"><svg><use href="#ic-scroll"/></svg><span class="t">檄文台</span></div>
+    <div class="tab" data-target="screen-bag"><svg><use href="#ic-pouch"/></svg><span class="t">锦囊仓</span></div>
+    <div class="tab" data-target="screen-hero"><svg><use href="#ic-avatar"/></svg><span class="t">侠客洞府</span></div>
+  </nav>
+
+  <!-- 罗盘加载 -->
+  <div class="loader" id="loader">
+    <div class="ring">
+      <svg viewBox="0 0 88 88" width="88" height="88">
+        <circle cx="44" cy="44" r="40" fill="none" stroke="#C0392B" stroke-width="2"/>
+        <circle cx="44" cy="44" r="32" fill="none" stroke="#EAC25C" stroke-width="1" opacity=".6"/>
+        <path d="M44 14 L52 44 L44 74 L36 44 Z" fill="#C0392B"/>
+        <path d="M14 44 L44 36 L74 44 L44 52 Z" fill="#EAC25C" opacity=".55"/>
+        <circle cx="44" cy="44" r="4" fill="#2C3333"/>
+      </svg>
+    </div>
+    <div class="ltxt">天机推演中 · <span class="gold">江湖风云将启</span></div>
+  </div>
+
+  <div class="ink" id="inkTrans"></div>
+
+  <!-- 驿站卷轴弹窗 -->
+  <div class="smask" id="stationMask" onclick="closeStation()"></div>
+  <div class="sheet" id="stationSheet">
+    <div class="grip"></div>
+    <div class="cx" onclick="closeStation()">×</div>
+    <div class="stitle"><div class="seal" style="width:30px;height:30px;font-size:17px">驿</div>宗门驿站 · 福利令牌</div>
+    <div style="font-size:12px;color:var(--t2);margin-top:6px">凭侠客令牌，全域坊主据点通用，示令牌即享：</div>
+    <div class="benefit"><svg class="b-ic"><use href="#ic-water"/></svg><div><b>免费清泉饮</b><div>全域门店取水点 · 不限次畅饮</div></div></div>
+    <div class="benefit"><svg class="b-ic"><use href="#ic-rest"/></svg><div><b>驿站休憩阁</b><div>行商劳顿 · 入阁歇脚品茗</div></div></div>
+    <div class="benefit"><svg class="b-ic"><use href="#ic-pouch"/></svg><div><b>秘境补给</b><div>据点专属修行物资 · 令牌折让</div></div></div>
+    <button class="btn btn-lg btn-block" style="margin-top:16px" onclick="halo(this);setTimeout(closeStation,300)">收令入袖</button>
+  </div>
+</div>
+
+<script>
+  window.addEventListener('load',()=>{ setTimeout(()=>document.getElementById('loader').classList.add('hide'),1800); });
+
+  const ink=document.getElementById('inkTrans');
+  function switchTo(target,el){
+    ink.classList.remove('flash'); void ink.offsetWidth; ink.classList.add('flash');
+    document.querySelectorAll('#tabbar .tab').forEach(x=>x.classList.remove('on'));
+    el.classList.add('on');
+    document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+    const scr=document.getElementById(target); scr.classList.remove('hidden');
+    scr.classList.remove('show-anim'); void scr.offsetWidth; scr.classList.add('show-anim');
+  }
+  document.querySelectorAll('#tabbar .tab').forEach(t=>{
+    t.addEventListener('click',()=>{
+      if(t.dataset.target==='screen-edit'){ alert('执笔檄文台（卷轴编辑器）属 P1 二期视觉，本原型聚焦四大核心页面。'); return; }
+      switchTo(t.dataset.target,t);
+    });
+  });
+
+  // 分类胶囊：单选高亮
+  function bindChips(rowId){
+    const row=document.getElementById(rowId);
+    row.querySelectorAll('.chip').forEach(c=>{
+      c.addEventListener('click',()=>{
+        if(rowId==='market-filter'){ row.querySelectorAll('.chip').forEach(x=>x.classList.remove('on')); c.classList.add('on'); }
+        else { row.querySelectorAll('.chip').forEach(x=>x.classList.remove('on')); c.classList.add('on'); }
+        ink.classList.remove('flash'); void ink.offsetWidth; ink.classList.add('flash');
+      });
+    });
+  }
+  bindChips('explore-cat'); bindChips('market-filter');
+
+  // 商品卡标签：可多选高亮
+  document.querySelectorAll('#screen-explore .pcard .chip').forEach(t=>{
+    t.addEventListener('click',()=>{ t.classList.toggle('on'); });
+  });
+
+  function halo(btn){
+    if(btn.classList.contains('btn')){ btn.classList.remove('pulse'); void btn.offsetWidth; btn.classList.add('pulse'); }
+    const h=document.createElement('span'); h.className='halo';
+    const r=btn.getBoundingClientRect(); h.style.left=(r.width/2)+'px'; h.style.top=(r.height/2)+'px';
+    btn.appendChild(h); setTimeout(()=>h.remove(),640);
+  }
+
+  function checkout(btn){
+    halo(btn);
+    const mask=document.getElementById('bag-mask'); mask.classList.add('show');
+    setTimeout(()=>mask.classList.remove('show'),1900);
+  }
+  document.getElementById('bag-mask').addEventListener('click',function(){this.classList.remove('show');});
+
+  function step(btn,delta){
+    const n=btn.parentElement.querySelector('.step-n');
+    let v=parseInt(n.textContent,10)+delta; if(v<0)v=0; n.textContent=v; recalc();
+  }
+  function recalc(){
+    let total=0,count=0;
+    document.querySelectorAll('#screen-bag .bitem').forEach(it=>{
+      const n=parseInt(it.querySelector('.step-n').textContent,10);
+      const p=parseInt(it.querySelector('.price').textContent.replace(/[^0-9]/g,''),10)||0;
+      total+=n*p; count+=n;
+    });
+    document.getElementById('bag-total').textContent=total+' 鎏金';
+    document.getElementById('bag-sub').textContent='全选修行物资 · 共 '+count+' 件秘境物资';
+  }
+
+  function openStation(){ document.getElementById('stationMask').classList.add('show'); document.getElementById('stationSheet').classList.add('show'); }
+  function closeStation(){ document.getElementById('stationMask').classList.remove('show'); document.getElementById('stationSheet').classList.remove('show'); }
+</script>
+</body>
+</html>

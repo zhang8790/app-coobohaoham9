@@ -9,7 +9,6 @@
 
 import { supabase } from '@/client/supabase'
 import { understandEmotion } from '@/db/api'
-import { MOOD_TAGS } from '@/utils/mood-tags'
 
 // =====================
 // 情绪关键词 -> 标准情绪标签 映射字典
@@ -333,8 +332,7 @@ export const EMOTION_KEYWORD_MAP: Record<string, string[]> = {
   '极限': ['刺激', '活力'],
   '户外': ['活力', '愉悦', '刺激'],
   '露营': ['活力', '愉悦', '分享'],
-  '徒步': ['活力', '治愈', '专注'],
-}
+  '徒步': ['活力', '治愈', '专注']}
 
 // =====================
 // 运行时词库（硬编码 + 云端 emotion_lexicon 合并）
@@ -444,8 +442,7 @@ const EMOTION_IP_RESPONSES: Record<string, string[]> = {
     '来电有喜，愿汝所求皆如意~',
     '江湖有你，才更有趣！去发现好物吧~',
     '此刻心情如何？让好物为你解忧！',
-  ],
-}
+  ]}
 
 // =====================
 // 关键词级专属回应：按「用户实际说了什么」回应，而非笼统的情绪标签
@@ -495,8 +492,7 @@ const EMOTION_KEYWORD_RESPONSES: Record<string, string[]> = {
   '寂寞': ['一个人的角落，好物很能作伴。挑一件，陪你度过。'],
   '一个人': ['独处时光，正适合宠爱自己。选件好物，把孤单变成自在。'],
   '单身': ['单身也有单身的自由。挑件喜欢的好物，好好取悦自己。'],
-  '无聊': ['闲来无事？正好去寻几件有趣好物，给生活添点乐子。'],
-}
+  '无聊': ['闲来无事？正好去寻几件有趣好物，给生活添点乐子。']}
 
 // =====================
 // 情绪分析结果
@@ -519,8 +515,7 @@ export function analyzeEmotion(input: string): EmotionAnalysisResult {
       tagScores: {},
       ipBubble: pickRandom(EMOTION_IP_RESPONSES['default']),
       matchedKeyword: null,
-      intensity: 'low',
-    }
+      intensity: 'low'}
   }
 
   const tagScores: Record<string, number> = {}
@@ -653,8 +648,7 @@ export function getEmotionPoetry(detectedTags: string[], intensity: 'low' | 'med
     '专注': [
       '心如止水，方能剑指苍穹。好的工具，助你事半功倍。',
       '专注当下，心无旁骛，好物相助，事成！',
-    ],
-  }
+    ]}
 
   const lines = poetryMap[primaryTag]
   if (lines) return pickRandom(lines)
@@ -724,8 +718,7 @@ export async function analyzeEmotionAsync(input: string): Promise<EmotionAnalysi
         tagScores,
         ipBubble,
         matchedKeyword: null,
-        intensity: 'medium',
-      }
+        intensity: 'medium'}
     }
   } catch (e) {
     console.warn('[emotion] LLM 兜底失败，使用默认标签', e)
@@ -737,6 +730,5 @@ export async function analyzeEmotionAsync(input: string): Promise<EmotionAnalysi
     tagScores: { '治愈': 3, '放松': 2, '安静': 1 },
     ipBubble: pickRandom(EMOTION_IP_RESPONSES['default']),
     matchedKeyword: null,
-    intensity: 'low',
-  }
+    intensity: 'low'}
 }

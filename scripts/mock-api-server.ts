@@ -4,9 +4,9 @@ import { parse } from 'url'
 // =========== Mock 数据 ===========
 const MOCK_DATA = {
   profiles: [
-    { id: 'usr_001', nickname: '张无忌', phone: '13800138001', role: 'user', member_rank: '江湖散修', points: 120, balance: 50.00, merchant_status: 'none', created_at: '2026-01-15T10:00:00Z' },
-    { id: 'usr_002', nickname: '杨过', phone: '13800138002', role: 'user', member_rank: '外门弟子', points: 350, balance: 120.50, merchant_status: 'approved', created_at: '2026-02-20T14:30:00Z' },
-    { id: 'usr_003', nickname: '小龙女', phone: '13800138003', role: 'admin', member_rank: '掌门', points: 9999, balance: 5000.00, merchant_status: 'none', created_at: '2026-01-01T08:00:00Z' },
+    { id: 'usr_001', nickname: '张无忌', phone: '13800138001', role: 'user', member_rank: '凡心', points: 120, balance: 50.00, merchant_status: 'none', created_at: '2026-01-15T10:00:00Z' },
+    { id: 'usr_002', nickname: '杨过', phone: '13800138002', role: 'user', member_rank: '初心', points: 350, balance: 120.50, merchant_status: 'approved', created_at: '2026-02-20T14:30:00Z' },
+    { id: 'usr_003', nickname: '小龙女', phone: '13800138003', role: 'admin', member_rank: '无心境', points: 9999, balance: 5000.00, merchant_status: 'none', created_at: '2026-01-01T08:00:00Z' },
   ],
   merchant_applications: [
     { id: 'mapp_001', user_id: 'usr_002', store_name: '霸王茶姬（旗舰店）', contact_name: '杨过', contact_phone: '13800138002', business_type: '餐饮', status: 'pending', reject_reason: null, created_at: '2026-06-25T10:00:00Z' },
@@ -21,8 +21,8 @@ const MOCK_DATA = {
     { id: 'prod_002', store_id: 'store_001', category_id: null, name: '茉莉雪芽', description: '清新茉莉，回甘悠长', price: 16.00, original_price: 20.00, image_url: '/mock/prod2.jpg', stock: 80, barcode: '6931234567891', mood_tags: ['清新', '提神'], scene_tags: ['上班', '学习'], is_active: true, review_status: 'pending', created_at: '2026-06-26T14:00:00Z' },
   ],
   orders: [
-    { id: 'order_001', order_no: 'LD202606300001', user_id: 'usr_001', store_id: 'store_001', total_amount: 36.00, gold_beans_used: 0, status: 'completed', payment_method: 'wxpay', created_at: '2026-06-28T15:30:00Z' },
-    { id: 'order_002', order_no: 'LD202606300002', user_id: 'usr_002', store_id: 'store_001', total_amount: 16.00, gold_beans_used: 5, status: 'pending_pay', payment_method: 'wxpay', created_at: '2026-06-30T09:00:00Z' },
+    { id: 'order_001', order_no: 'LD202606300001', user_id: 'usr_001', store_id: 'store_001', total_amount: 36.00, tb_used: 0, status: 'completed', payment_method: 'wxpay', created_at: '2026-06-28T15:30:00Z' },
+    { id: 'order_002', order_no: 'LD202606300002', user_id: 'usr_002', store_id: 'store_001', total_amount: 16.00, tb_used: 5, status: 'pending_pay', payment_method: 'wxpay', created_at: '2026-06-30T09:00:00Z' },
   ],
   withdrawals: [
     { id: 'wd_001', user_id: 'usr_002', amount: 200.00, status: 'pending', withdraw_method: 'wechat', bank_name: null, bank_account: null, bank_holder: null, alipay_account: null, reject_reason: null, created_at: '2026-06-27T10:00:00Z', profiles: { nickname: '杨过', phone: '13800138002' } },

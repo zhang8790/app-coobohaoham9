@@ -1,9 +1,9 @@
 // @title 城市选择
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Input, Text } from '@tarojs/components'
 import { RouteGuard } from '@/components/RouteGuard'
-import { getCityList, getUserLocation, matchCityByLocation, saveUserFrequentAddress, getUserFrequentAddresses } from '@/utils/lbs-service'
+import { getCityList, getUserFrequentAddresses } from '@/utils/lbs-service'
 import { useLocation } from '@/contexts/LocationContext'
 
 function CitySelectPage() {

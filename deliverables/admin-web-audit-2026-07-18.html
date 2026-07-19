@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>总管理后台 · API / 数据统计 / 字段映射连通性审计报告</title>
+<style>
+  :root{
+    --bg:#0B0F19; --bg2:#0F1525; --panel:rgba(255,255,255,.04);
+    --stroke:rgba(255,255,255,.09); --stroke2:rgba(255,255,255,.14);
+    --txt:#E6EAF2; --muted:#8B93A7; --faint:#5C6479;
+    --ok:#34D399; --okbg:rgba(52,211,153,.12);
+    --warn:#FBBF24; --warnbg:rgba(251,191,36,.12);
+    --bad:#F87171; --badbg:rgba(248,113,113,.12);
+    --brand:#8B7CF6; --brand2:#22D3EE;
+    --mono:'SFMono-Regular',ui-monospace,'JetBrains Mono',Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:radial-gradient(1200px 600px at 80% -10%,rgba(139,124,246,.12),transparent),radial-gradient(900px 500px at -10% 20%,rgba(34,211,238,.10),transparent),var(--bg);color:var(--txt);font-family:var(--sans);line-height:1.6;padding:40px 20px 80px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto}
+  .glass{background:var(--panel);border:1px solid var(--stroke);border-radius:18px;backdrop-filter:blur(20px) saturate(160%)}
+  header.glass{padding:34px 36px;margin-bottom:26px;position:relative;overflow:hidden}
+  header.glass::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent,rgba(139,124,246,.08),transparent);pointer-events:none}
+  .eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--brand2);font-weight:700;margin-bottom:10px}
+  h1{font-size:28px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(92deg,#fff,#b9c0d6);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);margin-top:8px;font-size:14px}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font-size:12.5px;color:var(--faint)}
+  .meta b{color:var(--muted);font-weight:600}
+
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:26px}
+  .stat{padding:18px 16px;text-align:center}
+  .stat .n{font-size:30px;font-weight:800;font-family:var(--mono);letter-spacing:-1px}
+  .stat .l{font-size:12px;color:var(--muted);margin-top:4px}
+  .stat.ok .n{color:var(--ok)} .stat.warn .n{color:var(--warn)} .stat.bad .n{color:var(--bad)} .stat.brand .n{color:var(--brand2)}
+
+  .section{margin:34px 0}
+  .section h2{font-size:18px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+  .section h2::before{content:"";width:4px;height:18px;border-radius:3px;background:linear-gradient(var(--brand),var(--brand2))}
+  .section .desc{color:var(--muted);font-size:13px;margin-bottom:16px}
+
+  table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;overflow:hidden;border-radius:14px}
+  thead th{background:rgba(255,255,255,.05);color:var(--muted);font-weight:600;text-align:left;padding:12px 14px;font-size:12px;letter-spacing:.03em;border-bottom:1px solid var(--stroke2);position:sticky;top:0}
+  tbody td{padding:13px 14px;border-bottom:1px solid var(--stroke);vertical-align:top}
+  tbody tr:hover{background:rgba(255,255,255,.025)}
+  tbody tr:last-child td{border-bottom:none}
+  .pg{font-weight:600;color:#fff}
+  .route{font-family:var(--mono);font-size:11.5px;color:var(--brand2);background:rgba(34,211,238,.08);padding:2px 7px;border-radius:6px;white-space:nowrap}
+  .api{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .tbl{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .note{color:var(--muted);font-size:12px}
+
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
+  .badge.ok{color:var(--ok);background:var(--okbg)}
+  .badge.warn{color:var(--warn);background:var(--warnbg)}
+  .badge.bad{color:var(--bad);background:var(--badbg)}
+  .dot{width:7px;height:7px;border-radius:50%}
+  .badge.ok .dot{background:var(--ok)} .badge.warn .dot{background:var(--warn)} .badge.bad .dot{background:var(--bad)}
+
+  .callout{border-left:3px solid var(--warn);background:var(--warnbg);padding:16px 18px;border-radius:0 12px 12px 0;margin:18px 0}
+  .callout h3{font-size:14px;color:var(--warn);margin-bottom:8px;font-weight:700}
+  .callout code{font-family:var(--mono);font-size:12px;background:rgba(0,0,0,.3);padding:1px 6px;border-radius:5px;color:#ffd98a}
+  .callout.fixed{border-left-color:var(--ok);background:var(--okbg)}
+  .callout.fixed h3{color:var(--ok)}
+
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+
+  .todo{padding:22px 24px}
+  .todo li{margin:9px 0 9px 4px;color:var(--txt);font-size:13.5px;list-style:none;padding-left:26px;position:relative}
+  .todo li::before{content:"▸";position:absolute;left:4px;color:var(--brand);font-weight:700}
+  .todo li b{color:var(--brand2)}
+
+  footer{color:var(--faint);font-size:12px;text-align:center;margin-top:40px;line-height:1.8}
+  @media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}.route{display:block;margin-top:3px}table{font-size:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="glass">
+    <div class="eyebrow">Connectivity & Field-Mapping Audit</div>
+    <h1>总管理后台 · 全量 API / 数据统计 / 字段映射连通性审计</h1>
+    <div class="sub">admin-web · 16 个总后台路由 + 11 个商家后台路由 · 4 个 API 模块逐一对齐真实数据库 Schema</div>
+    <div class="meta">
+      <span><b>审计日期</b> 2026-07-18 21:23</span>
+      <span><b>编译校验</b> <code style="font-family:var(--mono);color:var(--ok)">tsc -b ⟶ EXIT=0</code></span>
+      <span><b>Schema 基准</b> migrations 00001 → 00119</span>
+      <span><b>审计人</b> Senior Developer</span>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat brand"><div class="n">27</div><div class="l">总路由数</div></div>
+    <div class="stat brand"><div class="n">4</div><div class="l">API 模块</div></div>
+    <div class="stat ok"><div class="n">25</div><div class="l">✅ 通畅</div></div>
+    <div class="stat warn"><div class="n">2</div><div class="l">⚠️ 已修复</div></div>
+    <div class="stat bad"><div class="n">0</div><div class="l">❌ 断点</div></div>
+  </div>
+
+  <div class="section">
+    <h2>审计结论</h2>
+    <div class="desc">
+      对 <b>admin-web</b> 的每一次 <code style="font-family:var(--mono)">supabase.from()/rpc()</code> 调用做了全量扫描，并与迁移文件中建立的真实表 / 列逐一比对。结论：<b>所有被引用的表均已存在</b>，绝大多数页面的 API × 数据统计 × 字段命名<b>一一对应、通畅</b>。过程中发现并修复了 <b>2 处「静默归零」列名 bug</b>（位于 <code style="font-family:var(--mono)">finance.ts</code>），已重新编译通过。未发现死 API、死按钮或字段映射错位导致的空白页。
+    </div>
+
+    <div class="callout fixed">
+      <h3>✅ 已修复 #1 · 推广佣金支出 KPI 静默归零</h3>
+      <div class="note">
+        文件 <code>src/api/finance.ts</code> · <code>getFinanceOverview()</code> 第 127 行<br/>
+        原代码 <code>sumOf('commissions','amount',{eq:['status','settled']})</code><br/>
+        <code>commissions</code> 表真实列名是 <code>commission_amount</code>，<code>amount</code> 不存在 → PostgREST 报错被 <code>catch</code> 降级为 <code>0</code>，「推广佣金支出」卡片长期显示 0。<br/>
+        ✅ 改为 <code>sumOf('commissions','commission_amount',{eq:['status','settled']})</code>
+      </div>
+    </div>
+
+    <div class="callout fixed">
+      <h3>✅ 已修复 #2 · 情绪豆余额 KPI 静默归零</h3>
+      <div class="note">
+        文件 <code>src/api/finance.ts</code> · <code>getFinanceOverview()</code> 第 128 行<br/>
+        原代码 <code>sumOf('profiles','balance')</code><br/>
+        <code>balance</code> 列在 00096「金豆→情绪豆」合并后已<b>废弃清零</b>，真实内部货币余额存在 <code>tb_balance</code> 列 → 旧读取恒为 0，「情绪豆余额」卡片静默归零。<br/>
+        ✅ 改为 <code>sumOf('profiles','tb_balance')</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>总后台页面 × API × 字段映射（16 路由）</h2>
+    <div class="desc">每个页面的数据来源、调用的 API 模块、落地的数据库表，以及连通状态。</div>
+    <div class="glass" style="overflow:auto">
+    <table>
+      <thead>
+        <tr>
+          <th style="min-width:120px">页面</th>
+          <th>路由</th>
+          <th>API 模块</th>
+          <th>关键表 / 字段</th>
+          <th style="width:96px">状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="pg">运营总览</td>
+          <td><span class="route">/dashboard</span></td>
+          <td class="api">finance.ts<br/>getFinanceOverview</td>
+          <td class="tbl">profiles · stores · orders · commissions · emotion_claims · withdrawals · tongbao_logs</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span><div class="note">含 2 处 KPI 修复</div></td>
+        </tr>
+        <tr>
+          <td class="pg">商家审核</td>
+          <td><span class="route">/merchants</span></td>
+          <td class="api">admin.ts<br/>get/approve/reject Merchant</td>
+          <td class="tbl">merchant_applications · profiles · stores</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span></td>
+        </tr>
+        <tr>
+          <td class="pg">商品审核</td>
+          <td><span class="route">/products</span></td>
+          <td class="api">admin.ts<br/>get/approve/reject Product</td>
+          <td class="tbl">products（无 status 列，用 is_active 派生）</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span></td>
+        </tr>
+        <tr>
+          <td class="pg">提现审核</td>
+          <td><span class="route">/withdrawals</span></td>
+          <td class="api">admin.ts<br/>getWithdrawals · payWithdrawal</td>
+          <td class="tbl">withdrawals（00116 补齐 bank_* 列）· profiles</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span><div class="note">payWithdrawal 含 approved 守卫+余额校验防资损</div></td>
+        </tr>
+        <tr>
+          <td class="pg">UGC 管理</td>
+          <td><span class="route">/ugc</span></td>
+          <td class="api">admin.ts<br/>get/approve/reject/delete Article</td>
+          <td class="tbl">articles</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span></td>
+        </tr>
+        <tr>
+          <td class="pg">用户管理</td>
+          <td><span class="route">/users</span></td>
+          <td class="api">admin.ts<br/>getUsers · ban/unban · adjust</td>
+          <td class="tbl">profiles（tb_balance / points / cv_total）</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span></td>
+        </tr>
+        <tr>
+          <td class="pg">退款管理</td>
+          <td><span class="route">/refunds</span></td>
+          <td class="api">admin.ts<br/>get/approve/reject Refund</td>
+          <td class="tbl">refunds · orders · profiles</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span></td>
+        </tr>
+        <tr>
+          <td class="pg">公告管理</td>
+          <td><span class="route">/announcements</span></td>
+          <td class="api">admin.ts<br/>get/create/update/delete</td>
+          <td class="tbl">announcements</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span></td>
+        </tr>
+        <tr>
+          <td class="pg">情绪确权</td>
+          <td><span class="route">/emotion-claims</span></td>
+          <td class="api">emotionClaim.ts<br/>void / ban-rollback</td>
+          <td class="tbl">emotion_claims · fn_void_emotion_claim · fn_ban_user_rollback（00054 已建+GRANT）</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span><div class="note">RPC 缺失时降级直读 emotion_claims</div></td>
+        </tr>
+        <tr>
+          <td class="pg">财务看板</td>
+          <td><span class="route">/finance</span></td>
+          <td class="api">finance.ts<br/>getOrders · get*Ledger</td>
+          <td class="tbl">orders · commissions · tongbao_logs · points_logs · emotion_tongbao_logs</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span><div class="note">佣金列已补全显示</div></td>
+        </tr>
+        <tr>
+          <td class="pg">会员管理</td>
+          <td><span class="route">/members</span></td>
+          <td class="api">finance.ts / admin.ts<br/>会员成长数据</td>
+          <td class="tbl">profiles · member_rank_events</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span></td>
+        </tr>
+        <tr>
+          <td class="pg">订单管理</td>
+          <td><span class="route">/orders</span></td>
+          <td class="api">finance.ts<br/>getOrders · getOrderDetail</td>
+          <td class="tbl">orders · order_items · commissions（referrer_id 透传）</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span><div class="note">新增佣金列映射</div></td>
+        </tr>
+        <tr>
+          <td class="pg">流水账本</td>
+          <td><span class="route">/ledgers</span></td>
+          <td class="api">finance.ts<br/>get*Ledger 四件套</td>
+          <td class="tbl">points_logs · emotion_tongbao_logs · commissions · tongbao_logs</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span></td>
+        </tr>
+        <tr>
+          <td class="pg">行为分析</td>
+          <td><span class="route">/behavior</span></td>
+          <td class="api">finance.ts<br/>行为聚合分析</td>
+          <td class="tbl">orders · emotion_funnel_events · profiles</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span></td>
+        </tr>
+        <tr>
+          <td class="pg">症状规则</td>
+          <td><span class="route">/symptom-rules</span></td>
+          <td class="api">admin.ts<br/>getActiveRules</td>
+          <td class="tbl">symptom_rules（00101 建 + DB 加载回退）</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span></td>
+        </tr>
+        <tr>
+          <td class="pg">营销模板</td>
+          <td><span class="route">/marketing-templates</span></td>
+          <td class="api">merchant.ts<br/>营销活动数据</td>
+          <td class="tbl">marketing_campaigns</td>
+          <td><span class="badge ok"><span class="dot"></span>✅ 通畅</span></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="legend">
+      <span><span class="badge ok"><span class="dot"></span>✅ 通畅</span> API 存在、表列对齐、字段有反应</span>
+      <span><span class="badge warn"><span class="dot"></span>⚠️ 已修复</span> 原静默归零，已改列名</span>
+      <span><span class="badge bad"><span class="dot"></span>❌ 断点</span> 死 API / 字段错位</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>商家后台页面（11 路由 · 轻量核查）</h2>
+    <div class="desc">犒赏铺商家后台，API 集中在 <code style="font-family:var(--mono)">merchant.ts</code>，引用的 stores / coupons / marketing_campaigns / orders / order_items / commissions / withdrawals / emotion_funnel_events / product_emotion 全部存在，连通状态均为 ✅。</div>
+    <div class="glass" style="overflow:auto">
+    <table>
+      <thead>
+        <tr><th>页面</th><th>路由</th><th>数据来源</th><th style="width:96px">状态</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="pg">商家首页</td><td><span class="route">/merchant</span></td><td class="tbl">stores · orders 聚合</td><td><span class="badge ok"><span class="dot"></span>✅</span></td></tr>
+        <tr><td class="pg">商品管理</td><td><span class="route">/merchant/products</span></td><td class="tbl">products</td><td><span class="badge ok"><span class="dot"></span>✅</span></td></tr>
+        <tr><td class="pg">订单管理</td><td><span class="route">/merchant/orders</span></td><td class="tbl">orders · order_items</td><td><span class="badge ok"><span class="dot"></span>✅</span></td></tr>
+        <tr><td class="pg">优惠券</td><td><span class="route">/merchant/coupons</span></td><td class="tbl">coupons</td><td><span class="badge ok"><span class="dot"></span>✅</span></td></tr>
+        <tr><td class="pg">数据分析</td><td><span class="route">/merchant/analytics</span></td><td class="tbl">orders · emotion_funnel_events</td><td><span class="badge ok"><span class="dot"></span>✅</span></td></tr>
+        <tr><td class="pg">广告投放</td><td><span class="route">/merchant/ads</span></td><td class="tbl">marketing_campaigns</td><td><span class="badge ok"><span class="dot"></span>✅</span></td></tr>
+        <tr><td class="pg">消息推送</td><td><span class="route">/merchant/messages</span></td><td class="tbl">notifications</td><td><span class="badge ok"><span class="dot"></span>✅</span></td></tr>
+        <tr><td class="pg">佣金提现</td><td><span class="route">/merchant/withdraw</span></td><td class="tbl">commissions · withdrawals</td><td><span class="badge ok"><span class="dot"></span>✅</span></td></tr>
+        <tr><td class="pg">会员管理</td><td><span class="route">/merchant/members</span></td><td class="tbl">profiles · member_rank_events</td><td><span class="badge ok"><span class="dot"></span>✅</span></td></tr>
+        <tr><td class="pg">情绪工坊</td><td><span class="route">/merchant/emotion-studio</span></td><td class="tbl">product_emotion</td><td><span class="badge ok"><span class="dot"></span>✅</span></td></tr>
+        <tr><td class="pg">情绪漏斗</td><td><span class="route">/merchant/emotion-funnel</span></td><td class="tbl">emotion_funnel_events</td><td><span class="badge ok"><span class="dot"></span>✅</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>用户本机待办（验证修复生效）</h2>
+    <div class="glass todo">
+      <ul>
+        <li><b>重跑分佣诊断</b>：在 Supabase Dashboard SQL Editor 重新执行 <code style="font-family:var(--mono)">supabase/migrations/00119_diagnose_orders_commission.sql</code>（已把 <code style="font-family:var(--mono)">max(uuid)</code> 改为 <code style="font-family:var(--mono)">array_agg(...) FILTER (WHERE ...) [1]</code>），确认 1870 订单的 1856 分佣已发放。</li>
+        <li><b>刷新总后台</b>：admin-web 已重编译（<code style="font-family:var(--mono)">tsc -b && vite build</code> ⟶ EXIT=0），重启/硬刷新后台，查看运营总览的「<b>推广佣金支出</b>」与「<b>情绪豆余额</b>」两个 KPI 是否已恢复真实数值（此前恒为 0）。</li>
+        <li><b>核对财务看板</b>：/finance 与 /orders 的「佣金」列应正常显示金额；/ledgers 四类流水账本（积分 / 情绪确权 / 佣金 / 情绪豆）应各有数据回落。</li>
+        <li><b>回归验证</b>：重点点一遍提现审核（payWithdrawal 余额校验）、情绪确权回滚（void/ban RPC）、用户封禁，确认无报错与资损风险。</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>
+    本报告由 Senior Developer 基于 admin-web 源码全量扫描 + Supabase 迁移 Schema 比对自动生成。<br/>
+    状态判定：✅ 真实 API 存在且字段映射一一对应 · ⚠️ 已修复静默归零 · ❌ 死 API / 字段错位（本次为 0）。<br/>
+    交付物路径：<code style="font-family:var(--mono)">deliverables/admin-web-audit-2026-07-18.html</code>
+  </footer>
+
+</div>
+</body>
+</html>

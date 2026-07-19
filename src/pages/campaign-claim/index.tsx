@@ -1,7 +1,7 @@
 // @title 领取福利（红包/实物）- 合规版
 import { useState, useEffect, useCallback } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
-import { View, Text, Input, Button } from '@tarojs/components'
+import { View, Text, Button } from '@tarojs/components'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabase } from '@/client/supabase'
 import './index.scss'
@@ -104,8 +104,7 @@ function CampaignClaimPage() {
   })
   useShareTimeline(() => ({
     title: '来电有喜 · 优惠好礼，欢迎领取',
-    query: `campaignId=${campaignId}${myCode ? `&ref=${myCode}` : ''}`,
-  }))
+    query: `campaignId=${campaignId}${myCode ? `&ref=${myCode}` : ''}`}))
 
   const loadCampaign = useCallback(async (id: string) => {
     setLoading(true)
@@ -201,9 +200,7 @@ function CampaignClaimPage() {
               campaign_id: parseInt(campaignId),
               openid,
               amount_fen: amountFen,
-              claim_id: data?.claim_id ?? null,
-            },
-          })
+              claim_id: data?.claim_id ?? null}})
 
           if (payErr) {
             setPayoutMsg('红包已领取，现金发放待处理')

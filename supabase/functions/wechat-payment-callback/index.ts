@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
       .update({ status: 'pending_ship', wechat_transaction_id: transactionId, paid_at: new Date().toISOString() })
       .eq('order_no', outTradeNo)
       .eq('status', 'pending_pay')
-      .select('id, order_no, user_id, total_amount, referrer_id, gold_beans_used, store_id')
+      .select('id, order_no, user_id, total_amount, referrer_id, tb_used, store_id')
 
     if (error) {
       console.error('[wechat-payment-callback] DB error:', error.message)
@@ -98,43 +98,71 @@ Deno.serve(async (req: Request) => {
 
     const order = updated[0]
 
-    // D1~D3 修复：读取商家让利率 stores.referral_rate（小数口径，如 0.09=9%），
-    // 透传给 distribute-commission，使云端分佣让利池基数与前端支付页预览完全一致（展示=实发）。
-    let storeDiscountRate: number | null = null
+    // D1~D3 修复：读取商家让利率 stores.referral_rate（小数口径，如 0.09=9%）及整体让利开关
+    // referral_rate_enabled，透传给 distribute-commission，使云端分佣让利池基数与前端支付页预览完全一致（展示=实发）。
+    // 开关关闭时门店默认让利率不参与回退（仅商品级 discount_rate 生效，无商品让利则该单让利=0）。
+    let storeRate: number | null = null
+    let storeEnabled = true
     if (order.store_id) {
       try {
         const { data: storeData } = await supabase
           .from('stores')
-          .select('referral_rate')
+          .select('referral_rate, referral_rate_enabled')
           .eq('id', order.store_id)
           .maybeSingle()
-        const refRate = (storeData as unknown as { referral_rate?: number | null } | null)?.referral_rate
-        storeDiscountRate = refRate ?? null
+        const sd = storeData as unknown as { referral_rate?: number | null; referral_rate_enabled?: boolean | null } | null
+        storeRate = sd?.referral_rate ?? null
+        storeEnabled = sd?.referral_rate_enabled !== false
       } catch (e) { console.warn('[wechat-payment-callback] 读取商家让利率失败', e) }
     }
+    // 门店回退率：开关开 + 有值 → 门店率；开关开 + 无值 → 全局默认 0.09；开关关 → 0（仅商品让利生效）
+    const storeFallback = storeEnabled ? (storeRate ?? 0.09) : 0
 
-    // P0 修复：混合支付金豆抵扣——纯金豆已在下单时当场扣除；混合支付(payment_method=wxpay 但
-    // gold_beans_used>0)的金豆推迟到此处（微信支付成功）扣除，避免支付失败却锁豆。此前此处漏扣 → 用户白嫖抵扣。
-    const goldBeansUsed = order.gold_beans_used ?? 0
+    // 让利点合并规则（按商品自身，金额加权）：每商品用【自身 discount_rate（整数%÷100）】，
+    // 未设则回退门店率（受开关控制）；按商品金额(price×quantity)加权得到整单混合率。
+    // 高利润商品（让利点高）主导让利池、低利润商品（让利点低）少分，完全贴合「按利润高低让利」，且绝不二次叠加。
+    // 分佣引擎对 amount×rate 线性，加权混合率喂入 = 逐商品求和结果一致（个税 800 免征阈值在超大单时极微偏差，可忽略）。
+    let effectiveRate = storeFallback
+    try {
+      const { data: itemRows } = await supabase
+        .from('order_items')
+        .select('price, quantity, products(discount_rate)')
+        .eq('order_id', order.id)
+      const items = (itemRows || []) as Array<{ price?: any; quantity?: any; products?: { discount_rate?: any } | null }>
+      let totalAmt = 0, weightedSum = 0
+      for (const it of items) {
+        const amt = (Number(it.price) || 0) * (Number(it.quantity) || 0)
+        const pct = it?.products?.discount_rate
+        const pRate = (typeof pct === 'number' && pct > 0) ? pct / 100 : storeFallback
+        totalAmt += amt
+        weightedSum += amt * pRate
+      }
+      if (totalAmt > 0) effectiveRate = weightedSum / totalAmt
+    } catch (e) { console.warn('[wechat-payment-callback] 读取商品让利点失败，回退店铺让利率', e) }
+
+    // P0 修复：混合支付情绪豆抵扣——纯情绪豆已在下单时当场扣除；混合支付(payment_method=wxpay 但
+    // tb_used>0)的情绪豆推迟到此处（微信支付成功）扣除，避免支付失败却锁豆。此前此处漏扣 → 用户白嫖抵扣。
+    const goldBeansUsed = order.tb_used ?? 0
     if (goldBeansUsed > 0 && order.payment_method === 'wxpay') {
       try {
-        const { data: gbProf } = await supabase.from('profiles').select('gold_beans').eq('id', order.user_id).maybeSingle()
-        const cur = gbProf?.gold_beans ?? 0
+        const { data: gbProf } = await supabase.from('profiles').select('tb_balance').eq('id', order.user_id).maybeSingle()
+        const cur = gbProf?.tb_balance ?? 0
         if (cur >= goldBeansUsed) {
-          await supabase.from('profiles').update({ gold_beans: cur - goldBeansUsed }).eq('id', order.user_id)
-          supabase.from('gold_bean_logs').insert({
+          await supabase.from('profiles').update({ tb_balance: cur - goldBeansUsed }).eq('id', order.user_id)
+          supabase.from('tongbao_logs').insert({
             user_id: order.user_id, order_id: order.id, type: 'purchase_spend',
             delta: -goldBeansUsed, balance_after: cur - goldBeansUsed,
-            remark: `订单${order.order_no}混合支付金豆抵扣`,
+            remark: `订单${order.order_no}混合支付情绪豆抵扣`,
           }).then(() => {}).catch(() => {})
         } else {
-          console.warn('[wechat-payment-callback] 金豆不足，跳过扣减', { uid: order.user_id, cur, need: goldBeansUsed })
+          console.warn('[wechat-payment-callback] 情绪豆不足，跳过扣减', { uid: order.user_id, cur, need: goldBeansUsed })
         }
-      } catch (e) { console.error('[wechat-payment-callback] 混合金豆扣减异常', e) }
+      } catch (e) { console.error('[wechat-payment-callback] 混合情绪豆扣减异常', e) }
     }
 
     // 异步触发分润（不阻塞回调响应）
-    // net_amount = 实际微信现金支付额（扣除金豆抵扣后），作为让利池计算基数
+    // total_amount = 订单全额（含情绪豆），作为分佣/让利池基数（2026-07-19 起全额参与分佣）
+    // net_amount = 实际微信现金支付额（扣除情绪豆抵扣后），仅用于计提微信收单通道费
     const netCashAmount = Math.max(0, (order.total_amount ?? 0) - goldBeansUsed * 0.01)
     supabase.functions.invoke('distribute-commission', {
       body: {
@@ -144,7 +172,7 @@ Deno.serve(async (req: Request) => {
         total_amount: order.total_amount,
         net_amount: netCashAmount,
         referrer_id: order.referrer_id ?? null,
-        discount_rate: storeDiscountRate ?? 0.09,  // 商家让利率（小数口径），与前端支付页预览一致
+        discount_rate: effectiveRate,  // 按商品自身让利点、金额加权混合率（小数口径），与前端支付页预览一致
       }
     }).catch(e => console.error('[wechat-payment-callback] distribute-commission error:', e))
 

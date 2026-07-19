@@ -25,6 +25,7 @@ const USER_SCOPED_TABLES = [
   'emotion_assets',
   'emotion_badge_grants',
   'emotion_tongbao_logs',
+  'tongbao_logs',
   'product_reviews',
   'pending_referrals',
   'user_campaign_claims',

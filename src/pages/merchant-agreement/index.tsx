@@ -1,6 +1,6 @@
 import { View, Text } from '@tarojs/components'
 // @title 商家入驻协议
-import Taro from '@tarojs/taro'
+
 
 function MerchantAgreement() {
   return (

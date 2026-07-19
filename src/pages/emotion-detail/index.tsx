@@ -8,9 +8,7 @@ import './index.scss'
 import { getProductById } from '@/db/api'
 import type { Product, ProductEmotion } from '@/db/types'
 import {
-  EMOTION_DIMENSION_LABELS, recommendDimensions, getDimensionTag,
-} from '@/utils/emotion-dimensions'
-import { applyThreeStage } from '@/utils/emotion-compile-rules'
+  EMOTION_DIMENSION_LABELS, recommendDimensions, getDimensionTag} from '@/utils/emotion-dimensions'
 import { generateEmotionStages, generateEmotionHeadline } from '@/utils/emotion-description'
 import { initEmotionTracker, trackEmotionEvent } from '@/utils/emotion-analytics'
 
@@ -51,7 +49,7 @@ export default function EmotionDetailPage() {
     const empty: Record<DimKey, string[]> = { function: [], scene: [], emotion: [], identity: [], sensory: [] }
     if (!product) return { stage1: '', stage2: '', stage3: '', title: '', headline: '', dims: empty, hasCompiled: false, source: '' }
 
-    // v3.1 AI 卖点标题：屏3 商品揭晓时作为「一句话卖点」呈现（emoji + 情绪修饰短句）
+    // v3.1 智能卖点标题：屏3 商品揭晓时作为「一句话卖点」呈现（emoji + 情绪修饰短句）
     const headline = generateEmotionHeadline(
       product,
       product.mood_tags || [],
@@ -64,8 +62,7 @@ export default function EmotionDetailPage() {
       const dt = (emo.dimension_tags || {}) as Record<DimKey, string[]>
       const dims: Record<DimKey, string[]> = {
         function: dt.function || [], scene: dt.scene || [],
-        emotion: dt.emotion || [], identity: dt.identity || [], sensory: dt.sensory || [],
-      }
+        emotion: dt.emotion || [], identity: dt.identity || [], sensory: dt.sensory || []}
       const parts = (emo.emotion_detail || '').split(' ').filter(Boolean)
       let stage1 = '', stage2 = '', stage3 = ''
       if (parts.length >= 3) { stage1 = parts[0]; stage2 = parts[1]; stage3 = parts.slice(2).join(' ') }
@@ -87,8 +84,7 @@ export default function EmotionDetailPage() {
       scene: (product.scene_tags?.length ? product.scene_tags.slice(0, 3) : (rec.scene || [])),
       emotion: (product.mood_tags?.length ? product.mood_tags.slice(0, 3) : (rec.emotion || [])),
       identity: rec.identity || [],
-      sensory: rec.sensory || [],
-    }
+      sensory: rec.sensory || []}
     return {
       stage1: stages.stage1,
       stage2: stages.stage2,
@@ -97,8 +93,7 @@ export default function EmotionDetailPage() {
       headline,
       dims,
       hasCompiled: false,
-      source: 'stages',
-    }
+      source: 'stages'}
   }, [product, emo])
 
   const handleBack = () => {
@@ -224,7 +219,7 @@ export default function EmotionDetailPage() {
           </View>
           <View className="emo-content emo-center">
             <Text className="emo-headline emo-headline-mid">它，正好接住了此刻的你</Text>
-            {/* v3.1 AI 卖点标题：情绪钩子之后的「一句话卖点」，落到具体商品角度 */}
+            {/* v3.1 智能卖点标题：情绪钩子之后的「一句话卖点」，落到具体商品角度 */}
             {parsed.headline && <Text className="emo-sellpoint">{parsed.headline}</Text>}
             <Text className="emo-subline">{product.name}</Text>
           </View>
@@ -263,7 +258,7 @@ export default function EmotionDetailPage() {
 
             <View className="emo-fact-card">
               <Text className="emo-fact-name">{product.name}</Text>
-              {/* v3.1 AI 卖点标题：信任闭环里再落一次情绪角度，临门一脚 */}
+              {/* v3.1 智能卖点标题：信任闭环里再落一次情绪角度，临门一脚 */}
               {parsed.headline && <Text className="emo-fact-tagline">{parsed.headline}</Text>}
               {product.description && <Text className="emo-fact-desc">商家原话：{product.description}</Text>}
               <View className="emo-fact-bottom">

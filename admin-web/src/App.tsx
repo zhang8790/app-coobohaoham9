@@ -16,7 +16,12 @@ import FinanceDashboard from '@/pages/FinanceDashboard'
 import Members from '@/pages/Members'
 import Orders from '@/pages/Orders'
 import Ledgers from '@/pages/Ledgers'
+import MerchantSettlements from '@/pages/MerchantSettlements'
 import BehaviorAnalytics from '@/pages/BehaviorAnalytics'
+import SymptomRules from '@/pages/SymptomRules'
+import MarketingTemplates from '@/pages/MarketingTemplates'
+import SelfStores from '@/pages/SelfStores'
+import CommissionGuide from '@/pages/CommissionGuide'
 // 商家管理页面
 import MerchantDashboard from '@/pages/merchant/Index'
 import MerchantProducts from '@/pages/merchant/Products'
@@ -118,7 +123,12 @@ export default function App() {
           <Route path="members" element={<Members />} />
           <Route path="orders" element={<Orders />} />
           <Route path="ledgers" element={<Ledgers />} />
+          <Route path="merchant-settlements" element={<MerchantSettlements />} />
           <Route path="behavior" element={<BehaviorAnalytics />} />
+          <Route path="symptom-rules" element={<SymptomRules />} />
+          <Route path="marketing-templates" element={<MarketingTemplates />} />
+          <Route path="self-stores" element={<SelfStores />} />
+          <Route path="commission-guide" element={<CommissionGuide />} />
           </Route>
 
           {/* ===== 犒赏铺管理后台（merchant 专属）===== */}

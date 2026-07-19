@@ -15,7 +15,7 @@ type UserRow = {
   member_rank: string | null
   role: string | null
   points: number | null
-  balance: number | null
+  tb_balance: number | null
   created_at: string
 }
 
@@ -31,7 +31,7 @@ function AdminUsersPage() {
     setLoading(true)
     try {
         const { data, error } = await withTimeout(
-        supabase.from('profiles').select('id,nickname,phone,member_rank,role,points,balance,created_at').order('created_at', { ascending: false }).limit(100),
+        supabase.from('profiles').select('id,nickname,phone,member_rank,role,points,tb_balance,created_at').order('created_at', { ascending: false }).limit(100),
         8000,
         '[admin-users] load timeout'
       )
@@ -97,8 +97,8 @@ function AdminUsersPage() {
                   <Text className="text-xl text-muted-foreground">{maskPhone(u.phone) || '未知手机'}</Text>
                 </View>
                 <View className="flex flex-col items-end">
-                  <Text className="text-xl font-bold text-primary">{u.member_rank || '江湖散修'}</Text>
-                  <Text className="text-base text-muted-foreground">金豆 {Number(u.balance ?? 0).toFixed(2)}</Text>
+                  <Text className="text-xl font-bold text-primary">{u.member_rank || '凡心'}</Text>
+                  <Text className="text-base text-muted-foreground">情绪豆 {Number(u.tb_balance ?? 0).toFixed(2)}</Text>
                 </View>
               </View>
               <View className="flex items-center justify-between">

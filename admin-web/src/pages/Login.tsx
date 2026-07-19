@@ -75,22 +75,22 @@ export default function Login() {
   const inputStyle = {
     width: '100%', padding: '13px 16px', background: 'rgba(15,23,42,0.6)',
     border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10,
-    color: '#E5E7EB', fontSize: 15, outline: 'none',
+    color: 'var(--text)', fontSize: 15, outline: 'none',
     transition: 'all 0.2s', boxSizing: 'border-box' as const,
   }
   const focusHandler = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = '#C2410C'
-    e.target.style.boxShadow = '0 0 0 2px rgba(194,65,12,0.15)'
+    e.target.style.borderColor = 'var(--primary)'
+    e.target.style.boxShadow = '0 0 0 2px var(--primary-soft)'
   }
   const blurHandler = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.style.borderColor = 'rgba(255,255,255,0.08)'
     e.target.style.boxShadow = 'none'
   }
-  const labelStyle = { color: '#9CA3AF', fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 8 }
+  const labelStyle = { color: 'var(--text-muted)', fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 8 }
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#0F0B19',
+      minHeight: '100vh', background: 'var(--bg)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 24, position: 'relative', overflow: 'hidden',
     }}>
@@ -127,10 +127,10 @@ export default function Login() {
                 />
               </svg>
             </div>
-            <span style={{ color: '#F9FAFB', fontWeight: 700, fontSize: 20 }}>来电有喜</span>
+            <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 20 }}>来电有喜</span>
           </div>
-          <h1 style={{ color: '#F9FAFB', fontSize: 22, fontWeight: 700, margin: 0 }}>欢迎回来</h1>
-          <p style={{ color: '#6B7280', fontSize: 14, marginTop: 6 }}>商家管理中心</p>
+          <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, margin: 0 }}>欢迎回来</h1>
+          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>商家管理中心</p>
         </div>
 
         {/* 登录方式切换 */}
@@ -146,8 +146,8 @@ export default function Login() {
           ]).map(m => (
             <button key={m.key} type="button" onClick={() => { setMethod(m.key); setErr('') }} style={{
               flex: 1, padding: '9px 0', borderRadius: 8,
-              background: method === m.key ? '#C2410C' : 'transparent',
-              border: 'none', color: method === m.key ? '#fff' : '#6B7280',
+              background: method === m.key ? 'var(--primary)' : 'transparent',
+              border: 'none', color: method === m.key ? '#fff' : 'var(--text-dim)',
               fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
             }}>{m.label}</button>
           ))}
@@ -175,13 +175,13 @@ export default function Login() {
             {err && (
               <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.07)',
                 border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10,
-                color: '#FCA5A5', fontSize: 13,
+                color: 'var(--danger-text)', fontSize: 13,
               }}>{err}</div>
             )}
 
             <button type="submit" disabled={loading} style={{
               width: '100%', padding: '13px',
-              background: loading ? '#7A2508' : 'linear-gradient(135deg, #C2410C, #EA580C)',
+              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
               border: 'none', borderRadius: 10, color: '#fff', fontSize: 15,
               fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s', boxShadow: loading ? 'none' : '0 4px 20px rgba(194,65,12,0.3)',
@@ -214,9 +214,9 @@ export default function Login() {
                   disabled={otpSending || countdown > 0}
                   style={{
                     whiteSpace: 'nowrap', padding: '13px 16px',
-                    background: countdown > 0 ? 'rgba(31,41,55,0.6)' : 'rgba(194,65,12,0.08)',
-                    border: `1px solid ${countdown > 0 ? 'rgba(55,65,81,0.5)' : '#C2410C'}`,
-                    borderRadius: 10, color: countdown > 0 ? '#6B7280' : '#C2410C',
+                    background: countdown > 0 ? 'rgba(31,41,55,0.6)' : 'var(--primary-soft)',
+                    border: `1px solid ${countdown > 0 ? 'rgba(55,65,81,0.5)' : 'var(--primary)'}`,
+                    borderRadius: 10, color: countdown > 0 ? 'var(--text-dim)' : 'var(--primary)',
                     fontSize: 13, fontWeight: 600,
                     cursor: (otpSending || countdown > 0) ? 'not-allowed' : 'pointer',
                     minWidth: 112, transition: 'all 0.2s',
@@ -230,13 +230,13 @@ export default function Login() {
             {err && (
               <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.07)',
                 border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10,
-                color: '#FCA5A5', fontSize: 13,
+                color: 'var(--danger-text)', fontSize: 13,
               }}>{err}</div>
             )}
 
             <button type="submit" disabled={loading} style={{
               width: '100%', padding: '13px',
-              background: loading ? '#7A2508' : 'linear-gradient(135deg, #C2410C, #EA580C)',
+              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
               border: 'none', borderRadius: 10, color: '#fff', fontSize: 15,
               fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s', boxShadow: loading ? 'none' : '0 4px 20px rgba(194,65,12,0.3)',
@@ -267,13 +267,13 @@ export default function Login() {
             {err && (
               <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.07)',
                 border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10,
-                color: '#FCA5A5', fontSize: 13,
+                color: 'var(--danger-text)', fontSize: 13,
               }}>{err}</div>
             )}
 
             <button type="submit" disabled={loading} style={{
               width: '100%', padding: '13px',
-              background: loading ? '#7A2508' : 'linear-gradient(135deg, #C2410C, #EA580C)',
+              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
               border: 'none', borderRadius: 10, color: '#fff', fontSize: 15,
               fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s', boxShadow: loading ? 'none' : '0 4px 20px rgba(194,65,12,0.3)',
@@ -286,15 +286,15 @@ export default function Login() {
         <button type="button" onClick={async () => { setLoading(true); await signInAsAdmin(); }}
           style={{
             width: '100%', marginTop: 18, padding: '12px',
-            background: 'rgba(194,65,12,0.08)', border: '1px solid #C2410C',
-            borderRadius: 10, color: '#C2410C', fontSize: 14, fontWeight: 600,
+            background: 'var(--primary-soft)', border: '1px solid var(--primary)',
+            borderRadius: 10, color: 'var(--primary)', fontSize: 14, fontWeight: 600,
             cursor: 'pointer', transition: 'all 0.2s',
           }}>
           进入总后台（管理员）
         </button>
 
         {/* 底部 */}
-        <p style={{ color: '#374151', fontSize: 11, textAlign: 'center', marginTop: 16 }}>
+        <p style={{ color: 'var(--border-soft)', fontSize: 11, textAlign: 'center', marginTop: 16 }}>
           {method === 'email' ? '管理员邮箱：admin@laidianyouxi.com / admin123456' : '测试账号：18701410500 / 123456'}
         </p>
       </div>

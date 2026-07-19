@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>来电有喜 · 分佣规则可视化</title>
+<style>
+  :root {
+    --bg: #0B0F19;
+    --bg2: #080C14;
+    --gold: #D4AF37;
+    --orange: #C2410C;
+    --text: #E5E7EB;
+    --muted: #9CA3AF;
+    --line: #1F2937;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #15203a 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    line-height: 1.6;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  h1 {
+    font-size: 26px; font-weight: 800; letter-spacing: 1px;
+    background: linear-gradient(90deg, var(--gold), #F0C75E);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+  .card {
+    background: rgba(255,255,255,0.025);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 22px;
+    backdrop-filter: blur(8px);
+  }
+  .card h2 { font-size: 16px; color: var(--gold); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  /* 公式 */
+  .formula {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+    font-size: 15px; padding: 18px; border-radius: 12px;
+    background: linear-gradient(135deg, rgba(194,65,12,0.12), rgba(212,175,55,0.08));
+    border: 1px dashed rgba(212,175,55,0.4);
+  }
+  .formula b { color: var(--gold); }
+  .pill {
+    padding: 6px 12px; border-radius: 999px; background: rgba(212,175,55,0.12);
+    border: 1px solid rgba(212,175,55,0.3); font-size: 13px;
+  }
+  /* SVG 流向 */
+  .flow { width: 100%; height: 360px; display: block; }
+  .node-box { fill: #111827; stroke: var(--gold); stroke-width: 1.5; }
+  .node-text { fill: var(--text); font-size: 13px; font-weight: 600; }
+  .sub-text { fill: var(--muted); font-size: 11px; }
+  .pool { fill: url(#poolGrad); stroke: var(--gold); stroke-width: 2; }
+  .pool-label { fill: #1a1205; font-size: 14px; font-weight: 800; }
+  .branch { fill: #0f172a; stroke: var(--line); stroke-width: 1.5; }
+  .branch-l1 { stroke: #22C55E; }
+  .branch-l2 { stroke: #38BDF8; }
+  .branch-pt { stroke: #A78BFA; }
+  .branch-plat { stroke: var(--gold); }
+  .branch-title { font-size: 12px; font-weight: 700; }
+  .branch-val { font-size: 11px; fill: var(--muted); }
+  .arrow { stroke: var(--gold); stroke-width: 1.5; fill: none; opacity: 0.7; stroke-dasharray: 6 5; animation: dash 1.2s linear infinite; }
+  @keyframes dash { to { stroke-dashoffset: -22; } }
+  .pool { animation: breathe 3s ease-in-out infinite; }
+  @keyframes breathe { 0%,100% { opacity: 0.9; } 50% { opacity: 1; } }
+  /* 双卡对比 */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .lock-card { border-radius: 14px; padding: 18px; border: 1px solid var(--line); }
+  .lock-store { background: rgba(56,189,248,0.06); border-color: rgba(56,189,248,0.25); }
+  .lock-promo { background: rgba(34,197,94,0.06); border-color: rgba(34,197,94,0.25); }
+  .lock-card h3 { font-size: 15px; margin-bottom: 10px; }
+  .lock-store h3 { color: #38BDF8; }
+  .lock-promo h3 { color: #22C55E; }
+  .kv { display: flex; gap: 8px; font-size: 13px; margin: 6px 0; }
+  .kv .k { color: var(--muted); min-width: 76px; flex-shrink: 0; }
+  .tag-no { color: #F87171; font-weight: 700; }
+  .tag-yes { color: #22C55E; font-weight: 700; }
+  .note {
+    border-left: 3px solid var(--gold); padding: 12px 16px; border-radius: 8px;
+    background: rgba(212,175,55,0.06); font-size: 13px; color: #D1D5DB;
+  }
+  .note b { color: var(--gold); }
+  .btn-print {
+    padding: 8px 18px; border-radius: 8px; border: 1px solid var(--gold);
+    background: rgba(212,175,55,0.12); color: var(--gold); cursor: pointer; font-size: 13px; font-weight: 600;
+  }
+  .btn-print:hover { background: rgba(212,175,55,0.22); }
+  @media (max-width: 720px) { .compare { grid-template-columns: 1fr; } .flow { height: 420px; } }
+  @media print {
+    body { background: #fff; color: #111; padding: 0; }
+    .btn-print { display: none; }
+    .card, .lock-card { border-color: #ccc; background: #fff; }
+    h1 { color: #C2410C; -webkit-text-fill-color: #C2410C; }
+    .card h2 { color: #C2410C; }
+    .note { background: #fff7e6; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1>分佣规则可视化</h1>
+    </div>
+    <button class="btn-print" onclick="window.print()">🖨 打印 / 导出 PDF</button>
+  </div>
+  <p class="sub">来电有喜 · 让利池从哪来、分给谁、谁先锁客谁先拿 —— 运营与商家必读</p>
+
+  <!-- 1. 让利池公式 -->
+  <div class="card">
+    <h2>① 佣金从哪来：让利池</h2>
+    <div class="formula">
+      <span class="pill">订单全额（含情绪豆）</span>
+      <span>×</span>
+      <span class="pill">让利率 <b>（门店 referral_rate，或商品 discount_rate 金额加权）</b></span>
+      <span>=</span>
+      <b>让利池</b>（分佣的唯一钱袋）
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px;">
+      例：订单 ¥100，门店让利 10% → 让利池 = ¥10。这 ¥10 就是下面四块瓜分的全部来源。
+    </p>
+  </div>
+
+  <!-- 2. 流向图 -->
+  <div class="card">
+    <h2>② 让利池怎么分：四块流向</h2>
+    <svg class="flow" viewBox="0 0 940 360" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id="poolGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#F0C75E"/>
+          <stop offset="100%" stop-color="#C2410C"/>
+        </linearGradient>
+        <marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6 Z" fill="#D4AF37"/>
+        </marker>
+      </defs>
+
+      <!-- 订单全额 -->
+      <rect class="node-box" x="30" y="150" width="150" height="60" rx="10"/>
+      <text class="node-text" x="105" y="178" text-anchor="middle">订单全额</text>
+      <text class="sub-text" x="105" y="196" text-anchor="middle">含情绪豆抵扣</text>
+
+      <!-- × 让利率 -->
+      <text x="215" y="185" text-anchor="middle" fill="#D4AF37" font-size="22" font-weight="800">× 让利率</text>
+
+      <!-- 让利池 -->
+      <circle class="pool" cx="330" cy="180" r="56"/>
+      <text class="pool-label" x="330" y="174" text-anchor="middle">让利池</text>
+      <text class="pool-label" x="330" y="194" text-anchor="middle" font-size="11">¥ 分佣钱袋</text>
+
+      <!-- 箭头 订单→池 -->
+      <path class="arrow" d="M180,180 L270,180" marker-end="url(#ah)"/>
+
+      <!-- 四分支 -->
+      <!-- L1 -->
+      <path class="arrow" d="M386,150 C460,90 520,90 590,90" marker-end="url(#ah)"/>
+      <rect class="branch branch-l1" x="590" y="60" width="150" height="60" rx="10"/>
+      <text class="branch-title" x="665" y="84" text-anchor="middle" fill="#22C55E">L1 佣金</text>
+      <text class="branch-val" x="665" y="104" text-anchor="middle">一级推广员（先绑先得）</text>
+
+      <!-- L2 -->
+      <path class="arrow" d="M386,170 C480,150 540,150 590,170" marker-end="url(#ah)"/>
+      <rect class="branch branch-l2" x="590" y="140" width="150" height="60" rx="10"/>
+      <text class="branch-title" x="665" y="164" text-anchor="middle" fill="#38BDF8">L2 佣金</text>
+      <text class="branch-val" x="665" y="184" text-anchor="middle">二级（L1 的上级）</text>
+
+      <!-- 积分 -->
+      <path class="arrow" d="M386,200 C480,220 540,220 590,230" marker-end="url(#ah)"/>
+      <rect class="branch branch-pt" x="590" y="200" width="150" height="60" rx="10"/>
+      <text class="branch-title" x="665" y="224" text-anchor="middle" fill="#A78BFA">买家积分</text>
+      <text class="branch-val" x="665" y="244" text-anchor="middle">返下单人情绪豆</text>
+
+      <!-- 平台 -->
+      <path class="arrow" d="M386,215 C460,275 520,275 590,290" marker-end="url(#ah)"/>
+      <rect class="branch branch-plat" x="590" y="260" width="150" height="60" rx="10"/>
+      <text class="branch-title" x="665" y="284" text-anchor="middle" fill="#D4AF37">平台收入</text>
+      <text class="branch-val" x="665" y="304" text-anchor="middle">让利池 − 上面三项</text>
+
+      <!-- 右侧比例注记 -->
+      <text x="770" y="92" fill="#9CA3AF" font-size="11">比例由段位/活跃/拓新系数决定</text>
+      <text x="770" y="172" fill="#9CA3AF" font-size="11">平台先抽最低 10%</text>
+      <text x="770" y="232" fill="#9CA3AF" font-size="11">按会员段位 points 比例</text>
+    </svg>
+  </div>
+
+  <!-- 3. 两种锁客对比 -->
+  <div class="card">
+    <h2>③ 谁先锁客谁先拿？——两种锁客，待遇不同</h2>
+    <div class="compare">
+      <div class="lock-card lock-store">
+        <h3>🏪 门店锁客</h3>
+        <div class="kv"><span class="k">落表</span><span>user_store_relation</span></div>
+        <div class="kv"><span class="k">分佣系统</span><span class="tag-no">不读取 · 不分佣</span></div>
+        <div class="kv"><span class="k">作用</span><span>门店业绩归因标记</span></div>
+        <div class="kv"><span class="k">能拿佣金吗</span><span class="tag-no">不能</span></div>
+        <p style="font-size:12px;color:var(--muted);margin-top:8px;">客户被门店锁定后去别处消费，锁定门店只记一笔业绩，一分钱拿不到。</p>
+      </div>
+      <div class="lock-card lock-promo">
+        <h3>🔗 推广锁客</h3>
+        <div class="kv"><span class="k">落表</span><span>profiles.referrer_id</span></div>
+        <div class="kv"><span class="k">分佣系统</span><span class="tag-yes">唯一读取来源</span></div>
+        <div class="kv"><span class="k">作用</span><span>L1/L2 佣金归属</span></div>
+        <div class="kv"><span class="k">能拿佣金吗</span><span class="tag-yes">能（先绑先得）</span></div>
+        <p style="font-size:12px;color(var(--muted));margin-top:8px;color:#D1D5DB;">referrer_id 首次绑定后不可改，先绑的推广员 = L1，后面谁都抢不走。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 关键提醒 -->
+  <div class="card">
+    <h2>④ 运营必知的两个坑</h2>
+    <div class="note" style="margin-bottom:12px;">
+      <b>⚠️ 纯情绪豆订单不发佣：</b>distribute-commission 只在「微信支付成功回调」里触发。纯豆支付不经微信回调 → 不分佣。混合支付（豆+微信）正常发。
+    </div>
+    <div class="note">
+      <b>💡 门店想从让利里分到钱：</b>让利池虽由门店让利撑大，但门店锁客不拿佣。门店须让客户通过<b>门店自己的推广码（referral_code）</b>下单，才能以「推广员」身份走 referrer_id 拿到佣金。
+    </div>
+  </div>
+</div>
+</body>
+</html>

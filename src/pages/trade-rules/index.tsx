@@ -1,6 +1,6 @@
 import { View, Text } from '@tarojs/components'
 // @title 交易规则
-import Taro from '@tarojs/taro'
+
 
 function TradeRules() {
   return (
@@ -24,7 +24,7 @@ function TradeRules() {
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">三、下单与支付</Text>
           <Text className="block">1. 提交订单即视为购买意向确认，订单在支付完成前可取消。</Text>
-          <Text className="block">2. 支付方式支持微信支付、金豆支付及混合支付，具体以订单页展示为准。</Text>
+          <Text className="block">2. 支付方式支持微信支付、情绪豆支付及混合支付，具体以订单页展示为准。</Text>
           <Text className="block">3. 订单生成后请在有效支付时间内完成付款，超时订单将自动取消。</Text>
         </View>
 

@@ -1,6 +1,6 @@
 // @title 文章详情页 - 公众号风格
 import { useState, useEffect, useRef } from 'react'
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import Taro, {} from '@tarojs/taro'
 import { View, Text, Image, ScrollView, RichText, Button, Canvas } from '@tarojs/components'
 import './index.scss'
 
@@ -50,8 +50,7 @@ export default function ArticleDetailPage() {
     path: `/pages/article-detail/index?id=${articleId}`,
     imageUrl: sharePosterUrl || article?.cover_image || '',
     timelineTitle: shareTitle,
-    timelineQuery: `id=${articleId}`,
-  })
+    timelineQuery: `id=${articleId}`})
 
   // 获取当前城市名称
   const getCityName = () => {
@@ -134,8 +133,7 @@ export default function ArticleDetailPage() {
     setIsFavorited(!isFavorited)
     Taro.showToast({
       title: isFavorited ? '已取消收藏' : '收藏成功',
-      icon: 'success',
-    })
+      icon: 'success'})
   }
 
   const handleShare = () => {
@@ -221,8 +219,7 @@ export default function ArticleDetailPage() {
               <Text className="author-date">
                 {new Date(article.created_at).toLocaleDateString('zh-CN', {
                   month: 'long',
-                  day: 'numeric',
-                })}
+                  day: 'numeric'})}
                 {' · '}
                 {article.view_count || 0} 阅读
               </Text>
@@ -264,8 +261,7 @@ export default function ArticleDetailPage() {
                   onClick={() =>
                     Taro.previewImage({
                       urls: article.images,
-                      current: imgUrl,
-                    })
+                      current: imgUrl})
                   }
                 />
               ))}
@@ -336,8 +332,7 @@ export default function ArticleDetailPage() {
                   className="related-card"
                   onClick={() => {
                     Taro.navigateTo({
-                      url: `/pages/article-detail/index?id=${item.id}`,
-                    })
+                      url: `/pages/article-detail/index?id=${item.id}`})
                   }}
                 >
                   {item.cover_image && (

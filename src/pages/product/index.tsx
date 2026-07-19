@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { Image, Button, Swiper, SwiperItem, Video, View, Text } from '@tarojs/components'
-import { getProductById, addToCart, isFavorited, toggleFavorite, recordFootprint } from '@/db/api'
+import { getProductById, addToCart, isFavorited, toggleFavorite, recordFootprint, trackFoodTherapyEvent, bindStoreReferrer } from '@/db/api'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
 import { setPendingCheckout } from '@/utils/checkoutCache'
 import { buildProductShare } from '@/utils/share'
@@ -12,10 +12,12 @@ import { supabase } from '@/client/supabase'
 import { MOOD_TAGS_ALL, SCENE_TAGS_ALL } from '@/utils/mood-tags'
 import { generateEmotionDescription, generateEmotionHeadline } from '@/utils/emotion-description'
 import { loadCategoryEmotionProfilesFromDb } from '@/utils/category-emotion'
-import { resolveIngredientEntries, SHIYANG_DISCLAIMER } from '@/utils/ingredient-analysis'
+import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
+import { toFoodTherapyInput, TIER_LABEL } from '@/utils/food-therapy'
 
 export default function ProductPage() {
   const { user } = useAuth()
+  const { selectedCrowds, selectedScene, classifyProduct } = useFoodTherapy()
   const id = useMemo(() => {
     const params = Taro.getCurrentInstance().router?.params
     return params?.id ? decodeURIComponent(params.id) : ''
@@ -29,6 +31,12 @@ export default function ProductPage() {
   const [favLoading, setFavLoading] = useState(false)
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  const totalPrice = useMemo(() => {
+    const price = Number(product?.price || 0)
+    return Math.round(price * quantity * 100) / 100
+  }, [product?.price, quantity])
+  // 门店推荐套餐：根据 combo_product_ids 拉取关联商品
+  const [comboProducts, setComboProducts] = useState<Product[]>([])
   // 云端类目策略加载标记：拉取完成后 +1，驱动情绪翻译用最新策略重算
   const [profilesTick, setProfilesTick] = useState(0)
 
@@ -72,9 +80,13 @@ export default function ProductPage() {
     setLoading(true)
     const data = await getProductById(id)
     setProduct(data)
+    // 强引导门店自推码：进商品详情即绑所属门店 owner 推广码（让利佣金回流门店）
+    if (data?.store_id) bindStoreReferrer(data.store_id).catch(() => {})
     setLoading(false)
     // 记录浏览足迹
     if (data) recordFootprint(data.id).catch(() => {})
+    // 导购反馈回流：记录浏览事件（个性化权重学习）
+    if (data) trackFoodTherapyEvent({ productId: data.id, eventType: 'view', healthTag: (data as any).health_tag ?? [], emotionTag: (data as any).emotion_tag ?? [] }).catch(() => {})
     // 拉取云端类目情绪策略（运营后台改词库即时生效）；加载完驱动情绪翻译重算
     loadCategoryEmotionProfilesFromDb()
       .then(() => setProfilesTick(t => t + 1))
@@ -95,10 +107,35 @@ export default function ProductPage() {
   useEffect(() => { load(); refreshCart() }, [load, refreshCart])
   useDidShow(() => { refreshCart() })
 
-  // 商品卡分享：一定是产品（商品主图 + 商品详情路径），并注入情绪表达词
+  // 拉取「门店推荐套餐」关联商品（combo_product_ids），失败静默降级
+  useEffect(() => {
+    const ids = (product as any)?.combo_product_ids as string[] | undefined
+    if (!ids || ids.length === 0) { setComboProducts([]); return }
+    let alive = true
+    supabase
+      .from('products')
+      .select('id, name, price, image_url')
+      .in('id', ids)
+      .then(({ data, error }: any) => {
+        if (!alive) return
+        if (!error && Array.isArray(data)) setComboProducts(data as Product[])
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [product])
+
+  // 商品卡分享：一定是产品（商品主图 + 商品详情路径），并注入食疗分档
   useShareAppMessage(() => {
     if (!product) return { title: '来电有喜', path: '/pages/product/index' }
     const s = buildProductShare(product, myCode)
+    const tier = classifyProduct(product)
+    if (tier) {
+      return {
+        title: `${product.name}｜${TIER_LABEL[tier]}`,
+        path: s.path,
+        imageUrl: s.imageUrl,
+      }
+    }
     return { title: s.title, path: s.path, imageUrl: s.imageUrl }
   })
   useShareTimeline(() => {
@@ -118,6 +155,8 @@ export default function ProductPage() {
     const { isFav: newFav } = await toggleFavorite(product.id)
     setIsFav(newFav)
     setFavLoading(false)
+    // 导购反馈回流：收藏=点赞偏好，取消=点踩
+    trackFoodTherapyEvent({ productId: product.id, eventType: newFav ? 'like' : 'dislike', healthTag: product.health_tag ?? [], emotionTag: product.emotion_tag ?? [] }).catch(() => {})
     Taro.showToast({ title: newFav ? '已收藏' : '已取消收藏', icon: 'none' })
   }
 
@@ -126,6 +165,8 @@ export default function ProductPage() {
     setAdding(true)
     await addToCart(product.id, product.store_id, quantity)
     setAdding(false)
+    // 导购反馈回流：加购=强偏好
+    trackFoodTherapyEvent({ productId: product.id, eventType: 'add_cart', healthTag: product.health_tag ?? [], emotionTag: product.emotion_tag ?? [] }).catch(() => {})
     Taro.showToast({ title: '已加入行囊', icon: 'success' })
   }
 
@@ -135,8 +176,8 @@ export default function ProductPage() {
     await addToCart(product.id, product.store_id, quantity)
     setAdding(false)
     // 写入待结算缓存：覆盖冷启动/热重载停在支付页时 router.params 为空的情况
-    setPendingCheckout({ productId: product.id, total: product.price, quantity })
-    Taro.navigateTo({ url: `/pages/payment/index?productId=${encodeURIComponent(product.id)}&total=${product.price}&quantity=${quantity}` })
+    setPendingCheckout({ productId: product.id, total: totalPrice, quantity })
+    Taro.navigateTo({ url: `/pages/payment/index?productId=${encodeURIComponent(product.id)}&total=${totalPrice}&quantity=${quantity}` })
   }
 
   if (loading) return (
@@ -239,14 +280,14 @@ export default function ProductPage() {
             className="mt-3 px-3 py-3 rounded-2xl bg-primary/5 border border-primary/15"
             onClick={() => product && Taro.navigateTo({ url: `/pages/emotion-detail/index?productId=${encodeURIComponent(product.id)}` })}
           >
-            {/* v3.1 AI 卖点标题：作为情绪卡的主视觉锚点，引导用户一眼抓住商品情绪角度 */}
+            {/* v3.1 智能卖点标题：作为情绪卡的主视觉锚点，引导用户一眼抓住商品情绪角度 */}
             <View className="flex items-center gap-1.5 mb-2">
               <Text className="text-xs font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded" style={{ display: 'inline-block' }}>卖点</Text>
               <Text className="text-lg font-bold text-foreground leading-snug" style={{ display: 'inline-block' }}>{emotionData.headline}</Text>
             </View>
             <View className="flex items-center justify-between">
               <Text className="text-base font-bold text-primary" style={{ display: 'block' }}>
-                ✨ {emotionData.title}{emotionData.by === 'llm' ? ' · AI编译' : ''}
+                ✨ {emotionData.title}{emotionData.by === 'llm' ? ' · 智能生成' : ''}
               </Text>
               <Text className="text-xs text-primary/70" style={{ flexShrink: 0, marginLeft: 8 }}>开启情绪之旅 ›</Text>
             </View>
@@ -317,30 +358,113 @@ export default function ProductPage() {
             </View>
           </View>
         )}
-        {/* 原料分析 */}
-        {(() => {
-          const entries = product ? resolveIngredientEntries(product) : []
-          if (!entries.length) return null
+        {/* 食材食疗智能导购 · 六模块纯展示（读取商家预存成品内容） */}
+        {product && (() => {
+          const input = toFoodTherapyInput(product)
+          const tier = classifyProduct(product)
+          const tierLabel = tier ? TIER_LABEL[tier] : ''
+          const tierColor = tier === 'recommend' ? '#16A34A' : tier === 'caution' ? '#B45309' : tier === 'avoid' ? '#DC2626' : '#6B7280'
           return (
             <View className="mt-3" style={{ padding: '12px 14px', borderRadius: '16px', background: '#F6FBF7', border: '1px solid #D6EFD8' }}>
-              <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>🥗 原料分析</Text>
-              <Text className="text-xs text-muted-foreground mb-3" style={{ display: 'block' }}>这份商品的主要成分与食养参考</Text>
-              {entries.map((e, i) => (
-                <View key={e.zh + i} style={{ marginBottom: i < entries.length - 1 ? '10px' : 0 }}>
-                  <View className="flex items-center gap-2">
-                    <Text style={{ fontSize: '18px' }}>{e.icon}</Text>
-                    <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#1F2937' }}>{e.zh}</Text>
-                    <Text style={{ fontSize: '11px', color: '#fff', background: '#34A853', padding: '1px 8px', borderRadius: '10px' }}>{e.nature}</Text>
-                  </View>
-                  <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '4px', display: 'block' }}>功效：{e.benefits.join('、')}</Text>
-                  <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '2px', display: 'block' }}>适合人群：{e.audiences.join('、')}</Text>
-                  <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '2px', display: 'block' }}>场景：{e.scenarios.join('、')}</Text>
+              <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>🍵 食材食疗导购</Text>
+
+              {/* 模块1：基础原材料 */}
+              {input.ingredients && input.ingredients.length > 0 && (
+                <View className="mb-3">
+                  <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>① 基础原材料</Text>
+                  <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>{input.ingredients.join('、')}</Text>
+                  {input.food_category && (
+                    <Text style={{ fontSize: '12px', color: '#16A34A', display: 'block', marginTop: 2 }}>分类：{input.food_category}{input.overall_nature ? ` · 整体性味 ${input.overall_nature}` : ''}</Text>
+                  )}
                 </View>
-              ))}
-              <Text style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '8px', display: 'block', lineHeight: '1.5' }}>{SHIYANG_DISCLAIMER}</Text>
+              )}
+
+              {/* 模块2：食疗滋养效果（正面 + 风险） */}
+              <View className="mb-3">
+                <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>② 食疗滋养效果</Text>
+                {input.positive_effect ? (
+                  <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>✅ {input.positive_effect}</Text>
+                ) : <Text style={{ fontSize: '12px', color: '#9CA3AF', display: 'block' }}>暂无说明</Text>}
+                {input.risk_warning && (
+                  <Text style={{ fontSize: '13px', color: '#B45309', display: 'block', lineHeight: '1.6', marginTop: 4 }}>⚠️ 风险提示：{input.risk_warning}</Text>
+                )}
+              </View>
+
+              {/* 模块3：情绪价值 */}
+              {input.emotion_copy && (
+                <View className="mb-3">
+                  <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>③ 情绪价值</Text>
+                  <Text style={{ fontSize: '13px', color: '#7C3AED', display: 'block', lineHeight: '1.6' }}>{input.emotion_copy}</Text>
+                </View>
+              )}
+
+              {/* 模块4：适配 & 慎食 & 禁食人群 */}
+              <View className="mb-3">
+                <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>④ 人群适配提示</Text>
+                {input.rec_crowds && input.rec_crowds.length > 0 && (
+                  <Text style={{ fontSize: '13px', color: '#16A34A', display: 'block', lineHeight: '1.6' }}>🌟 适配人群：{input.rec_crowds.join('、')}{input.guide_sentence ? `（${input.guide_sentence}）` : ''}</Text>
+                )}
+                {input.cautious_crowds && input.cautious_crowds.length > 0 && (
+                  <Text style={{ fontSize: '13px', color: '#B45309', display: 'block', lineHeight: '1.6', marginTop: 2 }}>🟡 慎食人群：{input.cautious_crowds.join('、')}{input.cautious_notes ? `（${input.cautious_notes}）` : ''}</Text>
+                )}
+                {input.forbidden_crowds && input.forbidden_crowds.length > 0 && (
+                  <Text style={{ fontSize: '13px', color: '#DC2626', display: 'block', lineHeight: '1.6', marginTop: 2 }}>🔴 不建议人群：{input.forbidden_crowds.join('、')}{input.forbidden_reasons ? `（${input.forbidden_reasons}）` : ''}</Text>
+                )}
+                {(!input.rec_crowds?.length && !input.cautious_crowds?.length && !input.forbidden_crowds?.length) && (
+                  <Text style={{ fontSize: '12px', color: '#9CA3AF', display: 'block' }}>暂无特定人群标注</Text>
+                )}
+              </View>
+
+              {/* 模块5：门店推荐搭配套餐 */}
+              <View className="mb-3">
+                <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>⑤ 门店推荐搭配</Text>
+                {comboProducts.length > 0 ? (
+                  <View className="flex gap-2 flex-wrap">
+                    {comboProducts.map((c) => (
+                      <View key={c.id}
+                        className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-base"
+                        onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${c.id}` })}>
+                        <Text>{c.name} ¥{c.price}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : input.match_goods && input.match_goods.length > 0 ? (
+                  <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>推荐搭配：{input.match_goods.join('、')}</Text>
+                ) : (
+                  <Text style={{ fontSize: '12px', color: '#9CA3AF', display: 'block' }}>暂无搭配推荐</Text>
+                )}
+                {input.moments_copy && (
+                  <Text style={{ fontSize: '12px', color: '#6B7280', display: 'block', lineHeight: '1.6', marginTop: 4 }}>📣 门店分享：{input.moments_copy}</Text>
+                )}
+              </View>
+
+              {/* 当前勾选状态的分档提示（可选，基于首页筛选器） */}
+              {tier && (
+                <View className="mb-2 px-2 py-1.5 rounded-xl" style={{ background: tier === 'avoid' ? '#FEE2E2' : tier === 'caution' ? '#FEF3C7' : '#DCFCE7' }}>
+                  <Text className="text-base font-bold" style={{ color: tierColor, display: 'block' }}>本单判定：{tierLabel}</Text>
+                  {selectedCrowds.length > 0 && (
+                    <Text style={{ fontSize: '12px', color: '#4B5563', display: 'block', marginTop: 2, lineHeight: '1.5' }}>
+                      依据你勾选的「{selectedCrowds.join('、')}」{selectedScene ? ` · ${selectedScene}` : ''}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {/* 模块6：底部忌口警示 */}
+              {input.taboo_warning && (
+                <View className="mt-1 px-2 py-2 rounded-xl" style={{ background: '#FEE2E2', border: '1px solid #FCA5A5' }}>
+                  <Text className="text-base font-bold" style={{ color: '#B91C1C', display: 'block' }}>⚠️ 忌口警示</Text>
+                  <Text style={{ fontSize: '12px', color: '#7F1D1D', display: 'block', marginTop: 2, lineHeight: '1.5' }}>{input.taboo_warning}</Text>
+                </View>
+              )}
+
+              <Text style={{ fontSize: '10px', color: '#9CA3AF', display: 'block', lineHeight: '1.5', marginTop: 6 }}>
+                食养建议不替代医嘱，适量为佳；身体不适请及时就医。
+              </Text>
             </View>
           )
         })()}
+
         {/* 进入门店 */}
         {product.stores && (
           <View className="mt-4 flex items-center gap-3 py-3 border-t border-border"
@@ -401,30 +525,38 @@ export default function ProductPage() {
       {/* 底部操作栏 */}
       <View className="fixed bottom-0 left-0 right-0 bg-card border-t-2 border-border px-4 py-3 flex gap-3"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
-        {/* 购物车图标入口 */}
-        <View className="relative flex-shrink-0" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
-          <View className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center border-2 border-border">
-            <View className="i-mdi-shopping-outline text-2xl text-foreground" />
-          </View>
-          {cartCount > 0 && (
-            <View className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full bg-primary flex items-center justify-center px-1">
-              <Text className="text-white text-xs font-bold">{cartCount > 99 ? '99+' : cartCount}</Text>
+        {/* 左侧：工具 + 合计 */}
+        <View className="flex items-center gap-2">
+          {/* 购物车图标入口 */}
+          <View className="relative flex-shrink-0" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
+            <View className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center border-2 border-border">
+              <View className="i-mdi-shopping-outline text-2xl text-foreground" />
             </View>
-          )}
+            {cartCount > 0 && (
+              <View className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full bg-primary flex items-center justify-center px-1">
+                <Text className="text-white text-xs font-bold">{cartCount > 99 ? '99+' : cartCount}</Text>
+              </View>
+            )}
+          </View>
+          {/* 收藏按钮 */}
+          <View className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
+            onClick={handleToggleFav}>
+            {favLoading
+              ? <View className="i-mdi-loading text-2xl text-primary animate-spin" />
+              : <View className={`text-2xl ${isFav ? 'i-mdi-heart text-red-400' : 'i-mdi-heart-outline text-foreground'}`} />}
+          </View>
+          {/* 分享按钮 */}
+          <Button openType="share"
+            className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
+            style={{ background: '#f5f5f5', border: '2px solid #e5e5e5', padding: 0 }}>
+            <View className="i-mdi-share-variant text-2xl text-foreground" />
+          </Button>
+          {/* 合计金额 */}
+          <View className="flex flex-col items-end justify-center ml-1">
+            <Text className="text-xs text-muted-foreground">合计</Text>
+            <Text className="text-lg font-bold text-primary">¥{totalPrice.toFixed(2)}</Text>
+          </View>
         </View>
-        {/* 收藏按钮 */}
-        <View className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
-          onClick={handleToggleFav}>
-          {favLoading
-            ? <View className="i-mdi-loading text-2xl text-primary animate-spin" />
-            : <View className={`text-2xl ${isFav ? 'i-mdi-heart text-red-400' : 'i-mdi-heart-outline text-foreground'}`} />}
-        </View>
-        {/* 分享按钮 */}
-        <Button openType="share"
-          className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
-          style={{ background: '#f5f5f5', border: '2px solid #e5e5e5', padding: 0 }}>
-          <View className="i-mdi-share-variant text-2xl text-foreground" />
-        </Button>
         <Button type="button"
           className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-primary bg-card"
           onClick={handleAddCart}>
