@@ -14,9 +14,21 @@ async function sumOf(table: string, col: string, filter?: { eq?: [string, any] }
     let q = supabase.from(table).select(`${col}.sum()`)
     if (filter?.eq) q = q.eq(filter.eq[0], filter.eq[1])
     const { data, error } = await q
-    if (error || !data || !data.length) return 0
-    return Number((data[0] as any)[`${col}.sum()`] ?? 0)
-  } catch {
+    if (error) {
+      console.error(`[sumOf ${table}.${col}] error:`, error)
+      return 0
+    }
+    if (!data || !data.length) return 0
+    const row = data[0] as any
+    // PostgREST 聚合返回结构为 [ { "sum": value } ]，不是 `${col}.sum()`
+    const val = row.sum
+    if (val === undefined || val === null) {
+      console.warn(`[sumOf ${table}.${col}] 返回结构异常:`, row)
+      return 0
+    }
+    return Number(val)
+  } catch (e) {
+    console.error(`[sumOf ${table}.${col}] catch:`, e)
     return 0
   }
 }
@@ -70,7 +82,7 @@ export interface MemberRow {
   phone: string | null
   member_rank: string
   points: number
-  gold_beans: number
+  balance: number
   tb_balance: number
   referrer_id: string | null
   referrer_nickname: string | null
@@ -123,9 +135,9 @@ export async function getFinanceOverview(): Promise<FinanceOverview> {
     countOf('stores', { eq: ['is_active', true] }),
     countOf('orders'),
     sumOf('orders', 'total_amount'),
-    sumOf('orders', 'gold_beans_used'),
-    sumOf('commissions', 'amount', { eq: ['status', 'settled'] }),
-    sumOf('profiles', 'gold_beans'),
+    sumOf('orders', 'tb_used_capped'),
+    sumOf('commissions', 'commission_amount', { eq: ['status', 'settled'] }),
+    sumOf('profiles', 'tb_balance'),
     sumOf('profiles', 'points'),
     sumOf('emotion_claims', 'tb_amount', { eq: ['status', 'active'] }),
     sumOf('profiles', 'cv_total'),
@@ -133,16 +145,19 @@ export async function getFinanceOverview(): Promise<FinanceOverview> {
     countOf('profiles', { eq: ['is_banned', true] }),
   ])
 
-  // 金豆流水闭环：从 gold_bean_logs 累计发放 / 消耗（00076 未建时 sumOf 降级为 0，不阻塞）
-  const [gbRefund, gbRecharge, gbGrant, gbSpend, gbDeduct] = await Promise.all([
-    sumOf('gold_bean_logs', 'delta', { eq: ['type', 'refund_return'] }),
-    sumOf('gold_bean_logs', 'delta', { eq: ['type', 'recharge'] }),
-    sumOf('gold_bean_logs', 'delta', { eq: ['type', 'admin_grant'] }),
-    sumOf('gold_bean_logs', 'delta', { eq: ['type', 'purchase_spend'] }),
-    sumOf('gold_bean_logs', 'delta', { eq: ['type', 'admin_deduct'] }),
+  // 情绪豆流水闭环：从 tongbao_logs 累计发放 / 消耗（00076 未建时 sumOf 降级为 0，不阻塞）
+  const [gbRefund, gbRecharge, gbGrant, gbSpend, gbDeduct, gbEarn, gbRefundDeduct] = await Promise.all([
+    sumOf('tongbao_logs', 'delta', { eq: ['type', 'refund_return'] }),
+    sumOf('tongbao_logs', 'delta', { eq: ['type', 'recharge'] }),
+    sumOf('tongbao_logs', 'delta', { eq: ['type', 'admin_grant'] }),
+    sumOf('tongbao_logs', 'delta', { eq: ['type', 'purchase_spend'] }),
+    sumOf('tongbao_logs', 'delta', { eq: ['type', 'admin_deduct'] }),
+    // 小程序侧写入的两类流水（00096 白名单内，此前 getFinanceOverview 漏算 → 发放/消耗数值偏低）
+    sumOf('tongbao_logs', 'delta', { eq: ['type', 'purchase_earn'] }),
+    sumOf('tongbao_logs', 'delta', { eq: ['type', 'refund_deduct'] }),
   ])
-  const goldBeanIssued = Math.max(0, gbRefund) + Math.max(0, gbRecharge) + Math.max(0, gbGrant)
-  const goldBeanConsumed = Math.abs(Math.min(0, gbSpend)) + Math.abs(Math.min(0, gbDeduct))
+  const goldBeanIssued = Math.max(0, gbRefund) + Math.max(0, gbRecharge) + Math.max(0, gbGrant) + Math.max(0, gbEarn)
+  const goldBeanConsumed = Math.abs(Math.min(0, gbSpend)) + Math.abs(Math.min(0, gbDeduct)) + Math.abs(Math.min(0, gbRefundDeduct))
 
   // 活跃会员（近30日有下单的去重用户数）
   let activeMembers30d = 0
@@ -182,7 +197,7 @@ export async function getDailyTrend(days = 30): Promise<DailyPoint[]> {
   try {
     const [{ data: regs }, { data: ords }] = await Promise.all([
       supabase.from('profiles').select('created_at').gte('created_at', since),
-      supabase.from('orders').select('created_at, total_amount, gold_beans_used').gte('created_at', since),
+      supabase.from('orders').select('created_at, total_amount, tb_used_capped').gte('created_at', since),
     ])
     const map = new Map<string, DailyPoint>()
     const ensure = (date: string) => {
@@ -198,7 +213,7 @@ export async function getDailyTrend(days = 30): Promise<DailyPoint[]> {
       const p = ensure(d)
       p.orders += 1
       p.gmv += Number(o.total_amount || 0)
-      p.concession += Number(o.gold_beans_used || 0)
+      p.concession += Number(o.tb_used_capped || 0)
     }
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date))
   } catch {
@@ -232,9 +247,9 @@ export async function getMembers(
       id: r.id,
       nickname: r.nickname ?? '无名',
       phone: r.phone ?? null,
-      member_rank: r.member_rank ?? '江湖散修',
+      member_rank: r.member_rank ?? '凡心',
       points: Number(r.points || 0),
-      gold_beans: Number(r.gold_beans || 0),
+      balance: Number(r.tb_balance || 0),
       tb_balance: Number(r.tb_balance || 0),
       referrer_id: r.referrer_id ?? null,
       referrer_nickname: rmap.get(r.referrer_id) ?? null,
@@ -264,9 +279,9 @@ export async function getMemberDetail(userId: string): Promise<MemberDetail> {
       id: r.id,
       nickname: r.nickname ?? '无名',
       phone: r.phone ?? null,
-      member_rank: r.member_rank ?? '江湖散修',
+      member_rank: r.member_rank ?? '凡心',
       points: Number(r.points || 0),
-      gold_beans: Number(r.gold_beans || 0),
+      balance: Number(r.tb_balance || 0),
       tb_balance: Number(r.tb_balance || 0),
       referrer_id: r.referrer_id ?? null,
       referrer_nickname: null,
@@ -298,7 +313,12 @@ export interface OrderRow {
   store_id: string | null
   total_amount: number
   status: string
-  gold_beans_used: number
+  tb_used: number
+  commission_distributed: boolean
+  commission_total: number
+  commission_l1: number
+  commission_l2: number
+  platform_share: number
   referrer_id: string | null
   created_at: string
   refund_status: string | null
@@ -306,6 +326,9 @@ export interface OrderRow {
   buyer_phone: string | null
   store_name: string | null
   referrer_nickname: string | null
+  // 财务拆解：让利率优先取商品级 discount_rate 的加权混合率；商品未设时回退门店 referral_rate
+  store_referral_rate: number | null
+  effective_rate: number // 最终用于展示/计算的实际让利率（小数）
 }
 
 export interface OrderList {
@@ -313,7 +336,7 @@ export interface OrderList {
   total: number
 }
 
-const ORDER_FIELDS = 'id, order_no, user_id, store_id, total_amount, status, gold_beans_used, referrer_id, created_at, refund_status'
+const ORDER_FIELDS = 'id, order_no, user_id, store_id, total_amount, status, tb_used, commission_distributed, referrer_id, created_at, refund_status'
 
 export async function getOrders(
   page: number,
@@ -334,37 +357,100 @@ export async function getOrders(
     const storeIds = Array.from(new Set(rows.map(r => r.store_id).filter(Boolean))) as string[]
     const refIds = Array.from(new Set(rows.map(r => r.referrer_id).filter(Boolean))) as string[]
 
-    const [pmap, smap, rmap] = await Promise.all([
+    const orderIds = rows.map(r => r.id as string)
+    const [pmap, smap, rmap, commMap, itemsRaw] = await Promise.all([
       userIds.length
         ? supabase.from('profiles').select('id, nickname, phone').in('id', userIds)
         : Promise.resolve({ data: [] as any[] }),
       storeIds.length
-        ? supabase.from('stores').select('id, name').in('id', storeIds)
+        ? supabase.from('stores').select('id, name, referral_rate, referral_rate_enabled').in('id', storeIds)
         : Promise.resolve({ data: [] as any[] }),
       refIds.length
         ? supabase.from('profiles').select('id, nickname').in('id', refIds)
+        : Promise.resolve({ data: [] as any[] }),
+      orderIds.length
+        ? supabase.from('commissions')
+            .select('order_id, level, commission_amount')
+            .in('order_id', orderIds)
+            .neq('status', 'refunded')
+        : Promise.resolve({ data: [] as any[] }),
+      orderIds.length
+        ? supabase.from('order_items').select('order_id, product_id, quantity, price').in('order_id', orderIds)
         : Promise.resolve({ data: [] as any[] }),
     ])
     const pMap = new Map((pmap.data as any[] ?? []).map(p => [p.id, p]))
     const sMap = new Map((smap.data as any[] ?? []).map(s => [s.id, s]))
     const rMap = new Map((rmap.data as any[] ?? []).map(r => [r.id, r]))
+    const cMap = new Map<string, { total: number; l1: number; l2: number }>()
+    for (const c of (commMap.data as any[] ?? [])) {
+      const oid = c.order_id as string
+      const amt = Number(c.commission_amount || 0)
+      const entry = cMap.get(oid) ?? { total: 0, l1: 0, l2: 0 }
+      entry.total += amt
+      if (c.level === 1) entry.l1 += amt
+      else if (c.level === 2) entry.l2 += amt
+      cMap.set(oid, entry)
+    }
 
-    const data2: OrderRow[] = rows.map(r => ({
-      id: r.id,
-      order_no: r.order_no ?? null,
-      user_id: r.user_id ?? null,
-      store_id: r.store_id ?? null,
-      total_amount: Number(r.total_amount || 0),
-      status: r.status,
-      gold_beans_used: Number(r.gold_beans_used || 0),
-      referrer_id: r.referrer_id ?? null,
-      created_at: r.created_at,
-      refund_status: r.refund_status ?? null,
-      buyer_nickname: pMap.get(r.user_id)?.nickname ?? null,
-      buyer_phone: pMap.get(r.user_id)?.phone ?? null,
-      store_name: sMap.get(r.store_id)?.name ?? null,
-      referrer_nickname: rMap.get(r.referrer_id)?.nickname ?? null,
-    }))
+    // 商品级让利点：按商品 discount_rate 金额加权；商品未设则回退门店 referral_rate
+    const productIds = Array.from(new Set((itemsRaw.data as any[] ?? []).map(i => i.product_id).filter(Boolean))) as string[]
+    const { data: prodsRaw } = productIds.length
+      ? await supabase.from('products').select('id, discount_rate').in('id', productIds)
+      : { data: [] as any[] }
+    const prateMap = new Map((prodsRaw as any[] ?? []).map(p => [p.id, p.discount_rate != null ? Number(p.discount_rate) : null]))
+    const orderRateMap = new Map<string, number>()
+    for (const oid of orderIds) {
+      const orderItems = (itemsRaw.data as any[] ?? []).filter(i => i.order_id === oid)
+      if (!orderItems.length) continue
+      const row = rows.find(r => r.id === oid)
+      const sd = sMap.get(row?.store_id)
+      const storeEnabled = sd?.referral_rate_enabled !== false
+      // 开关关闭 → 门店默认让利率不参与回退（仅商品级 discount_rate 生效）；开启无值 → 全局默认 0.09
+      const storeRate = storeEnabled ? (Number(sd?.referral_rate ?? 0.09)) : 0
+      let totalAmt = 0, weighted = 0
+      for (const it of orderItems) {
+        const amt = Number(it.quantity || 0) * Number(it.price || 0)
+        const dr = prateMap.get(it.product_id)
+        const rate = dr != null ? dr / 100 : storeRate
+        totalAmt += amt
+        weighted += amt * rate
+      }
+      if (totalAmt > 0) orderRateMap.set(oid, Math.round((weighted / totalAmt) * 10000) / 10000)
+    }
+
+    const data2: OrderRow[] = rows.map(r => {
+      const sd = sMap.get(r.store_id)
+      const storeEnabled = sd?.referral_rate_enabled !== false
+      const storeRate = storeEnabled
+        ? (sd?.referral_rate != null ? Number(sd.referral_rate) : 0.09)
+        : 0
+      const comm = cMap.get(r.id) ?? { total: 0, l1: 0, l2: 0 }
+      const effRate = orderRateMap.get(r.id) ?? storeRate
+      const concession = Math.round(r.total_amount * effRate * 100) / 100
+      return {
+        id: r.id,
+        order_no: r.order_no ?? null,
+        user_id: r.user_id ?? null,
+        store_id: r.store_id ?? null,
+        total_amount: Number(r.total_amount || 0),
+        status: r.status,
+        tb_used: Number(r.tb_used || 0),
+        commission_distributed: !!r.commission_distributed,
+        commission_total: comm.total,
+        commission_l1: comm.l1,
+        commission_l2: comm.l2,
+        platform_share: Math.max(0, Math.round((concession - comm.total) * 100) / 100),
+        referrer_id: r.referrer_id ?? null,
+        created_at: r.created_at,
+        refund_status: r.refund_status ?? null,
+        buyer_nickname: pMap.get(r.user_id)?.nickname ?? null,
+        buyer_phone: pMap.get(r.user_id)?.phone ?? null,
+        store_name: sMap.get(r.store_id)?.name ?? null,
+        store_referral_rate: storeRate,
+        effective_rate: effRate,
+        referrer_nickname: rMap.get(r.referrer_id)?.nickname ?? null,
+      }
+    })
     return { data: data2, total: count ?? 0 }
   } catch {
     return { data: [], total: 0 }
@@ -374,6 +460,9 @@ export async function getOrders(
 // ── 单笔订单详情（含推荐人链）────────────────────────────────────────────
 export interface OrderDetail extends OrderRow {
   commissionTotal: number // 该订单已产生佣金（剔除已退款）
+  commission_l1: number
+  commission_l2: number
+  platform_share: number
   platformNet: number // 平台实收（精确）= 成交额 − 让利 − 佣金
 }
 
@@ -384,7 +473,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
     if (!r) return null
     const [storeRes, buyerRes, refRes] = await Promise.all([
       r.store_id
-        ? supabase.from('stores').select('name').eq('id', r.store_id).maybeSingle()
+        ? supabase.from('stores').select('name, referral_rate, referral_rate_enabled').eq('id', r.store_id).maybeSingle()
         : Promise.resolve({ data: null }),
       r.user_id
         ? supabase.from('profiles').select('nickname, phone').eq('id', r.user_id).maybeSingle()
@@ -394,8 +483,41 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
         : Promise.resolve({ data: null }),
     ])
     const total = Number(r.total_amount || 0)
-    const concession = Number(r.gold_beans_used || 0)
-    const commissionTotal = await getOrderCommission(r.id)
+    const concession = Math.min(Number(r.tb_used || 0), total)
+    const commBreak = await getOrderCommissionBreakdown(r.id)
+    const commissionTotal = commBreak.total
+    const sd = storeRes.data as any
+    const storeEnabled = sd?.referral_rate_enabled !== false
+    // 开关关闭 → 门店默认让利率不参与回退（仅商品级 discount_rate 生效）；开启无值 → 全局默认 0.09
+    const storeRate = storeEnabled
+      ? (sd?.referral_rate != null ? Number(sd.referral_rate) : 0.09)
+      : 0
+
+    // 计算商品级加权让利率
+    let effectiveRate = storeRate
+    try {
+      const { data: items } = await supabase
+        .from('order_items')
+        .select('product_id, quantity, price')
+        .eq('order_id', r.id)
+      if (items && items.length) {
+        const pids = Array.from(new Set((items as any[]).map(i => i.product_id).filter(Boolean))) as string[]
+        if (pids.length) {
+          const { data: prods } = await supabase.from('products').select('id, discount_rate').in('id', pids)
+          const prateMap = new Map((prods as any[] ?? []).map(p => [p.id, p.discount_rate != null ? Number(p.discount_rate) : null]))
+          let totalAmt = 0, weighted = 0
+          for (const it of items as any[]) {
+            const amt = Number(it.quantity || 0) * Number(it.price || 0)
+            const dr = prateMap.get(it.product_id)
+            const rate = dr != null ? dr / 100 : storeRate
+            totalAmt += amt
+            weighted += amt * rate
+          }
+          if (totalAmt > 0) effectiveRate = Math.round((weighted / totalAmt) * 10000) / 10000
+        }
+      }
+    } catch { /* 降级门店率 */ }
+
     return {
       id: r.id,
       order_no: r.order_no ?? null,
@@ -403,15 +525,21 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       store_id: r.store_id ?? null,
       total_amount: total,
       status: r.status,
-      gold_beans_used: concession,
+      tb_used: concession,
+      commission_distributed: !!r.commission_distributed,
+      commission_total: commissionTotal,
+      commission_l1: commBreak.l1,
+      commission_l2: commBreak.l2,
+      platform_share: Math.max(0, Math.round((total * effectiveRate - commissionTotal) * 100) / 100),
       referrer_id: r.referrer_id ?? null,
       created_at: r.created_at,
       refund_status: r.refund_status ?? null,
       buyer_nickname: (buyerRes.data as any)?.nickname ?? null,
       buyer_phone: (buyerRes.data as any)?.phone ?? null,
       store_name: (storeRes.data as any)?.name ?? null,
+      store_referral_rate: storeRate,
+      effective_rate: effectiveRate,
       referrer_nickname: (refRes.data as any)?.nickname ?? null,
-      // 平台实收（精确）= 成交额 − 让利 − 已结算/待结算佣金（剔除已退款）
       commissionTotal,
       platformNet: Math.round((total - concession - commissionTotal) * 100) / 100,
     }
@@ -429,9 +557,37 @@ export async function getOrderCommission(orderId: string): Promise<number> {
       .eq('order_id', orderId)
       .neq('status', 'refunded')
     if (error || !data || !data.length) return 0
-    return Number((data[0] as any)['commission_amount.sum()'] ?? 0)
+    return Number((data[0] as any).sum ?? 0)
   } catch {
     return 0
+  }
+}
+
+export interface CommissionBreakdown {
+  total: number
+  l1: number
+  l2: number
+  platform_share: number
+}
+
+export async function getOrderCommissionBreakdown(orderId: string): Promise<CommissionBreakdown> {
+  try {
+    const { data, error } = await supabase
+      .from('commissions')
+      .select('level, commission_amount')
+      .eq('order_id', orderId)
+      .neq('status', 'refunded')
+    if (error || !data) return { total: 0, l1: 0, l2: 0, platform_share: 0 }
+    let total = 0, l1 = 0, l2 = 0
+    for (const c of data as any[]) {
+      const amt = Number(c.commission_amount || 0)
+      total += amt
+      if (c.level === 1) l1 += amt
+      else if (c.level === 2) l2 += amt
+    }
+    return { total, l1, l2, platform_share: 0 }
+  } catch {
+    return { total: 0, l1: 0, l2: 0, platform_share: 0 }
   }
 }
 
@@ -506,7 +662,7 @@ export async function getPointsLedger(
   page: number,
   pageSize: number,
   filters: { type?: string; keyword?: string } = {},
-): Promise<{ data: PointsLedgerRow[]; total: number }> {
+): Promise<{ data: PointsLedgerRow[]; total: number; error?: string }> {
   try {
     let q = supabase.from('points_logs').select('*', { count: 'exact' })
     if (filters.type && filters.type !== 'all') q = q.eq('type', filters.type)
@@ -514,7 +670,8 @@ export async function getPointsLedger(
     const { data, count, error } = await q
       .order('created_at', { ascending: false })
       .range(page * pageSize, (page + 1) * pageSize - 1)
-    if (error || !data) return { data: [], total: 0 }
+    if (error) return { data: [], total: 0, error: `查询失败: ${error.message}` }
+    if (!data) return { data: [], total: 0, error: '查询返回空数据' }
 
     const rows = data as any[]
     const userIds = Array.from(new Set(rows.map(r => r.user_id).filter(Boolean))) as string[]
@@ -535,8 +692,8 @@ export async function getPointsLedger(
       phone: uMap.get(r.user_id)?.phone ?? null,
     }))
     return { data: data2, total: count ?? 0 }
-  } catch {
-    return { data: [], total: 0 }
+  } catch (e) {
+    return { data: [], total: 0, error: `请求异常: ${e instanceof Error ? e.message : String(e)}` }
   }
 }
 
@@ -545,7 +702,7 @@ export async function getEmotionLedger(
   page: number,
   pageSize: number,
   filters: { reason?: string; keyword?: string } = {},
-): Promise<{ data: EmotionLedgerRow[]; total: number }> {
+): Promise<{ data: EmotionLedgerRow[]; total: number; error?: string }> {
   try {
     let q = supabase.from('emotion_tongbao_logs').select('*', { count: 'exact' })
     if (filters.reason && filters.reason !== 'all') q = q.eq('reason', filters.reason)
@@ -553,7 +710,8 @@ export async function getEmotionLedger(
     const { data, count, error } = await q
       .order('created_at', { ascending: false })
       .range(page * pageSize, (page + 1) * pageSize - 1)
-    if (error || !data) return { data: [], total: 0 }
+    if (error) return { data: [], total: 0, error: `查询失败: ${error.message}` }
+    if (!data) return { data: [], total: 0, error: '查询返回空数据' }
 
     const rows = data as any[]
     const userIds = Array.from(new Set(rows.map(r => r.user_id).filter(Boolean))) as string[]
@@ -574,8 +732,8 @@ export async function getEmotionLedger(
       phone: uMap.get(r.user_id)?.phone ?? null,
     }))
     return { data: data2, total: count ?? 0 }
-  } catch {
-    return { data: [], total: 0 }
+  } catch (e) {
+    return { data: [], total: 0, error: `请求异常: ${e instanceof Error ? e.message : String(e)}` }
   }
 }
 
@@ -584,7 +742,7 @@ export async function getCommissionLedger(
   page: number,
   pageSize: number,
   filters: { status?: string; level?: string; keyword?: string } = {},
-): Promise<{ data: CommissionRow[]; total: number }> {
+): Promise<{ data: CommissionRow[]; total: number; error?: string }> {
   try {
     let q = supabase.from('commissions').select('*', { count: 'exact' })
     if (filters.status && filters.status !== 'all') q = q.eq('status', filters.status)
@@ -593,7 +751,8 @@ export async function getCommissionLedger(
     const { data, count, error } = await q
       .order('created_at', { ascending: false })
       .range(page * pageSize, (page + 1) * pageSize - 1)
-    if (error || !data) return { data: [], total: 0 }
+    if (error) return { data: [], total: 0, error: `查询失败: ${error.message}` }
+    if (!data) return { data: [], total: 0, error: '查询返回空数据' }
 
     const rows = data as any[]
     const benIds = Array.from(new Set(rows.map(r => r.beneficiary_id).filter(Boolean))) as string[]
@@ -622,25 +781,26 @@ export async function getCommissionLedger(
       payer_nickname: uMap.get(r.payer_id)?.nickname ?? null,
     }))
     return { data: data2, total: count ?? 0 }
-  } catch {
-    return { data: [], total: 0 }
+  } catch (e) {
+    return { data: [], total: 0, error: `请求异常: ${e instanceof Error ? e.message : String(e)}` }
   }
 }
 
-// ── 金豆流水 ────────────────────────────────────────────────
+// ── 情绪豆流水 ────────────────────────────────────────────────
 export async function getGoldBeanLedger(
   page: number,
   pageSize: number,
   filters: { type?: string; keyword?: string } = {},
-): Promise<{ data: GoldBeanLedgerRow[]; total: number }> {
+): Promise<{ data: GoldBeanLedgerRow[]; total: number; error?: string }> {
   try {
-    let q = supabase.from('gold_bean_logs').select('*', { count: 'exact' })
+    let q = supabase.from('tongbao_logs').select('*', { count: 'exact' })
     if (filters.type && filters.type !== 'all') q = q.eq('type', filters.type)
     if (filters.keyword) q = q.or(`remark.ilike.%${filters.keyword}%,order_id.ilike.%${filters.keyword}%`)
     const { data, count, error } = await q
       .order('created_at', { ascending: false })
       .range(page * pageSize, (page + 1) * pageSize - 1)
-    if (error || !data) return { data: [], total: 0 }
+    if (error) return { data: [], total: 0, error: `查询失败: ${error.message}` }
+    if (!data) return { data: [], total: 0, error: '查询返回空数据' }
 
     const rows = data as any[]
     const userIds = Array.from(new Set(rows.map(r => r.user_id).filter(Boolean))) as string[]
@@ -661,13 +821,14 @@ export async function getGoldBeanLedger(
       phone: uMap.get(r.user_id)?.phone ?? null,
     }))
     return { data: data2, total: count ?? 0 }
-  } catch {
-    return { data: [], total: 0 }
+  } catch (e) {
+    return { data: [], total: 0, error: `请求异常: ${e instanceof Error ? e.message : String(e)}` }
   }
 }
 
-// ── 金豆后台发放 / 扣减（admin 运营动作）──────────────────────────────
-// 写 gold_bean_logs（admin_grant/admin_deduct）+ 同步更新 profiles.gold_beans 余额
+// ── 情绪豆后台发放 / 扣减（admin 运营动作）──────────────────────────────
+// 写 tongbao_logs（admin_grant/admin_deduct）+ 同步更新 profiles.tb_balance（情绪豆消费余额）
+// 与「用户管理-充值」共用同一 balance 字段，确保两页口径一致（情绪豆 = 消费抵扣余额，1:1）
 // 调用方可 .then().catch() 不阻塞主流程；单步失败返回结构化错误
 export interface GoldBeanAdjustResult {
   ok: boolean
@@ -684,13 +845,13 @@ export async function adminAdjustGoldBean(
   try {
     if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: '金额必须为正数' }
     const { data: p, error: pe } = await supabase
-      .from('profiles').select('gold_beans').eq('id', userId).maybeSingle()
+      .from('profiles').select('tb_balance').eq('id', userId).maybeSingle()
     if (pe || !p) return { ok: false, error: pe?.message || '用户不存在' }
-    const cur = Number((p as any).gold_beans || 0)
+    const cur = Number((p as any).tb_balance || 0)
     const delta = direction === 'grant' ? Math.abs(amount) : -Math.abs(amount)
     const balanceAfter = Math.max(0, cur + delta)
     const type = direction === 'grant' ? 'admin_grant' : 'admin_deduct'
-    const { error: ie } = await supabase.from('gold_bean_logs').insert({
+    const { error: ie } = await supabase.from('tongbao_logs').insert({
       user_id: userId,
       type,
       delta,
@@ -698,7 +859,47 @@ export async function adminAdjustGoldBean(
       remark: reason || (direction === 'grant' ? '后台发放' : '后台扣减'),
     })
     if (ie) return { ok: false, error: `流水写入失败：${ie.message}` }
-    const { error: ue } = await supabase.from('profiles').update({ gold_beans: balanceAfter }).eq('id', userId)
+    const { error: ue } = await supabase.from('profiles').update({ tb_balance: balanceAfter }).eq('id', userId)
+    if (ue) return { ok: false, error: `余额更新失败：${ue.message}（流水已记录，请人工核对）` }
+    return { ok: true, balanceAfter }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || '未知错误' }
+  }
+}
+
+// ── 情绪豆充值（admin 给用户充值，余额增加）──────────────────────────────
+// 写 tongbao_logs（type='recharge'）+ 同步更新 profiles.tb_balance（情绪豆消费余额）
+// 注意：仅动 tb_balance（情绪豆消费账户，人民币1:1锚定），不动 commission_balance（可提现佣金，按 00058 设计隔离）
+// 调用方可 .then().catch() 不阻塞主流程；单步失败返回结构化错误
+export interface GoldBeanRechargeResult {
+  ok: boolean
+  error?: string
+  balanceAfter?: number
+}
+
+export async function adminRechargeGoldBean(
+  userId: string,
+  amount: number,
+  remark: string,
+): Promise<GoldBeanRechargeResult> {
+  try {
+    if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: '充值金额必须为正数' }
+    const { data: p, error: pe } = await supabase
+      .from('profiles').select('tb_balance').eq('id', userId).maybeSingle()
+    if (pe || !p) return { ok: false, error: pe?.message || '用户不存在' }
+    const cur = Number((p as any).tb_balance || 0)
+    // cur 可能是 numeric(12,2) 小数（如 15.33），balance_after 同步改 numeric 后可保留小数
+    const amtNum = Math.round(amount) // 充值走 1 豆 = 1 元整数语义
+    const balanceAfter = Number((cur + amtNum).toFixed(2))
+    const { error: ie } = await supabase.from('tongbao_logs').insert({
+      user_id: userId,
+      type: 'recharge',
+      delta: amtNum,
+      balance_after: balanceAfter,
+      remark: remark || '后台充值',
+    })
+    if (ie) return { ok: false, error: `流水写入失败：${ie.message}` }
+    const { error: ue } = await supabase.from('profiles').update({ tb_balance: balanceAfter }).eq('id', userId)
     if (ue) return { ok: false, error: `余额更新失败：${ue.message}（流水已记录，请人工核对）` }
     return { ok: true, balanceAfter }
   } catch (e: any) {

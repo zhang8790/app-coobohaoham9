@@ -39,16 +39,16 @@ const csLabel = (s: string) => COMMISSION_STATUS.find(([k]) => k === s)?.[1] ?? 
 
 const GOLD_TYPES: [string, string][] = [
   ['purchase_spend', '消费抵扣'], ['refund_return', '退款返还'],
-  ['recharge', '金豆充值'], ['admin_grant', '后台发放'], ['admin_deduct', '后台扣减'],
+  ['recharge', '情绪豆充值'], ['admin_grant', '后台发放'], ['admin_deduct', '后台扣减'],
 ]
 const gbLabel = (t: string) => GOLD_TYPES.find(([k]) => k === t)?.[1] ?? t
 
 type Tab = 'points' | 'emotion' | 'commission' | 'gold'
 const TABS: [Tab, string, string][] = [
   ['points', '🟢 积分流水', 'points_logs'],
-  ['emotion', '🔵 情绪豆流水', 'emotion_tongbao_logs'],
+  ['emotion', '🔵 情绪通宝流水', 'emotion_tongbao_logs'],
   ['commission', '🟠 佣金流水', 'commissions'],
-  ['gold', '🟡 金豆流水', 'gold_bean_logs'],
+  ['gold', '🟡 情绪豆流水', 'tongbao_logs'],
 ]
 
 export default function Ledgers() {
@@ -61,8 +61,11 @@ export default function Ledgers() {
   const [rows, setRows] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const PAGE = 15
+
+  const isPrivileged = !!import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
 
   const handleExport = async () => {
     setExporting(true)
@@ -97,7 +100,7 @@ export default function Ledgers() {
           { key: 'order_id', label: '关联订单' }, { key: 'remark', label: '备注' },
         ]
         const rows = data.map(r => ({ ...r, type: gbLabel(r.type), created_at: fmtT(r.created_at) }))
-        downloadCSV(`金豆流水_${csvTimestamp()}.csv`, rows as unknown as Record<string, unknown>[], cols)
+        downloadCSV(`情绪豆流水_${csvTimestamp()}.csv`, rows as unknown as Record<string, unknown>[], cols)
       } else {
         const data = await exportCommissionLedger({ status, level, keyword: kw })
         const cols: CsvColumn[] = [
@@ -120,12 +123,19 @@ export default function Ledgers() {
 
   const load = (t: Tab, p: number, f: { kw: string; type: string; status: string; level: string }) => {
     setLoading(true)
+    setError(null)
     const req =
       t === 'points' ? getPointsLedger(p, PAGE, { type: f.type, keyword: f.kw })
       : t === 'emotion' ? getEmotionLedger(p, PAGE, { reason: f.type, keyword: f.kw })
       : t === 'gold' ? getGoldBeanLedger(p, PAGE, { type: f.type, keyword: f.kw })
       : getCommissionLedger(p, PAGE, { status: f.status, level: f.level, keyword: f.kw })
-    req.then(r => { setRows(r.data as any[]); setTotal(r.total); setPage(p) })
+    req.then(r => {
+      setRows(r.data as any[])
+      setTotal(r.total)
+      setPage(p)
+      if (r.error) setError(r.error)
+    })
+      .catch(e => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false))
   }
 
@@ -149,8 +159,8 @@ export default function Ledgers() {
   if (tab === 'points' || tab === 'emotion' || tab === 'gold') {
     const inc = (rows as any[]).reduce((s, r) => s + (r.delta > 0 ? r.delta : 0), 0)
     const dec = (rows as any[]).reduce((s, r) => s + (r.delta < 0 ? -r.delta : 0), 0)
-    const incLabel = tab === 'points' ? '本页积分+ ' : tab === 'emotion' ? '本页通宝发放+ ' : '本页金豆+ '
-    const decLabel = tab === 'points' ? '本页积分− ' : tab === 'emotion' ? '本页通宝消耗− ' : '本页金豆− '
+    const incLabel = tab === 'points' ? '本页积分+ ' : tab === 'emotion' ? '本页通宝发放+ ' : '本页情绪豆+ '
+    const decLabel = tab === 'points' ? '本页积分− ' : tab === 'emotion' ? '本页通宝消耗− ' : '本页情绪豆− '
     kpis = [
       { label: '本页笔数', value: fmt(rows.length), color: C.text },
       { label: incLabel, value: fmt(inc), color: C.green },
@@ -172,7 +182,12 @@ export default function Ledgers() {
       {/* 标题 + 标签页 */}
       <div>
         <h1 style={{ color: C.text, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>资产流水中心</h1>
-        <p style={{ color: C.dim, fontSize: 14 }}>积分 / 情绪豆 / 佣金 / 金豆 — 全平台逐笔明细，与用户端同源</p>
+        <p style={{ color: C.dim, fontSize: 14 }}>积分 / 情绪通宝 / 佣金 / 情绪豆 — 全平台逐笔明细，与用户端同源</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 12px', borderRadius: 8, background: isPrivileged ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${isPrivileged ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+          <span style={{ fontSize: 13, color: isPrivileged ? C.green : C.red }}>
+            {isPrivileged ? '✅ 已启用 service_role 特权客户端，可读取全平台流水' : '⚠️ 当前使用 anon 客户端，00081 加固后无法读取流水；请在 .env.local 配置 VITE_SUPABASE_SERVICE_ROLE_KEY'}
+          </span>
+        </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
           {TABS.map(([t, label, tbl]) => (
             <button key={t} onClick={() => switchTab(t)}
@@ -295,9 +310,25 @@ export default function Ledgers() {
               ))}
               {rows.length === 0 && !loading && (
                 <tr><td colSpan={headCols(tab).length} style={{ padding: 32, textAlign: 'center', color: C.dim }}>
-                  {tab === 'gold'
-                    ? '暂无金豆流水（请先确认本机已执行 00076 迁移建 gold_bean_logs 表，且小程序已写入）'
-                    : '暂无流水数据（请先确认本机已执行 00075 迁移放开 points_logs RLS）'}
+                  {error ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      <span style={{ color: C.red }}>查询失败：{error}</span>
+                      {!isPrivileged && (
+                        <span style={{ fontSize: 13, maxWidth: 520, lineHeight: 1.6 }}>
+                          当前未配置 <code style={{ color: C.text, background: '#1F2937', padding: '2px 6px', borderRadius: 4 }}>VITE_SUPABASE_SERVICE_ROLE_KEY</code>，
+                          后台客户端以 <strong>anon</strong> 角色请求，已被 00081 生产 RLS 加固拦截。
+                          请在 <code style={{ color: C.text, background: '#1F2937', padding: '2px 6px', borderRadius: 4 }}>admin-web/.env.local</code> 中填入 service_role key 并重启服务。
+                        </span>
+                      )}
+                      {isPrivileged && (
+                        <span style={{ fontSize: 13 }}>已启用特权客户端，请检查表内是否真实存在数据或迁移是否已执行。</span>
+                      )}
+                    </div>
+                  ) : tab === 'gold' ? (
+                    '暂无情绪豆流水（请先确认本机已执行 00096 迁移建 tongbao_logs 表，且小程序已写入）'
+                  ) : (
+                    '暂无流水数据'
+                  )}
                 </td></tr>
               )}
             </tbody>
