@@ -22,7 +22,7 @@ export const ProfileScreen: React.FC = () => {
       <View style={styles.stats}>
         <View style={styles.stat}>
           <Text style={styles.statValue}>{profile?.tb_balance ?? 0}</Text>
-          <Text style={styles.statLabel}>情绪豆</Text>
+          <Text style={styles.statLabel}>金豆</Text>
         </View>
         <View style={styles.stat}>
           <Text style={styles.statValue}>{profile?.commission_balance ?? 0}</Text>

@@ -62,7 +62,7 @@ export const TIER_LABEL: Record<FitTier, string> = {
 export const BODY_CROWD_OPTIONS = [
   '宫寒量少', '经期量大', '喉咙肿痛', '易上火', '体虚怕冷', '痛风', '脾胃虚寒',
 ] as const
-// 健康状况（疾病/慢病人群）：仅作食养参考匹配维度，严禁"治疗/降血压"等医疗宣称
+// 健康状况（疾病/慢病人群）：仅作食养参考匹配维度，不含「治疗/降血压」等医疗表述
 export const HEALTH_CROWD_OPTIONS = [
   '高血压', '高血糖', '高血脂', '肠胃虚弱', '失眠', '免疫力低',
 ] as const
@@ -96,7 +96,7 @@ export interface MarketingCopy {
   short_sales_word: string // 一句话销售话术（店员话术库 / 商品卡副标题）
   detail_desc: string // 详情卖点文案
   circle_copy: string // 朋友圈 / 社群分享文案
-  risk_tip: string // 风险提醒（合规）
+  risk_tip: string // 风险提醒
   poster_template: string // 海报模板占位
 }
 

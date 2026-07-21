@@ -64,3 +64,33 @@ oxlint_out.txt
 
 # WorkBuddy local memory (not project source)
 .workbuddy/memory/
+
+# 临时调试/一次性脚本与构建产物（勿入库）
+scripts/diag*
+scripts/_*
+scripts/backfill*
+scripts/reconcile*
+scripts/q-*
+scripts/inspect-*
+scripts/persist-*
+scripts/retry-*
+scripts/sim-*
+scripts/rollback-*
+scripts/migrate-*
+scripts/gen-*
+scripts/check-*
+scripts/strip-*
+scripts/sweep-*
+scripts/tokenize-*
+scripts/deai-*
+scripts/orders-*
+scripts/pl-*
+_tmp_img*.sql
+diag-*.sql
+*.bak
+dist.bak.*
+.color-sweep*
+.icon-fix-backup/
+.icon-migrate-backup/
+.gstack/
+lib/

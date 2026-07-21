@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>来电有喜 · 游戏化融合方案（收敛版·零新增功能）</title>
+<style>
+  :root{
+    --paper-1:#E9E1D2; --paper-2:#DDD2BC; --card:#F1E9D9; --card-line:#D8CDB6;
+    --ink:#2B2620; --ink-soft:#6B6358; --ink-faint:#948B7A;
+    --zhusha:#A8552E; --zhusha-d:#8C4222; --gold:#BE9A4E; --gold-d:#9C7C3C; --qing:#5E7B72;
+    --shadow:0 1px 2px rgba(43,38,32,.06),0 6px 18px rgba(43,38,32,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    color:var(--ink); background:radial-gradient(120% 80% at 50% -10%, #EFE8D9 0%, var(--paper-1) 42%, var(--paper-2) 100%);
+    padding:26px 18px 56px; line-height:1.6;}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5;
+    background-image:radial-gradient(rgba(43,38,32,.025) 1px,transparent 1px);background-size:3px 3px;}
+  .wrap{max-width:880px;margin:0 auto;position:relative;}
+  header{border-bottom:2px solid var(--card-line);padding-bottom:14px;margin-bottom:20px;}
+  .kicker{font-size:12px;letter-spacing:3px;color:var(--zhusha);font-weight:700;}
+  h1{font-size:24px;font-weight:800;margin:6px 0 4px;letter-spacing:1px;}
+  .sub{font-size:13px;color:var(--ink-soft);}
+  section{background:var(--card);border:1px solid var(--card-line);border-radius:14px;padding:18px 20px;margin-bottom:15px;box-shadow:var(--shadow);}
+  h2{font-size:16px;margin-bottom:12px;display:flex;align-items:center;gap:8px;font-weight:700;}
+  h2::before{content:"";width:5px;height:16px;border-radius:2px;background:var(--zhusha);}
+  h3{font-size:13px;color:var(--zhusha-d);margin:12px 0 5px;font-weight:700;}
+  p{font-size:13.5px;margin:5px 0;}
+  ul{margin:5px 0 5px 4px;padding-left:18px;}
+  li{font-size:13px;margin:4px 0;}
+  code{background:#E7DCC4;padding:1px 5px;border-radius:4px;font-size:12px;color:var(--zhusha-d);}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px;}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--card-line);vertical-align:top;}
+  th{background:#E7DCC4;color:var(--ink);font-weight:700;font-size:12px;}
+  tr:last-child td{border-bottom:none;}
+  .keep{color:var(--qing);font-weight:700;}
+  .vis{color:var(--zhusha);font-weight:700;}
+  .box{background:#EDE5D4;border:1px solid var(--card-line);border-radius:10px;padding:12px;margin:8px 0;}
+  .principle{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+  .pc{background:#EDE5D4;border:1px solid var(--card-line);border-radius:10px;padding:12px;}
+  .pc b{color:var(--zhusha-d);display:block;margin-bottom:4px;font-size:13px;}
+  .pc span{font-size:12px;color:var(--ink-soft);}
+  .pill{display:inline-block;font-size:11px;padding:2px 9px;border-radius:999px;background:#E7DCC4;border:1px solid var(--card-line);color:var(--ink-soft);margin:2px;}
+  .zero{background:#E3EADF;border-color:#C9D6C2;color:var(--qing);}
+  .warn{background:#F3E6D6;border:1px solid #E3C9A8;border-radius:10px;padding:12px 14px;margin-top:8px;}
+  .warn b{color:var(--zhusha-d);}
+  .no{background:#F2DEDE;border:1px solid #E3C2C2;color:#9C4A3C;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;}
+  @media(max-width:640px){.principle{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">来电有喜 · 融合策略（收敛版）</div>
+    <h1>游戏化融合方案 · 零新增功能</h1>
+    <div class="sub">约束：<b>不抽奖、不新增任何独立功能模块</b>。游戏化 = 用国潮手绘视觉语言，把<b>现有</b>段位/金豆/徽章等数据做得更有游戏感。</div>
+  </header>
+
+  <!-- 总原则 -->
+  <section>
+    <h2>一、融合总原则</h2>
+    <div class="principle">
+      <div class="pc"><b>① 增量叠加</b><span>游戏化只做视觉/体验层呈现，不新增功能页面、模块、表。</span></div>
+      <div class="pc"><b>② 零侵入</b><span>不修改现有页面/功能/表结构；现有 80+ 页面与 5 Tab 原样保留。</span></div>
+      <div class="pc"><b>③ 不抽奖</b><span>取消幸运转盘/抽奖，不引入随机奖励与概率机制。</span></div>
+      <div class="pc"><b>④ 复用不新建</b><span>全部基于现有 <code>member_rank</code>/<code>gold_beans</code>/<code>emotion-badges</code> 等字段与页面。</span></div>
+    </div>
+  </section>
+
+  <!-- 明确不做 -->
+  <section>
+    <h2>二、明确不做（已砍掉）</h2>
+    <p><span class="no">已删</span> 幸运转盘 / 抽奖 / 云函数 <code>draw-wheel</code> / 奖品表 <code>wheel_prizes</code> 等</p>
+    <p><span class="no">已删</span> 每日签到、成就墙、邀友任务、情绪收集等独立功能模块（均属"增加多余功能"）</p>
+    <p><span class="no">已删</span> 新增 <code>pages/lucky-wheel</code>、<code>pages/growth-center</code> 页面与 admin 游戏化管理模块</p>
+    <p class="muted" style="color:var(--ink-faint);font-size:12px">说明：二级推广（L1/L2 直推间推）、情绪系统 V5 等是项目<b>既有功能</b>，保持原样，不在此方案内改动。</p>
+  </section>
+
+  <!-- 游戏化 = 视觉层 -->
+  <section>
+    <h2>三、游戏化落在哪：仅视觉 / 体验层（全部基于现有）</h2>
+    <table>
+      <thead><tr><th>游戏化手法</th><th>映射的现有资产</th><th>实现方式（无新功能）</th></tr></thead>
+      <tbody>
+        <tr><td><span class="vis">段位成长可视化</span></td><td><code>member_rank</code>（现有字段）+ <code>rank-rules</code>（现有页）</td><td>首页/侠客页用成长进度条 + 段位路径展示现有段位数据</td></tr>
+        <tr><td><span class="vis">资产正反馈</span></td><td><code>gold_beans</code>/<code>tb_balance</code>/<code>cv_total</code>/<code>points</code></td><td>金豆 HUD、返豆"金豆飘落"微动效，复用既有返豆逻辑</td></tr>
+        <tr><td><span class="vis">徽章展示</span></td><td><code>emotion-badges</code>（现有页面）</td><td>情绪徽章做国潮手绘视觉升级，仅样式，不改数据</td></tr>
+        <tr><td><span class="vis">国潮手绘视觉统一</span></td><td><code>Icon</code> 组件（22 手绘 + 99 MDI 线稿，现有）</td><td>全站图标统一为手绘线稿；墨韵低饱和配色，不晃眼</td></tr>
+        <tr><td><span class="vis">商品金豆价呈现</span></td><td>现有商品 + <code>gold_beans</code> 返豆（1:1）</td><td>商品卡展示"赠 X 豆"，强化消费即赚的正反馈</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 融合挂载点 -->
+  <section>
+    <h2>四、融合挂载点（保留现有 → 视觉升级）</h2>
+    <table>
+      <thead><tr><th>现有页面 / 区块</th><th>保留</th><th>游戏化视觉升级（不新增功能）</th></tr></thead>
+      <tbody>
+        <tr><td>首页 index</td><td><span class="keep">100% 保留</span></td><td>插入「段位进度卡」展示现有 <code>member_rank</code>；全站手绘图标统一</td></tr>
+        <tr><td>侠客 user（我的）</td><td><span class="keep">100% 保留</span></td><td>段位成长条 + 徽章墙（现有 emotion-badges 数据）视觉升级</td></tr>
+        <tr><td>自营 / 品牌馆</td><td><span class="keep">100% 保留</span></td><td>商品卡"赠 X 豆"金豆价展示，强化正反馈</td></tr>
+        <tr><td>支付成功页</td><td><span class="keep">100% 保留</span></td><td>复用返豆逻辑加「金豆飘落」微动效（展示型，无新逻辑）</td></tr>
+        <tr><td>emotion-badges 页</td><td><span class="keep">100% 保留</span></td><td>国潮手绘徽章样式升级</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 导航/数据 -->
+  <section>
+    <h2>五、导航与数据：零改动</h2>
+    <div class="box">
+      <p><b>导航：</b>现有 5 个 Tab（首页/自营/品牌馆/行囊/侠客）一个不动、不增、不减；不新增任何页面路由。</p>
+      <p><b>数据：</b>不新增任何表、不修改 <code>users</code>/<code>orders</code>/情绪表结构；游戏化展示直接读现有字段。</p>
+      <p><b>后端：</b>无新增云函数；返豆动效复用既有账务函数，保证 1:1 与 5% 返豆一致。</p>
+    </div>
+  </section>
+
+  <!-- 合规 -->
+  <section>
+    <h2>六、合规（不破线）</h2>
+    <ul>
+      <li>全站文案禁用「团队业绩/下级/层级返利」；既有二级推广只用直推/间推。</li>
+      <li>无抽奖则无"不承诺收益"提示需求；如保留概率类展示需明示，本方案不含。</li>
+      <li>全站继续<b>去秒哒品牌化</b>（代码+文案双查）。</li>
+    </ul>
+  </section>
+
+  <!-- 清单 -->
+  <section>
+    <h2>七、新增 vs 改动清单</h2>
+    <h3>✅ 仅新增（视觉/展示组件，无功能逻辑）</h3>
+    <p><span class="pill">components/RankProgress</span><span class="pill">components/BeanBurst</span><span class="pill">首页段位卡区块</span><span class="pill">侠客段位/徽章视觉升级</span><span class="pill">商品金豆价展示</span></p>
+    <h3>🟢 改动（仅插入/样式，无删无改）</h3>
+    <p><span class="zero">破坏性改动 = 0</span>。仅：在首页/侠客页<b>插入</b>展示型 JSX 区块；升级现有图标/配色样式；不删除任何现有区块、页面、字段。</p>
+    <div class="warn"><b>一句话：</b>不抽奖、不加功能。游戏化 = 把现有段位/金豆/徽章用国潮手绘语言"画得更像游戏"，业务功能 100% 原样。</div>
+  </section>
+
+  <footer>来电有喜 · 游戏化融合方案 v2（收敛版）｜ 不抽奖 · 零新增功能 ｜ 现有资产 100% 保留</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>来电有喜 · 游戏化运营方案（墨韵版）</title>
+<style>
+  :root{
+    --paper-1:#E9E1D2; --paper-2:#DDD2BC;
+    --card:#F1E9D9; --card-line:#D8CDB6;
+    --ink:#2B2620; --ink-soft:#6B6358; --ink-faint:#948B7A;
+    --zhusha:#A8552E; --zhusha-d:#8C4222;
+    --gold:#BE9A4E; --gold-d:#9C7C3C;
+    --qing:#5E7B72;
+    --shadow:0 1px 2px rgba(43,38,32,.06),0 6px 18px rgba(43,38,32,.08);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    color:var(--ink); line-height:1.65;
+    background:radial-gradient(120% 80% at 50% -10%, #EFE8D9 0%, var(--paper-1) 42%, var(--paper-2) 100%);
+    padding:28px 18px 60px;}
+  body::before{content:""; position:fixed; inset:0; pointer-events:none; opacity:.5;
+    background-image:radial-gradient(rgba(43,38,32,.025) 1px,transparent 1px); background-size:3px 3px;}
+  .wrap{max-width:840px; margin:0 auto; position:relative;}
+  header{border-bottom:2px solid var(--card-line); padding-bottom:16px; margin-bottom:22px;}
+  .kicker{font-size:12px; letter-spacing:3px; color:var(--zhusha); font-weight:700;}
+  h1{font-size:26px; font-weight:800; margin:6px 0 4px; letter-spacing:1px;}
+  .sub{font-size:13px; color:var(--ink-soft);}
+  section{background:var(--card); border:1px solid var(--card-line); border-radius:14px;
+    padding:18px 20px; margin-bottom:16px; box-shadow:var(--shadow);}
+  h2{font-size:16px; margin-bottom:12px; display:flex; align-items:center; gap:8px; font-weight:700;}
+  h2::before{content:""; width:5px; height:16px; border-radius:2px; background:var(--zhusha);}
+  h3{font-size:13.5px; color:var(--zhusha-d); margin:14px 0 6px; font-weight:700;}
+  p{font-size:13.5px; color:var(--ink); margin:6px 0;}
+  .muted{color:var(--ink-soft); font-size:12.5px;}
+  ul{margin:6px 0 6px 4px; padding-left:18px;}
+  li{font-size:13px; margin:5px 0; color:var(--ink);}
+  .tag{display:inline-block; font-size:11px; padding:2px 9px; border-radius:999px;
+    background:#E7DCC4; border:1px solid var(--card-line); color:var(--ink-soft); margin:2px 3px 2px 0;}
+  table{width:100%; border-collapse:collapse; margin-top:8px; font-size:12.5px;}
+  th,td{text-align:left; padding:9px 10px; border-bottom:1px solid var(--card-line); vertical-align:top;}
+  th{background:#E7DCC4; color:var(--ink); font-weight:700; font-size:12px;}
+  tr:last-child td{border-bottom:none;}
+  td code,li code,p code{background:#E7DCC4; padding:1px 5px; border-radius:4px; font-size:12px; color:var(--zhusha-d);}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .box{background:#EDE5D4; border:1px solid var(--card-line); border-radius:10px; padding:12px;}
+  .box b{color:var(--zhusha-d);}
+  .phase{display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-bottom:1px dashed var(--card-line);}
+  .phase:last-child{border-bottom:none;}
+  .pill{flex:none; width:64px; text-align:center; font-size:12px; font-weight:700; color:#F6EFE0;
+    background:var(--zhusha); border-radius:999px; padding:4px 0;}
+  .pill.p1{background:var(--qing);} .pill.p2{background:var(--gold-d);} .pill.p3{background:var(--ink-soft);}
+  .warn{background:#F3E6D6; border:1px solid #E3C9A8; border-radius:10px; padding:12px 14px; margin-top:8px;}
+  .warn b{color:var(--zhusha-d);}
+  .road{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:6px;}
+  .rc{background:#EDE5D4; border:1px solid var(--card-line); border-radius:10px; padding:10px; text-align:center;}
+  .rc .n{font-size:11px; color:var(--zhusha); font-weight:700;}
+  .rc .t{font-size:12.5px; margin-top:4px; font-weight:600;}
+  footer{text-align:center; font-size:11px; color:var(--ink-faint); margin-top:8px;}
+  @media(max-width:640px){.grid{grid-template-columns:1fr;} .road{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">来电有喜 · 产品运营方案</div>
+    <h1>游戏化运营落地方案</h1>
+    <div class="sub">武侠国潮 · 区域情绪会员零售连锁 ｜ 金豆经济 × 段位成长 × 合规二级推广 ｜ 墨韵护眼版</div>
+  </header>
+
+  <!-- 一、定位 -->
+  <section>
+    <h2>一、定位与目标</h2>
+    <p>游戏化不是"加个小游戏"，而是把<strong>金豆货币体系</strong>与<strong>会员成长</strong>做成可感知、可日常参与的情绪体验，服务"区域情绪会员零售连锁"的留存与复购。</p>
+    <div class="grid">
+      <div class="box"><b>核心载体</b><p class="muted" style="margin:4px 0 0">金豆（<code>gold_beans</code> 1:1）+ 情绪豆（<code>tb_balance</code>）+ 段位（<code>member_rank</code>）+ 贡献值（<code>cv_total</code>）+ 积分（<code>points</code>）。游戏化全部围绕这套既有资产转，不另造货币。</p></div>
+      <div class="box"><b>目标</b><p class="muted" style="margin:4px 0 0">提升日活/次留、拉长会员生命周期（LTV）、用"运气惊喜"降低促销的功利感，同时严守二级推广合规红线。</p></div>
+    </div>
+    <p class="muted" style="margin-top:8px">设计基调：墨韵国潮、线稿手绘（复用现有 <code>Icon</code> 组件 22 手绘 + 99 MDI 线稿）、低饱和不晃眼。</p>
+  </section>
+
+  <!-- 二、业务融合 -->
+  <section>
+    <h2>二、与项目业务的融合点</h2>
+    <table>
+      <thead><tr><th>项目既有能力</th><th>游戏化承接方式</th><th>业务价值</th></tr></thead>
+      <tbody>
+        <tr><td>下单返豆 <code>GOLD_BEAN_EARN_RATE=0.05</code></td><td>返豆即时弹"金豆飘落"，强化"消费即赚"正反馈</td><td>提升复购与客单</td></tr>
+        <tr><td>段位 <code>member_rank</code></td><td>可视化成长路径（侠客→墨客→…），段位解锁专属券/标识</td><td>留存与荣誉感</td></tr>
+        <tr><td>二级推广 L1 直推 + L2 间推</td><td>"邀友有礼"做成任务，奖励仅限 L1/L2，文案严格用"直推/间推"</td><td>合规裂变增长</td></tr>
+        <tr><td>情绪豆 <code>tb_balance</code>（5% 计提）</td><td>"情绪收集"轻互动，产出计入情绪豆，明示 5% 规则</td><td>贴合"情绪零售"内核</td></tr>
+        <tr><td>admin 财务/数据看板</td><td>新增"游戏化活动"配置与参与/产出看板</td><td>运营可度量</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 三、模块矩阵 -->
+  <section>
+    <h2>三、游戏化模块矩阵（6 大）</h2>
+    <table>
+      <thead><tr><th>模块</th><th>形态</th><th>消耗 / 产出</th><th>优先级</th></tr></thead>
+      <tbody>
+        <tr><td><b>幸运转盘</b><br><span class="muted">每日运势</span></td><td>8 格转盘（已出干净墨韵原型）</td><td>每日免费 1 次 / 10 金豆；产出金豆·券·情绪豆</td><td>P0</td></tr>
+        <tr><td><b>段位之路</b></td><td>进度条 + 权益解锁卡</td><td>消费/任务涨经验；解锁券与标识</td><td>P0</td></tr>
+        <tr><td><b>每日签到</b></td><td>7 日运势卡，连续加成</td><td>免费；连续签到递增金豆</td><td>P1</td></tr>
+        <tr><td><b>成就墙</b></td><td>里程碑徽章网格</td><td>消费/分享/首单等触发；发贡献值+积分</td><td>P1</td></tr>
+        <tr><td><b>邀友有礼</b></td><td>分享任务 + 直推/间推奖励</td><td>邀请 L1/L2 注册消费；发金豆（非佣金池）</td><td>P2</td></tr>
+        <tr><td><b>情绪收集</b></td><td>轻养成小互动</td><td>日常互动；5% 计提情绪豆</td><td>P3</td></tr>
+      </tbody>
+    </table>
+    <p class="muted">本期方案重点落地 P0（转盘 + 段位可视化），其余给出接口与表结构预留。</p>
+  </section>
+
+  <!-- 四、资产与经济模型 -->
+  <section>
+    <h2>四、资产与经济模型（守合规）</h2>
+    <div class="grid">
+      <div class="box"><b>金豆 <code>gold_beans</code></b><p class="muted" style="margin:4px 0 0">1:1 等同余额。转盘/签到产出金豆；下单按 5% 返金豆。金豆可直接抵现。</p></div>
+      <div class="box"><b>情绪豆 <code>tb_balance</code></b><p class="muted" style="margin:4px 0 0">活动/互动产出按 <b>5%</b> 计提，不参与本金，仅作情绪权益，界面明示规则。</p></div>
+      <div class="box"><b>贡献值 <code>cv_total</code></b><p class="muted" style="margin:4px 0 0">成就/邀友发放，衡量会员贡献，不直接变现。</p></div>
+      <div class="box"><b>段位 <code>member_rank</code></b><p class="muted" style="margin:4px 0 0">由经验值驱动，纯等级荣誉 + 权益，与佣金解耦。</p></div>
+    </div>
+    <div class="warn">
+      <b>⚠ 经济安全阀</b>
+      <ul style="margin-top:6px">
+        <li>转盘中奖金豆按 <b>5%</b> 同步计入情绪豆，本金安全、不放大杠杆。</li>
+        <li>奖池概率与服务端配置一致，前端仅展示，抽奖结果以云函数为准（防刷、幂等）。</li>
+        <li>邀友奖励发放金豆，<b>不进佣金池</b>，避免与 <code>commission_balance</code> 团队计酬混淆。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 五、技术架构 -->
+  <section>
+    <h2>五、技术架构与落地</h2>
+    <h3>小程序端（Taro + React + TS）</h3>
+    <ul>
+      <li>新增页面 <code>pages/lucky-wheel/index.tsx</code>；组件 <code>components/GameWheel</code>（SVG 转盘 + CSS transform 旋转，微信端可行）、<code>components/RankProgress</code>、<code>components/SignInCard</code>、<code>components/AchievementWall</code>。</li>
+      <li>图标全部复用现有 <code>&lt;Icon name="..."&gt;</code> 手绘/线稿组件，无需新增图标资源。</li>
+      <li>飘落动画用 Taro <code>View</code> + 样式动画替代 HTML 浮层。</li>
+    </ul>
+    <h3>后端（Supabase + 云函数）</h3>
+    <ul>
+      <li>新增表：<code>wheel_prizes</code>（奖品/概率/库存）、<code>wheel_records</code>（抽奖流水，带 <code>idempotency_key</code>）、<code>sign_ins</code>、<code>achievements</code>、<code>tasks</code>。</li>
+      <li>云函数 <code>draw-wheel</code>：校验免费次数/扣金豆 → 按概率出奖 → 发金豆/券/情绪豆 → 写流水（幂等）。接现有风控模块限频。</li>
+      <li>金豆变动统一走既有账务函数，保证 <code>gold_beans</code> 1:1 与 5% 返豆率一致。</li>
+    </ul>
+    <h3>管理端（admin-web）</h3>
+    <ul>
+      <li>新增「游戏化配置」：奖品概率、每日免费次数、活动开关。</li>
+      <li>数据看板：参与率、金豆消耗/产出、券核销、ROI——复用现有财务看板组件。</li>
+    </ul>
+  </section>
+
+  <!-- 六、合规红线 -->
+  <section>
+    <h2>六、合规红线清单</h2>
+    <div class="warn">
+      <ul style="margin:0">
+        <li>全站文案<b>不得出现"团队业绩/下级/层级返利"</b>等措辞；邀友只用 <b>"直推 / 间推"</b>（对应 L1/L2）。</li>
+        <li>转盘/抽奖界面明示：<b>"仅趣味互动，不承诺收益"</b>；金豆 1:1，情绪豆 5% 计提规则公开。</li>
+        <li>推广仅二级（L1+L2），奖励为金豆/券，<b>不形成多级佣金池</b>，与 <code>commission_balance</code> 解耦。</li>
+        <li>全站继续<b>去秒哒品牌化</b>：代码与文案双查，新页面同样遵守。</li>
+        <li>抽奖接口接风控：限频、异常设备检测、流水可追溯，防刷单。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 七、路线图 -->
+  <section>
+    <h2>七、实施路线图</h2>
+    <div class="road">
+      <div class="rc"><div class="n">P0</div><div class="t">转盘 + 段位可视化</div></div>
+      <div class="rc"><div class="n">P1</div><div class="t">签到 + 成就墙</div></div>
+      <div class="rc"><div class="n">P2</div><div class="t">邀友有礼（二级）</div></div>
+      <div class="rc"><div class="n">P3</div><div class="t">情绪收集 + admin 配置</div></div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="phase"><span class="pill">P0</span><div><b>基础体验</b>：幸运转盘（服务端抽奖）、段位进度可视化，复用现有字段与 Icon 组件，1–2 周可灰度。</div></div>
+      <div class="phase"><span class="pill p1">P1</span><div><b>留存</b>：每日签到、成就墙，发金豆/贡献值/积分，接现有账务函数。</div></div>
+      <div class="phase"><span class="pill p2">P2</span><div><b>增长</b>：邀友有礼，严格 L1/L2 直推间推，发金豆不进佣金池，接风控。</div></div>
+      <div class="phase"><span class="pill p3">P3</span><div><b>配置化</b>：admin 活动管理与数据看板，情绪收集轻互动，全链路可度量。</div></div>
+    </div>
+  </section>
+
+  <footer>来电有喜 · 游戏化运营方案 v1 ｜ 墨韵护眼版 ｜ 数据口径以 Supabase 与 admin 看板为准</footer>
+</div>
+</body>
+</html>

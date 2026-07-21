@@ -31,7 +31,7 @@ export const DEFAULT_TEMPLATES: FoodTherapyTemplate[] = [
   { tpl_key: 'sales_word', tpl_type: 'sales', title: '一句话销售话术', content: '{name}｜{natureText}，{tagText}，一口就懂你的口味', is_active: true },
   { tpl_key: 'detail_desc', tpl_type: 'detail', title: '详情卖点文案', content: '【{name}】{natureText}。{tagSentence}用心选材，让每一餐都有温度。', is_active: true },
   { tpl_key: 'circle_copy', tpl_type: 'circle', title: '朋友圈 / 社群文案', content: '今天点了{name}，{natureText}的治愈感真的绝了～{tagSentence}日常小确幸 get✨', is_active: true },
-  { tpl_key: 'risk_tip', tpl_type: 'risk', title: '风险提醒（合规）', content: '温馨提示：{remindText}。食养建议不替代医嘱，适量为佳。', is_active: true },
+  { tpl_key: 'risk_tip', tpl_type: 'risk', title: '风险提醒', content: '温馨提示：{remindText}。食养建议不替代医嘱，适量为佳。', is_active: true },
   { tpl_key: 'poster_template', tpl_type: 'poster', title: '海报模板', content: '主标题：{name}\n副标题：{natureText}·{tagText}\n角标：食材食疗导购推荐\n脚注：食养参考·不替代医嘱', is_active: true },
 ]
 

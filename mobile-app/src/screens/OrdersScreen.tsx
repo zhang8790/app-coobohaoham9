@@ -67,7 +67,7 @@ export const OrdersScreen: React.FC = () => {
             </View>
             <Text style={styles.amount}>
               ¥{item.total_amount.toFixed(2)}
-              {item.tb_used ? ` · 情绪豆 ${item.tb_used}` : ''}
+              {item.tb_used ? ` · 金豆 ${item.tb_used}` : ''}
             </Text>
             {(item.order_items ?? []).map((oi) => (
               <Text key={oi.id} style={styles.item}>

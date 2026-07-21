@@ -111,7 +111,7 @@ const aux = buildAuxRemind(greenBean, menstrualRule)
 assert('经期寒凉品 给温中加料建议', aux.includes('姜') || aux.includes('红枣'), aux)
 const mk = generateMarketingCopy(gingerTea, menstrualRule)
 assert('销售话术非空', mk.short_sales_word.length > 0, mk.short_sales_word)
-assert('风险提醒含合规声明', mk.risk_tip.includes('不替代医嘱'), mk.risk_tip)
+assert('风险提醒含免责声明', mk.risk_tip.includes('不替代医嘱'), mk.risk_tip)
 assert('海报模板含主标题', mk.poster_template.includes('主标题'), mk.poster_template)
 
 console.log('\n=== 6. 分组与标签库完整性 ===')

@@ -38,7 +38,7 @@ Expo 的 `eas build` 一条命令出 iOS / Android 包，配合 OTA 可热更新
 | **UI** | Taro 组件（View/Text…） | RN 原语（View/Text/FlatList/Pressable）+ 平台规范 | 中 |
 | **地图/相机** | `Taro.map` / `chooseImage` | `react-native-maps` / `expo-image-picker` | 低 |
 | **分享** | 小程序分享卡片 | `react-native-share` / `expo-sharing` | 低 |
-| **合规安全** | 微信托管 | token 存 `expo-secure-store`；隐私政策与 PIPL 同意流 | 低 |
+| **隐私安全** | 微信托管 | token 存 `expo-secure-store`；隐私政策与 PIPL 同意流 | 低 |
 
 > 关键提醒：**真实发佣链路**依赖 `orders.referrer_id` 与已部署的 `distribute-commission` 等函数（见项目记忆，目前线上仅 `emotion-compile` 已部署，微信相关函数 404）。原生 App 上线前需先把这些 Edge Function 部署齐，并补 `profiles.referrer_id` 列。
 
@@ -97,4 +97,4 @@ Expo 工程、Supabase RN 客户端、auth/cart store、导航壳、食疗引擎
 1. **Edge Functions 部署**：微信登录/支付/红包相关函数当前线上多数为 404，需先 `supabase secrets set` + `deploy` 补齐，否则原生 App 同样跑不通。
 2. **`profiles.referrer_id` 列**：线上疑似缺失，推荐关系与发佣依赖它，须先跑 `fix-referrer-id.sql`。
 3. **支付资质**：若启用用户储值需《支付业务许可证》；App 内虚拟商品走 IAP 需遵守平台规则——建议维持现有「金豆抵扣 + 微信/支付宝」模式，不碰储值。
-4. **合规**：食养文案继续附「不替代医嘱」声明，禁用医疗宣称与绝对化用语（与小程序一致）。
+4. **文案规范**：食养文案继续附「不替代医嘱」声明，禁用医疗宣称与绝对化用语（与小程序一致）。

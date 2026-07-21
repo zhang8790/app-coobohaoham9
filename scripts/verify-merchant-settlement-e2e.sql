@@ -174,13 +174,13 @@ BEGIN
   RAISE NOTICE '  商家应得货款(推算): %', v_actual_merchant_settle;
 
   -- 查实际结算台账对比
-  PERFORM merchant_settle, tb_portion
+  PERFORM settle_amount, tb_portion
   FROM merchant_settlements
   WHERE order_id = v_order.id
   ORDER BY created_at DESC LIMIT 1;
 
   -- 该订单在 stores.merchant_balance 的累加值
-  SELECT COALESCE(SUM(merchant_settle), 0) INTO v_diff
+  SELECT COALESCE(SUM(settle_amount), 0) INTO v_diff
   FROM merchant_settlements WHERE order_id = v_order.id;
 
   RAISE NOTICE '  实际台账结算额: % (来自 merchant_settlements)', v_diff;
@@ -222,10 +222,12 @@ BEGIN
   RAISE NOTICE 'D3 tb_portion 超 total 订单数: % (期望 0)', v_count;
   IF v_count > 0 THEN RAISE WARNING 'D3 ❌ 有台账 tb_portion > total，未跑 00122 修复'; END IF;
 
-  -- D4. 充值绝对不写 commissions
+  -- D4. 充值绝对不写 commissions（实际列：commission_type / order_id）
   SELECT count(*) INTO v_count
   FROM commissions c
-  WHERE c.remark LIKE '%充值%' OR c.source_type = 'recharge';
+  WHERE c.order_id IS NULL
+     OR c.commission_type ILIKE '%recharge%'
+     OR c.commission_type ILIKE '%充值%';
   RAISE NOTICE 'D4 充值误写 commissions 数: % (期望 0)', v_count;
 
   RAISE NOTICE 'PART D 完成';

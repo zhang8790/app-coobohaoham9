@@ -1,6 +1,6 @@
 // 食养成分数据字典（对应方案「食养成分商品参数方案」第四节）
 // ------------------------------------------------------------
-// 提供：食材词典 / 编译 UI 标签库 / 身体状态关键词映射 / 合规文案生成
+// 提供：食材词典 / 编译 UI 标签库 / 身体状态关键词映射 / 文案生成
 // 所有功效表述均为传统食养文化参考，不替代医疗建议
 
 export interface IngredientEntry {
@@ -8,7 +8,7 @@ export interface IngredientEntry {
   nature: string           // 温/凉/平/寒/微温/微寒
   icon: string
   color: string
-  benefits: string[]       // 食养功效（合规措辞）
+  benefits: string[]       // 食养功效
   audiences: string[]      // 适用人群（状态描述，非病症）
   scenarios: string[]      // 生活场景
   aliases?: string[]       // 别名 / 简称 / 同义词，提升识别命中率
@@ -114,7 +114,7 @@ export interface BodyStateRule {
   label: string            // UI 展示名
   icon: string
   ingredients: string[]    // 推荐食材 key
-  copy: string             // 导购话术（合规）
+  copy: string             // 导购话术
   avoidCopy: string        // 暂不建议的提醒
 }
 
@@ -185,7 +185,7 @@ export const BODY_STATE_RULES: BodyStateRule[] = [
   },
 ];
 
-// ── 合规文案生成 ──
+// ── 文案生成 ──
 export interface ShiyangCopyInput {
   ingredients: string[]      // ingredient keys
   scene?: string             // 用户当前场景
@@ -193,8 +193,8 @@ export interface ShiyangCopyInput {
 
 export interface ShiyangCopyOutput {
   cardTitle: string          // 卡片标题
-  cardDetail: string         // 卡片正文（合规食养参考）
-  disclaimer: string         // 合规声明
+  cardDetail: string         // 卡片正文（食养参考）
+  disclaimer: string         // 声明
 }
 
 const SHIYANG_DISCLAIMER = '以上为传统食养文化参考，个体差异较大，不能替代专业医疗建议。如身体不适应及时休息，症状持续或加重请及时就医。';
