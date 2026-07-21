@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
     // 实际微信支付金额 = 总金额 - 情绪豆抵扣
     // 注意：00096 后 tb_used 已统一为「元」口径（1 豆 = 1 元，与 tb_balance 一致），直接相减即可，勿再 ×0.01
     const wxAmount = Math.round((order.total_amount - (order.tb_used ?? 0)) * 100) // 分
-    if (wxAmount <= 0) return Response.json({ error: '微信支付金额为0，请使用纯情绪豆支付' }, { status: 400, headers: corsHeaders })
+    if (wxAmount <= 0) return Response.json({ error: '微信支付金额为0，请使用纯金豆支付' }, { status: 400, headers: corsHeaders })
 
     const notifyUrl = `${SUPABASE_URL}/functions/v1/wechat-payment-callback`
 

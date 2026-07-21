@@ -95,7 +95,7 @@ Deno.serve(async (req: Request) => {
       if (pay_mode === 'pure_gold') {
         const needed = toFixed4(totalAmount / GOLD_BEAN_RATE)
         if (goldBeanBalance < needed) {
-          return Response.json({ error: `情绪豆不足，需要${needed}豆，当前${goldBeanBalance}豆`, code: 'INSUFFICIENT_GOLD_BEANS' }, { status: 400, headers: corsHeaders })
+          return Response.json({ error: `金豆不足，需要${needed}金豆，当前${goldBeanBalance}金豆`, code: 'INSUFFICIENT_GOLD_BEANS' }, { status: 400, headers: corsHeaders })
         }
         goldBeansUsed = Math.min(needed, toFixed4(totalAmount / GOLD_BEAN_RATE))
         wxpayAmount = 0
@@ -130,7 +130,7 @@ Deno.serve(async (req: Request) => {
         .update({ tb_balance: goldBeanBalance - goldBeansUsed })
         .eq('id', user.id)
         .gte('tb_balance', goldBeansUsed)
-      if (balErr) return Response.json({ error: '情绪豆扣减失败，请重试', code: 'GOLD_DEDUCT_FAIL' }, { status: 500, headers: corsHeaders })
+      if (balErr) return Response.json({ error: '金豆扣减失败，请重试', code: 'GOLD_DEDUCT_FAIL' }, { status: 500, headers: corsHeaders })
     }
 
     // 创建订单（单门店或跨门店）
@@ -179,11 +179,17 @@ Deno.serve(async (req: Request) => {
 
       // 纯情绪豆支付 → 触发分佣（fix: 此前干标 commission_distributed=true 却零发放，导致「假分佣」且补跑被跳过）
       // 与小程序 createOrderV2 对齐：调用 distribute-commission 把佣金以情绪豆(tb_balance)发给上线，纯豆全部分佣。
-      if (pay_mode === 'pure_gold') {
+      // 纯情绪豆支付 → 触发分佣。统一口径：商品加权让利率（与 wechat-payment-callback 同算法），
+      // 不再用门店单值率，消除「纯豆 vs 微信同单算不同」的口径分裂。
+      // 修复：hybrid 订单若金豆全覆盖（wxpayAmount=0）也需触发，否则这类订单永远不分佣
+      // （微信回调不会触发因为没有微信流水，create-order 又跳过了 pure_gold 块）。
+      if (pay_mode === 'pure_gold' || (pay_mode === 'hybrid' && wxpayAmount <= 0)) {
         for (const order of createdOrders) {
           const orderTotal = Number(order.total_amount) || 0
           if (orderTotal <= 0) continue
-          let discountRate = 0.09
+
+          // 1) 店铺回退率（开关 + 值）
+          let storeFallback = 0.09
           try {
             if (order.store_id) {
               const { data: sd } = await supabase
@@ -192,8 +198,49 @@ Deno.serve(async (req: Request) => {
                 .eq('id', order.store_id)
                 .maybeSingle()
               const enabled = sd?.referral_rate_enabled !== false
-              discountRate = enabled ? (Number(sd?.referral_rate ?? 0.09)) : 0
+              storeFallback = enabled ? (Number(sd?.referral_rate ?? 0.09)) : 0
             }
+          } catch { /* 用默认 */ }
+
+          // 2) 商品加权让利率（金额加权，与微信路径完全一致）
+          // 修复：order_items.product_id 无外键指向 products.id，PostgREST 嵌入 products() 必报 PGRST200，
+          // 故改为先取 order_items，再按 product_id 单独查 products 在 JS 内关联，杜绝 cache/FK 依赖。
+          let effectiveRate = storeFallback
+          try {
+            const { data: itemRows } = await supabase
+              .from('order_items')
+              .select('price, quantity, product_id')
+              .eq('order_id', order.id)
+            const items = (itemRows || []) as Array<{ price?: any; quantity?: any; product_id?: string | null }>
+            const productIds = Array.from(new Set((items || []).map(it => it?.product_id).filter(Boolean))) as string[]
+            let rateMap: Record<string, number> = {}
+            if (productIds.length) {
+              const { data: prods } = await supabase
+                .from('products')
+                .select('id, discount_rate')
+                .in('id', productIds)
+              for (const p of (prods || []) as Array<{ id?: string; discount_rate?: any }>) {
+                if (p?.id) rateMap[p.id] = Number(p.discount_rate ?? 0)
+              }
+            }
+            let totalAmt = 0, weightedSum = 0
+            for (const it of items) {
+              const amt = (Number(it.price) || 0) * (Number(it.quantity) || 0)
+              const pid = String(it?.product_id)
+              const pRate = (typeof rateMap[pid] === 'number' && rateMap[pid] > 0)
+                ? rateMap[pid] / 100
+                : storeFallback
+              totalAmt += amt
+              weightedSum += amt * pRate
+            }
+            if (totalAmt > 0) effectiveRate = weightedSum / totalAmt
+          } catch (e) { console.warn('[create-order] 读商品让利点失败，回退店铺率', e) }
+
+          // 3) 落库整单加权率（便于展示/追溯）
+          await supabase.from('orders').update({ effective_rate: effectiveRate }).eq('id', order.id)
+
+          // 4) 触发分佣（失败记录原因，便于自动补跑；commission_distributed 仍为 false = 未发）
+          try {
             await supabase.functions.invoke('distribute-commission', {
               body: {
                 order_id: order.id,
@@ -202,11 +249,13 @@ Deno.serve(async (req: Request) => {
                 total_amount: orderTotal,
                 net_amount: 0,
                 referrer_id: order.referrer_id ?? null,
-                discount_rate: discountRate,
+                discount_rate: effectiveRate,
               },
             })
-          } catch (e) {
-            console.error('[create-order] 纯情绪豆分佣触发失败(不影响下单):', (e as any)?.message)
+          } catch (e: any) {
+            const msg = (e as any)?.message || String(e)
+            console.error('[create-order] 纯情绪豆分佣触发失败:', msg)
+            await supabase.from('orders').update({ commission_error: msg }).eq('id', order.id).then(() => {}).catch(() => {})
           }
         }
       }

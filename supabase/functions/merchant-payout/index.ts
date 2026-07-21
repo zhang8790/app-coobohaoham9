@@ -6,9 +6,9 @@
  *  - backfill : 历史补结算（将已完成但未结算的订单补跑 fn_settle_order）
  *  - payout   : 对「货款提现」申请执行微信支付服务商分账（资金直达商家子商户号，规避二清）
  *
- * 合规要点：
+ * 要点：
  *  - 真实资金下发走「微信支付服务商分账」模式：资金直接从微信清分至商家子商户号，
- *    平台不池化商家销售款 → 规避二清红线。
+ *    平台不池化商家销售款。
  *  - 情绪豆支付部分由平台以自有资金垫付（充值时平台已收 RMB），不分账、不要求商家持豆。
  *
  * 接入前提（用户本机配置）：
@@ -224,7 +224,7 @@ Deno.serve(async (req: Request) => {
         return Response.json({
           ok: true,
           status: 'PROFITSHARING_SENT',
-          message: `已发起 ${sentCount} 笔微信服务商分账，资金将直达商家子商户号；另有 ¥${manualTotal.toFixed(2)} 为情绪豆垫付部分，需平台自有资金支付。`,
+          message: `已发起 ${sentCount} 笔微信服务商分账，资金将直达商家子商户号；另有 ¥${manualTotal.toFixed(2)} 为金豆垫付部分，需平台自有资金支付。`,
           wechat_total: Math.round(wechatTotal * 100) / 100,
           manual_total: Math.round(manualTotal * 100) / 100,
           details,
@@ -234,7 +234,7 @@ Deno.serve(async (req: Request) => {
       return Response.json({
         ok: true,
         status: 'MANUAL_PAYOUT',
-        message: '该笔货款无微信分账交易号或全部为情绪豆支付部分，需平台以自有资金经银行转账/企业付款完成。',
+        message: '该笔货款无微信分账交易号或全部为金豆支付部分，需平台以自有资金经银行转账/企业付款完成。',
         manual_total: Math.round(manualTotal * 100) / 100,
         details,
       }, { headers: corsHeaders })

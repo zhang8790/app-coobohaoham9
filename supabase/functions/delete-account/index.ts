@@ -2,7 +2,7 @@
  * delete-account Edge Function
  * PIPL 账号注销：以 service_role 身份彻底删除用户账号及其关联数据。
  * 关键：必须删除 auth.users 中的认证记录，否则用户仍可凭原凭证重新登录，
- *       profile 虽被删但 auth 账号残留 = 注销不彻底（隐私合规硬伤）。
+ *       profile 虽被删但 auth 账号残留 = 注销不彻底。
  *
  * 仅允许本人调用（Authorization 头携带自己的 JWT）。
  */

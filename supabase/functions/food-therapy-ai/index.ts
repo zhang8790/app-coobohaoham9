@@ -7,11 +7,11 @@
 //   规则引擎据此命中体质/症状规则，LLM 仅做"理解"。
 //
 // mode = 'copy'：把规则引擎产出的营销文案（销售话术/详情/朋友圈/风险）润色为
-//   更自然、有温度的中文表达；含合规闸门：出现医疗宣称词则回退规则文案。
+//   更自然、有温度的中文表达；含医疗宣称词闸门：命中则回退规则文案。
 //
 // 降级策略（关键）：
 //   - 未配置 LLM_API_KEY 时，自动走「规则兜底」（nlu 走关键词命中，copy 原样返回），零外部依赖。
-//   - 配置 LLM_API_KEY / LLM_BASE_URL 后，理解与润色升级为 LLM，结果仍受合规闸门约束。
+//   - 配置 LLM_API_KEY / LLM_BASE_URL 后，理解与润色升级为 LLM，结果仍受医疗宣称词闸门约束。
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
@@ -63,7 +63,7 @@ async function callLLM(system: string, user: string): Promise<any | null> {
   }
 }
 
-// 合规闸门：医疗宣称词拦截。命中则返回 true（应回退规则文案）
+// 医疗宣称词闸门：命中则返回 true（应回退规则文案）
 const MEDICAL_TERMS = ['治疗', '治愈', '疗效', '医治', '药方', '处方', '根治', '抗癌', '抗炎', '消炎', '遵医嘱', '医师指导下']
 function hasMedicalClaim(text: string): boolean {
   return MEDICAL_TERMS.some((t) => text.includes(t))
@@ -141,12 +141,12 @@ async function handleCopy(supabase: any, body: any, headers: any) {
     const sys = `你是「食材食疗导购」的文案师，为本地生活电商把导购文案润色得更自然、有温度、口语化。
 要求：
 - 绝不使用"抢购/手慢无/最佳选择/限时/划算/爆款/必买/治疗/治愈/疗效"等任何带货或医疗宣称话术
-- 保留原文的核心信息（性味、食疗侧重、合规免责）
+- 保留原文的核心信息（性味、食疗侧重、免责说明）
 - 输出 JSON，字段与输入一致：short_sales_word / detail_desc / circle_copy / risk_tip`
     const user = `原始文案：\n${JSON.stringify(rule_copy, null, 2)}\n\n商品上下文：\n${ctx}`
     const res = await callLLM(sys, user)
     if (res && res.short_sales_word) {
-      // 合规闸门：任一字段含医疗宣称词 → 整段回退规则文案
+      // 医疗宣称词闸门：任一字段含医疗宣称词 → 整段回退规则文案
       const bad = [res.short_sales_word, res.detail_desc, res.circle_copy, res.risk_tip].some((t) => hasMedicalClaim(t || ''))
       if (!bad) {
         result = {

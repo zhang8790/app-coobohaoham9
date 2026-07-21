@@ -22,12 +22,12 @@ const corsHeaders = {
 
 /** V5 段位配置（与前端 commission-calculator-v5.ts 完全一致，保证前后端分佣比例统一；已收敛上限） */
 const RANK_TABLE = [
-  { rank: '无心境',     minScore: 20000, l1: 0.50, l2: 0.18, points: 0.15 },
-  { rank: '悟心',       minScore: 6000,  l1: 0.48, l2: 0.18, points: 0.15 },
-  { rank: '静心',       minScore: 2000,  l1: 0.46, l2: 0.18, points: 0.14 },
-  { rank: '明心',       minScore: 800,   l1: 0.44, l2: 0.17, points: 0.13 },
-  { rank: '初心',       minScore: 200,   l1: 0.42, l2: 0.16, points: 0.12 },
-  { rank: '凡心',       minScore: 0,     l1: 0.40, l2: 0.15, points: 0.10 },
+  { rank: '无心境',     minScore: 20000, l1: 0.50, l2: 0.18, points: 0.40 },
+  { rank: '悟心',       minScore: 6000,  l1: 0.48, l2: 0.18, points: 0.40 },
+  { rank: '静心',       minScore: 2000,  l1: 0.46, l2: 0.18, points: 0.37 },
+  { rank: '明心',       minScore: 800,   l1: 0.44, l2: 0.17, points: 0.34 },
+  { rank: '初心',       minScore: 200,   l1: 0.42, l2: 0.16, points: 0.32 },
+  { rank: '凡心',       minScore: 0,     l1: 0.40, l2: 0.15, points: 0.30 },
 ]
 
 /** V5 平台最低抽成（与前端 PLATFORM_CONFIG.MIN_PLATFORM_RATE 一致） */
@@ -238,9 +238,52 @@ Deno.serve(async (req: Request) => {
       return Response.json({ success: true, skipped: true, reason: 'zero_amount' }, { headers: corsHeaders })
     }
 
-    // 让利池 = 现金基数 × 让利率
     const discountRate = discount_rate ?? 0.09  // 默认9%，与前端一致
-    const discountPool = toFixed4(cashBase * discountRate)
+
+    // ===== 商品级明细：逐商品用自身 discount_rate 算让利池（追溯/展示用，绕开 order_items→products 缺外键）=====
+    let itemDetails: Array<{
+      order_item_id: string; product_id: string | null; product_name: string | null;
+      price: number; quantity: number; item_total: number;
+      product_discount_rate: number; discount_pool: number; commission_pool: number;
+      l1_gross: number; l2_gross: number;
+    }> = []
+    try {
+      const { data: oiRows } = await supabase
+        .from('order_items').select('id, product_id, product_name, price, quantity').eq('order_id', order_id)
+      const oiList = (oiRows || []) as Array<{ id?: string; product_id?: string | null; product_name?: string | null; price?: any; quantity?: any }>
+      const pIds = Array.from(new Set((oiList || []).map((it: any) => it?.product_id).filter(Boolean))) as string[]
+      let pRate: Record<string, number> = {}
+      if (pIds.length) {
+        const { data: pRows } = await supabase
+          .from('products').select('id, discount_rate').in('id', pIds)
+        for (const p of (pRows || []) as Array<{ id?: string; discount_rate?: any }>) {
+          if (p?.id) pRate[p.id] = Number(p.discount_rate ?? 0)
+        }
+      }
+      for (const it of oiList) {
+        const amt = (Number(it.price) || 0) * (Number(it.quantity) || 0)
+        const pid = String(it?.product_id ?? '')
+        const rate = (pRate[pid] !== undefined && pRate[pid] > 0) ? pRate[pid] / 100 : discountRate
+        const dp = toFixed4(amt * rate)
+        itemDetails.push({
+          order_item_id: String(it.id ?? ''),
+          product_id: it?.product_id ?? null,
+          product_name: it?.product_name ?? null,
+          price: Number(it.price) || 0,
+          quantity: Number(it.quantity) || 0,
+          item_total: amt,
+          product_discount_rate: rate,
+          discount_pool: dp,
+          commission_pool: toFixed4(dp * (1 - MIN_PLATFORM_RATE_V5)),
+          l1_gross: 0,
+          l2_gross: 0,
+        })
+      }
+    } catch (e) { console.warn('[V5] 读取商品明细失败，降级为整单率:', (e as any)?.message) }
+
+    // 让利池：优先按商品级明细汇总（每个商品用自身 discount_rate），与整单加权口径一致；无明细时回退整单率
+    const discountPoolFromItems = itemDetails.reduce((s, it) => s + it.discount_pool, 0)
+    const discountPool = toFixed4(discountPoolFromItems > 0 ? discountPoolFromItems : cashBase * discountRate)
 
     console.log('[V5] 开始分佣计算:', {
       order_no,
@@ -262,12 +305,33 @@ Deno.serve(async (req: Request) => {
     let taxWithheld = 0
     let userGrossCommission = 0
     let platformIncome = 0
+    // 买家确权积分（函数级作用域，供下方 orders 回写使用；下限 0.01 避免全舍入为 0；
+    // 上限 commissionPool 保证 platform_income 恒 ≥ 0）。任何购买（含无上线直购）均发放，故在 l1UserId 判断之外计算。
+    let bfFinal = 0
+    // 段位/系数变量提升至函数级，使无上线分支也能在商品级明细行中正确引用
+    let l1Rank = getRankByScore(0)
+    let l2Rank = getRankByScore(0)
+    let l1Active = 0
+    let l1Recruit = 1
+    let l2ActiveMult = 1
+    let l2RecruitMult = 1
+
+    // ===== 买家确权积分：基于买家自身近6月滚动段位，独立于上线关系，任何购买都发 =====
+    {
+      const buyerMetrics = await fetchBeneficiaryMetrics(supabase, payer_id)
+      const buyerDynamicScore = calculateDynamicScore(buyerMetrics.rollingConsumption)
+      const buyerRank = getRankByScore(buyerDynamicScore)
+      const buyerCommissionPool = toFixed4(discountPool * (1 - MIN_PLATFORM_RATE_V5))
+      const rawBuyerPoints = toFixed4(buyerCommissionPool * buyerRank.points)
+      bfFinal = rawBuyerPoints > 0 ? Math.min(buyerCommissionPool, Math.max(0.01, rawBuyerPoints)) : 0
+    }
 
     if (l1UserId) {
+      let l2Commission = 0
       // 1) L1 近6月滚动指标（决定段位 + 活跃/拓新系数）
       const l1Metrics = await fetchBeneficiaryMetrics(supabase, l1UserId)
       const l1DynamicScore = calculateDynamicScore(l1Metrics.rollingConsumption)
-      const l1Rank = getRankByScore(l1DynamicScore)
+      l1Rank = getRankByScore(l1DynamicScore)
 
       // 2) L2 = L1 的上级（统一用 profiles.referrer_id，uuid 上级链）
       const { data: l1Profile } = await supabase
@@ -277,37 +341,54 @@ Deno.serve(async (req: Request) => {
         .maybeSingle()
       l2UserId = (l1Profile as any)?.referrer_id || null
 
-      let l2Commission = 0
-      let l2Rank = getRankByScore(0)
       if (l2UserId && l2UserId !== payer_id) {
         const l2Metrics = await fetchBeneficiaryMetrics(supabase, l2UserId)
         const l2DynamicScore = calculateDynamicScore(l2Metrics.rollingConsumption)
         l2Rank = getRankByScore(l2DynamicScore)
         // 修复：L2 段位必须用真实 l2Rank（原代码写死 calculateDynamicScore(0)→"凡心"）
-        const l2Active = l2Metrics.activeMult
-        const l2Recruit = l2Metrics.recruitMult
-        if (l2Active > 0) {
-          l2Commission = toFixed4(discountPool * (1 - MIN_PLATFORM_RATE_V5) * l2Rank.l2 * l2Active * l2Recruit)
+        l2ActiveMult = l2Metrics.activeMult
+        l2RecruitMult = l2Metrics.recruitMult
+        if (l2ActiveMult > 0) {
+          l2Commission = toFixed4(discountPool * (1 - MIN_PLATFORM_RATE_V5) * l2Rank.l2 * l2ActiveMult * l2RecruitMult)
         }
+      }
+
+      // 商品级 L1/L2 gross：用整单人级系数 × 各商品 commission_pool；Σ = 整单 gross（金额口径不变）
+      for (const it of itemDetails) {
+        it.l1_gross = l1Metrics.activeMult > 0 ? toFixed4(it.commission_pool * l1Rank.l1 * l1Metrics.activeMult * l1Metrics.recruitMult) : 0
+        it.l2_gross = (l2UserId && l2UserId !== payer_id && l2ActiveMult > 0)
+          ? toFixed4(it.commission_pool * l2Rank.l2 * l2ActiveMult * l2RecruitMult) : 0
       }
 
       // 3) L1 佣金（剩余池 × 段位比例 × 活跃 × 拓新）
       const commissionPool = toFixed4(discountPool * (1 - MIN_PLATFORM_RATE_V5))  // V5：平台最低抽成10%，剩余池再分配
-      const l1Active = l1Metrics.activeMult
-      const l1Recruit = l1Metrics.recruitMult
+      l1Active = l1Metrics.activeMult
+      l1Recruit = l1Metrics.recruitMult
       let l1Commission = 0
       if (l1Active > 0) {
         l1Commission = toFixed4(commissionPool * l1Rank.l1 * l1Active * l1Recruit)
       }
 
-      // 4) 买家积分（基于买家近6月滚动段位）
-      const buyerMetrics = await fetchBeneficiaryMetrics(supabase, payer_id)
-      const buyerDynamicScore = calculateDynamicScore(buyerMetrics.rollingConsumption)
-      const buyerRank = getRankByScore(buyerDynamicScore)
-      const buyerPoints = toFixed4(commissionPool * buyerRank.points)
-
-      // 平台收入（让利池内抽成，平台对通道费/税费保持中性）
-      platformIncome = toFixed4(discountPool - l1Commission - l2Commission - buyerPoints)
+      // 平台收入（让利池内保底抽成）+ 防资损封顶缩放（与买家积分共享 commissionPool）
+      // 用户需求口径（2026-07-19）：平台从「让利池」保底抽 10%（MIN_PLATFORM_RATE_V5），
+      // 剩余 90%（commissionPool = 让利×0.90）再分给 L1/L2 佣金 + 买家确权积分。
+      // 封顶：段位系数×活跃×拓新可能使佣金总额超过 commissionPool → 平台留成被挤到 <10%；
+      // 故将 一级+二级佣金 上限封顶为 (commissionPool − 买家确权积分)，超出按比例缩放，
+      // 平台留成 = 让利池 − L1 − L2 − 买家积分，恒 ≥ 让利×10%（保底=下限，非恰好）。
+      const commTotalRaw = l1Commission + l2Commission
+      const capForComm = Math.max(0, toFixed4(commissionPool - bfFinal))
+      let commissionScale = 1
+      if (commTotalRaw > capForComm && commTotalRaw > 0) {
+        commissionScale = capForComm / commTotalRaw
+        l1Commission = toFixed4(l1Commission * commissionScale)
+        l2Commission = toFixed4(l2Commission * commissionScale)
+      }
+      platformIncome = Math.max(0, toFixed4(discountPool - l1Commission - l2Commission - bfFinal))
+      // 同一缩放因子应用到商品行，保证 Σ 商品行佣金 = 订单汇总（自洽）
+      for (const it of itemDetails) {
+        it.l1_gross = toFixed4(it.l1_gross * commissionScale)
+        it.l2_gross = toFixed4(it.l2_gross * commissionScale)
+      }
 
       // 用户侧：支付通道费 + 代扣个税均从佣金扣除（**由用户承担**，商家/平台不承担）
       userGrossCommission = toFixed4(l1Commission + l2Commission)
@@ -323,8 +404,7 @@ Deno.serve(async (req: Request) => {
         l1Commission,
         l2Rank: l2UserId ? l2Rank.rank : null,
         l2Commission,
-        buyerRank: buyerRank.rank,
-        buyerPoints,
+        bfFinal,
         platformIncome
       })
 
@@ -368,35 +448,41 @@ Deno.serve(async (req: Request) => {
           status: 'pending',
         })
       }
+    } else {
+      // 无上线直购：买家确权积分照发（上方已算），平台收全部未分配让利（= 让利池 − 买家积分）
+      const commissionPool = toFixed4(discountPool * (1 - MIN_PLATFORM_RATE_V5))
+      platformIncome = Math.max(0, toFixed4(discountPool - bfFinal))
+      console.log('[V5] 无上线直购：买家积分 + 平台管理费', { bfFinal, platformIncome, discountPool })
+    }
 
-      // 写入积分记录（买家获赠情绪豆）
-      if (buyerPoints > 0) {
-        const { data: payerProfile } = await supabase
-          .from('profiles')
-          .select('points')
-          .eq('id', payer_id)
-          .maybeSingle()
+    // ===== 买家确权积分落库（任何购买都写，含无上线）=====
+    if (bfFinal > 0) {
+      const { data: payerProfile } = await supabase
+        .from('profiles')
+        .select('points')
+        .eq('id', payer_id)
+        .maybeSingle()
 
-        const currentPoints = payerProfile?.points ?? 0
-        const newPoints = Math.round(buyerPoints)
-        const balanceAfter = currentPoints + newPoints
+      const currentPoints = payerProfile?.points ?? 0
+      const newPoints = bfFinal
+      const balanceAfter = toFixed4(currentPoints + newPoints)
 
-        await supabase.from('profiles').update({ points: balanceAfter }).eq('id', payer_id)
+      await supabase.from('profiles').update({ points: balanceAfter }).eq('id', payer_id)
 
-        pointsRows.push({
-          user_id: payer_id,
-          order_id,
-          type: 'purchase_earn',
-          delta: newPoints,
-          balance_after: balanceAfter,
-          remark: `订单${order_no}购物返积分（V5滚动段位算法）`,
-        })
-      }
+      pointsRows.push({
+        user_id: payer_id,
+        related_order_id: order_id,
+        type: 'purchase_earn',
+        amount: newPoints,
+        source: 'order_commission',
+      })
+    }
 
-      // 更新买家累计消费（终身，仅作滚动指标降级回退用；段位已改用近6月滚动）
+    // 更新买家累计消费（终身，仅作滚动指标降级回退用；段位已改用近6月滚动）——任何购买都更新
+    {
       const { data: buyerProfile } = await supabase
         .from('profiles')
-        .select('total_consumption')
+        .select('total_consumption, monthly_consumption')
         .eq('id', payer_id)
         .maybeSingle()
       if (buyerProfile) {
@@ -405,6 +491,62 @@ Deno.serve(async (req: Request) => {
           monthly_consumption: toFixed4((buyerProfile.monthly_consumption ?? 0) + cashBase),
         }).eq('id', payer_id)
       }
+    }
+
+    // 写商品级结算行（追溯/展示；Σ 商品行 = 订单汇总，金额自洽）。幂等：冲突跳过（UNIQUE(order_item_id)）。
+    // 任何购买都写：无上线时 L1/L2 为 0，买家积分与平台管理费照常记录，保证财务对账完整。
+    if (itemDetails.length > 0) {
+      try {
+        const cpTotal = itemDetails.reduce((s, it) => s + it.commission_pool, 0) || 1
+        let buyerAssigned = 0
+        const oicRows = itemDetails.map((it, idx) => {
+          let bp = 0
+          if (bfFinal > 0 && cpTotal > 0) {
+            bp = idx === itemDetails.length - 1
+              ? Math.max(0, toFixed4(bfFinal - buyerAssigned))
+              : Math.round((bfFinal * it.commission_pool) / cpTotal)
+            buyerAssigned += bp
+          }
+          const platI = toFixed4(it.discount_pool - it.l1_gross - it.l2_gross - bp)
+          return {
+            order_id,
+            order_item_id: it.order_item_id,
+            order_no,
+            product_id: it.product_id,
+            product_name: it.product_name,
+            price: it.price,
+            quantity: it.quantity,
+            item_total: it.item_total,
+            product_discount_rate: it.product_discount_rate,
+            effective_rate: it.product_discount_rate,
+            discount_amount: it.discount_pool,
+            discount_pool: it.discount_pool,
+            commission_pool: it.commission_pool,
+            l1_user_id: l1UserId,
+            l1_rank: l1UserId ? l1Rank.rank : null,
+            l1_ratio: l1UserId ? l1Rank.l1 : null,
+            l1_active_mult: l1Active,
+            l1_recruit_mult: l1Recruit,
+            l1_gross: it.l1_gross,
+            l1_commission: it.l1_gross,
+            l2_user_id: l2UserId,
+            l2_rank: (l2UserId && l2UserId !== payer_id) ? l2Rank.rank : null,
+            l2_ratio: (l2UserId && l2UserId !== payer_id) ? l2Rank.l2 : null,
+            l2_active_mult: l2ActiveMult,
+            l2_recruit_mult: l2RecruitMult,
+            l2_gross: it.l2_gross,
+            l2_commission: it.l2_gross,
+            buyer_points: bp,
+            platform_income: platI,
+            commission_distributed: true,
+            distributed_at: new Date().toISOString(),
+          }
+        })
+        const { error: oicErr } = await supabase
+          .from('order_item_commissions')
+          .upsert(oicRows, { onConflict: 'order_item_id' })
+        if (oicErr) console.warn('[V5] 写入 order_item_commissions 失败:', oicErr?.message)
+      } catch (e: any) { console.warn('[V5] 写入 order_item_commissions 异常:', e?.message) }
     }
 
     // 批量写入数据库
@@ -432,14 +574,14 @@ Deno.serve(async (req: Request) => {
           tb_balance: newTb,
         }).eq('id', uid)
 
-        // 情绪豆流水（合规要求：tb_balance 变动必须留账，便于对账与防资损）
+        // 情绪豆流水（tb_balance 变动必须留账，便于对账与防资损）
         supabase.from('tongbao_logs').insert({
           user_id: uid,
           order_id: order_id,
           type: 'commission_earn',
           delta: amt,
           balance_after: newTb,
-          remark: `订单${order_no}推广佣金（情绪豆）`,
+          remark: `订单${order_no}推广佣金（金豆）`,
         }).then(() => {}).catch((e: any) => {
           if ((e as any)?.code === '42P01' || (e as any)?.status === 404) {
             console.warn('[tongbao_logs] 表不存在(00096未执行)，佣金流水暂不记录')
@@ -451,14 +593,14 @@ Deno.serve(async (req: Request) => {
           body: {
             user_id: uid,
             type: 'commission_arrived',
-            title: '佣金到账（情绪豆）',
-            body: `订单 ${order_no} 的佣金 ${amt.toFixed(2)} 情绪豆已到账，可在平台内直接消费支付`,
-            order_id: order_id,
-            payload: {
-              order_no: order_no,
-              net_amount: amt.toFixed(2),
-              arrived_at: new Date().toLocaleString('zh-CN'),
-              remark: '佣金到账(情绪豆)',
+    title: '佣金到账（金豆）',
+    body: `订单 ${order_no} 的佣金 ${amt.toFixed(2)} 金豆已到账，可在平台内直接消费支付`,
+    order_id: order_id,
+    payload: {
+      order_no: order_no,
+      net_amount: amt.toFixed(2),
+      arrived_at: new Date().toLocaleString('zh-CN'),
+      remark: '佣金到账(金豆)',
               page: 'pages/my-promotion/index',
             },
           }
@@ -469,15 +611,24 @@ Deno.serve(async (req: Request) => {
     // 标记已分佣
     await supabase.from('orders').update({ commission_distributed: true }).eq('id', order_id)
 
-    // 持久化支付通道费 + 代扣税（便于财务对账）；列由迁移 00082/00083 添加，缺失时静默跳过
+    // 持久化支付通道费 + 代扣税 + 买家确权积分 + 平台保底收益（便于财务对账与前端展示）；
+    // 列由迁移 00082/00083/001XX 添加。曾因 buyerFinal 声明在 if(l1UserId) 块内、此处块外引用越界，
+    // 导致 update 静默失败（平台收益/买家积分未落库，靠迁移手动补）。已将 bfFinal 提升为函数级变量修复。
     try {
       await supabase.from('orders').update({
         channel_fee: channelFee,
         channel_fee_rate: CHANNEL_FEE_RATE,
         tax_withheld: taxWithheld,
+        // 真实一/二级佣金回写订单展示列（与 commissions 流水同源；覆盖前端 createOrderV2 的预算值，避免管理端看到陈旧错数）
+        l1_commission: commissionRows.find((c: any) => c.level === 1)?.commission_amount ?? 0,
+        l2_commission: commissionRows.find((c: any) => c.level === 2)?.commission_amount ?? 0,
+        // 买家确权积分写回订单（前端成交订单页直接读取 orders.buyer_points；下限 1  point避免大额定单错位为 0）
+        buyer_points: bfFinal,
+        // 平台收益落库：让利池 - L1 - L2 - 买家积分（封顶保底使其恒 ≥ 让利×10%，实际拿剩余；D0 决策 2026-07-20 读法B）
+        platform_income: platformIncome,
       }).eq('id', order_id)
     } catch (e: any) {
-      console.warn('[V5] 写入 channel_fee/tax_withheld 失败（可能未跑迁移00082/00083）:', e?.message)
+      console.warn('[V5] 写入 orders 分成结果失败（platform_income/buyer_points 等）:', e?.message)
     }
 
     return Response.json({
@@ -487,7 +638,7 @@ Deno.serve(async (req: Request) => {
       discount_pool: discountPool,
       l1_commission: commissionRows.find((c: any) => c.level === 1)?.commission_amount ?? 0,
       l2_commission: commissionRows.find((c: any) => c.level === 2)?.commission_amount ?? 0,
-      buyer_points: pointsRows[0]?.delta ?? 0,
+      buyer_points: pointsRows[0]?.amount ?? 0,
       channel_fee: channelFee,
       channel_fee_rate: CHANNEL_FEE_RATE,
       tax_withheld: taxWithheld,

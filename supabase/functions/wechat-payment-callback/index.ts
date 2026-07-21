@@ -126,14 +126,27 @@ Deno.serve(async (req: Request) => {
     try {
       const { data: itemRows } = await supabase
         .from('order_items')
-        .select('price, quantity, products(discount_rate)')
+        .select('price, quantity, product_id')
         .eq('order_id', order.id)
-      const items = (itemRows || []) as Array<{ price?: any; quantity?: any; products?: { discount_rate?: any } | null }>
+      const items = (itemRows || []) as Array<{ price?: any; quantity?: any; product_id?: string | null }>
+      const productIds = Array.from(new Set((items || []).map(it => it?.product_id).filter(Boolean))) as string[]
+      let rateMap: Record<string, number> = {}
+      if (productIds.length) {
+        const { data: prods } = await supabase
+          .from('products')
+          .select('id, discount_rate')
+          .in('id', productIds)
+        for (const p of (prods || []) as Array<{ id?: string; discount_rate?: any }>) {
+          if (p?.id) rateMap[p.id] = Number(p.discount_rate ?? 0)
+        }
+      }
       let totalAmt = 0, weightedSum = 0
       for (const it of items) {
         const amt = (Number(it.price) || 0) * (Number(it.quantity) || 0)
-        const pct = it?.products?.discount_rate
-        const pRate = (typeof pct === 'number' && pct > 0) ? pct / 100 : storeFallback
+        const pid = String(it?.product_id)
+        const pRate = (typeof rateMap[pid] === 'number' && rateMap[pid] > 0)
+          ? rateMap[pid] / 100
+          : storeFallback
         totalAmt += amt
         weightedSum += amt * pRate
       }
@@ -152,7 +165,7 @@ Deno.serve(async (req: Request) => {
           supabase.from('tongbao_logs').insert({
             user_id: order.user_id, order_id: order.id, type: 'purchase_spend',
             delta: -goldBeansUsed, balance_after: cur - goldBeansUsed,
-            remark: `订单${order.order_no}混合支付情绪豆抵扣`,
+            remark: `订单${order.order_no}混合支付金豆抵扣`,
           }).then(() => {}).catch(() => {})
         } else {
           console.warn('[wechat-payment-callback] 情绪豆不足，跳过扣减', { uid: order.user_id, cur, need: goldBeansUsed })
@@ -163,7 +176,9 @@ Deno.serve(async (req: Request) => {
     // 异步触发分润（不阻塞回调响应）
     // total_amount = 订单全额（含情绪豆），作为分佣/让利池基数（2026-07-19 起全额参与分佣）
     // net_amount = 实际微信现金支付额（扣除情绪豆抵扣后），仅用于计提微信收单通道费
-    const netCashAmount = Math.max(0, (order.total_amount ?? 0) - goldBeansUsed * 0.01)
+    const netCashAmount = Math.max(0, (order.total_amount ?? 0) - goldBeansUsed)
+    // 落库整单加权率（便于展示/追溯）
+    try { await supabase.from('orders').update({ effective_rate: effectiveRate }).eq('id', order.id) } catch {}
     supabase.functions.invoke('distribute-commission', {
       body: {
         order_id: order.id,
@@ -174,7 +189,11 @@ Deno.serve(async (req: Request) => {
         referrer_id: order.referrer_id ?? null,
         discount_rate: effectiveRate,  // 按商品自身让利点、金额加权混合率（小数口径），与前端支付页预览一致
       }
-    }).catch(e => console.error('[wechat-payment-callback] distribute-commission error:', e))
+    }).catch(async (e) => {
+      const msg = (e as any)?.message || String(e)
+      console.error('[wechat-payment-callback] distribute-commission error:', msg)
+      try { await supabase.from('orders').update({ commission_error: msg }).eq('id', order.id) } catch {}
+    })
 
     // 异步推送「订单支付成功」通知（不阻塞回调）
     supabase.functions.invoke('send-notification', {
