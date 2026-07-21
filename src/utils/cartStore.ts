@@ -4,7 +4,6 @@
 // 计数语义 = 购物车总件数（Σ quantity），最贴合「购物数量」心智。
 import { useState, useEffect } from 'react'
 import { getCartCount } from '@/db/api'
-import { updateCartBadge } from '@/utils/cartBadge'
 
 let count = 0
 const listeners = new Set<(c: number) => void>()
@@ -14,8 +13,8 @@ function emit(next: number) {
   listeners.forEach(fn => {
     try { fn(count) } catch { /* 忽略单个订阅异常 */ }
   })
-  // 同步底部 Tab 栏「行囊」徽标（index=3）
-  updateCartBadge().catch(() => {})
+  // 注：原生 TabBar 已被 hideTabBar 隐藏，徽标改由 CustomTabBar 订阅本 store 自行渲染（ctb-badge），
+  // 不再调用 Taro.setTabBarBadge（对隐藏 tabBar 无效，且会多发一次无效网络请求）。
 }
 
 export function getCartCountState(): number {

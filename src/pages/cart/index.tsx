@@ -4,7 +4,6 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
 import { getCartItems, updateCartQty, removeCartItem, updateCartSelected } from '@/db/api'
 import Icon from '@/components/Icon'
-import { updateCartBadge } from '@/utils/cartBadge'
 import { subscribeCartCount, bumpCartCount } from '@/utils/cartStore'
 import { setPendingCheckout } from '@/utils/checkoutCache'
 import { generateEmotionHeadline } from '@/utils/emotion-description'
@@ -26,7 +25,6 @@ function CartPage() {
     const data = await getCartItems()
     setItems(data)
     setLoading(false)
-    updateCartBadge()
   }, [user])
 
   useEffect(() => { loadCart() }, [loadCart])
@@ -65,7 +63,7 @@ function CartPage() {
     if (newQty <= 0) {
       await removeCartItem(id)
       bumpCartCount(-current) // 移除当前件数，徽标实时 -current
-      setItems(prev => { const next = prev.filter(i => i.id !== id); updateCartBadge(); return next })
+      setItems(prev => prev.filter(i => i.id !== id))
     } else {
       await updateCartQty(id, newQty)
       bumpCartCount(delta) // 件数变化，徽标实时 ±delta
@@ -80,7 +78,7 @@ function CartPage() {
       if (res.confirm) {
         await removeCartItem(id)
         bumpCartCount(-q) // 删除整行，徽标实时 -件数
-        setItems(prev => { const next = prev.filter(i => i.id !== id); updateCartBadge(); return next })
+        setItems(prev => prev.filter(i => i.id !== id))
       }
     }})
   }

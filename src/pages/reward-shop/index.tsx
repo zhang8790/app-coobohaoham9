@@ -141,7 +141,7 @@ export default function RewardShopPage() {
             stores.map(store => {
               const img = getStoreImage(store)
               return (
-              <View key={store.id} className="bg-card rounded-2xl overflow-hidden border border-border mb-2.5 flex gap-0"
+              <View key={store.id} className="bg-card rounded-2xl overflow-hidden border border-border mb-2 flex gap-0"
                 onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${store.id}` })}>
                 {failedImages.includes(store.id) || !img ? (
                   <StoreImagePlaceholder name={store.name} />
@@ -153,7 +153,7 @@ export default function RewardShopPage() {
                     mode="aspectFill"
                     className="flex-shrink-0 self-stretch" />
                 )}
-                <View className="flex-1 p-2.5 flex flex-col justify-between">
+                <View className="flex-1 p-2 flex flex-col justify-between">
                   <View>
                     <Text className="text-xl font-bold text-foreground">{store.name}</Text>
                     {store.category && (

@@ -26,7 +26,7 @@ const CARE_NAV = [
   { label: '自营甄选', emoji: '🛒', to: '/pages/explore/index' },
   { label: '品牌馆', emoji: '🏯', to: '/pages/reward-shop/index' },
   { label: '行囊好物', emoji: '🎒', to: '/pages/cart/index' },
-  { label: '我的关怀', emoji: '🦊', to: '/pages/user/index' },
+  { label: '我的关怀', emoji: '🌿', to: '/pages/user/index' },
 ]
 
 // 纯函数：把商品列表按"身体人群"分三档（直接吃 Product，零网络）
@@ -872,29 +872,31 @@ export default function IndexPage() {
       </View>
 
 
-      {/* 悬浮按钮组：右侧竖向 FAB，尺寸统一、国潮协调 */}
-      <View className="fixed bottom-24 right-3 flex flex-col items-end gap-3 z-50">
-        {/* 创作 */}
+      {/* 悬浮按钮组：右下角 FAB，扫码为主行动（赭红大圆），创作/游记为次级胶囊 */}
+      <View className="fixed bottom-24 right-3 flex flex-col items-end gap-2.5 z-50">
+        {/* 创作（次级） */}
         <View className="flex items-center gap-2" onClick={() => Taro.navigateTo({ url: '/pages/content-center/make/index' })} hoverClass="none">
-          <View className="px-3 py-1.5 rounded-full bg-card/90 text-foreground text-sm font-medium border border-border shadow-sm">{/* 文字标签 */}
+          <View className="px-3 py-1.5 rounded-full bg-card/95 text-foreground text-sm font-medium border border-border"
+            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.10)' }}>
             <Text className="text-sm text-foreground">创作</Text>
           </View>
-          <View className="w-11 h-11 rounded-full bg-card flex items-center justify-center border border-border"
-            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.12)' }}>
-            <Icon name="pencil" size={22} className="text-primary" />
+          <View className="w-9 h-9 rounded-full bg-card flex items-center justify-center border border-border"
+            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.10)' }}>
+            <Icon name="pencil" size={18} className="text-foreground" />
           </View>
         </View>
-        {/* UGC 游记 */}
+        {/* UGC 游记（次级） */}
         <View className="flex items-center gap-2" onClick={() => Taro.navigateTo({ url: '/pages/ugc-publish/index' })} hoverClass="none">
-          <View className="px-3 py-1.5 rounded-full bg-card/90 text-foreground text-sm font-medium border border-border shadow-sm">
+          <View className="px-3 py-1.5 rounded-full bg-card/95 text-foreground text-sm font-medium border border-border"
+            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.10)' }}>
             <Text className="text-sm text-foreground">游记</Text>
           </View>
-          <View className="w-11 h-11 rounded-full bg-card flex items-center justify-center border border-border"
-            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.12)' }}>
-            <Icon name="camera" size={22} className="text-foreground" />
+          <View className="w-9 h-9 rounded-full bg-card flex items-center justify-center border border-border"
+            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.10)' }}>
+            <Icon name="camera" size={18} className="text-foreground" />
           </View>
         </View>
-        {/* 扫码购物（主行动，赭红强调） */}
+        {/* 扫码购物（主行动，赭红大圆 + 强光晕） */}
         <View className="flex items-center gap-2" onClick={() => {
             Taro.scanCode({
               scanType: ['barCode', 'qrCode'],
@@ -904,16 +906,18 @@ export default function IndexPage() {
               fail: () => {},
             })
           }} hoverClass="none">
-          <View className="px-3 py-1.5 rounded-full bg-card/90 text-foreground text-sm font-medium border border-border shadow-sm">
-            <Text className="text-sm text-foreground">扫码</Text>
+          <View className="px-3 py-1.5 rounded-full bg-primary text-white text-sm font-semibold"
+            style={{ boxShadow: '0 4px 14px rgba(194,65,12,0.30)' }}>
+            <Text className="text-sm text-white">扫码</Text>
           </View>
-          <View className="w-11 h-11 rounded-full bg-primary flex items-center justify-center"
-            style={{ boxShadow: '0 4px 14px rgba(194,65,12,0.35)' }}>
-            <Icon name="barcode-scan" size={22} className="text-white" />
+          <View className="w-12 h-12 rounded-full bg-primary flex items-center justify-center"
+            style={{ boxShadow: '0 6px 20px rgba(194,65,12,0.45)' }}>
+            <Icon name="barcode-scan" size={24} className="text-white" />
           </View>
         </View>
-        <CustomTabBar />
       </View>
+      {/* 自定义底部导航：独立渲染（贴底全宽），不可嵌套在 FAB 容器内，否则行囊徽标在真机渲染异常 */}
+      <CustomTabBar />
     </View>
   )
 }
