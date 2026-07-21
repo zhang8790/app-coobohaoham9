@@ -38,7 +38,7 @@ function PieChart({ data }: { data: { name: string; value: number }[] }) {
             <path key={i} d={`M 60 60 L ${x1} ${y1} A 50 50 0 ${largeArc} 1 ${x2} ${y2} Z`} style={{ fill: colors[i % colors.length] }} />
           )
         })}
-        <circle cx="60" cy="60" r="25" fill="#111827" />
+        <circle cx="60" cy="60" r="25" fill="var(--surface-2)" />
       </svg>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {data.map((d, i) => (

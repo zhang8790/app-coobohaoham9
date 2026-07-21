@@ -20,14 +20,14 @@ const fmtMoney = (n: number) => `¥${fmt(n)}`
 const fmtDate = (s: string) => new Date(s).toLocaleString('zh-CN', { hour12: false })
 
 const POINT_TYPES: [string, string][] = [
-  ['purchase_earn', '消费得积分'], ['invite_earn', '邀请得积分'], ['checkin_earn', '签到得积分'],
-  ['ugc_earn', 'UGC得积分'], ['redeem_spend', '积分兑换'], ['pay_spend', '支付扣积分'],
-  ['lottery_spend', '抽奖扣积分'], ['refund_deduct', '退款扣积分'],
+  ['purchase_earn', '消费得金豆'], ['invite_earn', '邀请得金豆'], ['checkin_earn', '签到得金豆'],
+  ['ugc_earn', 'UGC得金豆'], ['redeem_spend', '金豆兑换'], ['pay_spend', '支付扣金豆'],
+  ['lottery_spend', '抽奖扣金豆'], ['refund_deduct', '退款扣金豆'],
 ]
 const ptLabel = (t: string) => POINT_TYPES.find(([k]) => k === t)?.[1] ?? t
 
 const REASONS: [string, string][] = [
-  ['emotion_claim', '情绪确权'], ['emotion_feed', '情绪喂养'], ['emotion_exchange', '通宝兑换'],
+  ['emotion_claim', '会员确权'], ['emotion_feed', '会员喂养'], ['emotion_exchange', '金豆兑换'],
   ['admin_adjust', '后台调整'],
 ]
 const reasonLabel = (r: string) => REASONS.find(([k]) => k === r)?.[1] ?? r
@@ -45,8 +45,8 @@ const gbLabel = (t: string) => GOLD_TYPES.find(([k]) => k === t)?.[1] ?? t
 
 type Tab = 'points' | 'emotion' | 'commission' | 'gold'
 const TABS: [Tab, string, string][] = [
-  ['points', '积分流水', 'points_logs'],
-  ['emotion', '金豆流水', 'emotion_tongbao_logs'],
+  ['points', '买家金豆流水', 'points_logs'],
+  ['emotion', '历史金豆流水', 'emotion_tongbao_logs'],
   ['commission', '佣金流水', 'commissions'],
   ['gold', '金豆流水', 'tongbao_logs'],
 ]
@@ -80,7 +80,7 @@ export default function Ledgers() {
           { key: 'order_id', label: '关联订单' }, { key: 'remark', label: '备注' },
         ]
         const rows = data.map(r => ({ ...r, type: ptLabel(r.type), created_at: fmtT(r.created_at) }))
-        downloadCSV(`积分流水_${csvTimestamp()}.csv`, rows as unknown as Record<string, unknown>[], cols)
+        downloadCSV(`买家金豆流水_${csvTimestamp()}.csv`, rows as unknown as Record<string, unknown>[], cols)
       } else if (tab === 'emotion') {
         const data = await exportEmotionLedger({ reason: type, keyword: kw })
         const cols: CsvColumn[] = [
@@ -90,7 +90,7 @@ export default function Ledgers() {
           { key: 'ref_id', label: '关联ID' }, { key: 'remark', label: '备注' },
         ]
         const rows = data.map(r => ({ ...r, reason: reasonLabel(r.reason), created_at: fmtT(r.created_at) }))
-        downloadCSV(`金豆流水_${csvTimestamp()}.csv`, rows as unknown as Record<string, unknown>[], cols)
+        downloadCSV(`历史金豆流水_${csvTimestamp()}.csv`, rows as unknown as Record<string, unknown>[], cols)
       } else if (tab === 'gold') {
         const data = await exportGoldBeanLedger({ type, keyword: kw })
         const cols: CsvColumn[] = [
@@ -159,8 +159,8 @@ export default function Ledgers() {
   if (tab === 'points' || tab === 'emotion' || tab === 'gold') {
     const inc = (rows as any[]).reduce((s, r) => s + (r.delta > 0 ? r.delta : 0), 0)
     const dec = (rows as any[]).reduce((s, r) => s + (r.delta < 0 ? -r.delta : 0), 0)
-    const incLabel = tab === 'points' ? '本页积分+ ' : tab === 'emotion' ? '本页通宝发放+ ' : '本页金豆+ '
-    const decLabel = tab === 'points' ? '本页积分− ' : tab === 'emotion' ? '本页通宝消耗− ' : '本页金豆− '
+    const incLabel = tab === 'points' ? '本页金豆+ ' : tab === 'emotion' ? '本页历史金豆发放+ ' : '本页金豆+ '
+    const decLabel = tab === 'points' ? '本页金豆− ' : tab === 'emotion' ? '本页历史金豆消耗− ' : '本页金豆− '
     kpis = [
       { label: '本页笔数', value: fmt(rows.length), color: C.text },
       { label: incLabel, value: fmt(inc), color: C.green },
@@ -182,10 +182,10 @@ export default function Ledgers() {
       {/* 标题 + 标签页 */}
       <div>
         <h1 style={{ color: C.text, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>资产流水中心</h1>
-        <p style={{ color: C.dim, fontSize: 14 }}>积分 / 金豆 / 佣金 / 金豆 — 全平台逐笔明细，与用户端同源</p>
+        <p style={{ color: C.dim, fontSize: 14 }}>买家金豆 / 历史金豆 / 佣金 / 金豆 — 全平台逐笔明细，与用户端同源</p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 12px', borderRadius: 8, background: isPrivileged ? 'var(--success-soft)' : 'var(--danger-soft)', border: `1px solid ${isPrivileged ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
           <span style={{ fontSize: 13, color: isPrivileged ? C.green : C.red }}>
-            {isPrivileged ? '✅ 已启用 service_role 特权客户端，可读取全平台流水' : '⚠️ 当前使用 anon 客户端，00081 加固后无法读取流水；请在 .env.local 配置 VITE_SUPABASE_SERVICE_ROLE_KEY'}
+            {isPrivileged ? '✅ 已启用特权客户端，可读取全平台流水' : '⚠️ 当前为只读模式，部分流水可能无法读取'}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
@@ -325,7 +325,7 @@ export default function Ledgers() {
                       )}
                     </div>
                   ) : tab === 'gold' ? (
-                    '暂无金豆流水（请先确认本机已执行 00096 迁移建 tongbao_logs 表，且小程序已写入）'
+                    '暂无金豆流水'
                   ) : (
                     '暂无流水数据'
                   )}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
-  getSelfStores, updateSelfStore, createSelfStore,
+  getSelfStores, updateSelfStore, createSelfStore, searchUsers,
   getSelfStoreProducts, createSelfStoreProduct, updateSelfStoreProduct,
   getSelfStoreOrders, getSelfStoreStats,
   type SelfStoreProduct, type SelfStoreOrder, type SelfStoreStats,
@@ -15,14 +15,14 @@ const FILTER_TABS = [
 ]
 
 const STORE_ORDER_STATUS: Record<string, { label: string; color: string }> = {
-  pending_pay: { label: '待支付', color: '#6B7280' },
-  pending_ship: { label: '待发货', color: '#F59E0B' },
-  pending_receive: { label: '待收货', color: '#F59E0B' },
-  pending_pickup: { label: '待核销', color: '#F59E0B' },
-  pending_review: { label: '待评价', color: '#3B82F6' },
-  completed: { label: '已完成', color: '#10B981' },
-  after_sale: { label: '售后', color: '#C2410C' },
-  cancelled: { label: '已取消', color: '#6B7280' },
+  pending_pay: { label: '待支付', color: 'var(--text-dim)' },
+  pending_ship: { label: '待发货', color: 'var(--warning)' },
+  pending_receive: { label: '待收货', color: 'var(--warning)' },
+  pending_pickup: { label: '待核销', color: 'var(--warning)' },
+  pending_review: { label: '待评价', color: 'var(--info)' },
+  completed: { label: '已完成', color: 'var(--success-strong)' },
+  after_sale: { label: '售后', color: 'var(--primary)' },
+  cancelled: { label: '已取消', color: 'var(--text-dim)' },
 }
 
 type StoreRow = {
@@ -44,6 +44,7 @@ const emptyStoreForm = {
   name: '', description: '', category: '生鲜', referral_rate_pct: 20,
   open_time: '08:00', close_time: '22:00', image_url: '', banner_url: '',
   referral_rate_enabled: true,
+  manager_keyword: '', manager_uid: '', manager_nickname: '', manager_phone: '',
 }
 
 const emptyProductForm = {
@@ -52,9 +53,9 @@ const emptyProductForm = {
 }
 
 const C = {
-  bg: '#0B0F19', card: '#0F172A', border: '#1F2937', text: '#E5E7EB',
-  sub: '#9CA3AF', dim: '#6B7280', accent: '#C2410C', green: '#10B981',
-  gold: '#F59E0B', blue: '#3B82F6', purple: '#8B5CF6',
+  bg: 'var(--bg)', card: 'var(--card)', border: 'var(--border)', text: 'var(--text)',
+  sub: 'var(--text-muted)', dim: 'var(--text-dim)', accent: 'var(--primary)', green: 'var(--success-strong)',
+  gold: 'var(--warning)', blue: 'var(--info)', purple: 'var(--accent)',
 }
 
 function fmtMoney(n: number) { return `¥${Number(n).toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` }
@@ -179,6 +180,7 @@ function StoreDetail({ store, onBack }: { store: StoreRow; onBack: () => void })
       open_time: store.open_time ?? '08:00', close_time: store.close_time ?? '22:00',
       image_url: store.image_url ?? '', banner_url: store.banner_url ?? '',
       referral_rate_enabled: store.referral_rate_enabled ?? true,
+      manager_keyword: '', manager_uid: '', manager_nickname: '', manager_phone: '',
     })
   }
   const save = async () => {
@@ -199,7 +201,7 @@ function StoreDetail({ store, onBack }: { store: StoreRow; onBack: () => void })
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <button onClick={onBack}
           style={{ padding: '7px 14px', background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.sub, cursor: 'pointer', fontSize: 13 }}>
-          ← 返回列表
+           返回列表
         </button>
         <h1 style={{ color: C.text, fontSize: 20, fontWeight: 700 }}>{store.name}</h1>
         <span style={badge(C.accent)}>{store.is_platform ? '自营' : '非自营'}</span>
@@ -456,6 +458,7 @@ function NewStoreButton({ onCreated }: { onCreated: () => void }) {
       name: form.name.trim(), description: form.description.trim() || undefined, category: form.category,
       referral_rate: Math.round(form.referral_rate_pct) / 100, open_time: form.open_time, close_time: form.close_time,
       image_url: form.image_url.trim() || undefined, banner_url: form.banner_url.trim() || undefined,
+      owner_id: form.manager_uid || undefined,
     })
     setSaving(false); setShow(false); onCreated()
   }
@@ -471,16 +474,25 @@ function NewStoreButton({ onCreated }: { onCreated: () => void }) {
           form={form} setForm={setForm}
           onCancel={() => setShow(false)} onSave={save}
           saving={saving}
-          hint="新建将自动标记为「自营」（探索页可见），owner 绑定平台主账号。"
+          showManager
+          hint="新建将自动标记为「自营」（探索页可见）。可绑定店长：店长将获得商家身份，登录小程序商家中心与后台即可管理本店；不绑定则归平台主账号代管。"
         />
       )}
     </>
   )
 }
 
-function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSave, saving, hint }: {
-  title?: string; form: any; setForm: any; onCancel: () => void; onSave: () => void; saving?: boolean; hint?: string
+function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSave, saving, hint, showManager }: {
+  title?: string; form: any; setForm: any; onCancel: () => void; onSave: () => void; saving?: boolean; hint?: string; showManager?: boolean
 }) {
+  const [mResults, setMResults] = useState<any[]>([])
+  const [mSearching, setMSearching] = useState(false)
+  const pickManager = (u: any) => { setForm({ ...form, manager_uid: u.id, manager_nickname: u.nickname, manager_phone: u.phone || '' }); setMResults([]) }
+  const searchManager = async () => {
+    setMSearching(true)
+    const r = await searchUsers(form.manager_keyword || '')
+    setMResults(r); setMSearching(false)
+  }
   return (
     <div style={overlayStyle}>
       <div style={modalStyle}>
@@ -523,10 +535,37 @@ function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSav
         </div>
         <Field label="店招图 URL"><input value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })} style={inputStyle} placeholder="https://..." /></Field>
         <Field label="横幅图 URL"><input value={form.banner_url} onChange={e => setForm({ ...form, banner_url: e.target.value })} style={inputStyle} placeholder="https://..." /></Field>
+        {showManager && (
+          <Field label="绑定店长（选填 · 店长可登录小程序商家中心与后台管理本店）">
+            {form.manager_nickname ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ color: C.text, fontSize: 14 }}>已绑定：{form.manager_nickname}{form.manager_phone ? `（${form.manager_phone}）` : ''}</span>
+                <button type="button" onClick={() => setForm({ ...form, manager_uid: '', manager_nickname: '', manager_phone: '' })} style={miniBtn}>更换</button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input value={form.manager_keyword} onChange={e => setForm({ ...form, manager_keyword: e.target.value })} style={inputStyle} placeholder="输入手机号或昵称搜索" />
+                  <button type="button" onClick={searchManager} disabled={mSearching} style={{ ...saveBtn, background: C.sub, whiteSpace: 'nowrap' }}>{mSearching ? '搜索中' : '搜索'}</button>
+                </div>
+                {mResults.length > 0 && (
+                  <div style={{ marginTop: 8, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' }}>
+                    {mResults.map((u: any) => (
+                      <div key={u.id} onClick={() => pickManager(u)}
+                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: `1px solid ${C.border}`, fontSize: 13, color: C.text }}>
+                        {u.nickname}{u.phone ? `（${u.phone}）` : ''}{u.role === 'merchant' ? ' · 已有商家身份' : ''}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </Field>
+        )}
         {hint && <p style={{ color: C.dim, fontSize: 12, margin: '0 0 16px' }}>{hint}</p>}
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
           <button onClick={onCancel} style={cancelBtn}>取消</button>
-          <button onClick={onSave} disabled={saving} style={{ ...saveBtn, background: saving ? '#7f1d1d' : C.accent, cursor: saving ? 'not-allowed' : 'pointer' }}>
+          <button onClick={onSave} disabled={saving} style={{ ...saveBtn, background: saving ? 'var(--primary-disabled)' : C.accent, cursor: saving ? 'not-allowed' : 'pointer' }}>
             {saving ? '保存中...' : '保存'}
           </button>
         </div>

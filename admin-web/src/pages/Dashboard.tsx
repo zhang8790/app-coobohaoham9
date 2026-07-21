@@ -74,9 +74,9 @@ export default function Dashboard() {
 
   const CARDS = [
     { label: '待审商家', key: 'merchants', color: 'var(--warning)', to: '/merchants', icon: 'store' },
-    { label: '待审商品', key: 'products', color: '#3B82F6', to: '/products', icon: 'box' },
+    { label: '待审商品', key: 'products', color: 'var(--info)', to: '/products', icon: 'box' },
     { label: '待审提现', key: 'withdrawals', color: 'var(--primary)', to: '/withdrawals', icon: 'dollar' },
-    { label: '文章总数', key: 'articles', color: '#8B5CF6', to: '/ugc', icon: 'news' },
+    { label: '文章总数', key: 'articles', color: 'var(--accent)', to: '/ugc', icon: 'news' },
     { label: '用户总数', key: 'users', color: 'var(--success-strong)', to: '/users', icon: 'user' },
     { label: '订单总数', key: 'orders', color: 'var(--text-dim)', to: '/dashboard', icon: 'document' },
   ]

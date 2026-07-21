@@ -11,7 +11,7 @@ const TAX_THRESHOLD = 800
 const calcWithholdingTax = (amt: number) => (amt > TAX_THRESHOLD ? (amt - TAX_THRESHOLD) * TAX_RATE : 0)
 const METHOD_LABELS: Record<string, string> = { bank: '银行转账', alipay: '支付宝', wechat: '微信零钱' }
 const STATUS_LABEL: Record<string, string> = { pending: '待审核', approved: '已通过', paid: '已打款', rejected: '已驳回' }
-const STATUS_COLOR: Record<string, string> = { pending: '#F59E0B', approved: '#3B82F6', paid: '#10B981', rejected: '#EF4444' }
+const STATUS_COLOR: Record<string, string> = { pending: 'var(--warning)', approved: 'var(--info)', paid: 'var(--success-strong)', rejected: 'var(--danger)' }
 const FILTERS: { key: string; label: string }[] = [
   { key: 'pending', label: '待审核' },
   { key: 'approved', label: '已通过' },
@@ -159,16 +159,16 @@ export default function Withdrawals() {
   const totalActual = totalAmount - totalTax
 
   const S = {
-    card: { background: '#0F172A', border: '1px solid #1F2937', borderRadius: 12 } as React.CSSProperties,
-    th: { color: '#6B7280', fontSize: 12, fontWeight: 500, padding: '10px 14px', textAlign: 'left' as const, background: '#0B0F19', whiteSpace: 'nowrap' as const },
-    td: { padding: '14px 14px', fontSize: 14, borderBottom: '1px solid #1F2937' } as React.CSSProperties,
+    card: { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12 } as React.CSSProperties,
+    th: { color: 'var(--text-dim)', fontSize: 12, fontWeight: 500, padding: '10px 14px', textAlign: 'left' as const, background: 'var(--bg)', whiteSpace: 'nowrap' as const },
+    td: { padding: '14px 14px', fontSize: 14, borderBottom: '1px solid var(--border)' } as React.CSSProperties,
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <h1 style={{ color: '#E5E7EB', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{kind === 'settlement' ? '货款兑付' : '佣金兑付'}</h1>
-        <p style={{ color: '#6B7280', fontSize: 14 }}>{kind === 'settlement' ? '商家货款提现审核 · 微信服务商分账直达' : '推广佣金提现审核'} · 当前筛选「{FILTERS.find(f => f.key === status)?.label}」共 {total} 条 · 合计 ¥{totalAmount.toFixed(2)}</p>
+        <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{kind === 'settlement' ? '货款兑付' : '佣金兑付'}</h1>
+        <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>{kind === 'settlement' ? `商家货款提现审核 · 微信服务商分账直达 · 当前筛选「${FILTERS.find(f => f.key === status)?.label}」共 ${total} 条 · 合计 ¥${totalAmount.toFixed(2)}` : `推广佣金提现审核 · 当前筛选「${FILTERS.find(f => f.key === status)?.label}」共 ${total} 条 · 合计 ¥${totalAmount.toFixed(2)}`}</p>
       </div>
 
       {/* 类型切换（佣金 / 货款） */}
@@ -176,9 +176,9 @@ export default function Withdrawals() {
         {KIND_TABS.map(k => (
           <button key={k.key} onClick={() => { setPage(0); setKind(k.key) }}
             style={{ padding: '8px 18px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
-              background: kind === k.key ? (k.key === 'settlement' ? '#10B981' : '#C2410C') : '#111827',
-              color: kind === k.key ? '#fff' : '#9CA3AF',
-              border: `1px solid ${kind === k.key ? (k.key === 'settlement' ? '#10B981' : '#C2410C') : '#1F2937'}` }}>
+              background: kind === k.key ? (k.key === 'settlement' ? 'var(--success-strong)' : 'var(--primary)') : 'var(--surface-2)',
+              color: kind === k.key ? '#fff' : 'var(--text-muted)',
+              border: `1px solid ${kind === k.key ? (k.key === 'settlement' ? 'var(--success-strong)' : 'var(--primary)') : 'var(--border)'}` }}>
             {k.label}
           </button>
         ))}
@@ -189,8 +189,8 @@ export default function Withdrawals() {
         {FILTERS.map(f => (
           <button key={f.key} onClick={() => { setPage(0); setStatus(f.key) }}
             style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              background: status === f.key ? '#C2410C' : '#111827', color: status === f.key ? '#fff' : '#9CA3AF',
-              border: `1px solid ${status === f.key ? '#C2410C' : '#1F2937'}` }}>
+              background: status === f.key ? 'var(--primary)' : 'var(--surface-2)', color: status === f.key ? '#fff' : 'var(--text-muted)',
+              border: `1px solid ${status === f.key ? 'var(--primary)' : 'var(--border)'}` }}>
             {f.label}
           </button>
         ))}
@@ -201,20 +201,20 @@ export default function Withdrawals() {
         const cards =
           kind === 'settlement'
             ? [
-                { label: '筛选条数', val: total, color: '#F59E0B' },
-                { label: '货款提现总额', val: `¥${totalAmount.toFixed(2)}`, color: '#10B981' },
-                { label: '说明', val: '含金豆垫付', color: '#A78BFA' },
+                { label: '筛选条数', val: total, color: 'var(--warning)' },
+                { label: '货款提现总额', val: `¥${totalAmount.toFixed(2)}`, color: 'var(--success-strong)' },
+                { label: '说明', val: '含金豆垫付', color: 'var(--accent-text)' },
               ]
             : [
-                { label: '筛选条数', val: total, color: '#F59E0B' },
-                { label: '提现总额', val: `¥${totalAmount.toFixed(2)}`, color: '#C2410C' },
-                { label: '应缴个税(20%)后预估', val: `¥${totalActual.toFixed(2)}`, color: '#10B981' },
+                { label: '筛选条数', val: total, color: 'var(--warning)' },
+                { label: '提现总额', val: `¥${totalAmount.toFixed(2)}`, color: 'var(--primary)' },
+                { label: '应缴个税(20%)后预估', val: `¥${totalActual.toFixed(2)}`, color: 'var(--success-strong)' },
               ]
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
             {cards.map(c => (
               <div key={c.label} style={{ ...S.card, padding: '16px 20px' }}>
-                <p style={{ color: '#6B7280', fontSize: 12, marginBottom: 6 }}>{c.label}</p>
+                <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 6 }}>{c.label}</p>
                 <p style={{ color: c.color, fontSize: 24, fontWeight: 700 }}>{c.val}</p>
               </div>
             ))}
@@ -224,9 +224,9 @@ export default function Withdrawals() {
 
       <div style={S.card}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#6B7280' }}>加载中...</div>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>加载中...</div>
         ) : list.length === 0 ? (
-          <div style={{ padding: 60, textAlign: 'center', color: '#6B7280' }}>暂无相关提现记录 ✓</div>
+          <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-dim)' }}>暂无相关提现记录 ✓</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 920 }}>
@@ -246,15 +246,15 @@ export default function Withdrawals() {
                   return (
                     <tr key={w.id}>
                       <td style={S.td}>
-                        <div style={{ color: '#E5E7EB', fontWeight: 600 }}>{maskName(realName)}</div>
-                        {prof?.nickname && <div style={{ color: '#6B7280', fontSize: 12 }}>{prof.nickname}</div>}
+                        <div style={{ color: 'var(--text)', fontWeight: 600 }}>{maskName(realName)}</div>
+                        {prof?.nickname && <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>{prof.nickname}</div>}
                       </td>
-                      <td style={{ ...S.td, color: '#9CA3AF' }}>{maskPhone(prof?.phone)}</td>
-                      <td style={{ ...S.td, color: '#C2410C', fontWeight: 700 }}>¥{Number(w.amount).toFixed(2)}</td>
-                      <td style={{ ...S.td, color: '#9CA3AF' }}>-¥{tax.toFixed(2)}</td>
-                      <td style={{ ...S.td, color: '#10B981', fontWeight: 700 }}>¥{actual.toFixed(2)}</td>
-                      <td style={{ ...S.td, color: '#9CA3AF' }}>{METHOD_LABELS[w.withdraw_method] || w.withdraw_method}</td>
-                      <td style={{ ...S.td, color: '#9CA3AF' }}>
+                      <td style={{ ...S.td, color: 'var(--text-muted)' }}>{maskPhone(prof?.phone)}</td>
+                      <td style={{ ...S.td, color: 'var(--primary)', fontWeight: 700 }}>¥{Number(w.amount).toFixed(2)}</td>
+                      <td style={{ ...S.td, color: 'var(--text-muted)' }}>-¥{tax.toFixed(2)}</td>
+                      <td style={{ ...S.td, color: 'var(--success-strong)', fontWeight: 700 }}>¥{actual.toFixed(2)}</td>
+                      <td style={{ ...S.td, color: 'var(--text-muted)' }}>{METHOD_LABELS[w.withdraw_method] || w.withdraw_method}</td>
+                      <td style={{ ...S.td, color: 'var(--text-muted)' }}>
                         {w.withdraw_method === 'bank' ? (w.bank_name || '—') : (w.withdraw_method === 'alipay' ? '支付宝' : w.withdraw_method === 'wechat' ? '微信' : '—')}
                       </td>
                       <td style={S.td}>
@@ -263,13 +263,13 @@ export default function Withdrawals() {
                         </span>
                       </td>
                       <td style={S.td}>
-                        <span style={{ color: w.kind === 'settlement' ? '#10B981' : '#C2410C', fontSize: 12, fontWeight: 600 }}>
+                        <span style={{ color: w.kind === 'settlement' ? 'var(--success-strong)' : 'var(--primary)', fontSize: 12, fontWeight: 600 }}>
                           {KIND_LABEL[w.kind || 'commission']}
                         </span>
                       </td>
                       <td style={S.td}>
                         <button onClick={() => openDetail(w)}
-                          style={{ padding: '5px 14px', background: '#1F2937', border: '1px solid #374151', borderRadius: 6, color: '#E5E7EB', cursor: 'pointer', fontSize: 12 }}>
+                          style={{ padding: '5px 14px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 6, color: 'var(--text)', cursor: 'pointer', fontSize: 12 }}>
                           查看
                         </button>
                       </td>
@@ -281,11 +281,11 @@ export default function Withdrawals() {
           </div>
         )}
         {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '16px 20px', borderTop: '1px solid #1F2937' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '16px 20px', borderTop: '1px solid var(--border)' }}>
             {Array.from({ length: totalPages }, (_, i) => (
               <button key={i} onClick={() => setPage(i)}
                 style={{ width: 32, height: 32, borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
-                  background: page === i ? '#C2410C' : '#1F2937', color: page === i ? '#fff' : '#9CA3AF' }}>
+                  background: page === i ? 'var(--primary)' : 'var(--border)', color: page === i ? '#fff' : 'var(--text-muted)' }}>
                 {i + 1}
               </button>
             ))}
@@ -298,11 +298,11 @@ export default function Withdrawals() {
         <div onClick={() => { setDrawerOpen(false); setSelected(null) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', justifyContent: 'flex-end', zIndex: 50 }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ width: 420, maxWidth: '92vw', height: '100%', background: '#0F172A', borderLeft: '1px solid #1F2937', padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            style={{ width: 420, maxWidth: '92vw', height: '100%', background: 'var(--card)', borderLeft: '1px solid var(--border)', padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ color: '#E5E7EB', fontSize: 18, fontWeight: 700 }}>提现详情</h2>
+              <h2 style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>提现详情</h2>
               <button onClick={() => { setDrawerOpen(false); setSelected(null) }}
-                style={{ background: 'transparent', border: 'none', color: '#6B7280', fontSize: 22, cursor: 'pointer' }}>×</button>
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: 22, cursor: 'pointer' }}>×</button>
             </div>
 
             <span style={{ color: STATUS_COLOR[selected.status], fontSize: 12, fontWeight: 600, padding: '3px 10px', background: `${STATUS_COLOR[selected.status]}22`, borderRadius: 4, alignSelf: 'flex-start' }}>
@@ -310,8 +310,8 @@ export default function Withdrawals() {
             </span>
 
             {/* 收款人实名信息 */}
-            <div style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <p style={{ color: '#9CA3AF', fontSize: 13, fontWeight: 600 }}>收款人信息（打款核对）</p>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 600 }}>收款人信息（打款核对）</p>
               <Field label="真实姓名" value={selected.real_name || selected.bank_holder || '—'} />
               <Field label="身份证号" value={maskIdCard(selected.id_card)} />
               <Field label="手机号" value={maskPhone((selected.profiles as any)?.phone)} />
@@ -321,7 +321,7 @@ export default function Withdrawals() {
             </div>
 
             {/* 金额 */}
-            <div style={{ background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <Field label="提现金额" value={`¥${Number(selected.amount).toFixed(2)}`} strong />
               {selected.kind === 'settlement' ? (
                 <>
@@ -341,10 +341,10 @@ export default function Withdrawals() {
 
             {/* 财务备注 */}
             <div>
-              <label style={{ color: '#9CA3AF', fontSize: 13, display: 'block', marginBottom: 8 }}>财务备注 / 打款批次号</label>
+              <label style={{ color: 'var(--text-muted)', fontSize: 13, display: 'block', marginBottom: 8 }}>财务备注 / 打款批次号</label>
               <textarea value={remark} onChange={e => setRemark(e.target.value)} rows={2}
                 placeholder="选填，随审核/打款记录保存"
-                style={{ width: '100%', padding: '10px 12px', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8, color: '#E5E7EB', fontSize: 13, outline: 'none', boxSizing: 'border-box', resize: 'vertical' }} />
+                style={{ width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box', resize: 'vertical' }} />
             </div>
 
             {/* 操作区：按状态展示 */}
@@ -352,11 +352,11 @@ export default function Withdrawals() {
               {selected.status === 'pending' && (
                 <>
                   <button disabled={processing === selected.id} onClick={() => handleApprove(selected)}
-                    style={{ padding: '12px', background: '#3B82F6', border: 'none', borderRadius: 8, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                    style={{ padding: '12px', background: 'var(--info)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                     审核通过
                   </button>
                   <button disabled={processing === selected.id} onClick={() => handleReject(selected)}
-                    style={{ padding: '12px', background: 'transparent', border: '1px solid #EF4444', borderRadius: 8, color: '#EF4444', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                    style={{ padding: '12px', background: 'transparent', border: '1px solid var(--danger)', borderRadius: 8, color: 'var(--danger)', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                     驳回申请
                   </button>
                 </>
@@ -364,17 +364,17 @@ export default function Withdrawals() {
               {selected.status === 'approved' && (
                 <>
                   <button disabled={processing === selected.id} onClick={() => handlePay(selected)}
-                    style={{ padding: '12px', background: '#10B981', border: 'none', borderRadius: 8, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                    style={{ padding: '12px', background: 'var(--success-strong)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                     {selected.kind === 'settlement' ? '执行分账打款' : '确认打款'}
                   </button>
                   <button disabled={processing === selected.id} onClick={() => handleReject(selected)}
-                    style={{ padding: '12px', background: 'transparent', border: '1px solid #EF4444', borderRadius: 8, color: '#EF4444', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                    style={{ padding: '12px', background: 'transparent', border: '1px solid var(--danger)', borderRadius: 8, color: 'var(--danger)', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
                     驳回申请
                   </button>
                 </>
               )}
               {(selected.status === 'paid' || selected.status === 'rejected') && (
-                <div style={{ textAlign: 'center', padding: '12px', color: '#6B7280', fontSize: 13 }}>
+                <div style={{ textAlign: 'center', padding: '12px', color: 'var(--text-dim)', fontSize: 13 }}>
                   该申请已{STATUS_LABEL[selected.status]}，流程结束。
                 </div>
               )}
@@ -389,8 +389,8 @@ export default function Withdrawals() {
 function Field({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-      <span style={{ color: '#9CA3AF', fontSize: 13, whiteSpace: 'nowrap' }}>{label}</span>
-      <span style={{ color: strong ? '#E5E7EB' : '#C9D1D9', fontSize: 14, fontWeight: strong ? 700 : 500, textAlign: 'right', wordBreak: 'break-all' }}>{value}</span>
+      <span style={{ color: 'var(--text-muted)', fontSize: 13, whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ color: strong ? 'var(--text)' : 'var(--text)', fontSize: 14, fontWeight: strong ? 700 : 500, textAlign: 'right', wordBreak: 'break-all' }}>{value}</span>
     </div>
   )
 }

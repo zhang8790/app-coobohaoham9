@@ -81,7 +81,7 @@ function FinanceTable({ o }: { o: FinanceOverview }) {
     { name: '推广佣金支出', val: o.commissionPaid, kind: 'money' },
     { name: '平台净收益', val: o.platformNet, kind: 'money' },
     { name: '金豆流通量', val: o.goldBeans, kind: 'num' },
-    { name: '积分流通量', val: o.points, kind: 'num' },
+    { name: '买家金豆流通量', val: o.points, kind: 'num' },
     { name: '金豆发放总量', val: o.tbTotal, kind: 'num' },
     { name: '贡献值 CV 总量', val: o.cvTotal, kind: 'num' },
   ]
@@ -232,7 +232,7 @@ export default function FinanceDashboard() {
         <Kpi label="金豆余额" value={fmt(o.goldBeans)} color={C.gold} sub="1金豆=1元" to="/ledgers" />
         <Kpi label="金豆累计发放" value={fmt(o.goldBeanIssued)} color={C.green} sub="tongbao_logs +" />
         <Kpi label="金豆累计消耗" value={fmt(o.goldBeanConsumed)} color={C.accent} sub="tongbao_logs −" />
-        <Kpi label="积分流通量" value={fmt(o.points)} color={C.blue} />
+        <Kpi label="买家金豆流通量" value={fmt(o.points)} color={C.blue} />
         <Kpi label="金豆发放总量" value={fmt(o.tbTotal)} color={C.purple} to="/emotion-claims" />
         <Kpi label="贡献值 CV 总量" value={fmt(o.cvTotal)} color={C.green} />
       </Section>
@@ -321,13 +321,13 @@ export default function FinanceDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
             <DonutChart data={[
               { label: '金豆', value: o.goldBeans, color: C.gold },
-              { label: '积分', value: o.points, color: C.blue },
+              { label: '买家金豆', value: o.points, color: C.blue },
               { label: '金豆', value: o.tbTotal, color: C.purple },
               { label: '贡献值CV', value: o.cvTotal, color: C.green },
             ]} centerLabel="资产\n总览" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
               <Legend color={C.gold} label="金豆 (1=1元)" value={fmt(o.goldBeans)} />
-              <Legend color={C.blue} label="积分" value={fmt(o.points)} />
+              <Legend color={C.blue} label="买家金豆" value={fmt(o.points)} />
               <Legend color={C.purple} label="金豆" value={fmt(o.tbTotal)} />
               <Legend color={C.green} label="贡献值 CV" value={fmt(o.cvTotal)} />
             </div>
@@ -417,7 +417,7 @@ function exportFinanceTable(o: FinanceOverview) {
     { 指标: '推广佣金支出', 数值: o.commissionPaid, 占累计消费额比: ((o.commissionPaid / gmv) * 100).toFixed(2) + '%' },
     { 指标: '平台净收益', 数值: o.platformNet, 占累计消费额比: ((o.platformNet / gmv) * 100).toFixed(2) + '%' },
     { 指标: '金豆流通量', 数值: o.goldBeans, 占累计消费额比: '—' },
-    { 指标: '积分流通量', 数值: o.points, 占累计消费额比: '—' },
+    { 指标: '买家金豆流通量', 数值: o.points, 占累计消费额比: '—' },
     { 指标: '金豆发放总量', 数值: o.tbTotal, 占累计消费额比: '—' },
     { 指标: '贡献值 CV 总量', 数值: o.cvTotal, 占累计消费额比: '—' },
   ]

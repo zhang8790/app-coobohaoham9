@@ -117,7 +117,7 @@ export default function Login() {
             marginBottom: 16,
           }}>
             <div style={{
-              width: 42, height: 42, background: 'linear-gradient(135deg, #C2410C, #EA580C)',
+              width: 42, height: 42, background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
               borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 18px rgba(194,65,12,0.35)',
             }}>
@@ -130,7 +130,7 @@ export default function Login() {
             <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 20 }}>来电有喜</span>
           </div>
           <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, margin: 0 }}>欢迎回来</h1>
-          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>商家管理中心</p>
+          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>管理后台登录</p>
         </div>
 
         {/* 登录方式切换 */}

@@ -26,7 +26,7 @@ export type NatureLevel = typeof NATURE_SCALE[number]
 export const BODY_CROWD_OPTIONS = [
   '宫寒量少', '经期量大', '喉咙肿痛', '易上火', '体虚怕冷', '痛风', '脾胃虚寒',
 ] as const
-// 健康状况（疾病/慢病人群）：仅作食养参考匹配维度，严禁"治疗/降血压"等医疗宣称
+// 健康状况（疾病/慢病人群）：仅作食养参考匹配维度，不含「治疗/降血压」等医疗表述
 export const HEALTH_CROWD_OPTIONS = [
   '高血压', '高血糖', '高血脂', '肠胃虚弱', '失眠', '免疫力低',
 ] as const

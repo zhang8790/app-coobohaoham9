@@ -98,7 +98,7 @@ const STATUS_LABEL: Record<string, string> = {
 }
 const STATUS_COLOR: Record<string, string> = {
   pending_pay: 'var(--warning)', pending_ship: 'var(--primary)', pending_receive: 'var(--info)',
-  pending_pickup: 'var(--accent)', completed: 'var(--success-strong)', refund: 'var(--danger)', shipped: '#06B6D4',
+  pending_pickup: 'var(--accent)', completed: 'var(--success-strong)', refund: 'var(--danger)', shipped: 'var(--info)',
 }
 
 const LEVEL_COLOR: Record<string, string> = {
@@ -142,7 +142,7 @@ export default function MerchantMembers() {
         {[
           { label: '会员总数', value: totalMembers, color: 'var(--accent)' },
           { label: '会员总消费', value: `¥${totalSpent.toLocaleString()}`, color: 'var(--warning)' },
-          { label: '跨店消费会员', value: crossStoreCount, color: '#06B6D4' },
+          { label: '跨店消费会员', value: crossStoreCount, color: 'var(--info)' },
           { label: '跨店流水占比', value: `${Math.round(members.reduce((s, m) => s + m.other_orders, 0) / members.reduce((s, m) => s + m.total_orders, 0) * 100)}%`, color: 'var(--accent)' },
         ].map(c => (
           <div key={c.label} style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 16px', border: '1px solid var(--border)' }}>
@@ -200,7 +200,7 @@ export default function MerchantMembers() {
             {/* 会员信息头部 */}
             <div style={{ padding: 20, borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-                <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#05966922', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--success-strong)22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span style={{ fontSize: 28 }}>👤</span>
                 </div>
                 <div style={{ flex: 1 }}>
@@ -216,7 +216,7 @@ export default function MerchantMembers() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
                 {[
                   { label: '累计消费', value: `¥${selected.total_spent.toLocaleString()}`, color: 'var(--warning)' },
-                  { label: '累计订单', value: `${selected.total_orders} 单`, color: '#06B6D4' },
+                  { label: '累计订单', value: `${selected.total_orders} 单`, color: 'var(--info)' },
                   { label: '本店消费', value: `${selected.store_orders} 单`, color: 'var(--success-strong)' },
                   { label: '跨店消费', value: `${selected.other_orders} 单`, color: 'var(--accent)' },
                 ].map(c => (
@@ -326,7 +326,7 @@ export default function MerchantMembers() {
       {/* 未选中时的提示 */}
       {!selected && (
         <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', padding: 60, textAlign: 'center', marginTop: 16 }}>
-          <p style={{ color: 'var(--text-dim)', fontSize: 16, margin: 0 }}>← 请在左侧选择会员，查看详细信息及跨店消费流水</p>
+          <p style={{ color: 'var(--text-dim)', fontSize: 16, margin: 0 }}> 请在左侧选择会员，查看详细信息及跨店消费流水</p>
         </div>
       )}
     </div>

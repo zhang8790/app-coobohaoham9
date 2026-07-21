@@ -102,7 +102,6 @@ export default function Members() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ color: C.text, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>会员明细</h1>
-          <p style={{ color: C.dim, fontSize: 14 }}>会员 ID · 手机号 · 上线 · 注册时间 · 地址 · 积分 · 金豆</p>
         </div>
         <input
           placeholder="搜索手机号 / 昵称"
@@ -117,7 +116,7 @@ export default function Members() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--surface)', borderBottom: `1px solid ${C.border}` }}>
-              {['会员ID', '昵称/手机号', '上线', '段位', '注册时间', '地址', '积分', '金豆', '状态'].map(h => (
+              {['会员ID', '昵称/手机号', '上线', '段位', '注册时间', '地址', '买家金豆', '金豆', '状态'].map(h => (
                 <th key={h} style={{ color: C.dim, fontWeight: 500, padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -210,7 +209,7 @@ export default function Members() {
                       </label>
                     ))}
                     <button onClick={doSetReferrer} disabled={!refSelected || refBusy}
-                      style={{ background: C.accent, color: '#06121F', fontWeight: 700, borderRadius: 8, padding: '10px 0', fontSize: 14, cursor: (!refSelected || refBusy) ? 'not-allowed' : 'pointer', opacity: (!refSelected || refBusy) ? 0.6 : 1 }}>
+                      style={{ background: C.accent, color: 'var(--bg)', fontWeight: 700, borderRadius: 8, padding: '10px 0', fontSize: 14, cursor: (!refSelected || refBusy) ? 'not-allowed' : 'pointer', opacity: (!refSelected || refBusy) ? 0.6 : 1 }}>
                       {refBusy ? '处理中…' : `确认调到 ${refSelected?.nickname ?? ''} 名下`}
                     </button>
                   </div>
@@ -247,19 +246,19 @@ export default function Members() {
                 <input value={adjReason} onChange={e => setAdjReason(e.target.value)} placeholder="原因（如：活动奖励 / 客服补偿）"
                   style={{ background: 'var(--surface)', border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, padding: '10px 12px', fontSize: 13 }} />
                 <button onClick={doAdjust} disabled={adjBusy}
-                  style={{ background: adjDir === 'grant' ? C.green : 'var(--danger)', color: '#06121F', fontWeight: 700, borderRadius: 8, padding: '10px 0', fontSize: 14, cursor: adjBusy ? 'not-allowed' : 'pointer', opacity: adjBusy ? 0.6 : 1 }}>
+                  style={{ background: adjDir === 'grant' ? C.green : 'var(--danger)', color: 'var(--bg)', fontWeight: 700, borderRadius: 8, padding: '10px 0', fontSize: 14, cursor: adjBusy ? 'not-allowed' : 'pointer', opacity: adjBusy ? 0.6 : 1 }}>
                   {adjBusy ? '处理中…' : `确认${adjDir === 'grant' ? '发放' : '扣减'}`}
                 </button>
                 {adjMsg && (
                   <p style={{ fontSize: 12, color: adjMsg.ok ? C.green : 'var(--danger-text)' }}>{adjMsg.ok ? '✅ ' : '⚠️ '}{adjMsg.text}</p>
                 )}
-                <p style={{ fontSize: 11, color: C.dim }}>写入 tongbao_logs 并同步 profiles.tb_balance（金豆消费余额，与「用户管理-充值」同一字段）；扣减不会使余额低于 0。</p>
+                <p style={{ fontSize: 11, color: C.dim }}>扣减不会使余额低于 0。</p>
               </div>
             )}
 
             <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600, margin: '20px 0 12px' }}>金豆明细（emotion_claims）</h3>
             {detail.data.emotionClaims.length === 0 ? (
-              <p style={{ color: C.dim, fontSize: 13 }}>该会员暂无情绪确权记录</p>
+              <p style={{ color: C.dim, fontSize: 13 }}>该会员暂无会员确权记录</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
@@ -299,7 +298,7 @@ function ProfileBlock({ d }: { d: { row: MemberRow; data: MemberDetail } }) {
     ['段位', r.member_rank],
     ['注册时间', fmtDate(r.created_at)],
     ['地址', maskAddress(r.address)],
-    ['积分', fmt(r.points)],
+    ['买家金豆', fmt(r.points)],
     ['金豆余额', fmt(r.tb_balance)],
     ['下单次数', fmt(d.data.orderCount)],
     ['金豆发放笔数', fmt(d.data.emotionClaims.length)],

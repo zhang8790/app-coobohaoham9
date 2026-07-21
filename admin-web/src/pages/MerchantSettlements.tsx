@@ -131,7 +131,7 @@ export default function MerchantSettlements() {
                     <td style={{ ...S.td, color: 'var(--text-dim)' }}>-{yuan(r.channel_fee)}</td>
                     <td style={{ ...S.td, color: 'var(--success-strong)', fontWeight: 700 }}>{yuan(r.settle_amount)}</td>
                     <td style={S.td}>
-                      <span style={{ color: STATUS_COLOR[r.status] || 'var(--text-muted)', fontSize: 12, fontWeight: 600, padding: '2px 8px', background: STATUS_BG[r.status] || '#6B728022', borderRadius: 4 }}>
+                      <span style={{ color: STATUS_COLOR[r.status] || 'var(--text-muted)', fontSize: 12, fontWeight: 600, padding: '2px 8px', background: STATUS_BG[r.status] || 'var(--text-dim)22', borderRadius: 4 }}>
                         {STATUS_LABEL[r.status] || r.status}
                       </span>
                     </td>
@@ -157,7 +157,7 @@ export default function MerchantSettlements() {
 
       <div style={{ padding: '14px 18px', borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.8 }}>
         <strong style={{ color: 'var(--text)' }}>资金下发与安全说明：</strong><br />
-        · 真实打款走「微信支付服务商分账」模式，资金直达商家子商户号（stores.wx_sub_mch_id），平台不池化销售款，规避二清红线。<br />
+        · 真实打款走「微信支付服务商分账」模式，资金直达商家子商户号（stores.wx_sub_mch_id），平台不池化销售款。<br />
         · 金豆支付部分由平台以自有资金垫付（用户充值时平台已收 RMB），货款仍按 1:1 等值计入，不要求商家持有/接收金豆。<br />
         · 如门店未配置子商户号或微信证书未配置，分账将返回 NEED_SUB_MCH / NEED_CONFIG，需平台以自有资金经银行转账完成（审核页「执行分账打款」会提示）。<br />
         · 三者严格隔离：金豆(tb_balance) 不可提现、推广佣金(commission_balance) 可提现、商家货款(merchant_balance) 可提现，互相不混用。

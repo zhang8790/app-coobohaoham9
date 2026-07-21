@@ -57,8 +57,8 @@ function RequireAuth({ children, requireAdmin = false, requireMerchant = false }
   const { profile, loading } = useAuth()
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0B0F19' }}>
-      <div style={{ color: '#9CA3AF', fontSize: 16 }}>加载中...</div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+      <div style={{ color: 'var(--text-muted)', fontSize: 16 }}>加载中...</div>
     </div>
   )
   if (!profile) return <Navigate to="/login" replace />
@@ -83,8 +83,8 @@ function RequireAuth({ children, requireAdmin = false, requireMerchant = false }
 function RoleRouter() {
   const { profile, loading } = useAuth()
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0B0F19' }}>
-      <div style={{ color: '#9CA3AF', fontSize: 16 }}>加载中...</div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+      <div style={{ color: 'var(--text-muted)', fontSize: 16 }}>加载中...</div>
     </div>
   )
   if (!profile) return <Navigate to="/login" replace />

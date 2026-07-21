@@ -263,7 +263,7 @@ export default function BehaviorAnalytics() {
       {/* 触发闭环 */}
       <div style={cardStyle}>
         <h3 style={{ color: C.text, fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>触发规则 · 数据回流闭环</h3>
-        <p style={{ color: C.dim, fontSize: 12, margin: '0 0 12px' }}>命中即「执行关怀」：写入 notifications，由订阅消息触达用户端（不直接动资金，合规安全）。</p>
+        <p style={{ color: C.dim, fontSize: 12, margin: '0 0 12px' }}>命中即「执行关怀」：写入 notifications，由订阅消息触达用户端（不直接动资金）。</p>
         <TriggerPanel triggers={report.triggers} onCare={onCare} caring={caring} />
       </div>
 

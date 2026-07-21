@@ -79,7 +79,7 @@ export default function MerchantLayout() {
           onClick={() => setCollapsed(v => !v)}
           style={{ margin: '8px', padding: '8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-dim)', cursor: 'pointer', fontSize: 12 }}
         >
-          {collapsed ? '→' : '← 收起'}
+          {collapsed ? '→' : ' 收起'}
         </button>
       </aside>
 

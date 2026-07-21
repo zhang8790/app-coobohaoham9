@@ -9,10 +9,10 @@ import {
   type ProductWithEmotion,
 } from '@/api/merchant'
 
-const CARD = '#111827'
-const BORDER = '#1F2937'
-const muted = '#6B7280'
-const fg = '#E5E7EB'
+const CARD = 'var(--surface-2)'
+const BORDER = 'var(--border)'
+const muted = 'var(--text-dim)'
+const fg = 'var(--text)'
 
 export default function EmotionFunnel() {
   const { profile, useMock } = useAuth()
@@ -54,9 +54,9 @@ export default function EmotionFunnel() {
   }
 
   const stages = [
-    { key: 'enter', label: '进入情绪之旅', value: summary.enter, color: '#6366F1' },
-    { key: 'reachedEnd', label: '滑到信任闭环屏', value: summary.reachedEnd, color: '#0EA5E9' },
-    { key: 'cta', label: '点击「立即拥有」', value: summary.cta, color: '#10B981' },
+    { key: 'enter', label: '进入情绪之旅', value: summary.enter, color: 'var(--accent)' },
+    { key: 'reachedEnd', label: '滑到信任闭环屏', value: summary.reachedEnd, color: 'var(--info)' },
+    { key: 'cta', label: '点击「立即拥有」', value: summary.cta, color: 'var(--success-strong)' },
   ]
   const maxVal = Math.max(1, ...stages.map((s) => s.value))
 
@@ -69,7 +69,7 @@ export default function EmotionFunnel() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {([7, 30] as const).map((d) => (
-            <button key={d} onClick={() => setDays(d)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer', border: `1px solid ${days === d ? '#6366F1' : BORDER}`, background: days === d ? '#1E293B' : 'transparent', color: days === d ? '#A5B4FC' : muted }}>
+            <button key={d} onClick={() => setDays(d)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer', border: `1px solid ${days === d ? 'var(--accent)' : BORDER}`, background: days === d ? 'var(--border-soft)' : 'transparent', color: days === d ? 'var(--accent-text)' : muted }}>
               近{d}天
             </button>
           ))}
@@ -88,7 +88,7 @@ export default function EmotionFunnel() {
                   <span style={{ color: fg, fontSize: 14 }}>{s.label}</span>
                   <span style={{ color: s.color, fontSize: 14, fontWeight: 700 }}>{s.value} 次</span>
                 </div>
-                <div style={{ height: 22, background: '#1F2937', borderRadius: 6, overflow: 'hidden' }}>
+                <div style={{ height: 22, background: 'var(--border)', borderRadius: 6, overflow: 'hidden' }}>
                   <div style={{ width: `${(s.value / maxVal) * 100}%`, height: '100%', background: s.color, borderRadius: 6, transition: 'width 0.4s' }} />
                 </div>
                 {i < stages.length - 1 && (
@@ -100,7 +100,7 @@ export default function EmotionFunnel() {
             ))}
             <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: muted, fontSize: 13 }}>整体进入→购买转化率</span>
-              <span style={{ color: '#10B981', fontSize: 20, fontWeight: 800 }}>{summary.overallRate}%</span>
+              <span style={{ color: 'var(--success-strong)', fontSize: 20, fontWeight: 800 }}>{summary.overallRate}%</span>
             </div>
           </div>
 
@@ -116,13 +116,13 @@ export default function EmotionFunnel() {
                   <div key={b.productId} style={{ marginBottom: 16 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span style={{ color: fg, fontSize: 13 }}>{nameMap[b.productId] || '未知商品'}</span>
-                      <span style={{ color: '#10B981', fontSize: 12 }}>购买 {b.cta}</span>
+                      <span style={{ color: 'var(--success-strong)', fontSize: 12 }}>购买 {b.cta}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
                       {[
-                        { v: b.enter, c: '#6366F1' },
-                        { v: b.reachedEnd, c: '#0EA5E9' },
-                        { v: b.cta, c: '#10B981' },
+                        { v: b.enter, c: 'var(--accent)' },
+                        { v: b.reachedEnd, c: 'var(--info)' },
+                        { v: b.cta, c: 'var(--success-strong)' },
                       ].map((seg, si) => (
                         <div key={si} style={{ flex: seg.v / m, minWidth: 4, height: 8, background: seg.c, borderRadius: 2 }} />
                       ))}

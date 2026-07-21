@@ -202,7 +202,7 @@ export default function MerchantOrders() {
                     <p style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600 }}>{order.product_name}</p>
                     <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>x{order.quantity} · ¥{order.price}</p>
                     <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 4 }}>
-                      {order.orders.delivery_type === 'delivery' ? '🚚 配送' : order.orders.delivery_type === 'dine_in' ? '🏪 堂食' : '🚶 自取'}
+                      {order.orders.delivery_type === 'delivery' ? ' 配送' : order.orders.delivery_type === 'dine_in' ? ' 堂食' : ' 自取'}
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>

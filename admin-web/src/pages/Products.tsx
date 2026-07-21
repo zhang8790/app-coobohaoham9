@@ -48,7 +48,7 @@ export default function Products() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>宝贝审阅</h1>
+        <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>商品审阅</h1>
         <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>待上架商品审核 · 共 {total} 件待审</p>
       </div>
 
@@ -195,7 +195,7 @@ export default function Products() {
                             <span key={a} style={{ padding: '2px 8px', background: 'var(--info-soft)', border: '1px solid var(--info)', borderRadius: 6, color: 'var(--info-text)', fontSize: 11 }}>人群·{a}</span>
                           ))}
                           {e.scenarios.map(s => (
-                            <span key={s} style={{ padding: '2px 8px', background: '#F59E0B18', border: '1px solid var(--warning)', borderRadius: 6, color: 'var(--warning)', fontSize: 11 }}>场景·{s}</span>
+                            <span key={s} style={{ padding: '2px 8px', background: 'var(--warning)18', border: '1px solid var(--warning)', borderRadius: 6, color: 'var(--warning)', fontSize: 11 }}>场景·{s}</span>
                           ))}
                         </div>
                       </div>

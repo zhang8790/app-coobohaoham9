@@ -5,10 +5,10 @@ import { NavIcon } from './icons'
 
 const NAV = [
   { to: '/dashboard', icon: 'grid', label: '仪表盘' },
-  { to: '/merchants', icon: 'store', label: '门派大典' },
-  { to: '/products', icon: 'box', label: '宝贝审阅' },
+  { to: '/merchants', icon: 'store', label: '商家入驻' },
+  { to: '/products', icon: 'box', label: '商品审阅' },
   { to: '/withdrawals', icon: 'dollar', label: '佣金兑付' },
-  { to: '/ugc', icon: 'news', label: '武林贴管理' },
+  { to: '/ugc', icon: 'news', label: 'UGC管理' },
   { to: '/users', icon: 'user', label: '用户管理' },
   { to: '/refunds', icon: 'refund', label: '退款管理' },
   { to: '/announcements', icon: 'megaphone', label: '公告管理' },
@@ -92,7 +92,7 @@ export default function Layout() {
           onClick={() => setCollapsed(v => !v)}
           style={{ margin: '8px', padding: '8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-dim)', cursor: 'pointer', fontSize: 12 }}
         >
-          {collapsed ? '→' : '← 收起'}
+          {collapsed ? '→' : ' 收起'}
         </button>
       </aside>
 

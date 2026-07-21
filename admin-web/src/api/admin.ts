@@ -157,7 +157,7 @@ async function generateUniqueShortCode(): Promise<string> {
   return `LD${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 }
 
-export async function approveApplication(id: string): Promise<boolean> {
+export async function approveApplication(id: string, assignToExplore: boolean = false): Promise<boolean> {
   return safeQuery(
     async () => {
       // 1. 获取申请信息
@@ -196,6 +196,7 @@ export async function approveApplication(id: string): Promise<boolean> {
           category: app.business_type || '其他',
           is_active: true,
           rating: 0,
+          is_platform: assignToExplore,
         })
       
       if (storeError) {
@@ -559,11 +560,14 @@ export async function createSelfStore(input: {
   name: string; description?: string; category: string; referral_rate: number
   open_time?: string; close_time?: string; image_url?: string; banner_url?: string
   referral_rate_enabled?: boolean
+  owner_id?: string   // 店长账号 uid；不传则归平台主账号（兼容旧行为）
 }): Promise<boolean> {
   return safeQuery(async () => {
+    // 店长自治：owner 放宽为指定店长，每家自营店可绑定独立店长账号
+    const ownerId = input.owner_id || PLATFORM_OWNER_ID
     const shortCode = await generateUniqueShortCode()
     const { error } = await supabase.from('stores').insert({
-      owner_id: PLATFORM_OWNER_ID,
+      owner_id: ownerId,
       name: input.name,
       description: input.description || null,
       category: input.category,
@@ -580,9 +584,29 @@ export async function createSelfStore(input: {
       banner_url: input.banner_url || null,
     })
     if (error) { console.error('[createSelfStore] 失败:', error); return false }
+    // 指定了店长 -> 自动赋予 merchant 角色，使其可登录小程序商家中心 + admin-web 商家后台管理本店
+    if (input.owner_id) {
+      await supabase.from('profiles').update({ role: 'merchant' }).eq('id', input.owner_id)
+    }
     return true
   }, true)
 }
+
+/** 搜索用户（按手机号/昵称），用于自营店绑定店长 */
+export async function searchUsers(keyword: string, limit = 20): Promise<Profile[]> {
+  const kw = (keyword || '').trim()
+  if (!kw) return []
+  return safeQuery(async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, nickname, phone, avatar_url, role')
+      .or(`nickname.ilike.%${kw}%,phone.ilike.%${kw}%`)
+      .limit(limit)
+    if (error) { console.error('[searchUsers]', error); return [] }
+    return (data as Profile[]) || []
+  }, [])
+}
+
 
 // ── 自营门店 · 店内商品 ────────────────────────────────────────────────
 export interface SelfStoreProduct {

@@ -14,7 +14,7 @@ export interface RawBehavior {
 }
 
 export async function loadBehaviorData(): Promise<RawBehavior> {
-  // 先取全量 profiles 以判定「个性化总闸」退出情况（PIPL：退出用户完全排除出分析）
+  // 先取全量 profiles 以判定「个性化总闸」退出情况（退出用户完全排除出分析）
   const pRes = await supabase
     .from('profiles')
     .select('id,nickname,member_rank,created_at,total_consumption,tb_balance,allow_behavior_analysis')

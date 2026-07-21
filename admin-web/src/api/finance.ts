@@ -319,6 +319,8 @@ export interface OrderRow {
   commission_l1: number
   commission_l2: number
   platform_share: number
+  buyer_points: number // 购买者确权积分（从平台让利中分出）
+  store_revenue: number // 门店收益（商家实际到账货款，取自 merchant_settlements.settle_amount）
   referrer_id: string | null
   created_at: string
   refund_status: string | null
@@ -336,7 +338,7 @@ export interface OrderList {
   total: number
 }
 
-const ORDER_FIELDS = 'id, order_no, user_id, store_id, total_amount, status, tb_used, commission_distributed, referrer_id, created_at, refund_status'
+const ORDER_FIELDS = 'id, order_no, user_id, store_id, total_amount, status, tb_used, commission_distributed, buyer_points, referrer_id, created_at, refund_status'
 
 export async function getOrders(
   page: number,
@@ -358,7 +360,7 @@ export async function getOrders(
     const refIds = Array.from(new Set(rows.map(r => r.referrer_id).filter(Boolean))) as string[]
 
     const orderIds = rows.map(r => r.id as string)
-    const [pmap, smap, rmap, commMap, itemsRaw] = await Promise.all([
+    const [pmap, smap, rmap, commMap, itemsRaw, msRaw] = await Promise.all([
       userIds.length
         ? supabase.from('profiles').select('id, nickname, phone').in('id', userIds)
         : Promise.resolve({ data: [] as any[] }),
@@ -377,10 +379,15 @@ export async function getOrders(
       orderIds.length
         ? supabase.from('order_items').select('order_id, product_id, quantity, price').in('order_id', orderIds)
         : Promise.resolve({ data: [] as any[] }),
+      // 结算台账：门店收益/让利金额的唯一真值（由 fn_settle_order 计算，避免前端重算口径与后端不一致）
+      orderIds.length
+        ? supabase.from('merchant_settlements').select('order_id, settle_amount, discount_pool').in('order_id', orderIds)
+        : Promise.resolve({ data: [] as any[] }),
     ])
     const pMap = new Map((pmap.data as any[] ?? []).map(p => [p.id, p]))
     const sMap = new Map((smap.data as any[] ?? []).map(s => [s.id, s]))
     const rMap = new Map((rmap.data as any[] ?? []).map(r => [r.id, r]))
+    const msMap = new Map((msRaw.data as any[] ?? []).map(m => [m.order_id as string, m]))
     const cMap = new Map<string, { total: number; l1: number; l2: number }>()
     for (const c of (commMap.data as any[] ?? [])) {
       const oid = c.order_id as string
@@ -426,7 +433,17 @@ export async function getOrders(
         : 0
       const comm = cMap.get(r.id) ?? { total: 0, l1: 0, l2: 0 }
       const effRate = orderRateMap.get(r.id) ?? storeRate
-      const concession = Math.round(r.total_amount * effRate * 100) / 100
+      const ms = msMap.get(r.id)
+      // 让利金额优先取结算台账 discount_pool（后端 fn_settle_order 真值），避免与 create-order 仅用门店让利率口径偏差
+      const concession = ms?.discount_pool != null
+        ? Math.round(Number(ms.discount_pool) * 100) / 100
+        : Math.round(r.total_amount * effRate * 100) / 100
+      const buyerPoints = Math.round(Number(r.buyer_points || 0) * 100) / 100
+      // 门店收益：优先取结算台账 settle_amount（商家实际到账货款 = 成交额 − 让利池 − 通道费）；
+      // 无台账时（如未结算订单）回退 成交额 − 让利金额
+      const storeRevenue = ms?.settle_amount != null
+        ? Math.round(Number(ms.settle_amount) * 100) / 100
+        : Math.max(0, Math.round((r.total_amount - concession) * 100) / 100)
       return {
         id: r.id,
         order_no: r.order_no ?? null,
@@ -439,7 +456,10 @@ export async function getOrders(
         commission_total: comm.total,
         commission_l1: comm.l1,
         commission_l2: comm.l2,
-        platform_share: Math.max(0, Math.round((concession - comm.total) * 100) / 100),
+        // 平台佣金 = 让利金额 − 一级佣金 − 二级佣金 − 购买者确权积分
+        platform_share: Math.max(0, Math.round((concession - comm.total - buyerPoints) * 100) / 100),
+        buyer_points: buyerPoints,
+        store_revenue: storeRevenue,
         referrer_id: r.referrer_id ?? null,
         created_at: r.created_at,
         refund_status: r.refund_status ?? null,
@@ -471,7 +491,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
     const { data } = await supabase.from('orders').select(ORDER_FIELDS).eq('id', orderId).maybeSingle()
     const r = data as any
     if (!r) return null
-    const [storeRes, buyerRes, refRes] = await Promise.all([
+    const [storeRes, buyerRes, refRes, settleRes] = await Promise.all([
       r.store_id
         ? supabase.from('stores').select('name, referral_rate, referral_rate_enabled').eq('id', r.store_id).maybeSingle()
         : Promise.resolve({ data: null }),
@@ -481,9 +501,11 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       r.referrer_id
         ? supabase.from('profiles').select('nickname').eq('id', r.referrer_id).maybeSingle()
         : Promise.resolve({ data: null }),
+      // 结算台账：门店收益/让利金额唯一真值
+      supabase.from('merchant_settlements').select('settle_amount, discount_pool').eq('order_id', r.id).maybeSingle(),
     ])
     const total = Number(r.total_amount || 0)
-    const concession = Math.min(Number(r.tb_used || 0), total)
+    const buyerPoints = Math.round(Number(r.buyer_points || 0) * 100) / 100
     const commBreak = await getOrderCommissionBreakdown(r.id)
     const commissionTotal = commBreak.total
     const sd = storeRes.data as any
@@ -493,7 +515,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       ? (sd?.referral_rate != null ? Number(sd.referral_rate) : 0.09)
       : 0
 
-    // 计算商品级加权让利率
+    // 计算商品级加权让利率（仅作无台账时的回退）
     let effectiveRate = storeRate
     try {
       const { data: items } = await supabase
@@ -518,6 +540,16 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       }
     } catch { /* 降级门店率 */ }
 
+    const ms = settleRes.data as any
+    // 让利金额优先取结算台账 discount_pool（后端真值）
+    const concession = ms?.discount_pool != null
+      ? Math.round(Number(ms.discount_pool) * 100) / 100
+      : Math.round(total * effectiveRate * 100) / 100
+    // 门店收益优先取结算台账 settle_amount（商家实际到账货款）
+    const storeRevenue = ms?.settle_amount != null
+      ? Math.round(Number(ms.settle_amount) * 100) / 100
+      : Math.max(0, Math.round((total - concession) * 100) / 100)
+
     return {
       id: r.id,
       order_no: r.order_no ?? null,
@@ -525,12 +557,15 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       store_id: r.store_id ?? null,
       total_amount: total,
       status: r.status,
-      tb_used: concession,
+      tb_used: Number(r.tb_used || 0),
       commission_distributed: !!r.commission_distributed,
       commission_total: commissionTotal,
       commission_l1: commBreak.l1,
       commission_l2: commBreak.l2,
-      platform_share: Math.max(0, Math.round((total * effectiveRate - commissionTotal) * 100) / 100),
+      // 平台佣金 = 让利金额 − 一级佣金 − 二级佣金 − 购买者确权积分
+      platform_share: Math.max(0, Math.round((concession - commissionTotal - buyerPoints) * 100) / 100),
+      buyer_points: buyerPoints,
+      store_revenue: storeRevenue,
       referrer_id: r.referrer_id ?? null,
       created_at: r.created_at,
       refund_status: r.refund_status ?? null,
@@ -541,7 +576,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       effective_rate: effectiveRate,
       referrer_nickname: (refRes.data as any)?.nickname ?? null,
       commissionTotal,
-      platformNet: Math.round((total - concession - commissionTotal) * 100) / 100,
+      platformNet: storeRevenue,
     }
   } catch {
     return null
@@ -588,6 +623,93 @@ export async function getOrderCommissionBreakdown(orderId: string): Promise<Comm
     return { total, l1, l2, platform_share: 0 }
   } catch {
     return { total: 0, l1: 0, l2: 0, platform_share: 0 }
+  }
+}
+
+// ── 商品级分佣明细（order_item_commissions，按 order_id 查）──────────────────
+// 用于「综合结算 - 订单详情」展开每商品各自让利点 / L1 / L2 / 购买者确权积分 / 平台佣金
+// 两级受益人昵称用两步直读解析（profiles 无 FK，沿用已修通范式）
+export interface ProductCommissionRow {
+  id: string
+  order_item_id: string
+  product_id: string | null
+  product_name: string | null
+  price: number
+  quantity: number
+  item_total: number
+  product_discount_rate: number // 商品自身让利率（小数，如 0.12）
+  effective_rate: number
+  discount_amount: number
+  discount_pool: number // 该商品让利池
+  commission_pool: number // 可分佣池 = discount_pool * 0.90
+  l1_user_id: string | null
+  l1_rank: string | null
+  l1_ratio: number
+  l1_commission: number
+  l1_nickname: string | null
+  l2_user_id: string | null
+  l2_rank: string | null
+  l2_ratio: number
+  l2_commission: number
+  l2_nickname: string | null
+  buyer_points: number
+  platform_income: number
+  commission_distributed: boolean
+  refund_ratio: number // 累计退款比例(0~1)，展示净留存 = 原值 × (1 - refund_ratio)
+}
+
+export async function getOrderItemCommissions(orderId: string): Promise<ProductCommissionRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from('order_item_commissions')
+      .select(
+        'id, order_item_id, product_id, product_name, price, quantity, item_total, product_discount_rate, effective_rate, discount_amount, discount_pool, commission_pool, l1_user_id, l1_rank, l1_ratio, l1_commission, l2_user_id, l2_rank, l2_ratio, l2_commission, buyer_points, platform_income, commission_distributed, refund_ratio',
+      )
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: true })
+    if (error || !data) return []
+    const rows = data as any[]
+
+    // 两步直读解析 L1/L2 受益人昵称
+    const userIds = Array.from(new Set(
+      rows.flatMap(r => [r.l1_user_id, r.l2_user_id]).filter(Boolean),
+    )) as string[]
+    const uMap = new Map<string, string>()
+    if (userIds.length) {
+      const { data: us } = await supabase.from('profiles').select('id, nickname').in('id', userIds)
+      for (const u of (us as any[]) ?? []) uMap.set(u.id, u.nickname ?? '无名')
+    }
+
+    return rows.map(r => ({
+      id: r.id,
+      order_item_id: r.order_item_id,
+      product_id: r.product_id ?? null,
+      product_name: r.product_name ?? null,
+      price: Number(r.price || 0),
+      quantity: Number(r.quantity || 0),
+      item_total: Number(r.item_total || 0),
+      product_discount_rate: Number(r.product_discount_rate || 0),
+      effective_rate: Number(r.effective_rate || 0),
+      discount_amount: Number(r.discount_amount || 0),
+      discount_pool: Number(r.discount_pool || 0),
+      commission_pool: Number(r.commission_pool || 0),
+      l1_user_id: r.l1_user_id ?? null,
+      l1_rank: r.l1_rank ?? null,
+      l1_ratio: Number(r.l1_ratio || 0),
+      l1_commission: Number(r.l1_commission || 0),
+      l1_nickname: r.l1_user_id ? (uMap.get(r.l1_user_id) ?? '无名') : null,
+      l2_user_id: r.l2_user_id ?? null,
+      l2_rank: r.l2_rank ?? null,
+      l2_ratio: Number(r.l2_ratio || 0),
+      l2_commission: Number(r.l2_commission || 0),
+      l2_nickname: r.l2_user_id ? (uMap.get(r.l2_user_id) ?? '无名') : null,
+      buyer_points: Number(r.buyer_points || 0),
+      platform_income: Number(r.platform_income || 0),
+      commission_distributed: !!r.commission_distributed,
+      refund_ratio: Number(r.refund_ratio || 0),
+    }))
+  } catch {
+    return []
   }
 }
 

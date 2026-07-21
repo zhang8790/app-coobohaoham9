@@ -56,7 +56,7 @@ export default function EmotionClaims() {
   const handleVoid = async (reason: string, ratioPct: number) => {
     if (!voidTarget) return
     if (!confirm(`确认对订单 ${voidTarget.order_no || voidTarget.id.slice(0, 8)} 执行退款作废？\n` +
-      `将按 ${ratioPct}% 比例回滚该用户的通宝/贡献值及上级裂变分。`)) return
+      `将按 ${ratioPct}% 比例回滚该用户的金豆/贡献值及上级裂变分。`)) return
     setBusy('void')
     const res = await voidEmotionClaim(voidTarget.id, reason, ratioPct / 100)
     await afterAction(res.ok, res.msg)
@@ -65,7 +65,7 @@ export default function EmotionClaims() {
   const handleBan = async (reason: string) => {
     if (!banTarget) return
     if (!confirm(`确认封禁用户 ${banTarget.nickname || maskPhone(banTarget.phone) || banTarget.user_id.slice(0, 8)}？\n` +
-      `将清零其全部贡献值/通宝、作废其所有有效确权、并扣回上级裂变分。此操作不可自动恢复！`)) return
+      `将清零其全部贡献值/金豆、作废其所有有效确权、并扣回上级裂变分。此操作不可自动恢复！`)) return
     setBusy('ban')
     const res = await banUserRollback(banTarget.user_id, reason)
     await afterAction(res.ok, res.msg)
@@ -85,7 +85,7 @@ export default function EmotionClaims() {
       <div>
         <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>确权治理</h1>
         <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>
-          共建股权确权记录 · 退款作废（§5.1） / 违规封禁（§5.2） / 规则版本（§5.3）
+          共建会员确权记录 · 退款作废（§5.1） / 封禁（§5.2） / 规则版本（§5.3）
         </p>
       </div>
 
@@ -96,7 +96,7 @@ export default function EmotionClaims() {
           <StatCard label="有效确权" value={String(stats.active)} accent="var(--success-strong)" />
           <StatCard label="已作废" value={String(stats.voided)} accent="var(--text-dim)" />
           <StatCard label="有效贡献值 CV" value={stats.active_cv.toFixed(4)} accent="var(--accent)" />
-          <StatCard label="有效通宝 TB" value={stats.active_tb.toFixed(2)} accent="var(--warning)" />
+          <StatCard label="有效金豆 TB" value={stats.active_tb.toFixed(2)} accent="var(--warning)" />
           <StatCard label="未封禁用户" value={String(stats.active_users)} accent="var(--info)" />
         </div>
       )}
@@ -153,7 +153,7 @@ export default function EmotionClaims() {
             <tr>
               <th style={S.th}>用户</th>
               <th style={S.th}>订单号</th>
-              <th style={S.th}>通宝</th>
+              <th style={S.th}>金豆</th>
               <th style={S.th}>贡献值 CV</th>
               <th style={S.th}>徽章</th>
               <th style={S.th}>规则</th>
@@ -193,7 +193,7 @@ export default function EmotionClaims() {
                   {c.status === 'active' ? (
                     <>
                       <button onClick={() => setVoidTarget(c)} disabled={busy !== null} style={btnStyle('var(--danger)')}>退款作废</button>
-                      <button onClick={() => setBanTarget(c)} disabled={busy !== null} style={btnStyle('#9333EA')}>封禁用户</button>
+                      <button onClick={() => setBanTarget(c)} disabled={busy !== null} style={btnStyle('var(--accent)')}>封禁用户</button>
                     </>
                   ) : (
                     <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>
@@ -269,7 +269,7 @@ function VoidModal({ claim, busy, onClose, onConfirm }: {
         <input type="range" min={0} max={100} step={5} value={ratio} onChange={e => setRatio(Number(e.target.value))}
           style={{ width: '100%', accentColor: 'var(--primary)' }} />
         <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 13, color: 'var(--text-muted)' }}>
-          <span>回滚通宝 TB：<b style={{ color: 'var(--warning)' }}>{backTb.toFixed(2)}</b></span>
+          <span>回滚金豆 TB：<b style={{ color: 'var(--warning)' }}>{backTb.toFixed(2)}</b></span>
           <span>回滚贡献值 CV：<b style={{ color: 'var(--accent-text)' }}>{backCv.toFixed(4)}</b></span>
         </div>
 
@@ -293,16 +293,16 @@ function BanModal({ claim, busy, onClose, onConfirm }: {
   return (
     <Overlay onClose={onClose}>
       <div style={modalCard}>
-        <h3 style={{ color: 'var(--danger)', fontSize: 18, fontWeight: 700, margin: '0 0 4px' }}>违规封禁用户</h3>
+        <h3 style={{ color: 'var(--danger)', fontSize: 18, fontWeight: 700, margin: '0 0 4px' }}>封禁用户</h3>
         <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 16px' }}>
-          将清零 {claim.nickname || maskPhone(claim.phone) || claim.user_id.slice(0, 8)} 的全部贡献值/通宝、作废其所有有效确权，并扣回上级裂变分。
+          将清零 {claim.nickname || maskPhone(claim.phone) || claim.user_id.slice(0, 8)} 的全部贡献值/金豆、作废其所有有效确权，并扣回上级裂变分。
         </p>
         <label style={labelStyle}>封禁原因</label>
-        <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="如：刷单 / 违规营销 / 欺诈"
+        <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="如：刷单 / 虚假营销 / 欺诈"
           rows={3} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
         <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
           <button onClick={onClose} disabled={busy} style={{ flex: 1, padding: '11px', background: 'transparent', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text-muted)', fontSize: 14, cursor: 'pointer' }}>取消</button>
-          <button onClick={() => onConfirm(reason)} disabled={busy} style={{ flex: 2, padding: '11px', background: busy ? '#6D28D9' : '#9333EA', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}>
+          <button onClick={() => onConfirm(reason)} disabled={busy} style={{ flex: 2, padding: '11px', background: busy ? 'var(--accent)' : 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}>
             {busy ? '处理中...' : '确认封禁'}
           </button>
         </div>

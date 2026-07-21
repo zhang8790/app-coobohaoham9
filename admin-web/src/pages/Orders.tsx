@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getOrders, getOrderDetail, exportOrders, type OrderRow, type OrderDetail } from '@/api/finance'
+import { getOrders, getOrderDetail, getOrderItemCommissions, exportOrders, type OrderRow, type OrderDetail, type ProductCommissionRow } from '@/api/finance'
 import { downloadCSV, csvTimestamp, type CsvColumn } from '@/lib/csv'
 import { maskPhone } from '@/utils/mask'
 import { supabase } from '@/lib/supabase'
@@ -36,6 +36,7 @@ export default function Orders() {
   const [kw, setKw] = useState('')
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<OrderDetail | null>(null)
+  const [itemCommissions, setItemCommissions] = useState<ProductCommissionRow[]>([])
   const [exporting, setExporting] = useState(false)
   const [autoCompleting, setAutoCompleting] = useState(false)
 
@@ -48,7 +49,7 @@ export default function Orders() {
     try {
       const { data, error } = await supabase.functions.invoke('auto-complete-orders', { method: 'POST' })
       if (error) {
-        alert(`执行失败：${error.message}\n\n若提示 Function not found，请先在 Supabase Dashboard → Edge Functions 部署 auto-complete-orders（代码已就绪：supabase/functions/auto-complete-orders/index.ts）`)
+        alert(`执行失败：${error.message}`)
       } else {
         const r = data as any
         const n = r?.completed ?? 0
@@ -81,8 +82,9 @@ export default function Orders() {
         { key: 'commission_total', label: '佣金' },
         { key: 'commission_l1', label: '一级佣金' },
         { key: 'commission_l2', label: '二级佣金' },
+        { key: 'buyer_points', label: '买家金豆' },
         { key: 'platform_share', label: '平台佣金' },
-        { key: 'platformNet', label: '平台现金实收' },
+        { key: 'platformNet', label: '门店收益' },
         { key: 'commission_distributed', label: '佣金状态' },
         { key: 'status', label: '状态' },
         { key: 'refund_status', label: '退款状态' },
@@ -90,7 +92,7 @@ export default function Orders() {
       ]
       const rows = data.map(r => ({
         ...r,
-        platformNet: Math.max(0, Math.round((r.total_amount - Math.min(r.tb_used, r.total_amount)) * 100) / 100),
+        platformNet: r.store_revenue,
         commission_distributed: r.commission_distributed ? '已发佣金' : '未发佣金',
         created_at: new Date(r.created_at).toLocaleString('zh-CN', { hour12: false }),
       }))
@@ -110,29 +112,38 @@ export default function Orders() {
   useEffect(() => { load(0, 'all', '') }, [])
 
   const openDetail = async (id: string) => {
-    const d = await getOrderDetail(id)
+    const [d, items] = await Promise.all([
+      getOrderDetail(id),
+      getOrderItemCommissions(id),
+    ])
     setDetail(d)
+    setItemCommissions(items ?? [])
   }
 
   const pages = Math.max(1, Math.ceil(total / PAGE))
   const gmvSum = rows.reduce((s, r) => s + r.total_amount, 0)
+  const cashSum = rows.reduce((s, r) => s + Math.max(0, r.total_amount - r.tb_used), 0)
   const concessionSum = rows.reduce((s, r) => s + Math.min(r.tb_used, r.total_amount), 0)
   const commissionSum = rows.reduce((s, r) => s + r.commission_total, 0)
   const commissionL1Sum = rows.reduce((s, r) => s + r.commission_l1, 0)
   const commissionL2Sum = rows.reduce((s, r) => s + r.commission_l2, 0)
-  // 财务拆解汇总：让利 = total × effective_rate；平台佣金(平台自有部分) = 让利 - 佣金(已分)
-  // 金豆=现金等价：平台现金实收按全额计入(含金豆)；平台收益 = 全额 - 已发佣金金(l1+l2)
-  // 无上线时佣金为0，让利全额归平台（"没有上线的佣金都分平台"）
+  const buyerPointsSum = rows.reduce((s, r) => s + r.buyer_points, 0)
+  // 财务拆解汇总：让利 = total × effective_rate；
+  // 平台佣金(平台自有部分) = 让利 − 佣金(已分) − 买家金豆
+  // 现金实收 = 成交额 − 金豆抵扣；门店收益 = 成交额 − 已发佣金(l1+l2)
+  // 买家金豆从让利中分出，与佣金同源
   const letAmtSum = rows.reduce((s, r) => s + Math.round(r.total_amount * (r.effective_rate ?? 0.09) * 100) / 100, 0)
-  const platShareSum = Math.max(0, Math.round((letAmtSum - commissionSum) * 100) / 100)
-  const platNetSum = Math.max(0, Math.round((gmvSum - commissionSum) * 100) / 100)
+  const platShareSum = Math.max(0, Math.round((letAmtSum - commissionSum - buyerPointsSum) * 100) / 100)
+  const platNetSum = rows.reduce((s, r) => s + r.store_revenue, 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ color: C.text, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>成交订单</h1>
-          <p style={{ color: C.dim, fontSize: 14 }}>订单号 · 买家 · 门店 · 成交额 · 金豆抵扣 · 佣金 · 平台现金实收(含金豆) · 状态</p>
+          <p style={{ color: C.dim, fontSize: 14 }}>
+            让利金额按让利率计提，在一级佣金 / 二级佣金 / 买家金豆 / 平台佣金间分配；门店收益为商家实际到账货款（取自结算台账）
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <select value={status} onChange={e => { setStatus(e.target.value); load(0, e.target.value, kw) }}
@@ -172,16 +183,17 @@ export default function Orders() {
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页佣金合计（已分上线）</p><p style={{ color: C.purple, fontSize: 22, fontWeight: 700 }}>{fmtMoney(commissionSum)}</p></div>
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页一级佣金合计</p><p style={{ color: C.purple, fontSize: 22, fontWeight: 700 }}>{fmtMoney(commissionL1Sum)}</p></div>
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页二级佣金合计</p><p style={{ color: C.purple, fontSize: 22, fontWeight: 700 }}>{fmtMoney(commissionL2Sum)}</p></div>
+        <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页买家金豆合计</p><p style={{ color: 'var(--accent)', fontSize: 22, fontWeight: 700 }}>{fmtMoney(buyerPointsSum)}</p></div>
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页平台佣金合计</p><p style={{ color: C.accent, fontSize: 22, fontWeight: 700 }}>{fmtMoney(platShareSum)}</p></div>
-        <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页平台现金实收合计（含金豆）</p><p style={{ color: C.blue, fontSize: 22, fontWeight: 700 }}>{fmtMoney(gmvSum)}</p></div>
-        <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页平台收益合计</p><p style={{ color: C.green, fontSize: 22, fontWeight: 700 }}>{fmtMoney(platNetSum)}</p></div>
+        <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页平台现金实收合计</p><p style={{ color: C.blue, fontSize: 22, fontWeight: 700 }}>{fmtMoney(cashSum)}</p></div>
+        <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页门店收益合计</p><p style={{ color: C.green, fontSize: 22, fontWeight: 700 }}>{fmtMoney(platNetSum)}</p></div>
       </div>
 
       <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--surface)', borderBottom: `1px solid ${C.border}` }}>
-              {['订单号', '买家', '门店', '成交额', '金豆抵扣', '让利率', '让利金额', '一级佣金', '二级佣金', '平台佣金', '平台现金实收', '平台收益', '佣金状态', '状态', '退款', '时间'].map(h => (
+              {['订单号', '买家', '门店', '成交额', '金豆抵扣', '平台现金实收', '让利率', '让利金额', '一级佣金', '二级佣金', '买家金豆', '平台佣金', '门店收益', '佣金状态', '状态', '退款', '时间'].map(h => (
                 <th key={h} style={{ color: C.dim, fontWeight: 500, padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -202,24 +214,23 @@ export default function Orders() {
                   <td style={{ padding: '10px 12px', color: C.sub, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.store_name ?? '平台'}</td>
                   <td style={{ padding: '10px 12px', color: C.green, fontWeight: 600 }}>{fmtMoney(r.total_amount)}</td>
                   <td style={{ padding: '10px 12px', color: C.gold }}>{fmtMoney(r.tb_used)}</td>
+                  <td style={{ padding: '10px 12px', color: C.blue, fontWeight: 600 }}>
+                    {fmtMoney(Math.max(0, r.total_amount - r.tb_used))}
+                  </td>
                   {(() => {
-                    // 财务拆解：让利 = total × effective_rate；平台佣金(平台自有) = 让利 - 佣金(已分)
-                    // 金豆=现金等价：平台现金实收按全额(total)计入(含金豆)；平台收益 = total - 已发佣金金(l1+l2)
+                    // 财务拆解：让利 = total × effective_rate；
+                    // 平台佣金 = 让利 − 一级佣金 − 二级佣金 − 买家金豆
+                    // 门店收益 = 成交额 − 已发佣金(l1+l2)
                     const rate = r.effective_rate ?? 0.09
                     const concession = Math.round(r.total_amount * rate * 100) / 100
-                    const beanPortion = Math.min(r.tb_used, r.total_amount)
-                    const cashReceived = r.total_amount // 全额，金豆按现金等价计入
-                    const platformNet = Math.max(0, Math.round((r.total_amount - r.commission_total) * 100) / 100)
+                    const platformNet = r.store_revenue
                     return <>
                       <td style={{ padding: '10px 12px', color: C.dim, fontSize: 12 }}>{(rate * 100).toFixed(0)}%</td>
                       <td style={{ padding: '10px 12px', color: C.gold }}>{fmtMoney(concession)}</td>
                       <td style={{ padding: '10px 12px', color: 'var(--accent)', fontWeight: 600 }}>{fmtMoney(r.commission_l1)}</td>
                       <td style={{ padding: '10px 12px', color: 'var(--accent)', fontWeight: 600 }}>{fmtMoney(r.commission_l2)}</td>
+                      <td style={{ padding: '10px 12px', color: 'var(--accent)', fontWeight: 600 }}>{fmtMoney(r.buyer_points)}</td>
                       <td style={{ padding: '10px 12px', color: C.accent, fontWeight: 600 }}>{fmtMoney(r.platform_share)}</td>
-                      <td style={{ padding: '10px 12px', color: C.blue, fontWeight: 600 }}>
-                        {fmtMoney(cashReceived)}
-                        {beanPortion > 0 && <div style={{ fontSize: 11, color: C.dim, fontWeight: 400 }}>含金豆 {fmtMoney(beanPortion)}</div>}
-                      </td>
                       <td style={{ padding: '10px 12px', color: C.green, fontWeight: 600 }}>{fmtMoney(platformNet)}</td>
                     </>
                   })()}
@@ -238,7 +249,7 @@ export default function Orders() {
               )
             })}
             {rows.length === 0 && !loading && (
-              <tr><td colSpan={16} style={{ padding: 32, textAlign: 'center', color: C.dim }}>暂无订单数据</td></tr>
+              <tr><td colSpan={17} style={{ padding: 32, textAlign: 'center', color: C.dim }}>暂无订单数据</td></tr>
             )}
           </tbody>
         </table>
@@ -255,15 +266,15 @@ export default function Orders() {
 
       {/* 订单详情抽屉 */}
       {detail && (
-        <div onClick={() => setDetail(null)}
+        <div onClick={() => { setDetail(null); setItemCommissions([]) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' }}>
           <div onClick={e => e.stopPropagation()}
             style={{ width: 480, maxWidth: '92vw', background: C.bg, borderLeft: `1px solid ${C.border}`, height: '100%', padding: 24, overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ color: C.text, fontSize: 18, fontWeight: 700 }}>订单详情</h2>
-              <button onClick={() => setDetail(null)} style={btnStyle(false)}>关闭</button>
+              <button onClick={() => { setDetail(null); setItemCommissions([]) }} style={btnStyle(false)}>关闭</button>
             </div>
-            <OrderBlock d={detail} />
+            <OrderBlock d={detail} items={itemCommissions} />
           </div>
         </div>
       )}
@@ -271,7 +282,7 @@ export default function Orders() {
   )
 }
 
-function OrderBlock({ d }: { d: OrderDetail }) {
+function OrderBlock({ d, items = [] }: { d: OrderDetail; items?: ProductCommissionRow[] }) {
   const s = st(d.status)
   const cells: [string, string, string?][] = [
     ['订单号', d.order_no ?? d.id, 'mono'],
@@ -282,23 +293,93 @@ function OrderBlock({ d }: { d: OrderDetail }) {
     ['推荐人(上线)', d.referrer_nickname ?? '无'],
     ['成交额', fmtMoney(d.total_amount), 'money'],
     ['让利(金豆抵扣)', fmtMoney(d.tb_used), 'money'],
+    ['一级佣金', fmtMoney(d.commission_l1), 'money'],
+    ['二级佣金', fmtMoney(d.commission_l2), 'money'],
+    ['买家金豆', fmtMoney(d.buyer_points), 'money'],
+    ['平台佣金', fmtMoney(d.platform_share), 'money'],
     ['佣金扣减', fmtMoney(d.commissionTotal), 'money'],
-    ['平台实收(精确)', fmtMoney(d.platformNet), 'money'],
+    ['门店收益', fmtMoney(d.platformNet), 'money'],
     ['退款状态', d.refund_status && d.refund_status !== 'none' ? d.refund_status : '无'],
     ['下单时间', fmtDate(d.created_at)],
   ]
+  const sum = (sel: (it: ProductCommissionRow) => number) => items.reduce((acc, it) => acc + sel(it), 0)
+  // 退款净留存 = 原值 × (1 - 退款比例)；退款比例为 0 时等于原值
+  const net = (v: number, ratio: number) => Math.round(v * (1 - ratio) * 100) / 100
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-      {cells.map(([k, v, kind]) => (
-        <div key={k} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px' }}>
-          <p style={{ color: C.dim, fontSize: 11, marginBottom: 4 }}>{k}</p>
-          <p style={{
-            color: kind === 'money' ? C.green : kind === 'status' ? s.color : C.text,
-            fontSize: 13, fontWeight: 500, wordBreak: 'break-all',
-            fontFamily: kind === 'mono' ? 'monospace' : 'inherit',
-          }}>{v}</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {cells.map(([k, v, kind]) => (
+          <div key={k} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px' }}>
+            <p style={{ color: C.dim, fontSize: 11, marginBottom: 4 }}>{k}</p>
+            <p style={{
+              color: kind === 'money' ? C.green : kind === 'status' ? s.color : C.text,
+              fontSize: 13, fontWeight: 500, wordBreak: 'break-all',
+              fontFamily: kind === 'mono' ? 'monospace' : 'inherit',
+            }}>{v}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* 商品级分佣明细：按各商品自身让利点独立追溯，Σ = 订单汇总（零资损） */}
+      {items.length > 0 && (
+        <div>
+          <h3 style={{ color: C.text, fontSize: 14, fontWeight: 700, marginBottom: 10, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            商品级分佣明细
+            <span style={{ color: C.dim, fontSize: 12, fontWeight: 400 }}>（每商品按自身让利点追溯；已退款行按退款比例折净留存）</span>
+          </h3>
+          <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: 'var(--surface)', borderBottom: `1px solid ${C.border}` }}>
+                  {['商品', '小计', '让利率', '让利池', '一级佣金', '二级佣金', '买家金豆', '平台佣金'].map(h => (
+                    <th key={h} style={{ color: C.dim, fontWeight: 500, padding: '8px 10px', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(it => (
+                  <tr key={it.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                    <td style={{ padding: '8px 10px', color: C.text, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={it.product_name ?? undefined}>
+                      {it.product_name ?? it.product_id ?? '商品'}
+                    </td>
+                    <td style={{ padding: '8px 10px', color: C.green, fontWeight: 600 }}>{fmtMoney(it.item_total)}</td>
+                    <td style={{ padding: '8px 10px', color: C.dim }}>{(it.product_discount_rate * 100).toFixed(0)}%</td>
+                    <td style={{ padding: '8px 10px', color: C.gold }}>{fmtMoney(it.discount_pool)}</td>
+                    <td style={{ padding: '8px 10px', color: it.refund_ratio > 0 ? C.accent : 'var(--accent)', fontWeight: 600 }}>
+                      {fmtMoney(net(it.l1_commission, it.refund_ratio))}
+                      {it.refund_ratio > 0 && <div style={{ color: C.accent, fontSize: 11, fontWeight: 400 }}>回冲 {(it.refund_ratio * 100).toFixed(0)}%</div>}
+                      {it.l1_nickname && <div style={{ color: C.dim, fontSize: 11, fontWeight: 400 }}>{it.l1_nickname}{it.l1_rank ? `·${it.l1_rank}` : ''}</div>}
+                    </td>
+                    <td style={{ padding: '8px 10px', color: it.refund_ratio > 0 ? C.accent : 'var(--accent)', fontWeight: 600 }}>
+                      {fmtMoney(net(it.l2_commission, it.refund_ratio))}
+                      {it.refund_ratio > 0 && <div style={{ color: C.accent, fontSize: 11, fontWeight: 400 }}>回冲 {(it.refund_ratio * 100).toFixed(0)}%</div>}
+                      {it.l2_nickname && <div style={{ color: C.dim, fontSize: 11, fontWeight: 400 }}>{it.l2_nickname}{it.l2_rank ? `·${it.l2_rank}` : ''}</div>}
+                    </td>
+                    <td style={{ padding: '8px 10px', color: it.refund_ratio > 0 ? C.accent : 'var(--accent)', fontWeight: 600 }}>
+                      {fmtMoney(net(it.buyer_points, it.refund_ratio))}
+                      {it.refund_ratio > 0 && <div style={{ color: C.accent, fontSize: 11, fontWeight: 400 }}>回冲 {(it.refund_ratio * 100).toFixed(0)}%</div>}
+                    </td>
+                    <td style={{ padding: '8px 10px', color: C.accent, fontWeight: 600 }}>{fmtMoney(it.platform_income)}</td>
+                  </tr>
+                ))}
+                <tr style={{ background: 'var(--surface)' }}>
+                  <td style={{ padding: '8px 10px', color: C.text, fontWeight: 700 }}>合计 ({items.length} 件)</td>
+                  <td style={{ padding: '8px 10px', color: C.green, fontWeight: 700 }}>{fmtMoney(sum(it => it.item_total))}</td>
+                  <td style={{ padding: '8px 10px', color: C.dim }}>-</td>
+                  <td style={{ padding: '8px 10px', color: C.gold, fontWeight: 700 }}>{fmtMoney(sum(it => it.discount_pool))}</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--accent)', fontWeight: 700 }}>{fmtMoney(sum(it => net(it.l1_commission, it.refund_ratio)))}</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--accent)', fontWeight: 700 }}>{fmtMoney(sum(it => net(it.l2_commission, it.refund_ratio)))}</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--accent)', fontWeight: 700 }}>{fmtMoney(sum(it => net(it.buyer_points, it.refund_ratio)))}</td>
+                  <td style={{ padding: '8px 10px', color: C.accent, fontWeight: 700 }}>{fmtMoney(sum(it => it.platform_income))}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p style={{ color: C.dim, fontSize: 11, marginTop: 8, lineHeight: 1.6 }}>
+            说明：每商品按自身 <b>让利率</b> 计算让利池；一级/二级佣金与买家金豆在整单层面统一封顶缩放后按商品占比分摊，Σ 与订单「一级佣金/二级佣金/买家金豆」汇总一致（零资损）。
+          </p>
         </div>
-      ))}
+      )}
     </div>
   )
 }

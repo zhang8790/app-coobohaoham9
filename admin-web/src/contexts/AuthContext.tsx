@@ -334,7 +334,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {/* 演示模式提示条 */}
       {useMock && (
         <div style={{
-          background: 'linear-gradient(90deg, #C2410C, #EA580C)',
+          background: 'linear-gradient(90deg, var(--primary), var(--primary-hover))',
           color: '#fff', textAlign: 'center', padding: '8px 0',
           fontSize: 13, fontWeight: 500, letterSpacing: 0.5,
         }}>

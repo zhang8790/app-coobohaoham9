@@ -198,7 +198,7 @@ export interface Refund {
   updated_at: string
 }
 
-// ================= 确权（共建股权）总后台治理 =================
+// ================= 确权（共建会员确权）总后台治理 =================
 export type EmotionClaimStatus = 'active' | 'voided'
 
 export interface EmotionClaimRow {

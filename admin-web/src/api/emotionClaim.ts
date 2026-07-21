@@ -124,7 +124,7 @@ export async function voidEmotionClaim(
   }
 }
 
-// ============ §5.2 违规封禁（清零 + 上级裂变分扣回） ============
+// ============ §5.2 封禁（清零 + 上级裂变分扣回） ============
 export async function banUserRollback(
   userId: string, reason: string,
 ): Promise<{ ok: boolean; msg?: string }> {

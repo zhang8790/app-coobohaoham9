@@ -20,10 +20,10 @@ import {
   toShiyangTags,
 } from '@/utils/shiyang'
 
-const CARD = '#111827'
-const BORDER = '#1F2937'
-const muted = '#6B7280'
-const fg = '#E5E7EB'
+const CARD = 'var(--surface-2)'
+const BORDER = 'var(--border)'
+const muted = 'var(--text-dim)'
+const fg = 'var(--text)'
 
 export default function EmotionStudio() {
   const { profile, useMock } = useAuth()
@@ -91,7 +91,7 @@ export default function EmotionStudio() {
     })
   }
 
-  // 食养成分标签切换（最多 SHIYANG_DIMENSION_MAX 个，切换后自动生成合规文案）
+  // 食养成分标签切换（最多 SHIYANG_DIMENSION_MAX 个，切换后自动生成文案）
   function toggleShiyangTag(zh: string) {
     const on = shiyangDims.includes(zh)
     if (!on && shiyangDims.length >= SHIYANG_DIMENSION_MAX) {
@@ -121,8 +121,8 @@ export default function EmotionStudio() {
   }, [selected, result, active])
 
   const tierText =
-    score.tier === 'recommend' ? '✅ 推荐可得流量' : score.tier === 'shopOnly' ? '🏪 仅店内推荐' : '⛔ 驳回'
-  const tierColor = score.tier === 'recommend' ? '#10B981' : score.tier === 'shopOnly' ? '#D97706' : '#DC2626'
+    score.tier === 'recommend' ? '✅ 推荐可得流量' : score.tier === 'shopOnly' ? ' 仅店内推荐' : ' 驳回'
+  const tierColor = score.tier === 'recommend' ? 'var(--success-strong)' : score.tier === 'shopOnly' ? 'var(--warning)' : 'var(--danger)'
 
   async function handleCompile() {
     if (!active) return
@@ -211,7 +211,7 @@ export default function EmotionStudio() {
   return (
     <div>
       {flash && (
-        <div style={{ position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, maxWidth: 560, background: '#1E1B4B', border: '1px solid #6366F1', borderRadius: 12, padding: '12px 18px', color: '#E0E7FF', fontSize: 13, lineHeight: 1.7, boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
+        <div style={{ position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, maxWidth: 560, background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 12, padding: '12px 18px', color: 'var(--accent-text)', fontSize: 13, lineHeight: 1.7, boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
           {flash}
         </div>
       )}
@@ -219,10 +219,10 @@ export default function EmotionStudio() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h2 style={{ color: fg, fontSize: 20, fontWeight: 700, margin: 0 }}>情绪编译工作台</h2>
-          <p style={{ color: muted, fontSize: 13, margin: '4px 0 0' }}>为商品打五维情绪标签 → 实时评分 → 一键编译情绪文案（与小程序商家后台同源）</p>
+          <p style={{ color: muted, fontSize: 13, margin: '4px 0 0' }}>为商品打五维情绪标签  实时评分  一键编译情绪文案（与小程序商家后台同源）</p>
         </div>
         {active && (
-          <button onClick={handleSave} disabled={saving} style={{ padding: '8px 18px', background: saving ? '#374151' : '#6366F1', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
+          <button onClick={handleSave} disabled={saving} style={{ padding: '8px 18px', background: saving ? 'var(--border-soft)' : 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
             {saving ? '保存中…' : '💾 保存'}
           </button>
         )}
@@ -239,9 +239,9 @@ export default function EmotionStudio() {
               <div
                 key={p.id}
                 onClick={() => { setActiveId(p.id); hydrate(p); setResult(p.product_emotion?.emotion_title ? { title: p.product_emotion.emotion_title!, detail: p.product_emotion.emotion_detail || '' } : null) }}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, borderRadius: 10, cursor: 'pointer', marginBottom: 8, background: p.id === activeId ? '#1E293B' : 'transparent', border: `1px solid ${p.id === activeId ? '#6366F1' : 'transparent'}` }}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, borderRadius: 10, cursor: 'pointer', marginBottom: 8, background: p.id === activeId ? 'var(--border-soft)' : 'transparent', border: `1px solid ${p.id === activeId ? 'var(--accent)' : 'transparent'}` }}
               >
-                <div style={{ width: 40, height: 40, borderRadius: 8, background: '#374151', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, overflow: 'hidden' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--border-soft)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, overflow: 'hidden' }}>
                   {p.main_image ? <img src={p.main_image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🛍️'}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -264,12 +264,12 @@ export default function EmotionStudio() {
                 <div style={{ flexShrink: 0, textAlign: 'center' }}>
                   <div style={{ fontSize: 34, fontWeight: 800, color: tierColor, lineHeight: 1 }}>{score.total}</div>
                   <div style={{ color: muted, fontSize: 11, marginTop: 4 }}>编译分 / 100</div>
-                  <div style={{ color: '#A78BFA', fontSize: 11, marginTop: 4 }}>🌿 食养 {shiyangDims.length}/{SHIYANG_DIMENSION_MAX}</div>
+                  <div style={{ color: 'var(--accent-text)', fontSize: 11, marginTop: 4 }}> 食养 {shiyangDims.length}/{SHIYANG_DIMENSION_MAX}</div>
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ color: tierColor, fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>{tierText}</p>
                   {score.violations.length > 0 && (
-                    <ul style={{ margin: 0, paddingLeft: 16, color: '#F87171', fontSize: 12, lineHeight: 1.6 }}>
+                    <ul style={{ margin: 0, paddingLeft: 16, color: 'var(--danger-text)', fontSize: 12, lineHeight: 1.6 }}>
                       {score.violations.map((v, i) => <li key={i}>{v.message}</li>)}
                     </ul>
                   )}
@@ -280,7 +280,7 @@ export default function EmotionStudio() {
                     <p style={{ color: muted, fontSize: 12, margin: 0 }}>标签与文案质量良好，可提交审核。</p>
                   )}
                 </div>
-                <button onClick={handleCompile} disabled={compiling} style={{ padding: '10px 16px', background: compiling ? '#374151' : '#7C3AED', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 600, cursor: compiling ? 'default' : 'pointer' }}>
+                <button onClick={handleCompile} disabled={compiling} style={{ padding: '10px 16px', background: compiling ? 'var(--border-soft)' : 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 600, cursor: compiling ? 'default' : 'pointer' }}>
                   {compiling ? '编译中…' : '✨ 一键编译'}
                 </button>
               </div>
@@ -325,10 +325,10 @@ export default function EmotionStudio() {
               {/* 食养成分打标 */}
               <div style={{ background: CARD, borderRadius: 12, border: `1px solid ${BORDER}`, padding: 16, marginTop: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ color: '#C4B5FD', fontSize: 14, fontWeight: 700 }}>🌿 {SHIYANG_DIMENSION_LABEL}打标</span>
+                  <span style={{ color: 'var(--accent-text)', fontSize: 14, fontWeight: 700 }}>🌿 {SHIYANG_DIMENSION_LABEL}打标</span>
                   <span style={{ color: muted, fontSize: 11 }}>{shiyangDims.length}/{SHIYANG_DIMENSION_MAX}</span>
                 </div>
-                <p style={{ color: muted, fontSize: 12, margin: '0 0 12px' }}>最多选 {SHIYANG_DIMENSION_MAX} 个食材，食养文案自动套合规措辞（传统食养参考，不替代医疗）</p>
+                <p style={{ color: muted, fontSize: 12, margin: '0 0 12px' }}>最多选 {SHIYANG_DIMENSION_MAX} 个食材，食养文案自动套食养参考措辞（传统食养参考，不替代医疗）</p>
                 {Object.entries(SHIYANG_CATEGORIES).map(([catKey, cat]) => (
                   <div key={catKey} style={{ marginBottom: 14 }}>
                     <div style={{ color: fg, fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{cat.label}</div>
@@ -355,15 +355,15 @@ export default function EmotionStudio() {
                     </div>
                   </div>
                 ))}
-                {/* 食养文案（合规自动生成，可微调） */}
+                {/* 食养文案（自动生成，可微调） */}
                 <div style={{ marginTop: 4 }}>
-                  <p style={{ color: '#C4B5FD', fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>食养卡片文案</p>
+                  <p style={{ color: 'var(--accent-text)', fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>食养卡片文案</p>
                   <textarea
                     value={shiyangCopy}
                     onChange={(e) => setShiyangCopy(e.target.value)}
-                    placeholder="选择食材后自动生成合规食养文案，可手动微调"
+                    placeholder="选择食材后自动生成食养文案，可手动微调"
                     disabled={shiyangDims.length === 0}
-                    style={{ width: '100%', minHeight: 88, resize: 'vertical', background: '#0B1220', color: fg, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 10, fontSize: 13, lineHeight: 1.7, fontFamily: 'inherit' }}
+                    style={{ width: '100%', minHeight: 88, resize: 'vertical', background: 'var(--surface)', color: fg, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 10, fontSize: 13, lineHeight: 1.7, fontFamily: 'inherit' }}
                   />
                   {shiyangDims.length > 0 && (
                     <p style={{ color: muted, fontSize: 11, margin: '6px 0 0', lineHeight: 1.6 }}>以上为传统食养文化参考，个体差异较大，不能替代专业医疗建议。如身体不适应及时休息，症状持续或加重请及时就医。</p>
@@ -373,8 +373,8 @@ export default function EmotionStudio() {
 
               {/* 编译结果 */}
               {result && (
-                <div style={{ background: CARD, borderRadius: 12, border: `1px solid #6366F1`, padding: 16, marginTop: 16 }}>
-                  <p style={{ color: '#A5B4FC', fontSize: 13, fontWeight: 700, margin: '0 0 8px' }}>✨ {result.title}</p>
+                <div style={{ background: CARD, borderRadius: 12, border: `1px solid var(--accent)`, padding: 16, marginTop: 16 }}>
+                  <p style={{ color: 'var(--accent-text)', fontSize: 13, fontWeight: 700, margin: '0 0 8px' }}>✨ {result.title}</p>
                   <p style={{ color: fg, fontSize: 14, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>{result.detail}</p>
                 </div>
               )}

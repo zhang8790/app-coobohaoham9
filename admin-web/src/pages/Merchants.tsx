@@ -13,10 +13,10 @@ const STATUS_TABS = [
   { key: 'rejected', label: '已驳回' },
 ]
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }> = {
-  pending: { label: '待审', color: 'var(--warning)', bg: '#F59E0B22' },
+  pending: { label: '待审', color: 'var(--warning)', bg: 'var(--warning)22' },
   approved: { label: '已通过', color: 'var(--success-strong)', bg: 'var(--success-soft)' },
   rejected: { label: '已驳回', color: 'var(--danger)', bg: 'var(--danger-soft)' },
-  none: { label: '未申请', color: 'var(--text-dim)', bg: '#6B728022' },
+  none: { label: '未申请', color: 'var(--text-dim)', bg: 'var(--text-dim)22' },
 }
 
 export default function Merchants() {
@@ -29,6 +29,7 @@ export default function Merchants() {
   const [processing, setProcessing] = useState<string | null>(null)
   const [rejectModal, setRejectModal] = useState<{ id: string; name: string } | null>(null)
   const [reason, setReason] = useState('')
+  const [assignMap, setAssignMap] = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -51,7 +52,7 @@ export default function Merchants() {
   const handleApprove = async (id: string) => {
     if (!confirm('确认通过该商家申请？')) return
     setProcessing(id)
-    await approveApplication(id)
+    await approveApplication(id, assignMap[id] ?? false)
     setProcessing(null); load()
   }
 
@@ -73,7 +74,7 @@ export default function Merchants() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>门派大典</h1>
+        <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>商家入驻</h1>
         <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>商家入驻申请审核</p>
       </div>
 
@@ -123,9 +124,18 @@ export default function Merchants() {
                     <td style={S.td}><span style={S.badge(st.color, st.bg)}>{st.label}</span></td>
                     <td style={S.td}>
                       {r.status === 'pending' && (
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button disabled={processing === r.id} onClick={() => handleApprove(r.id)}
-                            style={{ padding: '5px 12px', background: 'var(--success-soft)', border: '1px solid var(--success-strong)', borderRadius: 6, color: 'var(--success-strong)', cursor: 'pointer', fontSize: 12 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={assignMap[r.id] ?? false}
+                              onChange={e => setAssignMap(m => ({ ...m, [r.id]: e.target.checked }))}
+                            />
+                            分配至探索（设为平台自营）
+                          </label>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button disabled={processing === r.id} onClick={() => handleApprove(r.id)}
+                              style={{ padding: '5px 12px', background: 'var(--success-soft)', border: '1px solid var(--success-strong)', borderRadius: 6, color: 'var(--success-strong)', cursor: 'pointer', fontSize: 12 }}>
                             通过
                           </button>
                           <button disabled={processing === r.id} onClick={() => { setRejectModal({ id: r.id, name: r.store_name }); setReason('') }}
@@ -133,6 +143,7 @@ export default function Merchants() {
                             驳回
                           </button>
                         </div>
+                      </div>
                       )}
                     </td>
                   </tr>

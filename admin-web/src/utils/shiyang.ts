@@ -7,7 +7,7 @@ export interface IngredientEntry {
   nature: string // 温/凉/平/寒/微温/微寒
   icon: string
   color: string
-  benefits: string[] // 食养功效（合规措辞）
+  benefits: string[] // 食养功效
   audiences: string[] // 适用人群（状态描述，非病症）
   scenarios: string[] // 生活场景
   aliases?: string[] // 别名 / 简称 / 同义词，提升识别命中率
@@ -113,7 +113,7 @@ export const SHIYANG_CATEGORIES: Record<string, { label: string; tags: ShiyangTa
   },
 }
 
-// 合规文案生成
+// 文案生成
 export interface ShiyangCopyInput {
   ingredients: string[] // ingredient 中文名
   scene?: string

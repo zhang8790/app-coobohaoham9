@@ -132,9 +132,9 @@ export default function MerchantAds() {
                       <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 2 }}>{ad.start_date} ~ {ad.end_date}</p>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      {ad.status === 'active' && <button onClick={() => setStatus(ad, 'paused')} style={{ padding: '6px 12px', background: '#F59E0B20', border: '1px solid var(--warning)', borderRadius: 6, color: 'var(--warning)', fontSize: 12, cursor: 'pointer' }}>暂停</button>}
-                      {ad.status === 'paused' && <button onClick={() => setStatus(ad, 'active')} style={{ padding: '6px 12px', background: '#05966920', border: '1px solid var(--success-strong)', borderRadius: 6, color: 'var(--success-strong)', fontSize: 12, cursor: 'pointer' }}>重启</button>}
-                      {ad.status !== 'ended' && <button onClick={() => setStatus(ad, 'ended')} style={{ padding: '6px 12px', background: '#EF444420', border: '1px solid var(--danger)', borderRadius: 6, color: 'var(--danger)', fontSize: 12, cursor: 'pointer' }}>结束</button>}
+                      {ad.status === 'active' && <button onClick={() => setStatus(ad, 'paused')} style={{ padding: '6px 12px', background: 'var(--warning)20', border: '1px solid var(--warning)', borderRadius: 6, color: 'var(--warning)', fontSize: 12, cursor: 'pointer' }}>暂停</button>}
+                      {ad.status === 'paused' && <button onClick={() => setStatus(ad, 'active')} style={{ padding: '6px 12px', background: 'var(--success-strong)20', border: '1px solid var(--success-strong)', borderRadius: 6, color: 'var(--success-strong)', fontSize: 12, cursor: 'pointer' }}>重启</button>}
+                      {ad.status !== 'ended' && <button onClick={() => setStatus(ad, 'ended')} style={{ padding: '6px 12px', background: 'var(--danger)20', border: '1px solid var(--danger)', borderRadius: 6, color: 'var(--danger)', fontSize: 12, cursor: 'pointer' }}>结束</button>}
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>

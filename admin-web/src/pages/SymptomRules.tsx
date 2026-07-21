@@ -6,18 +6,18 @@ import {
   parseList, joinList, categoryLabel,
 } from '@/utils/food-therapy-tags'
 
-const card = { background: '#111827', border: '1px solid #1F2937', borderRadius: 12, padding: 16 }
+const card = { background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }
 const primaryBtn = {
-  background: '#C2410C', color: '#fff', border: 'none', borderRadius: 8,
+  background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8,
   padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
 }
 const ghostBtn = {
-  background: 'transparent', border: '1px solid #374151', color: '#9CA3AF',
+  background: 'transparent', border: '1px solid var(--border-soft)', color: 'var(--text-muted)',
   borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13,
 }
 const inputStyle = {
-  width: '100%', background: '#0B0F19', border: '1px solid #374151', borderRadius: 8,
-  color: '#E5E7EB', padding: '8px 10px', fontSize: 13, outline: 'none' as const,
+  width: '100%', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8,
+  color: 'var(--text)', padding: '8px 10px', fontSize: 13, outline: 'none' as const,
 }
 
 interface FormState {
@@ -127,9 +127,9 @@ export default function SymptomRules() {
           <button key={opt} type="button" onClick={() => onToggle(opt)}
             style={{
               padding: '4px 10px', borderRadius: 14, fontSize: 12, cursor: 'pointer',
-              border: `1px solid ${on ? '#C2410C' : '#374151'}`,
+              border: `1px solid ${on ? 'var(--primary)' : 'var(--border-soft)'}`,
               background: on ? 'rgba(194,65,12,0.18)' : 'transparent',
-              color: on ? '#FDBA74' : '#9CA3AF',
+              color: on ? 'var(--primary-hover)' : 'var(--text-muted)',
             }}>
             {opt}
           </button>
@@ -142,8 +142,8 @@ export default function SymptomRules() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <h2 style={{ color: '#E5E7EB', fontSize: 20, fontWeight: 700, margin: 0 }}>🍵 食疗症状规则库</h2>
-          <p style={{ color: '#6B7280', fontSize: 13, margin: '6px 0 0' }}>
+          <h2 style={{ color: 'var(--text)', fontSize: 20, fontWeight: 700, margin: 0 }}> 食疗症状规则库</h2>
+          <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 0' }}>
             运营可在此免发版增删改人群/症状规则；小程序端实时读取生效（迁移 00101 须本机执行）。
           </p>
         </div>
@@ -151,7 +151,7 @@ export default function SymptomRules() {
       </div>
 
       {loading ? (
-        <div style={{ color: '#9CA3AF' }}>加载中...</div>
+        <div style={{ color: 'var(--text-muted)' }}>加载中...</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {list.map(r => (
@@ -159,33 +159,33 @@ export default function SymptomRules() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ color: '#E5E7EB', fontSize: 15, fontWeight: 600 }}>{r.label}</span>
-                    <span style={{ background: 'rgba(99,102,241,0.2)', color: '#A5B4FC', fontSize: 11, padding: '1px 8px', borderRadius: 4 }}>{categoryLabel(r.category)}</span>
-                    <span style={{ background: 'rgba(148,163,184,0.15)', color: '#94A3B8', fontSize: 11, padding: '1px 8px', borderRadius: 4, fontFamily: 'monospace' }}>{r.id}</span>
-                    {!r.is_active && <span style={{ background: 'rgba(239,68,68,0.15)', color: '#F87171', fontSize: 11, padding: '1px 8px', borderRadius: 4 }}>已停用</span>}
+                    <span style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600 }}>{r.label}</span>
+                    <span style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--accent-text)', fontSize: 11, padding: '1px 8px', borderRadius: 4 }}>{categoryLabel(r.category)}</span>
+                    <span style={{ background: 'rgba(148,163,184,0.15)', color: 'var(--text-muted)', fontSize: 11, padding: '1px 8px', borderRadius: 4, fontFamily: 'monospace' }}>{r.id}</span>
+                    {!r.is_active && <span style={{ background: 'rgba(239,68,68,0.15)', color: 'var(--danger-text)', fontSize: 11, padding: '1px 8px', borderRadius: 4 }}>已停用</span>}
                   </div>
-                  <p style={{ color: '#9CA3AF', fontSize: 12, margin: '8px 0 0' }}>触发词：{joinList(r.keywords) || '—'}</p>
-                  <p style={{ color: '#9CA3AF', fontSize: 12, margin: '4px 0 0' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: '8px 0 0' }}>触发词：{joinList(r.keywords) || '—'}</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: '4px 0 0' }}>
                     宜：{joinList(r.priority_health_tags) || '—'}　忌性味：{joinList(r.ban_natures) || '—'}　忌标签：{joinList(r.ban_health_tags) || '—'}
                   </p>
-                  <p style={{ color: '#6B7280', fontSize: 12, margin: '4px 0 0', fontStyle: 'italic' }}>建议：{r.remind_text || '—'}</p>
+                  <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '4px 0 0', fontStyle: 'italic' }}>建议：{r.remind_text || '—'}</p>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginLeft: 12 }}>
                   <button onClick={() => toggleActive(r)} style={ghostBtn}>{r.is_active ? '停用' : '启用'}</button>
                   <button onClick={() => openEdit(r)} style={ghostBtn}>编辑</button>
-                  <button onClick={() => handleDelete(r)} style={{ ...ghostBtn, borderColor: '#7F1D1D', color: '#F87171' }}>删除</button>
+                  <button onClick={() => handleDelete(r)} style={{ ...ghostBtn, borderColor: '#7F1D1D', color: 'var(--danger-text)' }}>删除</button>
                 </div>
               </div>
             </div>
           ))}
-          {list.length === 0 && <div style={{ ...card, color: '#6B7280', textAlign: 'center' }}>暂无规则，点击右上角新增。</div>}
+          {list.length === 0 && <div style={{ ...card, color: 'var(--text-dim)', textAlign: 'center' }}>暂无规则，点击右上角新增。</div>}
         </div>
       )}
 
       {showModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}>
-          <div style={{ ...card, width: 560, maxHeight: '90vh', overflowY: 'auto', background: '#0F1623' }}>
-            <h3 style={{ color: '#E5E7EB', margin: '0 0 16px', fontSize: 16 }}>{editing ? '编辑规则' : '新增规则'}</h3>
+          <div style={{ ...card, width: 560, maxHeight: '90vh', overflowY: 'auto', background: 'var(--card)' }}>
+            <h3 style={{ color: 'var(--text)', margin: '0 0 16px', fontSize: 16 }}>{editing ? '编辑规则' : '新增规则'}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <Field label="规则 ID（英文/拼音，唯一）">
                 <input disabled={!!editing} value={form.id} onChange={e => setForm(f => ({ ...f, id: e.target.value }))} placeholder="如 throat-sore" style={inputStyle} />
@@ -216,7 +216,7 @@ export default function SymptomRules() {
               <Field label="排序（数字越小越靠前）">
                 <input type="number" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) }))} style={inputStyle} />
               </Field>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9CA3AF', fontSize: 13 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 13 }}>
                 <input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />
                 启用（停用后小程序端不加载该规则）
               </label>
@@ -235,7 +235,7 @@ export default function SymptomRules() {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <label style={{ display: 'block', color: '#9CA3AF', fontSize: 12, marginBottom: 6 }}>{label}</label>
+      <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: 12, marginBottom: 6 }}>{label}</label>
       {children}
     </div>
   )
