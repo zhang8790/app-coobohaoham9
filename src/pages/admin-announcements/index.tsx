@@ -6,6 +6,7 @@ import { supabase } from '@/client/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { withTimeout } from '@/utils/withTimeout'
+import Icon from '@/components/Icon'
 
 type AnnouncementRow = {
   id: string
@@ -116,11 +117,11 @@ function AdminAnnouncementsPage() {
 
       {loading ? (
         <View className="flex items-center justify-center py-20">
-          <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+          <Icon name="loading" size={48} className="text-primary animate-spin" />
         </View>
       ) : list.length === 0 ? (
         <View className="flex flex-col items-center justify-center py-20 gap-3">
-          <View className="i-mdi-bullhorn text-6xl text-muted-foreground/40" />
+          <Icon name="bullhorn" size={60} className="text-muted-foreground/40" />
           <Text className="text-2xl text-muted-foreground">暂无公告</Text>
         </View>
       ) : (

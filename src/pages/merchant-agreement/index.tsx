@@ -24,7 +24,7 @@ function MerchantAgreement() {
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">三、商家权利与义务</Text>
-          <Text className="block">1. 商家须保证所售商品/服务合法合规、质量合格、描述真实。</Text>
+          <Text className="block">1. 商家须保证所售商品/服务合法、质量合格、描述真实。</Text>
           <Text className="block">2. 商家须及时接单、发货/核销，并按约定处理售后与退款。</Text>
           <Text className="block">3. 商家可自行配置优惠券、营销活动及门店信息，须遵守平台规则。</Text>
           <Text className="block">4. 商家应对消费者信息保密，不得滥用或泄露。</Text>
@@ -34,7 +34,7 @@ function MerchantAgreement() {
           <Text className="block text-foreground font-semibold mb-1 leading-snug">四、结算与提现</Text>
           <Text className="block">1. 商家佣金按订单完成状态结算，可在商家后台发起提现。</Text>
           <Text className="block">2. 提现将扣除 10% 平台服务费，审核通过后打款至绑定账户。</Text>
-          <Text className="block">3. 因违规、投诉或风控拦截产生的冻结/扣款，平台将另行通知。</Text>
+          <Text className="block">3. 因投诉或风控拦截产生的冻结/扣款，平台将另行通知。</Text>
         </View>
 
         <View className="mb-4">

@@ -73,7 +73,7 @@ export default defineConfig<'vite'>(async (merge) => {
         uvtw({
           // rem转rpx
           rem2rpx: {
-            rootValue: 24,
+            rootValue: 28,
             propList: ['*'],
             transformUnit: 'rpx'
           } as any,

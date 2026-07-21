@@ -503,7 +503,7 @@ export const mockSupabase = {
             }
           }
 
-          // 模拟积分发放（消费金额的 1%，最低 1 积分；纯金豆支付也发积分）
+          // 模拟金豆发放（消费金额的 1%，最低 1 金豆；纯金豆支付也发金豆）
           const pointsEarned = Math.max(1, Math.floor(total * 0.01))
           const oldPoints = mockProfile.points || 0
           mockProfile.points = oldPoints + pointsEarned
@@ -512,10 +512,10 @@ export const mockSupabase = {
             user_id: mockUser.id, order_id: orderId,
             type: 'purchase_earn', delta: pointsEarned,
             balance_after: mockProfile.points,
-            remark: `购物奖励积分（订单 ${orderNo}）`,
+            remark: `购物奖励金豆（订单 ${orderNo}）`,
             created_at: new Date().toISOString()} as any)
 
-          console.log(`[Mock] create-order: 模式=${payMode}, 金豆扣=${goldBeansToUse}, 微信付=${wxpayAmount}, 积分+${pointsEarned}`)
+          console.log(`[Mock] create-order: 模式=${payMode}, 金豆扣=${goldBeansToUse}, 微信付=${wxpayAmount}, 金豆+${pointsEarned}`)
           return {
             data: {
               success: true, order: newOrder,

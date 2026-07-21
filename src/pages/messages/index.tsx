@@ -23,7 +23,7 @@ const TYPE_META: Record<string, { icon: string; color: string; label: string }> 
   commission_arrived: { icon: '💰', color: '#F59E0B', label: '佣金' },
   withdraw_progress:  { icon: '💸', color: '#3B82F6', label: '提现' },
   refund_result:      { icon: '↩',  color: '#EF4444', label: '退款' },
-  announcement:       { icon: '📢', color: '#C2410C', label: '公告' },
+  announcement:       { icon: '📢', color: '#A8552E', label: '公告' },
 }
 
 function formatTime(iso: string): string {

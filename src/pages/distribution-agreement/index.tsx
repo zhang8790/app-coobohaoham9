@@ -12,7 +12,7 @@ function DistributionAgreement() {
           风险提示
         </Text>
         <Text className="block text-foreground text-xs mt-1 leading-relaxed">
-          本平台仅从事实物商品零售经营，所有推广佣金、贡献值权益均依托真实商品交易产生；不存在投资、理财、资产增值功能。请勿轻信「保本高收益、积分变现、躺赚」等不实宣传；任何以拉人头、多层分红、现金返利为核心的模式均属于违法传销、资金盘，请勿参与。
+          本平台仅从事实物商品零售经营，推广佣金依托真实商品交易产生，以金豆形式发放、可在平台内消费。
         </Text>
       </View>
 
@@ -32,21 +32,20 @@ function DistributionAgreement() {
           <Text className="block">1. 推广佣金仅来源于商品正常销售利润，由真实交易流水驱动，以金豆形式发放至金豆余额，可在平台内消费支付，不可提现。</Text>
           <Text className="block">2. 奖励仅针对您直接推荐的我的好友、以及您推荐的我的好友再邀请的我的粉丝在平台产生的有效消费订单结算，仅限两级。</Text>
           <Text className="block">3. 奖励结算唯一依据为用户真实支付、完成履约的有效订单；单纯注册、未付款订单不计入奖励基数，无零订单返利。</Text>
-          <Text className="block">4. 本平台仅设二级推广（我的好友+我的粉丝），只有二级、不发展第三级及多级分润，不设置团队业绩奖、层级管理奖；段位比例由个人累计消费决定，不含团队计酬维度。</Text>
+          <Text className="block">4. 本平台仅设二级推广（我的好友+我的粉丝），不发展第三级；段位比例由个人累计消费决定。</Text>
         </View>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">三、禁止行为条款</Text>
-          <Text className="block">1. 您不得以「投资、保本、稳赚、升值、躺赚」等表述对外宣传推广收益，不得虚构收益案例误导他人。</Text>
+          <Text className="block">1. 您不得对外宣传虚构收益或误导性表述。</Text>
           <Text className="block">2. 您不得发展三级及以上多层级返利团队，不得收取他人任何入门费或代理费。</Text>
-          <Text className="block">3. 平台有权对违规推广账号取消奖励资格、冻结或清零相关收益，并保留追究法律责任的权利。</Text>
+          <Text className="block">3. 平台有权对违规推广账号取消奖励资格、冻结或清零相关收益。</Text>
         </View>
 
         <View className="mb-4">
-          <Text className="block text-foreground font-semibold mb-1 leading-snug">四、法律风险告知条款</Text>
-          <Text className="block">1. 您知悉：任何以发展下线人数计酬、收取入门费、多层级团队分红的模式均属于传销违法行为。</Text>
-          <Text className="block">2. 本平台推广为二级结构（我的好友+我的粉丝），仅限二级，不存在第三级及多级分润机制。</Text>
-          <Text className="block">3. 推广收益根据订单销量浮动，无固定收益保障，个体收益存在差异。</Text>
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">四、其他说明</Text>
+          <Text className="block">1. 本平台推广为二级结构（我的好友+我的粉丝），仅限二级，不存在第三级及多级分润机制。</Text>
+          <Text className="block">2. 推广收益根据订单销量浮动，无固定收益保障，个体收益存在差异。</Text>
         </View>
 
         <Text className="block text-muted-foreground text-xs mt-5 pt-3" style={{ borderTop: '1px solid hsl(var(--border))' }}>

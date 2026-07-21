@@ -31,7 +31,7 @@ function AssetRules() {
         </View>
 
         <View className="mb-4">
-          <Text className="block text-foreground font-semibold mb-1 leading-snug">四、合规说明</Text>
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">四、说明</Text>
           <Text className="block">1. 金豆与贡献值均为平台内资产，不可提现、不可兑现金、不可二级转让。</Text>
           <Text className="block">2. 推广佣金已以金豆形式发放至金豆余额，可在平台内消费支付抵扣，不可提现或兑现金，与上述资产同源。</Text>
           <Text className="block">3. 段位权益为专属服务 / 优先体验 / 共创权等，不承诺现金回报或保本，不含分红 / 股权表述。</Text>

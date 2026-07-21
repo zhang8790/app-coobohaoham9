@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { withTimeout } from '@/utils/withTimeout'
 import { maskPhone } from '@/utils/mask'
+import Icon from '@/components/Icon'
 
 type RefundRow = {
   id: string
@@ -115,11 +116,11 @@ function AdminRefundsPage() {
 
       {loading ? (
         <View className="flex items-center justify-center py-20">
-          <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+          <Icon name="loading" size={48} className="text-primary animate-spin" />
         </View>
       ) : list.length === 0 ? (
         <View className="flex flex-col items-center justify-center py-20 gap-3">
-          <View className="i-mdi-cash-refund text-6xl text-muted-foreground/40" />
+          <Icon name="cash-refund" size={60} className="text-muted-foreground/40" />
           <Text className="text-2xl text-muted-foreground">暂无退款记录</Text>
         </View>
       ) : (

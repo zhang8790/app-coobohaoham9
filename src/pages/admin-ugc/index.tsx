@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { withTimeout } from '@/utils/withTimeout'
 import type { Article } from '@/db/types'
+import Icon from '@/components/Icon'
 
 type Tab = 'all' | 'published' | 'hidden'
 
@@ -87,11 +88,11 @@ function AdminUgcPage() {
       <View className="px-4 py-4">
         {loading ? (
           <View className="flex items-center justify-center py-20">
-            <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+            <Icon name="loading" size={48} className="text-primary animate-spin" />
           </View>
         ) : filtered.length === 0 ? (
           <View className="flex flex-col items-center justify-center py-20 gap-3">
-            <View className="i-mdi-newspaper-remove text-6xl text-muted-foreground" />
+            <Icon name="newspaper-remove" size={60} className="text-muted-foreground" />
             <Text className="text-2xl text-muted-foreground">暂无内容</Text>
           </View>
         ) : (
@@ -124,7 +125,7 @@ function AdminUgcPage() {
                     className={`flex-1 flex items-center justify-center leading-none py-3 ${processing === a.id ? 'opacity-50' : ''}`}
                     onClick={() => handleToggle(a)}>
                     <View className={`flex items-center gap-1 text-xl font-bold ${a.is_published ? 'text-amber-600' : 'text-emerald-600'}`}>
-                      <View className={`${a.is_published ? 'i-mdi-eye-off' : 'i-mdi-eye'} text-xl`} />
+                      <View className={`${a.is_published ? '👁' : '👁'} text-xl`} />
                       <Text>{a.is_published ? '封印下架' : '解封上架'}</Text>
                     </View>
                   </Button>
@@ -133,7 +134,7 @@ function AdminUgcPage() {
                     className={`flex-1 flex items-center justify-center leading-none py-3 ${processing === a.id ? 'opacity-50' : ''}`}
                     onClick={() => handleDelete(a.id)}>
                     <View className="flex items-center gap-1 text-xl font-bold text-destructive">
-                      <View className="i-mdi-delete text-xl" />
+                      <Icon name="delete" size={20} />
                       <Text>销毁秘籍</Text>
                     </View>
                   </Button>

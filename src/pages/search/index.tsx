@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
 import { View, Text, Image, Input } from '@tarojs/components'
 import { searchProducts, getProductsByEmotion } from '@/db/api'
+import Icon from '@/components/Icon'
 import { analyzeEmotionAsync, rankProductsByEmotion, getEmotionPoetry, ScoredProduct } from '@/utils/emotionEngine'
 import { generateEmotionDescription } from '@/utils/emotion-description'
 import type { Product } from '@/db/types'
@@ -19,9 +20,9 @@ interface EmotionState {
 }
 
 const MATCH_LABEL_STYLE: Record<string, { bg: string; color: string; text: string }> = {
-  '完美契合': { bg: 'rgba(34,160,94,0.12)', color: '#22A05E', text: '完美契合' },
-  '较好匹配': { bg: 'rgba(25,118,210,0.12)', color: '#1976D2', text: '较好匹配' },
-  '有点匹配': { bg: 'rgba(140,140,140,0.12)', color: '#8C8C8C', text: '有点匹配' },
+  '完美契合': { bg: 'rgba(46,125,91,0.12)', color: '#2E7D5B', text: '完美契合' },
+  '较好匹配': { bg: 'rgba(59,91,122,0.12)', color: '#3B5B7A', text: '较好匹配' },
+  '有点匹配': { bg: 'rgba(107,98,88,0.12)', color: '#6B6258', text: '有点匹配' },
 }
 
 export default function SearchPage() {
@@ -87,7 +88,7 @@ export default function SearchPage() {
     setResults([])
   }
 
-  // 支持从犒赏铺(?mood=标签) / 情绪检测页(?keyword=关键词) 带参跳转自动搜索
+  // 支持从品牌馆(?mood=标签) / 情绪检测页(?keyword=关键词) 带参跳转自动搜索
   useEffect(() => {
     const rawMood = router.params?.mood
     const rawKw = router.params?.keyword
@@ -111,16 +112,15 @@ export default function SearchPage() {
       {/* 搜索栏 */}
       <View className="sticky top-0 z-10 bg-background px-4 py-3 flex items-center gap-3" style={{ borderBottom: '1px solid #E7DDD0' }}>
         <View className="flex-1 border-2 border-input rounded-full px-4 py-2 bg-muted flex items-center gap-2">
-          <View className="i-mdi-magnify text-xl text-muted-foreground" />
+          <View className="text-muted-foreground"><Icon name="search" size={20} /></View>
           <Input
             className="flex-1 text-xl text-foreground bg-transparent outline-none"
             placeholder="说心情或搜商品，如「我失恋了」"
             value={keyword}
             onInput={(e) => { const ev = e as any; setKeyword(ev.detail?.value ?? ev.target?.value ?? '') }}
-            onConfirm={() => doSearch(keyword)}
-          />
+            onConfirm={() => doSearch(keyword)} />
           {keyword && (
-            <View className="i-mdi-close text-xl text-muted-foreground" onClick={() => { setKeyword(''); setSearched(false); setResults([]); setScored([]); setEmotion(null) }} />
+            <View className="text-xl text-muted-foreground" onClick={() => { setKeyword(''); setSearched(false); setResults([]); setScored([]); setEmotion(null) }} />
           )}
         </View>
         <View className="flex items-center justify-center flex-shrink-0"
@@ -135,7 +135,7 @@ export default function SearchPage() {
           {/* 心情引导 */}
           <View className="mb-6">
             <View className="flex items-center gap-2 mb-3">
-              <View className="i-mdi-heart-pulse text-2xl text-primary" />
+              <View className="text-primary"><Icon name="heart" size={24} /></View>
               <Text className="text-2xl font-bold text-foreground">此刻的心情</Text>
             </View>
             <View className="flex flex-wrap gap-2">
@@ -152,7 +152,7 @@ export default function SearchPage() {
           {/* 热门搜索 */}
           <View className="mb-6">
             <View className="flex items-center gap-2 mb-3">
-              <View className="i-mdi-fire text-2xl text-primary" />
+              <Icon name="fire" size={24} className="text-primary" />
               <Text className="text-2xl font-bold text-foreground">热门搜索</Text>
             </View>
             <View className="flex flex-wrap gap-2">
@@ -171,11 +171,11 @@ export default function SearchPage() {
             <View>
               <View className="flex items-center justify-between mb-3">
                 <View className="flex items-center gap-2">
-                  <View className="i-mdi-history text-2xl text-muted-foreground" />
+                  <Icon name="history" size={24} className="text-muted-foreground" />
                   <Text className="text-2xl font-bold text-foreground">搜索历史</Text>
                 </View>
                 <View className="flex items-center gap-1" onClick={clearHistory}>
-                  <View className="i-mdi-delete-outline text-xl text-muted-foreground" />
+                  <Icon name="delete-outline" size={20} className="text-muted-foreground" />
                   <Text className="text-xl text-muted-foreground">清空</Text>
                 </View>
               </View>
@@ -198,7 +198,7 @@ export default function SearchPage() {
         <View className="px-4 pt-4">
           {loading ? (
             <View className="flex items-center justify-center pt-20">
-              <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+              <Icon name="loading" size={36} className="text-primary animate-spin" />
             </View>
           ) : mode === 'emotion' && emotion ? (
             <View>
@@ -206,7 +206,7 @@ export default function SearchPage() {
               <View className="rounded-2xl p-4 mb-4"
                 style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.55), rgba(255,255,255,0.25))', border: '1px solid rgba(0,0,0,0.06)', backdropFilter: 'blur(12px)' }}>
                 <View className="flex items-center gap-2 mb-2">
-                  <View className="i-mdi-heart-pulse text-2xl text-primary" />
+                  <View className="text-primary"><Icon name="heart" size={24} /></View>
                   <Text className="text-xl font-bold text-foreground">读懂了你的心情</Text>
                 </View>
                 <Text className="text-xl text-foreground leading-relaxed block" style={{ fontWeight: 600 }}>{emotion.bubble}</Text>
@@ -247,7 +247,7 @@ export default function SearchPage() {
                       </View>
                     </View>
                     <View className="flex items-center pr-3">
-                      <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+                      <Icon name="chevron-right" size={20} className="text-muted-foreground" />
                     </View>
                   </View>
                 )
@@ -255,7 +255,7 @@ export default function SearchPage() {
             </View>
           ) : results.length === 0 ? (
             <View className="flex flex-col items-center justify-center pt-20 gap-4">
-              <View className="i-mdi-magnify-close text-8xl text-muted-foreground" />
+              <View className="text-muted-foreground"><Icon name="search" size={64} /></View>
               <Text className="text-2xl text-muted-foreground">未找到相关商品</Text>
               <Text className="text-xl text-muted-foreground">换个关键词试试？</Text>
             </View>
@@ -274,7 +274,7 @@ export default function SearchPage() {
                     </View>
                   </View>
                   <View className="flex items-center pr-3">
-                    <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+                    <Icon name="chevron-right" size={20} className="text-muted-foreground" />
                   </View>
                 </View>
               ))}

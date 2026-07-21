@@ -3,6 +3,7 @@ import { View, Button, Textarea, Text } from '@tarojs/components'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { getOrderById, applyRefund } from '@/db/api'
+import Icon from '@/components/Icon'
 import { RouteGuard } from '@/components/RouteGuard'
 import type { Order } from '@/db/types'
 import { supabase } from '@/client/supabase'
@@ -51,7 +52,7 @@ function RefundApplyPage() {
     setOrder(data)
     if (data) {
       const paid = Number(data.total_amount)
-      const refunded = Number((data as any).refunded_amount ?? 0)
+      const refunded = Number((data as any).refund_amount ?? 0)
       const avail = Math.max(0, Math.round((paid - refunded) * 10000) / 10000)
       setRefundable(avail)
       setRefundAmount(avail)
@@ -93,7 +94,7 @@ function RefundApplyPage() {
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
@@ -107,13 +108,16 @@ function RefundApplyPage() {
   const existingRefund = (order as any)._existingRefund
   if (existingRefund) {
     const statusMap: Record<string, { text: string; color: string; icon: string }> = {
-      'pending': { text: '待审核', color: '#B45309', icon: 'i-mdi-clock-outline' },
-      'approved': { text: '审核通过', color: '#1976D2', icon: 'i-mdi-check-circle' },
-      'rejected': { text: '已拒绝', color: '#DC2626', icon: 'i-mdi-close-circle' },
-      'completed': { text: '已完成退款', color: '#4CAF50', icon: 'i-mdi-check-circle' },
-      'cancelled': { text: '已取消', color: '#9A8070', icon: 'i-mdi-cancel' },
+      'pending': { text: '待审核', color: '#A8552E', icon: '🕐' },
+      'processing': { text: '退款处理中', color: '#3B5B7A', icon: '◐' },
+      'approved': { text: '审核通过', color: '#3B5B7A', icon: '✓' },
+      'rejected': { text: '已拒绝', color: '#DC2626', icon: '✕' },
+      'completed': { text: '已完成退款', color: '#2E7D5B', icon: '✓' },
+      'closed': { text: '退款已关闭', color: '#9A8070', icon: '✕' },
+      'abnormal': { text: '退款异常', color: '#DC2626', icon: '⚠' },
+      'cancelled': { text: '已取消', color: '#9A8070', icon: '✕' },
     }
-    const refundStatus = statusMap[existingRefund.status] || { text: existingRefund.status, color: '#9A8070', icon: 'i-mdi-help-circle' }
+    const refundStatus = statusMap[existingRefund.status] || { text: existingRefund.status, color: '#9A8070', icon: '?' }
 
     return (<RouteGuard>
       <View className="min-h-screen bg-background flex flex-col items-center justify-center px-8">
@@ -146,7 +150,7 @@ function RefundApplyPage() {
         <Text className="text-xl font-bold text-foreground mb-3">退款订单</Text>
         {order.order_items?.map((item, idx) => (
           <View key={idx} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
-            <View className="i-mdi-package-variant text-2xl text-muted-foreground flex-shrink-0" />
+            <View className="text-muted-foreground flex-shrink-0"><Icon name="box" size={24} /></View>
             <View className="flex-1">
               <Text className="text-xl text-foreground font-bold line-clamp-1">{item.product_name}</Text>
               <Text className="text-base text-muted-foreground">{item.store_name}</Text>
@@ -161,10 +165,10 @@ function RefundApplyPage() {
           <Text className="text-xl text-muted-foreground">订单金额</Text>
           <Text className="text-xl font-bold text-foreground">¥{Number(order.total_amount).toFixed(2)}</Text>
         </View>
-        {Number((order as any).refunded_amount ?? 0) > 0 && (
+        {Number((order as any).refund_amount ?? 0) > 0 && (
           <View className="flex items-center justify-between pt-1">
             <Text className="text-xl text-muted-foreground">已退款</Text>
-            <Text className="text-xl font-bold text-red-500">-¥{Number((order as any).refunded_amount).toFixed(2)}</Text>
+            <Text className="text-xl font-bold text-red-500">-¥{Number((order as any).refund_amount).toFixed(2)}</Text>
           </View>
         )}
       </View>
@@ -180,7 +184,7 @@ function RefundApplyPage() {
             className={`flex items-center gap-3 px-4 py-4 border-b border-border last:border-0 ${selectedReason === r ? 'bg-primary/5' : ''}`}
             onClick={() => setSelectedReason(r)}>
             <View className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedReason === r ? 'border-primary bg-primary' : 'border-border'}`}>
-              {selectedReason === r && <View className="i-mdi-check text-white text-xs" />}
+              {selectedReason === r && <Icon name="check" size={12} className="text-white" />}
             </View>
             <Text className="text-xl text-foreground">{r}</Text>
           </View>
@@ -201,8 +205,7 @@ function RefundApplyPage() {
               placeholder="请描述退款原因，帮助我们更好地处理..."
               value={description}
               onInput={(e) => { const ev = e as any; setDescription(ev.detail?.value ?? ev.target?.value ?? '') }}
-              maxLength={200}
-            />
+              maxLength={200} />
           </View>
           <Text className="text-base text-muted-foreground text-right mt-1">{description.length}/200</Text>
         </View>
@@ -211,7 +214,7 @@ function RefundApplyPage() {
       {/* 退款说明 */}
       <View className="mx-4 mt-4 p-4 bg-muted rounded-2xl">
         <View className="flex items-start gap-2">
-          <View className="i-mdi-information-outline text-2xl text-primary flex-shrink-0 mt-0.5" />
+          <Icon name="information-outline" size={24} className="text-primary flex-shrink-0 mt-0.5" />
           <View>
             <Text className="text-xl font-bold text-foreground mb-2">退款说明</Text>
             <Text className="text-base text-muted-foreground leading-relaxed">• 退款将原路退回至您的支付账户</Text>

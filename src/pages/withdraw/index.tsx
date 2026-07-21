@@ -2,20 +2,21 @@ import { View, Button, Input, Text } from '@tarojs/components'
 // @title 提现管理
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { applyWithdraw, getMyWithdrawals, getMyBalance, getMerchantStore, getMerchantSettlement, applyMerchantWithdrawal, getWithdrawalAccounts, saveWithdrawalAccount, deleteWithdrawalAccount } from '@/db/api'
+import { getMyWithdrawals, getMyBalance, getMerchantStore, getMerchantSettlement, applyMerchantWithdrawal, getWithdrawalAccounts, saveWithdrawalAccount, deleteWithdrawalAccount } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import type { Withdrawal, WithdrawMethod, SavedWithdrawalAccount } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import RiskWarning from '@/components/RiskWarning'
+import Icon from '@/components/Icon'
 
 type Tab = 'apply' | 'records'
 type MethodKey = WithdrawMethod
 type WithdrawMode = 'commission' | 'settlement'
 
 const methodOptions: { key: MethodKey; label: string; icon: string }[] = [
-  { key: 'bank', label: '银行卡', icon: 'i-mdi-bank-outline' },
-  { key: 'alipay', label: '支付宝', icon: 'i-mdi-alpha-a-box-outline' },
-  { key: 'wechat', label: '微信', icon: 'i-mdi-wechat' },
+  { key: 'bank', label: '银行卡', icon: '🏦' },
+  { key: 'alipay', label: '支付宝', icon: 'A' },
+  { key: 'wechat', label: '微信', icon: '💬' },
 ]
 
 const statusLabel: Record<string, string> = {
@@ -120,7 +121,7 @@ function WithdrawPage() {
 
   // 导航栏标题随模式切换
   useEffect(() => {
-    Taro.setNavigationBarTitle({ title: mode === 'settlement' ? '货款提现' : '佣金提现' })
+    Taro.setNavigationBarTitle({ title: mode === 'settlement' ? '货款提现' : '推广佣金' })
   }, [mode])
 
   const handleSubmit = async () => {
@@ -159,19 +160,6 @@ function WithdrawPage() {
       })
       result = r.ok ? {} : null
       if (!r.ok) Taro.showToast({ title: r.error || '提交失败', icon: 'none' })
-    } else {
-      result = await applyWithdraw({
-        store_id: storeId,
-        amount: amt,
-        withdraw_method: method,
-        bank_name: method === 'bank' ? bankName : undefined,
-        bank_account: method === 'bank' ? bankAccount : (method === 'alipay' ? alipayAccount : undefined),
-        bank_holder: method === 'bank' ? bankHolder : undefined,
-        alipay_account: method === 'alipay' ? alipayAccount : undefined,
-        real_name: realName.trim(),
-        id_card: idCard.trim(),
-        remark: remark || undefined,
-      })
     }
     setSubmitting(false)
     if (result) {
@@ -212,7 +200,7 @@ function WithdrawPage() {
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
@@ -232,7 +220,7 @@ function WithdrawPage() {
           <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}（含金豆支付等值部分，由平台垫付）</Text>
         </View>
       ) : (
-        <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)' }}>
+        <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #A8552E, #A8552E)' }}>
           <Text className="text-xl text-white/80 mb-1">我的金豆（推广佣金发放至此）</Text>
           <Text className="text-4xl font-bold text-white">{balance.toLocaleString()}<Text className="text-xl ml-1">豆</Text></Text>
           <Text className="text-xl text-white/70 mt-2">可直接在平台内消费支付 · 不可提现</Text>
@@ -255,7 +243,7 @@ function WithdrawPage() {
         <View className="px-4 mt-4">
           <View className="bg-card rounded-2xl border border-border p-5 flex flex-col gap-2">
             <View className="flex items-center gap-2">
-              <View className="i-mdi-emoticon-happy text-3xl text-primary" />
+              <Icon name="emoticon-happy" size={30} className="text-primary" />
               <Text className="text-xl font-bold text-foreground">推广佣金已升级为「金豆」</Text>
             </View>
             <Text className="text-base text-muted-foreground">你的推广佣金（含好友/粉丝佣金）已直接发放至「金豆」钱包，可在平台内消费支付、兑换专属体验，形成消费回流边花边赚。</Text>
@@ -333,7 +321,7 @@ function WithdrawPage() {
                     }}>
                     <View className="flex items-center justify-between">
                       <View className="flex items-center gap-2 flex-1 min-w-0">
-                        <View className={`text-2xl ${a.method === 'bank' ? 'i-mdi-bank-outline' : a.method === 'alipay' ? 'i-mdi-alpha-a-box-outline' : 'i-mdi-wechat'} ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <View className={`text-2xl ${a.method === 'bank' ? '🏦' : a.method === 'alipay' ? 'A' : '💬'} ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
                         <View className="flex-1 min-w-0">
                           <View className="flex items-center gap-2">
                             <Text className="text-xl font-bold text-foreground truncate">
@@ -353,8 +341,8 @@ function WithdrawPage() {
                         </View>
                       </View>
                       <View className="flex items-center gap-2 ml-2">
-                        {isActive && <View className="i-mdi-check-circle text-2xl text-primary" />}
-                        <View className="i-mdi-trash-can-outline text-2xl text-muted-foreground p-1"
+                        {isActive && <Icon name="check-circle" size={24} className="text-primary" />}
+                        <Icon name="trash-can-outline" size={24} className="text-muted-foreground p-1"
                           onClick={async (e) => {
                             e?.stopPropagation?.()
                             const res = await Taro.showModal({ title: '删除该账户？', content: '删除后下次提现需重新填写', confirmText: '删除', confirmColor: '#EF4444' })
@@ -367,8 +355,7 @@ function WithdrawPage() {
                             } else {
                               Taro.showToast({ title: '删除失败', icon: 'none' })
                             }
-                          }}
-                        />
+                          }} />
                       </View>
                     </View>
                   </View>
@@ -379,7 +366,7 @@ function WithdrawPage() {
                   setUseSaved(false); setSelectedAccountId(null)
                   setRealName(''); setIdCard(''); setBankName(''); setBankAccount(''); setBankHolder(''); setAlipayAccount('')
                 }}>
-                <View className="i-mdi-plus-circle-outline text-xl text-muted-foreground" />
+                <Icon name="plus-circle-outline" size={20} className="text-muted-foreground" />
                 <Text className="text-xl text-muted-foreground">使用新账户（提交后将自动保存）</Text>
               </View>
             </View>
@@ -441,7 +428,7 @@ function WithdrawPage() {
             )}
             {method === 'wechat' && (
               <View className="flex flex-col items-center py-6 gap-2">
-                <View className="i-mdi-wechat text-5xl text-green-500" />
+                <Icon name="wechat" size={48} className="text-green-500" />
                 <Text className="text-xl text-muted-foreground text-center">微信到账将打款至您的微信零钱，无需填写账号</Text>
               </View>
             )}
@@ -479,7 +466,7 @@ function WithdrawPage() {
         <View className="px-4 mt-4">
           {records.length === 0 ? (
             <View className="flex flex-col items-center py-16 gap-3">
-              <View className="i-mdi-history text-6xl text-muted-foreground/40" />
+              <Icon name="history" size={60} className="text-muted-foreground/40" />
               <Text className="text-xl text-muted-foreground">暂无提现记录</Text>
             </View>
           ) : (
@@ -502,7 +489,7 @@ function WithdrawPage() {
                   )}
                 </View>
                 {r.reject_reason && (
-                  <View className="mt-2 p-3 bg-red-50 rounded-xl">
+                  <View className="mt-2 p-3 bg-destructive/5 rounded-xl">
                     <Text className="text-xl text-red-500">拒绝原因：{r.reject_reason}</Text>
                   </View>
                 )}

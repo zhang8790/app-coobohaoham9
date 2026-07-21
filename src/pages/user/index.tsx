@@ -8,45 +8,48 @@ import type { Profile, MerchantApplication } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabase } from '@/client/supabase'
+import CustomTabBar from '@/components/custom-tabbar'
+import Icon from '@/components/Icon'
+import RankProgress from '@/components/RankProgress'
 
 const WUXIA_NAMES = ['剑影飘鸿', '凌云一笑', '碧落寒烟', '寒光碎月', '幽谷清风', '紫电青霜', '千机云鹤', '翠微长啸', '玉骨冰心', '逍遥散人']
-const RANK_COLORS: Record<string, string> = { '凡心': '#78350F', '初心': '#B45309', '明心': '#92400E', '静心': '#C2410C', '悟心': '#9333EA', '无心境': '#DC2626' }
+const RANK_COLORS: Record<string, string> = { '凡心': '#78350F', '初心': '#A8552E', '明心': '#9A8070', '静心': '#A8552E', '悟心': '#9A8070', '无心境': '#DC2626' }
 
 const MENU_GROUPS = [
   {
     title: '侠客令',
-    icon: 'i-mdi-sword',
+    icon: '⚔',
     items: [
-      { name: '全部订单', icon: 'i-mdi-clipboard-list', page: '/pages/order-center/index' },
-      { name: '地址管理', icon: 'i-mdi-map-marker', page: '/pages/address/index' },
-      { name: '优惠券', icon: 'i-mdi-ticket-percent', page: '/pages/coupon/index' },
+      { name: '全部订单', icon: '📋', page: '/pages/order-center/index' },
+      { name: '地址管理', icon: '🗺', page: '/pages/address/index' },
+      { name: '优惠券', icon: '🎫', page: '/pages/coupon/index' },
     ]
   },
   {
     title: '珍宝库',
-    icon: 'i-mdi-treasure-chest',
+    icon: '◆',
     items: [
-      { name: '我的收藏', icon: 'i-mdi-heart', page: '/pages/favorites/index' },
-      { name: '浏览足迹', icon: 'i-mdi-history', page: '/pages/footprint/index' },
+      { name: '我的收藏', icon: '❤', page: '/pages/favorites/index' },
+      { name: '浏览足迹', icon: '⟲', page: '/pages/footprint/index' },
     ]
   },
   {
     title: '江湖事',
-    icon: 'i-mdi-account-group',
+    icon: '👥',
     items: [
-      { name: '消息中心', icon: 'i-mdi-bell-outline', page: '/pages/messages/index', badge: 'unread' },
-      { name: '帮助中心', icon: 'i-mdi-help-circle', page: '/pages/help/index' },
-      { name: '设置', icon: 'i-mdi-cog', page: '/pages/settings/index' },
+      { name: '消息中心', icon: '🔔', page: '/pages/messages/index', badge: 'unread' },
+      { name: '帮助中心', icon: '?', page: '/pages/help/index' },
+      { name: '设置', icon: '⚙', page: '/pages/settings/index' },
     ]
   }
 ]
 
 const ORDER_STATUS_TABS = [
-  { key: 'pending_pay', label: '待付款', icon: 'i-mdi-clock-outline' },
-  { key: 'pending_ship', label: '待发货', icon: 'i-mdi-package-variant' },
-  { key: 'pending_receive', label: '待收货', icon: 'i-mdi-truck-delivery' },
-  { key: 'pending_review', label: '待评价', icon: 'i-mdi-star-outline' },
-  { key: 'after_sale', label: '售后', icon: 'i-mdi-refresh' },
+  { key: 'pending_pay', label: '待付款', icon: '🕐' },
+  { key: 'pending_ship', label: '待发货', icon: '📦' },
+  { key: 'pending_receive', label: '待收货', icon: '🚚' },
+  { key: 'pending_review', label: '待评价', icon: '★' },
+  { key: 'after_sale', label: '售后', icon: '⟳' },
 ]
 
 function UserPage() {
@@ -137,7 +140,7 @@ function UserPage() {
   const merchantStatusNode = (() => {
     if (profileLoading) return (
       <View className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-muted border border-border">
-        <View className="i-mdi-loading text-2xl text-muted-foreground animate-spin" />
+        <Icon name="loading" size={24} className="text-muted-foreground animate-spin" />
         <Text className="text-xl text-muted-foreground">加载中...</Text>
       </View>
     )
@@ -146,15 +149,15 @@ function UserPage() {
       <View className="flex items-center justify-between px-4 py-3 rounded-2xl bg-card border border-border"
         onClick={() => Taro.navigateTo({ url: '/pages/merchant-apply/index' })}>
         <View className="flex items-center gap-2">
-          <View className="i-mdi-store-plus text-2xl text-primary" />
+          <Icon name="store-plus" size={24} className="text-primary" />
           <Text className="text-xl text-foreground font-bold">申请成为商家</Text>
         </View>
-        <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+        <Icon name="chevron-right" size={20} className="text-muted-foreground" />
       </View>
     )
     if (status === 'pending') return (
       <View className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-muted border border-border">
-        <View className="i-mdi-clock-outline text-2xl text-muted-foreground" />
+        <Icon name="clock-outline" size={24} className="text-muted-foreground" />
         <Text className="text-xl text-muted-foreground">入驻申请审核中...</Text>
       </View>
     )
@@ -162,23 +165,23 @@ function UserPage() {
       <View className="flex items-center justify-between px-4 py-3 rounded-2xl bg-card border border-primary"
         onClick={() => Taro.navigateTo({ url: '/pages/merchant-center/index' })}>
         <View className="flex items-center gap-2">
-          <View className="i-mdi-store-check text-2xl text-primary" />
+          <Icon name="store-check" size={24} className="text-primary" />
           <Text className="text-xl text-primary font-bold">进入商家管理中心</Text>
         </View>
-        <View className="i-mdi-chevron-right text-xl text-primary" />
+        <Icon name="chevron-right" size={20} className="text-primary" />
       </View>
     )
   })()
 
   return (<RouteGuard>
-    <View className="min-h-screen bg-background pb-10">
+    <View className="min-h-screen bg-background tabbar-pad">
       {/* 顶部用户卡 */}
-      <View className="px-4 pt-6 pb-4" style={{ background: 'linear-gradient(160deg,#FFF0E8 0%,#FFFBF7 80%)' }}>
+      <View className="px-4 pt-6 pb-4" style={{ background: 'linear-gradient(160deg,#F1E9D9 0%,#FFFBF7 80%)' }}>
         {!user ? (
           <View className="flex items-center gap-4 py-4"
             onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}>
             <View className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-              <View className="i-mdi-account text-4xl text-muted-foreground" />
+              <Icon name="account" size={36} className="text-muted-foreground" />
             </View>
             <View>
               <Text className="text-2xl font-bold text-foreground">点击登录</Text>
@@ -190,7 +193,7 @@ function UserPage() {
             <View className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 bg-muted">
               {profile?.avatar_url
                 ? <Image src={profile.avatar_url} mode="aspectFill" style={{ width: '64px', height: '64px' }} />
-                : <View className="w-full h-full flex items-center justify-center"><View className="i-mdi-account text-4xl text-muted-foreground" /></View>}
+                : <View className="w-full h-full flex items-center justify-center"><Icon name="account" size={36} className="text-muted-foreground" /></View>}
             </View>
             <View className="flex-1">
               {editingNick ? (
@@ -209,11 +212,11 @@ function UserPage() {
                 <View className="flex items-center gap-2">
                   <Text className="text-2xl font-bold text-foreground">{profile?.nickname || '无名'}</Text>
                   <View className="w-7 h-7 flex items-center justify-center" onClick={handleRandomNick}>
-                    <View className="i-mdi-shuffle text-xl text-muted-foreground" />
+                    <Icon name="shuffle" size={20} className="text-muted-foreground" />
                   </View>
                   <View className="w-7 h-7 flex items-center justify-center"
                     onClick={() => { setNickInput(profile?.nickname || ''); setEditingNick(true) }}>
-                    <View className="i-mdi-pencil text-xl text-muted-foreground" />
+                    <Icon name="pencil" size={20} className="text-muted-foreground" />
                   </View>
                 </View>
               )}
@@ -230,9 +233,9 @@ function UserPage() {
         {user && profile && (
           <View className="grid grid-cols-3 gap-3 mt-4">
             {[
-              { label: '金豆', value: profile.tb_balance || 0, icon: 'i-mdi-wallet' },
-              { label: '佣金', value: `¥${(profile.commission_balance || 0).toFixed(2)}`, icon: 'i-mdi-cash' },
-              { label: '优惠券', value: `${profile.coupons_count || 0}张`, icon: 'i-mdi-ticket' },
+              { label: '金豆', value: profile.tb_balance || 0, icon: '👛' },
+              { label: '佣金', value: `¥${(profile.commission_balance || 0).toFixed(2)}`, icon: '💰' },
+              { label: '优惠券', value: `${profile.coupons_count || 0}张`, icon: '🎫' },
             ].map(item => (
               <View key={item.label} className="bg-card rounded-2xl flex flex-col items-center py-4 border border-border">
                 <Text className="text-xl font-bold text-foreground">{item.value}</Text>
@@ -242,6 +245,11 @@ function UserPage() {
           </View>
         )}
       </View>
+
+      {/* 段位成长（读取现有 member_rank / cv_total，纯展示，零新增功能） */}
+      {user && profile && (
+        <RankProgress cvTotal={profile.cv_total ?? 0} memberRank={profile.member_rank} />
+      )}
 
       {/* 会员权益区块 */}
       {user && profile && (
@@ -253,16 +261,16 @@ function UserPage() {
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: '12px' }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#C2410C' }}>
+              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#A8552E' }}>
                 {equity ? (equity.shareRatio * 100 < 0.01 ? (equity.shareRatio * 100).toFixed(4) : (equity.shareRatio * 100).toFixed(2)) + '%' : '0%'}
               </Text>
               <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>我的消费贡献占比</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#C2410C' }}>
+              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#A8552E' }}>
                 {equity ? (equity.dividendEstimate || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '0'}
               </Text>
-              <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>年度消费回馈（非现金分红）</Text>
+              <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>年度消费回馈·馈赠金豆</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: '20px', fontWeight: 'bold' }}>{profile.cv_total || 0}</Text>
@@ -280,7 +288,7 @@ function UserPage() {
             <View className="flex items-center gap-1 text-primary text-xl"
               onClick={() => Taro.navigateTo({ url: '/pages/order-center/index' })}>
               <Text>全部</Text>
-              <View className="i-mdi-chevron-right text-xl" />
+              <Icon name="chevron-right" size={20} />
             </View>
           </View>
           <View className="grid grid-cols-5 py-3">
@@ -304,7 +312,7 @@ function UserPage() {
       {user && (
         <View className="mx-4 mt-4 bg-card rounded-2xl border border-border">
           <View className="flex items-center px-4 py-3 border-b border-border gap-2">
-            <View className="i-mdi-sword text-2xl text-primary" />
+            <Icon name="sword" size={24} className="text-primary" />
             <Text className="text-xl font-bold text-foreground">侠客中心</Text>
           </View>
           <View className="grid grid-cols-4 py-3">
@@ -346,7 +354,9 @@ function UserPage() {
       {MENU_GROUPS.map(group => (
         <View key={group.title} className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
           <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-            <View className={`${group.icon} text-2xl text-primary`} />
+            {group.icon.startsWith('i-mdi-')
+              ? <Icon name={group.icon.replace('i-mdi-', '')} size={24} className="text-primary" />
+              : <View className={`${group.icon} text-2xl text-primary`} />}
             <Text className="text-xl font-bold text-foreground">{group.title}</Text>
           </View>
           {group.items.map(item => (
@@ -363,7 +373,7 @@ function UserPage() {
                   </Text>
                 </View>
               )}
-              <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+              <Icon name="chevron-right" size={20} className="text-muted-foreground" />
             </View>
           ))}
         </View>
@@ -380,6 +390,7 @@ function UserPage() {
         </View>
       )}
     </View>
+    <CustomTabBar />
   </RouteGuard>)
 }
 

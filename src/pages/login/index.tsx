@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { View, Text, Input } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
+import Icon from '@/components/Icon'
 
 export default function LoginPage() {
   const { signInWithPhone, verifyPhoneOtp, signInWithWechat, signInWithUsername } = useAuth()
@@ -137,10 +138,10 @@ export default function LoginPage() {
   return (
     <View className="min-h-screen flex flex-col bg-background">
       {/* 顶部装饰 */}
-      <View className="relative px-6 pt-16 pb-10" style={{ background: 'linear-gradient(160deg,#FFF0E8 0%,#FFFBF7 100%)' }}>
+      <View className="relative px-6 pt-16 pb-10" style={{ background: 'linear-gradient(160deg,#F1E9D9 0%,#FFFBF7 100%)' }}>
         <View className="absolute top-12 left-4 w-10 h-10 flex items-center justify-center"
           onClick={() => Taro.navigateBack()}>
-          <View className="i-mdi-arrow-left text-2xl text-foreground" />
+          <Icon name="arrow-left" size={24} className="text-foreground" />
         </View>
         <View className="flex items-center gap-3 mt-2">
           <View className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
@@ -153,7 +154,7 @@ export default function LoginPage() {
         </View>
         {referralCode ? (
           <View className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20">
-            <View className="i-mdi-gift text-xl text-primary flex-shrink-0" />
+            <Icon name="gift" size={20} className="text-primary flex-shrink-0" />
             <Text className="text-xl text-primary">推广码 <Text className="font-bold tracking-wider">{referralCode}</Text> 已识别，注册后自动绑定</Text>
           </View>
         ) : null}
@@ -192,8 +193,7 @@ export default function LoginPage() {
                       placeholder="请输入手机号"
                       type="tel"
                       value={phone}
-                      onInput={(e) => { const ev = e as any; setPhone(ev.detail?.value ?? ev.target?.value ?? '') }}
-                    />
+                      onInput={(e) => { const ev = e as any; setPhone(ev.detail?.value ?? ev.target?.value ?? '') }} />
                   </View>
                 </View>
 
@@ -215,8 +215,7 @@ export default function LoginPage() {
                     type="number"
                     maxLength={6}
                     value={code}
-                    onInput={(e) => { const ev = e as any; setCode(ev.detail?.value ?? ev.target?.value ?? '') }}
-                  />
+                    onInput={(e) => { const ev = e as any; setCode(ev.detail?.value ?? ev.target?.value ?? '') }} />
                 </View>
 
                 <View className="flex items-center gap-3 mb-4">
@@ -251,7 +250,7 @@ export default function LoginPage() {
               className="w-full flex items-center justify-center leading-none rounded-xl border-2 border-border bg-card"
               onClick={handleWechatLogin}>
               <View className="py-4 flex items-center gap-2">
-                <View className="i-mdi-wechat text-2xl" style={{ color: '#07C160' }} />
+                <Icon name="wechat" size={24} />
                 <Text className="text-xl text-foreground">微信一键登录</Text>
               </View>
             </View>
@@ -267,8 +266,7 @@ export default function LoginPage() {
                   placeholder="请输入用户名"
                   type="text"
                   value={username}
-                  onInput={(e) => { const ev = e as any; setUsername(ev.detail?.value ?? ev.target?.value ?? '') }}
-                />
+                  onInput={(e) => { const ev = e as any; setUsername(ev.detail?.value ?? ev.target?.value ?? '') }} />
               </View>
               <View className="border-2 border-input rounded-xl px-4 py-3 bg-card">
                 <Input
@@ -276,8 +274,7 @@ export default function LoginPage() {
                   placeholder="请输入密码"
                   type="password"
                   value={password}
-                  onInput={(e) => { const ev = e as any; setPassword(ev.detail?.value ?? ev.target?.value ?? '') }}
-                />
+                  onInput={(e) => { const ev = e as any; setPassword(ev.detail?.value ?? ev.target?.value ?? '') }} />
               </View>
               <View
                 className={`w-full flex items-center justify-center leading-none rounded-xl ${loading ? 'bg-primary/50' : 'bg-primary'}`}
@@ -303,7 +300,7 @@ export default function LoginPage() {
         <View className="px-6 pb-4">
           <View className="flex items-start gap-2" onClick={() => setAgreed(!agreed)}>
             <View className={`mt-1 w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 ${agreed ? 'bg-primary border-primary' : 'border-border bg-card'}`}>
-              {agreed && <View className="i-mdi-check text-white text-sm" />}
+              {agreed && <Icon name="check" size={14} className="text-white" />}
             </View>
             <View className="flex flex-wrap gap-1 text-xl text-muted-foreground">
               <Text>我已阅读并同意</Text>

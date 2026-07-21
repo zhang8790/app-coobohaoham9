@@ -65,6 +65,16 @@ module.exports = {
           4: 'hsl(var(--chart-4))',
           5: 'hsl(var(--chart-5))',
         },
+        brand: {
+          jade: 'hsl(var(--brand-jade))',
+          navy: 'hsl(var(--brand-navy))',
+          bronze: 'hsl(var(--brand-bronze))',
+          ochre: 'hsl(var(--brand-ochre))',
+          ink: 'hsl(var(--brand-ink))',
+        },
+        success: 'hsl(var(--success))',
+        warning: 'hsl(var(--warning))',
+        info: 'hsl(var(--info))',
       },
       borderRadius: {
         xl: 'calc(var(--radius) + 4px)',

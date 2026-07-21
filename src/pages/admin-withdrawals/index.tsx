@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { withTimeout } from '@/utils/withTimeout'
 import { maskPhone } from '@/utils/mask'
+import Icon from '@/components/Icon'
 
 type Withdrawal = {
   id: string; user_id: string; amount: number; status: string
@@ -75,11 +76,11 @@ function AdminWithdrawalsPage() {
       <View className="px-4 py-4">
         {loading ? (
           <View className="flex items-center justify-center py-20">
-            <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+            <Icon name="loading" size={48} className="text-primary animate-spin" />
           </View>
         ) : list.length === 0 ? (
           <View className="flex flex-col items-center justify-center py-20 gap-3">
-            <View className="i-mdi-cash-check text-6xl text-emerald-500" />
+            <Icon name="cash-check" size={60} className="text-emerald-500" />
             <Text className="text-2xl text-muted-foreground">暂无待审提现申请</Text>
           </View>
         ) : (
@@ -118,7 +119,7 @@ function AdminWithdrawalsPage() {
                       className={`flex-1 flex items-center justify-center leading-none rounded-xl ${processing === w.id ? 'bg-primary/50' : 'bg-primary'}`}
                       onClick={() => handleApprove(w.id)}>
                       <View className="py-3 text-xl font-bold text-white flex items-center gap-1">
-                        <View className="i-mdi-cash-check text-xl" />
+                        <Icon name="cash-check" size={20} />
                         <Text>通过代付</Text>
                       </View>
                     </Button>
@@ -126,7 +127,7 @@ function AdminWithdrawalsPage() {
                       className="flex-1 flex items-center justify-center leading-none rounded-xl bg-destructive/10 border-2 border-destructive"
                       onClick={() => handleReject(w.id)}>
                       <View className="py-3 text-xl font-bold text-destructive flex items-center gap-1">
-                        <View className="i-mdi-close-circle text-xl" />
+                        <Icon name="close-circle" size={20} />
                         <Text>驳回退款</Text>
                       </View>
                     </Button>

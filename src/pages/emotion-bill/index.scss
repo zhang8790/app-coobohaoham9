@@ -1,5 +1,5 @@
 .emotion-bill-header {
-  background: linear-gradient(160deg, #FFF0E8 0%, #FFFBF7 80%);
+  background: linear-gradient(160deg, #F1E9D9 0%, #FFFBF7 80%);
 }
 .emotion-stat-card {
   background: #ffffff;
@@ -21,7 +21,7 @@
 }
 .emotion-claim-badge {
   display: inline-block;
-  background: linear-gradient(135deg, #C2410C, #EA580C);
+  background: linear-gradient(135deg, #A8552E, #A8552E);
   color: #fff;
   font-size: 12px;
   font-weight: bold;
@@ -42,7 +42,7 @@
 }
 .emotion-chip {
   background: rgba(194, 65, 12, 0.08);
-  color: #C2410C;
+  color: #A8552E;
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 100px;
@@ -56,7 +56,7 @@
 }
 .emotion-empty-btn {
   margin-top: 20px;
-  background: linear-gradient(135deg, #C2410C, #EA580C);
+  background: linear-gradient(135deg, #A8552E, #A8552E);
   border-radius: 100px;
   padding: 8px 32px;
 }
@@ -64,7 +64,7 @@
 // 顶部「去逛逛」CTA（确权已改为支付成功自动发放）
 .emotion-cta {
   flex-shrink: 0;
-  background: linear-gradient(135deg, #C2410C, #EA580C);
+  background: linear-gradient(135deg, #A8552E, #A8552E);
   border-radius: 100px;
   padding: 8px 18px;
   box-shadow: 0 4px 14px rgba(194, 65, 12, 0.28);
@@ -104,7 +104,7 @@
   transition: all 0.18s ease;
 }
 .emotion-subnav-btn--active {
-  color: #C2410C;
+  color: #A8552E;
   background: rgba(194, 65, 12, 0.08);
   transform: scale(0.97);
 }
@@ -114,7 +114,7 @@
   flex-shrink: 0;
   font-size: 12px;
   font-weight: bold;
-  color: #C2410C;
+  color: #A8552E;
   background: rgba(194, 65, 12, 0.1);
   padding: 4px 12px;
   border-radius: 100px;

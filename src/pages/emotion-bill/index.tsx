@@ -14,6 +14,7 @@ import type { EquitySummary } from '@/db/api'
 import type { EmotionClaim, Product, EmotionBadgeDef, EmotionBadgeGrant } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import './index.scss'
+import Icon from '@/components/Icon'
 
 function fmtDate(s?: string): string {
   if (!s) return ''
@@ -30,7 +31,7 @@ function sharePct(r: number): string {
 const RARITY_COLORS: Record<string, string> = {
   common: '#78716C',
   rare:   '#2563EB',
-  epic:   '#9333EA',
+  epic:   '#9A8070',
   legend: '#DC2626',
 }
 
@@ -95,7 +96,7 @@ function EmotionBillPage() {
     return (
       <View className="min-h-screen bg-background flex items-center justify-center">
         <View className="text-center" onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}>
-          <View className="i-mdi-emoticon-sad-outline text-6xl text-muted-foreground mx-auto" />
+          <Icon name="emoticon-sad-outline" size={60} className="text-muted-foreground mx-auto" />
           <Text className="text-xl text-muted-foreground mt-3" style={{ display: 'block' }}>请先登录查看情绪账单</Text>
         </View>
       </View>
@@ -194,11 +195,11 @@ function EmotionBillPage() {
         <Text id="sec-claims" className="text-lg font-bold text-foreground mb-3" style={{ display: 'block' }}>确权时刻</Text>
         {loading ? (
           <View className="flex items-center justify-center py-10">
-            <View className="i-mdi-loading text-3xl text-primary animate-spin" />
+            <Icon name="loading" size={30} className="text-primary animate-spin" />
           </View>
         ) : claims.length === 0 ? (
           <View className="emotion-empty">
-            <View className="i-mdi-card-heart-outline text-6xl text-muted-foreground" />
+            <Icon name="card-heart-outline" size={60} className="text-muted-foreground" />
             <Text className="text-xl text-muted-foreground mt-3" style={{ display: 'block' }}>还没有情绪确权记录</Text>
             <Text className="text-base text-muted-foreground mt-1" style={{ display: 'block' }}>去逛逛，下单后给商品一个情绪确认吧</Text>
             <View className="emotion-empty-btn" onClick={() => Taro.switchTab({ url: '/pages/index/index' })}>
@@ -219,7 +220,7 @@ function EmotionBillPage() {
                     <Image src={img} mode="aspectFill" className="emotion-claim-img" />
                   ) : (
                     <View className="emotion-claim-img emotion-claim-img--ph">
-                      <View className="i-mdi-image text-3xl text-muted-foreground" />
+                      <Icon name="image" size={30} className="text-muted-foreground" />
                     </View>
                   )}
                   <View className="flex-1">
@@ -234,7 +235,7 @@ function EmotionBillPage() {
                 </View>
                 <View className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
                   <Text className="text-base text-muted-foreground">+{c.tb_amount || 0} 金豆 · {fmtDate(c.created_at)}</Text>
-                  <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+                  <Icon name="chevron-right" size={20} className="text-muted-foreground" />
                 </View>
               </View>
             )

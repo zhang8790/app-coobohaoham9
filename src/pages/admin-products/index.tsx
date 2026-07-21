@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { withTimeout } from '@/utils/withTimeout'
 import type { Product } from '@/db/types'
+import Icon from '@/components/Icon'
 
 function AdminProductsPage() {
   const { profile, loading: authLoading } = useAuth()
@@ -57,11 +58,11 @@ function AdminProductsPage() {
       <View className="px-4 py-4">
         {loading ? (
           <View className="flex items-center justify-center py-20">
-            <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+            <Icon name="loading" size={48} className="text-primary animate-spin" />
           </View>
         ) : list.length === 0 ? (
           <View className="flex flex-col items-center justify-center py-20 gap-3">
-            <View className="i-mdi-check-all text-6xl text-emerald-500" />
+            <Icon name="check-all" size={60} className="text-emerald-500" />
             <Text className="text-2xl text-muted-foreground">暂无待审宝贝</Text>
           </View>
         ) : (
@@ -73,7 +74,7 @@ function AdminProductsPage() {
                     <Image src={p.image_url} mode="aspectFill" style={{ width: '100px', height: '100px', flexShrink: 0 }} />
                   ) : (
                     <View className="w-24 h-24 bg-muted flex items-center justify-center flex-shrink-0">
-                      <View className="i-mdi-image-off text-3xl text-muted-foreground" />
+                      <Icon name="image-off" size={30} className="text-muted-foreground" />
                     </View>
                   )}
                   <View className="flex-1 p-3 flex flex-col justify-between">
@@ -92,7 +93,7 @@ function AdminProductsPage() {
                     className={`flex-1 flex items-center justify-center leading-none rounded-xl ${processing === p.id ? 'bg-primary/50' : 'bg-primary'}`}
                     onClick={() => handleApprove(p.id)}>
                     <View className="py-3 text-xl font-bold text-white flex items-center gap-1">
-                      <View className="i-mdi-check text-xl" />
+                      <Icon name="check" size={20} />
                       <Text>批准面世</Text>
                     </View>
                   </Button>
@@ -100,7 +101,7 @@ function AdminProductsPage() {
                     className="flex-1 flex items-center justify-center leading-none rounded-xl bg-destructive/10 border-2 border-destructive"
                     onClick={() => { setRejectId(p.id); setRejectReason('') }}>
                     <View className="py-3 text-xl font-bold text-destructive flex items-center gap-1">
-                      <View className="i-mdi-close text-xl" />
+                      <Icon name="close" size={20} />
                       <Text>扣押不发</Text>
                     </View>
                   </Button>
@@ -118,7 +119,7 @@ function AdminProductsPage() {
             <View className="flex items-center justify-between">
               <Text className="text-2xl font-bold text-foreground">扣押理由</Text>
               <Button type="button" onClick={() => setRejectId(null)}>
-                <View className="i-mdi-close text-3xl text-muted-foreground" />
+                <Icon name="close" size={30} className="text-muted-foreground" />
               </Button>
             </View>
             <View className="border-2 border-input rounded-xl px-4 py-3 bg-background">

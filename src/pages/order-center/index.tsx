@@ -2,9 +2,10 @@
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
-import { getOrders, confirmReceipt } from '@/db/api'
+import { getOrders, confirmReceipt, deleteOrder } from '@/db/api'
 import type { Order, OrderStatus } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 const TABS: { key: OrderStatus | 'all'; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -20,8 +21,8 @@ const STATUS_TEXT: Record<string, string> = {
   pending_pickup: '待核销', pending_review: '待评价', completed: '已完成', after_sale: '售后', cancelled: '已取消'
 }
 const STATUS_COLOR: Record<string, string> = {
-  pending_pay: '#C2410C', pending_ship: '#B45309', pending_receive: '#1976D2', paid: '#B45309',
-  pending_pickup: '#8B5CF6', pending_review: '#7B1FA2', completed: '#4CAF50', after_sale: '#DC2626', cancelled: '#9A8070'
+  pending_pay: '#A8552E', pending_ship: '#A8552E', pending_receive: '#3B5B7A', paid: '#6B3A12',
+  pending_pickup: '#9A8070', pending_review: '#8A4B1E', completed: '#2E7D5B', after_sale: '#DC2626', cancelled: '#9A8070'
 }
 
 function OrderCenterPage() {
@@ -54,6 +55,25 @@ function OrderCenterPage() {
     else Taro.showToast({ title: '操作失败，稍后重试', icon: 'none' })
   }
 
+  const handleDeleteOrder = async (order: Order) => {
+    Taro.showModal({
+      title: '删除订单',
+      content: '确定删除该未支付订单？删除后不可恢复。',
+      success: async (res) => {
+        if (!res.confirm) return
+        Taro.showLoading({ title: '删除中' })
+        const ok = await deleteOrder(order.id)
+        Taro.hideLoading()
+        if (ok) {
+          Taro.showToast({ title: '已删除', icon: 'success' })
+          loadOrders(activeTab)
+        } else {
+          Taro.showToast({ title: '删除失败，请稍后重试', icon: 'none' })
+        }
+      }
+    })
+  }
+
   return (<RouteGuard>
     <View className="h-screen flex flex-col bg-background">
       {/* Tab栏 */}
@@ -71,11 +91,11 @@ function OrderCenterPage() {
       <View className="flex-1 overflow-y-auto px-4 pt-4">
         {loading ? (
           <View className="flex items-center justify-center pt-20">
-            <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+            <Icon name="loading" size={36} className="text-primary animate-spin" />
           </View>
         ) : orders.length === 0 ? (
           <View className="flex flex-col items-center justify-center pt-24 gap-4">
-            <View className="i-mdi-clipboard-list-outline text-8xl text-muted-foreground" />
+            <Icon name="clipboard-list-outline" size={28} className="text-8xl text-muted-foreground" />
             <Text className="text-2xl text-muted-foreground">暂无订单</Text>
           </View>
         ) : (
@@ -123,7 +143,14 @@ function OrderCenterPage() {
                     <View className="py-2 px-4 text-base text-white font-bold">去付款</View>
                   </View>
                 )}
-                {(order.status === 'pending_ship' || order.status === 'pending_receive') && (
+                {order.status === 'pending_pay' && (
+                  <View
+                    className="flex items-center justify-center leading-none rounded-xl border border-border bg-card"
+                    onClick={() => handleDeleteOrder(order)}>
+                    <View className="py-2 px-4 text-base text-muted-foreground">删除</View>
+                  </View>
+                )}
+                {['pending_ship', 'pending_receive', 'pending_pickup', 'pending_review', 'completed', 'paid'].includes(order.status) && (
                   <View
                     className="flex items-center justify-center leading-none rounded-xl bg-muted"
                     onClick={() => Taro.navigateTo({ url: `/pages/refund-apply/index?orderId=${encodeURIComponent(order.id)}` })}>
@@ -146,7 +173,7 @@ function OrderCenterPage() {
                 )}
                 {order.status === 'after_sale' && (
                   <View className="flex items-center gap-1 px-3 py-2 rounded-xl bg-muted">
-                    <View className="i-mdi-check-circle text-base text-green-500" />
+                    <Icon name="check-circle" size={16} className="text-green-500" />
                     <Text className="text-base text-muted-foreground">退款处理中</Text>
                   </View>
                 )}

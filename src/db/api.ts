@@ -288,9 +288,11 @@ export async function getStores(category?: string, page = 0, limit = 20, platfor
       const isPlatformByName = PLATFORM_STORE_NAMES.includes(s.name)
       const isPlatformByField = s.is_platform === true
       const isPlatform = isPlatformById || isPlatformByName || isPlatformByField
-      
-      if (platformFilter === 'only') return isPlatform
-      return !isPlatform  // exclude: 排除自营
+      // 合作品牌门店（品牌馆体系）不算自营，必须从自营列表中排除
+      const isPartnerBrand = !!s.partner_brand
+
+      if (platformFilter === 'only') return isPlatform && !isPartnerBrand
+      return !isPlatform  // exclude: 排除自营（合作品牌门店本就不在自营内）
     })
     
     console.log(`[getStores] platformFilter=${platformFilter}, 总数=${all.length}, 过滤后=${filtered.length}`)
@@ -325,13 +327,17 @@ const PLATFORM_STORE_IDS = new Set([
 ])
 const PLATFORM_STORE_NAMES = ['来电有喜官方店', '来电有喜自营店', '平台自营店']
 
-/** 判断商品是否属于自营门店 */
+/** 判断商品是否属于自营门店（⚠️ 合作品牌门店 partner_brand 有值的不算自营，必须排除） */
 function isPlatformProduct(p: Product): boolean {
   const store = (p as any).stores
   if (!store) return false
-  return PLATFORM_STORE_IDS.has(store.id || p.store_id)
+  const isOfficial =
+    PLATFORM_STORE_IDS.has(store.id || p.store_id)
     || PLATFORM_STORE_NAMES.includes(store.name || '')
     || store.is_platform === true
+  // 合作品牌门店（品牌馆体系）一律不算自营，避免漏进自营区
+  const isPartnerBrand = !!(store as any).partner_brand
+  return isOfficial && !isPartnerBrand
 }
 
 export async function getProducts(opts: {
@@ -342,8 +348,8 @@ export async function getProducts(opts: {
   /** 城市ID：用于过滤城市商品（NULL=全国可见，非NULL=仅该城市可见） */
   cityId?: string} = {}): Promise<Product[]> {
   const { storeId, categoryId, search, moodTag, moodTags, sceneTag, page = 0, limit = 20, platformFilter, cityId } = opts
-  // 基础查询：所有活跃商品（带上 stores 信息用于 JS 过滤）
-  let q = supabase.from('products').select('*, stores(id,name,image_url,is_platform)').not('is_active', 'eq', false)
+  // 基础查询：所有活跃商品（带上 stores 信息用于 JS 过滤，含 partner_brand 以识别合作品牌门店）
+  let q = supabase.from('products').select('*, stores(id,name,image_url,is_platform,partner_brand)').not('is_active', 'eq', false)
     .order('created_at', { ascending: false }).range(page * limit, (page + 1) * limit - 1)
   if (storeId) q = q.eq('store_id', storeId)
   if (categoryId) q = q.eq('category_id', categoryId)
@@ -388,6 +394,7 @@ export interface NearbyProduct {
   store_lat: number
   store_lng: number
   distance_km: number  // 距离（公里）
+  care?: ProductCareInfo  // 商品「关怀层」信息（食养/情绪/适配），由前端编译注入，不影响后端
 }
 
 export async function getNearbyProducts(
@@ -421,15 +428,29 @@ export async function getNearbyProducts(
       store_address: item.store_address,
       store_lat: item.store_lat,
       store_lng: item.store_lng,
-      distance_km: Math.round(item.distance_km * 100) / 100}))
+      distance_km: Math.round(item.distance_km * 100) / 100,
+      is_platform: item.is_platform ?? false,
+      partner_brand: item.partner_brand ?? null }))
 
-    // 根据 platformFilter 过滤
+    // 若 RPC 未返回 partner_brand（旧版函数 / 尚未部署 00139 迁移），补查门店维度，确保合作品牌门店能被准确识别
+    if (platformFilter && results.some(r => r.partner_brand == null)) {
+      const ids = [...new Set(results.map(r => r.store_id))].filter(Boolean)
+      if (ids.length > 0) {
+        const { data: st } = await supabase.from('stores').select('id, partner_brand').in('id', ids)
+        const brandMap: Record<string, any> = {}
+        ;(st || []).forEach((s: any) => { brandMap[s.id] = s.partner_brand })
+        results.forEach(r => { if (!r.partner_brand) r.partner_brand = brandMap[r.store_id] ?? null })
+      }
+    }
+
+    // 根据 platformFilter 过滤（合作品牌门店一律不算自营）
     if (platformFilter) {
       results = results.filter(item => {
-        // 判断是否为自营门店商品（通过 store_id 或 store_name 判断）
-        const isPlatform = item.store_id === 'ffffffff-ffff-ffff-ffff-ffffffffffff' ||
+        const isOfficial = item.is_platform === true ||
+          item.store_id === 'ffffffff-ffff-ffff-ffff-ffffffffffff' ||
           ['来电有喜官方店', '来电有喜自营店', '平台自营店'].includes(item.store_name || '')
-        
+        const isPartnerBrand = !!item.partner_brand
+        const isPlatform = isOfficial && !isPartnerBrand
         if (platformFilter === 'only') return isPlatform
         return !isPlatform  // exclude
       })
@@ -677,8 +698,8 @@ export async function addToCart(productId: string, storeId: string, quantity = 1
     .select('id, quantity').eq('user_id', user.id).eq('product_id', productId).maybeSingle()
   if (existing) {
     await supabase.from('cart_items').update({ quantity: existing.quantity + quantity }).eq('id', existing.id)
-    // 已有同款：仅改 quantity，行数不变 → 角标不增量（由全局 store 统一处理）
-    bumpCartCount(0)
+    // 已存在同款：quantity 增加 quantity，总件数 +quantity（乐观计数，立即同步徽标）
+    bumpCartCount(quantity)
   } else {
     await supabase.from('cart_items').insert({ user_id: user.id, product_id: productId, store_id: storeId, quantity, selected: true })
     // 新增一行：立刻让角标 +quantity（实时，无需刷新）
@@ -758,6 +779,17 @@ export async function getOrderCounts(): Promise<Record<string, number>> {
     acc[o.status] = (acc[o.status] || 0) + 1
     return acc
   }, {})
+}
+
+// 删除未支付订单（pending_pay 才允许）：无资金/分佣/金豆流水，可安全硬删。
+// 先删 order_items（外键依赖），再删 orders 本体。
+export async function deleteOrder(orderId: string): Promise<boolean> {
+  const { data: o } = await supabase.from('orders').select('status').eq('id', orderId).maybeSingle()
+  if (!o || o.status !== 'pending_pay') return false
+  await supabase.from('order_items').delete().eq('order_id', orderId)
+  const { error } = await supabase.from('orders').delete().eq('id', orderId)
+  if (error) { console.error('[deleteOrder]', error); return false }
+  return true
 }
 
 // =====================
@@ -1151,14 +1183,25 @@ export async function createOrderV2(params: {
           }
           // 让利点合并规则（按商品自身，金额加权）：每商品用自身 discount_rate（整数%÷100），未设则回退店铺率；
           // 按商品金额(price×qty)加权得到整单混合率，高利润品主导平台让利、低利润品少分，绝不二次叠加。
+          // 修复：order_items.product_id 无外键指向 products.id，嵌入 products() 必 PGRST200，
+          // 改为先取 order_items 再按 product_id 单独查 products 在 JS 内关联。
           const { data: itemRows } = await supabase
-            .from('order_items').select('price, quantity, products(discount_rate)').eq('order_id', order.id)
-          const items = (itemRows || []) as Array<{ price?: any; quantity?: any; products?: { discount_rate?: any } | null }>
+            .from('order_items').select('price, quantity, product_id').eq('order_id', order.id)
+          const items = (itemRows || []) as Array<{ price?: any; quantity?: any; product_id?: string | null }>
+          const productIds = Array.from(new Set((items || []).map(it => it?.product_id).filter(Boolean))) as string[]
+          let rateMap2: Record<string, number> = {}
+          if (productIds.length) {
+            const { data: prods2 } = await supabase
+              .from('products').select('id, discount_rate').in('id', productIds)
+            for (const p of (prods2 || []) as Array<{ id?: string; discount_rate?: any }>) {
+              if (p?.id) rateMap2[p.id] = Number(p.discount_rate ?? 0)
+            }
+          }
           let totalAmt = 0, weightedSum = 0
           for (const it of items) {
             const amt = (Number(it.price) || 0) * (Number(it.quantity) || 0)
-            const pct = it?.products?.discount_rate
-            const pRate = (typeof pct === 'number' && pct > 0) ? pct / 100 : discountRate
+            const pid = String(it?.product_id)
+            const pRate = (typeof rateMap2[pid] === 'number' && rateMap2[pid] > 0) ? rateMap2[pid] / 100 : discountRate
             totalAmt += amt
             weightedSum += amt * pRate
           }
@@ -1197,19 +1240,54 @@ export async function createOrderV2(params: {
         catch (e) { console.warn('[createOrderV2] 客户端直写佣金失败，转服务端兜底:', e) }
 
         // 兜底主路径：服务端 distribute-commission（service_role 绕过 RLS，幂等，必发佣+积分+余额）
+        // 修复：改用 raw fetch 调用（绕过 Taro.request 自定义 fetch 对 Edge Function 的兼容性问题），
+        // 错误写回 orders.commission_error 便于排查；最多重试 1 次。
         try {
-          await supabase.functions.invoke('distribute-commission', {
-            body: {
-              order_id: order.id,
-              order_no: order.order_no,
-              payer_id: user.id,
-              total_amount: orderTotal,
-              net_amount: 0,
-              referrer_id: directReferrerId ?? null,
-              discount_rate: discountRate,
-            },
-          })
-        } catch (fe) { console.warn('[createOrderV2] 服务端佣金兜底调用失败(不影响下单):', fe) }
+          const dcBody = {
+            order_id: order.id,
+            order_no: order.order_no,
+            payer_id: user.id,
+            total_amount: orderTotal,
+            net_amount: 0,
+            referrer_id: directReferrerId ?? null,
+            discount_rate: discountRate,
+          }
+          let dcOk = false
+          let dcErr: string | null = null
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              const dcRes = await fetch(`${process.env.TARO_APP_SUPABASE_URL}/functions/v1/distribute-commission`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${supabase.auth.getSession()?.data?.access_token || ''}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(dcBody),
+              })
+              if (dcRes.ok) {
+                dcOk = true
+                break
+              }
+              const dcText = await dcRes.text()
+              dcErr = `HTTP ${dcRes.status}: ${dcText.slice(0, 200)}`
+            } catch (netErr: any) {
+              dcErr = netErr?.message || String(netErr)
+            }
+            if (attempt === 0) await new Promise(r => setTimeout(r, 1000)) // 重试前等 1s
+          }
+          if (!dcErr && !dcOk) dcErr = '未知：无异常但未确认成功'
+          // 写回错误信息（便于管理端排查），成功则清空旧错误
+          await supabase.from('orders').update({
+            commission_error: dcErr,
+          }).eq('id', order.id)
+          if (!dcOk) console.warn('[createOrderV2] 服务端分佣调用失败:', dcErr)
+        } catch (fe: any) {
+          const errMsg = fe?.message || String(fe)
+          console.warn('[createOrderV2] 服务端佣金兜底调用失败(不影响下单):', fe)
+          try {
+            await supabase.from('orders').update({ commission_error: `兜底异常:${errMsg}` }).eq('id', order.id)
+          } catch {}
+        }
       }
     }
     // =========================================================================
@@ -1869,7 +1947,7 @@ export async function applyRefundToClaim(
   } catch (e) { console.warn('[applyRefundToClaim]', e); return { ok: false } }
 }
 
-/** §5.2 违规封禁：个人贡献值清零 + 上级裂变分同步扣回（原子） */
+/** §5.2 封禁：个人贡献值清零 + 上级裂变分同步扣回（原子） */
 export async function banUserRollback(
   userId: string, reason = 'violation'
 ): Promise<{ ok: boolean; upline_l1_back?: number; upline_l2_back?: number } | null> {
@@ -2259,188 +2337,80 @@ export async function getRefundsByOrderId(orderId: string): Promise<import('./ty
   return Array.isArray(data) ? data : []
 }
 
-/** 提交退款申请（直接 DB 操作，绕过 Edge Function）
- *  退款成功后自动处理：佣金退回、积分退回、金豆退回
+/**
+ * 提交退款申请 —— 改为调用 refund-order Edge Function（服务端闭环）。
+ *
+ * 关键变更（2026-07-20 方案A 重构）：
+ *  - 旧实现是「客户端直连数据库」，用 anon key 直接 update 受益人 profiles（跨用户写被 RLS 拦截 → 佣金扣回静默失败 = 资损），
+ *    且完全没有发起微信退款 API（用户实付的微信款项退不回来）。
+ *  - 新实现把所有资金操作（微信退款发起、金豆返还、佣金回冲、积分扣回、库存回滚、状态机）统一收敛到
+ *    refund-order / wechat-refund-callback 两个 Edge Function（service_role 执行，绕过 RLS、可安全调微信）。
+ *  - 客户端仅做轻量前置校验（登录、幂等、金额上界），真正的退款由服务端完成。
+ *
+ * EF 返回：{ success:true, refund_id, refund_no, method } 或 { success:false, error }
  */
 export async function applyRefund(params: {
   order_id: string; order_no: string; item_index: number
   refund_quantity: number; refund_amount: number; reason: string; description?: string
-}): Promise<{ success: boolean; refund_id?: string; error?: string }> {
+}): Promise<{ success: boolean; refund_id?: string; method?: string; error?: string }> {
   try {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { success: false, error: '请先登录' }
 
-    // P0 修复：幂等性检查，防止同一订单重复申请退款
+    // 幂等性检查，防止同一订单重复申请退款（前端页面也有此检查，这里兜底）
     const { data: existingRefund } = await supabase
       .from('refunds').select('id, status').eq('order_id', params.order_id).maybeSingle()
     if (existingRefund) {
-      // 状态码映射为中文
       const statusMap: Record<string, string> = {
-        'pending': '待审核',
-        'approved': '审核通过',
-        'rejected': '已拒绝',
-        'completed': '已完成退款',
-        'cancelled': '已取消'}
+        'pending': '待审核', 'processing': '退款处理中', 'approved': '审核通过',
+        'rejected': '已拒绝', 'completed': '已完成退款', 'closed': '已关闭',
+        'abnormal': '退款异常', 'cancelled': '已取消'}
       const statusText = statusMap[existingRefund.status] || existingRefund.status
       return { success: false, error: `该订单已申请退款，当前状态：${statusText}` }
     }
 
-    // 获取订单详情（用于佣金/积分/金豆退回 + 校验退款金额）
+    // 轻量金额上界校验（服务端 EF 也会二次校验，这里只做即时反馈）
+    // 注意：当前 orders 表累计退款列是 refund_amount（非 refunded_amount）
     const { data: order, error: orderErr } = await supabase
-      .from('orders').select('*').eq('id', params.order_id).single()
-    if (orderErr || !order) {
-      console.error('[applyRefund] 订单不存在', orderErr)
-      return { success: false, error: '订单不存在' }
-    }
-
-    // P0 修复：越权退款防护——只能对自己名下的订单申请退款
+      .from('orders').select('total_amount, refund_amount, user_id').eq('id', params.order_id).maybeSingle()
+    if (orderErr || !order) return { success: false, error: '订单不存在' }
     if ((order as any).user_id && (order as any).user_id !== user.id) {
-      console.error('[applyRefund] 越权：订单归属不符', { orderUid: (order as any).user_id, uid: user.id })
       return { success: false, error: '无权操作该订单' }
     }
-
-    // P1 修复：校验退款金额和数量
-    const paidAmount = Number(order.total_amount) || 0
-    const refundedAmount = Number((order as any).refunded_amount) || 0
-    const maxRefundAmount = Math.round((paidAmount - refundedAmount) * 100) / 100
-    if (params.refund_amount > maxRefundAmount) {
+    const maxRefundAmount = Math.round((Number(order.total_amount || 0) - Number((order as any).refund_amount || 0)) * 100) / 100
+    if (params.refund_amount <= 0) return { success: false, error: '退款金额必须大于0' }
+    if (params.refund_amount > maxRefundAmount + 0.0001) {
       return { success: false, error: `退款金额不能超过可退金额 ¥${maxRefundAmount.toFixed(2)}` }
     }
-    if (params.refund_amount <= 0) {
-      return { success: false, error: '退款金额必须大于0' }
+
+    // 调用服务端退款引擎（自动带用户会话鉴权）
+    const { data, error } = await supabase.functions.invoke('refund-order', {
+      method: 'POST',
+      body: {
+        order_id: params.order_id,
+        order_no: params.order_no,
+        item_index: params.item_index,
+        refund_quantity: params.refund_quantity,
+        refund_amount: params.refund_amount,
+        reason: params.reason,
+        description: params.description,
+      },
+    })
+
+    if (error) {
+      console.error('[applyRefund] refund-order invoke error:', error)
+      return { success: false, error: (error as any)?.message || '退款服务调用失败，请稍后重试' }
     }
 
-    // 校验退款数量（如有 order_items 则校验）
-    if (params.refund_quantity && params.refund_quantity > 0) {
-      const { data: oItems } = await supabase.from('order_items')
-        .select('quantity').eq('order_id', params.order_id).maybeSingle()
-      if (oItems && params.refund_quantity > (oItems as any).quantity) {
-        return { success: false, error: `退款数量不能超过购买数量（${(oItems as any).quantity}）` }
-      }
+    const res = (data ?? {}) as { success?: boolean; refund_id?: string; method?: string; error?: string }
+    if (!res.success) {
+      return { success: false, error: res.error || '退款申请失败，请重试' }
     }
 
-    // 生成退款单号
-    const refundNo = `RF${Date.now()}${Math.random().toString(36).slice(2, 6)}`
-
-    // 插入退款记录（测试阶段自动审批通过）
-    const { data, error } = await supabase.from('refunds').insert({
-      refund_no: refundNo,
-      order_id: params.order_id,
-      order_no: params.order_no,
-      item_index: params.item_index,
-      user_id: user.id,
-      initiated_by: 'user',
-      status: 'completed',
-      refund_quantity: params.refund_quantity,
-      refund_amount: params.refund_amount,
-      reason: params.reason,
-      description: params.description || null,
-      version: 1,
-      completed_at: new Date().toISOString()}).select('id').maybeSingle()
-
-    if (error) { console.error('[applyRefund]', error); return { success: false, error: error.message } }
-
-    // ===== ① 佣金退回 =====
-    const { data: commissions } = await supabase
-      .from('commissions').select('*').eq('order_id', params.order_id).in('status', ['settled', 'pending'])
-    if (commissions && commissions.length > 0) {
-      for (const comm of commissions) {
-        const { data: ben } = await supabase
-          .from('profiles').select('total_commission,settled_commission').eq('id', comm.beneficiary_id).single()
-        if (ben) {
-          // commissions 表无 net_amount 列，commission_amount 为名义毛佣；此处按 commission_amount 回滚（与原逻辑一致）
-          const amt = Number(((comm as any).net_amount ?? (comm as any).commission_amount) || 0)
-          await supabase.from('profiles').update({
-            total_commission: Math.max(0, ben.total_commission - amt),
-            settled_commission: Math.max(0, ben.settled_commission - amt)}).eq('id', comm.beneficiary_id)
-        }
-        await supabase.from('commissions').update({ status: 'refunded' as any }).eq('id', comm.id)
-      }
-    }
-
-    // ===== ② 金豆回滚（买家获赠金豆随退款扣回；buyer_points 即获赠金豆）=====
-    if (order.buyer_points && order.buyer_points > 0) {
-      const { data: profile } = await supabase.from('profiles').select('tb_balance').eq('id', user.id).single()
-      if (profile) {
-        const newBalance = Math.max(0, (profile.tb_balance || 0) - order.buyer_points)
-        await supabase.from('profiles').update({ tb_balance: newBalance }).eq('id', user.id)
-        supabase.from('tongbao_logs').insert({
-          user_id: user.id, order_id: order.id ?? null,
-          type: 'refund_deduct',
-          delta: -order.buyer_points, balance_after: newBalance,
-          remark: `订单${order.order_no ?? ''}退款，扣回获赠金豆`}).then(() => {}).catch(() => {})
-      }
-    }
-
-    // ===== ③ 金豆退回（退回到用户账户，仅消费侧）=====
-    if (order.tb_used && order.tb_used > 0) {
-      const { data: profile } = await supabase.from('profiles').select('tb_balance').eq('id', user.id).single()
-      if (profile) {
-        await supabase.from('profiles').update({ tb_balance: profile.tb_balance + order.tb_used }).eq('id', user.id)
-        // 非阻塞写金豆流水（退款返还）；表缺失(404)也不影响主流程
-        supabase.from('tongbao_logs').insert({
-          user_id: user.id,
-          order_id: order.id ?? null,
-          type: 'refund_return',
-          delta: order.tb_used,
-          balance_after: (profile.tb_balance ?? 0) + order.tb_used,
-          remark: `订单${order.order_no ?? ''}退款返还金豆`}).then(() => {}).catch((e: any) => {
-          if (e?.code === '42P01' || (e as any)?.status === 404) {
-            console.warn('[tongbao_logs] 表不存在(00096未执行)，流水暂不记录')
-          }
-        })
-      }
-    }
-
-    // ===== ③b 佣金回滚（防止已退款订单仍产生可用佣金 = 资损）=====
-    // 该订单产生的推广佣金从对应受益人的「金豆钱包 + 累计佣金」中扣回（佣金已改发金豆，见 2026-07-19 决策）。
-    try {
-      const { data: comms } = await supabase.from('commissions')
-        .select('beneficiary_id, commission_amount, net_amount').eq('order_id', params.order_id)
-      if (comms && comms.length > 0) {
-        for (const c of comms) {
-          // commissions 表优先用 net_amount（实际到手金豆），无则回退 commission_amount
-          const amt = Number(((c as any).net_amount ?? (c as any).commission_amount) || 0)
-          if (amt <= 0 || !c.beneficiary_id) continue
-          const { data: bProf } = await supabase.from('profiles')
-            .select('tb_balance, total_commission').eq('id', c.beneficiary_id).maybeSingle()
-          if (bProf) {
-            await supabase.from('profiles').update({
-              tb_balance: Math.max(0, Math.round((Number(bProf.tb_balance || 0) - amt) * 100) / 100),
-              total_commission: Math.max(0, Math.round((Number(bProf.total_commission || 0) - amt) * 100) / 100)}).eq('id', c.beneficiary_id)
-          }
-          // 同步将该笔佣金标记为已退回，避免重复对账
-          await supabase.from('commissions').update({ status: 'refunded' }).eq('order_id', params.order_id).eq('beneficiary_id', c.beneficiary_id)
-        }
-      }
-    } catch (e) {
-      console.error('[refund] 佣金回滚异常（不影响主退款流程）', e)
-    }
-
-    // ===== ④ 更新订单状态 =====
-    await supabase.from('orders').update({
-      status: 'after_sale',
-      refund_status: 'refunded',
-      refunded_amount: (order.refunded_amount || 0) + params.refund_amount,
-      updated_at: new Date().toISOString()}).eq('id', params.order_id)
-
-    // P0 修复：库存回滚
-    try {
-      const { data: oItems } = await supabase.from('order_items').select('product_id, quantity').eq('order_id', params.order_id)
-      if (oItems && oItems.length > 0) {
-        for (const it of oItems) {
-          const { data: prod } = await supabase.from('products').select('stock').eq('id', it.product_id).maybeSingle()
-          if (prod) {
-            await supabase.from('products').update({ stock: (prod.stock || 0) + it.quantity }).eq('id', it.product_id)
-          }
-        }
-      }
-    } catch (e) { console.warn('[applyRefund] 库存回滚失败(不影响退款)', e) }
-
-    return { success: true, refund_id: data?.id }
+    return { success: true, refund_id: res.refund_id, method: res.method }
   } catch (err: any) {
     console.error('[applyRefund] 异常', err)
-    return { success: false, error: err.message }
+    return { success: false, error: err?.message || '网络错误，请重试' }
   }
 }
 export async function getMyPointsLogs(page = 0, limit = 20): Promise<import('./types').PointsLog[]> {
@@ -2648,7 +2618,7 @@ export async function createProduct(params: {
   conflict_goods?: string[]
   aux_remind?: string
 }): Promise<import('./types').Product | null> {
-  // 合规校验：商品标题/描述不得含违禁词（广告法绝对化用语/金融化/博彩诱导）
+  // 校验：商品标题/描述不得含违禁词（广告法绝对化用语/金融化/博彩诱导）
   const nameCheck = checkIllegalWords(params.name)
   const descCheck = checkIllegalWords(params.description)
   if (!nameCheck.passed || !descCheck.passed) {
@@ -3016,11 +2986,14 @@ export async function adminDeleteArticle(id: string): Promise<boolean> {
 // 注意：order_items 表未持久化 store_id（createOrderV2 仅写入 orders.store_id），
 // 因此必须按「关联订单的 store_id」过滤，否则商家永远查不到订单。
 export async function getMerchantOrders(storeId: string, page = 0, limit = 20): Promise<any[]> {
-  const { data } = await supabase.from('order_items')
-    .select('*, orders(id,order_no,status,total_amount,created_at,payment_method, merchant_settlements(settle_amount, discount_pool))')
+  // 用 orders!inner 把门店过滤变成真正的 INNER JOIN 条件，
+  // 即使 RLS 放行了商家作为买家的跨店订单，也不会泄漏到本店订单列表。
+  const { data, error } = await supabase.from('order_items')
+    .select('*, orders!inner(id,order_no,status,total_amount,created_at,payment_method, merchant_settlements(settle_amount, discount_pool))')
     .eq('orders.store_id', storeId).order('created_at', { ascending: false })
     .range(page * limit, (page + 1) * limit - 1)
-  return data ?? []
+  if (error) { console.error('[getMerchantOrders]', error); return [] }
+  return (data ?? []) as any[]
 }
 
 // 商家发货（配送）：订单进入「待收货」
@@ -3288,8 +3261,36 @@ export async function getProductReviews(productId: string, page = 0, limit = 10)
 // 优惠券
 // =====================
 export async function getMyCoupons(): Promise<import('./types').Coupon[]> {
-  const { data } = await supabase.from('coupons').select('*').order('created_at', { ascending: false })
+  const uid = (await supabase.auth.getUser()).data.user?.id
+  if (!uid) return []
+  const { data } = await supabase.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false })
   return (data ?? []) as import('./types').Coupon[]
+}
+
+// 可领取的券模板（user_id IS NULL 且上架中），供用户端"领券中心"展示
+export async function getClaimableCoupons(): Promise<import('./types').Coupon[]> {
+  const { data } = await supabase.from('coupons')
+    .select('*')
+    .is('user_id', null)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+  return (data ?? []) as import('./types').Coupon[]
+}
+
+// 用户领取某模板券 → 生成个人实例（RPC 原子操作，防重复）
+export async function claimCoupon(templateId: string): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase.rpc('claim_coupon', { p_template_id: templateId })
+  if (error) return { ok: false, error: error.message }
+  const res = data as any
+  return res?.ok ? { ok: true } : { ok: false, error: res?.error || '领取失败' }
+}
+
+// 商家核销本店用户券（RPC 原子操作，仅本店店主可核销）
+export async function merchantRedeemCoupon(code: string, storeId: string): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase.rpc('merchant_redeem_coupon', { p_code: code, p_store_id: storeId })
+  if (error) return { ok: false, error: error.message }
+  const res = data as any
+  return res?.ok ? { ok: true } : { ok: false, error: res?.error || '核销失败' }
 }
 
 // =====================

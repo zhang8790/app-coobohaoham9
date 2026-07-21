@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { Image, View, Text, Button } from '@tarojs/components'
+import Icon from '@/components/Icon'
 import {
   getProductByBarcode,
   getProductById,
@@ -87,14 +88,14 @@ export default function ScanResultPage() {
   // 加载中
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
   // 未识别到商品
   if (notFound || !product) return (
     <View className="flex flex-col items-center justify-center min-h-screen bg-background px-8 gap-4">
-      <View className="i-mdi-barcode-off text-6xl text-muted-foreground/40" />
+      <Icon name="barcode-off" size={60} className="text-muted-foreground/40" />
       <Text className="text-2xl font-bold text-foreground">未识别到商品</Text>
       <Text className="text-base text-muted-foreground text-center break-all">扫码内容：{code || '（空）'}</Text>
       <Button type="button"
@@ -127,7 +128,7 @@ export default function ScanResultPage() {
             <Image src={main} mode="aspectFill" className="w-full" style={{ height: '360px' }} />
           ) : (
             <View className="w-full flex items-center justify-center" style={{ height: '360px' }}>
-              <View className="i-mdi-image-off text-6xl text-muted-foreground/30" />
+              <Icon name="image-off" size={60} className="text-muted-foreground/30" />
             </View>
           )}
         </View>
@@ -146,7 +147,7 @@ export default function ScanResultPage() {
             </Text>
           ) : null}
           {product.discount_rate != null && product.discount_rate > 0 ? (
-            <Text className="px-2 py-0.5 rounded-full bg-purple-100 text-base font-bold text-purple-700">
+            <Text className="px-2 py-0.5 rounded-full bg-primary/10 text-base font-bold text-primary">
               立减{product.discount_rate}%
             </Text>
           ) : null}
@@ -154,7 +155,7 @@ export default function ScanResultPage() {
         <View className="text-2xl font-bold text-foreground mt-3 leading-tight">{product.name}</View>
         {storeName ? (
           <View className="mt-2 flex items-center gap-1 text-muted-foreground">
-            <View className="i-mdi-store text-lg" />
+            <Icon name="store" size={18} />
             <Text className="text-base">{storeName}</Text>
           </View>
         ) : null}
@@ -166,7 +167,7 @@ export default function ScanResultPage() {
       {/* 已下架提示 */}
       {inactive ? (
         <View className="mx-4 mt-4 py-3 px-4 rounded-2xl bg-muted flex items-center gap-2">
-          <View className="i-mdi-archive-off text-xl text-muted-foreground" />
+          <View className="text-muted-foreground"><Icon name="box" size={20} /></View>
           <Text className="text-base text-muted-foreground">该商品已下架，暂不可购买</Text>
         </View>
       ) : null}
@@ -176,7 +177,7 @@ export default function ScanResultPage() {
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
         <View className="relative flex-shrink-0" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
           <View className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center border-2 border-border">
-            <View className="i-mdi-shopping-outline text-2xl text-foreground" />
+            <View className="text-foreground"><Icon name="bag" size={24} /></View>
           </View>
           {cartCount > 0 && (
             <View className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full bg-primary flex items-center justify-center px-1">

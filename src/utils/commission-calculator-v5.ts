@@ -38,7 +38,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 0,
     l1CommissionRate: 0.40,
     l2CommissionRate: 0.15,
-    pointsRate: 0.10,
+    pointsRate: 0.30,
     icon: '🍃',
     color: '#90EE90'
   },
@@ -47,7 +47,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 200,
     l1CommissionRate: 0.42,
     l2CommissionRate: 0.16,
-    pointsRate: 0.12,
+    pointsRate: 0.32,
     icon: '🌿',
     color: '#50C878'
   },
@@ -56,7 +56,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 800,
     l1CommissionRate: 0.44,
     l2CommissionRate: 0.17,
-    pointsRate: 0.13,
+    pointsRate: 0.34,
     icon: '📚',
     color: '#4A90D9'
   },
@@ -65,7 +65,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 2000,
     l1CommissionRate: 0.46,
     l2CommissionRate: 0.18,
-    pointsRate: 0.14,
+    pointsRate: 0.37,
     icon: '⚔️',
     color: '#CD7F32'
   },
@@ -74,7 +74,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 6000,
     l1CommissionRate: 0.48,
     l2CommissionRate: 0.18,
-    pointsRate: 0.15,
+    pointsRate: 0.40,
     icon: '🏯',
     color: '#C0C0C0'
   },
@@ -83,7 +83,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 20000,
     l1CommissionRate: 0.50,
     l2CommissionRate: 0.18,
-    pointsRate: 0.15,
+    pointsRate: 0.40,
     icon: '👑',
     color: '#FFD700'
   },
@@ -231,14 +231,27 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
   }
 
   // 5. 计算积分
-  const buyerPoints = toPrecision(remainingPool * buyerRank.pointsRate)
+  const rawBuyerPoints = toPrecision(remainingPool * buyerRank.pointsRate)
+  // 确权积分下限：只要有让利分配，至少确权 1 点（与 EF 一致；避免小额定单舍入为 0，"购买者确权积分"列失效）
+  const buyerPoints = rawBuyerPoints > 0 ? Math.max(1, Math.round(rawBuyerPoints)) : 0
 
-  // 6. 平台额外收入
+  // 6. 平台保底封顶：段位系数×活跃×拓新可能使 一级+二级佣金 超过 剩余池(让利×90%)，
+  //    挤出平台保底。故将 L1+L2 上限封顶为 (剩余池 − 买家确权积分)，超出按比例缩放，
+  //    保证平台留成恒等于让利×10%（与 distribute-commission EF 完全一致）。
+  const commTotalRaw = l1Commission + l2Commission
+  const capForComm = Math.max(0, toPrecision(remainingPool - buyerPoints))
+  if (commTotalRaw > capForComm && commTotalRaw > 0) {
+    const scale = capForComm / commTotalRaw
+    l1Commission = toPrecision(l1Commission * scale)
+    l2Commission = toPrecision(l2Commission * scale)
+  }
+
+  // 7. 平台额外收入
   const platformExtraIncome = toPrecision(
     remainingPool - l1Commission - l2Commission - buyerPoints
   )
 
-  // 7. 平台总收入
+  // 8. 平台总收入
   const platformTotalIncome = toPrecision(platformMinIncome + platformExtraIncome)
 
   // 7.1 用户名义现金佣金（L1+L2，可提现部分；买家积分是虚拟币，不在此列）
@@ -305,7 +318,7 @@ export function getRankByDynamicScoreV5(dynamicScore: number): RankConfigV5 {
  * 段位-徽章关联（#74）：会员「身份段位」= 个人累计消费决定基础段位，
  * 高段位（悟心 / 无心境）叠加「徽章收集度」软门槛——消费达标但徽章不足则向下封顶，
  * 不硬卡升级（体验优先）。佣金比例仍由消费段位决定（见 calculateCommissionV5），
- * 身份段位与佣金段位解耦，确保「等级不靠拉人」且合规。
+ * 身份段位与佣金段位解耦，确保「等级不靠拉人」。
  */
 export const RANK_BADGE_SOFT_GATE: Partial<Record<MemberRankV5, { minBadges: number; minRare: number }>> = {
   '悟心': { minBadges: 4, minRare: 0 },

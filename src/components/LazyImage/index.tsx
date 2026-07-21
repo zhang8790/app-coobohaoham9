@@ -62,8 +62,7 @@ export default function LazyImage(props: LazyImageProps) {
         className={`lazy-image__img ${loaded ? 'lazy-image__img--loaded' : ''}`}
         lazyLoad={true}
         onLoad={handleLoad}
-        onError={handleError}
-      />
+        onError={handleError} />
       {!loaded && !failed && (
         <View className="lazy-image__placeholder" />
       )}

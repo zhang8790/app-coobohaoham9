@@ -20,7 +20,7 @@ export interface Profile {
   commission_balance: number // 推广佣金账户余额（推广佣金，由推广佣金流水驱动，可提现并代扣个税）
   tb_balance: number       // 金豆余额（统一平台货币：消费抵扣 + 会员成长，人民币1:1锚定，仅平台内消费，不可提现/兑现金）
   cv_total: number         // 会员贡献值累计（会员权益计算依据，V2）
-  privacy_consented_at: string | null // 隐私政策同意时间（PIPL 合规审计留痕；未同意为 null）
+  privacy_consented_at: string | null // 隐私政策同意时间（PIPL 审计留痕；未同意为 null）
   allow_behavior_analysis: boolean // 个性化行为分析总闸（true=允许，false=已退出；分析引擎排除）
   coupons_count: number
   merchant_status: MerchantStatus
@@ -65,7 +65,7 @@ export interface Store {
   min_order_amount: number | null
   announcement: string | null
   scene_tags: string[] | null
-  // 合作商家建模（犒赏铺等合作品牌体系）
+  // 合作商家建模（品牌馆等合作品牌体系）
   partner_brand: string | null
   partner_tier: string | null
   // 商家货款结算（迁移 00120）
@@ -286,7 +286,7 @@ export interface Order {
   referrer_id: string | null
   commission_distributed: boolean
   service_type: 'dine_in' | 'self_pickup' | 'delivery'
-  refunded_amount: number
+  refund_amount: number
   // 00018 迁移补全的字段
   parent_order_no: string | null
   idempotency_key: string | null
@@ -490,6 +490,8 @@ export interface Coupon {
   expired_at: string | null
   used_at: string | null
   created_at: string
+  store_id: string | null
+  claimed_from: string | null
 }
 
 export interface Withdrawal {

@@ -47,7 +47,7 @@ function CommissionRules() {
           <Text className="block text-foreground font-semibold mb-1 leading-snug">五、回扣与风控（已真实落地）</Text>
           <Text className="block">1. 若推荐好友订单发生退款，对应佣金将同步回扣。</Text>
           <Text className="block">2. 连续 3 个月（90 天）未邀请新用户（无新下级注册），推广佣金系数衰减至基准的 40%，最低不低于基准比例 40%。</Text>
-          <Text className="block">3. 平台严禁刷单、套现等作弊行为，违规佣金将被冻结或清零。</Text>
+          <Text className="block">3. 平台严禁刷单、套现等作弊行为，相关佣金将被冻结或清零。</Text>
         </View>
 
         <Text className="block text-muted-foreground text-xs mt-5 pt-3" style={{ borderTop: '1px solid hsl(var(--border))' }}>

@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { withTimeout } from '@/utils/withTimeout'
 import { maskPhone } from '@/utils/mask'
+import Icon from '@/components/Icon'
 
 type App = {
   id: string; user_id: string; store_name: string; contact_name: string
@@ -63,11 +64,11 @@ function AdminMerchantsPage() {
       <View className="px-4 py-4">
         {loading ? (
           <View className="flex items-center justify-center py-20">
-            <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+            <Icon name="loading" size={48} className="text-primary animate-spin" />
           </View>
         ) : list.length === 0 ? (
           <View className="flex flex-col items-center justify-center py-20 gap-3">
-            <View className="i-mdi-check-circle text-6xl text-emerald-500" />
+            <Icon name="check-circle" size={60} className="text-emerald-500" />
             <Text className="text-2xl text-muted-foreground">暂无待审商家申请</Text>
           </View>
         ) : (
@@ -83,16 +84,16 @@ function AdminMerchantsPage() {
                 </View>
                 <View className="flex flex-col gap-1">
                   <View className="flex items-center gap-2">
-                    <View className="i-mdi-account text-xl text-muted-foreground" />
+                    <Icon name="account" size={20} className="text-muted-foreground" />
                     <Text className="text-xl text-foreground">{app.contact_name}</Text>
                   </View>
                   <View className="flex items-center gap-2">
-                    <View className="i-mdi-phone text-xl text-muted-foreground" />
+                    <Icon name="phone" size={20} className="text-muted-foreground" />
                     <Text className="text-xl text-foreground">{maskPhone(app.contact_phone)}</Text>
                   </View>
                   {app.description && (
                     <View className="flex items-start gap-2">
-                      <View className="i-mdi-text text-xl text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <Icon name="text" size={20} className="text-muted-foreground flex-shrink-0 mt-0.5" />
                       <Text className="text-xl text-muted-foreground">{app.description}</Text>
                     </View>
                   )}
@@ -103,7 +104,7 @@ function AdminMerchantsPage() {
                     className={`flex-1 flex items-center justify-center leading-none rounded-xl ${processing === app.id ? 'bg-primary/50' : 'bg-primary'}`}
                     onClick={() => handleApprove(app.id)}>
                     <View className="py-3 px-4 text-xl font-bold text-white flex items-center gap-1">
-                      <View className="i-mdi-check-circle text-xl" />
+                      <Icon name="check-circle" size={20} />
                       <Text>准许开山立派</Text>
                     </View>
                   </Button>
@@ -111,7 +112,7 @@ function AdminMerchantsPage() {
                     className="flex-1 flex items-center justify-center leading-none rounded-xl bg-destructive/10 border-2 border-destructive"
                     onClick={() => { setRejectId(app.id); setRejectReason('') }}>
                     <View className="py-3 px-4 text-xl font-bold text-destructive flex items-center gap-1">
-                      <View className="i-mdi-close-circle text-xl" />
+                      <Icon name="close-circle" size={20} />
                       <Text>逐出山门</Text>
                     </View>
                   </Button>
@@ -129,7 +130,7 @@ function AdminMerchantsPage() {
             <View className="flex items-center justify-between">
               <Text className="text-2xl font-bold text-foreground">填写驳回理由</Text>
               <Button type="button" onClick={() => setRejectId(null)}>
-                <View className="i-mdi-close text-3xl text-muted-foreground" />
+                <Icon name="close" size={30} className="text-muted-foreground" />
               </Button>
             </View>
             <View className="border-2 border-input rounded-xl px-4 py-3 bg-background">

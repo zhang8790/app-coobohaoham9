@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
 import { supabase } from '@/client/supabase'
+import Icon from '@/components/Icon'
 
 export default function MerchantCampaignsPage() {
   const [campaigns, setCampaigns] = useState<any[]>([])
@@ -56,6 +57,7 @@ export default function MerchantCampaignsPage() {
         .from('marketing_campaigns')
         .update({ status: newStatus })
         .eq('id', id)
+        .eq('store_id', storeId as string)
       
       if (error) {
         Taro.showToast({ title: '操作失败', icon: 'none' })
@@ -70,7 +72,7 @@ export default function MerchantCampaignsPage() {
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
@@ -87,7 +89,7 @@ export default function MerchantCampaignsPage() {
         <Button className="!w-full !bg-primary !border-none !rounded-2xl"
           onClick={handleCreateCampaign}>
           <View className="py-3 flex items-center justify-center gap-2">
-            <View className="i-mdi-plus text-white text-xl" />
+            <Icon name="plus" size={20} className="text-white" />
             <Text className="text-base font-bold text-white">创建新活动</Text>
           </View>
         </Button>
@@ -97,7 +99,7 @@ export default function MerchantCampaignsPage() {
       <View className="px-4 mt-4">
         {campaigns.length === 0 ? (
           <View className="bg-card rounded-2xl border border-border p-8 flex flex-col items-center gap-3">
-            <View className="i-mdi-gift-outline text-5xl text-muted-foreground/30" />
+            <Icon name="gift-outline" size={48} className="text-muted-foreground/30" />
             <Text className="text-base text-muted-foreground">暂无活动</Text>
             <Text className="text-sm text-muted-foreground/50">点击上方按钮创建第一个活动</Text>
           </View>
@@ -107,7 +109,7 @@ export default function MerchantCampaignsPage() {
               <View className="flex items-center justify-between mb-2">
                 <Text className="text-xl font-bold text-foreground">{campaign.campaign_name}</Text>
                 <View className={`px-3 py-1 rounded-full text-sm ${
-                  campaign.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                  campaign.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
                 }`}>
                   <Text>{campaign.status === 'active' ? '进行中' : '已结束'}</Text>
                 </View>
@@ -115,17 +117,17 @@ export default function MerchantCampaignsPage() {
               
               <View className="flex items-center gap-4 mb-3">
                 <View className="flex items-center gap-1">
-                  <View className="i-mdi-gift text-primary" />
+                  <Icon name="gift" size={28} className="text-primary" />
                   <Text className="text-base text-foreground">
                     {campaign.campaign_type === 'red_packet' ? '现金红包' : '实物礼品'}
                   </Text>
                 </View>
                 <View className="flex items-center gap-1">
-                  <View className="i-mdi-currency-cny text-primary" />
+                  <Icon name="currency-cny" size={28} className="text-primary" />
                   <Text className="text-base text-foreground">¥{campaign.gift_value}</Text>
                 </View>
                 <View className="flex items-center gap-1">
-                  <View className="i-mdi-account-group text-primary" />
+                  <View className="text-primary"><Icon name="user" size={20} /></View>
                   <Text className="text-base text-foreground">已领{campaign.claimed_count || 0}份</Text>
                 </View>
               </View>

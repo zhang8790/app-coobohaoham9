@@ -6,6 +6,7 @@ import { getMyFootprints, deleteFootprint } from '@/db/api'
 import type { Footprint } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import LazyImage from '@/components/LazyImage'
+import Icon from '@/components/Icon'
 
 function FootprintPage() {
   const [items, setItems] = useState<Footprint[]>([])
@@ -45,11 +46,11 @@ function FootprintPage() {
 
       {loading ? (
         <View className="flex justify-center py-16">
-          <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+          <Icon name="loading" size={36} className="text-primary animate-spin" />
         </View>
       ) : items.length === 0 ? (
         <View className="flex flex-col items-center py-20 gap-4">
-          <View className="i-mdi-history text-7xl text-muted-foreground/30" />
+          <Icon name="history" size={28} className="text-7xl text-muted-foreground/30" />
           <Text className="text-xl text-muted-foreground">暂无浏览记录</Text>
         </View>
       ) : (
@@ -68,9 +69,7 @@ function FootprintPage() {
                         <LazyImage
                           src={p.image_url}
                           mode="aspectFill"
-                          style={{ width: '64px', height: '64px' }}
-                          fallbackIcon="i-mdi-image"
-                        />
+                          style={{ width: '64px', height: '64px' }} />
                       </View>
                       <View className="flex-1">
                         <Text className="text-xl font-bold text-foreground line-clamp-1">{p.name}</Text>
@@ -82,7 +81,7 @@ function FootprintPage() {
                       <View
                         className="w-8 h-8 flex items-center justify-center rounded-full bg-muted flex-shrink-0"
                         onClick={e => { e.stopPropagation(); deleteFootprint(fp.id).then(() => setItems(prev => prev.filter(f => f.id !== fp.id))) }}>
-                        <View className="i-mdi-close text-xl text-muted-foreground" />
+                        <Icon name="close" size={20} className="text-muted-foreground" />
                       </View>
                     </View>
                   )

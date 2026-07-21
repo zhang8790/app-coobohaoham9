@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { View, Text, Input, Button } from '@tarojs/components'
 import { supabase } from '@/client/supabase'
 import { MOOD_CATEGORIES, MOOD_TAGS, MOOD_TAGS_ALL } from '@/utils/mood-tags'
+import Icon from '@/components/Icon'
 
 export default function CreateCampaignPage() {
   const [formData, setFormData] = useState({
@@ -111,8 +112,7 @@ export default function CreateCampaignPage() {
               className="w-full text-xl text-foreground bg-transparent"
               placeholder="例如：新店开业红包"
               value={formData.campaign_name}
-              onInput={(e: any) => handleInputChange('campaign_name', e.detail?.value || '')}
-            />
+              onInput={(e: any) => handleInputChange('campaign_name', e.detail?.value || '')} />
           </View>
         </View>
 
@@ -156,8 +156,7 @@ export default function CreateCampaignPage() {
                 } else {
                   handleInputChange('gift_name', value)
                 }
-              }}
-            />
+              }} />
           </View>
         </View>
 
@@ -170,8 +169,7 @@ export default function CreateCampaignPage() {
               placeholder="例如：100"
               value={formData.total_limit}
               onInput={(e: any) => handleInputChange('total_limit', e.detail?.value || '')}
-              type="number"
-            />
+              type="number" />
           </View>
         </View>
 
@@ -184,8 +182,7 @@ export default function CreateCampaignPage() {
               placeholder="默认10份"
               value={formData.daily_limit}
               onInput={(e: any) => handleInputChange('daily_limit', e.detail?.value || '')}
-              type="number"
-            />
+              type="number" />
           </View>
         </View>
 
@@ -198,8 +195,7 @@ export default function CreateCampaignPage() {
               placeholder="例如：0.1（表示10%）"
               value={formData.commission_rate}
               onInput={(e: any) => handleInputChange('commission_rate', e.detail?.value || '')}
-              type="digit"
-            />
+              type="digit" />
           </View>
           <Text className="text-sm text-muted-foreground mt-1">用户核销消费后，推荐人可获得佣金比例</Text>
         </View>
@@ -270,7 +266,7 @@ export default function CreateCampaignPage() {
           onClick={handleSubmit}
           disabled={loading}>
           <View className="py-4 flex items-center justify-center gap-2">
-            {loading && <View className="i-mdi-loading text-white text-xl animate-spin" />}
+            {loading && <Icon name="loading" size={20} className="text-white animate-spin" />}
             <Text className="text-xl text-white font-bold">{loading ? '创建中...' : '创建活动'}</Text>
           </View>
         </Button>

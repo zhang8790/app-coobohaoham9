@@ -9,6 +9,7 @@ import { getArticleById, incrementArticleView, getArticles, getProductById } fro
 import { handleInviterFromQuery, buildArticleShareTitle } from '@/utils/share'
 import { generateArticleSharePoster, POSTER_WIDTH, POSTER_HEIGHT } from '@/utils/share-poster'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
+import Icon from '@/components/Icon'
 
 export default function ArticleDetailPage() {
   const { user } = useAuth()
@@ -176,8 +177,7 @@ export default function ArticleDetailPage() {
             <Image
               src={coverImage}
               mode="aspectFill"
-              className="hero-image"
-            />
+              className="hero-image" />
             {/* 渐变遮罩 */}
             <View className="hero-gradient" />
             {/* 标题叠加在封面上 */}
@@ -202,8 +202,7 @@ export default function ArticleDetailPage() {
                 <Image
                   src={profile.avatar_url}
                   className="avatar-img"
-                  mode="aspectFill"
-                />
+                  mode="aspectFill" />
               ) : (
                 <View className="avatar-default">
                   <Text className="avatar-default-text">
@@ -262,8 +261,7 @@ export default function ArticleDetailPage() {
                     Taro.previewImage({
                       urls: article.images,
                       current: imgUrl})
-                  }
-                />
+                  } />
               ))}
             </View>
           )}
@@ -339,8 +337,7 @@ export default function ArticleDetailPage() {
                     <Image
                       src={item.cover_image}
                       mode="aspectFill"
-                      className="related-card-img"
-                    />
+                      className="related-card-img" />
                   )}
                   <View className="related-card-body">
                     <Text className="related-card-title">{item.title}</Text>
@@ -371,8 +368,7 @@ export default function ArticleDetailPage() {
         type="2d"
         id="articleShareCanvas"
         className="share-canvas-hidden"
-        style={{ width: `${POSTER_WIDTH}px`, height: `${POSTER_HEIGHT}px` }}
-      />
+        style={{ width: `${POSTER_WIDTH}px`, height: `${POSTER_HEIGHT}px` }} />
     </View>
   )
 }
@@ -428,7 +424,7 @@ function ProductCardInline({ productId, articleId }: { productId: string; articl
           <Image src={product.image_url} mode="aspectFill" className="apc-img" />
         ) : (
           <View className="apc-img apc-img-fallback">
-            <View className="i-mdi-package-variant text-3xl text-muted-foreground" />
+            <Icon name="package-variant" size={30} className="text-muted-foreground" />
           </View>
         )}
         <View className="apc-badge">🛍️ 好物推荐</View>

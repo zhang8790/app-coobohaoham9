@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { Button, Image, View, Text } from '@tarojs/components'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
 import { generateQrcode } from '@/db/api'
@@ -11,8 +12,8 @@ import RiskWarning from '@/components/RiskWarning'
 
 const RANK_ORDER = ['凡心', '初心', '明心', '静心', '悟心', '无心境']
 const RANK_COLORS: Record<string, string> = {
-  '凡心': '#78350F', '初心': '#B45309', '明心': '#92400E',
-  '静心': '#C2410C', '悟心': '#9333EA', '无心境': '#DC2626',
+  '凡心': '#78350F', '初心': '#A8552E', '明心': '#9A8070',
+  '静心': '#A8552E', '悟心': '#9A8070', '无心境': '#DC2626',
 }
 // 段位配置从V4算法动态获取（不再硬编码）
 
@@ -215,12 +216,12 @@ function MyPromotionPage() {
     }, fail: () => Taro.showToast({ title: '下载失败', icon: 'none' }) })
   }
 
-  const rankColor = userRankInfo?.rankName ? (RANK_COLORS[userRankInfo.rankName] || '#C2410C') : '#C2410C'
+  const rankColor = userRankInfo?.rankName ? (RANK_COLORS[userRankInfo.rankName] || '#A8552E') : '#A8552E'
   const rankIdx = RANK_ORDER.indexOf(rankData?.current_rank || '凡心')
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
@@ -236,7 +237,7 @@ function MyPromotionPage() {
           <View className="flex items-center justify-between mb-4">
             <View>
               <View className="flex items-center gap-2 mb-1">
-                <View className="i-mdi-medal text-3xl text-white" />
+                <Icon name="medal" size={30} className="text-white" />
                 <Text className="text-3xl font-bold text-white">{rankData?.current_rank || '凡心'}</Text>
               </View>
               <Text className="text-xl text-white/80">我的好友: {rankData?.direct_count || 0}人  |  累计累计消费额: ¥{Number(rankData?.total_gmv || 0).toFixed(0)}</Text>
@@ -282,7 +283,7 @@ function MyPromotionPage() {
       {/* 推广码二维码 —— 主焦点 */}
       <View className="mx-4 mt-4 p-5 bg-card rounded-3xl border-2 border-primary/20">
         <View className="flex items-center gap-2 mb-4">
-          <View className="i-mdi-qrcode text-2xl text-primary" />
+          <Icon name="qrcode" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">我的推广码</Text>
           <Text className="text-xl text-muted-foreground ml-auto tracking-widest font-mono">{referralCode}</Text>
         </View>
@@ -293,14 +294,14 @@ function MyPromotionPage() {
             style={{ boxShadow: '0 8px 24px rgba(194,65,12,0.12)' }}>
             {qrLoading ? (
               <View className="flex flex-col items-center gap-3">
-                <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+                <Icon name="loading" size={48} className="text-primary animate-spin" />
                 <Text className="text-xl text-muted-foreground">生成中...</Text>
               </View>
             ) : qrUrl ? (
               <Image src={qrUrl} mode="aspectFit" style={{ width: '224px', height: '224px' }} />
             ) : (
               <View className="flex flex-col items-center gap-2">
-                <View className="i-mdi-qrcode-scan text-5xl text-muted-foreground/40" />
+                <Icon name="qrcode-scan" size={48} className="text-muted-foreground/40" />
                 <Text className="text-xl text-muted-foreground">加载中...</Text>
               </View>
             )}
@@ -316,7 +317,7 @@ function MyPromotionPage() {
             className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-border bg-muted"
             onClick={handleSaveQr}>
             <View className="py-3 flex items-center gap-2">
-              <View className="i-mdi-download text-2xl text-muted-foreground" />
+              <Icon name="download" size={24} className="text-muted-foreground" />
               <Text className="text-xl text-muted-foreground">保存图片</Text>
             </View>
           </Button>
@@ -324,7 +325,7 @@ function MyPromotionPage() {
             className="flex-1 flex items-center justify-center leading-none rounded-2xl"
             style={{ background: `linear-gradient(135deg, ${rankColor}, ${rankColor}99)`, border: 'none' }}>
             <View className="py-3 flex items-center gap-2">
-              <View className="i-mdi-share-variant text-white text-2xl" />
+              <Icon name="share-variant" size={24} className="text-white" />
               <Text className="text-xl font-bold text-white">分享好友</Text>
             </View>
           </Button>
@@ -333,20 +334,20 @@ function MyPromotionPage() {
       {/* 佣金统计 */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
         <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <View className="i-mdi-cash-multiple text-2xl text-primary" />
+          <View className="text-primary"><Icon name="coin" size={24} /></View>
           <Text className="text-xl font-bold text-foreground">佣金概览</Text>
           <View className="flex-1" />
           <View className="flex items-center gap-1 text-primary text-xl"
             onClick={() => Taro.navigateTo({ url: '/pages/commission-detail/index' })}>
             <Text>明细</Text>
-            <View className="i-mdi-chevron-right text-xl" />
+            <Icon name="chevron-right" size={20} />
           </View>
         </View>
         <View className="grid grid-cols-3 py-4">
           {[
-            { label: '待结算', value: `¥${Number(commSummary?.total_pending || 0).toFixed(2)}`, color: '#C2410C' },
-            { label: '已结算', value: `¥${Number(commSummary?.total_settled || 0).toFixed(2)}`, color: '#4CAF50' },
-            { label: '总笔数', value: `${commSummary?.total_count || 0}笔`, color: '#1976D2' },
+            { label: '待结算', value: `¥${Number(commSummary?.total_pending || 0).toFixed(2)}`, color: '#A8552E' },
+            { label: '已结算', value: `¥${Number(commSummary?.total_settled || 0).toFixed(2)}`, color: '#2E7D5B' },
+            { label: '总笔数', value: `${commSummary?.total_count || 0}笔`, color: '#3B5B7A' },
           ].map(item => (
             <View key={item.label} className="flex flex-col items-center gap-1">
               <Text className="text-2xl font-bold" style={{ color: item.color }}>{item.value}</Text>
@@ -370,36 +371,36 @@ function MyPromotionPage() {
         <View className="mx-4 mt-4 grid grid-cols-3 gap-3">
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
             onClick={() => Taro.navigateTo({ url: '/pages/tongbao-ledger/index' })}>
-            <View className="i-mdi-star-circle text-3xl text-primary" />
+            <Icon name="star-circle" size={30} className="text-primary" />
             <Text className="text-2xl font-bold text-foreground">{rankData?.points || 0}</Text>
             <Text className="text-base text-muted-foreground">我的贡献值</Text>
           </View>
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
             onClick={() => Taro.navigateTo({ url: '/pages/tongbao-ledger/index' })}>
-            <View className="i-mdi-wallet text-3xl text-primary" />
+            <Icon name="wallet" size={30} className="text-primary" />
             <Text className="text-2xl font-bold text-foreground">{Number(rankData?.balance || 0).toFixed(2)}</Text>
             <Text className="text-base text-muted-foreground">我的金豆</Text>
           </View>
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
             onClick={() => Taro.navigateTo({ url: '/pages/commission-detail/index' })}>
-            <View className="i-mdi-cash-multiple text-3xl text-primary" />
+            <View className="text-primary"><Icon name="coin" size={28} /></View>
             <Text className="text-2xl font-bold text-foreground">{Number(commSummary?.total_earned || 0).toFixed(2)}</Text>
             <Text className="text-base text-muted-foreground">累计佣金(金豆)</Text>
           </View>
         </View>
 
-      {/* 推广说明（合规版） */}
+      {/* 推广说明 */}
       <View className="mx-4 mt-4 p-4 bg-muted rounded-2xl">
         <View className="flex items-start gap-2 mb-3">
-          <View className="i-mdi-information text-2xl text-primary flex-shrink-0 mt-0.5" />
+          <Icon name="information" size={24} className="text-primary flex-shrink-0 mt-0.5" />
           <Text className="text-xl font-bold text-foreground">推广佣金说明</Text>
         </View>
         <View className="flex flex-col gap-2">
           {[
-            { icon: 'i-mdi-account-plus', text: `好友通过你的推广码注册并消费，你可获得 ${userRankInfo?.l1Ratio || 40}% 我的好友佣金` },
-            { icon: 'i-mdi-account-multiple', text: `你推荐的我的好友再邀好友消费，你可获得 ${userRankInfo?.l2Ratio || 15}% 我的粉丝佣金` },
-            { icon: 'i-mdi-emoticon-happy', text: '推广佣金以「金豆」发放，可直接在平台内消费支付，形成消费回流边花边赚' },
-            { icon: 'i-mdi-shield-check', text: '本平台仅二级推广（我的好友+我的粉丝），只有二级、不发展多级、不按团队计酬、无入门费' },
+            { icon: '👤', text: `好友通过你的推广码注册并消费，你可获得 ${userRankInfo?.l1Ratio || 40}% 我的好友佣金` },
+            { icon: '👤', text: `你推荐的我的好友再邀好友消费，你可获得 ${userRankInfo?.l2Ratio || 15}% 我的粉丝佣金` },
+            { icon: '☺', text: '推广佣金以「金豆」发放，可直接在平台内消费支付，形成消费回流边花边赚' },
+            { icon: '🛡', text: '本平台仅二级推广（我的好友+我的粉丝），不发展第三级' },
           ].map((item, i) => (
             <View key={i} className="flex items-start gap-2">
               <View className={`${item.icon} text-xl text-primary flex-shrink-0 mt-0.5`} />
@@ -417,7 +418,7 @@ function MyPromotionPage() {
       {directTeam.length > 0 && (
         <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
           <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-            <View className="i-mdi-account-group text-2xl text-primary" />
+            <View className="text-primary"><Icon name="user" size={24} /></View>
             <Text className="text-xl font-bold text-foreground">我的好友</Text>
             <Text className="text-base text-muted-foreground ml-1">({directTeam.length}人)</Text>
           </View>
@@ -444,19 +445,19 @@ function MyPromotionPage() {
       {/* 相关协议入口 */}
       <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
         <View className="flex items-center gap-2 mb-2">
-          <View className="i-mdi-file-document-outline text-2xl text-primary" />
+          <Icon name="file-document-outline" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">相关协议</Text>
         </View>
         <View className="flex flex-col gap-1">
           <View className="flex items-center justify-between py-2"
             onClick={() => Taro.navigateTo({ url: '/pages/distribution-agreement/index' })}>
             <Text className="text-base text-muted-foreground">《推广服务协议》</Text>
-            <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+            <Icon name="chevron-right" size={20} className="text-muted-foreground" />
           </View>
           <View className="flex items-center justify-between py-2"
             onClick={() => Taro.navigateTo({ url: '/pages/commission-rules/index' })}>
             <Text className="text-base text-muted-foreground">《佣金规则》</Text>
-            <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+            <Icon name="chevron-right" size={20} className="text-muted-foreground" />
           </View>
         </View>
       </View>

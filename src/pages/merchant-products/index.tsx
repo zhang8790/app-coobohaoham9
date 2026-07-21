@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { Image, View, Text, Input, Textarea, Switch } from '@tarojs/components'
+import Icon from '@/components/Icon'
 import {
   getMerchantStore, getMerchantProducts, getMerchantOrders,
   createProduct, updateProduct, deleteProduct, getProductByBarcode,
@@ -205,7 +206,7 @@ function MerchantProductsPage() {
         video_url: form.video_url || undefined,
         cost_price: form.cost_price ? parseFloat(form.cost_price) : undefined,
         original_price: form.original_price ? parseFloat(form.original_price) : undefined,
-        discount_rate: form.discount_rate ? parseFloat(form.discount_rate) : undefined,
+        discount_rate: form.discount_rate ? Math.min(30, Math.max(0, parseFloat(form.discount_rate))) : undefined,
         mood_tags: form.mood_tags.length > 0 ? form.mood_tags : undefined,
         scene_tags: form.scene_tags.length > 0 ? form.scene_tags : undefined,
         ingredients: form.ingredients.length > 0 ? form.ingredients : undefined,
@@ -326,17 +327,17 @@ function MerchantProductsPage() {
     <View style={{ minHeight: '100vh', background: '#FFF8F4', paddingBottom: '32px' }}>
 
       {store && (
-        <View style={{ margin: '8px 14px 0', padding: '10px 14px', borderRadius: '14px', background: '#FFF', border: '1px solid #F0E6D8' }}>
+        <View style={{ margin: '8px 14px 0', padding: '10px 14px', borderRadius: '14px', background: '#FFF', border: '1px solid #F1E9D9' }}>
           <Text style={{ fontSize: '14px', color: '#888' }}>{store.name}</Text>
         </View>
       )}
 
       {/* 商品收益（对齐网页版商家后台） */}
       <View style={{ margin: '10px 14px 0', padding: '14px', borderRadius: '16px', background: 'linear-gradient(135deg, #FFF3EC, #FFE7D6)', border: '1px solid #F8D9C0' }}>
-        <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#C2410C' }}>📊 商品收益</Text>
+        <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#A8552E' }}>商品收益</Text>
         <View style={{ display: 'flex', marginTop: '10px' }}>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#C2410C' }}>¥{revenue.totalRevenue.toFixed(2)}</Text>
+            <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#A8552E' }}>¥{revenue.totalRevenue.toFixed(2)}</Text>
             <Text style={{ fontSize: '12px', color: '#A86A4A', marginTop: '2px' }}>总营收</Text>
           </View>
           <View style={{ flex: 1, alignItems: 'center', borderLeftWidth: '1px', borderLeftColor: '#F0D3BC', borderLeftStyle: 'solid', borderRightWidth: '1px', borderRightColor: '#F0D3BC', borderRightStyle: 'solid' }}>
@@ -360,8 +361,7 @@ function MerchantProductsPage() {
           <Input
             style={{ width: '100%', fontSize: '14px', color: '#333' }}
             placeholder="搜索商品..."
-            placeholderStyle="color:#BBB;font-size:14px"
-          />
+            placeholderStyle="color:#BBB;font-size:14px" />
         </View>
       </View>
 
@@ -380,7 +380,7 @@ function MerchantProductsPage() {
             }}>
             <Text style={{
               fontSize: '14px', fontWeight: 'bold',
-              color: filter === key ? '#C2410C' : '#999',
+              color: filter === key ? '#A8552E' : '#999',
             }}>{key === 'all' ? '全部' : key === 'online' ? '在售' : '下架'}</Text>
           </View>
         ))}
@@ -394,7 +394,7 @@ function MerchantProductsPage() {
           style={{
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '13px 16px', borderRadius: '14px',
-            background: 'linear-gradient(135deg, #FF8A65, #FF5722)',
+            background: 'linear-gradient(135deg, #C77B47, #A8552E)',
             boxShadow: '0 2px 8px rgba(255,87,34,0.25)',
           }}>
           <Text style={{ color: '#FFF', fontSize: '15px', fontWeight: 'bold' }}>+ 新增商品</Text>
@@ -408,8 +408,8 @@ function MerchantProductsPage() {
             background: '#FFF', border: '2px solid #FF8A65',
           }}>
           {scanning
-            ? <Text style={{ fontSize: '15px', color: '#C2410C' }}>扫描中…</Text>
-            : <Text style={{ color: '#C2410C', fontSize: '15px', fontWeight: 'bold' }}>📷 扫码上架</Text>}
+            ? <Text style={{ fontSize: '15px', color: '#A8552E' }}>扫描中…</Text>
+            : <Text style={{ color: '#A8552E', fontSize: '15px', fontWeight: 'bold' }}>📷 扫码上架</Text>}
         </View>
       </View>
 
@@ -421,14 +421,14 @@ function MerchantProductsPage() {
       {/* 商品列表 */}
       {filtered.length === 0 ? (
         <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 0 20px', gap: '12px' }}>
-          <Text style={{ fontSize: '48px' }}>📦</Text>
+          <Icon name="box" size={48} className="text-muted-foreground" />
           <Text style={{ fontSize: '14px', color: '#999' }}>暂无商品，点击上方"新增商品"添加</Text>
         </View>
       ) : (
         filtered.map(p => {
           const margin = calcMargin(p.price, p.cost_price)
           return (
-            <View key={p.id} style={{ margin: '10px 14px 0', borderRadius: '16px', background: '#FFF', border: '1px solid #F0E6D8', overflow: 'hidden' }}>
+            <View key={p.id} style={{ margin: '10px 14px 0', borderRadius: '16px', background: '#FFF', border: '1px solid #F1E9D9', overflow: 'hidden' }}>
               <View style={{ display: 'flex', gap: '12px', padding: '12px' }}>
                 <View style={{ width: '80px', height: '80px', borderRadius: '12px', background: '#F5F0EB', flexShrink: 0, overflow: 'hidden' }}>
                   {(p.main_image ?? p.image_url)
@@ -447,27 +447,27 @@ function MerchantProductsPage() {
                       <Text style={{ fontSize: '11px', color: p.is_active ? '#16A34A' : '#999' }}>{p.is_active ? '在售' : '下架'}</Text>
                     </View>
                   </View>
-                  <Text style={{ fontSize: '18px', fontWeight: 'bold', color: '#C2410C', marginTop: '4px' }}>¥{p.price}</Text>
+                  <Text style={{ fontSize: '18px', fontWeight: 'bold', color: '#A8552E', marginTop: '4px' }}>¥{p.price}</Text>
                   {p.original_price && <Text style={{ fontSize: '12px', color: '#BBB', textDecorationLine: 'line-through', marginLeft: '4px' }}>¥{p.original_price}</Text>}
                   {p.cost_price != null && (
                     <Text style={{ fontSize: '12px', color: '#AAA', marginTop: '2px' }}>成本 ¥{p.cost_price} · 毛利 {margin}</Text>
                   )}
                   {p.discount_rate != null && (
-                    <Text style={{ fontSize: '12px', color: '#C2410C', marginTop: '2px' }}>🏷️ 让利 {p.discount_rate}%</Text>
+                    <Text style={{ fontSize: '12px', color: '#A8552E', marginTop: '2px' }}>🏷️ 让利 {p.discount_rate}%</Text>
                   )}
                   <Text style={{ fontSize: '12px', color: '#AAA', marginTop: '2px' }}>库存：{p.stock}</Text>
                 </View>
               </View>
               {/* 操作栏 */}
               <View style={{
-                display: 'flex', borderTop: '1px solid #F0E6D8',
+                display: 'flex', borderTop: '1px solid #F1E9D9',
               }}>
                 <View
                   onClick={() => openEdit(p)}
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-                  <Text style={{ fontSize: '13px', color: '#C2410C', fontWeight: '500' }}>✏️ 编辑</Text>
+                  <Text style={{ fontSize: '13px', color: '#A8552E', fontWeight: '500' }}>✏️ 编辑</Text>
                 </View>
-                <View style={{ width: '1px', background: '#F0E6D8' }} />
+                <View style={{ width: '1px', background: '#F1E9D9' }} />
                 <View
                   onClick={async () => {
                     try {
@@ -479,13 +479,13 @@ function MerchantProductsPage() {
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
                   <Text style={{ fontSize: '13px', color: '#666' }}>{p.is_active ? '👁 下架' : '👁 上架'}</Text>
                 </View>
-                <View style={{ width: '1px', background: '#F0E6D8' }} />
+                <View style={{ width: '1px', background: '#F1E9D9' }} />
                 <View
                   onClick={() => Taro.navigateTo({ url: `/pages/merchant-emotion-compile/index?productId=${p.id}` })}
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-                  <Text style={{ fontSize: '13px', color: '#6C5CE7', fontWeight: '500' }}>🎭 情绪编译</Text>
+                  <Text style={{ fontSize: '13px', color: '#A8552E', fontWeight: '500' }}>🎭 情绪编译</Text>
                 </View>
-                <View style={{ width: '1px', background: '#F0E6D8' }} />
+                <View style={{ width: '1px', background: '#F1E9D9' }} />
                 <View
                   onClick={() => {
                     Taro.showModal({
@@ -568,8 +568,7 @@ function MerchantProductsPage() {
                 placeholder="请输入商品名称"
                 placeholderStyle="color:#BBB;font-size:14px"
                 value={form.name}
-                onInput={(e: any) => setForm(f => ({ ...f, name: e.detail?.value ?? '' }))}
-              />
+                onInput={(e: any) => setForm(f => ({ ...f, name: e.detail?.value ?? '' }))} />
             </View>
 
             {/* 价格行：售价 / 原价 / 成本 */}
@@ -584,8 +583,7 @@ function MerchantProductsPage() {
                   }}
                   placeholder="0.00" type="digit"
                   value={form.price}
-                  onInput={(e: any) => setForm(f => ({ ...f, price: e.detail?.value ?? '' }))}
-                />
+                  onInput={(e: any) => setForm(f => ({ ...f, price: e.detail?.value ?? '' }))} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>原价</Text>
@@ -597,8 +595,7 @@ function MerchantProductsPage() {
                   }}
                   placeholder="划线价" type="digit"
                   value={form.original_price}
-                  onInput={(e: any) => setForm(f => ({ ...f, original_price: e.detail?.value ?? '' }))}
-                />
+                  onInput={(e: any) => setForm(f => ({ ...f, original_price: e.detail?.value ?? '' }))} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>成本</Text>
@@ -610,8 +607,7 @@ function MerchantProductsPage() {
                   }}
                   placeholder="成本" type="digit"
                   value={form.cost_price}
-                  onInput={(e: any) => setForm(f => ({ ...f, cost_price: e.detail?.value ?? '' }))}
-                />
+                  onInput={(e: any) => setForm(f => ({ ...f, cost_price: e.detail?.value ?? '' }))} />
               </View>
             </View>
 
@@ -641,13 +637,19 @@ function MerchantProductsPage() {
                   background: '#FFF9F0', border: '1.5px solid #FFCC80',
                   fontSize: '14px', color: '#E65100', padding: '0 10px', boxSizing: 'border-box',
                 }}
-                placeholder="如: 15 表示让利15%（0~100）"
+                placeholder="如: 15 表示让利15%（最高30%）"
                 placeholderStyle={{ color: '#999' }}
                 type="digit"
                 value={form.discount_rate}
                 onInput={(e: any) => setForm(f => ({ ...f, discount_rate: e.detail?.value ?? '' }))}
-              />
-              <Text style={{ fontSize: '11px', color: '#AAA', marginTop: '4px' }}>设定后前端展示折扣标签，与犒赏铺 API 的 discount_rate 字段对齐</Text>
+                onBlur={() => {
+                  const v = parseFloat(form.discount_rate)
+                  if (!isNaN(v) && v > 30) {
+                    setForm(f => ({ ...f, discount_rate: '30' }))
+                    Taro.showToast({ title: '让利最高30%', icon: 'none' })
+                  }
+                }} />
+              <Text style={{ fontSize: '11px', color: '#AAA', marginTop: '4px' }}>让利比例最高 30%，超出将自动校正为 30%</Text>
             </View>
 
             {/* 库存 + 条形码 */}
@@ -662,8 +664,7 @@ function MerchantProductsPage() {
                   }}
                   placeholder="0" type="number"
                   value={form.stock}
-                  onInput={(e: any) => setForm(f => ({ ...f, stock: e.detail?.value ?? '' }))}
-                />
+                  onInput={(e: any) => setForm(f => ({ ...f, stock: e.detail?.value ?? '' }))} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>条形码</Text>
@@ -675,8 +676,7 @@ function MerchantProductsPage() {
                   }}
                   placeholder="扫码或手动输入"
                   value={form.barcode}
-                  onInput={(e: any) => setForm(f => ({ ...f, barcode: e.detail?.value ?? '' }))}
-                />
+                  onInput={(e: any) => setForm(f => ({ ...f, barcode: e.detail?.value ?? '' }))} />
               </View>
             </View>
 
@@ -941,8 +941,7 @@ function MerchantProductsPage() {
                     setIngredientResults(searchIngredients(v))
                   }}
                   placeholder='或直接输入原料名（如：姜、梨、番茄）快速添加'
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E0E0E0', fontSize: '13px', background: '#FFF' }}
-                />
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E0E0E0', fontSize: '13px', background: '#FFF' }} />
                 {ingredientResults.length > 0 && (
                   <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
                     {ingredientResults.map(key => {
@@ -1000,8 +999,7 @@ function MerchantProductsPage() {
                 value={form.attribute_keywords}
                 onInput={(e: any) => setForm(f => ({ ...f, attribute_keywords: e.detail.value }))}
                 placeholder='如：多汁、酸甜、产地直采、手工（逗号分隔）'
-                style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E0E0E0', fontSize: '13px', background: '#FFF' }}
-              />
+                style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E0E0E0', fontSize: '13px', background: '#FFF' }} />
               <Text style={{ fontSize: '11px', color: '#999', display: 'block', marginTop: '4px' }}>填写后，生成的情绪文案会自动融入这些真实卖点，更贴合商品。</Text>
             </View>
 
@@ -1034,7 +1032,7 @@ function MerchantProductsPage() {
                   style={{
                     padding: '6px 12px',
                     borderRadius: '8px',
-                    background: form.mood_tags.length > 0 || form.scene_tags.length > 0 ? '#6C5CE7' : '#E5E7EB',
+                    background: form.mood_tags.length > 0 || form.scene_tags.length > 0 ? '#A8552E' : '#E5E7EB',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
@@ -1064,7 +1062,7 @@ function MerchantProductsPage() {
                       }}>
                       <Text style={{ fontSize: '13px', color: '#333', lineHeight: '1.6' }}>{desc}</Text>
                       <View style={{ marginTop: '6px', display: 'flex', justifyContent: 'flex-end' }}>
-                        <Text style={{ fontSize: '11px', color: '#6C5CE7' }}>点击采用 →</Text>
+                        <Text style={{ fontSize: '11px', color: '#A8552E' }}>点击采用 →</Text>
                       </View>
                     </View>
                   ))}
@@ -1086,8 +1084,7 @@ function MerchantProductsPage() {
                 placeholder="简短描述商品特点..."
                 placeholderStyle="color:#BBB;font-size:13px"
                 value={form.description}
-                onInput={(e: any) => setForm(f => ({ ...f, description: e.detail?.value ?? '' }))}
-              />
+                onInput={(e: any) => setForm(f => ({ ...f, description: e.detail?.value ?? '' }))} />
             </View>
 
             {/* 上架开关 */}
@@ -1100,8 +1097,7 @@ function MerchantProductsPage() {
               <Switch
                 checked={form.is_active}
                 onChange={(v: any) => setForm(f => ({ ...f, is_active: v.detail.value }))}
-                color="#C2410C"
-              />
+                color="#A8552E" />
             </View>
 
             {/* 保存按钮 */}
@@ -1111,7 +1107,7 @@ function MerchantProductsPage() {
                 width: '100%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '14px', borderRadius: '14px',
-                background: saving ? '#FFB899' : 'linear-gradient(135deg, #FF8A65, #FF5722)',
+                background: saving ? '#F0C9A8' : 'linear-gradient(135deg, #C77B47, #A8552E)',
                 boxShadow: saving ? 'none' : '0 3px 12px rgba(255,87,34,0.3)',
               }}>
               <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#FFF' }}>

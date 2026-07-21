@@ -6,6 +6,7 @@ import { getProductById, addToCart, isFavorited, toggleFavorite, recordFootprint
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
 import { setPendingCheckout } from '@/utils/checkoutCache'
 import { buildProductShare } from '@/utils/share'
+import Icon from '@/components/Icon'
 import type { Product } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
@@ -182,7 +183,7 @@ export default function ProductPage() {
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
   if (!product) return (
@@ -226,7 +227,7 @@ export default function ProductPage() {
         {/* 有视频标识 */}
         {videoUrl && (
           <View className="absolute bottom-3 left-4 px-2 py-0.5 rounded-full bg-red-500/80 text-white text-xs flex items-center gap-1">
-            <View className="i-mdi-video text-sm" />
+            <Icon name="video" size={14} />
             <Text>含视频</Text>
           </View>
         )}
@@ -242,8 +243,7 @@ export default function ProductPage() {
             controls
             showCenterPlayBtn
             enableProgressGesture
-            objectFit="contain"
-          />
+            objectFit="contain" />
         </View>
       )}
 
@@ -252,7 +252,7 @@ export default function ProductPage() {
         {/* 分享赚佣提示 */}
         {myCode && (
           <View className="mb-3 py-2 px-3 rounded-xl bg-primary/10 flex items-center gap-2">
-            <View className="i-mdi-share-variant text-xl text-primary" />
+            <Icon name="share-variant" size={20} className="text-primary" />
             <Text className="text-xl text-primary font-bold">分享此商品，好友购买你可获佣金</Text>
           </View>
         )}
@@ -268,7 +268,7 @@ export default function ProductPage() {
           )}
           {/* 让利标签 */}
           {product.discount_rate != null && product.discount_rate > 0 && (
-            <Text className="px-2 py-0.5 rounded-full bg-purple-100 text-base font-bold text-purple-700">
+            <Text className="px-2 py-0.5 rounded-full bg-primary/10 text-base font-bold text-primary">
               立减{product.discount_rate}%
             </Text>
           )}
@@ -294,7 +294,7 @@ export default function ProductPage() {
             <Text className="text-xl text-foreground leading-relaxed mt-1" style={{ lineHeight: '1.7', display: 'block' }}>{emotionData.detail}</Text>
           </View>
         )}
-        {/* 商家原话（功能信息，低调呈现，合规可查） */}
+        {/* 商家原话（功能信息） */}
         {product.description && (
           <Text className="text-base text-muted-foreground mt-2 leading-relaxed" style={{ display: 'block' }}>商家原话：{product.description}</Text>
         )}
@@ -363,7 +363,7 @@ export default function ProductPage() {
           const input = toFoodTherapyInput(product)
           const tier = classifyProduct(product)
           const tierLabel = tier ? TIER_LABEL[tier] : ''
-          const tierColor = tier === 'recommend' ? '#16A34A' : tier === 'caution' ? '#B45309' : tier === 'avoid' ? '#DC2626' : '#6B7280'
+          const tierColor = tier === 'recommend' ? '#16A34A' : tier === 'caution' ? '#A8552E' : tier === 'avoid' ? '#DC2626' : '#6B7280'
           return (
             <View className="mt-3" style={{ padding: '12px 14px', borderRadius: '16px', background: '#F6FBF7', border: '1px solid #D6EFD8' }}>
               <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>🍵 食材食疗导购</Text>
@@ -386,7 +386,7 @@ export default function ProductPage() {
                   <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>✅ {input.positive_effect}</Text>
                 ) : <Text style={{ fontSize: '12px', color: '#9CA3AF', display: 'block' }}>暂无说明</Text>}
                 {input.risk_warning && (
-                  <Text style={{ fontSize: '13px', color: '#B45309', display: 'block', lineHeight: '1.6', marginTop: 4 }}>⚠️ 风险提示：{input.risk_warning}</Text>
+                  <Text style={{ fontSize: '13px', color: '#A8552E', display: 'block', lineHeight: '1.6', marginTop: 4 }}>⚠️ 风险提示：{input.risk_warning}</Text>
                 )}
               </View>
 
@@ -405,7 +405,7 @@ export default function ProductPage() {
                   <Text style={{ fontSize: '13px', color: '#16A34A', display: 'block', lineHeight: '1.6' }}>🌟 适配人群：{input.rec_crowds.join('、')}{input.guide_sentence ? `（${input.guide_sentence}）` : ''}</Text>
                 )}
                 {input.cautious_crowds && input.cautious_crowds.length > 0 && (
-                  <Text style={{ fontSize: '13px', color: '#B45309', display: 'block', lineHeight: '1.6', marginTop: 2 }}>🟡 慎食人群：{input.cautious_crowds.join('、')}{input.cautious_notes ? `（${input.cautious_notes}）` : ''}</Text>
+                  <Text style={{ fontSize: '13px', color: '#A8552E', display: 'block', lineHeight: '1.6', marginTop: 2 }}>🟡 慎食人群：{input.cautious_crowds.join('、')}{input.cautious_notes ? `（${input.cautious_notes}）` : ''}</Text>
                 )}
                 {input.forbidden_crowds && input.forbidden_crowds.length > 0 && (
                   <Text style={{ fontSize: '13px', color: '#DC2626', display: 'block', lineHeight: '1.6', marginTop: 2 }}>🔴 不建议人群：{input.forbidden_crowds.join('、')}{input.forbidden_reasons ? `（${input.forbidden_reasons}）` : ''}</Text>
@@ -469,12 +469,12 @@ export default function ProductPage() {
         {product.stores && (
           <View className="mt-4 flex items-center gap-3 py-3 border-t border-border"
             onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${product.store_id}` })}>
-            <View className="i-mdi-store text-2xl text-primary flex-shrink-0" />
+            <Icon name="store" size={24} className="text-primary flex-shrink-0" />
             <View className="flex-1">
               <Text className="text-xl font-bold text-foreground">{(product.stores as any)?.name}</Text>
               <Text className="text-base text-muted-foreground">点击进入门店</Text>
             </View>
-            <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+            <Icon name="chevron-right" size={20} className="text-muted-foreground" />
           </View>
         )}
       </View>
@@ -515,8 +515,7 @@ export default function ProductPage() {
                 src={img}
                 mode="widthFix"
                 className="w-full rounded-2xl"
-                style={{ display: 'block' }}
-              />
+                style={{ display: 'block' }} />
             ))}
           </View>
         </View>
@@ -530,7 +529,7 @@ export default function ProductPage() {
           {/* 购物车图标入口 */}
           <View className="relative flex-shrink-0" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
             <View className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center border-2 border-border">
-              <View className="i-mdi-shopping-outline text-2xl text-foreground" />
+              <View className="text-foreground"><Icon name="bag" size={24} /></View>
             </View>
             {cartCount > 0 && (
               <View className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full bg-primary flex items-center justify-center px-1">
@@ -542,14 +541,14 @@ export default function ProductPage() {
           <View className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
             onClick={handleToggleFav}>
             {favLoading
-              ? <View className="i-mdi-loading text-2xl text-primary animate-spin" />
-              : <View className={`text-2xl ${isFav ? 'i-mdi-heart text-red-400' : 'i-mdi-heart-outline text-foreground'}`} />}
+              ? <Icon name="loading" size={24} className="text-primary animate-spin" />
+              : <Icon name="heart" size={24} className={isFav ? 'text-red-400' : 'text-foreground'} />}
           </View>
           {/* 分享按钮 */}
           <Button openType="share"
             className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
             style={{ background: '#f5f5f5', border: '2px solid #e5e5e5', padding: 0 }}>
-            <View className="i-mdi-share-variant text-2xl text-foreground" />
+            <Icon name="share-variant" size={24} className="text-foreground" />
           </Button>
           {/* 合计金额 */}
           <View className="flex flex-col items-end justify-center ml-1">
@@ -561,7 +560,7 @@ export default function ProductPage() {
           className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-primary bg-card"
           onClick={handleAddCart}>
           <View className="py-4 text-xl font-bold text-primary">
-            {adding ? '加入中...' : '收入行囊'}
+            {adding ? '加入中...' : '加入行囊'}
           </View>
         </Button>
         <Button type="button"

@@ -10,6 +10,7 @@ import {
 import type { EmotionBadgeDef, EmotionBadgeGrant } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import './index.scss'
+import Icon from '@/components/Icon'
 
 const RARITY_LABEL: Record<string, string> = {
   common: '普通',
@@ -20,7 +21,7 @@ const RARITY_LABEL: Record<string, string> = {
 const RARITY_COLOR: Record<string, string> = {
   common: '#78716C',
   rare:   '#2563EB',
-  epic:   '#9333EA',
+  epic:   '#9A8070',
   legend: '#DC2626',
 }
 // 图鉴分组顺序（高 → 低，突出收藏梯度）
@@ -67,7 +68,7 @@ function EmotionBadgesPage() {
     return (
       <View className="min-h-screen bg-background flex items-center justify-center">
         <View className="text-center" onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}>
-          <View className="i-mdi-medal-outline text-6xl text-muted-foreground mx-auto" />
+          <Icon name="medal-outline" size={60} className="text-muted-foreground mx-auto" />
           <Text className="text-xl text-muted-foreground mt-3" style={{ display: 'block' }}>请先登录查看徽章</Text>
         </View>
       </View>
@@ -103,11 +104,11 @@ function EmotionBadgesPage() {
       <View className="px-4 mt-4">
         {loading ? (
           <View className="flex items-center justify-center py-10">
-            <View className="i-mdi-loading text-3xl text-primary animate-spin" />
+            <Icon name="loading" size={30} className="text-primary animate-spin" />
           </View>
         ) : defs.length === 0 ? (
           <View className="emotion-empty">
-            <View className="i-mdi-medal-outline text-6xl text-muted-foreground" />
+            <Icon name="medal-outline" size={60} className="text-muted-foreground" />
             <Text className="text-xl text-muted-foreground mt-3" style={{ display: 'block' }}>徽章字典待加载</Text>
           </View>
         ) : (
@@ -161,8 +162,8 @@ function EmotionBadgesPage() {
                       {/* 状态 */}
                       <View className="emotion-badge-status">
                         {owned
-                          ? <Text className="i-mdi-check-circle text-3xl" style={{ color: rarityColor }} />
-                          : <Text className="i-mdi-lock-outline text-3xl text-muted-foreground" />}
+                          ? <Icon name="check-circle" size={30} />
+                          : <Icon name="lock-outline" size={30} className="text-muted-foreground" />}
                       </View>
                     </View>
                   )

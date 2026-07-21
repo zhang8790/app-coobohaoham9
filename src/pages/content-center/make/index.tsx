@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { createArticle, updateArticle, searchProducts } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import './index.scss'
+import Icon from '@/components/Icon'
 
 type Step = 'choose' | 'fetch' | 'edit'
 type EditMode = 'blank' | 'fetch' | 'template'
@@ -14,15 +15,15 @@ type EditMode = 'blank' | 'fetch' | 'template'
 const MODES = [
   {
     key: 'blank' as EditMode,
-    icon: 'i-mdi-pencil-outline',
+    icon: 'pencil-outline',
     emoji: '✏️',
     title: '空白原创',
     desc: '从零开始，尽情挥毫',
-    bg: '#FFF0E8',
+    bg: '#F1E9D9',
     border: '#F59E0B'},
   {
     key: 'fetch' as EditMode,
-    icon: 'i-mdi-link-variant',
+    icon: '🔗',
     emoji: '🔗',
     title: '链接导入',
     desc: '导入好文，改编再创',
@@ -30,7 +31,7 @@ const MODES = [
     border: '#3B82F6'},
   {
     key: 'template' as EditMode,
-    icon: 'i-mdi-file-document-outline',
+    icon: 'file-document-outline',
     emoji: '📝',
     title: '模板套用',
     desc: '套用范式，快速成文',
@@ -311,7 +312,7 @@ export default function MakePage() {
               className="p-4 rounded-2xl bg-card border-2 border-border"
               style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               <View className="flex items-center gap-2 mb-2">
-                <View className="i-mdi-file-document text-2xl text-primary" />
+                <Icon name="file-document" size={24} className="text-primary" />
                 <Text className="text-2xl font-bold text-foreground">{tpl.name}</Text>
               </View>
               <Text className="text-xl text-muted-foreground whitespace-pre-line leading-relaxed">{tpl.content}</Text>
@@ -356,7 +357,7 @@ export default function MakePage() {
                   <Text className="text-2xl font-bold text-foreground">{mode.title}</Text>
                   <Text className="text-xl text-muted-foreground mt-1">{mode.desc}</Text>
                 </View>
-                <View className="i-mdi-chevron-right text-2xl text-muted-foreground" />
+                <Icon name="chevron-right" size={24} className="text-muted-foreground" />
               </View>
             ))}
           </View>
@@ -364,9 +365,9 @@ export default function MakePage() {
           {/* 查看我的文章 */}
           <View className="p-4 rounded-2xl bg-card border border-border flex items-center gap-3"
             onClick={() => Taro.navigateTo({ url: '/pages/content-center/my-articles/index' })}>
-            <View className="i-mdi-text-box-multiple text-2xl text-primary" />
+            <Icon name="text-box-multiple" size={24} className="text-primary" />
             <Text className="text-xl text-foreground flex-1">查看我的文章</Text>
-            <View className="i-mdi-chevron-right text-2xl text-muted-foreground" />
+            <Icon name="chevron-right" size={24} className="text-muted-foreground" />
           </View>
         </View>
       )}
@@ -375,7 +376,7 @@ export default function MakePage() {
       {step === 'fetch' && (
         <View className="p-4">
           <View className="mb-4 p-3 rounded-xl bg-muted/50 flex items-start gap-2">
-            <View className="i-mdi-information-outline text-xl text-primary flex-shrink-0 mt-0.5" />
+            <Icon name="information-outline" size={20} className="text-primary flex-shrink-0 mt-0.5" />
             <Text className="text-xl text-muted-foreground leading-relaxed">粘贴链接后自动识别来源平台，生成编辑模板，支持微信/知乎/小红书等</Text>
           </View>
 
@@ -386,8 +387,7 @@ export default function MakePage() {
               className="w-full text-xl text-foreground bg-transparent outline-none"
               placeholder="粘贴文章链接..."
               value={fetchUrl}
-              onInput={(e) => { const ev = e as any; setFetchUrl(ev.detail?.value ?? ev.target?.value ?? '') }}
-            />
+              onInput={(e) => { const ev = e as any; setFetchUrl(ev.detail?.value ?? ev.target?.value ?? '') }} />
           </View>
 
           <View
@@ -395,8 +395,8 @@ export default function MakePage() {
             onClick={handleFetchArticle}>
             <View className="py-4 flex items-center gap-2">
               {fetchLoading
-                ? <View className="i-mdi-loading text-2xl text-white animate-spin" />
-                : <View className="i-mdi-download text-2xl text-white" />}
+                ? <Icon name="loading" size={24} className="text-white animate-spin" />
+                : <Icon name="download" size={24} className="text-white" />}
               <Text className="text-xl text-white font-bold">{fetchLoading ? '提取中...' : '提取内容'}</Text>
             </View>
           </View>
@@ -405,7 +405,7 @@ export default function MakePage() {
           {fetchResult && (
             <View className="mt-4 p-4 rounded-2xl bg-card border-2 border-primary/30">
               <View className="flex items-center gap-2 mb-3">
-                <View className="i-mdi-check-circle text-2xl text-primary" />
+                <Icon name="check-circle" size={24} className="text-primary" />
                 <Text className="text-xl font-bold text-primary">提取成功</Text>
               </View>
               <Text className="text-2xl font-bold text-foreground mb-2">{fetchResult.title}</Text>
@@ -417,7 +417,7 @@ export default function MakePage() {
               {fetchResult.images && fetchResult.images.length > 0 && (
                 <View className="mt-3">
                   <View className="flex items-center gap-1 mb-2">
-                    <View className="i-mdi-image-multiple text-lg text-primary" />
+                    <Icon name="image-multiple" size={18} className="text-primary" />
                     <Text className="text-base font-bold text-primary">原文图片 ({fetchResult.images.length}张)</Text>
                   </View>
                   <ScrollView scrollX style={{ whiteSpace: 'nowrap' }} className="flex-row gap-2">
@@ -454,7 +454,7 @@ export default function MakePage() {
                     <View
                       className="mt-2 flex items-center justify-center gap-1 py-2 rounded-lg bg-blue-50 border border-blue-200"
                       onClick={() => setCoverImage(fetchResult!.images![0])}>
-                      <View className="i-mdi-image-plus text-base text-blue-600" />
+                      <Icon name="image-plus" size={16} className="text-blue-600" />
                       <Text className="text-base text-blue-600 font-bold">用第1张图做封面</Text>
                     </View>
                   )}
@@ -466,7 +466,7 @@ export default function MakePage() {
                 className="mt-4 w-full flex items-center justify-center leading-none rounded-xl bg-primary"
                 onClick={handleUseFetched}>
                 <View className="py-4 flex items-center gap-2">
-                  <View className="i-mdi-pencil text-xl text-white" />
+                  <Icon name="pencil" size={20} className="text-white" />
                   <Text className="text-xl text-white font-bold">使用此内容，开始编辑</Text>
                 </View>
               </View>
@@ -488,8 +488,7 @@ export default function MakePage() {
                 className="w-full text-2xl text-foreground bg-transparent outline-none font-bold"
                 placeholder="输入文章标题（吸引人的标题更容易传播）"
                 value={title}
-                onInput={(e) => { const ev = e as any; setTitle(ev.detail?.value ?? ev.target?.value ?? '') }}
-              />
+                onInput={(e) => { const ev = e as any; setTitle(ev.detail?.value ?? ev.target?.value ?? '') }} />
             </View>
           </View>
 
@@ -505,8 +504,7 @@ export default function MakePage() {
                 placeholder="在这里尽情挥毫，分享你的江湖见闻..."
                 maxLength={5000}
                 value={content}
-                onInput={(e) => { const ev = e as any; setContent(ev.detail?.value ?? ev.target?.value ?? '') }}
-              />
+                onInput={(e) => { const ev = e as any; setContent(ev.detail?.value ?? ev.target?.value ?? '') }} />
             </View>
             <Text className="text-right text-base text-muted-foreground mt-1">{wordCount}/5000</Text>
           </View>
@@ -520,7 +518,7 @@ export default function MakePage() {
                 <View
                   className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"
                   onClick={() => setCoverImage(null)}>
-                  <View className="i-mdi-close text-xl text-white" />
+                  <Icon name="close" size={20} className="text-white" />
                 </View>
               </View>
             ) : (
@@ -528,7 +526,7 @@ export default function MakePage() {
                 className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl bg-muted/30"
                 style={{ height: '100px' }}
                 onClick={handleChooseCover}>
-                <View className="i-mdi-image-plus text-3xl text-muted-foreground" />
+                <Icon name="image-plus" size={30} className="text-muted-foreground" />
                 <Text className="text-xl text-muted-foreground">选择封面图</Text>
               </View>
             )}
@@ -543,15 +541,14 @@ export default function MakePage() {
                   className="w-full text-xl text-foreground bg-transparent outline-none"
                   placeholder="粘贴视频链接（mp4直链或B站/抖音等）"
                   value={videoUrl || ''}
-                  onInput={(e: any) => setVideoUrl((e.detail?.value || e.target?.value || '').trim() || null)}
-                />
+                  onInput={(e: any) => setVideoUrl((e.detail?.value || e.target?.value || '').trim() || null)} />
               </View>
               {videoUrl && (
                 <View
                   className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center flex-shrink-0"
                   onClick={() => setVideoUrl(null)}
                 >
-                  <View className="i-mdi-close text-xl text-white" />
+                  <Icon name="close" size={20} className="text-white" />
                 </View>
               )}
             </View>
@@ -565,7 +562,7 @@ export default function MakePage() {
               <View
                 className="px-3 py-1.5 rounded-full bg-primary/10 flex items-center gap-1"
                 onClick={openProductPicker}>
-                <View className="i-mdi-plus text-base text-primary" />
+                <Icon name="plus" size={16} className="text-primary" />
                 <Text className="text-base text-primary font-bold">选商品</Text>
               </View>
             </View>
@@ -580,7 +577,7 @@ export default function MakePage() {
                         <Image src={p.image_url} mode="aspectFill" className="w-12 h-12 rounded-lg flex-shrink-0" />
                       ) : (
                         <View className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                          <View className="i-mdi-package-variant text-xl text-muted-foreground" />
+                          <Icon name="package-variant" size={20} className="text-muted-foreground" />
                         </View>
                       )}
                       <View className="flex-1 min-w-0">
@@ -592,7 +589,7 @@ export default function MakePage() {
                       <View
                         className="w-7 h-7 rounded-full bg-black/5 flex items-center justify-center flex-shrink-0"
                         onClick={() => removeProductCard(pid)}>
-                        <View className="i-mdi-close text-base text-muted-foreground" />
+                        <Icon name="close" size={16} className="text-muted-foreground" />
                       </View>
                     </View>
                   )
@@ -600,7 +597,7 @@ export default function MakePage() {
               </View>
             ) : (
               <View className="p-3 rounded-xl bg-muted/30 border border-dashed border-border flex items-center gap-2">
-                <View className="i-mdi-package-variant-closed text-xl text-muted-foreground" />
+                <Icon name="package-variant-closed" size={20} className="text-muted-foreground" />
                 <Text className="text-base text-muted-foreground">尚未插入好物，点击右上「选商品」</Text>
               </View>
             )}
@@ -613,7 +610,7 @@ export default function MakePage() {
               className={`w-full flex items-center justify-center leading-none rounded-xl ${publishing ? 'bg-primary/50' : 'bg-primary'}`}
               onClick={handlePublish}>
               <View className="py-4 flex items-center gap-2">
-                {publishing && <View className="i-mdi-loading text-2xl text-white animate-spin" />}
+                {publishing && <Icon name="loading" size={24} className="text-white animate-spin" />}
                 <Text className="text-xl text-white font-bold">{publishing ? '发布中...' : (articleId ? '更新文章' : '发布文章')}</Text>
               </View>
             </View>
@@ -624,7 +621,7 @@ export default function MakePage() {
                 className={`flex-1 flex items-center justify-center leading-none rounded-xl border-2 border-border bg-card ${saving ? 'opacity-50' : ''}`}
                 onClick={handleSaveDraft}>
                 <View className="py-3 flex items-center gap-2">
-                  {saving && <View className="i-mdi-loading text-xl text-foreground animate-spin" />}
+                  {saving && <Icon name="loading" size={20} className="text-foreground animate-spin" />}
                   <Text className="text-xl text-foreground">{saving ? '保存中...' : '存草稿'}</Text>
                 </View>
               </View>
@@ -646,7 +643,7 @@ export default function MakePage() {
             <View className="picker-header">
               <Text className="text-2xl font-bold text-foreground">选择好物</Text>
               <View className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center" onClick={() => setShowProductPicker(false)}>
-                <View className="i-mdi-close text-xl text-muted-foreground" />
+                <Icon name="close" size={20} className="text-muted-foreground" />
               </View>
             </View>
 
@@ -656,21 +653,20 @@ export default function MakePage() {
                 className="w-full text-xl text-foreground bg-transparent outline-none"
                 placeholder="搜索商品名 / 关键词"
                 value={productSearch}
-                onInput={(e: any) => handleProductSearch(e.detail?.value || e.target?.value || '')}
-              />
+                onInput={(e: any) => handleProductSearch(e.detail?.value || e.target?.value || '')} />
             </View>
 
             {/* 列表 */}
             <ScrollView scrollY className="picker-list" enhanced showScrollbar={false}>
               {productLoading && (
                 <View className="picker-empty">
-                  <View className="i-mdi-loading text-3xl text-primary animate-spin" />
+                  <Icon name="loading" size={30} className="text-primary animate-spin" />
                   <Text className="text-base text-muted-foreground mt-2">搜索中...</Text>
                 </View>
               )}
               {!productLoading && productList.length === 0 && (
                 <View className="picker-empty">
-                  <View className="i-mdi-package-variant text-3xl text-muted-foreground" />
+                  <Icon name="package-variant" size={30} className="text-muted-foreground" />
                   <Text className="text-base text-muted-foreground mt-2">{productSearch ? '未找到相关商品' : '输入关键词搜索商品'}</Text>
                 </View>
               )}
@@ -685,7 +681,7 @@ export default function MakePage() {
                       <Image src={p.image_url} mode="aspectFill" className="picker-item-img" />
                     ) : (
                       <View className="picker-item-img bg-muted flex items-center justify-center">
-                        <View className="i-mdi-package-variant text-2xl text-muted-foreground" />
+                        <Icon name="package-variant" size={24} className="text-muted-foreground" />
                       </View>
                     )}
                     <View className="picker-item-body">
@@ -701,7 +697,7 @@ export default function MakePage() {
                       <Text className="picker-item-tag text-sm text-muted-foreground">已插入</Text>
                     ) : (
                       <View className="picker-item-add">
-                        <View className="i-mdi-plus text-lg text-white" />
+                        <Icon name="plus" size={18} className="text-white" />
                       </View>
                     )}
                   </View>

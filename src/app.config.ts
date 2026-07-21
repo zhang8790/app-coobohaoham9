@@ -39,7 +39,7 @@ const pages = [
   'pages/admin-announcements/index',
   'pages/privacy-policy/index',
   'pages/user-agreement/index',
-  // 协议/规则页面（合规化）
+  // 协议/规则页面
   'pages/trade-rules/index',
   'pages/withdraw-rules/index',
   'pages/commission-rules/index',
@@ -85,41 +85,17 @@ const pages = [
 export default defineAppConfig({
   pages,
   tabBar: {
+    custom: true,           // 使用 custom-tabbar 内联手绘 SVG，去 AI 化
     color: '#9A8070',
-    selectedColor: '#C2410C',
+    selectedColor: '#1A1A1A',
     backgroundColor: '#FFFBF7',
     borderStyle: 'white',
     list: [
-      {
-        pagePath: 'pages/index/index',
-        text: '首页',
-        iconPath: './assets/icons/home_unselected.png',
-        selectedIconPath: './assets/icons/home_selected.png',
-      },
-      {
-        pagePath: 'pages/explore/index',
-        text: '探索',
-        iconPath: './assets/icons/explore_unselected.png',
-        selectedIconPath: './assets/icons/explore_selected.png',
-      },
-      {
-        pagePath: 'pages/reward-shop/index',
-        text: '犒赏铺',
-        iconPath: './assets/icons/reward_unselected.png',
-        selectedIconPath: './assets/icons/reward_selected.png',
-      },
-      {
-        pagePath: 'pages/cart/index',
-        text: '行囊',
-        iconPath: './assets/icons/cart_unselected.png',
-        selectedIconPath: './assets/icons/cart_selected.png',
-      },
-      {
-        pagePath: 'pages/user/index',
-        text: '侠客',
-        iconPath: './assets/icons/user_unselected.png',
-        selectedIconPath: './assets/icons/user_selected.png',
-      },
+      { pagePath: 'pages/index/index',     text: '首页' },
+      { pagePath: 'pages/explore/index',   text: '自营' },
+      { pagePath: 'pages/reward-shop/index', text: '品牌馆' },
+      { pagePath: 'pages/cart/index',      text: '行囊' },
+      { pagePath: 'pages/user/index',      text: '侠客' },
     ],
   },
   window: {

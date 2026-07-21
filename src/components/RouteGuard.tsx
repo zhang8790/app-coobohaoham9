@@ -3,6 +3,7 @@ import Taro, {useDidShow} from '@tarojs/taro'
 import type {TabBarItem} from '@tarojs/taro'
 import {View, Text} from '@tarojs/components'
 import {useAuth} from '@/contexts/AuthContext'
+import Icon from '@/components/Icon'
 
 // Public pages that don't require authentication
 const PUBLIC_PAGE_PATHS = ['/pages/login/index']
@@ -100,7 +101,7 @@ export function RouteGuard({children}: {children: React.ReactNode}) {
   if (!shouldRender) {
     return (
       <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
-        <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+        <Icon name="loading" size={36} className="text-primary animate-spin" />
         <Text className="text-base text-muted-foreground">正在检查登录状态...</Text>
       </View>
     )

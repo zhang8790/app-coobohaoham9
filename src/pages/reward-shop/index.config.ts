@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '犒赏铺',
+  navigationBarTitleText: '品牌馆',
   enableShareAppMessage: true,
   enableShareTimeline: true,
 })

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 
 import { View, Text, Input, Image } from '@tarojs/components'
 import { getMerchantStore } from '@/db/api'
+import Icon from '@/components/Icon'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabase } from '@/client/supabase'
@@ -88,7 +89,7 @@ function MerchantMembersPage() {
           <Text className="text-xs text-muted-foreground">本店客户数</Text>
         </View>
         <View className="flex-[2] border-2 border-input rounded-xl px-3 py-2 flex items-center bg-background">
-          <View className="i-mdi-magnify text-lg text-muted-foreground mr-2" />
+          <View className="text-muted-foreground mr-2"><Icon name="search" size={18} /></View>
           <Input className="flex-1 text-base bg-transparent" placeholder="搜索昵称/手机号"
             value={search} onInput={e => setSearch((e.target as any)?.value ?? '')} />
         </View>
@@ -97,11 +98,11 @@ function MerchantMembersPage() {
       {/* 客户列表（真实数据） */}
       {loading ? (
         <View className="flex items-center justify-center py-20">
-          <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+          <Icon name="loading" size={36} className="text-primary animate-spin" />
         </View>
       ) : filtered.length === 0 ? (
         <View className="flex flex-col items-center justify-center py-20 gap-3">
-          <View className="i-mdi-account-group text-5xl text-muted-foreground/30" />
+          <View className="text-muted-foreground/30"><Icon name="user" size={40} /></View>
           <Text className="text-base text-muted-foreground">暂无绑定会员</Text>
           <Text className="text-sm text-muted-foreground/50">用户领取本店红包或扫码进店即会归入本店会员</Text>
         </View>
@@ -119,7 +120,7 @@ function MerchantMembersPage() {
               <View className="flex-1">
                 <View className="flex items-center gap-2">
                   <Text className="text-base font-bold text-foreground">{m.nickname}</Text>
-                  <View className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 text-xs">
+                  <View className="px-2 py-0.5 rounded-full bg-warning/10 text-warning text-xs">
                     {LOCK_TYPE_LABEL[m.lock_type] || '已绑定'}
                   </View>
                 </View>

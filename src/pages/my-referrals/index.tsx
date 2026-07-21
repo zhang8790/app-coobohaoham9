@@ -4,6 +4,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
 import { getMyReferrals, ensureReferralCode } from '@/db/api'
 import type { Profile } from '@/db/types'
+import Icon from '@/components/Icon'
 
 export default function MyReferrals() {
   const [referralCode, setReferralCode] = useState('')
@@ -106,7 +107,7 @@ export default function MyReferrals() {
           </View>
         ) : list.length === 0 ? (
           <View className="flex flex-col items-center justify-center py-12 gap-3">
-            <View className="i-mdi-account-search text-5xl text-muted-foreground opacity-40" />
+            <Icon name="account-search" size={48} className="text-muted-foreground opacity-40" />
             <Text className="text-base text-muted-foreground">
               {activeTab === '1' ? '暂无我的好友' : '暂无我的粉丝'}
             </Text>
@@ -121,8 +122,7 @@ export default function MyReferrals() {
                 src={p.avatar_url || ''}
                 className="w-10 h-10 rounded-full bg-muted flex-shrink-0"
                 mode="aspectFill"
-                onError={() => {}}
-              />
+                onError={() => {}} />
               <View className="flex-1">
                 <Text className="text-base font-bold text-foreground">{p.nickname || '江湖侠客'}</Text>
                 <Text className="text-xs text-muted-foreground mt-0.5">

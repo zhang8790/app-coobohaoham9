@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image, Textarea } from '@tarojs/components'
 import { getOrders, submitReviews } from '@/db/api'
+import Icon from '@/components/Icon'
 import type { Order } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import { MOOD_CATEGORIES, MOOD_TAGS_ALL } from '@/utils/mood-tags'
@@ -91,13 +92,13 @@ function ReviewPage() {
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
   if (!order) return (
     <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4">
-      <View className="i-mdi-alert-circle-outline text-6xl text-muted-foreground/40" />
+      <Icon name="alert-circle-outline" size={60} className="text-muted-foreground/40" />
       <Text className="text-xl text-muted-foreground">订单不存在或已评价</Text>
       <View
         className="flex items-center justify-center leading-none rounded-2xl bg-primary"
@@ -114,7 +115,7 @@ function ReviewPage() {
 
       <View className="px-4 mt-4">
         <View className="bg-card rounded-2xl border border-border px-4 py-3 mb-4 flex items-center gap-2">
-          <View className="i-mdi-receipt-text text-xl text-muted-foreground" />
+          <Icon name="receipt-text" size={20} className="text-muted-foreground" />
           <Text className="text-xl text-muted-foreground">订单号：{order.order_no}</Text>
         </View>
 
@@ -126,7 +127,7 @@ function ReviewPage() {
                 {rev.product_image
                   ? <Image src={rev.product_image} mode="aspectFill" style={{ width: '64px', height: '64px' }} />
                   : <View className="w-full h-full flex items-center justify-center">
-                      <View className="i-mdi-package-variant text-2xl text-muted-foreground/40" />
+                      <View className="text-muted-foreground/40"><Icon name="box" size={24} /></View>
                     </View>}
               </View>
               <Text className="text-xl font-bold text-foreground flex-1 line-clamp-2">{rev.product_name}</Text>
@@ -138,7 +139,7 @@ function ReviewPage() {
               <View className="flex items-center gap-2">
                 {[1, 2, 3, 4, 5].map(s => (
                   <View key={s} onClick={() => setRating(idx, s)}>
-                    <View className={`text-4xl ${s <= rev.rating ? 'i-mdi-star text-yellow-400' : 'i-mdi-star-outline text-muted-foreground'}`} />
+                    <View className={`text-4xl ${s <= rev.rating ? '★ text-yellow-400' : '★-outline text-muted-foreground'}`} />
                   </View>
                 ))}
                 <Text className="text-xl text-primary font-bold ml-1">{STAR_LABELS[rev.rating]}</Text>
@@ -154,8 +155,7 @@ function ReviewPage() {
                   style={{ height: '90px', display: 'block' }}
                   placeholder="说说你的使用感受，帮助更多人做决策…"
                   value={rev.content}
-                  onInput={e => { const ev = e as any; setContent(idx, ev.detail?.value ?? ev.target?.value ?? '') }}
-                />
+                  onInput={e => { const ev = e as any; setContent(idx, ev.detail?.value ?? ev.target?.value ?? '') }} />
               </View>
             </View>
 

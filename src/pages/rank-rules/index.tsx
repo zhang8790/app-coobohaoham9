@@ -105,9 +105,9 @@ function RankRules() {
         })}
       </View>
 
-      {/* 合规与机制说明 */}
+      {/* 机制说明 */}
       <View className="mx-4 mt-2 bg-card rounded-2xl border border-border p-4">
-        <Text className="block text-foreground text-base font-bold mb-2" style={{ display: 'block' }}>机制与合规</Text>
+        <Text className="block text-foreground text-base font-bold mb-2" style={{ display: 'block' }}>机制说明</Text>
         <Text className="block text-muted-foreground text-xs leading-loose" style={{ display: 'block' }}>
           1. 团队 / 邀请新用户仅作推广佣金（真实服务费）的系数，不进入段位，避免「等级靠拉人」观感；推广佣金以金豆发放，不可提现。
         </Text>

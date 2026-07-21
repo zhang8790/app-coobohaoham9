@@ -69,7 +69,7 @@ export interface MarketingCopy {
   short_sales_word: string // 一句话销售话术（店员话术库 / 商品卡副标题）
   detail_desc: string // 详情卖点文案
   circle_copy: string // 朋友圈 / 社群分享文案
-  risk_tip: string // 风险提醒（合规）
+  risk_tip: string // 风险提醒
   poster_template: string // 海报模板占位
 }
 

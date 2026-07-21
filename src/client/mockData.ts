@@ -44,7 +44,7 @@ export const mockProfile: Profile = {
 const STORE_IMG = 'https://picsum.photos/seed/store/400/400'
 
 // =====================
-// 测试门店（多个，用于犒赏铺展示）
+// 测试门店（多个，用于品牌馆展示）
 // =====================
 export const mockStores: Store[] = [
   {
@@ -407,8 +407,8 @@ export let mockAnnouncements: Announcement[] = [
 // 优惠券
 // =====================
 export let mockCoupons: Coupon[] = [
-  { id: 'cpn-001', user_id: mockUser.id, code: 'WELCOME10', title: '新人立减券', discount_type: 'amount', discount_value: 10, min_amount: 50, is_used: false, expired_at: null, used_at: null, created_at: new Date().toISOString() },
-  { id: 'cpn-002', user_id: mockUser.id, code: 'DISCOUNT20', title: '8折优惠券', discount_type: 'percent', discount_value: 0.8, min_amount: 100, is_used: false, expired_at: null, used_at: null, created_at: new Date().toISOString() },
+  { id: 'cpn-001', user_id: mockUser.id, code: 'WELCOME10', title: '新人立减券', discount_type: 'amount', discount_value: 10, min_amount: 50, is_used: false, expired_at: null, used_at: null, created_at: new Date().toISOString(), store_id: null, claimed_from: null },
+  { id: 'cpn-002', user_id: mockUser.id, code: 'DISCOUNT20', title: '8折优惠券', discount_type: 'percent', discount_value: 0.8, min_amount: 100, is_used: false, expired_at: null, used_at: null, created_at: new Date().toISOString(), store_id: null, claimed_from: null },
 ]
 
 // =====================
@@ -514,7 +514,7 @@ export let mockCommissions: Commission[] = [
 ]
 
 // =====================
-// 积分日志（用于积分明细）
+// 金豆日志（用于金豆明细）
 // =====================
 export let mockPointsLogs: PointsLog[] = [
   {
@@ -524,7 +524,7 @@ export let mockPointsLogs: PointsLog[] = [
     type: 'purchase_earn',
     delta: 50,
     balance_after: 550,
-    remark: '购物奖励积分',
+    remark: '购物奖励金豆',
     created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
   },
   {
@@ -534,7 +534,7 @@ export let mockPointsLogs: PointsLog[] = [
     type: 'purchase_earn',
     delta: 30,
     balance_after: 580,
-    remark: '购物奖励积分',
+    remark: '购物奖励金豆',
     created_at: new Date(Date.now() - 3 * 86400000).toISOString(),
   },
   {

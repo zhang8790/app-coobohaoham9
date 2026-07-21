@@ -6,22 +6,23 @@ import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMyMerchant
 import { supabase } from '@/client/supabase'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 // 仪表盘导航项
 const NAV_ITEMS = [
-  { to: '/pages/merchant-products/index', icon: 'i-mdi-package-variant', label: '商品管理', color: 'bg-orange-500', key: 'products' },
-  { to: '/pages/merchant-orders/index', icon: 'i-mdi-receipt-text-outline', label: '订单管理', color: 'bg-blue-500', key: 'orders' },
-  { to: '/pages/merchant-members/index', icon: 'i-mdi-account-group', label: '会员管理', color: 'bg-purple-500', key: 'members' },
-  { to: '/pages/merchant-coupons/index', icon: 'i-mdi-ticket-percent', label: '优惠券', color: 'bg-pink-500', key: 'coupons' },
-  { to: '/pages/merchant-analytics/index', icon: 'i-mdi-chart-line', label: '数据分析', color: 'bg-green-500', key: 'analytics' },
-  { to: '/pages/merchant-emotion-funnel/index', icon: 'i-mdi-emoticon-happy-outline', label: '情绪漏斗', color: 'bg-pink-500', key: 'emofunnel' },
-  { to: '/pages/merchant-settings/index', icon: 'i-mdi-store-cog', label: '店铺设置', color: 'bg-gray-500', key: 'settings' },
-  { to: '/pages/withdraw/index', icon: 'i-mdi-cash-multiple', label: '货款提现', color: 'bg-yellow-500', key: 'withdraw' },
+  { to: '/pages/merchant-products/index', icon: 'box', label: '商品管理', color: 'bg-brand-jade', key: 'products' },
+  { to: '/pages/merchant-orders/index', icon: 'order', label: '订单管理', color: 'bg-primary', key: 'orders' },
+  { to: '/pages/merchant-members/index', icon: 'user', label: '会员管理', color: 'bg-brand-navy', key: 'members' },
+  { to: '/pages/merchant-coupons/index', icon: 'ticket', label: '优惠券', color: 'bg-warning', key: 'coupons' },
+  { to: '/pages/merchant-analytics/index', icon: 'chart', label: '数据分析', color: 'bg-brand-bronze', key: 'analytics' },
+  { to: '/pages/merchant-emotion-funnel/index', icon: 'smile', label: '情绪漏斗', color: 'bg-brand-ochre', key: 'emofunnel' },
+  { to: '/pages/merchant-settings/index', icon: 'shop', label: '店铺设置', color: 'bg-secondary', key: 'settings' },
+  { to: '/pages/withdraw/index', icon: 'coin', label: '货款提现', color: 'bg-accent', key: 'withdraw' },
 ]
 
 function MerchantCenterPage() {
   const [store, setStore] = useState<Store | null>(null)
-  const [stats, setStats] = useState({ products: 0, online: 0, orders: 0, todayOrders: 0, members: 5, crossStore: 2 })
+  const [stats, setStats] = useState({ products: 0, online: 0, orders: 0, todayOrders: 0, members: 0, crossStore: 0 })
   const [recentOrders, setRecentOrders] = useState<any[]>([])
   const [statsLoaded, setStatsLoaded] = useState(false)
   const [merchantAppStatus, setMerchantAppStatus] = useState<string | null>(null)
@@ -125,13 +126,21 @@ function MerchantCenterPage() {
       getMerchantProducts(store.id),
       getMerchantOrders(store.id),
       getMerchantSettlement(store.id).catch(() => null),
-    ]).then(([prods, ords, sett]) => {
+      supabase.rpc('get_store_locked_members', { p_store_id: store.id })
+        .then(r => (r.data ?? []) as any[]).catch(() => [] as any[]),
+    ]).then(([prods, ords, sett, members]) => {
       if (cancelled) return
       if (sett) setSettlement(sett)
       const online = prods.filter(p => p.is_active).length
       const today = new Date().toISOString().slice(0, 10)
-      const todayOrders = ords.filter(o => (o.orders?.created_at || '').startsWith(today)).length
-      setStats({ products: prods.length, online, orders: ords.length, todayOrders, members: 5, crossStore: 2 })
+      // getMerchantOrders 返回 order_items 一行一商品，需按 order_no 去重为独立订单，否则多商品订单会被重复计数
+      const orderNoSet = new Set(ords.map(o => o.orders?.order_no).filter(Boolean))
+      const todayOrderNoSet = new Set(
+        ords.filter(o => (o.orders?.created_at || '').startsWith(today)).map(o => o.orders?.order_no).filter(Boolean)
+      )
+      const memberList = Array.isArray(members) ? members : []
+      const crossStore = memberList.filter((m: any) => m.referrer_store_id && m.referrer_store_id !== store.id).length
+      setStats({ products: prods.length, online, orders: orderNoSet.size, todayOrders: todayOrderNoSet.size, members: memberList.length, crossStore })
       // 取最近 5 笔去重订单（order_items 一行一商品，按 order_no 聚合）
       const seen = new Set<string>()
       const recent: any[] = []
@@ -201,7 +210,7 @@ function MerchantCenterPage() {
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
@@ -209,7 +218,7 @@ function MerchantCenterPage() {
   if (!store && merchantAppStatus === 'approved') return (
     <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
       <View className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-        <View className="i-mdi-check text-4xl text-primary" />
+        <Icon name="check" size={36} className="text-primary" />
       </View>
       <Text className="text-xl font-bold text-foreground text-center">入驻已通过</Text>
       <Text className="text-base text-muted-foreground text-center">恭喜！您的商家入驻已审核通过，正在为您准备门店数据。</Text>
@@ -227,7 +236,7 @@ function MerchantCenterPage() {
   // 审核中
   if (!store && merchantAppStatus === 'pending') return (
     <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
-      <View className="i-mdi-clock-outline text-6xl text-yellow-500" />
+      <Icon name="clock-outline" size={60} className="text-yellow-500" />
       <Text className="text-xl font-bold text-foreground text-center">入驻申请审核中</Text>
       <Text className="text-base text-muted-foreground text-center">您的商家入驻申请已提交，请耐心等待管理员审核。</Text>
       <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
@@ -240,7 +249,7 @@ function MerchantCenterPage() {
   // 非商家 / 被拒绝
   if (!store) return (
     <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
-      <View className="i-mdi-store-off text-6xl text-muted-foreground" />
+      <Icon name="store-off" size={60} className="text-muted-foreground" />
       <Text className="text-xl text-muted-foreground text-center">您尚未开通门店，请先申请成为商家</Text>
       <Button className="!bg-primary !border-none !rounded-2xl !px-8 !py-3"
         onClick={() => Taro.navigateTo({ url: '/pages/merchant-apply/index' })}>
@@ -255,7 +264,7 @@ function MerchantCenterPage() {
       <View className="mx-4 mt-2 p-4 rounded-2xl bg-card border border-border">
         <View className="flex items-center gap-3">
           <View className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <View className="i-mdi-store text-2xl text-primary" />
+            <Icon name="store" size={24} className="text-primary" />
           </View>
           <View className="flex-1">
             <Text className="text-2xl font-bold text-foreground">{store.name}</Text>
@@ -267,14 +276,14 @@ function MerchantCenterPage() {
           <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-xl"
             onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${store.id}` })}>
             <View className="py-2 flex items-center justify-center gap-1">
-              <View className="i-mdi-eye text-white" />
+              <Icon name="eye" size={28} className="text-white" />
               <Text className="text-base font-bold text-white">查看门店</Text>
             </View>
           </Button>
           <Button className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-primary !rounded-xl"
             onClick={handleShowStoreQr}>
             <View className="py-2 flex items-center justify-center gap-1">
-              <View className="i-mdi-qrcode text-primary" />
+              <Icon name="qrcode" size={28} className="text-primary" />
               <Text className="text-base font-bold text-primary">门店二维码</Text>
             </View>
           </Button>
@@ -297,12 +306,12 @@ function MerchantCenterPage() {
       </View>
 
       {/* ============ 商家货款结算卡（迁移 00120） ============ */}
-      <View className="mx-4 mt-3 p-4 rounded-2xl border border-emerald-500/30"
-        style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.10), rgba(5,150,105,0.04))' }}>
+      <View className="mx-4 mt-3 p-4 rounded-2xl border border-success/30"
+        style={{ background: 'linear-gradient(135deg, rgba(46,125,91,0.10), rgba(46,125,91,0.04))' }}>
         <View className="flex items-center justify-between">
           <View className="flex items-center gap-2">
-            <View className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center">
-              <View className="i-mdi-cash-multiple text-emerald-500 text-xl" />
+            <View className="w-9 h-9 rounded-xl bg-success/15 flex items-center justify-center">
+              <View className="text-success text-xl"><Icon name="coin" size={20} /></View>
             </View>
             <Text className="text-lg font-bold text-foreground">可结算货款</Text>
           </View>
@@ -311,10 +320,10 @@ function MerchantCenterPage() {
         <View className="flex items-end justify-between mt-3">
           <View>
             <Text className="text-base text-muted-foreground">当前可提现</Text>
-            <Text className="text-4xl font-bold text-emerald-600">¥{((settlement?.merchant_balance ?? 0)).toFixed(2)}</Text>
+            <Text className="text-4xl font-bold text-success">¥{((settlement?.merchant_balance ?? 0)).toFixed(2)}</Text>
           </View>
           <Button
-            className="!m-0 !p-0 !bg-emerald-500 !border-none !rounded-2xl !leading-none"
+            className="!m-0 !p-0 !bg-success !border-none !rounded-2xl !leading-none"
             onClick={() => Taro.navigateTo({ url: `/pages/withdraw/index?kind=settlement&storeId=${store.id}` })}>
             <View className="px-5 py-2.5 flex items-center gap-1">
               <Text className="text-base font-bold text-white">货款提现</Text>
@@ -332,7 +341,7 @@ function MerchantCenterPage() {
           <View key={item.key} className="flex flex-col items-center gap-2 py-4 px-1 bg-card rounded-2xl border border-border"
             onClick={() => Taro.navigateTo({ url: item.to })}>
             <View className={`w-11 h-11 rounded-2xl ${item.color} flex items-center justify-center`}>
-              <View className={`${item.icon} text-white text-2xl`} />
+              <Icon name={item.icon} size={22} className="text-white" />
             </View>
             <Text className="text-base text-foreground text-center font-bold whitespace-nowrap">{item.label}</Text>
           </View>
@@ -346,31 +355,31 @@ function MerchantCenterPage() {
           <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-2xl !leading-none"
             onClick={() => Taro.navigateTo({ url: '/pages/merchant-products/index?action=add' })}>
             <View className="py-3 flex items-center gap-1">
-              <View className="i-mdi-plus text-white text-xl" />
+              <Icon name="plus" size={20} className="text-white" />
               <Text className="text-base font-bold text-white">新增商品</Text>
             </View>
           </Button>
           <Button className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-primary !rounded-2xl !leading-none"
             onClick={() => Taro.navigateTo({ url: '/pages/merchant-products/index?action=scan' })}>
             <View className="py-3 flex items-center gap-1">
-              <View className="i-mdi-barcode-scan text-primary text-xl" />
+              <Icon name="barcode-scan" size={20} className="text-primary" />
               <Text className="text-base font-bold text-primary">扫码上架</Text>
             </View>
           </Button>
         </View>
         {/* 红包发放入口 */}
         <View className="flex gap-3 mt-3">
-          <Button className="!flex-1 !m-0 !p-0 !bg-red-500 !border-none !rounded-2xl !leading-none"
+          <Button className="!flex-1 !m-0 !p-0 !bg-destructive !border-none !rounded-2xl !leading-none"
             onClick={() => Taro.navigateTo({ url: '/pages/merchant-campaigns/create/index' })}>
             <View className="py-3 flex items-center gap-1">
-              <View className="i-mdi-gift text-white text-xl" />
+              <Icon name="gift" size={20} className="text-white" />
               <Text className="text-base font-bold text-white">发放红包</Text>
             </View>
           </Button>
-          <Button className="!flex-1 !m-0 !p-0 !bg-orange-500 !border-none !rounded-2xl !leading-none"
+          <Button className="!flex-1 !m-0 !p-0 !bg-warning !border-none !rounded-2xl !leading-none"
             onClick={() => Taro.navigateTo({ url: '/pages/merchant-campaigns/index' })}>
             <View className="py-3 flex items-center gap-1">
-              <View className="i-mdi-gift-outline text-white text-xl" />
+              <Icon name="gift-outline" size={20} className="text-white" />
               <Text className="text-base font-bold text-white">管理活动</Text>
             </View>
           </Button>
@@ -462,14 +471,14 @@ function MerchantCenterPage() {
                 }}>
                 {qrLoading ? (
                   <View className="flex flex-col items-center gap-3">
-                    <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+                    <Icon name="loading" size={48} className="text-primary animate-spin" />
                     <Text className="text-base text-muted-foreground">生成中...</Text>
                   </View>
                 ) : storeQrUrl ? (
                   <Image src={storeQrUrl} mode="aspectFit" style={{ width: '224px', height: '224px' }} />
                 ) : (
                   <View className="flex flex-col items-center gap-2">
-                    <View className="i-mdi-qrcode-scan text-5xl text-muted-foreground/30" />
+                    <Icon name="qrcode-scan" size={48} className="text-muted-foreground/30" />
                     <Text className="text-base text-muted-foreground/50">加载失败</Text>
                   </View>
                 )}
@@ -489,7 +498,7 @@ function MerchantCenterPage() {
                   className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-border !rounded-2xl"
                   onClick={handleSaveStoreQr}>
                   <View className="py-3 flex items-center justify-center gap-2">
-                    <View className="i-mdi-download text-xl text-muted-foreground" />
+                    <Icon name="download" size={20} className="text-muted-foreground" />
                     <Text className="text-lg font-bold text-muted-foreground">保存图片</Text>
                   </View>
                 </Button>
@@ -497,9 +506,9 @@ function MerchantCenterPage() {
               <Button
                 openType="share"
                 className="!flex-1 !m-0 !p-0 !rounded-2xl"
-                style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)', border: 'none' }}>
+                style={{ background: 'linear-gradient(135deg, #A8552E, #A8552E)', border: 'none' }}>
                 <View className="py-3 flex items-center justify-center gap-2">
-                  <View className="i-mdi-share-variant text-white text-xl" />
+                  <Icon name="share-variant" size={20} className="text-white" />
                   <Text className="text-lg font-bold text-white">分享二维码</Text>
                 </View>
               </Button>

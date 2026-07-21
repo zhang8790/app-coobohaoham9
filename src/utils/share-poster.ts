@@ -90,7 +90,7 @@ export async function generateArticleSharePoster(
           const textMaxWidth = textRight - textLeft - 10
 
           // 顶部小标签
-          ctx.fillStyle = '#8b5cf6'
+          ctx.fillStyle = '#C77B30'
           ctx.font = 'bold 18px sans-serif'
           ctx.fillText('好文推荐', textLeft, 54)
 

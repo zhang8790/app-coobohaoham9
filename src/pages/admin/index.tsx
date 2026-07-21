@@ -5,6 +5,7 @@ import Taro from '@tarojs/taro'
 import { getAdminStats } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 type Stats = { merchants: number; products: number; withdrawals: number; ugc: number }
 
@@ -44,16 +45,16 @@ function AdminPage() {
   useEffect(() => { load() }, [load])
 
   const cards = [
-    { label: '门派大典', sub: '商家入驻审核', count: stats.merchants, icon: 'i-mdi-store-check', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', url: '/pages/admin-merchants/index' },
-    { label: '宝贝审阅', sub: '商品上架审核', count: stats.products, icon: 'i-mdi-package-variant-closed', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', url: '/pages/admin-products/index' },
-    { label: '佣金兑付', sub: '提现申请审核', count: stats.withdrawals, icon: 'i-mdi-cash-fast', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', url: '/pages/admin-withdrawals/index' },
-    { label: '武林贴管理', sub: 'UGC内容管理', count: stats.ugc, icon: 'i-mdi-newspaper-variant', color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200', url: '/pages/admin-ugc/index' },
+    { label: '门派大典', sub: '商家入驻审核', count: stats.merchants, icon: '🏪', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', url: '/pages/admin-merchants/index' },
+    { label: '宝贝审阅', sub: '商品上架审核', count: stats.products, icon: '📦', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', url: '/pages/admin-products/index' },
+    { label: '佣金兑付', sub: '提现申请审核', count: stats.withdrawals, icon: '💰', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', url: '/pages/admin-withdrawals/index' },
+    { label: '武林贴管理', sub: 'UGC内容管理', count: stats.ugc, icon: '📰', color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200', url: '/pages/admin-ugc/index' },
   ]
 
   const platformCards = [
-    { label: '用户管理', sub: '用户/管理员权限', icon: 'i-mdi-account-group', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', url: '/pages/admin-users/index' },
-    { label: '退款管理', sub: '处理退款申请', icon: 'i-mdi-cash-refund', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200', url: '/pages/admin-refunds/index' },
-    { label: '公告管理', sub: '发布/管理公告', icon: 'i-mdi-bullhorn', color: 'text-cyan-700', bg: 'bg-cyan-50', border: 'border-cyan-200', url: '/pages/admin-announcements/index' },
+    { label: '用户管理', sub: '用户/管理员权限', icon: '👤', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', url: '/pages/admin-users/index' },
+    { label: '退款管理', sub: '处理退款申请', icon: '💰', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200', url: '/pages/admin-refunds/index' },
+    { label: '公告管理', sub: '发布/管理公告', icon: '📢', color: 'text-cyan-700', bg: 'bg-cyan-50', border: 'border-cyan-200', url: '/pages/admin-announcements/index' },
   ]
 
   return (<RouteGuard>
@@ -62,15 +63,15 @@ function AdminPage() {
       <View className="flex items-center px-4 pt-4 pb-2">
         <View className="w-10 h-10 flex items-center justify-center rounded-full bg-muted"
           onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
-          <View className="i-mdi-arrow-left text-2xl text-foreground" />
+          <Icon name="arrow-left" size={24} className="text-foreground" />
         </View>
         <View className="flex-1 text-center text-xl font-bold text-foreground pr-10">武林盟</View>
       </View>
 
       {/* 头部 */}
-      <View className="px-4 pt-4 pb-5" style={{ background: 'linear-gradient(135deg,#7C2D12 0%,#C2410C 100%)' }}>
+      <View className="px-4 pt-4 pb-5" style={{ background: 'linear-gradient(135deg,#7C2D12 0%,#A8552E 100%)' }}>
         <View className="flex items-center gap-3">
-          <View className="i-mdi-shield-crown text-4xl text-white" />
+          <Icon name="shield-crown" size={36} className="text-white" />
           <View>
             <Text className="text-3xl font-black text-white">武林盟</Text>
             <Text className="text-xl text-orange-200">超级管理后台</Text>
@@ -81,7 +82,7 @@ function AdminPage() {
       <View className="px-4 pt-5 pb-10">
         {loading ? (
           <View className="flex flex-col items-center justify-center py-20 gap-3">
-            <View className="i-mdi-loading text-5xl text-primary animate-spin" />
+            <Icon name="loading" size={48} className="text-primary animate-spin" />
             <Text className="text-xl text-muted-foreground">聚气中...</Text>
           </View>
         ) : (
@@ -119,13 +120,13 @@ function AdminPage() {
             {/* 快捷指引 */}
             <View className="mt-6 rounded-2xl bg-card border border-border p-4">
               <View className="flex items-center gap-2 mb-3">
-                <View className="i-mdi-lightning-bolt text-2xl text-primary" />
+                <Icon name="lightning-bolt" size={24} className="text-primary" />
                 <Text className="text-2xl font-bold text-foreground">武林盟令牌</Text>
               </View>
               {[
-                { name: '全部数字均为待处理数量', icon: 'i-mdi-information', color: 'text-primary' },
-                { name: '点击卡片进入对应审核列表', icon: 'i-mdi-cursor-pointer', color: 'text-foreground' },
-                { name: '驳回操作需填写驳回理由', icon: 'i-mdi-alert-circle', color: 'text-destructive' },
+                { name: '全部数字均为待处理数量', icon: 'ⓘ', color: 'text-primary' },
+                { name: '点击卡片进入对应审核列表', icon: '➤', color: 'text-foreground' },
+                { name: '驳回操作需填写驳回理由', icon: '⚠', color: 'text-destructive' },
               ].map(tip => (
                 <View key={tip.name} className="flex items-center gap-2 py-2 border-b border-border last:border-b-0">
                   <View className={`${tip.icon} text-xl ${tip.color} flex-shrink-0`} />

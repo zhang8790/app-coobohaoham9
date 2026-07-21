@@ -1,6 +1,6 @@
 // 编译质量评分引擎（对应方案 §4.2 / §4.3）
 // ------------------------------------------------------------
-// 把「编译质量评分算法（满分 100）」与「违规检测机制」固化为纯函数，
+// 把「编译质量评分算法（满分 100）」与「内容检测机制」固化为纯函数，
 // 无副作用、无 DB 依赖，便于商家工作台实时打分、单测、以及云函数复用。
 //
 // 评分维度（满分 100）：
@@ -10,8 +10,8 @@
 //   确权可达性  17 分  情绪承诺可被用户消费后验证，有明确确权维度；不可验证此项 0 分
 //   食养完整度  15 分  食养成分标签选择数，每选 1 个食材得 3 分，满 5 个得 15 分（选 0 个此项 0 分）
 //
-// 违规等级：
-//   redline 红线（直接驳回）：虚假宣传 / 核心功能信息缺失 / 情绪承诺完全不可验证 / 违反广告法
+// 评级：
+//   redline（直接驳回）：虚假宣传 / 核心功能信息缺失 / 情绪承诺完全不可验证 / 违反广告法
 //   demote  降权（推荐排序降权 30%）：空洞情绪词堆砌≥3 且无场景绑定 / 弱相关≥2 个
 //   tip     优化提示（不影响上架）：文案可优化方向 / 标签补充建议 / 配图建议
 
@@ -40,7 +40,7 @@ export interface Violation {
 export interface CompileScoreInput {
   /** 各维度已选标签（key 见 EMOTION_TAG_DIMENSIONS） */
   tagDimensions: Partial<Record<string, string[]>>
-  /** 编译后文案（标题 + 详情 + 分享语合并，用于合规检测） */
+  /** 编译后文案（标题 + 详情 + 分享语合并，用于内容检测） */
   copyText: string
   /** 功能信息是否完整（成分 / 规格 / 价格 / 用法至少齐备） */
   hasFunctionInfo: boolean
@@ -60,7 +60,7 @@ export interface CompileScoreInput {
 
 export interface ScoreResult {
   total: number
-  /** recommend 进推荐池(≥80) / shopOnly 仅店铺展示(60-79) / rejected 驳回(<60 或有红线) */
+  /** recommend 进推荐池(≥80) / shopOnly 仅店铺展示(60-79) / rejected 驳回(<60 或触发驳回项) */
   tier: 'recommend' | 'shopOnly' | 'rejected'
   dimensions: {
     tagCompleteness: number
@@ -79,7 +79,7 @@ const DEFAULT_HOLLOW_WORDS = ['治愈', '松弛感', '松弛', '小确幸', '氛
 import { AD_ILLEGAL_WORDS } from './compliance-words'
 
 /**
- * 对一次情绪编译结果打分并检测违规。
+ * 对一次情绪编译结果打分并检测问题。
  * 纯函数：相同输入永远得到相同输出，便于单测与工作台实时预览。
  */
 export function scoreCompilation(input: CompileScoreInput): ScoreResult {
@@ -161,7 +161,7 @@ export function scoreCompilation(input: CompileScoreInput): ScoreResult {
     suggestions.push('建议补充食养成分标签，让商品拥有食养推荐资格')
   }
 
-  // ---------------- 红线：广告法 / 虚假宣传 ----------------
+  // ---------------- 驳回项：广告法 / 虚假宣传 ----------------
   const adHit = AD_ILLEGAL_WORDS.find(w => copy.includes(w))
   if (adHit) {
     violations.push({

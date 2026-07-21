@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Taro from '@tarojs/taro'
 import { createArticle } from '@/db/api'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 const TAG_OPTIONS = ['美食', '购物', '舒心', '分享', '推荐', '好物', '打卡', '日记']
 
@@ -40,8 +41,7 @@ function UGCPublishPage() {
               placeholder="一个吸引人的标题..."
               value={title}
               maxLength={50}
-              onInput={(e) => { const ev = e as any; setTitle(ev.detail?.value ?? ev.target?.value ?? '') }}
-            />
+              onInput={(e) => { const ev = e as any; setTitle(ev.detail?.value ?? ev.target?.value ?? '') }} />
           </View>
           <Text className="text-base text-muted-foreground text-right mt-1">{title.length}/50</Text>
         </View>
@@ -56,8 +56,7 @@ function UGCPublishPage() {
               value={content}
               maxLength={1000}
               style={{ height: '200px' }}
-              onInput={(e) => { const ev = e as any; setContent(ev.detail?.value ?? ev.target?.value ?? '') }}
-            />
+              onInput={(e) => { const ev = e as any; setContent(ev.detail?.value ?? ev.target?.value ?? '') }} />
           </View>
           <Text className="text-base text-muted-foreground text-right mt-1">{content.length}/1000</Text>
         </View>
@@ -77,9 +76,9 @@ function UGCPublishPage() {
         </View>
 
         {/* 武侠提示 */}
-        <View className="p-4 rounded-2xl" style={{ background: '#FFF0E8' }}>
+        <View className="p-4 rounded-2xl" style={{ background: '#F1E9D9' }}>
           <View className="flex items-start gap-2">
-            <View className="i-mdi-information text-2xl text-primary flex-shrink-0 mt-0.5" />
+            <Icon name="information" size={24} className="text-primary flex-shrink-0 mt-0.5" />
             <Text className="text-xl text-secondary leading-relaxed">
               江湖之大，汝之所见或为他人所求。一篇好文，胜过千言万语，愿汝笔墨留香。
             </Text>

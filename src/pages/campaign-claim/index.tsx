@@ -1,10 +1,11 @@
-// @title 领取福利（红包/实物）- 合规版
+// @title 领取福利（红包/实物）
 import { useState, useEffect, useCallback } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabase } from '@/client/supabase'
 import './index.scss'
+import Icon from '@/components/Icon'
 
 function CampaignClaimPage() {
   const [campaignId, setCampaignId] = useState('')
@@ -12,7 +13,7 @@ function CampaignClaimPage() {
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState(false)
   const [claimed, setClaimed] = useState(false)
-  const [showCompliance, setShowCompliance] = useState(true)  // 合规公示弹窗
+  const [showCompliance, setShowCompliance] = useState(true)  // 公示弹窗
   const [agreed, setAgreed] = useState(false)
   const [referrerId, setReferrerId] = useState<string | null>(null)  // 新增：推荐人ID
   const [myCode, setMyCode] = useState('')  // 我的推广码（转发时携带，用于溯源归属）
@@ -229,7 +230,7 @@ function CampaignClaimPage() {
   if (loading) return (
     <RouteGuard>
       <View className="flex items-center justify-center min-h-screen bg-background">
-        <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+        <Icon name="loading" size={36} className="text-primary animate-spin" />
       </View>
     </RouteGuard>
   )
@@ -240,7 +241,7 @@ function CampaignClaimPage() {
   if (claimed) return (
     <RouteGuard>
       <View className="min-h-screen bg-background flex flex-col items-center justify-center px-8 gap-6">
-        <View className="i-mdi-check-circle text-10xl text-primary" />
+        <Icon name="check-circle" size={28} className="text-10xl text-primary" />
         <Text className="text-3xl font-black text-foreground text-center">
           领取成功！
         </Text>
@@ -265,7 +266,7 @@ function CampaignClaimPage() {
   return (
     <RouteGuard>
       <View className="min-h-screen bg-background">
-        {/* 合规公示弹窗 */}
+        {/* 公示弹窗 */}
         {showCompliance && (
           <View className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <View className="w-10/12 max-h-3/4 bg-card rounded-3xl p-6 overflow-y-auto">
@@ -294,7 +295,7 @@ function CampaignClaimPage() {
                   className={`w-6 h-6 rounded border-2 flex items-center justify-center ${agreed ? 'bg-primary border-primary' : 'border-border'}`}
                   onClick={() => setAgreed(!agreed)}
                 >
-                  {agreed && <View className="i-mdi-check text-white text-sm" />}
+                  {agreed && <Icon name="check" size={14} className="text-white" />}
                 </View>
                 <Text className="text-base text-foreground">我已阅读并同意活动规则</Text>
               </View>

@@ -5,6 +5,7 @@ import Taro from '@tarojs/taro'
 import { getMyCommissions } from '@/db/api'
 import type { Commission } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 type Tab = 'all' | 'pending' | 'settled'
 
@@ -36,7 +37,7 @@ function CommissionDetailPage() {
     <View className="min-h-screen bg-background pb-8">
 
       {/* 汇总卡 */}
-      <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)' }}>
+      <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #A8552E, #A8552E)' }}>
         <View className="grid grid-cols-2 py-5">
           <View className="flex flex-col items-center gap-1 border-r border-white/20">
             <Text className="text-3xl font-black text-white">¥{totalPending.toFixed(2)}</Text>
@@ -70,11 +71,11 @@ function CommissionDetailPage() {
       <View className="px-4 mt-4">
         {loading ? (
           <View className="flex justify-center py-16">
-            <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+            <Icon name="loading" size={36} className="text-primary animate-spin" />
           </View>
         ) : filtered.length === 0 ? (
           <View className="flex flex-col items-center py-16 gap-3">
-            <View className="i-mdi-cash-remove text-6xl text-muted-foreground/30" />
+            <Icon name="cash-remove" size={60} className="text-muted-foreground/30" />
             <Text className="text-xl text-muted-foreground">暂无佣金记录</Text>
             <Text className="text-base text-muted-foreground text-center px-8">分享商品给好友，好友购买后即可获得佣金</Text>
           </View>
@@ -83,8 +84,8 @@ function CommissionDetailPage() {
             <View key={c.id} className="bg-card rounded-2xl border border-border mb-3 p-4">
               <View className="flex items-center justify-between mb-2">
                 <View className="flex items-center gap-2">
-                  <View className={`w-7 h-7 rounded-full flex items-center justify-center ${c.level === 1 ? 'bg-primary/10' : 'bg-blue-50'}`}>
-                    <Text className={`text-base font-bold ${c.level === 1 ? 'text-primary' : 'text-blue-600'}`}>L{c.level}</Text>
+                  <View className={`w-7 h-7 rounded-full flex items-center justify-center ${c.level === 1 ? 'bg-primary/10' : 'bg-muted'}`}>
+                    <Text className={`text-base font-bold ${c.level === 1 ? 'text-primary' : 'text-muted-foreground'}`}>L{c.level}</Text>
                   </View>
                   <Text className="text-xl text-foreground">
                     {c.level === 1 ? '我的好友佣金' : '我的粉丝佣金'}

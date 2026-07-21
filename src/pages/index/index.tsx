@@ -1,7 +1,7 @@
 // @title 首页
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
-import { Image, Input, Button, View, Text } from '@tarojs/components'
+import { Image, Input, View, Text, ScrollView } from '@tarojs/components'
 import { getProductsByEmotion, getProducts, getAnnouncements, getOrderFeed, addToCart, getOrders, getProductsByIds } from '@/db/api'
 import type { Product, Announcement, OrderFeedItem } from '@/db/types'
 import StoreStrip from '@/components/StoreStrip'
@@ -15,12 +15,18 @@ import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { parseCrowdsFromText, classifyProduct as classifyOne, toFoodTherapyInput, QUICK_BODY_PRESETS, type Crowd, type FitTier } from '@/utils/food-therapy'
 import { analyzeConsumption, recommendByConsumption, type ConsumptionProfile } from '@/utils/consumption-profile'
 import ProductGridCard from '@/components/ProductGridCard'
+import CustomTabBar from '@/components/custom-tabbar'
+import Icon from '@/components/Icon'
+import RankProgress from '@/components/RankProgress'
+import BeanHud from '@/components/BeanHud'
+import { getProductCareInfo, type ProductCareInfo } from '@/utils/product-care'
 
-const SCENES = [
-  { name: '舒心空间', icon: 'i-mdi-leaf', color: '#4CAF50' },
-  { name: '用餐时光', icon: 'i-mdi-food', color: '#FF7043' },
-  { name: '购物时刻', icon: 'i-mdi-shopping', color: '#7B1FA2' },
-  { name: '学习空间', icon: 'i-mdi-book-open', color: '#1976D2' },
+// 关怀导览 · 子菜单（均跳真实 tab 页，鼓励多逛多看）
+const CARE_NAV = [
+  { label: '自营甄选', emoji: '🛒', to: '/pages/explore/index' },
+  { label: '品牌馆', emoji: '🏯', to: '/pages/reward-shop/index' },
+  { label: '行囊好物', emoji: '🎒', to: '/pages/cart/index' },
+  { label: '我的关怀', emoji: '🦊', to: '/pages/user/index' },
 ]
 
 // 纯函数：把商品列表按"身体人群"分三档（直接吃 Product，零网络）
@@ -82,6 +88,8 @@ export default function IndexPage() {
   // 新增：首页弹窗状态
   const [showCampaignPopup, setShowCampaignPopup] = useState(false)
   const [campaignList, setCampaignList] = useState<any[]>([])
+  // 同会话仅弹一次，避免反复打扰；结合下面「可发放库存」过滤，无福利绝不弹出
+  const campaignPopupShownRef = useRef(false)
   const [loadingCampaign, setLoadingCampaign] = useState(false)
   // 门店红包对应的门店名（用于在首页弹窗标注「XX店专享」）
   const [storeNameMap, setStoreNameMap] = useState<Record<string, string>>({})
@@ -152,7 +160,33 @@ export default function IndexPage() {
   })
   useShareTimeline(() => ({ title: '来电有喜 · 武侠江湖，有喜相逢' }))
 
-  // 下拉刷新
+  // 加载首页「江湖动态」：全站实时下单脱敏聚合
+  const loadOrderFeed = useCallback(async () => {
+    const data = await getOrderFeed(20)
+    setOrderFeed(data)
+  }, [])
+
+  // 加载公告
+  const loadAnnouncements = useCallback(async () => {
+    const data = await getAnnouncements()
+    setAnnouncements(data)
+  }, [])
+
+  // 加载 Feed（默认无情绪时展示全量，有情绪时用情绪查询）
+  const loadFeed = useCallback(async (emotionResult?: EmotionAnalysisResult) => {
+    setLoading(true)
+    let raw: Product[]
+    if (emotionResult && emotionResult.detectedTags.length > 0) {
+      raw = await getProductsByEmotion(emotionResult.detectedTags, 40, 'only')
+    } else {
+      raw = await getProducts({ limit: 30, platformFilter: 'only' })
+    }
+    const scored = rankProductsByEmotion(raw, emotionResult?.tagScores ?? {})
+    setFeedItems(scored)
+    setLoading(false)
+  }, [])
+
+  // 下拉刷新（注：loadOrderFeed/loadAnnouncements/loadFeed 已在上文声明，避免依赖数组 TDZ）
   useEffect(() => {
     const handler = () => {
       loadFeed(analysis)
@@ -163,27 +197,7 @@ export default function IndexPage() {
     // Taro 小程序下拉刷新回调
     ;(Taro as any).onPullDownRefresh = handler
     return () => { ;(Taro as any).onPullDownRefresh = null }
-  }, [analysis, loadOrderFeed])
-
-  // 加载首页「江湖动态」：全站实时下单脱敏聚合
-  const loadOrderFeed = useCallback(async () => {
-    const data = await getOrderFeed(20)
-    setOrderFeed(data)
-  }, [])
-
-  // 加载 Feed（默认无情绪时展示全量，有情绪时用情绪查询）
-  const loadFeed = useCallback(async (emotionResult?: EmotionAnalysisResult) => {
-    setLoading(true)
-    let raw: Product[]
-    if (emotionResult && emotionResult.detectedTags.length > 0) {
-      raw = await getProductsByEmotion(emotionResult.detectedTags, 40)
-    } else {
-      raw = await getProducts({ limit: 30 })
-    }
-    const scored = rankProductsByEmotion(raw, emotionResult?.tagScores ?? {})
-    setFeedItems(scored)
-    setLoading(false)
-  }, [])
+  }, [analysis, loadOrderFeed, loadAnnouncements])
 
   useEffect(() => { loadAnnouncements(); loadOrderFeed(); loadFeed() }, [loadAnnouncements, loadOrderFeed, loadFeed])
   useDidShow(() => { loadFeed(analysis ?? undefined) })
@@ -234,6 +248,24 @@ export default function IndexPage() {
     return feedItems
   }, [hasQuery, matchItems, feedItems])
 
+  // 商品「关怀层」信息：复用既有食养引擎，依用户体质/人群个性化适配分档 + 关怀度
+  const careCrowds = useMemo<Crowd[]>(
+    () => Array.from(new Set<Crowd>([...selectedCrowds, ...detectedCrowds])),
+    [selectedCrowds, detectedCrowds],
+  )
+  const careOf = useMemo(() => {
+    const m = new Map<string, ProductCareInfo>()
+    for (const f of displayFeed) m.set(f.product.id, getProductCareInfo(f.product, careCrowds))
+    return m
+  }, [displayFeed, careCrowds])
+
+  // 情绪好物推荐 · 自营甄选（替换原「选个场景」）：优先自营商品，不足则补默认 Feed
+  const selfCareProducts = useMemo(() => {
+    const self = displayFeed.filter(f => f.product.stores?.is_platform === true)
+    const pool = self.length >= 4 ? self : displayFeed
+    return pool.slice(0, 6)
+  }, [displayFeed])
+
   // 消费偏好推荐：基于历史订单聚合的食养画像，从当前 Feed 候选池推荐相似好物（排除已购）
   const consumptionItems = useMemo(() => {
     if (!consumptionProfile?.hasData) return []
@@ -261,12 +293,14 @@ export default function IndexPage() {
         return
       }
 
-      // 前端过滤：开始日期 / 结束日期 / 领取上限
+      // 前端过滤：开始日期 / 结束日期 / 领取上限（仅保留「仍有可发放库存」的活动）
       const today = new Date()
       const activeList = (data || []).filter(c => {
         if (c.start_date && new Date(c.start_date) > today) return false
         if (c.end_date && new Date(c.end_date) < today) return false
-        if (c.claimed_count >= c.total_limit) return false
+        // total_limit 缺失视为不限量；claimed_count 缺失按 0 计。仅当剩余库存 > 0 才展示
+        const remaining = (c.total_limit ?? Infinity) - (c.claimed_count ?? 0)
+        if (remaining <= 0) return false
         return true
       })
 
@@ -283,7 +317,11 @@ export default function IndexPage() {
           ;(stores || []).forEach((s: any) => { map[s.id] = s.name })
           setStoreNameMap(map)
         }
-        setTimeout(() => setShowCampaignPopup(true), 3000)
+        // 同会话仅自动弹一次；若已弹过则不重复打扰
+        if (!campaignPopupShownRef.current) {
+          campaignPopupShownRef.current = true
+          setTimeout(() => setShowCampaignPopup(true), 3000)
+        }
       }
     } catch (err) {
       console.error('[Index] 检查活动失败', err)
@@ -342,8 +380,8 @@ export default function IndexPage() {
     setMatchedLoading(true)
     let pool: Product[] = []
     try {
-      if (hasEmotion) pool = await getProductsByEmotion(emotionResult.detectedTags, 40)
-      else pool = await getProducts({ limit: 40 })
+      if (hasEmotion) pool = await getProductsByEmotion(emotionResult.detectedTags, 40, 'only')
+      else pool = await getProducts({ limit: 40, platformFilter: 'only' })
     } catch (e) {
       console.error('[Index] 匹配查询失败', e)
     }
@@ -452,53 +490,57 @@ export default function IndexPage() {
   const matchedCount = displayFeed.filter(f => f.matchScore > 0).length
 
   return (
-    <View className="min-h-screen bg-background pb-6">
-      {/* 顶部导航 */}
-      <View className="sticky top-0 z-10 bg-background px-4 py-3" style={{ borderBottom: '1px solid #E7DDD0' }}>
+    <View className="min-h-screen bg-background tabbar-pad">
+      {/* 顶部导航：墨韵国潮标题栏 */}
+      <View className="sticky top-0 z-10 bg-background px-4 pt-3 pb-2">
         <View className="flex items-center gap-3">
-          {/* Logo */}
           <View className="flex items-center gap-2 flex-shrink-0">
-            <View className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-              <Text className="text-white font-bold text-base">喜</Text>
+            <View className="w-9 h-9 rounded-full bg-card border border-primary flex items-center justify-center">
+              <Text className="text-primary font-bold text-lg">喜</Text>
             </View>
-            <Text className="text-2xl font-bold text-foreground">来电有喜</Text>
+            <Text className="text-xl font-bold text-foreground">来电有喜</Text>
           </View>
-
-          {/* 城市选择 */}
-          <View 
-            className="flex items-center gap-1 px-2 py-1 rounded-full bg-muted/50 flex-shrink-0"
+          <View className="flex-1 flex items-center gap-2 bg-card rounded-full px-3 py-2 border border-border"
+            onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}>
+            <Icon name="magnify" size={18} className="text-muted-foreground" />
+            <Text className="text-sm text-muted-foreground">搜一搜情绪好物</Text>
+          </View>
+          <View
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-card border border-border flex-shrink-0"
             onClick={() => Taro.navigateTo({ url: '/pages/city-select/index' })}
           >
-            <View className="i-mdi-map-marker text-base text-primary" />
-            <Text className="text-base text-foreground">{currentCity?.city_name || '选择'}</Text>
-            <View className="i-mdi-chevron-down text-sm text-muted-foreground" />
-          </View>
-
-          {/* 搜索框 */}
-          <View className="flex-1 flex items-center gap-2 bg-muted rounded-full px-4 py-2"
-            onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}>
-            <View className="i-mdi-magnify text-xl text-muted-foreground" />
-            <Text className="text-xl text-muted-foreground">搜索</Text>
+            <Icon name="location" size={14} color="hsl(var(--primary))" />
+            <Text className="text-sm text-foreground">{currentCity?.city_name || '选择'}</Text>
+            <Icon name="chevron-down" size={12} className="text-muted-foreground" />
           </View>
         </View>
       </View>
 
+      {/* 会员资产条：金豆 / 佣金（统一货币为金豆，积分已并入金豆，零新增功能） */}
+      <BeanHud
+        beans={profile?.tb_balance ?? 0}
+        commission={profile?.commission_balance ?? 0}
+      />
+
+      {/* 段位成长卡：读取现有 member_rank / cv_total，零新增功能 */}
+      <RankProgress cvTotal={profile?.cv_total ?? 0} memberRank={profile?.member_rank} />
+
       {/* IP伴侣气泡 —— 随情绪动态变化 */}
-      <View className="mx-4 mt-4 p-4 rounded-2xl flex items-start gap-3 transition"
-        style={{ background: emotionActive ? '#FFEEDD' : '#FFF0E8', border: emotionActive ? '1.5px solid #C2410C' : '1.5px solid transparent' }}>
+      <View className={`mx-4 mt-4 p-4 rounded-2xl flex items-start gap-3 transition ink-card ${emotionActive ? 'border-primary' : ''}`}>
         <View className="w-12 h-12 rounded-full bg-primary flex items-center justify-center flex-shrink-0"
           style={{ boxShadow: emotionActive ? '0 0 0 4px rgba(194,65,12,0.15)' : 'none' }}>
-          <Text className="text-white text-2xl">🦊</Text>
+          {/* 武侠印章风头像：白字「侠」+ 赭红底，呼应武侠调性，区别于左上角「喜」logo */}
+          <Text className="text-white font-bold" style={{ fontSize: '22px', fontFamily: 'KaiTi, STKaiti, serif', lineHeight: '28px' }}>侠</Text>
         </View>
         <View className="flex-1">
-          <Text className="text-xl text-foreground leading-relaxed">{ipBubble}</Text>
+          <Text className="text-base text-foreground leading-relaxed">{ipBubble}</Text>
           {/* 情绪强度指示 */}
           {analysis && analysis.intensity !== 'low' && (
             <View className="flex items-center gap-1 mt-1">
-              <Text className="text-base text-muted-foreground">情绪强度</Text>
+              <Text className="text-sm text-muted-foreground">情绪强度</Text>
               {[1, 2, 3].map(i => (
                 <View key={i} className="w-3 h-3 rounded-full"
-                  style={{ background: i <= (analysis.intensity === 'high' ? 3 : 2) ? '#C2410C' : '#E7DDD0' }} />
+                  style={{ background: i <= (analysis.intensity === 'high' ? 3 : 2) ? 'hsl(var(--primary))' : 'hsl(var(--border))' }} />
               ))}
             </View>
           )}
@@ -506,15 +548,15 @@ export default function IndexPage() {
       </View>
 
       {/* 今日状态卡：情绪 + 体质状况 统一输入，共同驱动下方推荐 */}
-      <View className="mx-4 mt-4 p-4 rounded-2xl" style={{ background: '#FFF0E8' }}>
-        <View className="flex items-center justify-between mb-2">
+      <View className="ink-card mx-4 mt-4 p-4">
+        <View className="flex items-center justify-between mb-3">
           <View>
-            <Text className="text-xl font-bold text-foreground">今天的状态</Text>
-            <Text className="text-base text-muted-foreground">说说心情，为你智能推荐</Text>
+            <Text className="text-lg font-bold text-foreground">今天的状态</Text>
+            <Text className="text-sm text-muted-foreground">说说心情，为你智能推荐</Text>
           </View>
           {(emotionActive || selectedCrowds.length > 0) && (
-            <View className="flex items-center gap-1 text-primary text-xl" onClick={() => { clearEmotion(); clearFilters() }} hoverClass="none">
-              <View className="i-mdi-close-circle text-xl" />
+            <View className="flex items-center gap-1 text-primary text-sm" onClick={() => { clearEmotion(); clearFilters() }} hoverClass="none">
+              <Icon name="close-circle" size={18} />
               <Text>清空</Text>
             </View>
           )}
@@ -547,28 +589,10 @@ export default function IndexPage() {
                     Taro.showToast({ title: `错误: ${String(err)}`, icon: 'none', duration: 3000 })
                   }
                 }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '10px 18px',
-                  borderRadius: '999px',
-                  borderWidth: '1.5px',
-                  borderStyle: 'solid',
-                  borderColor: isActive ? 'transparent' : '#E7DDD0',
-                  backgroundColor: isActive ? '#C2410C' : '#FFFFFF',
-                  // 确保足够大的触摸区域
-                  minWidth: '80px',
-                  height: '40px',
-                  justifyContent: 'center',
-                }}
+                className={`symptom-tag ${isActive ? 'symptom-tag-active' : ''}`}
               >
-                <Text style={{ fontSize: '16px' }}>{preset.emoji}</Text>
-                <Text style={{
-                  fontSize: '14px',
-                  color: isActive ? '#FFFFFF' : '#333333',
-                  fontWeight: isActive ? 'bold' : 'normal',
-                }}>{preset.label}</Text>
+                <Text className="text-base">{preset.emoji}</Text>
+                <Text className={`text-sm ${isActive ? 'text-white font-bold' : 'text-foreground'}`}>{preset.label}</Text>
               </View>
             )
           })}
@@ -576,21 +600,15 @@ export default function IndexPage() {
 
         {/* 身体状态快捷词 —— 一键直接配对商品（零额外操作） */}
         <View className="mt-3">
-          <Text className="text-base text-muted-foreground mb-2 block">身体状态（点一下，直接配对）</Text>
+          <Text className="text-sm text-muted-foreground mb-2 block">身体状态（点一下，直接配对）</Text>
           <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {QUICK_BODY_PRESETS.map((preset) => {
               const isActive = mood === preset.label
               return (
                 <View key={preset.label} hoverClass="none" onClick={() => handleQuickBody(preset)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '8px 14px',
-                    borderRadius: '999px', borderWidth: '1.5px', borderStyle: 'solid',
-                    borderColor: isActive ? 'transparent' : '#E7DDD0',
-                    backgroundColor: isActive ? '#16A34A' : '#FFFFFF',
-                    minWidth: '70px', height: '36px', justifyContent: 'center',
-                  }}>
-                  <Text style={{ fontSize: '15px' }}>{preset.emoji}</Text>
-                  <Text style={{ fontSize: '13px', color: isActive ? '#FFFFFF' : '#333333', fontWeight: isActive ? 'bold' : 'normal' }}>{preset.label}</Text>
+                  className={`symptom-tag ${isActive ? 'symptom-tag-active' : ''}`}>
+                  <Text className="text-base">{preset.emoji}</Text>
+                  <Text className={`text-sm ${isActive ? 'text-white font-bold' : 'text-foreground'}`}>{preset.label}</Text>
                 </View>
               )
             })}
@@ -599,27 +617,26 @@ export default function IndexPage() {
 
         {/* 输入框 */}
         <View className="flex items-center gap-2">
-          <View className="flex-1 border-2 rounded-xl px-4 py-3 bg-white transition"
-            style={{ borderColor: emotionActive ? '#C2410C' : 'var(--color-input)' }}>
-            <Input className="w-full text-xl text-foreground bg-transparent outline-none"
+          <View className="flex-1 border-2 rounded-2xl px-4 py-3 bg-white transition"
+            style={{ borderColor: emotionActive ? 'hsl(var(--primary))' : 'hsl(var(--border))' }}>
+            <Input className="w-full text-base text-foreground bg-transparent outline-none"
               placeholder="说说心情，自动为你配对好物…"
               value={mood}
-              onInput={(e) => { const ev = e as any; handleMoodInput(ev.detail?.value ?? ev.target?.value ?? '') }}
-            />
+              onInput={(e) => { const ev = e as any; handleMoodInput(ev.detail?.value ?? ev.target?.value ?? '') }} />
           </View>
-          {loading && <View className="i-mdi-loading text-2xl text-primary animate-spin flex-shrink-0" />}
+          {loading && <Icon name="loading" size={24} className="text-primary animate-spin flex-shrink-0" />}
         </View>
 
         {/* 情绪分析结果 —— 识别到的标签 */}
         {analysis && analysis.detectedTags.length > 0 && (
           <View className="mt-3">
             <View className="flex items-center gap-2 mb-2">
-              <View className="i-mdi-tag-multiple text-xl text-primary" />
-              <Text className="text-xl text-muted-foreground">识别到情绪：</Text>
+              <Icon name="tag-multiple" size={18} className="text-primary" />
+              <Text className="text-sm text-muted-foreground">识别到情绪：</Text>
             </View>
             <View className="flex flex-wrap gap-2">
               {analysis.detectedTags.map(tag => (
-                <Text key={tag} className="px-3 py-1 rounded-full text-xl bg-primary/10 text-primary border border-primary/20">
+                <Text key={tag} className="px-3 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20">
                   #{tag}
                 </Text>
               ))}
@@ -630,15 +647,15 @@ export default function IndexPage() {
         {/* 武侠诗意翻译 */}
         {poetry && (
           <View className="mt-3 p-3 bg-white rounded-xl border border-border">
-            <Text className="text-xl text-secondary leading-relaxed italic">「{poetry}」</Text>
+            <Text className="text-base text-secondary leading-relaxed italic">「{poetry}」</Text>
             <View className="flex items-center justify-between mt-2">
               {emotionActive && matchedCount > 0 && (
-                <Text className="text-xl text-primary font-bold">已为你筛选 {matchedCount} 件好物 ↓</Text>
+                <Text className="text-sm text-primary font-bold">已为你筛选 {matchedCount} 件好物 ↓</Text>
               )}
               <View onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}
-                className="flex items-center gap-1 text-primary text-xl ml-auto">
-                <Text>去探索</Text>
-                <View className="i-mdi-arrow-right text-xl" />
+                className="flex items-center gap-1 text-primary text-sm ml-auto">
+                <Text>去自营</Text>
+                <Icon name="arrow-right" size={18} />
               </View>
             </View>
           </View>
@@ -649,21 +666,21 @@ export default function IndexPage() {
 
       {/* 即时匹配：输入/选择后直接展示配对好物，零额外操作（紧跟输入框，无需滚动） */}
       {hasQuery && (
-        <View className="mx-4 mt-4 p-4 rounded-2xl" style={{ background: '#FFF7F0', border: '1.5px solid #F0C9A8' }}>
+        <View className="ink-card mx-4 mt-4 p-4 rounded-2xl">
           <View className="flex items-center justify-between mb-2">
             <Text className="text-xl font-bold text-foreground flex-1 min-w-0" style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
               为「{matchLabel}」匹配到 {matchItems.length} 件好物 🔥
             </Text>
             <View className="flex items-center gap-1 text-primary text-xl ml-2 flex-shrink-0" onClick={() => Taro.pageScrollTo({ scrollTop: 99999, duration: 300 })} hoverClass="none">
               <Text>看全部</Text>
-              <View className="i-mdi-arrow-down text-xl" />
+              <Icon name="arrow-down" size={20} />
             </View>
           </View>
 
           {matchedLoading && matchItems.length === 0 && (
             <View className="flex gap-3 overflow-x-auto pb-1">
               {[0, 1, 2, 3].map(i => (
-                <View key={i} className="flex-shrink-0 bg-card rounded-xl border border-border animate-pulse" style={{ width: 160, height: 200 }} />
+                <View key={i} className="flex-shrink-0 bg-card rounded-xl border border-border animate-pulse" style={{ width: 160, height: 160 }} />
               ))}
             </View>
           )}
@@ -689,26 +706,49 @@ export default function IndexPage() {
 
       {/* 公告栏 / 江湖动态：官方公告 + 全站实时下单（脱敏）合并轮播 */}
       {homeFeed.length > 0 && (
-        <View className="mx-4 mt-4 px-4 py-2 rounded-xl bg-card border border-border flex items-center gap-2">
-          <View className={homeFeed[annIdx]?.type === 'order' ? 'i-mdi-cart text-xl text-primary flex-shrink-0' : 'i-mdi-bullhorn text-xl text-primary flex-shrink-0'} />
-          <Text className="text-xl text-foreground flex-1 truncate">{homeFeed[annIdx]?.text}</Text>
+        <View className="mx-4 mt-4 notice-pill">
+          <Text className="text-base">{homeFeed[annIdx]?.type === 'order' ? '🛒' : '📢'}</Text>
+          <Text className="text-sm text-foreground flex-1 truncate">{homeFeed[annIdx]?.text}</Text>
         </View>
       )}
+
+      {/* 关怀导览 · 子菜单：让人多逛多看，处处是「在关心你」的入口 */}
+      <View className="mt-4 px-4">
+        <View className="flex items-center gap-2 mb-2">
+          <View className="section-accent" />
+          <Text className="text-base font-bold text-foreground">关怀导览</Text>
+          <Text className="text-xs text-muted-foreground">替你读懂食材，照看身体</Text>
+        </View>
+        <View className="flex gap-2 overflow-x-auto pb-1">
+          {CARE_NAV.map(n => (
+            <View key={n.label}
+              className="care-nav flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border"
+              hoverClass="care-nav-hover"
+              onClick={() => Taro.switchTab({ url: n.to })}>
+              <Text className="text-lg leading-none">{n.emoji}</Text>
+              <Text className="text-sm text-foreground font-medium">{n.label}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
 
       {/* 注：体质状况 / 场景 输入已并入上方「今天的状态」卡片，匹配结果由上方「即时匹配」条 + 底部 Feed 直接呈现 */}
 
       {/* 消费偏好推荐：基于历史订单聚合的食养画像，为你精选相似方向好物 */}
       {consumptionItems.length > 0 && (
         <View className="mt-4 px-4">
-          <Text className="text-2xl font-bold text-foreground">🛒 根据你的常买好物</Text>
-          <Text className="text-base text-muted-foreground mt-1 block mb-3">
-            基于你过往的消费偏好，为你精选相似食养方向
+          <View className="flex items-center gap-2 mb-1">
+            <View className="section-accent" />
+            <Text className="text-2xl font-bold text-foreground">根据你的常买好物</Text>
+          </View>
+          <Text className="text-base text-muted-foreground block mb-3">
+            读懂你的口味，挑出同样懂身体的好物 · 食养参考不替代医嘱
           </Text>
           {consumptionProfile && consumptionProfile.topHealthTags.length > 0 && (
             <View className="flex gap-2 flex-wrap mb-3">
               {consumptionProfile.topHealthTags.map((ht) => (
                 <Text key={ht.tag}
-                  className="px-2.5 py-1 rounded-full text-base bg-primary/10 text-primary border border-primary/20">
+                  className="px-2.5 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20">
                   {ht.tag}
                 </Text>
               ))}
@@ -752,7 +792,7 @@ export default function IndexPage() {
                           : campaign.gift_name}
                       </Text>
                       {campaign.store_id && storeNameMap[campaign.store_id] && (
-                        <View className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full bg-red-100">
+                        <View className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full bg-destructive/10">
                           <Text className="text-xs text-red-600 font-bold">
                             {storeNameMap[campaign.store_id]} 专享
                           </Text>
@@ -786,116 +826,76 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* 场景卡片 */}
-      <View className="mt-4 px-4">
-        <View className="flex items-center justify-between mb-3">
-          <Text className="text-2xl font-bold text-foreground">选个场景</Text>
-          <Text className="text-xl text-primary" onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}>查看全部</Text>
-        </View>
-        <View className="flex gap-3 overflow-x-auto pb-2">
-          {SCENES.map(scene => (
-            <View key={scene.name}
-              onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}
-              className="flex-shrink-0 flex flex-col items-center gap-2 px-5 py-4 rounded-2xl bg-card border border-border"
-              style={{ minWidth: 88 }}>
-              <View className={`${scene.icon} text-3xl`} style={{ color: scene.color }} />
-              <Text className="text-xl text-foreground">{scene.name}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Feed流 */}
+      {/* 情绪好物推荐 · 自营甄选（替换原「选个场景」） */}
       <View className="mt-4 px-4">
         <View className="flex items-center justify-between mb-3">
           <View className="flex items-center gap-2">
-            <Text className="text-2xl font-bold text-foreground">
-              {hasQuery ? '为你匹配的好物' : (emotionActive ? '情绪专属推荐' : '为你推荐')}
-            </Text>
-            {(hasQuery || emotionActive) && displayFeed.length > 0 && (
-              <Text className="px-2 py-0.5 rounded-full text-base bg-primary text-white">{displayFeed.length}件</Text>
-            )}
-          </View>
-          {(emotionActive || hasQuery) && (
-            <View className="flex items-center gap-1 text-muted-foreground text-xl" onClick={clearEmotion} hoverClass="none">
-              <Text>{hasQuery ? '重新选' : '全部商品'}</Text>
+            <View className="section-accent" />
+            <View>
+              <Text className="text-xl font-bold text-foreground">情绪好物推荐</Text>
+              <Text className="text-xs text-muted-foreground block mt-0.5">自营甄选 · 替你读懂食材，照看身体</Text>
             </View>
-          )}
+          </View>
+          <Text className="text-sm text-primary" onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}>查看全部</Text>
         </View>
 
-        {/* 精选好店 横向滑动 */}
-        <StoreStrip />
-
-        {/* 加载中骨架（两列网格） */}
-        {loading && feedItems.length === 0 && (
+        {selfCareProducts.length > 0 ? (
           <View className="flex flex-wrap justify-between">
-            {[0, 1, 2, 3].map(i => (
-              <View key={i} className="bg-card rounded-2xl border border-border animate-pulse flex flex-col overflow-hidden" style={{ width: '48%', marginBottom: '12px' }}>
-                <View className="bg-muted w-full" style={{ height: '150px' }} />
-                <View className="p-2.5 flex flex-col gap-2">
-                  <View className="h-4 bg-muted rounded w-3/4" />
-                  <View className="h-3 bg-muted rounded w-1/2" />
-                  <View className="h-4 bg-muted rounded w-1/3" />
-                </View>
+            {selfCareProducts.map(item => (
+              <View
+                key={item.product.id}
+                style={{ width: '31.5%', flexShrink: 0 }}
+              >
+                <ProductGridCard
+                  width="100%"
+                  imageRatio="4:3"
+                  id={item.product.id}
+                  name={item.product.name}
+                  price={item.product.price}
+                  imageUrl={item.product.image_url}
+                  originalPrice={item.product.original_price}
+                  moodTags={item.product.mood_tags}
+                  care={careOf.get(item.product.id) ?? null}
+                  onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${item.product.id}` })}
+                  onAddCart={() => handleAddCart(item.product)}
+                  adding={addingId === item.product.id}
+                  onShare={() => { shareProductRef.current = { id: item.product.id, name: item.product.name, imageUrl: item.product.image_url || '' } }}
+                />
               </View>
             ))}
           </View>
-        )}
-
-        {/* 商品列表（两列网格） */}
-        {!loading || displayFeed.length > 0 ? (
-          <View className="flex flex-wrap justify-between">
-            {displayFeed.map(item => (
-              <ProductGridCard
-                key={item.product.id}
-                id={item.product.id}
-                name={item.product.name}
-                price={item.product.price}
-                imageUrl={item.product.image_url}
-                originalPrice={item.product.original_price}
-                moodTags={item.product.mood_tags}
-                matchLabel={item.matchLabel}
-                onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${item.product.id}` })}
-                onAddCart={() => handleAddCart(item.product)}
-                adding={addingId === item.product.id}
-                onShare={() => { shareProductRef.current = { id: item.product.id, name: item.product.name, imageUrl: item.product.image_url || '' } }}
-              />
-            ))}
-          </View>
-        ) : null}
-
-        {displayFeed.length === 0 && !loading && (
-          <View className="flex flex-col items-center justify-center py-12 gap-3">
-            <View className="i-mdi-store-search text-6xl text-muted-foreground" />
-            <Text className="text-xl text-muted-foreground">暂无匹配好物，换个心情词试试~</Text>
+        ) : (
+          <View className="flex items-center justify-center py-8">
+            <Text className="text-base text-muted-foreground">自营甄选筹备中，更多好物即将上架～</Text>
           </View>
         )}
       </View>
 
-      {/* 悬浮按钮 */}
-      <View className="fixed bottom-24 right-4 flex flex-col gap-3 z-50">
-        {/* 创作按钮 */}
-        <Button type="button"
-          className="flex items-center gap-1 rounded-full bg-card border border-border"
-          style={{ boxShadow: '0 4px 16px rgba(194,65,12,0.18)', animation: 'fabGlow 2.5s ease-in-out infinite' }}
-          onClick={() => Taro.navigateTo({ url: '/pages/content-center/make/index' })}>
-          <View className="py-2 px-4 flex items-center gap-1">
-            <Text className="text-xl">✍️</Text>
-            <Text className="text-xl text-foreground font-bold">创作</Text>
+
+      {/* 悬浮按钮组：右侧竖向 FAB，尺寸统一、国潮协调 */}
+      <View className="fixed bottom-24 right-3 flex flex-col items-end gap-3 z-50">
+        {/* 创作 */}
+        <View className="flex items-center gap-2" onClick={() => Taro.navigateTo({ url: '/pages/content-center/make/index' })} hoverClass="none">
+          <View className="px-3 py-1.5 rounded-full bg-card/90 text-foreground text-sm font-medium border border-border shadow-sm">{/* 文字标签 */}
+            <Text className="text-sm text-foreground">创作</Text>
           </View>
-        </Button>
-        {/* UGC游记 */}
-        <Button type="button"
-          className="w-12 h-12 rounded-full bg-card flex items-center justify-center border border-border"
-          style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-          onClick={() => Taro.navigateTo({ url: '/pages/ugc-publish/index' })}>
-          <View className="i-mdi-camera text-2xl text-foreground" />
-        </Button>
-        {/* 扫码购物 */}
-        <Button type="button"
-          className="w-12 h-12 rounded-full bg-primary flex items-center justify-center"
-          style={{ boxShadow: '0 4px 12px rgba(194,65,12,0.35)' }}
-          onClick={() => {
+          <View className="w-11 h-11 rounded-full bg-card flex items-center justify-center border border-border"
+            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.12)' }}>
+            <Icon name="pencil" size={22} className="text-primary" />
+          </View>
+        </View>
+        {/* UGC 游记 */}
+        <View className="flex items-center gap-2" onClick={() => Taro.navigateTo({ url: '/pages/ugc-publish/index' })} hoverClass="none">
+          <View className="px-3 py-1.5 rounded-full bg-card/90 text-foreground text-sm font-medium border border-border shadow-sm">
+            <Text className="text-sm text-foreground">游记</Text>
+          </View>
+          <View className="w-11 h-11 rounded-full bg-card flex items-center justify-center border border-border"
+            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.12)' }}>
+            <Icon name="camera" size={22} className="text-foreground" />
+          </View>
+        </View>
+        {/* 扫码购物（主行动，赭红强调） */}
+        <View className="flex items-center gap-2" onClick={() => {
             Taro.scanCode({
               scanType: ['barCode', 'qrCode'],
               success: (res) => {
@@ -903,40 +903,60 @@ export default function IndexPage() {
               },
               fail: () => {},
             })
-          }}>
-          <View className="i-mdi-barcode-scan text-2xl text-white" />
-        </Button>
+          }} hoverClass="none">
+          <View className="px-3 py-1.5 rounded-full bg-card/90 text-foreground text-sm font-medium border border-border shadow-sm">
+            <Text className="text-sm text-foreground">扫码</Text>
+          </View>
+          <View className="w-11 h-11 rounded-full bg-primary flex items-center justify-center"
+            style={{ boxShadow: '0 4px 14px rgba(194,65,12,0.35)' }}>
+            <Icon name="barcode-scan" size={22} className="text-white" />
+          </View>
+        </View>
+        <CustomTabBar />
       </View>
     </View>
   )
 }
 
-// FeedCard 已迁移至共享组件 @/components/ProductGridCard（两列网格，首页/探索页统一）
+// FeedCard 已迁移至共享组件 @/components/ProductGridCard（两列网格，首页/自营页统一）
 
 // ====== 智能推荐商品卡（支持身体状态分档角标） ======
 function FitCard({ product, onTap, tier }: { product: Product; onTap: () => void; tier?: FitTier }) {
+  const [imgFailed, setImgFailed] = useState(false)
   const tierBadge = tier === 'recommend'
     ? { text: '五星推荐', bg: '#16A34A', fg: '#FFFFFF' }
     : tier === 'caution'
-      ? { text: '谨慎食用', bg: '#D97706', fg: '#FFFFFF' }
+      ? { text: '谨慎食用', bg: '#C77B47', fg: '#FFFFFF' }
       : null
   return (
     <View onClick={onTap}
-      className="flex-shrink-0 w-40 bg-card rounded-xl border border-border p-2.5 relative"
-      style={{ minWidth: 160 }}>
-      {tierBadge && (
-        <View className="absolute top-1.5 left-1.5 z-10 px-2 py-0.5 rounded-full text-xs font-bold"
-          style={{ background: tierBadge.bg, color: tierBadge.fg }}>
-          {tierBadge.text}
+      className="pg-card flex-shrink-0 w-40 relative overflow-hidden"
+      style={{ minWidth: 160 }}
+      hoverClass="pg-hover">
+      <View className="relative w-full overflow-hidden" style={{ height: 104 }}>
+        {imgFailed ? (
+          <View className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground text-xs">商品图</View>
+        ) : (
+          <Image src={product.image_url || ''} mode="aspectFill" className="pg-img" onError={() => setImgFailed(true)} />
+        )}
+        {tierBadge && (
+          <View className="pg-badge absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full text-xs font-bold"
+            style={{ background: tierBadge.bg, color: tierBadge.fg }}>
+            {tierBadge.text}
+          </View>
+        )}
+      </View>
+      <View className="p-2.5">
+        <Text className="text-base font-bold text-foreground leading-tight"
+          style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {product.name}
+        </Text>
+        <View className="flex items-center justify-between mt-1.5">
+          <View className="flex items-baseline gap-0.5">
+            <Text className="text-xs text-primary font-bold leading-none">¥</Text>
+            <Text className="text-lg font-extrabold text-primary leading-none">{product.price}</Text>
+          </View>
         </View>
-      )}
-      <Image src={product.image_url || ''} mode="aspectFill" className="rounded-lg bg-muted w-full" style={{ height: 96 }} />
-      <Text className="text-base font-bold text-foreground mt-2 leading-tight"
-        style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-        {product.name}
-      </Text>
-      <View className="flex items-center justify-between mt-1.5">
-        <Text className="text-lg font-bold text-primary">¥{product.price}</Text>
       </View>
     </View>
   )

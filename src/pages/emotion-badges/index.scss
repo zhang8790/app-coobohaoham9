@@ -1,5 +1,5 @@
 .emotion-badges-header {
-  background: linear-gradient(160deg, #FFF0E8 0%, #FFFBF7 80%);
+  background: linear-gradient(160deg, #F1E9D9 0%, #FFFBF7 80%);
 }
 .emotion-badges-stat {
   background: #ffffff;
@@ -103,8 +103,8 @@
   animation: badgePulse 2.6s ease-in-out infinite;
 }
 @keyframes badgePulse {
-  0%, 100% { box-shadow: 0 0 10px var(--rc, #9333EA); }
-  50%      { box-shadow: 0 0 22px var(--rc, #9333EA); }
+  0%, 100% { box-shadow: 0 0 10px var(--rc, #9A8070); }
+  50%      { box-shadow: 0 0 22px var(--rc, #9A8070); }
 }
 
 /* 稀有度分组头 */

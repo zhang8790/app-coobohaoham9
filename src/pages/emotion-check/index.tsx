@@ -106,13 +106,13 @@ export default function EmotionCheckPage() {
             <Text className="text-sm" style={{ color: '#9A3412' }}>💡 {rule.avoidCopy}</Text>
           </View>
 
-          {/* 合规声明 */}
+          {/* 声明 */}
           <View className="bg-muted/30 rounded-2xl p-3 mb-4">
             <Text className="text-xs text-muted-foreground leading-relaxed">{copy.disclaimer}</Text>
           </View>
 
           {/* 跳转商品搜索 */}
-          <Button className="!bg-green-700 !border-none !rounded-2xl !py-3 mb-3"
+          <Button className="!bg-success !border-none !rounded-2xl !py-3 mb-3"
             onClick={() => Taro.navigateTo({ url: `/pages/search/index?keyword=${encodeURIComponent(rule.keywords[0])}` })}>
             <Text className="text-base font-bold text-white">🔍 找含这些食材的商品</Text>
           </Button>
@@ -204,8 +204,7 @@ export default function EmotionCheckPage() {
           value={inputText}
           onInput={(e) => setInputText(e.detail.value)}
           maxlength={100}
-          multiline
-        />
+          multiline />
       </View>
 
       {/* 提示词 */}

@@ -2,11 +2,12 @@ import { View, Button, Text } from '@tarojs/components'
 // @title 帮助中心
 import { useState } from 'react'
 import Taro, {} from '@tarojs/taro'
+import Icon from '@/components/Icon'
 
 const FAQ_GROUPS = [
   {
     title: '购物相关',
-    icon: 'i-mdi-shopping-outline',
+    icon: '🛍',
     items: [
       { q: '如何下单购买商品？', a: '在首页或商品详情页点击"立即购买"或"加入购物车"，选择数量后前往支付页面完成支付即可。' },
       { q: '支持哪些支付方式？', a: '目前支持微信支付。后续将陆续接入更多支付方式。' },
@@ -15,7 +16,7 @@ const FAQ_GROUPS = [
     ]},
   {
     title: '退款售后',
-    icon: 'i-mdi-refresh',
+    icon: '⟳',
     items: [
       { q: '如何申请退款？', a: '在"我的订单"中找到对应订单，点击"申请退款"按钮，填写退款原因并提交，等待商家审核处理。' },
       { q: '退款多久到账？', a: '退款审批通过后，一般1-3个工作日内退回至您的微信支付账户。' },
@@ -49,7 +50,7 @@ function HelpPage() {
 
       {/* 搜索提示 */}
       <View className="mx-4 mt-4 p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-center gap-3">
-        <View className="i-mdi-headset text-3xl text-primary flex-shrink-0" />
+        <Icon name="headset" size={30} className="text-primary flex-shrink-0" />
         <View className="flex-1">
           <Text className="text-xl font-bold text-foreground">遇到问题？</Text>
           <Text className="text-base text-muted-foreground">查看常见问题或联系客服</Text>
@@ -65,7 +66,9 @@ function HelpPage() {
       {FAQ_GROUPS.map(group => (
         <View key={group.title} className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
           <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-            <View className={`${group.icon} text-2xl text-primary`} />
+            {group.icon.startsWith('i-mdi-')
+              ? <Icon name={group.icon.replace('i-mdi-', '')} size={24} className="text-primary" />
+              : <View className={`${group.icon} text-2xl text-primary`} />}
             <Text className="text-xl font-bold text-foreground">{group.title}</Text>
           </View>
           {group.items.map((item, idx) => {
@@ -76,7 +79,7 @@ function HelpPage() {
                 <View className="flex items-center justify-between px-4 py-4"
                   onClick={() => toggle(key)}>
                   <Text className="text-xl text-foreground flex-1 pr-2">{item.q}</Text>
-                  <View className={`i-mdi-chevron-down text-2xl text-muted-foreground transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                  <View className={`⌄ text-2xl text-muted-foreground transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
                 </View>
                 {isOpen && (
                   <View className="px-4 pb-4">
@@ -96,15 +99,15 @@ function HelpPage() {
         <Text className="text-xl font-bold text-foreground mb-3">联系我们</Text>
         <View className="flex flex-col gap-3">
           <View className="flex items-center gap-3">
-            <View className="i-mdi-phone text-2xl text-primary" />
+            <Icon name="phone" size={24} className="text-primary" />
             <Text className="text-xl text-foreground">客服电话：400-000-0000</Text>
           </View>
           <View className="flex items-center gap-3">
-            <View className="i-mdi-clock-outline text-2xl text-primary" />
+            <Icon name="clock-outline" size={24} className="text-primary" />
             <Text className="text-xl text-foreground">服务时间：周一至周日 9:00-21:00</Text>
           </View>
           <View className="flex items-center gap-3">
-            <View className="i-mdi-email-outline text-2xl text-primary" />
+            <Icon name="email-outline" size={24} className="text-primary" />
             <Text className="text-xl text-foreground">邮箱：support@laidian.com</Text>
           </View>
         </View>

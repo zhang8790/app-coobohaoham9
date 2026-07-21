@@ -2,9 +2,10 @@
 import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Input, Button, Picker } from '@tarojs/components'
-import { getMerchantStore } from '@/db/api'
+import { getMerchantStore, merchantRedeemCoupon } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 interface MCoupon {
   id: string
@@ -26,9 +27,12 @@ function MerchantCouponsPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ title: '', discount_type: 'amount', discount_value: '', min_amount: '', total: '', start_date: '', end_date: '' })
+  const [redeemCode, setRedeemCode] = useState('')
+  const [redeeming, setRedeeming] = useState(false)
 
+  // 只查本店「模板券」(user_id IS NULL)，用户领取的实例不混入管理列表
   const loadCoupons = async (sid: string) => {
-    const { data } = await supabase.from('coupons').select('*').eq('store_id', sid).order('created_at', { ascending: false })
+    const { data } = await supabase.from('coupons').select('*').eq('store_id', sid).is('user_id', null).order('created_at', { ascending: false })
     setCoupons((data as MCoupon[]) || [])
   }
 
@@ -48,11 +52,10 @@ function MerchantCouponsPage() {
     if (!store) return Taro.showToast({ title: '请先完善门店', icon: 'none' })
     if (!form.title.trim()) return Taro.showToast({ title: '请输入名称', icon: 'none' })
     if (!form.start_date || !form.end_date) return Taro.showToast({ title: '请选择日期', icon: 'none' })
-    const { data: { user } } = await supabase.auth.getUser()
     const code = 'CP' + Date.now().toString(36).toUpperCase().slice(-6)
+    // user_id 不传 → NULL（模板券），由用户端认领生成实例
     const { error } = await supabase.from('coupons').insert({
       store_id: store.id,
-      user_id: user?.id || store.owner_id,
       code,
       title: form.title,
       discount_type: form.discount_type,
@@ -63,7 +66,6 @@ function MerchantCouponsPage() {
       status: 'active',
       start_date: form.start_date,
       end_date: form.end_date,
-      is_used: false,
     })
     if (error) return Taro.showToast({ title: '创建失败', icon: 'none' })
     await loadCoupons(store.id)
@@ -85,9 +87,25 @@ function MerchantCouponsPage() {
     setCoupons(prev => prev.filter(x => x.id !== id))
   }
 
+  // 商家核销：用户输入顾客出示的券码（实例 code），仅本店券可核销
+  const handleRedeem = async () => {
+    if (!store) return
+    const code = redeemCode.trim()
+    if (!code) return Taro.showToast({ title: '请输入券码', icon: 'none' })
+    setRedeeming(true)
+    const res = await merchantRedeemCoupon(code, store.id)
+    setRedeeming(false)
+    if (res.ok) {
+      Taro.showToast({ title: '核销成功', icon: 'success' })
+      setRedeemCode('')
+    } else {
+      Taro.showToast({ title: res.error || '核销失败', icon: 'none' })
+    }
+  }
+
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
@@ -96,10 +114,28 @@ function MerchantCouponsPage() {
       <View className="px-4 mt-3">
         <Button className="!w-full !m-0 !p-0 !bg-primary !border-none !rounded-2xl !leading-none" onClick={() => setShowForm(true)}>
           <View className="py-3 flex items-center gap-1 justify-center">
-            <View className="i-mdi-plus text-white text-xl" />
+            <Icon name="plus" size={20} className="text-white" />
             <Text className="text-base font-bold text-white">创建优惠券</Text>
           </View>
         </Button>
+      </View>
+
+      {/* 核销入口 */}
+      <View className="px-4 mt-3">
+        <View className="bg-card rounded-2xl border border-border p-4">
+          <Text className="text-base font-bold text-foreground">核销优惠券</Text>
+          <Text className="text-sm text-muted-foreground mt-1">用户输入的券码（形如 VERIFY001-xxxx），到店出示后在此核销</Text>
+          <View className="flex gap-2 mt-3">
+            <Input
+              className="flex-1 border-2 border-input rounded-xl px-3 py-2 text-base"
+              value={redeemCode}
+              onInput={e => setRedeemCode(e.detail.value)}
+              placeholder="输入券码" />
+            <Button className="!m-0 !p-0 !bg-primary !border-none !rounded-xl" onClick={handleRedeem} disabled={redeeming}>
+              <Text className="text-sm text-white px-4 py-2">{redeeming ? '核销中...' : '核销'}</Text>
+            </Button>
+          </View>
+        </View>
       </View>
 
       <View className="px-4 mt-3">
@@ -117,7 +153,7 @@ function MerchantCouponsPage() {
                   {c.min_amount > 0 ? ` · 满¥${c.min_amount}` : ''}
                 </Text>
               </View>
-              <View className={`px-2 py-1 rounded-full text-xs ${c.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-muted text-muted-foreground'}`}>
+              <View className={`px-2 py-1 rounded-full text-xs ${c.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
                 {c.status === 'active' ? '生效中' : c.status === 'paused' ? '已暂停' : c.status}
               </View>
             </View>
@@ -143,7 +179,7 @@ function MerchantCouponsPage() {
             <View className="flex items-center justify-between mb-4">
               <Text className="text-xl font-bold text-foreground">创建优惠券</Text>
               <Button className="!p-0 !bg-transparent !border-none" onClick={() => setShowForm(false)}>
-                <View className="i-mdi-close text-2xl text-muted-foreground" />
+                <Icon name="close" size={24} className="text-muted-foreground" />
               </Button>
             </View>
             <View className="mb-3">

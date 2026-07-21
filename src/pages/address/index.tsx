@@ -5,6 +5,7 @@ import { View, Text, Input } from '@tarojs/components'
 import { getMyAddresses, saveAddress, deleteAddress } from '@/db/api'
 import type { UserAddress } from '@/db/types'
 import { withRouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 type AddrForm = { name: string; phone: string; province: string; city: string; district: string; detail: string; is_default: boolean }
 const emptyForm = (): AddrForm => ({ name: '', phone: '', province: '', city: '', district: '', detail: '', is_default: false })
@@ -170,11 +171,11 @@ function AddressPage() {
       <View className="px-4 mt-4">
         {loading ? (
           <View className="flex justify-center py-16">
-            <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+            <Icon name="loading" size={36} className="text-primary animate-spin" />
           </View>
         ) : addresses.length === 0 ? (
           <View className="flex flex-col items-center py-16 gap-3">
-            <View className="i-mdi-map-marker-off text-6xl text-muted-foreground/40" />
+            <Icon name="map-marker-off" size={60} className="text-muted-foreground/40" />
             <Text className="text-xl text-muted-foreground">暂无收货地址，快去添加吧</Text>
           </View>
         ) : (
@@ -196,21 +197,21 @@ function AddressPage() {
                 <View
                   className="flex-1 flex items-center justify-center py-2 gap-1 rounded-xl bg-muted"
                   onClick={() => openEdit(a)}>
-                  <View className="i-mdi-pencil text-xl text-foreground" />
+                  <Icon name="pencil" size={20} className="text-foreground" />
                   <Text className="text-xl text-foreground">编辑</Text>
                 </View>
                 {!a.is_default && (
                   <View
                     className="flex-1 flex items-center justify-center py-2 gap-1 rounded-xl bg-muted"
                     onClick={() => saveAddress({ id: a.id, name: a.name, phone: a.phone, province: a.province ?? undefined, city: a.city ?? undefined, district: a.district ?? undefined, detail: a.detail, is_default: true }).then(load)}>
-                    <View className="i-mdi-check-circle-outline text-xl text-primary" />
+                    <Icon name="check-circle-outline" size={20} className="text-primary" />
                     <Text className="text-xl text-primary">设为默认</Text>
                   </View>
                 )}
                 <View
                   className="flex-1 flex items-center justify-center py-2 gap-1 rounded-xl bg-muted"
                   onClick={() => handleDelete(a.id)}>
-                  <View className="i-mdi-delete-outline text-xl text-red-400" />
+                  <Icon name="delete-outline" size={20} className="text-red-400" />
                   <Text className="text-xl text-red-400">删除</Text>
                 </View>
               </View>
@@ -225,7 +226,7 @@ function AddressPage() {
           className="w-full flex items-center justify-center leading-none rounded-2xl bg-primary"
           onClick={openAdd}>
           <View className="py-4 flex items-center gap-2">
-            <View className="i-mdi-plus text-white text-2xl" />
+            <Icon name="plus" size={24} className="text-white" />
             <Text className="text-xl font-bold text-white">新增收货地址</Text>
           </View>
         </View>
@@ -240,7 +241,7 @@ function AddressPage() {
             <View className="flex items-center justify-between mb-4">
               <Text className="text-2xl font-bold text-foreground">{editId ? '编辑地址' : '新增地址'}</Text>
               <View onClick={() => setShowForm(false)}>
-                <View className="i-mdi-close text-2xl text-muted-foreground" />
+                <Icon name="close" size={24} className="text-muted-foreground" />
               </View>
             </View>
 

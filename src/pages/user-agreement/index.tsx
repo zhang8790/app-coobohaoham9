@@ -41,7 +41,7 @@ function UserAgreement() {
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">五、用户行为规范</Text>
           <Text className="block">您承诺不得从事以下行为：</Text>
-          <Text className="block">1. 使用本平台从事任何违法、违规活动。</Text>
+          <Text className="block">1. 使用本平台从事任何违法活动。</Text>
           <Text className="block">2. 发布虚假信息、恶意评价或干扰平台正常秩序。</Text>
           <Text className="block">3. 尝试未经授权访问本平台服务器或网络系统。</Text>
           <Text className="block">4. 将本平台用于任何商业性用途而未获得我们事先书面同意。</Text>

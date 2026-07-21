@@ -5,6 +5,7 @@ import { View, Input, Text } from '@tarojs/components'
 import { RouteGuard } from '@/components/RouteGuard'
 import { getCityList, getUserFrequentAddresses } from '@/utils/lbs-service'
 import { useLocation } from '@/contexts/LocationContext'
+import Icon from '@/components/Icon'
 
 function CitySelectPage() {
   const { currentCity, setCity, detectLocation, loading: locationLoading } = useLocation()
@@ -67,7 +68,7 @@ function CitySelectPage() {
   if (loading) return (
     <RouteGuard>
       <View className="flex items-center justify-center min-h-screen bg-background">
-        <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+        <Icon name="loading" size={36} className="text-primary animate-spin" />
       </View>
     </RouteGuard>
   )
@@ -79,13 +80,12 @@ function CitySelectPage() {
         <View className="sticky top-0 z-10 bg-background px-4 py-3" style={{ borderBottom: '1px solid #E7DDD0' }}>
           <View className="flex items-center gap-3">
             <View className="flex-1 border-2 border-input rounded-full px-4 py-2 bg-muted flex items-center gap-2">
-              <View className="i-mdi-magnify text-xl text-muted-foreground" />
+              <Icon name="magnify" size={20} className="text-muted-foreground" />
               <Input
                 className="flex-1 text-xl text-foreground bg-transparent outline-none"
                 placeholder="搜索城市..."
                 value={keyword}
-                onInput={(e: any) => handleSearch(e.detail?.value ?? '')}
-              />
+                onInput={(e: any) => handleSearch(e.detail?.value ?? '')} />
             </View>
           </View>
         </View>
@@ -104,7 +104,7 @@ function CitySelectPage() {
                     loadCities()
                   }}
                 >
-                  <View className="i-mdi-crosshairs-gps text-base text-primary" />
+                  <Icon name="crosshairs-gps" size={16} className="text-primary" />
                   <Text className="text-base text-primary">重新定位</Text>
                 </View>
                 <View
@@ -128,7 +128,7 @@ function CitySelectPage() {
                   className="flex-1 p-3 rounded-xl bg-card border border-border flex items-center justify-center gap-2"
                   onClick={() => handleQuickSwitch('home')}
                 >
-                  <View className="i-mdi-home text-2xl text-primary" />
+                  <Icon name="home" size={24} className="text-primary" />
                   <Text className="text-base text-foreground">家</Text>
                 </View>
               )}
@@ -137,7 +137,7 @@ function CitySelectPage() {
                   className="flex-1 p-3 rounded-xl bg-card border border-border flex items-center justify-center gap-2"
                   onClick={() => handleQuickSwitch('company')}
                 >
-                  <View className="i-mdi-office-building text-2xl text-primary" />
+                  <Icon name="office-building" size={24} className="text-primary" />
                   <Text className="text-base text-foreground">公司</Text>
                 </View>
               )}
@@ -159,7 +159,7 @@ function CitySelectPage() {
                   <Text className="text-xl font-bold text-foreground">{city.city_name}</Text>
                   <Text className="text-base text-muted-foreground mt-1 block">{city.province || ''}</Text>
                 </View>
-                <View className="i-mdi-chevron-right text-xl text-muted-foreground" />
+                <Icon name="chevron-right" size={20} className="text-muted-foreground" />
               </View>
             ))}
           </View>
@@ -168,7 +168,7 @@ function CitySelectPage() {
         {/* 空状态 */}
         {!filteredCities.length && (
           <View className="flex flex-col items-center justify-center py-16 gap-4">
-            <View className="i-mdi-city-off text-6xl text-muted-foreground/30" />
+            <Icon name="city-off" size={60} className="text-muted-foreground/30" />
             <Text className="text-xl text-muted-foreground">未找到匹配的城市</Text>
           </View>
         )}

@@ -207,9 +207,9 @@ export async function checkPointsArbitrage(
         passed: false,
         riskType: 'points_arbitrage',
         riskLevel: 'medium',
-        description: '订单退款且已获得积分，疑似积分套利',
-        shouldFreeze: false,  // 不冻结，但需追回积分
-        freezeReason: '积分套利检测：退款订单获得积分',
+        description: '订单退款且已获赠金豆，疑似金豆套利',
+        shouldFreeze: false,  // 不冻结，但需追回金豆
+        freezeReason: '金豆套利检测：退款订单获赠金豆',
       };
     }
   }

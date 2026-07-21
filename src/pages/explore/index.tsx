@@ -1,17 +1,19 @@
-// @title 探索
+// @title 自营
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
 import { getNearbyProducts, addToCart, getProducts } from '@/db/api'
+import Icon from '@/components/Icon'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
 import { getEmotionBasedRecommendations } from '@/utils/emotion-recommendation'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import { useLocation } from '@/contexts/LocationContext'
 import LazyImage from '@/components/LazyImage'
-import StoreStrip from '@/components/StoreStrip'
 import ProductGridCard from '@/components/ProductGridCard'
+import CustomTabBar from '@/components/custom-tabbar'
 import { generateEmotionDescription } from '@/utils/emotion-description'
 import { UNIFIED_EMOTION_FILTERS } from '@/utils/category-emotion'
+import { getProductCareInfo } from '@/utils/product-care'
 import type { NearbyProduct } from '@/db/api'
 
 // 探索(自营)商品类目：后端按 products.category exact 匹配（不可改名）。
@@ -31,30 +33,34 @@ const STORE_CATEGORY_MAP: Record<string, string> = {
 function ExploreProductImage({ src, name }: { src: string | null | undefined; name: string }) {
   if (!src) {
     return (
-      <View className="w-full flex items-center justify-center" style={{ height: '150px', backgroundColor: '#F7F3EF' }}>
-        <View className="flex flex-col items-center gap-1">
-          <Text style={{ fontSize: '28px' }}>🛍️</Text>
+      <View className="relative w-full overflow-hidden" style={{ paddingTop: '100%', backgroundColor: '#F7F3EF' }}>
+        <View className="flex flex-col items-center justify-center" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <Icon name="bag" size={28} className="text-muted-foreground" />
           <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
         </View>
       </View>
     )
   }
   return (
-    <LazyImage
-      src={src}
-      mode="aspectFill"
-      className="w-full bg-muted"
-      style={{ height: '150px' }}
-    />
+    <View className="relative w-full overflow-hidden" style={{ paddingTop: '100%' }}>
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+        <LazyImage
+          src={src}
+          mode="aspectFill"
+          className="w-full h-full bg-muted"
+          width="100%"
+          height="100%" />
+      </View>
+    </View>
   )
 }
 
-// 情绪推荐商品图：全宽 16:10 + 缺失占位
+// 情绪推荐商品图：1:1 正方形，与商品卡统一比例
 function EmotionProductImage({ src, name }: { src: string | null | undefined; name: string }) {
   if (!src) {
     return (
-      <View className="w-full flex items-center justify-center" style={{ height: '150px', backgroundColor: '#F7F3EF' }}>
-        <View className="flex flex-col items-center gap-1">
+      <View className="relative w-full overflow-hidden" style={{ paddingTop: '100%', backgroundColor: '#F7F3EF' }}>
+        <View className="flex flex-col items-center justify-center" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <Text style={{ fontSize: '28px' }}>🎁</Text>
           <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
         </View>
@@ -62,12 +68,16 @@ function EmotionProductImage({ src, name }: { src: string | null | undefined; na
     )
   }
   return (
-    <LazyImage
-      src={src}
-      mode="aspectFill"
-      className="w-full bg-muted"
-      style={{ height: '150px' }}
-    />
+    <View className="relative w-full overflow-hidden" style={{ paddingTop: '100%' }}>
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+        <LazyImage
+          src={src}
+          mode="aspectFill"
+          className="w-full h-full bg-muted"
+          width="100%"
+          height="100%" />
+      </View>
+    </View>
   )
 }
 
@@ -177,7 +187,7 @@ export default function ExplorePage() {
 
   // 分享配置：携带推广码
   useShareWithReferral({
-    title: '来电有喜 · 探索江湖好物',
+    title: '来电有喜 · 自营江湖好物',
     path: '/pages/explore/index',
     timelineTitle: '来电有喜 · 发现品质好物'})
 
@@ -212,12 +222,12 @@ export default function ExplorePage() {
   }
 
   return (
-    <View className="h-screen flex flex-col bg-background">
+    <View className="h-screen flex flex-col bg-background tabbar-pad">
       {/* 顶部搜索栏 */}
       <View className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid #E7DDD0' }}>
         <View className="flex-1 flex items-center gap-2 bg-muted rounded-full px-4 py-2"
           onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}>
-          <View className="i-mdi-magnify text-xl text-muted-foreground" />
+          <View className="text-muted-foreground"><Icon name="search" size={20} /></View>
           <Text className="text-xl text-muted-foreground">搜索商品...</Text>
         </View>
         <View className="w-10 h-10 flex items-center justify-center"
@@ -232,10 +242,10 @@ export default function ExplorePage() {
               }
             })
           }}>
-          <View className="i-mdi-qrcode-scan text-2xl text-foreground" />
+          <Icon name="qrcode-scan" size={24} className="text-foreground" />
         </View>
         <View className="relative" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
-          <View className="i-mdi-shopping-outline text-2xl text-foreground" />
+          <View className="text-foreground"><Icon name="bag" size={24} /></View>
           {cartCount > 0 && (
             <View className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
               <Text className="text-white text-xs">{cartCount > 99 ? '99' : cartCount}</Text>
@@ -259,8 +269,6 @@ export default function ExplorePage() {
 
         {/* 右侧内容 */}
         <View className="flex-1 overflow-y-auto px-3 py-3">
-          {/* 精选好店 横向滑动 */}
-          <StoreStrip />
           {/* 情绪推荐区 */}
           {showEmotionSection && emotionProducts.length > 0 && (
             <View className="mb-4">
@@ -274,12 +282,13 @@ export default function ExplorePage() {
                     id={p.id}
                     name={p.name}
                     price={p.price}
+                    imageRatio="4:3"
                     imageSlot={<EmotionProductImage src={p.main_image || p.image_url} name={p.name} />}
                     moodTags={p.mood_tags}
+                    care={getProductCareInfo(p)}
                     onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}
                     onAddCart={() => handleAddCartEmotion(p)}
-                    adding={addingEmotionId === p.id}
-                  />
+                    adding={addingEmotionId === p.id} />
                 ))}
               </View>
             </View>
@@ -307,7 +316,8 @@ export default function ExplorePage() {
                         store_address: '',
                         store_lat: 0,
                         store_lng: 0,
-                        distance_km: 0})))
+                        distance_km: 0,
+                        care: getProductCareInfo(p)})))
                       setLoading(false)
                     }}
                     style={{
@@ -327,7 +337,7 @@ export default function ExplorePage() {
             <View className="flex flex-wrap justify-between">
               {[0, 1, 2, 3].map(i => (
                 <View key={i} className="bg-card rounded-2xl border border-border animate-pulse flex flex-col overflow-hidden" style={{ width: '48%', marginBottom: '12px' }}>
-                  <View className="bg-muted w-full" style={{ height: '150px' }} />
+                  <View className="bg-muted w-full" style={{ paddingTop: '75%' }} />
                   <View className="p-2.5 flex flex-col gap-2">
                     <View className="h-4 bg-muted rounded w-3/4" />
                     <View className="h-3 bg-muted rounded w-1/2" />
@@ -344,14 +354,15 @@ export default function ExplorePage() {
                   id={p.product_id}
                   name={p.product_name}
                   price={p.product_price}
+                  imageRatio="4:3"
                   imageSlot={<ExploreProductImage src={p.product_image_url} name={p.product_name} />}
                   moodTags={p.product_mood_tags}
+                  care={p.care}
                   subtitle={generateEmotionDescription({ name: p.product_name }, p.product_mood_tags || [])}
-                  footerExtra={p.distance_km > 0 ? <Text className="text-xs text-primary">📍 {p.distance_km}km</Text> : null}
+                  footerExtra={p.distance_km > 0 ? <View className="text-xs text-primary flex items-center gap-1"><Icon name="location" size={12} className="text-primary" /><Text>{p.distance_km}km</Text></View> : null}
                   onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.product_id}` })}
                   onAddCart={() => handleAddCart(p)}
-                  adding={addingId === p.product_id}
-                />
+                  adding={addingId === p.product_id} />
               ))}
             </View>
           )}
@@ -365,6 +376,7 @@ export default function ExplorePage() {
           )}
         </View>
       </View>
+      <CustomTabBar />
     </View>
   )
 }

@@ -191,7 +191,7 @@ function MerchantEmotionCompilePage() {
   const tierInfo = useMemo(() => {
     switch (score.tier) {
       case 'recommend': return { text: '✅ 进入推荐池', color: '#16A34A', bg: '#DCFCE7' }
-      case 'shopOnly': return { text: '🏪 仅店铺展示', color: '#C2410C', bg: '#FFEDD5' }
+      case 'shopOnly': return { text: '🏪 仅店铺展示', color: '#A8552E', bg: '#FFEDD5' }
       default: return { text: '⛔ 驳回', color: '#DC2626', bg: '#FEE2E2' }
     }
   }, [score.tier])
@@ -252,7 +252,7 @@ function MerchantEmotionCompilePage() {
     <RouteGuard>
     <View style={{ minHeight: '100vh', background: '#FFF8F4', paddingBottom: '90px' }}>
       {/* 顶部标题栏 */}
-      <View style={{ padding: '14px 16px 10px', background: '#FFF', borderBottom: '1px solid #F0E6D8' }}>
+      <View style={{ padding: '14px 16px 10px', background: '#FFF', borderBottom: '1px solid #F1E9D9' }}>
         <Text style={{ fontSize: '17px', fontWeight: 'bold', color: '#333' }}>🎭 情绪编译工作台</Text>
         <Text style={{ fontSize: '12px', color: '#AAA', display: 'block', marginTop: '2px' }}>五维打标 → 一键编译 → 实时评分 → 提交审核</Text>
       </View>
@@ -266,17 +266,17 @@ function MerchantEmotionCompilePage() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#333' }}>{product.name}</Text>
-          <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#C2410C', marginTop: '2px' }}>¥{product.price}</Text>
+          <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#A8552E', marginTop: '2px' }}>¥{product.price}</Text>
         </View>
         <View
           onClick={adoptRecommend}
-          style={{ alignSelf: 'center', padding: '7px 12px', borderRadius: '10px', background: '#FFF', border: '1.5px solid #6C5CE7' }}>
-          <Text style={{ fontSize: '12px', color: '#6C5CE7', fontWeight: 'bold' }}>✨ 采纳推荐</Text>
+          style={{ alignSelf: 'center', padding: '7px 12px', borderRadius: '10px', background: '#FFF', border: '1.5px solid #A8552E' }}>
+          <Text style={{ fontSize: '12px', color: '#A8552E', fontWeight: 'bold' }}>✨ 采纳推荐</Text>
         </View>
       </View>
 
       {/* ── 五维标签打标 ── */}
-      <View style={{ margin: '0 14px 14px', padding: '14px', borderRadius: '16px', background: '#FFF', border: '1px solid #F0E6D8' }}>
+      <View style={{ margin: '0 14px 14px', padding: '14px', borderRadius: '16px', background: '#FFF', border: '1px solid #F1E9D9' }}>
         <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#333', marginBottom: '4px' }}>① 五维标签打标</Text>
         <Text style={{ fontSize: '11px', color: '#AAA', marginBottom: '10px', display: 'block' }}>每维限选 {EMOTION_DIMENSION_MAX} 个，带「荐」为系统按商品描述推荐</Text>
 
@@ -287,7 +287,7 @@ function MerchantEmotionCompilePage() {
           return (
             <View key={dim} style={{ marginBottom: '12px' }}>
               <View style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
-                <Text style={{ fontSize: '13px', fontWeight: 'bold', color: '#C2410C' }}>{EMOTION_DIMENSION_LABELS[dim]}</Text>
+                <Text style={{ fontSize: '13px', fontWeight: 'bold', color: '#A8552E' }}>{EMOTION_DIMENSION_LABELS[dim]}</Text>
                 <Text style={{ fontSize: '11px', color: '#BBB', marginLeft: '6px' }}>{selected.length}/{EMOTION_DIMENSION_MAX}</Text>
               </View>
               <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -301,12 +301,12 @@ function MerchantEmotionCompilePage() {
                       style={{
                         padding: '5px 10px', borderRadius: '14px',
                         background: on ? (tag.color || '#CCC') : (isRec ? '#F3F0FF' : '#F5F5F5'),
-                        border: `1px solid ${on ? (tag.color || '#CCC') : (isRec ? '#6C5CE7' : '#EEE')}`,
+                        border: `1px solid ${on ? (tag.color || '#CCC') : (isRec ? '#A8552E' : '#EEE')}`,
                         display: 'flex', alignItems: 'center', gap: '3px'}}>
-                      <Text style={{ fontSize: '12px', color: on ? '#FFF' : (isRec ? '#6C5CE7' : '#666') }}>
+                      <Text style={{ fontSize: '12px', color: on ? '#FFF' : (isRec ? '#A8552E' : '#666') }}>
                         {tag.icon} {tag.zh}
                       </Text>
-                      {isRec && !on && <Text style={{ fontSize: '9px', color: '#6C5CE7' }}>荐</Text>}
+                      {isRec && !on && <Text style={{ fontSize: '9px', color: '#A8552E' }}>荐</Text>}
                     </View>
                   )
                 })}
@@ -317,9 +317,9 @@ function MerchantEmotionCompilePage() {
       </View>
 
       {/* ── 食养成分打标 ── */}
-      <View style={{ margin: '0 14px 14px', padding: '14px', borderRadius: '16px', background: '#FFF', border: '1px solid #F0E6D8' }}>
+      <View style={{ margin: '0 14px 14px', padding: '14px', borderRadius: '16px', background: '#FFF', border: '1px solid #F1E9D9' }}>
         <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#333', marginBottom: '4px' }}>② 食养成分打标（可选）</Text>
-        <Text style={{ fontSize: '11px', color: '#AAA', marginBottom: '10px', display: 'block' }}>最多选 {SHIYANG_DIMENSION_MAX} 个食材，所有食养文案自动套合规措辞</Text>
+        <Text style={{ fontSize: '11px', color: '#AAA', marginBottom: '10px', display: 'block' }}>最多选 {SHIYANG_DIMENSION_MAX} 个食材，所有食养文案自动套食养参考措辞</Text>
         {Object.entries(SHIYANG_CATEGORIES).map(([catKey, cat]) => (
           <View key={catKey} style={{ marginBottom: '10px' }}>
             <Text style={{ fontSize: '12px', fontWeight: 'bold', color: '#16A34A', marginBottom: '6px', display: 'block' }}>{cat.label}</Text>
@@ -354,7 +354,7 @@ function MerchantEmotionCompilePage() {
           onClick={handleCompile}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px',
-            borderRadius: '12px', background: compiling ? '#C9C2F0' : '#6C5CE7',
+            borderRadius: '12px', background: compiling ? '#C9C2F0' : '#A8552E',
             boxShadow: compiling ? 'none' : '0 3px 10px rgba(108,92,231,0.3)'}}>
           <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#FFF' }}>{compiling ? '编译中…' : '✨ 一键生成情绪文案'}</Text>
         </View>
@@ -362,12 +362,12 @@ function MerchantEmotionCompilePage() {
 
       {/* ── 编译结果编辑 ── */}
       {(title || stage1 || stage2 || stage3) && (
-        <View style={{ margin: '0 14px 14px', padding: '14px', borderRadius: '16px', background: '#FFF', border: '1px solid #F0E6D8' }}>
+        <View style={{ margin: '0 14px 14px', padding: '14px', borderRadius: '16px', background: '#FFF', border: '1px solid #F1E9D9' }}>
           <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#333', marginBottom: '10px', display: 'block' }}>③ 编译结果（可微调）</Text>
 
           {curHeadline && (
             <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', padding: '8px 10px', borderRadius: '10px', background: '#FFF7ED', border: '1px solid #FED7AA' }}>
-              <Text style={{ fontSize: '12px', color: '#C2410C', fontWeight: 'bold' }}>🏷️ {curHeadline}</Text>
+              <Text style={{ fontSize: '12px', color: '#A8552E', fontWeight: 'bold' }}>🏷️ {curHeadline}</Text>
               <View onClick={() => setTitle(curHeadline)} style={{ padding: '3px 10px', borderRadius: '8px', background: '#FF8A65' }}>
                 <Text style={{ fontSize: '11px', color: '#FFF', fontWeight: 'bold' }}>采用</Text>
               </View>
@@ -378,8 +378,7 @@ function MerchantEmotionCompilePage() {
             style={inputBox}
             value={title}
             onInput={(e: any) => setTitle(e.detail?.value ?? '')}
-            placeholder="情绪化标题"
-          />
+            placeholder="情绪化标题" />
 
           <Text style={{ fontSize: '12px', color: '#666', margin: '10px 0 4px', display: 'block' }}>第一屏 · 场景化问句</Text>
           <Textarea style={areaBox} value={stage1} onInput={(e: any) => setStage1(e.detail?.value ?? '')} placeholder="如：加班到十点，需要一口暖的？" />
@@ -389,15 +388,14 @@ function MerchantEmotionCompilePage() {
             style={{ ...areaBox, minHeight: '160px' }}
             value={stage2}
             onInput={(e: any) => setStage2(e.detail?.value ?? '')}
-            placeholder="如：明明很累了，又不想随便对付自己？"
-          />
+            placeholder="如：明明很累了，又不想随便对付自己？" />
           {candidates.length > 1 && (
             <View
               onClick={handleNextCandidate}
               style={{
                 marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px',
                 padding: '5px 12px', borderRadius: '12px', background: '#F3F0FF', border: '1px solid #C9C2F0'}}>
-              <Text style={{ fontSize: '12px', color: '#6C5CE7', fontWeight: 'bold' }}>
+              <Text style={{ fontSize: '12px', color: '#A8552E', fontWeight: 'bold' }}>
                 🔄 换一版（{candidateIdx + 1}/{candidates.length}）
               </Text>
             </View>
@@ -409,7 +407,7 @@ function MerchantEmotionCompilePage() {
       )}
 
       {/* ── 实时质量评分 ── */}
-      <View style={{ margin: '0 14px 14px', padding: '14px', borderRadius: '16px', background: '#FFF', border: '1px solid #F0E6D8' }}>
+      <View style={{ margin: '0 14px 14px', padding: '14px', borderRadius: '16px', background: '#FFF', border: '1px solid #F1E9D9' }}>
         <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#333' }}>④ 实时质量评分</Text>
           <View style={{ padding: '4px 12px', borderRadius: '12px', background: tierInfo.bg }}>
@@ -428,11 +426,11 @@ function MerchantEmotionCompilePage() {
           </View>
           <View style={{ flex: 1 }}>
             {[
-              { label: '标签完整度', v: score.dimensions.tagCompleteness, max: 25, color: '#6C5CE7' },
-              { label: '文案合规性', v: score.dimensions.copyCompliance, max: 25, color: '#0EA5E9' },
+              { label: '标签完整度', v: score.dimensions.tagCompleteness, max: 25, color: '#A8552E' },
+              { label: '文案规范', v: score.dimensions.copyCompliance, max: 25, color: '#0EA5E9' },
               { label: '场景精准度', v: score.dimensions.scenePrecision, max: 18, color: '#16A34A' },
-              { label: '确权可达性', v: score.dimensions.claimVerifiability, max: 17, color: '#C2410C' },
-              { label: '食养完整度', v: score.dimensions.shiyangCompleteness, max: 15, color: '#9333EA' },
+              { label: '确权可达性', v: score.dimensions.claimVerifiability, max: 17, color: '#A8552E' },
+              { label: '食养完整度', v: score.dimensions.shiyangCompleteness, max: 15, color: '#9A8070' },
             ].map(d => (
               <View key={d.label} style={{ marginBottom: '5px' }}>
                 <View style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -447,14 +445,14 @@ function MerchantEmotionCompilePage() {
           </View>
         </View>
 
-        {/* 违规 / 建议 */}
+        {/* 建议 */}
         {score.violations.length > 0 && (
           <View style={{ marginBottom: '8px' }}>
             {score.violations.map((v, i) => (
               <View key={i} style={{
                 padding: '7px 10px', borderRadius: '8px', marginBottom: '5px',
                 background: v.level === 'redline' ? '#FEE2E2' : v.level === 'demote' ? '#FFEDD5' : '#F3F0FF'}}>
-                <Text style={{ fontSize: '11px', color: v.level === 'redline' ? '#DC2626' : v.level === 'demote' ? '#C2410C' : '#6C5CE7' }}>
+                <Text style={{ fontSize: '11px', color: v.level === 'redline' ? '#DC2626' : v.level === 'demote' ? '#A8552E' : '#A8552E' }}>
                   {v.level === 'redline' ? '⛔ ' : v.level === 'demote' ? '⚠️ ' : '💡 '}{v.message}
                 </Text>
               </View>
@@ -475,7 +473,7 @@ function MerchantEmotionCompilePage() {
       <View style={{
         position: 'fixed', left: 0, right: 0, bottom: 0,
         display: 'flex', gap: '10px', padding: '10px 14px',
-        background: '#FFF', borderTop: '1px solid #F0E6D8'}}>
+        background: '#FFF', borderTop: '1px solid #F1E9D9'}}>
         <View
           onClick={() => handleSave(false)}
           style={{
@@ -487,7 +485,7 @@ function MerchantEmotionCompilePage() {
           onClick={() => handleSave(true)}
           style={{
             flex: 1.4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '13px',
-            borderRadius: '14px', background: saving ? '#FFB899' : 'linear-gradient(135deg,#FF8A65,#FF5722)',
+            borderRadius: '14px', background: saving ? '#F0C9A8' : 'linear-gradient(135deg,#C77B47,#A8552E)',
             boxShadow: saving ? 'none' : '0 3px 12px rgba(255,87,34,0.3)'}}>
           <Text style={{ fontSize: '15px', color: '#FFF', fontWeight: 'bold' }}>{saving ? '提交中…' : '🚀 提交审核'}</Text>
         </View>

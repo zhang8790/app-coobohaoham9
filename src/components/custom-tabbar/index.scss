@@ -1,0 +1,82 @@
+/* CustomTabBar - 去 AI 化的手绘风底部导航 */
+
+.ctb {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  background: rgba(241, 233, 217, 0.96); /* 墨韵米底毛玻璃 */
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(44, 36, 32, 0.10);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 999;
+}
+
+.ctb-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0 8px;
+  color: hsl(var(--muted-foreground));  /* 未选：淡墨 */
+  transition: color 0.15s ease;
+}
+
+.ctb-item--active {
+  color: hsl(var(--primary));            /* 选中：赭红 */
+}
+
+.ctb-item--hover {
+  opacity: 0.6;
+}
+
+.ctb-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ctb-icon-img {
+  width: 28px;
+  height: 28px;
+  display: block;
+}
+
+/* 行囊（购物车）实时件数徽标：右上角赭红圆点，与国潮墨韵风统一 */
+.ctb-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  font-weight: 700;
+  border: 1.5px solid rgba(241, 233, 217, 0.96); /* 与 tabBar 毛玻璃底同色描边，避免贴边糊成一团 */
+  box-sizing: border-box;
+  z-index: 2;
+}
+
+.ctb-label {
+  font-size: 11px;
+  margin-top: 1px;
+  line-height: 1.2;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+.ctb-item--active .ctb-label {
+  font-weight: 600;
+  color: hsl(var(--primary));
+}

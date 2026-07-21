@@ -1,9 +1,10 @@
 // @title 订单管理（商家端）
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
 import { getMerchantStore, getMerchantOrders, merchantShipOrder, merchantCompleteOrder } from '@/db/api'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 const STATUS_LABEL: Record<string, string> = {
   pending_pay: '待支付', pending_ship: '待发货', pending_receive: '待收货',
@@ -36,6 +37,24 @@ function MerchantOrdersPage() {
   const filtered = tab === 'all' ? orders
     : tab === 'pending_ship' ? orders.filter(o => o.orders?.status === 'pending_ship')
     : orders.filter(o => o.orders?.status === 'completed')
+
+  // 订单汇总：销售总额 / 让利总额 / 实收总额（让利后价格）
+  const summary = useMemo(() => {
+    let sales = 0, discount = 0, settle = 0
+    for (const item of filtered) {
+      const o = item.orders
+      if (!o) continue
+      sales += Number(o.total_amount || 0)
+      const ms = Array.isArray(o.merchant_settlements)
+        ? (o.merchant_settlements[0] ?? null)
+        : (o.merchant_settlements ?? null)
+      if (ms) {
+        discount += Number(ms.discount_pool || 0)
+        settle += Number(ms.settle_amount || 0)
+      }
+    }
+    return { count: filtered.length, sales, discount, settle }
+  }, [filtered])
 
   const handleShip = async (order: any) => {
     Taro.showModal({
@@ -83,11 +102,36 @@ function MerchantOrdersPage() {
         ))}
       </View>
 
+      {/* 订单汇总（让利后价格统计） */}
+      {!loading && filtered.length > 0 && (
+        <View className="mx-4 mt-3 rounded-2xl bg-card border border-border p-3">
+          <Text className="text-sm font-bold text-foreground block mb-2">订单汇总（让利后）</Text>
+          <View className="flex flex-wrap">
+            <View className="w-1/2 flex flex-col mb-2">
+              <Text className="text-xs text-muted-foreground">订单数</Text>
+              <Text className="text-base font-bold text-foreground">{summary.count}</Text>
+            </View>
+            <View className="w-1/2 flex flex-col mb-2">
+              <Text className="text-xs text-muted-foreground">销售总额</Text>
+              <Text className="text-base font-bold text-foreground">¥{summary.sales.toFixed(2)}</Text>
+            </View>
+            <View className="w-1/2 flex flex-col">
+              <Text className="text-xs text-muted-foreground">让利总额</Text>
+              <Text className="text-base font-bold text-orange-500">¥{summary.discount.toFixed(2)}</Text>
+            </View>
+            <View className="w-1/2 flex flex-col">
+              <Text className="text-xs text-muted-foreground">实收总额（让利后）</Text>
+              <Text className="text-base font-bold text-emerald-600">¥{summary.settle.toFixed(2)}</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       {loading ? (
-        <View className="flex items-center justify-center py-16"><View className="i-mdi-loading text-4xl text-primary animate-spin" /></View>
+        <View className="flex items-center justify-center py-16"><Icon name="loading" size={36} className="text-primary animate-spin" /></View>
       ) : filtered.length === 0 ? (
         <View className="flex flex-col items-center py-16 gap-3">
-          <View className="i-mdi-receipt-text-outline text-6xl text-muted-foreground/40" />
+          <Icon name="receipt-text-outline" size={60} className="text-muted-foreground/40" />
           <Text className="text-base text-muted-foreground">暂无订单</Text>
         </View>
       ) : (

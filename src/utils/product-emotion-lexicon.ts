@@ -16,7 +16,7 @@
 //   - 编译引擎(emotion-description.ts) 在品类模板之前优先采用本词库；
 //     recommendDimensions(emotion-dimensions.ts) 用本词库补全更贴合的标签推荐。
 //
-// 合规红线：禁用医疗宣称与绝对化用语；食养功效措辞=传统食养参考，不替代医嘱。
+// 禁用医疗宣称与绝对化用语；食养功效措辞=传统食养参考，不替代医嘱。
 
 export interface ProductEmotionProfile {
   /** 商品专属情绪词（用于生成文案，可超出品类 allowedMoodTags 的白名单） */

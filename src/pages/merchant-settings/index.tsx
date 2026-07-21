@@ -6,6 +6,7 @@ import { getMerchantStore, updateStore } from '@/db/api'
 import { uploadToStorage } from '@/utils/upload'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 // 场景标签选项
 const SCENE_OPTIONS = ['堂食', '配送']
@@ -172,7 +173,7 @@ function MerchantSettingsPage() {
 
   if (!store) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
@@ -198,11 +199,10 @@ function MerchantSettingsPage() {
                 // 加载失败时清除预览，显示占位符（避免空白区域）
                 setPreviewPath('')
                 Taro.showToast({ title: '图片加载失败', icon: 'none' })
-              }}
-            />
+              }} />
           ) : (
             <View className="flex flex-col items-center gap-2">
-              <View className="i-mdi-image-plus text-5xl text-muted-foreground/40" />
+              <Icon name="image-plus" size={48} className="text-muted-foreground/40" />
               <Text className="text-sm text-muted-foreground">点击上传店铺顶部图片</Text>
             </View>
           )}
@@ -229,7 +229,7 @@ function MerchantSettingsPage() {
               <View
                 key={tag}
                 className={`px-4 py-2 rounded-full border text-sm font-bold ${active
-                  ? '!bg-orange-500 !border-orange-500 text-white'
+                  ? '!bg-primary !border-primary text-white'
                   : '!bg-white !border-gray-300 text-gray-600'}`}
                 onClick={() => toggleSceneTag(tag)}
               >
@@ -251,8 +251,7 @@ function MerchantSettingsPage() {
             className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base"
             value={form.name}
             placeholder="请输入店铺名称"
-            onInput={e => updateField('name', (e.detail?.value as string) ?? '')}
-          />
+            onInput={e => updateField('name', (e.detail?.value as string) ?? '')} />
         </View>
 
         {/* 店铺简介 */}
@@ -262,8 +261,7 @@ function MerchantSettingsPage() {
             className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base min-h-[80px]"
             placeholder="简述店铺特色..."
             value={form.description}
-            onInput={e => updateField('description', (e.detail?.value as string) ?? '')}
-          />
+            onInput={e => updateField('description', (e.detail?.value as string) ?? '')} />
         </View>
 
         {/* 主营类目 */}
@@ -273,7 +271,7 @@ function MerchantSettingsPage() {
             {CATEGORY_OPTIONS.map(cat => (
               <View key={cat}
                 className={`px-3 py-1.5 rounded-lg text-sm ${form.category === cat
-                  ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+                  ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}
                 onClick={() => updateField('category', cat)}
               >
                 <Text className={form.category === cat ? 'text-white' : 'text-gray-600'}>{cat}</Text>
@@ -295,8 +293,7 @@ function MerchantSettingsPage() {
             maxlength={11}
             value={form.phone}
             placeholder="客服电话"
-            onInput={e => updateField('phone', (e.detail?.value as string) ?? '')}
-          />
+            onInput={e => updateField('phone', (e.detail?.value as string) ?? '')} />
         </View>
 
         <View className="mb-3">
@@ -305,8 +302,7 @@ function MerchantSettingsPage() {
             className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base"
             value={form.contact}
             placeholder="联系人姓名"
-            onInput={e => updateField('contact', (e.detail?.value as string) ?? '')}
-          />
+            onInput={e => updateField('contact', (e.detail?.value as string) ?? '')} />
         </View>
 
         <View>
@@ -315,8 +311,7 @@ function MerchantSettingsPage() {
             className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base"
             value={form.address}
             placeholder="详细地址"
-            onInput={e => updateField('address', (e.detail?.value as string) ?? '')}
-          />
+            onInput={e => updateField('address', (e.detail?.value as string) ?? '')} />
         </View>
       </View>
 
@@ -328,7 +323,7 @@ function MerchantSettingsPage() {
         <View className="flex items-center justify-between py-2 border-b border-gray-100">
           <Text className="text-base text-foreground">营业状态</Text>
           <View
-            className={`w-12 h-7 rounded-full relative ${form.is_open ? 'bg-green-500' : 'bg-gray-300'}`}
+            className={`w-12 h-7 rounded-full relative ${form.is_open ? 'bg-success' : 'bg-muted'}`}
             onClick={() => updateField('is_open', !form.is_open)}
           >
             <View className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${form.is_open ? 'right-0.5' : 'left-0.5'}`} />
@@ -343,8 +338,7 @@ function MerchantSettingsPage() {
               className="w-full px-3 py-2 rounded-xl bg-gray-50 text-sm"
               type="text"
               value={form.open_time}
-              onInput={e => updateField('open_time', (e.detail?.value as string) ?? '')}
-            />
+              onInput={e => updateField('open_time', (e.detail?.value as string) ?? '')} />
           </View>
           <Text className="pt-5 text-gray-400">至</Text>
           <View className="flex-1">
@@ -353,8 +347,7 @@ function MerchantSettingsPage() {
               className="w-full px-3 py-2 rounded-xl bg-gray-50 text-sm"
               type="text"
               value={form.close_time}
-              onInput={e => updateField('close_time', (e.detail?.value as string) ?? '')}
-            />
+              onInput={e => updateField('close_time', (e.detail?.value as string) ?? '')} />
           </View>
         </View>
       </View>
@@ -378,13 +371,12 @@ function MerchantSettingsPage() {
               const rate = Math.min(30, Math.max(3, v)) / 100
               updateField('referral_rate', rate)
             }}
-            placeholder="3~30"
-          />
+            placeholder="3~30" />
           <Text className="text-xs text-gray-400 mt-1 block text-center">输入 3~30 之间的整数（表示 3%~30%）</Text>
         </View>
         <View className="mt-2 p-2 rounded-lg bg-orange-50">
           <Text className="text-xs text-orange-600">
-            示例：让利率 10%，订单 100 元 → 平台让利 10 元，用于推广员佣金 + 积分返还 + 平台收入
+            示例：让利率 10%，订单 100 元 → 平台让利 10 元，用于推广员佣金 + 金豆返还 + 平台收入
           </Text>
         </View>
         {/* 店铺整体让利开关 */}
@@ -398,7 +390,7 @@ function MerchantSettingsPage() {
             </Text>
           </View>
           <View
-            className={`w-12 h-7 rounded-full relative ${form.referral_rate_enabled ? 'bg-green-500' : 'bg-gray-300'}`}
+            className={`w-12 h-7 rounded-full relative ${form.referral_rate_enabled ? 'bg-success' : 'bg-muted'}`}
             onClick={() => updateField('referral_rate_enabled', !form.referral_rate_enabled)}
           >
             <View className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${form.referral_rate_enabled ? 'right-0.5' : 'left-0.5'}`} />
@@ -418,7 +410,7 @@ function MerchantSettingsPage() {
               <Text className="text-xs text-gray-400 mt-0.5 block">支持送到客户地址</Text>
             </View>
             <View
-              className={`w-12 h-7 rounded-full relative ${form.delivery_enabled ? 'bg-green-500' : 'bg-gray-300'}`}
+              className={`w-12 h-7 rounded-full relative ${form.delivery_enabled ? 'bg-success' : 'bg-muted'}`}
               onClick={() => updateField('delivery_enabled', !form.delivery_enabled)}
             >
               <View className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${form.delivery_enabled ? 'right-0.5' : 'left-0.5'}`} />
@@ -464,14 +456,13 @@ function MerchantSettingsPage() {
           className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base min-h-[100px]"
           placeholder="输入店铺公告内容，顾客可在门店首页看到..."
           value={form.announcement}
-          onInput={e => updateField('announcement', (e.detail?.value as string) ?? '')}
-        />
+          onInput={e => updateField('announcement', (e.detail?.value as string) ?? '')} />
       </View>
 
       {/* ===== 保存按钮 ===== */}
       <View className="px-4 mt-6">
         <Button
-          className={`!w-full !m-0 !p-0 !rounded-2xl !leading-none !border-none ${saving ? '!bg-orange-300' : saved ? '!bg-green-500' : '!bg-orange-500'}`}
+          className={`!w-full !m-0 !p-0 !rounded-2xl !leading-none !border-none ${saving ? '!bg-primary/60' : saved ? '!bg-success' : '!bg-primary'}`}
           onClick={handleSave} disabled={saving}
         >
           <View className="py-4 text-base font-bold text-white">

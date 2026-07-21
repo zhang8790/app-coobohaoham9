@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { View, Text, Input } from '@tarojs/components'
 import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile, getMyAddresses, grantEmotionClaim, trackFoodTherapyEvent, removeCartItem } from '@/db/api'
+import Icon from '@/components/Icon'
 import { supabase } from '@/client/supabase'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { toFoodTherapyInput, checkCartConflicts, type CartConflict } from '@/utils/food-therapy'
@@ -695,9 +696,9 @@ function PaymentPage() {
   }, [paying, payMode, actualGoldBeansUsed, wxpayAmount, totalAmount, productCheck.loading, productCheck.invalid.length])
 
   const payModes: Array<{ key: PayMode; icon: string; label: string; color: string; desc: string; disabled?: boolean }> = [
-    { key: 'wxpay', icon: 'i-mdi-wechat', label: '微信支付', color: '#07C160', desc: `¥${totalAmount.toFixed(2)}` },
-    { key: 'hybrid', icon: 'i-mdi-lightning-bolt', label: '金豆+微信混合', color: 'hsl(var(--primary))', desc: `金豆抵 ¥${deductYuan.toFixed(2)}，余付 ¥${wxpayAmount.toFixed(2)}`, disabled: balance <= 0 },
-    { key: 'pure_gold', icon: 'i-mdi-star-circle', label: '纯金豆支付', color: '#D97706', desc: balance >= fullGoldNeeded ? `金豆 ${balance}` : `金豆不足，还需 ${pureGoldShort} 豆`, disabled: balance < fullGoldNeeded },
+    { key: 'wxpay', icon: '💬', label: '微信支付', color: '#07C160', desc: `¥${totalAmount.toFixed(2)}` },
+    { key: 'hybrid', icon: '⚡', label: '金豆+微信混合', color: 'hsl(var(--primary))', desc: `金豆抵 ¥${deductYuan.toFixed(2)}，余付 ¥${wxpayAmount.toFixed(2)}`, disabled: balance <= 0 },
+    { key: 'pure_gold', icon: '★', label: '纯金豆支付', color: '#C77B47', desc: balance >= fullGoldNeeded ? `金豆 ${balance}` : `金豆不足，还需 ${pureGoldShort} 豆`, disabled: balance < fullGoldNeeded },
   ]
 
   return (<RouteGuard>
@@ -710,14 +711,14 @@ function PaymentPage() {
 
       {/* 倒计时 */}
       <View className="mx-4 mt-6 p-5 rounded-2xl bg-card border border-border flex flex-col items-center">
-        <View className="i-mdi-clock-outline text-4xl text-primary mb-2" />
+        <Icon name="clock-outline" size={36} className="text-primary mb-2" />
         <Text className="text-xl text-muted-foreground">请在以下时间内完成支付</Text>
         <Text className="text-4xl font-bold text-primary mt-2" style={{ fontVariantNumeric: 'tabular-nums' }}>{countdownDisplay}</Text>
         {orderNo && <Text className="text-base text-muted-foreground mt-2">订单号：{orderNo}</Text>}
       </View>
 
       {/* 金额汇总卡 */}
-      <View className="mx-4 mt-4 p-4 rounded-2xl bg-card border-2 border-primary/30">
+      <View className="mx-4 mt-4 p-4 rounded-2xl bg-card border-2 border-primary">
         <View className="flex items-center justify-between">
           <Text className="text-xl font-bold text-foreground">订单金额</Text>
           <Text className="text-2xl font-bold text-foreground">¥{totalAmount.toFixed(2)}</Text>
@@ -737,7 +738,7 @@ function PaymentPage() {
         </View>
         {balance > 0 && (
           <View className="flex items-center gap-2 mt-2">
-            <View className="i-mdi-star-circle text-xl" style={{ color: '#D97706' }} />
+            <Icon name="star-circle" size={20} />
             <Text className="text-xl text-muted-foreground">金豆余额：<Text className="font-bold text-foreground">{balance} 豆</Text></Text>
           </View>
         )}
@@ -745,9 +746,9 @@ function PaymentPage() {
 
       {/* 失效商品警示（下单前预校验拦截，避免点到 createOrderV2 才报 INVALID_PRODUCT） */}
       {productCheck.invalid.length > 0 && (
-        <View className="mx-4 mt-4 p-4 rounded-2xl border-2 border-red-500/40 bg-red-500/5">
+        <View className="mx-4 mt-4 p-4 rounded-2xl border-2 border-destructive/40 bg-destructive/5">
           <View className="flex items-center gap-2 mb-2">
-            <View className="i-mdi-alert-circle text-2xl text-red-500" />
+            <Icon name="alert-circle" size={24} className="text-red-500" />
             <Text className="text-xl font-bold text-red-500">部分商品无法购买</Text>
           </View>
           {productCheck.invalid.map((it, idx) => (
@@ -768,8 +769,8 @@ function PaymentPage() {
         </View>
         <View className="flex gap-0">
           {([
-            { key: 'dine_in', label: '堂食', icon: 'i-mdi-silverware-fork-knife' },
-            { key: 'delivery', label: '配送', icon: 'i-mdi-moped' },
+            { key: 'dine_in', label: '堂食', icon: '🍴' },
+            { key: 'delivery', label: '配送', icon: '🛵' },
           ] as const).map((m, i, arr) => (
             <View key={m.key}
               className={`flex-1 flex flex-col items-center gap-1 py-4 ${i < arr.length - 1 ? 'border-r border-border' : ''} ${serviceType === m.key ? 'bg-primary/5' : ''}`}
@@ -807,7 +808,7 @@ function PaymentPage() {
           ) : (
             <View className="px-4 py-8 flex flex-col items-center gap-2"
               onClick={() => Taro.navigateTo({ url: '/pages/address/index' })}>
-              <View className="i-mdi-map-marker-plus text-4xl text-primary" />
+              <View className="text-primary"><Icon name="location" size={32} /></View>
               <Text className="text-xl text-primary font-bold">新增收货地址</Text>
             </View>
           )}
@@ -835,7 +836,7 @@ function PaymentPage() {
               <Text className="text-base text-muted-foreground">{m.desc}</Text>
             </View>
             <View className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${payMode === m.key ? 'border-primary bg-primary' : 'border-border'}`}>
-              {payMode === m.key && <View className="i-mdi-check text-white text-xs" />}
+              {payMode === m.key && <Icon name="check" size={12} className="text-white" />}
             </View>
           </View>
         ))}
@@ -852,20 +853,19 @@ function PaymentPage() {
             <View
               className="w-10 h-10 rounded-full bg-muted flex items-center justify-center"
               onClick={() => setGoldBeansToUse(Math.max(0, goldBeansToUse - 10))}>
-              <View className="i-mdi-minus text-xl text-foreground" />
+              <Icon name="minus" size={20} className="text-foreground" />
             </View>
             <View className="flex-1 border-2 border-input rounded-xl px-4 py-2 bg-background overflow-hidden">
               <Input
                 type="number"
                 className="w-full text-2xl font-bold text-center text-foreground bg-transparent outline-none"
                 value={String(goldBeansToUse)}
-                onInput={(e) => { const ev = e as any; const v = parseFloat(ev.detail?.value ?? ev.target?.value ?? '0'); setGoldBeansToUse(Number.isFinite(v) ? Math.min(maxGoldBeans, Math.max(0, v)) : 0) }}
-              />
+                onInput={(e) => { const ev = e as any; const v = parseFloat(ev.detail?.value ?? ev.target?.value ?? '0'); setGoldBeansToUse(Number.isFinite(v) ? Math.min(maxGoldBeans, Math.max(0, v)) : 0) }} />
             </View>
             <View
               className="w-10 h-10 rounded-full bg-muted flex items-center justify-center"
               onClick={() => setGoldBeansToUse(Math.min(maxGoldBeans, goldBeansToUse + 10))}>
-              <View className="i-mdi-plus text-xl text-foreground" />
+              <Icon name="plus" size={20} className="text-foreground" />
             </View>
             <View
               className="flex items-center justify-center leading-none rounded-xl bg-primary/10"
@@ -876,8 +876,13 @@ function PaymentPage() {
         </View>
       )}
 
-      {/* 操作按钮 */}
-      <View className="mx-4 mt-4 flex flex-col gap-3">
+      {/* 底部留白：避免固定操作栏遮挡最后一张卡片 */}
+      <View style={{ height: '180px' }} />
+
+      {/* 操作按钮：固定底部栏，永远可见可点，不被长内容 / 弹窗遮挡 */}
+      <View
+        className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t-2 border-border px-4 pt-3 flex flex-col gap-3"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
         <View
           className={`w-full flex items-center justify-center leading-none rounded-2xl ${productCheck.loading || productCheck.invalid.length > 0 ? 'bg-muted opacity-50' : (paying ? 'bg-primary/50' : 'bg-primary')}`}
           onClick={handlePay}>
@@ -888,11 +893,11 @@ function PaymentPage() {
           onClick={handleCancel}>
           <View className="py-4 text-xl text-muted-foreground">取消支付</View>
         </View>
-      </View>
-
-      <View className="mx-4 mt-4 pb-6"
-        onClick={() => Taro.navigateTo({ url: '/pages/trade-rules/index' })}>
-        <Text className="text-base text-muted-foreground text-center">支付即视为同意<Text className="text-primary">《来电有喜交易规则》</Text></Text>
+        <View
+          className="flex items-center justify-center py-1"
+          onClick={() => Taro.navigateTo({ url: '/pages/trade-rules/index' })}>
+          <Text className="text-base text-muted-foreground text-center">支付即视为同意<Text className="text-primary">《来电有喜交易规则》</Text></Text>
+        </View>
       </View>
 
       {/* 结算风险弹窗（食疗冲突 + 体质禁忌） */}
@@ -906,7 +911,7 @@ function PaymentPage() {
                 <View key={idx} className="p-3 rounded-2xl border" style={{ background: c.level === 'danger' ? '#FEE2E2' : '#FEF3C7', borderColor: c.level === 'danger' ? '#FCA5A5' : '#FDE68A' }}>
                   <View className="flex items-center gap-2 mb-1">
                     <Text className="text-xl">{c.level === 'danger' ? '⚠️' : '🟡'}</Text>
-                    <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#92400E' }}>
+                    <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#9A8070' }}>
                       {c.type === 'warm_overlap' ? '温补叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
                     </Text>
                   </View>

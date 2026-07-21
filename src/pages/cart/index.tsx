@@ -3,10 +3,12 @@ import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
 import { getCartItems, updateCartQty, removeCartItem, updateCartSelected } from '@/db/api'
+import Icon from '@/components/Icon'
 import { updateCartBadge } from '@/utils/cartBadge'
 import { subscribeCartCount, bumpCartCount } from '@/utils/cartStore'
 import { setPendingCheckout } from '@/utils/checkoutCache'
 import { generateEmotionHeadline } from '@/utils/emotion-description'
+import CustomTabBar from '@/components/custom-tabbar'
 import type { CartItem, Product } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
@@ -113,18 +115,18 @@ function CartPage() {
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
   return (<RouteGuard>
-    <View className="h-screen flex flex-col bg-background">
+    <View className="h-screen flex flex-col bg-background tabbar-pad">
       {/* 顶部全选栏 */}
       {items.length > 0 && (
         <View className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-card border-b border-border">
           <View className="flex items-center gap-2" onClick={() => toggleAll(!allSelected)}>
             <View className={`w-5 h-5 rounded flex items-center justify-center border-2 ${allSelected ? 'bg-primary border-primary' : 'border-border'}`}>
-              {allSelected && <View className="i-mdi-check text-white text-xs" />}
+              {allSelected && <Icon name="check" size={12} className="text-white" />}
             </View>
             <Text className="text-xl text-foreground">全选</Text>
           </View>
@@ -138,12 +140,12 @@ function CartPage() {
       <View className="flex-1 overflow-y-auto pb-4">
         {items.length === 0 ? (
           <View className="flex flex-col items-center justify-center pt-32 gap-4">
-            <View className="i-mdi-bag-personal-outline text-8xl text-muted-foreground" />
+            <View className="text-muted-foreground"><Icon name="bag" size={64} /></View>
             <Text className="text-2xl text-muted-foreground">行囊空空如也</Text>
             <View
               className="flex items-center justify-center leading-none rounded-2xl bg-primary"
               onClick={() => Taro.switchTab({ url: '/pages/reward-shop/index' })}>
-              <View className="py-3 px-8 text-xl text-white font-bold">去犒赏铺转转</View>
+              <View className="py-3 px-8 text-xl text-white font-bold">去品牌馆转转</View>
             </View>
           </View>
         ) : (
@@ -159,9 +161,9 @@ function CartPage() {
                   <View className="flex items-center gap-3 px-4 py-3 bg-primary/5 border-b border-border">
                     <View className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${allStoreSelected ? 'bg-primary border-primary' : 'border-border'}`}
                       onClick={() => toggleStore(storeId, !allStoreSelected)}>
-                      {allStoreSelected && <View className="i-mdi-check text-white text-xs" />}
+                      {allStoreSelected && <Icon name="check" size={12} className="text-white" />}
                     </View>
-                    <View className="i-mdi-store text-xl text-primary" />
+                    <Icon name="store" size={20} className="text-primary" />
                     <Text className="text-xl font-bold text-foreground flex-1">{group.storeName}</Text>
                     <Text className="text-base text-muted-foreground">{storeTotalQty}件</Text>
                   </View>
@@ -171,7 +173,7 @@ function CartPage() {
                     <View key={item.id} className="flex items-center gap-3 px-4 py-4 border-b border-border last:border-0">
                       <View className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${item.selected ? 'bg-primary border-primary' : 'border-border'}`}
                         onClick={() => toggleItem(item.id, !item.selected)}>
-                        {item.selected && <View className="i-mdi-check text-white text-xs" />}
+                        {item.selected && <Icon name="check" size={12} className="text-white" />}
                       </View>
                       <Image src={item.products?.image_url || ''} mode="aspectFill"
                         style={{ width: '72px', height: '72px', borderRadius: '8px', flexShrink: 0 }}
@@ -190,19 +192,19 @@ function CartPage() {
                             <View
                               className="w-8 h-8 rounded-full border-2 border-border bg-card flex items-center justify-center leading-none"
                               onClick={() => changeQty(item.id, -1, item.quantity)}>
-                              <View className="i-mdi-minus text-xl text-foreground" />
+                              <Icon name="minus" size={20} className="text-foreground" />
                             </View>
                             <Text className="text-xl text-foreground font-bold w-6 text-center">{item.quantity}</Text>
                             <View
                               className="w-8 h-8 rounded-full bg-primary flex items-center justify-center leading-none"
                               onClick={() => changeQty(item.id, 1, item.quantity)}>
-                              <View className="i-mdi-plus text-white text-xl" />
+                              <Icon name="plus" size={20} className="text-white" />
                             </View>
                           </View>
                           <View
                             className="w-8 h-8 flex items-center justify-center"
                             onClick={() => handleRemove(item.id)}>
-                            <View className="i-mdi-delete-outline text-2xl text-muted-foreground" />
+                            <Icon name="delete-outline" size={24} className="text-muted-foreground" />
                           </View>
                         </View>
                       </View>
@@ -258,7 +260,7 @@ function CartPage() {
                   style={{ background: c.level === 'danger' ? '#FEE2E2' : '#FEF3C7', borderColor: c.level === 'danger' ? '#FCA5A5' : '#FDE68A' }}>
                   <View className="flex items-center gap-2 mb-1">
                     <Text className="text-xl">{c.level === 'danger' ? '⚠️' : '🟡'}</Text>
-                    <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#92400E' }}>
+                    <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#9A8070' }}>
                       {c.type === 'warm_overlap' ? '温补叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
                     </Text>
                   </View>
@@ -275,6 +277,7 @@ function CartPage() {
         </View>
       )}
     </View>
+    <CustomTabBar />
   </RouteGuard>)
 }
 

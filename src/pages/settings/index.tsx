@@ -5,6 +5,7 @@ import { View, Text, Image, Input } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { updateUserProfile, deleteUserAccount } from '@/db/api'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 function SettingsPage() {
   const { user, profile: ctxProfile, signOut } = useAuth()
@@ -101,7 +102,7 @@ function SettingsPage() {
       {/* 个人资料卡 */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
         <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <View className="i-mdi-account-circle text-2xl text-primary" />
+          <Icon name="account-circle" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">个人资料</Text>
           <View className="flex-1" />
           <View
@@ -119,10 +120,10 @@ function SettingsPage() {
               {avatarUrl
                 ? <Image src={avatarUrl} mode="aspectFill" style={{ width: '56px', height: '56px' }} />
                 : <View className="w-full h-full flex items-center justify-center">
-                    <View className="i-mdi-account text-3xl text-muted-foreground" />
+                    <Icon name="account" size={30} className="text-muted-foreground" />
                   </View>}
             </View>
-            {editing && <View className="i-mdi-camera text-2xl text-muted-foreground" />}
+            {editing && <Icon name="camera" size={24} className="text-muted-foreground" />}
           </View>
         </View>
 
@@ -167,7 +168,7 @@ function SettingsPage() {
       {/* 通知设置 */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
         <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <View className="i-mdi-bell-outline text-2xl text-primary" />
+          <Icon name="bell-outline" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">通知设置</Text>
         </View>
         {[
@@ -198,8 +199,7 @@ function SettingsPage() {
                     boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
                     alignSelf: isOn ? 'flex-end' : 'flex-start',
                     transition: 'all 0.2s',
-                  }}
-                />
+                  }} />
               </View>
             </View>
           )
@@ -209,7 +209,7 @@ function SettingsPage() {
       {/* 隐私与个性化 */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
         <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <View className="i-mdi-shield-lock-outline text-2xl text-primary" />
+          <Icon name="shield-lock-outline" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">隐私与个性化</Text>
         </View>
         <View className="flex items-center justify-between px-4 py-4"
@@ -227,8 +227,7 @@ function SettingsPage() {
                 boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
                 alignSelf: allowBehaviorAnalysis ? 'flex-end' : 'flex-start',
                 transition: 'all 0.2s',
-              }}
-            />
+              }} />
           </View>
         </View>
       </View>
@@ -236,25 +235,25 @@ function SettingsPage() {
       {/* 账号安全 */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
         <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <View className="i-mdi-shield-account text-2xl text-primary" />
+          <Icon name="shield-account" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">账号安全</Text>
         </View>
         <View className="flex items-center justify-between px-4 py-4 border-b border-border"
           onClick={() => Taro.showToast({ title: '请通过微信修改绑定手机号', icon: 'none' })}>
           <Text className="text-xl text-foreground">修改手机号</Text>
-          <View className="i-mdi-chevron-right text-2xl text-muted-foreground" />
+          <Icon name="chevron-right" size={24} className="text-muted-foreground" />
         </View>
         <View className="flex items-center justify-between px-4 py-4"
           onClick={handleDeleteAccount}>
           <Text className="text-xl text-red-400">注销账号</Text>
-          <View className="i-mdi-chevron-right text-2xl text-muted-foreground" />
+          <Icon name="chevron-right" size={24} className="text-muted-foreground" />
         </View>
       </View>
 
       {/* 关于 */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
         <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <View className="i-mdi-information-outline text-2xl text-primary" />
+          <Icon name="information-outline" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">关于</Text>
         </View>
         {[
@@ -271,7 +270,7 @@ function SettingsPage() {
           <View key={item.label} className="flex items-center justify-between px-4 py-4 border-b border-border last:border-0"
             onClick={item.handler}>
             <Text className="text-xl text-foreground">{item.label}</Text>
-            <View className="i-mdi-chevron-right text-2xl text-muted-foreground" />
+            <Icon name="chevron-right" size={24} className="text-muted-foreground" />
           </View>
         ))}
       </View>

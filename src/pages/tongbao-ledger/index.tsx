@@ -6,6 +6,7 @@ import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
 import { getMyTongbaoLogs, getMyProfile } from '@/db/api'
 import type { TongbaoLog } from '@/db/types'
+import Icon from '@/components/Icon'
 
 const TYPE_LABEL: Record<string, string> = {
   purchase_spend: '消费支出',
@@ -98,7 +99,7 @@ function TongbaoLedgerPage() {
     <RouteGuard>
       <View className="min-h-screen bg-background" onScrollToLower={onScrollToLower}>
         {/* 顶部汇总 */}
-        <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #C2410C, #EA580C)' }}>
+        <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #A8552E, #A8552E)' }}>
           <View className="px-4 pt-5 pb-3">
             <Text className="text-white/80 text-base">当前金豆余额</Text>
             <Text className="text-white text-4xl font-black mt-1">{balance.toFixed(2)}</Text>
@@ -130,11 +131,11 @@ function TongbaoLedgerPage() {
         <View className="px-4 mt-4 pb-8">
           {loading && items.length === 0 ? (
             <View className="flex justify-center py-16">
-              <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+              <Icon name="loading" size={36} className="text-primary animate-spin" />
             </View>
           ) : filtered.length === 0 ? (
             <View className="flex flex-col items-center py-16 gap-3">
-              <View className="i-mdi-cash-remove text-6xl text-muted-foreground/30" />
+              <Icon name="cash-remove" size={60} className="text-muted-foreground/30" />
               <Text className="text-xl text-muted-foreground">暂无金豆明细</Text>
               <Text className="text-base text-muted-foreground text-center px-8">佣金、充值、消费都会在这里记录</Text>
             </View>
@@ -148,7 +149,7 @@ function TongbaoLedgerPage() {
                     <View className="flex items-center justify-between">
                       <View className="flex items-center gap-3">
                         <View className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: (TYPE_COLOR[it.type] || '#6B7280') + '20' }}>
-                          <View className={`i-mdi-${isIncome ? 'arrow-down' : 'arrow-up'} text-xl`} style={{ color: TYPE_COLOR[it.type] || '#6B7280' }} />
+                          <Icon name={isIncome ? 'arrow-down' : 'arrow-up'} size={20} className="text-xl" style={{ color: TYPE_COLOR[it.type] || '#6B7280' }} />
                         </View>
                         <View>
                           <Text className="text-lg font-bold text-foreground">{TYPE_LABEL[it.type] || it.type}</Text>

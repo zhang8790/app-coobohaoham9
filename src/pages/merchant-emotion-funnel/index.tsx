@@ -3,6 +3,7 @@
 // 进入 → 滑到最后一屏(信任闭环) → 点击「立即拥有」。
 // 同时按商品维度排名，帮商家判断哪些商品的「情绪表达」真正带动了购买意向。
 import { useState, useEffect, useMemo } from 'react'
+import Icon from '@/components/Icon'
 
 import { View, Text } from '@tarojs/components'
 import { supabase } from '@/client/supabase'
@@ -102,15 +103,15 @@ export default function MerchantEmotionFunnelPage() {
   }, [events, productNames])
 
   const steps = [
-    { key: 'enter', label: '进入情绪之旅', value: funnel.enter, color: '#C2410C' },
-    { key: 'screen5', label: '滑到最后一屏（信任闭环）', value: funnel.screen5, color: '#EA580C' },
-    { key: 'cta', label: '点击「立即拥有」', value: funnel.cta, color: '#F97316' },
+    { key: 'enter', label: '进入情绪之旅', value: funnel.enter, color: '#A8552E' },
+    { key: 'screen5', label: '滑到最后一屏（信任闭环）', value: funnel.screen5, color: '#A8552E' },
+    { key: 'cta', label: '点击「立即拥有」', value: funnel.cta, color: '#C77B47' },
   ]
 
   if (loading) {
     return (
       <View className="emo-funnel-loading">
-        <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+        <Icon name="loading" size={36} className="text-primary animate-spin" />
       </View>
     )
   }
@@ -135,11 +136,11 @@ export default function MerchantEmotionFunnelPage() {
 
         {loadingData ? (
           <View className="flex items-center justify-center py-20">
-            <View className="i-mdi-loading text-3xl text-primary animate-spin" />
+            <Icon name="loading" size={30} className="text-primary animate-spin" />
           </View>
         ) : funnel.enter === 0 ? (
           <View className="emo-funnel-empty">
-            <Text className="emo-funnel-empty-icon">📊</Text>
+            <Icon name="chart" size={48} className="emo-funnel-empty-icon" />
             <Text className="emo-funnel-empty-text">还没有情绪导购数据</Text>
             <Text className="emo-funnel-empty-sub">去商品详情页点「开启情绪之旅」，用户滑动五屏时这里就会累积转化数据</Text>
           </View>
@@ -186,15 +187,15 @@ export default function MerchantEmotionFunnelPage() {
                   <View className="emo-funnel-prod-bars">
                     <View className="emo-funnel-mini">
                       <Text className="emo-funnel-mini-label">进入 {item.enter}</Text>
-                      <View className="emo-funnel-mini-bg"><View className="emo-funnel-mini-bar" style={{ width: '100%', background: '#C2410C' }} /></View>
+                      <View className="emo-funnel-mini-bg"><View className="emo-funnel-mini-bar" style={{ width: '100%', background: '#A8552E' }} /></View>
                     </View>
                     <View className="emo-funnel-mini">
                       <Text className="emo-funnel-mini-label">到尾屏 {item.screen5}</Text>
-                      <View className="emo-funnel-mini-bg"><View className="emo-funnel-mini-bar" style={{ width: `${er}%`, background: '#EA580C' }} /></View>
+                      <View className="emo-funnel-mini-bg"><View className="emo-funnel-mini-bar" style={{ width: `${er}%`, background: '#A8552E' }} /></View>
                     </View>
                     <View className="emo-funnel-mini">
                       <Text className="emo-funnel-mini-label">购买 {item.cta}</Text>
-                      <View className="emo-funnel-mini-bg"><View className="emo-funnel-mini-bar" style={{ width: `${cr}%`, background: '#F97316' }} /></View>
+                      <View className="emo-funnel-mini-bg"><View className="emo-funnel-mini-bar" style={{ width: `${cr}%`, background: '#C77B47' }} /></View>
                     </View>
                   </View>
                 </View>

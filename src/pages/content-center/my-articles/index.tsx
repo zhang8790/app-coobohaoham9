@@ -4,6 +4,7 @@ import Taro, { useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/t
 import { View, Button, Text } from '@tarojs/components'
 import { getMyArticles, deleteArticle, getMyProfile } from '@/db/api'
 import type { Article } from '@/db/types'
+import Icon from '@/components/Icon'
 
 type Tab = 'all' | 'published' | 'draft'
 
@@ -97,7 +98,7 @@ export default function MyArticlesPage() {
 
         {!loading && articles.length === 0 && (
           <View className="flex flex-col items-center justify-center py-20 gap-4">
-            <View className="i-mdi-file-document-outline text-6xl text-muted-foreground" />
+            <Icon name="file-document-outline" size={60} className="text-muted-foreground" />
             <Text className="text-xl text-muted-foreground">
               {activeTab === 'draft' ? '暂无草稿' : activeTab === 'published' ? '还未发布文章' : '还没有文章，赶快创作吧'}
             </Text>
@@ -142,7 +143,7 @@ export default function MyArticlesPage() {
                   <Button type="button"
                     className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-blue-300 bg-blue-50"
                     onClick={(e) => handlePreview(e, article)}>
-                    <View className="i-mdi-eye-outline text-xl text-blue-600" />
+                    <Icon name="eye-outline" size={20} className="text-blue-600" />
                     <Text className="text-xl text-blue-600">预览</Text>
                   </Button>
                   {/* 分享按钮 — 已发布的文章才能分享归属 */}
@@ -160,13 +161,13 @@ export default function MyArticlesPage() {
                   <Button type="button"
                     className={`flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-primary/30 bg-primary/5 ${article.status === 'published' ? 'flex-1' : 'flex-1'}`}
                     onClick={(e) => { e.stopPropagation(); handleEdit(article) }}>
-                    <View className="i-mdi-pencil text-xl text-primary" />
+                    <Icon name="pencil" size={20} className="text-primary" />
                     <Text className="text-xl text-primary">编辑</Text>
                   </Button>
                   <Button type="button"
                     className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-destructive/30 bg-destructive/5"
                     onClick={(e) => { e.stopPropagation(); handleDelete(article) }}>
-                    <View className="i-mdi-delete-outline text-xl text-destructive" />
+                    <Icon name="delete-outline" size={20} className="text-destructive" />
                     <Text className="text-xl text-destructive">删除</Text>
                   </Button>
                 </View>

@@ -10,6 +10,7 @@ import LazyImage from '@/components/LazyImage'
 import { getStoreById, getStoreCategories, getProducts, addToCart, bindStoreReferrer } from '@/db/api'
 import type { Store, StoreCategory, Product } from '@/db/types'
 import { supabase } from '@/client/supabase'
+import Icon from '@/components/Icon'
 
 export default function StoreHomePage() {
   const [storeId, setStoreId] = useState('')
@@ -170,8 +171,7 @@ export default function StoreHomePage() {
             <Image
               src={img}
               mode="aspectFill"
-              style={{ width: '100%', height: '180px', display: 'block' }}
-            />
+              style={{ width: '100%', height: '180px', display: 'block' }} />
           ) : (
             // 无图片时：显示品牌色背景 + 店铺图标
             // 使用 CSS class 实现渐变（微信小程序不支持 inline linear-gradient）
@@ -275,11 +275,11 @@ export default function StoreHomePage() {
               padding: '6px 18px',
               borderRadius: '999px',
               borderWidth: '2px',
-              borderColor: '#C2410C',
+              borderColor: '#A8552E',
               backgroundColor: 'rgba(194,65,12,0.08)',
               marginRight: '10px',
             }}>
-            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#C2410C' }}>{label}</Text>
+            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#A8552E' }}>{label}</Text>
           </View>
         ))}
       </View>
@@ -298,9 +298,9 @@ export default function StoreHomePage() {
               padding: '16px 0',
               backgroundColor: activeCat === 'all' ? '#FFF' : 'transparent',
               borderLeftWidth: activeCat === 'all' ? '3px' : '0',
-              borderLeftColor: '#C2410C',
+              borderLeftColor: '#A8552E',
             }}>
-            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === 'all' ? '#C2410C' : '#333' }}>全部</Text>
+            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === 'all' ? '#A8552E' : '#333' }}>全部</Text>
           </View>
           {categories.map((cat) => (
             <View
@@ -313,9 +313,9 @@ export default function StoreHomePage() {
                 padding: '16px 0',
                 backgroundColor: activeCat === cat.id ? '#FFF' : 'transparent',
                 borderLeftWidth: activeCat === cat.id ? '3px' : '0',
-                borderLeftColor: '#C2410C',
+                borderLeftColor: '#A8552E',
               }}>
-              <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === cat.id ? '#C2410C' : '#333' }}>{cat.name}</Text>
+              <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === cat.id ? '#A8552E' : '#333' }}>{cat.name}</Text>
             </View>
           ))}
         </ScrollView>
@@ -376,7 +376,7 @@ export default function StoreHomePage() {
                               padding: '2px 8px',
                               backgroundColor: 'rgba(194,65,12,0.1)',
                             }}>
-                            <Text style={{ fontSize: '11px', color: '#C2410C' }}>{tag}</Text>
+                            <Text style={{ fontSize: '11px', color: '#A8552E' }}>{tag}</Text>
                           </View>
                         ))}
                       </View>
@@ -384,14 +384,14 @@ export default function StoreHomePage() {
 
                     {/* 价格 + 加入购物车 */}
                     <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '8px' }}>
-                      <Text style={{ fontSize: '17px', fontWeight: 'bold', color: '#C2410C' }}>¥{p.price}</Text>
+                      <Text style={{ fontSize: '17px', fontWeight: 'bold', color: '#A8552E' }}>¥{p.price}</Text>
                       <View
                         onClick={(e) => { e.stopPropagation(); handleAddCart(p) }}
                         style={{
                           width: '36px',
                           height: '36px',
                           borderRadius: '9999px',
-                          backgroundColor: '#C2410C',
+                          backgroundColor: '#A8552E',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -399,8 +399,8 @@ export default function StoreHomePage() {
                           flexShrink: 0,
                         }}>
                         {addingId === p.id
-                          ? <View className="i-mdi-loading text-white text-lg animate-spin" />
-                          : <View className="i-mdi-cart-plus text-white text-lg" />}
+                          ? <Icon name="loading" size={18} className="text-white animate-spin" />
+                          : <Icon name="cart-plus" size={18} className="text-white" />}
                       </View>
                     </View>
                   </View>

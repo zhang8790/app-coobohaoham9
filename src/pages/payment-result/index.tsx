@@ -3,6 +3,7 @@ import { useRouter } from '@tarojs/taro'
 import Taro from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 function PaymentResultPage() {
   const router = useRouter()
@@ -24,7 +25,7 @@ function PaymentResultPage() {
       <View className="min-h-screen bg-background flex flex-col items-center px-6 pt-20">
         {/* 成功图标 */}
         <View className="w-24 h-24 rounded-full flex items-center justify-center bg-primary/10 mb-6">
-          <View className="i-mdi-check-circle text-6xl text-primary" />
+          <Icon name="check-circle" size={60} className="text-primary" />
         </View>
         <Text className="text-3xl font-bold text-foreground">支付成功</Text>
         <Text className="text-xl text-muted-foreground mt-2">¥{total.toFixed(2)} 已支付</Text>

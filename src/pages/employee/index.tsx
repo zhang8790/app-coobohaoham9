@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
 import { supabase } from '@/client/supabase'
 import { RouteGuard } from '@/components/RouteGuard'
+import Icon from '@/components/Icon'
 
 interface StaffInfo {
   id: string
@@ -46,7 +47,7 @@ function EmployeePage() {
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
@@ -54,7 +55,7 @@ function EmployeePage() {
     <RouteGuard>
       <View className="min-h-screen bg-background flex items-center justify-center px-6">
         <View className="text-center">
-          <View className="i-mdi-account-alert text-6xl text-muted-foreground mb-4" />
+          <Icon name="user" size={56} color="#9CA3AF" className="mb-4" />
           <Text className="text-xl text-muted-foreground block mb-2">未绑定员工身份</Text>
           <Text className="text-base text-muted-foreground/60 block mb-6">请联系商家添加您为员工</Text>
           <Button className="!bg-primary !text-white !rounded-xl" onClick={handleLogout}>返回登录</Button>
@@ -67,7 +68,7 @@ function EmployeePage() {
     <RouteGuard>
       <View className="min-h-screen bg-background pb-8">
         {/* 顶栏 */}
-        <View className="px-4 pb-2" style={{ background: 'linear-gradient(160deg,#E8F5E9 0%,#FFF8E1 100%)' }}>
+        <View className="px-4 pb-2" style={{ background: 'linear-gradient(160deg,#F5ECE2 0%,#F0DCCB 100%)' }}>
           <Text className="text-2xl font-bold text-foreground">员工中心</Text>
           <Text className="text-base text-muted-foreground mt-1 block">{staffInfo.stores?.name || '未知店铺'}</Text>
         </View>
@@ -88,13 +89,13 @@ function EmployeePage() {
         {/* 功能入口（待开发） */}
         <View className="mx-4 mt-4 grid grid-cols-2 gap-3">
           {[
-            { icon: 'i-mdi-qrcode-scan', label: '扫码推广', desc: '让客户扫您的码', color: '#07C160' },
-            { icon: 'i-mdi-chart-line', label: '业绩统计', desc: '查看推广业绩', color: '#1976D2' },
-            { icon: 'i-mdi-account-group', label: '我的客户', desc: '查看归属客户', color: '#9C27B0' },
-            { icon: 'i-mdi-wallet', label: '佣金明细', desc: '查看佣金记录', color: '#FF9800' },
+            { icon: 'scan', label: '扫码推广', desc: '让客户扫您的码', color: '#2E7D5B' },
+            { icon: 'chart', label: '业绩统计', desc: '查看推广业绩', color: '#3B5B7A' },
+            { icon: 'user', label: '我的客户', desc: '查看归属客户', color: '#8A6D3B' },
+            { icon: 'coin', label: '佣金明细', desc: '查看佣金记录', color: '#C77B30' },
           ].map(btn => (
             <View key={btn.label} className="p-4 rounded-2xl bg-card border border-border">
-              <View className={`${btn.icon} text-3xl mb-2`} style={{ color: btn.color }} />
+              <Icon name={btn.icon} size={32} color={btn.color} className="mb-2" />
               <Text className="text-xl font-bold text-foreground block">{btn.label}</Text>
               <Text className="text-xs text-muted-foreground mt-0.5 block">{btn.desc}</Text>
             </View>

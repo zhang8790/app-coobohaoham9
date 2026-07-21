@@ -7,6 +7,7 @@ import type { MerchantApplication } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
 import { withTimeout } from '@/utils/withTimeout'
+import Icon from '@/components/Icon'
 
 interface InputFieldProps {
   label: string
@@ -82,7 +83,7 @@ function MerchantApplyPage() {
 
   if (loading) return (
     <View className="flex items-center justify-center min-h-screen bg-background">
-      <View className="i-mdi-loading text-4xl text-primary animate-spin" />
+      <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
   )
 
@@ -92,21 +93,21 @@ function MerchantApplyPage() {
       <View className="min-h-screen bg-background flex flex-col items-center justify-center px-8 gap-6">
         {existing.status === 'pending' && (
           <>
-            <View className="i-mdi-clock-outline text-8xl text-muted-foreground" />
+            <Icon name="clock-outline" size={28} className="text-8xl text-muted-foreground" />
           <Text className="text-2xl font-bold text-foreground">审核中</Text>
           <Text className="text-xl text-muted-foreground text-center">您的申请正在审核中，预计1-3个工作日完成审核。</Text>
         </>
       )}
       {existing.status === 'approved' && (
         <>
-          <View className="i-mdi-check-circle text-8xl text-primary" />
+          <Icon name="check-circle" size={28} className="text-8xl text-primary" />
           <Text className="text-2xl font-bold text-primary">已通过</Text>
           <Text className="text-xl text-muted-foreground text-center">恭喜！您的商家入驻申请已通过，可以开始管理门店了。</Text>
         </>
       )}
       {existing.status === 'rejected' && (
         <>
-          <View className="i-mdi-close-circle text-8xl text-destructive" />
+          <Icon name="close-circle" size={28} className="text-8xl text-destructive" />
           <Text className="text-2xl font-bold text-destructive">审核未通过</Text>
           <Text className="text-xl text-muted-foreground text-center">原因：{existing.reject_reason || '申请信息不符合要求'}</Text>
           <Button type="button"
@@ -128,9 +129,9 @@ function MerchantApplyPage() {
   return (
     <View className="min-h-screen bg-background pb-24">
       {/* 说明 */}
-      <View className="mx-4 mt-6 p-4 rounded-2xl" style={{ background: '#FFF0E8' }}>
+      <View className="mx-4 mt-6 p-4 rounded-2xl" style={{ background: '#F1E9D9' }}>
         <View className="flex items-center gap-2 mb-2">
-          <View className="i-mdi-store text-2xl text-primary" />
+          <Icon name="store" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">商家入驻申请</Text>
         </View>
         <Text className="text-xl text-secondary leading-relaxed">
@@ -176,8 +177,7 @@ function MerchantApplyPage() {
               value={description}
               maxLength={200}
               style={{ height: '100px' }}
-              onInput={(e) => { const ev = e as any; setDescription(ev.detail?.value ?? ev.target?.value ?? '') }}
-            />
+              onInput={(e) => { const ev = e as any; setDescription(ev.detail?.value ?? ev.target?.value ?? '') }} />
           </View>
         </View>
       </View>
@@ -189,7 +189,7 @@ function MerchantApplyPage() {
         <View className="flex items-center gap-2 mb-3"
           onClick={() => setAgreed(v => !v)}>
           <View className={`w-5 h-5 rounded border-2 flex items-center justify-center ${agreed ? 'bg-primary border-primary' : 'border-border'}`}>
-            {agreed && <View className="i-mdi-check text-white text-sm" />}
+            {agreed && <Icon name="check" size={14} className="text-white" />}
           </View>
           <View className="flex-1 flex items-center" onClick={(e) => { e.stopPropagation(); Taro.navigateTo({ url: '/pages/merchant-agreement/index' }) }}>
             <Text className="text-base text-muted-foreground">我已阅读并同意<Text className="text-primary">《商家入驻协议》</Text></Text>
@@ -221,8 +221,7 @@ function InputField({ label, required, placeholder, value, onChange, type = 'tex
           placeholder={placeholder}
           value={value}
           type={type}
-          onInput={(e) => { const ev = e as any; onChange(ev.detail?.value ?? ev.target?.value ?? '') }}
-        />
+          onInput={(e) => { const ev = e as any; onChange(ev.detail?.value ?? ev.target?.value ?? '') }} />
       </View>
     </View>
   </RouteGuard>)

@@ -4,32 +4,44 @@
 
 @layer base {
   :root {
-    /* 来电有喜：朱砂墨迹·武侠国潮 */
-    --background: 33 100% 99%;
-    --foreground: 20 9% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 20 9% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 20 9% 11%;
-    --primary: 17 87% 41%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 25 68% 28%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 28 57% 94%;
-    --muted-foreground: 20 14% 43%;
-    --accent: 25 55% 36%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
+    /* 来电有喜：墨韵·武侠国潮（低饱和护眼·手绘线稿） */
+    --background: 38 33% 89%;      /* 墨韵米（护眼底，替代刺眼亮白） */
+    --foreground: 20 12% 17%;      /* 墨字（柔黑，非纯黑） */
+    --card: 40 34% 94%;            /* 米纸卡 */
+    --card-foreground: 20 12% 17%;
+    --popover: 40 34% 94%;
+    --popover-foreground: 20 12% 17%;
+    --primary: 19 57% 42%;         /* 赭红（沉稳主色，替代高亮朱砂） */
+    --primary-foreground: 40 36% 96%;
+    --secondary: 25 30% 36%;       /* 沉褐 */
+    --secondary-foreground: 40 36% 96%;
+    --muted: 34 20% 84%;           /* 淡米灰 */
+    --muted-foreground: 22 12% 40%;
+    --accent: 25 36% 40%;          /* 赭 */
+    --accent-foreground: 40 36% 96%;
+    --destructive: 0 72% 51%;      /* 错误红：语义保留，不动 */
     --destructive-foreground: 0 0% 98%;
-    --border: 29 36% 87%;
-    --input: 29 36% 87%;
-    --ring: 17 87% 41%;
+    --border: 30 18% 79%;          /* 淡描边 */
+    --input: 30 18% 79%;
+    --ring: 19 57% 42%;
     --radius: 0.75rem;
-    --chart-1: 17 87% 41%;
-    --chart-2: 43 96% 56%;
-    --chart-3: 173 58% 39%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --chart-1: 19 57% 42%;
+    --chart-2: 40 42% 52%;         /* 古金 */
+    --chart-3: 152 24% 42%;        /* 收敛松绿 */
+    --chart-4: 212 24% 42%;        /* 收敛黛蓝 */
+    --chart-5: 340 45% 52%;        /* 收敛胭脂 */
+    /* 国潮辅色：多入口/图标统一色系（替代 Material 与 AI 紫） */
+    --brand-jade: 152 24% 42%;     /* 松绿 */
+    --brand-navy: 212 24% 42%;     /* 黛蓝 */
+    --brand-bronze: 32 22% 50%;    /* 古铜 */
+    --brand-ochre: 38 30% 45%;     /* 赭石 */
+    --brand-ink: 20 12% 17%;       /* 墨 */
+    --brand-gold: 40 42% 52%;      /* 古金（段位/金豆高光） */
+    --brand-gold-soft: 42 38% 62%; /* 古金浅 */
+    /* 状态语义色：国潮调 */
+    --success: 152 28% 40%;        /* 成功·松绿 */
+    --warning: 30 52% 42%;         /* 警告·赭橙 */
+    --info: 212 28% 42%;           /* 信息·黛蓝 */
   }
 }
 
@@ -45,6 +57,289 @@
     vertical-align: middle;
   }
   .emotion-bg {
-    background-color: #FFF0E8;
+    background-color: #F1E9D9;
   }
+
+  /* ===== 高级商品卡：软 elevate + 图层感 ===== */
+  .pg-card {
+    background: hsl(var(--card));
+    border-radius: 16px;
+    border: 1px solid hsl(var(--border) / 0.7);
+    box-shadow: 0 6px 22px rgba(20, 15, 11, 0.07);
+    transition: box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .pg-hover {
+    box-shadow: 0 12px 32px rgba(20, 15, 11, 0.13);
+    transform: translateY(-2px);
+  }
+  .pg-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .pg-hover .pg-img {
+    transform: scale(1.07);
+  }
+  /* 加购胶囊（墨韵赭红渐变 + 磁吸按压） */
+  .pg-add {
+    background: linear-gradient(135deg, #C77B47 0%, #A8552E 100%);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(168, 85, 46, 0.30);
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .pg-add-press {
+    transform: scale(0.93);
+  }
+  /* 玻璃角标 */
+  .pg-badge {
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 8px rgba(20, 15, 11, 0.18);
+  }
+  /* 商品关怀层 · 关怀度进度条（游戏化） */
+  .care-bar {
+    background: hsl(var(--muted));
+  }
+  .care-bar-fill {
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  /* 关怀导览 · 子菜单磁贴 */
+  .care-nav {
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease;
+  }
+  .care-nav-hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(168, 85, 46, 0.16);
+    border-color: hsl(var(--primary) / 0.5);
+  }
+  /* 场景磁贴 */
+  .scene-tile {
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 18px;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .scene-tile-hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(20, 15, 11, 0.12);
+  }
+  /* 分区标题装饰点 */
+  .section-accent {
+    width: 4px;
+    height: 18px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #C77B47, #A8552E);
+  }
+
+  /* ===== 墨韵国潮·手绘装饰工具类（加法，不改动现有） ===== */
+  /* 手绘风分隔线：不规则断续墨线 */
+  .ink-rule {
+    height: 1px;
+    border: 0;
+    background-image: linear-gradient(90deg,
+      transparent 0, hsl(var(--brand-ink) / 0.40) 12%, transparent 22%,
+      hsl(var(--brand-ink) / 0.40) 34%, transparent 46%,
+      hsl(var(--brand-ink) / 0.40) 58%, transparent 70%,
+      hsl(var(--brand-ink) / 0.40) 82%, transparent 100%);
+  }
+  /* 印章胶囊：段位/徽章用 */
+  .seal-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--primary) / 0.55);
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.08);
+    font-weight: 600;
+  }
+  /* 金豆高光字 */
+  .gold-text {
+    color: hsl(var(--brand-gold));
+  }
+  /* 国潮卡：淡墨描边 + 软投影（与 pg-card 并存，可选替换） */
+  .ink-card {
+    background: hsl(var(--card));
+    border-radius: 16px;
+    border: 1px solid hsl(var(--brand-ink) / 0.14);
+    box-shadow: 0 6px 20px rgba(28, 22, 16, 0.06);
+  }
+  /* 情绪/体质药丸标签 */
+  .symptom-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1.5px solid hsl(var(--border));
+    background: #fff;
+    color: hsl(var(--foreground));
+    font-size: 14px;
+    min-width: 80px;
+    height: 40px;
+  }
+  .symptom-tag-active {
+    border-color: transparent;
+    background: hsl(var(--primary));
+    color: #fff;
+    font-weight: bold;
+  }
+  /* 公告胶囊 */
+  .notice-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+  }
+  /* 场景网格卡片 */
+  .scene-grid-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 16px;
+    padding: 14px 6px;
+    text-align: center;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .scene-grid-card-hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(20, 15, 11, 0.12);
+  }
+  /* 会员资产条：金豆 / 佣金 / 积分 三列 */
+  .bean-hud {
+    margin: 10px 16px 0;
+    background: hsl(var(--card));
+    border-radius: 16px;
+    padding: 14px;
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 6px 20px rgba(28, 22, 16, 0.06);
+  }
+  .bean-hud-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .bean-hud-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .bean-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .bean-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #E8C66B, hsl(var(--brand-gold)));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(190, 154, 78, 0.25);
+  }
+  .bean-val {
+    font-weight: 800;
+    color: hsl(var(--foreground));
+    font-size: 16px;
+  }
+  .bean-label {
+    font-size: 11px;
+    color: hsl(var(--muted-foreground));
+    margin-top: 2px;
+  }
+  .bean-divider {
+    width: 1px;
+    height: 28px;
+    background: hsl(var(--border));
+  }
+  /* 段位成长 hero 卡：赭红渐变（对齐墨韵原型） */
+  .rank-card {
+    position: relative;
+    overflow: hidden;
+    margin: 10px 16px 0;
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(19 60% 34%) 100%);
+    border-radius: 18px;
+    padding: 14px 16px;
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(28, 22, 16, 0.10);
+  }
+  .rank-card::after {
+    content: "";
+    position: absolute;
+    right: -20px;
+    top: -20px;
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    pointer-events: none;
+  }
+  .rank-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+  }
+  .rank-title {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .rank-name {
+    font-size: 12px;
+    opacity: 0.9;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .rank-bar {
+    position: relative;
+    z-index: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .rank-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #F2D58E, hsl(var(--brand-gold)));
+    border-radius: 999px;
+  }
+  .rank-foot {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    opacity: 0.85;
+    margin-top: 8px;
+  }
+}
+
+@keyframes bean-burst-float {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.8); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -28px) scale(1.1); }
+}
+.bean-burst {
+  animation: bean-burst-float 1.2s ease-out forwards;
+  pointer-events: none;
+}
+
+/* 固定底部自定义 TabBar（.ctb ≈ 56px + 安全区，z-999）预留底部空间，
+   避免 tab 页的内容/操作栏被 TabBar 遮挡（如购物车「去结算」栏） */
+.tabbar-pad {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }

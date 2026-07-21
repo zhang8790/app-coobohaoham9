@@ -6,7 +6,7 @@ import { getStores } from '@/db/api'
 import type { Store } from '@/db/types'
 
 /**
- * 横向滑动门店卡：在首页/探索页顶部展示「精选好店」，
+ * 横向滑动门店卡：在首页/自营页顶部展示「精选好店」，
  * 每张卡宽 140px，横滑可看多家，纵向仅占用 ~150px，
  * 比把门店信息塞进商品卡更优雅、信息更聚焦。
  * 展示：logo(无则🏪占位) + 店名(单行截断) + ★评分 + 分类。
@@ -15,16 +15,18 @@ import type { Store } from '@/db/types'
 export default function StoreStrip({
   title = '精选好店',
   limit = 8,
+  platformFilter,
 }: {
   title?: string
   limit?: number
+  platformFilter?: 'only' | 'exclude'
 }) {
   const [stores, setStores] = useState<Store[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let alive = true
-    getStores(undefined, 0, limit)
+    getStores(undefined, 0, limit, platformFilter)
       .then((list) => { if (alive) setStores(list) })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
