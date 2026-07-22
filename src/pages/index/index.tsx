@@ -714,6 +714,33 @@ export default function IndexPage() {
         </View>
       )}
 
+      {/* 默认商品流：始终展示全量自营好物，承接原「自营甄选」位置；无订单 / 无输入也能逛 */}
+      <View className="mt-4 px-4">
+        <View className="flex items-center gap-2 mb-1">
+          <View className="section-accent" />
+          <Text className="text-2xl font-bold text-foreground">为你精选</Text>
+        </View>
+        <Text className="text-base text-muted-foreground block mb-3">
+          懂身体的江湖好物，挑挑看 · 食养参考不替代医嘱
+        </Text>
+        {loading && feedItems.length === 0 ? (
+          <View className="flex gap-3 overflow-x-auto pb-1">
+            {[0, 1, 2, 3].map(i => (
+              <View key={i} className="flex-shrink-0 bg-card rounded-xl border border-border animate-pulse" style={{ width: 160, height: 160 }} />
+            ))}
+          </View>
+        ) : feedItems.length > 0 ? (
+          <View className="flex gap-3 overflow-x-auto pb-1">
+            {feedItems.slice(0, 12).map((f) => (
+              <FitCard key={f.product.id} product={f.product}
+                onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${f.product.id}` })} />
+            ))}
+          </View>
+        ) : (
+          <Text className="text-base text-muted-foreground">暂无好物，去自营逛逛吧～</Text>
+        )}
+      </View>
+
       {/* 红包/实物领取弹窗 */}
       {showCampaignPopup && campaignList.length > 0 && (
         <View className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">

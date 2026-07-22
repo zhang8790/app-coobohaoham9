@@ -86,6 +86,7 @@ export interface MemberRow {
   tb_balance: number
   referrer_id: string | null
   referrer_nickname: string | null
+  downline_count: number
   address: string | null
   created_at: string
   is_banned: boolean
@@ -103,6 +104,7 @@ export interface MemberDetail {
   profile: MemberRow | null
   emotionClaims: MemberEmotionClaim[]
   orderCount: number
+  downlineUsers: MemberRow[]
 }
 
 // ── 看板总览 ──────────────────────────────────────────────────────────
@@ -236,11 +238,27 @@ export async function getMembers(
     if (error || !data) return { data: [], total: 0 }
 
     const rows = data as any[]
+    const ids = rows.map(r => r.id as string)
     const referrerIds = Array.from(new Set(rows.map(r => r.referrer_id).filter(Boolean))) as string[]
+
+    // 批量解析上线昵称
     const rmap = new Map<string, string>()
     if (referrerIds.length) {
       const { data: refs } = await supabase.from('profiles').select('id, nickname').in('id', referrerIds)
       for (const r of (refs as any[]) ?? []) rmap.set(r.id, r.nickname)
+    }
+
+    // 批量统计当前页每个会员的下线数量（profiles.referrer_id 指向当前会员）
+    const downlineCountMap = new Map<string, number>()
+    if (ids.length) {
+      const { data: downlines } = await supabase
+        .from('profiles')
+        .select('referrer_id')
+        .in('referrer_id', ids)
+      for (const d of (downlines as any[]) ?? []) {
+        const rid = d.referrer_id as string
+        downlineCountMap.set(rid, (downlineCountMap.get(rid) ?? 0) + 1)
+      }
     }
 
     const data2: MemberRow[] = rows.map(r => ({
@@ -253,6 +271,7 @@ export async function getMembers(
       tb_balance: Number(r.tb_balance || 0),
       referrer_id: r.referrer_id ?? null,
       referrer_nickname: rmap.get(r.referrer_id) ?? null,
+      downline_count: downlineCountMap.get(r.id) ?? 0,
       address: r.address ?? r.shipping_address ?? null,
       created_at: r.created_at,
       is_banned: !!r.is_banned,
@@ -266,15 +285,33 @@ export async function getMembers(
 // ── 会员详情（金豆明细）────────────────────────────────────────────────
 export async function getMemberDetail(userId: string): Promise<MemberDetail> {
   try {
-    const [{ data: p }, { data: claims }, { count }] = await Promise.all([
+    const [{ data: p }, { data: claims }, { count }, { data: downlineRows }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
       supabase.from('emotion_claims')
         .select('order_no, tb_amount, cv_amount, status, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false }),
       supabase.from('orders').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('profiles').select('*').eq('referrer_id', userId).order('created_at', { ascending: false }),
     ])
     const r = p as any
+
+    // 解析下线的上线昵称（即当前会员）
+    const downlineUsers: MemberRow[] = ((downlineRows as any[]) ?? []).map(r => ({
+      id: r.id,
+      nickname: r.nickname ?? '无名',
+      phone: r.phone ?? null,
+      member_rank: r.member_rank ?? '凡心',
+      points: Number(r.points || 0),
+      balance: Number(r.tb_balance || 0),
+      tb_balance: Number(r.tb_balance || 0),
+      referrer_id: userId,
+      referrer_nickname: r.nickname ?? null,
+      downline_count: 0,
+      address: r.address ?? r.shipping_address ?? null,
+      created_at: r.created_at,
+      is_banned: !!r.is_banned,
+    }))
     const profile: MemberRow | null = r ? {
       id: r.id,
       nickname: r.nickname ?? '无名',
@@ -285,6 +322,7 @@ export async function getMemberDetail(userId: string): Promise<MemberDetail> {
       tb_balance: Number(r.tb_balance || 0),
       referrer_id: r.referrer_id ?? null,
       referrer_nickname: null,
+      downline_count: downlineUsers.length,
       address: r.address ?? r.shipping_address ?? null,
       created_at: r.created_at,
       is_banned: !!r.is_banned,
@@ -299,9 +337,10 @@ export async function getMemberDetail(userId: string): Promise<MemberDetail> {
         created_at: c.created_at,
       })),
       orderCount: count ?? 0,
+      downlineUsers,
     }
   } catch {
-    return { profile: null, emotionClaims: [], orderCount: 0 }
+    return { profile: null, emotionClaims: [], orderCount: 0, downlineUsers: [] }
   }
 }
 

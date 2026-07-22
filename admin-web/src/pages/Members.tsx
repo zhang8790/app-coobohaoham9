@@ -116,7 +116,7 @@ export default function Members() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--surface)', borderBottom: `1px solid ${C.border}` }}>
-              {['会员ID', '昵称/手机号', '上线', '段位', '注册时间', '地址', '买家金豆', '金豆', '状态'].map(h => (
+              {['会员ID', '昵称/手机号', '上线', '下线', '段位', '注册时间', '地址', '买家金豆', '金豆', '状态'].map(h => (
                 <th key={h} style={{ color: C.dim, fontWeight: 500, padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -133,6 +133,7 @@ export default function Members() {
                   <div style={{ color: C.dim, fontSize: 12 }}>{maskPhone(r.phone)}</div>
                 </td>
                 <td style={{ padding: '10px 12px', color: C.sub }}>{r.referrer_nickname ?? <span style={{ color: C.dim }}>无</span>}</td>
+                <td style={{ padding: '10px 12px', color: C.sub }}>{r.downline_count > 0 ? r.downline_count : <span style={{ color: C.dim }}>无</span>}</td>
                 <td style={{ padding: '10px 12px', color: C.gold }}>{r.member_rank}</td>
                 <td style={{ padding: '10px 12px', color: C.dim, whiteSpace: 'nowrap' }}>{fmtDate(r.created_at).slice(0, 10)}</td>
                 <td style={{ padding: '10px 12px', color: C.sub, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{maskAddress(r.address)}</td>
@@ -146,7 +147,7 @@ export default function Members() {
               </tr>
             ))}
             {rows.length === 0 && !loading && (
-              <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: C.dim }}>暂无会员数据</td></tr>
+              <tr><td colSpan={10} style={{ padding: 32, textAlign: 'center', color: C.dim }}>暂无会员数据</td></tr>
             )}
           </tbody>
         </table>
@@ -218,6 +219,26 @@ export default function Members() {
                   <p style={{ fontSize: 12, color: refMsg.ok ? C.green : 'var(--danger-text)' }}>{refMsg.ok ? '✅ ' : '⚠️ '}{refMsg.text}</p>
                 )}
                 <p style={{ fontSize: 11, color: C.dim }}>只能给当前无上线会员指定一次上线；目标会员不能是当前会员自己，也不能是当前会员的下游（防止回环）。</p>
+              </div>
+            )}
+
+            {/* 下线会员：直接展示当前会员的直属下线 */}
+            <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600, marginTop: 20 }}>
+              下线会员 {detail.data.downlineUsers.length > 0 ? `（${detail.data.downlineUsers.length} 人）` : ''}
+            </h3>
+            {detail.data.downlineUsers.length === 0 ? (
+              <p style={{ color: C.dim, fontSize: 13, marginTop: 12 }}>暂无下线会员</p>
+            ) : (
+              <div style={{ marginTop: 12, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {detail.data.downlineUsers.map(u => (
+                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: 6, background: 'var(--surface)' }}>
+                    <div>
+                      <div style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{u.nickname}</div>
+                      <div style={{ fontSize: 11, color: C.dim }}>{maskPhone(u.phone)} · {u.member_rank}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: C.dim }}>注册 {fmtDate(u.created_at).slice(0, 10)}</div>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -295,6 +316,7 @@ function ProfileBlock({ d }: { d: { row: MemberRow; data: MemberDetail } }) {
     ['昵称', r.nickname],
     ['手机号', maskPhone(r.phone)],
     ['上线', r.referrer_nickname ?? '无'],
+    ['下线', fmt(r.downline_count)],
     ['段位', r.member_rank],
     ['注册时间', fmtDate(r.created_at)],
     ['地址', maskAddress(r.address)],
