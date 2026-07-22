@@ -79,7 +79,7 @@ async function runV5Commission(orderId: string, storeId: string, totalAmount: nu
     await supabase.from('orders').update({
       l1_commission: commissionResult.l1Commission,
       l2_commission: commissionResult.l2Commission,
-      buyer_points: Math.round(commissionResult.buyerPoints),
+      buyer_points: Math.round(commissionResult.buyerGoldBeans),
       platform_income: commissionResult.platformTotalIncome,
       commission_calculated: true}).eq('id', orderId)
     console.log('[V5] 佣金计算完成', commissionResult)

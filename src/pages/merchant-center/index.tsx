@@ -200,7 +200,7 @@ function MerchantCenterPage() {
   // 分享配置：携带门店链接（用于归属）
   useShareAppMessage(() => ({
     title: `${store?.name || '来电有喜'} · 扫码进店购物`,
-    path: store ? `/pages/store-home/index?id=${store.id}` : '/pages/reward-shop/index',
+    path: store ? `/pages/store-home/index?id=${store.id}` : '/pages/explore/index',
     imageUrl: store?.image_url || '',
   }))
   useShareTimeline(() => ({

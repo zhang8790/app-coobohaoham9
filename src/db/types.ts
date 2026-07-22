@@ -169,7 +169,7 @@ export interface EmotionClaim {
   store_id: string | null
   selected_emotion: string[] | null
   badge_text: string | null
-  tongbao_amount: number | null   // 历史兼容（旧版存积分）；V2 起用 tb_amount
+  tongbao_amount: number | null   // 历史兼容（旧版存金豆/通宝）；V2 起用 tb_amount
   tb_amount: number | null        // 本次确权发放 金豆
   cv_amount: number | null        // 本次确权发放 会员贡献值
   badge_code: string | null       // 情绪徽章 code

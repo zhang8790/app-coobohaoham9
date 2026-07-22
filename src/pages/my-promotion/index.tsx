@@ -57,7 +57,6 @@ function MyPromotionPage() {
       dynamicScore,
       l1Ratio: Math.round(rank.l1CommissionRate * 100),
       l2Ratio: Math.round(rank.l2CommissionRate * 100),
-      pointsRatio: Math.round(rank.pointsRate * 100),
     }
   }, [profile])
 

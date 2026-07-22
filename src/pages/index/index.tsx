@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
 import { Image, Input, View, Text, ScrollView } from '@tarojs/components'
-import { getProductsByEmotion, getProducts, getAnnouncements, getOrderFeed, addToCart, getOrders, getProductsByIds } from '@/db/api'
+import { getProductsByEmotion, getProducts, getAnnouncements, getOrderFeed, getOrders, getProductsByIds } from '@/db/api'
 import type { Product, Announcement, OrderFeedItem } from '@/db/types'
 import StoreStrip from '@/components/StoreStrip'
 import {
@@ -14,20 +14,10 @@ import { useLocation } from '@/contexts/LocationContext'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { parseCrowdsFromText, classifyProduct as classifyOne, toFoodTherapyInput, QUICK_BODY_PRESETS, type Crowd, type FitTier } from '@/utils/food-therapy'
 import { analyzeConsumption, recommendByConsumption, type ConsumptionProfile } from '@/utils/consumption-profile'
-import ProductGridCard from '@/components/ProductGridCard'
 import CustomTabBar from '@/components/custom-tabbar'
 import Icon from '@/components/Icon'
 import RankProgress from '@/components/RankProgress'
 import BeanHud from '@/components/BeanHud'
-import { getProductCareInfo, type ProductCareInfo } from '@/utils/product-care'
-
-// 关怀导览 · 子菜单（均跳真实 tab 页，鼓励多逛多看）
-const CARE_NAV = [
-  { label: '自营甄选', emoji: '🛒', to: '/pages/explore/index' },
-  { label: '品牌馆', emoji: '🏯', to: '/pages/reward-shop/index' },
-  { label: '行囊好物', emoji: '🎒', to: '/pages/cart/index' },
-  { label: '我的关怀', emoji: '🌿', to: '/pages/user/index' },
-]
 
 // 纯函数：把商品列表按"身体人群"分三档（直接吃 Product，零网络）
 function classifyProductList(products: Product[], crowds: Crowd[]) {
@@ -67,7 +57,7 @@ export default function IndexPage() {
   const [annIdx, setAnnIdx] = useState(0)
   const [loading, setLoading] = useState(false)
   const [emotionActive, setEmotionActive] = useState(false)
-  const [addingId, setAddingId] = useState<string | null>(null)
+  const [fabOpen, setFabOpen] = useState(false)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 自然语言 → 身体状态人群：自动识别后高亮对应 chip（与手动选择并存）
@@ -249,22 +239,6 @@ export default function IndexPage() {
   }, [hasQuery, matchItems, feedItems])
 
   // 商品「关怀层」信息：复用既有食养引擎，依用户体质/人群个性化适配分档 + 关怀度
-  const careCrowds = useMemo<Crowd[]>(
-    () => Array.from(new Set<Crowd>([...selectedCrowds, ...detectedCrowds])),
-    [selectedCrowds, detectedCrowds],
-  )
-  const careOf = useMemo(() => {
-    const m = new Map<string, ProductCareInfo>()
-    for (const f of displayFeed) m.set(f.product.id, getProductCareInfo(f.product, careCrowds))
-    return m
-  }, [displayFeed, careCrowds])
-
-  // 情绪好物推荐 · 自营甄选（替换原「选个场景」）：优先自营商品，不足则补默认 Feed
-  const selfCareProducts = useMemo(() => {
-    const self = displayFeed.filter(f => f.product.stores?.is_platform === true)
-    const pool = self.length >= 4 ? self : displayFeed
-    return pool.slice(0, 6)
-  }, [displayFeed])
 
   // 消费偏好推荐：基于历史订单聚合的食养画像，从当前 Feed 候选池推荐相似好物（排除已购）
   const consumptionItems = useMemo(() => {
@@ -477,14 +451,6 @@ export default function IndexPage() {
     loadFeed()
   }
 
-  const handleAddCart = async (product: Product) => {
-    const uid = (await import('@/client/supabase').then(m => m.supabase.auth.getUser())).data.user
-    if (!uid) { Taro.navigateTo({ url: '/pages/login/index' }); return }
-    setAddingId(product.id)
-    await addToCart(product.id, product.store_id)
-    setAddingId(null)
-    Taro.showToast({ title: '已加入行囊', icon: 'success' })
-  }
 
   // 有查询时的匹配商品数
   const matchedCount = displayFeed.filter(f => f.matchScore > 0).length
@@ -527,10 +493,14 @@ export default function IndexPage() {
 
       {/* IP伴侣气泡 —— 随情绪动态变化 */}
       <View className={`mx-4 mt-4 p-4 rounded-2xl flex items-start gap-3 transition ink-card ${emotionActive ? 'border-primary' : ''}`}>
-        <View className="w-12 h-12 rounded-full bg-primary flex items-center justify-center flex-shrink-0"
+        <View className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-primary"
           style={{ boxShadow: emotionActive ? '0 0 0 4px rgba(194,65,12,0.15)' : 'none' }}>
-          {/* 武侠印章风头像：白字「侠」+ 赭红底，呼应武侠调性，区别于左上角「喜」logo */}
-          <Text className="text-white font-bold" style={{ fontSize: '22px', fontFamily: 'KaiTi, STKaiti, serif', lineHeight: '28px' }}>侠</Text>
+          {/* 武侠伴侣头像：斗笠侠客插画（base64 SVG），替换原文字印章，呼应武侠调性 */}
+          <Image
+            src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJiZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI0Y1RUJERCIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI0VBRDlDMiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgcng9IjMyIiBmaWxsPSJ1cmwoI2JnKSIvPjxwYXRoIGQ9Ik0zMiAxMiBMMTYgMzAgTDQ4IDMwIFoiIGZpbGw9IiNBODU1MkUiLz48cmVjdCB4PSIxNCIgeT0iMzAiIHdpZHRoPSIzNiIgaGVpZ2h0PSIzIiByeD0iMS41IiBmaWxsPSIjOEM0MDIzIi8+PGNpcmNsZSBjeD0iMzIiIGN5PSIzOCIgcj0iNyIgZmlsbD0iI0YwRDlCNSIvPjxjaXJjbGUgY3g9IjI5IiBjeT0iMzgiIHI9IjEuMSIgZmlsbD0iIzNBMkExRSIvPjxjaXJjbGUgY3g9IjM1IiBjeT0iMzgiIHI9IjEuMSIgZmlsbD0iIzNBMkExRSIvPjxwYXRoIGQ9Ik0yMiA0NiBRMzIgNDIgNDIgNDYgTDQ1IDU4IEwxOSA1OCBaIiBmaWxsPSIjNkU3QjVCIi8+PHBhdGggZD0iTTQ2IDQwIEw1NCAzMiIgc3Ryb2tlPSIjOEM3RTZFIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
+            mode="aspectFill"
+            className="w-full h-full"
+          />
         </View>
         <View className="flex-1">
           <Text className="text-base text-foreground leading-relaxed">{ipBubble}</Text>
@@ -712,26 +682,6 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* 关怀导览 · 子菜单：让人多逛多看，处处是「在关心你」的入口 */}
-      <View className="mt-4 px-4">
-        <View className="flex items-center gap-2 mb-2">
-          <View className="section-accent" />
-          <Text className="text-base font-bold text-foreground">关怀导览</Text>
-          <Text className="text-xs text-muted-foreground">替你读懂食材，照看身体</Text>
-        </View>
-        <View className="flex gap-2 overflow-x-auto pb-1">
-          {CARE_NAV.map(n => (
-            <View key={n.label}
-              className="care-nav flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border"
-              hoverClass="care-nav-hover"
-              onClick={() => Taro.switchTab({ url: n.to })}>
-              <Text className="text-lg leading-none">{n.emoji}</Text>
-              <Text className="text-sm text-foreground font-medium">{n.label}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
       {/* 注：体质状况 / 场景 输入已并入上方「今天的状态」卡片，匹配结果由上方「即时匹配」条 + 底部 Feed 直接呈现 */}
 
       {/* 消费偏好推荐：基于历史订单聚合的食养画像，为你精选相似方向好物 */}
@@ -826,98 +776,114 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* 情绪好物推荐 · 自营甄选（替换原「选个场景」） */}
-      <View className="mt-4 px-4">
-        <View className="flex items-center justify-between mb-3">
-          <View className="flex items-center gap-2">
-            <View className="section-accent" />
-            <View>
-              <Text className="text-xl font-bold text-foreground">情绪好物推荐</Text>
-              <Text className="text-xs text-muted-foreground block mt-0.5">自营甄选 · 替你读懂食材，照看身体</Text>
-            </View>
-          </View>
-          <Text className="text-sm text-primary" onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}>查看全部</Text>
-        </View>
-
-        {selfCareProducts.length > 0 ? (
-          <View className="flex flex-wrap justify-between">
-            {selfCareProducts.map(item => (
-              <View
-                key={item.product.id}
-                style={{ width: '31.5%', flexShrink: 0 }}
-              >
-                <ProductGridCard
-                  width="100%"
-                  imageRatio="4:3"
-                  id={item.product.id}
-                  name={item.product.name}
-                  price={item.product.price}
-                  imageUrl={item.product.image_url}
-                  originalPrice={item.product.original_price}
-                  moodTags={item.product.mood_tags}
-                  care={careOf.get(item.product.id) ?? null}
-                  onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${item.product.id}` })}
-                  onAddCart={() => handleAddCart(item.product)}
-                  adding={addingId === item.product.id}
-                  onShare={() => { shareProductRef.current = { id: item.product.id, name: item.product.name, imageUrl: item.product.image_url || '' } }}
-                />
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View className="flex items-center justify-center py-8">
-            <Text className="text-base text-muted-foreground">自营甄选筹备中，更多好物即将上架～</Text>
-          </View>
-        )}
-      </View>
-
-
-      {/* 悬浮按钮组：右下角 FAB，扫码为主行动（赭红大圆），创作/游记为次级胶囊 */}
-      <View className="fixed bottom-24 right-3 flex flex-col items-end gap-2.5 z-50">
-        {/* 创作（次级） */}
-        <View className="flex items-center gap-2" onClick={() => Taro.navigateTo({ url: '/pages/content-center/make/index' })} hoverClass="none">
-          <View className="px-3 py-1.5 rounded-full bg-card/95 text-foreground text-sm font-medium border border-border"
-            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.10)' }}>
-            <Text className="text-sm text-foreground">创作</Text>
-          </View>
-          <View className="w-9 h-9 rounded-full bg-card flex items-center justify-center border border-border"
-            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.10)' }}>
-            <Icon name="pencil" size={18} className="text-foreground" />
-          </View>
-        </View>
-        {/* UGC 游记（次级） */}
-        <View className="flex items-center gap-2" onClick={() => Taro.navigateTo({ url: '/pages/ugc-publish/index' })} hoverClass="none">
-          <View className="px-3 py-1.5 rounded-full bg-card/95 text-foreground text-sm font-medium border border-border"
-            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.10)' }}>
-            <Text className="text-sm text-foreground">游记</Text>
-          </View>
-          <View className="w-9 h-9 rounded-full bg-card flex items-center justify-center border border-border"
-            style={{ boxShadow: '0 4px 14px rgba(44,36,32,0.10)' }}>
-            <Icon name="camera" size={18} className="text-foreground" />
-          </View>
-        </View>
-        {/* 扫码购物（主行动，赭红大圆 + 强光晕） */}
-        <View className="flex items-center gap-2" onClick={() => {
-            Taro.scanCode({
-              scanType: ['barCode', 'qrCode'],
-              success: (res) => {
-                Taro.navigateTo({ url: `/pages/scan-result/index?code=${encodeURIComponent(res.result)}` })
-              },
-              fail: () => {},
-            })
-          }} hoverClass="none">
-          <View className="px-3 py-1.5 rounded-full bg-primary text-white text-sm font-semibold"
-            style={{ boxShadow: '0 4px 14px rgba(194,65,12,0.30)' }}>
-            <Text className="text-sm text-white">扫码</Text>
-          </View>
-          <View className="w-12 h-12 rounded-full bg-primary flex items-center justify-center"
-            style={{ boxShadow: '0 6px 20px rgba(194,65,12,0.45)' }}>
-            <Icon name="barcode-scan" size={24} className="text-white" />
+      {/* 悬浮操作组：右下角展开式 SpeedDial —— 默认仅主按钮（扫码）常驻，点击向上展开创作/游记；半透明遮罩点击收起 */}
+      {fabOpen && (
+        <View className="fixed inset-0 z-40" onClick={() => setFabOpen(false)} />
+      )}
+      <View className="fixed bottom-24 right-3 flex flex-col items-end gap-3 z-50">
+        <FabAction
+          label="创作"
+          icon="pencil"
+          revealed={fabOpen}
+          onPress={() => {
+            setFabOpen(false)
+            Taro.navigateTo({ url: '/pages/content-center/make/index' })
+          }}
+        />
+        <FabAction
+          label="游记"
+          icon="camera"
+          revealed={fabOpen}
+          onPress={() => {
+            setFabOpen(false)
+            Taro.navigateTo({ url: '/pages/ugc-publish/index' })
+          }}
+        />
+        <View
+          className="flex items-center gap-2.5"
+          hoverClass="none"
+          onClick={() => {
+            if (fabOpen) {
+              Taro.scanCode({
+                scanType: ['barCode', 'qrCode'],
+                success: (res) => {
+                  Taro.navigateTo({ url: `/pages/scan-result/index?code=${encodeURIComponent(res.result)}` })
+                },
+                fail: () => {},
+              })
+            } else {
+              setFabOpen(true)
+            }
+          }}
+          style={{
+            transform: fabOpen ? 'scale(0.96)' : 'scale(1)',
+            transition: 'transform 0.12s ease',
+          }}
+        >
+          <View
+            className="flex items-center justify-center"
+            style={{
+              width: 54, height: 54, borderRadius: 9999,
+              backgroundColor: 'hsl(var(--brand-ochre))',
+              boxShadow: '0 8px 22px rgba(194,65,12,0.45), 0 0 0 4px rgba(194,65,12,0.16)',
+            }}
+          >
+            <Icon name="barcode-scan" size={26} className="text-white" />
           </View>
         </View>
       </View>
       {/* 自定义底部导航：独立渲染（贴底全宽），不可嵌套在 FAB 容器内，否则行囊徽标在真机渲染异常 */}
       <CustomTabBar />
+    </View>
+  )
+}
+
+// 悬浮操作按钮（首页展开式 SpeedDial 条目）—— 武侠国潮风，「标签胶囊 + 圆形图标钮」结构；
+// revealed 控制展开动画（透明度 / 位移 / 缩放），收起时不可点击；按压有轻微缩放反馈。
+function FabAction({ label, icon, revealed, onPress }: {
+  label: string
+  icon: string
+  revealed: boolean
+  onPress: () => void
+}) {
+  const [pressed, setPressed] = useState(false)
+  return (
+    <View
+      className="flex items-center gap-2.5"
+      hoverClass="none"
+      onClick={onPress}
+      onTouchStart={() => setPressed(true)}
+      onTouchEnd={() => setPressed(false)}
+      style={{
+        opacity: revealed ? 1 : 0,
+        transform: `${pressed ? 'scale(0.94)' : 'scale(1)'} translateY(${revealed ? 0 : 16}px)`,
+        pointerEvents: revealed ? 'auto' : 'none',
+        transition: 'opacity 0.22s ease, transform 0.22s cubic-bezier(0.16,1,0.3,1)',
+      }}
+    >
+      {/* 标签胶囊 */}
+      <View
+        className="px-3.5 py-1.5 rounded-full"
+        style={{
+          backgroundColor: 'rgba(255,255,255,0.92)',
+          border: '1px solid rgba(44,36,32,0.10)',
+          boxShadow: '0 4px 14px rgba(44,36,32,0.10)',
+        }}
+      >
+        <Text className="text-sm font-semibold text-foreground">{label}</Text>
+      </View>
+      {/* 圆形图标钮 */}
+      <View
+        className="flex items-center justify-center"
+        style={{
+          width: 44, height: 44, borderRadius: 9999,
+          backgroundColor: 'rgba(255,255,255,0.95)',
+          border: '1px solid rgba(44,36,32,0.10)',
+          boxShadow: '0 6px 16px rgba(44,36,32,0.12)',
+        }}
+      >
+        <Icon name={icon} size={20} className="text-foreground" />
+      </View>
     </View>
   )
 }

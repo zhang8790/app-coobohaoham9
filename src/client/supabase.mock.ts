@@ -436,11 +436,11 @@ export const mockSupabase = {
             const discountPool = total * 0.20  // 平台让利 = 订单金额 × 20%
             const l1Rate = 0.15  // 凡心L1比例
             const l2Rate = 0.06  // 凡心L2比例
-            const pointsRate = 0.10  // 凡心积分比例
+            const goldBeanRate = 0.10  // 凡心金豆比例
             
             const l1Amount = Math.round(discountPool * l1Rate * 100) / 100
             const l2Amount = Math.round(discountPool * l2Rate * 100) / 100
-            const pointsAmount = Math.round(discountPool * pointsRate * 100) / 100
+            const goldBeanAmount = Math.round(discountPool * goldBeanRate * 100) / 100
             
             // 写入L1佣金
             if (l1Amount > 0) {
@@ -468,8 +468,8 @@ export const mockSupabase = {
                 created_at: new Date().toISOString()} as any)
             }
             
-            // 写入积分
-            mockProfile.points = (mockProfile.points || 0) + Math.round(pointsAmount * 100)
+            // 写入金豆
+            mockProfile.points = (mockProfile.points || 0) + Math.round(goldBeanAmount * 100)
             
             // 写入L1佣金
             if (v4Result.level1Commission > 0) {
@@ -497,16 +497,16 @@ export const mockSupabase = {
                 created_at: new Date().toISOString()} as any)
             }
             
-            // 写入积分
+            // 写入金豆
             if (v4Result.buyerPoints > 0) {
               mockProfile.points = (mockProfile.points || 0) + Math.round(v4Result.buyerPoints * 100)
             }
           }
 
           // 模拟金豆发放（消费金额的 1%，最低 1 金豆；纯金豆支付也发金豆）
-          const pointsEarned = Math.max(1, Math.floor(total * 0.01))
-          const oldPoints = mockProfile.points || 0
-          mockProfile.points = oldPoints + pointsEarned
+          const goldBeansEarned = Math.max(1, Math.floor(total * 0.01))
+          const oldGoldBeans = mockProfile.points || 0
+          mockProfile.points = oldGoldBeans + goldBeansEarned
           mockPointsLogs.push({
             id: `pl-mock-${Date.now()}`,
             user_id: mockUser.id, order_id: orderId,
@@ -515,14 +515,14 @@ export const mockSupabase = {
             remark: `购物奖励金豆（订单 ${orderNo}）`,
             created_at: new Date().toISOString()} as any)
 
-          console.log(`[Mock] create-order: 模式=${payMode}, 金豆扣=${goldBeansToUse}, 微信付=${wxpayAmount}, 金豆+${pointsEarned}`)
+          console.log(`[Mock] create-order: 模式=${payMode}, 金豆扣=${goldBeansToUse}, 微信付=${wxpayAmount}, 金豆+${goldBeansEarned}`)
           return {
             data: {
               success: true, order: newOrder,
               wxpay_amount: wxpayAmount,
               tb_used: goldBeansToUse,
               pay_mode: payMode,
-              points_earned: pointsEarned},
+              gold_beans_earned: goldBeansEarned},
             error: null}
         }
         case 'create-wechat-payment':

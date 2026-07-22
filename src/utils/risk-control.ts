@@ -4,7 +4,7 @@
  * 1. 自己买自己的店（员工=买家）
  * 2. 闭环刷单（A→B→C→A）
  * 3. 高频小额订单
- * 4. 积分套利（下单拿积分→退款）
+ * 4. 金豆套利（下单拿金豆→退款）
  */
 
 // ============ 风控配置 ============
@@ -30,7 +30,7 @@ export type RiskType =
   | 'self_dealing'        // 自己买自己的店
   | 'loop_referral'       // 闭环推荐
   | 'high_frequency'      // 高频订单
-  | 'points_arbitrage'    // 积分套利
+  | 'gold_bean_arbitrage'    // 金豆套利
   | 'fake_order'          // 虚假订单
   | 'multi_account';      // 多账号
 
@@ -176,10 +176,10 @@ export function checkMinOrderAmount(orderAmount: number): RiskCheckResult {
 }
 
 /**
- * 检测5：积分套利检测
- * 规则：下单后短时间内退款，且已使用积分
+ * 检测5：金豆套利检测
+ * 规则：下单后短时间内退款，且已使用金豆
  */
-export async function checkPointsArbitrage(
+export async function checkGoldBeanArbitrage(
   supabase: any,
   orderId: string,
   userId: string
@@ -205,7 +205,7 @@ export async function checkPointsArbitrage(
     if (daysDiff <= RISK_CONFIG.REFUND_RECOVERY_DAYS) {
       return {
         passed: false,
-        riskType: 'points_arbitrage',
+        riskType: 'gold_bean_arbitrage',
         riskLevel: 'medium',
         description: '订单退款且已获赠金豆，疑似金豆套利',
         shouldFreeze: false,  // 不冻结，但需追回金豆
@@ -357,9 +357,9 @@ export async function recoverCommission(
 }
 
 /**
- * 追回积分（退款时）
+ * 追回金豆（退款时）
  */
-export async function recoverPoints(
+export async function recoverGoldBeans(
   supabase: any,
   orderId: string
 ): Promise<void> {

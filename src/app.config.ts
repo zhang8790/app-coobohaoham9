@@ -1,7 +1,6 @@
 const pages = [
   'pages/index/index',
   'pages/explore/index',
-  'pages/reward-shop/index',
   'pages/cart/index',
   'pages/user/index',
   'pages/login/index',
@@ -93,7 +92,6 @@ export default defineAppConfig({
     list: [
       { pagePath: 'pages/index/index',     text: '首页' },
       { pagePath: 'pages/explore/index',   text: '自营' },
-      { pagePath: 'pages/reward-shop/index', text: '品牌馆' },
       { pagePath: 'pages/cart/index',      text: '行囊' },
       { pagePath: 'pages/user/index',      text: '侠客' },
     ],

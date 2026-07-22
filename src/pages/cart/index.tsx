@@ -142,8 +142,8 @@ function CartPage() {
             <Text className="text-2xl text-muted-foreground">行囊空空如也</Text>
             <View
               className="flex items-center justify-center leading-none rounded-2xl bg-primary"
-              onClick={() => Taro.switchTab({ url: '/pages/reward-shop/index' })}>
-              <View className="py-3 px-8 text-xl text-white font-bold">去品牌馆转转</View>
+              onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}>
+              <View className="py-3 px-8 text-xl text-white font-bold">去自营逛逛</View>
             </View>
           </View>
         ) : (

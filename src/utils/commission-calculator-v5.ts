@@ -18,7 +18,7 @@ export interface RankConfigV5 {
   minDynamicScore: number;
   l1CommissionRate: number;   // 流动一级比例（上限 0.50）
   l2CommissionRate: number;   // 静态二级比例（上限 0.18）
-  pointsRate: number;         // 积分比例
+  goldBeanRate: number;         // 金豆比例
   icon: string;
   color: string;
 }
@@ -38,7 +38,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 0,
     l1CommissionRate: 0.40,
     l2CommissionRate: 0.15,
-    pointsRate: 0.30,
+    goldBeanRate: 0.30,
     icon: '🍃',
     color: '#90EE90'
   },
@@ -47,7 +47,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 200,
     l1CommissionRate: 0.42,
     l2CommissionRate: 0.16,
-    pointsRate: 0.32,
+    goldBeanRate: 0.32,
     icon: '🌿',
     color: '#50C878'
   },
@@ -56,7 +56,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 800,
     l1CommissionRate: 0.44,
     l2CommissionRate: 0.17,
-    pointsRate: 0.34,
+    goldBeanRate: 0.34,
     icon: '📚',
     color: '#4A90D9'
   },
@@ -65,7 +65,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 2000,
     l1CommissionRate: 0.46,
     l2CommissionRate: 0.18,
-    pointsRate: 0.37,
+    goldBeanRate: 0.37,
     icon: '⚔️',
     color: '#CD7F32'
   },
@@ -74,7 +74,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 6000,
     l1CommissionRate: 0.48,
     l2CommissionRate: 0.18,
-    pointsRate: 0.40,
+    goldBeanRate: 0.40,
     icon: '🏯',
     color: '#C0C0C0'
   },
@@ -83,7 +83,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 20000,
     l1CommissionRate: 0.50,
     l2CommissionRate: 0.18,
-    pointsRate: 0.40,
+    goldBeanRate: 0.40,
     icon: '👑',
     color: '#FFD700'
   },
@@ -136,7 +136,7 @@ export interface CommissionResultV5 {
 
   l1Commission: number;          // 流动一级佣金
   l2Commission: number;          // 静态二级佣金
-  buyerPoints: number;           // 买家积分
+  buyerGoldBeans: number;           // 买家金豆
   platformExtraIncome: number;   // 平台额外收入
   platformTotalIncome: number;   // 平台总收入（仅平台让利内抽成，不承受通道费/税费）
 
@@ -149,7 +149,7 @@ export interface CommissionResultV5 {
   // 比例（基于剩余池）
   l1Rate: number;
   l2Rate: number;
-  pointsRate: number;
+  goldBeanRate: number;
   platformExtraRate: number;
 
   // 段位信息
@@ -230,16 +230,16 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
     l2Commission = toPrecision(remainingPool * referrerRank.l2CommissionRate * active * recruit)
   }
 
-  // 5. 计算积分
-  const rawBuyerPoints = toPrecision(remainingPool * buyerRank.pointsRate)
-  // 确权积分下限：只要有让利分配，至少确权 1 点（与 EF 一致；避免小额定单舍入为 0，"购买者确权积分"列失效）
-  const buyerPoints = rawBuyerPoints > 0 ? Math.max(1, Math.round(rawBuyerPoints)) : 0
+  // 5. 计算金豆
+  const rawBuyerGoldBeans = toPrecision(remainingPool * buyerRank.goldBeanRate)
+  // 确权金豆下限：只要有让利分配，至少确权 1 豆（与 EF 一致；避免小额定单舍入为 0，"购买者确权金豆"列失效）
+  const buyerGoldBeans = rawBuyerGoldBeans > 0 ? Math.max(1, Math.round(rawBuyerGoldBeans)) : 0
 
   // 6. 平台保底封顶：段位系数×活跃×拓新可能使 一级+二级佣金 超过 剩余池(让利×90%)，
-  //    挤出平台保底。故将 L1+L2 上限封顶为 (剩余池 − 买家确权积分)，超出按比例缩放，
+  //    挤出平台保底。故将 L1+L2 上限封顶为 (剩余池 − 买家确权金豆)，超出按比例缩放，
   //    保证平台留成恒等于让利×10%（与 distribute-commission EF 完全一致）。
   const commTotalRaw = l1Commission + l2Commission
-  const capForComm = Math.max(0, toPrecision(remainingPool - buyerPoints))
+  const capForComm = Math.max(0, toPrecision(remainingPool - buyerGoldBeans))
   if (commTotalRaw > capForComm && commTotalRaw > 0) {
     const scale = capForComm / commTotalRaw
     l1Commission = toPrecision(l1Commission * scale)
@@ -248,13 +248,13 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
 
   // 7. 平台额外收入
   const platformExtraIncome = toPrecision(
-    remainingPool - l1Commission - l2Commission - buyerPoints
+    remainingPool - l1Commission - l2Commission - buyerGoldBeans
   )
 
   // 8. 平台总收入
   const platformTotalIncome = toPrecision(platformMinIncome + platformExtraIncome)
 
-  // 7.1 用户名义现金佣金（L1+L2，可提现部分；买家积分是虚拟币，不在此列）
+  // 7.1 用户名义现金佣金（L1+L2，可提现部分；买家金豆是虚拟币，不在此列）
   const userGrossCommission = toPrecision(l1Commission + l2Commission)
 
   // 7.2 支付通道费（微信约0.6%）：**由用户承担**，从佣金扣除（商家/平台不承担）
@@ -276,7 +276,7 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
     remainingPool,
     l1Commission,
     l2Commission,
-    buyerPoints,
+    buyerGoldBeans,
     platformExtraIncome,
     platformTotalIncome,
     userGrossCommission,
@@ -285,7 +285,7 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
     userNetCommission,
     l1Rate: remainingPool > 0 ? l1Commission / remainingPool : 0,
     l2Rate: remainingPool > 0 ? l2Commission / remainingPool : 0,
-    pointsRate: remainingPool > 0 ? buyerPoints / remainingPool : 0,
+    goldBeanRate: remainingPool > 0 ? buyerGoldBeans / remainingPool : 0,
     platformExtraRate: remainingPool > 0 ? platformExtraIncome / remainingPool : 0,
     staffRank: staffRank.rank,
     referrerRank: referrerRank.rank,
@@ -409,7 +409,7 @@ export function testV5Algorithm(): void {
   console.log('剩余池：', result1.remainingPool)
   console.log('流动一级佣金：', result1.l1Commission, `(${(result1.l1Rate * 100).toFixed(1)}%)`)
   console.log('静态二级佣金：', result1.l2Commission, `(${(result1.l2Rate * 100).toFixed(1)}%)`)
-  console.log('买家积分：', result1.buyerPoints, `(${(result1.pointsRate * 100).toFixed(1)}%)`)
+  console.log('买家金豆：', result1.buyerGoldBeans, `(${(result1.goldBeanRate * 100).toFixed(1)}%)`)
   console.log('平台额外收入：', result1.platformExtraIncome)
   console.log('平台总收入：', result1.platformTotalIncome, `(${(result1.platformTotalIncome / result1.discountPool * 100).toFixed(1)}%)`)
   console.log('用户名义佣金(L1+L2)：', result1.userGrossCommission)

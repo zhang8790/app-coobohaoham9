@@ -317,10 +317,10 @@ function UserPage() {
           </View>
           <View className="grid grid-cols-4 py-3">
             {[
-              { name: '我的段位', icon: '🏅', page: '/pages/my-promotion/index', desc: '查看推广码' },
-              { name: '我的金豆', icon: '💰', page: '/pages/withdraw/index', desc: '金豆明细' },
-              { name: '我的好友', icon: '👥', page: '/pages/my-referrals/index', desc: '查看推荐' },
-              { name: '情绪账单', icon: '🎭', page: '/pages/emotion-bill/index', desc: '确权集' },
+              { name: '我的段位', icon: 'medal', page: '/pages/my-promotion/index', desc: '查看推广码' },
+              { name: '我的金豆', icon: 'coin', page: '/pages/withdraw/index', desc: '金豆明细' },
+              { name: '我的好友', icon: 'account-group', page: '/pages/my-referrals/index', desc: '查看推荐' },
+              { name: '情绪账单', icon: 'heart', page: '/pages/emotion-bill/index', desc: '确权集' },
             ].map(item => (
               <View key={item.name}
                 hoverClass="none"
@@ -334,7 +334,7 @@ function UserPage() {
                   alignItems: 'center',
                   padding: '12px 0',
                   gap: '8px'}}>
-                <Text style={{ fontSize: '32px' }}>{item.icon}</Text>
+                <Icon name={item.icon} size={28} className="text-primary" />
                 <Text style={{ fontSize: '14px', color: '#333', fontWeight: 'bold' }}>{item.name}</Text>
                 <Text style={{ fontSize: '12px', color: '#999' }}>{item.desc}</Text>
               </View>

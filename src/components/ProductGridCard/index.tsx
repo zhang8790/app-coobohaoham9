@@ -3,6 +3,7 @@ import { View, Text, Image, Button } from '@tarojs/components'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import Icon from '@/components/Icon'
+import AddToCartButton from '@/components/AddToCartButton'
 import { type ProductCareInfo, careLevel } from '@/utils/product-care'
 
 export interface ProductGridCardProps {
@@ -36,6 +37,13 @@ const GRID_MATCH_STYLE: Record<string, string> = {
   '完美契合': 'bg-primary text-white',
   '较好匹配': 'bg-accent text-white',
   '有点匹配': 'bg-card text-secondary border border-border',
+}
+
+// 整体性味 → 颜色（寒凉偏冷蓝、平性中性绿、温热偏暖红），让「寒热属性」一眼可读、更科学
+const NATURE_COLOR: Record<string, string> = {
+  '大寒': '#0EA5E9', '寒凉': '#0EA5E9',
+  '平性': '#10B981',
+  '微温': '#F97316', '温热': '#EA580C', '大热': '#DC2626',
 }
 
 export default function ProductGridCard({
@@ -93,21 +101,37 @@ export default function ProductGridCard({
       <View className="px-2.5 py-2 flex flex-col gap-1 flex-1">
         <Text className="text-base font-bold text-foreground leading-tight line-clamp-2">{name}</Text>
 
-        {/* 关怀层：食养描述 + 关怀度 + 一行食材/性味/标签（精简，避免卡片过高） */}
+        {/* 关怀层：食养一句话 + 关怀度 + 食疗/情绪双色标签 + 性味/搭配智能提示 */}
         {care && (
-          <View className="flex flex-col gap-0.5">
+          <View className="flex flex-col gap-1">
             {care.shiyang && (
-              <Text className="text-xs text-secondary leading-snug line-clamp-1">{care.shiyang}</Text>
+              <Text className="text-xs text-secondary leading-snug line-clamp-2">{care.shiyang}</Text>
             )}
             <CareBar score={care.careScore} />
+            {/* 食疗标签(赭红) 与 情绪配对(玫红) 双色并排，一眼读懂「食疗+情绪」 */}
+            <View className="flex items-center gap-1 flex-wrap overflow-hidden" style={{ maxHeight: '44px' }}>
+              {care.healthTags.slice(0, 2).map((t) => (
+                <Text key={t} className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/15">{t}</Text>
+              ))}
+              {care.emotionTags.slice(0, 2).map((t) => (
+                <Text key={t} className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-xs border"
+                  style={{ color: '#DB2777', background: 'rgba(244,63,94,0.10)', borderColor: 'rgba(244,63,94,0.20)' }}>♡ {t}</Text>
+              ))}
+            </View>
+            {/* 性味(寒热有色) + 宜搭/慎搭智能提示：商品更懂用户、更科学搭配 */}
             <View className="flex items-center justify-between">
-              <Text className="text-xs text-muted-foreground leading-tight">
-                {care.nature ? `· ${care.nature}` : ''}{care.ingredients.length > 0 ? ` · 食材 ${care.ingredients.length} 味` : ''}
+              <Text className="text-xs leading-tight" style={{ color: NATURE_COLOR[care.nature ?? ''] ?? '#8C7E6E' }}>
+                {care.nature ? `· ${care.nature}` : '· 性味待补'}
               </Text>
-              {care.healthTags[0] && (
-                <Text className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/15">{care.healthTags[0]}</Text>
+              {(care.matchCount > 0 || care.conflictCount > 0) && (
+                <Text className="flex-shrink-0 text-xs text-muted-foreground leading-tight">
+                  {care.matchCount > 0 ? `宜搭${care.matchCount} ` : ''}{care.conflictCount > 0 ? `· 慎搭${care.conflictCount}` : ''}
+                </Text>
               )}
             </View>
+            {care.auxRemind && (
+              <Text className="text-xs leading-snug line-clamp-1" style={{ color: '#B45309' }}>⚠ {care.auxRemind}</Text>
+            )}
           </View>
         )}
 
@@ -136,16 +160,7 @@ export default function ProductGridCard({
             {originalPrice ? <Text className="text-xs text-muted-foreground line-through ml-1">¥{originalPrice}</Text> : null}
           </View>
           {onAddCart && (
-            <Button type="button"
-              className="pg-add flex-shrink-0 flex items-center justify-center rounded-full text-white"
-              style={{ width: '32px', height: '32px', padding: 0, border: 'none' }}
-              hoverClass="pg-add-press"
-              disabled={disabled}
-              onClick={(e) => { e.stopPropagation(); onAddCart(id) }}>
-              {adding
-                ? <Icon name="loading" size={16} className="animate-spin" />
-                : <Icon name="bag" size={18} />}
-            </Button>
+            <AddToCartButton onAdd={() => onAddCart(id)} adding={adding} disabled={disabled} size={32} />
           )}
         </View>
       </View>

@@ -106,15 +106,6 @@
   .care-bar-fill {
     transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  /* 关怀导览 · 子菜单磁贴 */
-  .care-nav {
-    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease;
-  }
-  .care-nav-hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 22px rgba(168, 85, 46, 0.16);
-    border-color: hsl(var(--primary) / 0.5);
-  }
   /* 场景磁贴 */
   .scene-tile {
     border-width: 1px;
@@ -213,7 +204,7 @@
     transform: translateY(-3px);
     box-shadow: 0 10px 24px rgba(20, 15, 11, 0.12);
   }
-  /* 会员资产条：金豆 / 佣金 / 积分 三列 */
+  /* 会员资产条：金豆 / 佣金 两列（积分已并入金豆）*/
   .bean-hud {
     margin: 10px 16px 0;
     background: hsl(var(--card));

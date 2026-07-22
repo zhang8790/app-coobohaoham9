@@ -11,6 +11,7 @@ import { getStoreById, getStoreCategories, getProducts, addToCart, bindStoreRefe
 import type { Store, StoreCategory, Product } from '@/db/types'
 import { supabase } from '@/client/supabase'
 import Icon from '@/components/Icon'
+import AddToCartButton from '@/components/AddToCartButton'
 
 export default function StoreHomePage() {
   const [storeId, setStoreId] = useState('')
@@ -385,23 +386,7 @@ export default function StoreHomePage() {
                     {/* 价格 + 加入购物车 */}
                     <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '8px' }}>
                       <Text style={{ fontSize: '17px', fontWeight: 'bold', color: '#A8552E' }}>¥{p.price}</Text>
-                      <View
-                        onClick={(e) => { e.stopPropagation(); handleAddCart(p) }}
-                        style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '9999px',
-                          backgroundColor: '#A8552E',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: '0 4px 12px rgba(194,65,12,0.35)',
-                          flexShrink: 0,
-                        }}>
-                        {addingId === p.id
-                          ? <Icon name="loading" size={18} className="text-white animate-spin" />
-                          : <Icon name="cart-plus" size={18} className="text-white" />}
-                      </View>
+                      <AddToCartButton onAdd={() => handleAddCart(p)} adding={addingId === p.id} size={36} />
                     </View>
                   </View>
                 </View>

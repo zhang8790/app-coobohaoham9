@@ -671,7 +671,7 @@ export interface SelfStoreOrder {
   total_amount: number
   tb_used: number
   settle_amount: number | null   // 让利后商家实收（merchant_settlements，未完成订单为 null）
-  discount_pool: number | null   // 平台让利（已分出去的推广/积分/平台部分）
+  discount_pool: number | null   // 平台让利（已分出去的推广/金豆/平台部分）
   status: string
   refund_status: string | null
   created_at: string

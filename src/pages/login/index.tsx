@@ -125,7 +125,7 @@ export default function LoginPage() {
     // 非员工 → 正常跳转
     const redirect = Taro.getStorageSync('loginRedirectPath')
     Taro.removeStorageSync('loginRedirectPath')
-    const tabBarPaths = ['/pages/index/index', '/pages/explore/index', '/pages/reward-shop/index', '/pages/cart/index', '/pages/user/index']
+    const tabBarPaths = ['/pages/index/index', '/pages/explore/index', '/pages/cart/index', '/pages/user/index']
     if (redirect && tabBarPaths.includes(redirect)) {
       Taro.switchTab({ url: redirect })
     } else if (redirect) {

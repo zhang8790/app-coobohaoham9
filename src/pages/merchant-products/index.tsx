@@ -3,6 +3,9 @@ import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { Image, View, Text, Input, Textarea, Switch } from '@tarojs/components'
 import Icon from '@/components/Icon'
+import ProductGridCard from '@/components/ProductGridCard'
+import { getProductCareInfo } from '@/utils/product-care'
+import { HEALTH_TAGS, EMOTION_TAGS, NATURE_SCALE } from '@/utils/food-therapy/types'
 import {
   getMerchantStore, getMerchantProducts, getMerchantOrders,
   createProduct, updateProduct, deleteProduct, getProductByBarcode,
@@ -27,6 +30,13 @@ type FormState = {
   mood_tags: string[]; scene_tags: string[]
   ingredients: string[]
   attribute_keywords: string
+  // —— 智能食养 · 情绪配对（让商品更懂用户）——
+  overall_nature: string            // 整体性味：大寒/寒凉/平性/微温/温热/大热
+  health_tag: string[]              // 食疗标签（最多3）
+  emotion_tag: string[]             // 情绪配对标签（最多3）
+  match_goods: string[]             // 宜搭商品 id
+  conflict_goods: string[]          // 慎搭商品 id
+  aux_remind: string                // 辅料提醒文案
 }
 const emptyForm = (): FormState => ({
   name: '', price: '', original_price: '', cost_price: '', discount_rate: '',
@@ -36,11 +46,24 @@ const emptyForm = (): FormState => ({
   mood_tags: [], scene_tags: [],
   ingredients: [],
   attribute_keywords: '',
+  overall_nature: '',
+  health_tag: [],
+  emotion_tag: [],
+  match_goods: [],
+  conflict_goods: [],
+  aux_remind: '',
 })
 
 function calcMargin(price: number, cost?: number): string {
   if (!cost || cost <= 0 || price <= 0) return '-'
   return ((price - cost) / price * 100).toFixed(1) + '%'
+}
+
+// 整体性味色阶（寒凉偏冷蓝、平性中性绿、温热偏暖红），编辑端复用，与卡片一致
+const NATURE_COLOR: Record<string, string> = {
+  '大寒': '#0EA5E9', '寒凉': '#0EA5E9',
+  '平性': '#10B981',
+  '微温': '#F97316', '温热': '#EA580C', '大热': '#DC2626',
 }
 
 function MerchantProductsPage() {
@@ -162,6 +185,12 @@ function MerchantProductsPage() {
       scene_tags: p.scene_tags ?? [],
       ingredients: p.ingredients ?? [],
       attribute_keywords: '',
+      overall_nature: p.overall_nature ?? '',
+      health_tag: p.health_tag ?? [],
+      emotion_tag: p.emotion_tag ?? [],
+      match_goods: p.match_goods ?? [],
+      conflict_goods: p.conflict_goods ?? [],
+      aux_remind: p.aux_remind ?? '',
     })
     setEditId(p.id); setShowForm(true)
   }
@@ -210,6 +239,12 @@ function MerchantProductsPage() {
         mood_tags: form.mood_tags.length > 0 ? form.mood_tags : undefined,
         scene_tags: form.scene_tags.length > 0 ? form.scene_tags : undefined,
         ingredients: form.ingredients.length > 0 ? form.ingredients : undefined,
+        overall_nature: form.overall_nature || undefined,
+        health_tag: form.health_tag.length > 0 ? form.health_tag : undefined,
+        emotion_tag: form.emotion_tag.length > 0 ? form.emotion_tag : undefined,
+        match_goods: form.match_goods.length > 0 ? form.match_goods : undefined,
+        conflict_goods: form.conflict_goods.length > 0 ? form.conflict_goods : undefined,
+        aux_remind: form.aux_remind.trim() || undefined,
         is_active: form.is_active,
       }
       if (editId) {
@@ -303,6 +338,16 @@ function MerchantProductsPage() {
     setForm(f => {
       const has = f.ingredients.includes(key)
       return { ...f, ingredients: has ? f.ingredients.filter(k => k !== key) : [...f.ingredients, key] }
+    })
+  }
+
+  // 通用数组字段切换（食疗标签/情绪配对/宜搭/慎搭，带上限）
+  const toggleArrayField = (field: 'health_tag' | 'emotion_tag' | 'match_goods' | 'conflict_goods', val: string, max = 99) => {
+    setForm(f => {
+      const arr = f[field]
+      if (arr.includes(val)) return { ...f, [field]: arr.filter(v => v !== val) }
+      if (arr.length >= max) { Taro.showToast({ title: `最多选 ${max} 个`, icon: 'none' }); return f }
+      return { ...f, [field]: [...arr, val] }
     })
   }
 
@@ -1085,6 +1130,144 @@ function MerchantProductsPage() {
                 placeholderStyle="color:#BBB;font-size:13px"
                 value={form.description}
                 onInput={(e: any) => setForm(f => ({ ...f, description: e.detail?.value ?? '' }))} />
+            </View>
+
+            {/* 🌿 智能食养 · 情绪配对（让商品更懂用户，科学化表达） */}
+            <View style={{ marginBottom: '16px', padding: '12px', borderRadius: '12px', background: '#FCF8F2', border: '1px solid #F0E6D8' }}>
+              <Text style={{ fontSize: '14px', color: '#A8552E', fontWeight: '700', marginBottom: '8px', display: 'block' }}>🌿 智能食养 · 情绪配对</Text>
+
+              {/* 实时预览：顾客端卡片长什么样（边填边看，更赏心悦目） */}
+              <Text style={{ fontSize: '12px', color: '#888', marginBottom: '6px', display: 'block' }}>实时预览（顾客视角）</Text>
+              <View style={{ background: '#FFF', borderRadius: '12px', padding: '8px', marginBottom: '12px' }}>
+                {(() => {
+                  try {
+                    const previewProduct: any = {
+                      health_tag: form.health_tag,
+                      emotion_tag: form.emotion_tag,
+                      overall_nature: form.overall_nature,
+                      match_goods: form.match_goods,
+                      conflict_goods: form.conflict_goods,
+                      ingredients: form.ingredients,
+                      description: form.description,
+                      aux_remind: form.aux_remind,
+                    }
+                    const care = getProductCareInfo(previewProduct, [])
+                    return (
+                      <ProductGridCard
+                        id={'preview'}
+                        name={form.name || '商品名称预览'}
+                        price={Number(form.price) || 0}
+                        imageUrl={form.main_image || undefined}
+                        care={care}
+                        width="100%"
+                        onAddCart={() => {}}
+                        disabled
+                      />
+                    )
+                  } catch {
+                    // 关怀引擎在 partial 商品上偶发异常时，降级为纯卡片，不拖垮编辑表单
+                    return (
+                      <ProductGridCard
+                        id={'preview'}
+                        name={form.name || '商品名称预览'}
+                        price={Number(form.price) || 0}
+                        imageUrl={form.main_image || undefined}
+                        width="100%"
+                        onAddCart={() => {}}
+                        disabled
+                      />
+                    )
+                  }
+                })()}
+              </View>
+
+              {/* 整体性味色阶：寒热有色，一眼可读、更科学 */}
+              <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>整体性味（寒热有色，一眼可读）</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                {NATURE_SCALE.map((n: string) => {
+                  const sel = form.overall_nature === n
+                  return (
+                    <View key={n} onClick={() => setForm(f => ({ ...f, overall_nature: sel ? '' : n }))}
+                      style={{
+                        padding: '6px 12px', borderRadius: '9999px',
+                        background: sel ? (NATURE_COLOR[n] || '#A8552E') : '#FFF',
+                        border: `1px solid ${NATURE_COLOR[n] || '#DDD'}`,
+                      }}>
+                      <Text style={{ fontSize: '13px', color: sel ? '#FFF' : (NATURE_COLOR[n] || '#666'), fontWeight: sel ? '700' : '400' }}>{n}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+
+              {/* 食疗标签（赭红） */}
+              <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>食疗标签（最多 3）</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                {HEALTH_TAGS.map((t: string) => {
+                  const sel = form.health_tag.includes(t)
+                  return (
+                    <View key={t} onClick={() => toggleArrayField('health_tag', t, 3)}
+                      style={{
+                        padding: '6px 12px', borderRadius: '9999px',
+                        background: sel ? 'hsl(var(--brand-ochre))' : '#FFF',
+                        border: '1px solid rgba(194,65,12,0.25)',
+                      }}>
+                      <Text style={{ fontSize: '13px', color: sel ? '#FFF' : '#A8552E', fontWeight: sel ? '700' : '400' }}>{t}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+
+              {/* 情绪配对（玫红 ♡，食疗+情绪核心） */}
+              <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>情绪配对（最多 3，食疗+情绪核心）</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                {EMOTION_TAGS.map((t: string) => {
+                  const sel = form.emotion_tag.includes(t)
+                  return (
+                    <View key={t} onClick={() => toggleArrayField('emotion_tag', t, 3)}
+                      style={{
+                        padding: '6px 12px', borderRadius: '9999px',
+                        background: sel ? '#DB2777' : '#FFF',
+                        border: '1px solid rgba(219,39,119,0.25)',
+                      }}>
+                      <Text style={{ fontSize: '13px', color: sel ? '#FFF' : '#DB2777', fontWeight: sel ? '700' : '400' }}>♡ {t}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+
+              {/* 辅料提醒：过敏/禁忌，让商品更懂用户 */}
+              <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>辅料提醒（过敏/禁忌，如"含坚果，过敏慎选"）</Text>
+              <Textarea
+                style={{ width: '100%', minHeight: '56px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '14px', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+                placeholder="填写辅料/过敏提醒，让商品更懂用户…"
+                placeholderStyle="color:#BBB;font-size:13px"
+                value={form.aux_remind}
+                onInput={(e: any) => setForm(f => ({ ...f, aux_remind: e.detail?.value ?? '' }))} />
+
+              {/* 宜搭 / 慎搭：从本店商品选择，互斥 */}
+              {products.length > 0 && (
+                <View style={{ marginTop: '14px' }}>
+                  <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>宜搭 / 慎搭商品（从本店选择，互斥）</Text>
+                  <View style={{ maxHeight: '130px', overflowY: 'auto', marginBottom: '8px' }}>
+                    {products.filter(p => p.id !== (form as any).id).map((p: any) => {
+                      const isMatch = form.match_goods.includes(p.id)
+                      const isConflict = form.conflict_goods.includes(p.id)
+                      const tint = isMatch ? '#16A34A' : isConflict ? '#DC2626' : '#999'
+                      return (
+                        <View key={p.id} onClick={() => {
+                          if (isMatch) { toggleArrayField('match_goods', p.id); return }
+                          if (isConflict) { toggleArrayField('conflict_goods', p.id); return }
+                          toggleArrayField('match_goods', p.id)
+                        }}
+                          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '8px', background: isMatch ? 'rgba(22,163,74,0.08)' : isConflict ? 'rgba(220,38,38,0.08)' : '#FAFAFA', border: `1px solid ${isMatch ? 'rgba(22,163,74,0.25)' : isConflict ? 'rgba(220,38,38,0.25)' : '#EEE'}`, marginBottom: '6px' }}>
+                          <Text style={{ fontSize: '13px', color: '#333' }}>{p.name}</Text>
+                          <Text style={{ fontSize: '12px', color: tint, fontWeight: '600' }}>{isMatch ? '宜搭' : isConflict ? '慎搭' : '—'}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* 上架开关 */}

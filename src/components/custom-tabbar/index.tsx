@@ -11,7 +11,6 @@ import './index.scss'
 const TABS = [
   { key: 'home', label: '首页', path: '/pages/index/index' },
   { key: 'explore', label: '自营', path: '/pages/explore/index' },
-  { key: 'reward', label: '品牌馆', path: '/pages/reward-shop/index' },
   { key: 'cart', label: '行囊', path: '/pages/cart/index' },
   { key: 'user', label: '侠客', path: '/pages/user/index' },
 ] as const

@@ -691,20 +691,26 @@ export async function getCartItems(): Promise<CartItem[]> {
   return Array.isArray(data) ? data : []
 }
 
-export async function addToCart(productId: string, storeId: string, quantity = 1): Promise<void> {
+export async function addToCart(productId: string, storeId: string, quantity = 1): Promise<boolean> {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-  const { data: existing } = await supabase.from('cart_items')
+  if (!user) { Taro.showToast({ title: '请先登录后再加购', icon: 'none' }); return false }
+  const { data: existing, error: qErr } = await supabase.from('cart_items')
     .select('id, quantity').eq('user_id', user.id).eq('product_id', productId).maybeSingle()
+  if (qErr) { Taro.showToast({ title: '加购失败，请重试', icon: 'none' }); return false }
   if (existing) {
-    await supabase.from('cart_items').update({ quantity: existing.quantity + quantity }).eq('id', existing.id)
+    const { error } = await supabase.from('cart_items')
+      .update({ quantity: (existing.quantity || 0) + quantity }).eq('id', existing.id)
+    if (error) { Taro.showToast({ title: '加购失败，请重试', icon: 'none' }); return false }
     // 已存在同款：quantity 增加 quantity，总件数 +quantity（乐观计数，立即同步徽标）
     bumpCartCount(quantity)
   } else {
-    await supabase.from('cart_items').insert({ user_id: user.id, product_id: productId, store_id: storeId, quantity, selected: true })
+    const { error } = await supabase.from('cart_items')
+      .insert({ user_id: user.id, product_id: productId, store_id: storeId, quantity, selected: true })
+    if (error) { Taro.showToast({ title: '加购失败，请重试', icon: 'none' }); return false }
     // 新增一行：立刻让角标 +quantity（实时，无需刷新）
     bumpCartCount(quantity)
   }
+  return true
 }
 
 export async function updateCartQty(id: string, quantity: number): Promise<void> {
@@ -730,12 +736,6 @@ export async function getCartCount(): Promise<number> {
   const { data } = await supabase.from('cart_items')
     .select('quantity').eq('user_id', user.id)
   return (data || []).reduce((s: number, r: any) => s + (Number(r.quantity) || 0), 0)
-}
-
-/** 更新底部 Tab 栏"行囊"徽标数量（行囊是第 4 个 tab，index=3） */
-export async function updateCartBadge(): Promise<void> {
-  // 留空：实际徽标更新由 src/utils/cartBadge.ts 负责（需静态导入 Taro）
-  // 此函数保留以兼容现有调用，无副作用
 }
 
 // =====================
@@ -1161,13 +1161,13 @@ export async function createOrderV2(params: {
     }
     // =========================================================================
 
-    // ===== 佣金 + 积分处理 =====
+    // ===== 佣金 + 买家金豆处理 =====
     // P0 修复：佣金必须延后到「支付成功」后触发。纯金豆在下方已支付分支处理；微信/混合支付由
     // wechat-payment-callback → distribute-commission 云函数处理（T4 已修 commission_balance 累加）。
     // =========================================================================
 
-    // ===== 纯金豆订单佣金 + 积分（P1-A 修复：此前纯金豆永不发佣金/不发积分）=====
-    // 佣金主路径走服务端 distribute-commission（service_role 绕过 RLS，可靠发佣+积分+余额）；
+    // ===== 纯金豆订单佣金 + 买家金豆（P1-A 修复：此前纯金豆永不发佣金/不发买家金豆）=====
+    // 佣金主路径走服务端 distribute-commission（service_role 绕过 RLS，可靠发佣+买家金豆+余额）；
     // 客户端 distributeCommissionDirect 仅作快速路径，受 RLS 限制必然失败，失败无害、不阻断兜底。
     if (params.pay_mode === 'pure_gold' && insertedOrders && insertedOrders.length > 0) {
       for (const order of insertedOrders) {
@@ -1231,7 +1231,7 @@ export async function createOrderV2(params: {
           await supabase.from('orders').update({
             l1_commission: commissionResult.l1Commission,
             l2_commission: commissionResult.l2Commission,
-            buyer_points: Math.round(commissionResult.buyerPoints),
+            buyer_points: Math.round(commissionResult.buyerGoldBeans),
             commission_calculated: true}).eq('id', order.id)
         } catch (e) { console.warn('[createOrderV2] 纯金豆佣金预算失败(不影响下单):', e) }
 
@@ -1239,7 +1239,7 @@ export async function createOrderV2(params: {
         try { await distributeCommissionDirect(order.id, user.id) }
         catch (e) { console.warn('[createOrderV2] 客户端直写佣金失败，转服务端兜底:', e) }
 
-        // 兜底主路径：服务端 distribute-commission（service_role 绕过 RLS，幂等，必发佣+积分+余额）
+        // 兜底主路径：服务端 distribute-commission（service_role 绕过 RLS，幂等，必发佣+买家金豆+余额）
         // 修复：改用 raw fetch 调用（绕过 Taro.request 自定义 fetch 对 Edge Function 的兼容性问题），
         // 错误写回 orders.commission_error 便于排查；最多重试 1 次。
         try {
@@ -1309,7 +1309,7 @@ export async function createOrderV2(params: {
   }
 }
 
-/** 直接 DB 操作：佣金 + 积分（替代原 Edge Function distribute-commission） */
+/** 直接 DB 操作：佣金 + 买家金豆（替代原 Edge Function distribute-commission） */
 async function distributeCommissionDirect(orderId: string, buyerId: string): Promise<void> {
   try {
     // 1. 获取订单信息
@@ -1320,15 +1320,15 @@ async function distributeCommissionDirect(orderId: string, buyerId: string): Pro
     const total = order.total_amount || 0
     if (total <= 0) return
 
-    // 2. 读取前端支付时已由 V5 算法算好并落库的佣金/积分结果
+    // 2. 读取前端支付时已由 V5 算法算好并落库的佣金/买家金豆结果
     //    （前端 payment 页 calculateCommissionV5 写入，保证「展示 = 实发」一致）
     const l1Commission = Number(order.l1_commission) || 0
     const l2Commission = Number(order.l2_commission) || 0
-    const buyerPoints = Math.round(Number(order.buyer_points) || 0)
+    const buyerGoldBeans = Math.round(Number(order.buyer_points) || 0)
 
     // 3. 推广关系（与前端/Edge Function 一致：L1 = 直接推荐人，L2 = 推荐人的上级）
     const l1UserId = order.referrer_id || null
-    if (!l1UserId && buyerPoints <= 0) {
+    if (!l1UserId && buyerGoldBeans <= 0) {
       await supabase.from('orders').update({ commission_distributed: true }).eq('id', orderId)
       return
     }
@@ -1418,8 +1418,8 @@ async function distributeCommissionDirect(orderId: string, buyerId: string): Pro
       await supabase.from('commissions').insert(commissions)
     }
 
-    // 5. 买家获赠金豆：points 按「1元=1积分」等额传入，实发在 addBuyerPoints 内乘 GOLD_BEAN_EARN_RATE 缩放（1:1 体系下即消费回馈比例）
-    await addBuyerPoints(buyerId, orderId, buyerPoints > 0 ? buyerPoints : Math.round(total))
+    // 5. 买家获赠金豆：金豆 按「1元=1金豆」等额传入，实发在 addBuyerGoldBeans 内乘 GOLD_BEAN_EARN_RATE 缩放（1:1 体系下即消费回馈比例）
+    await addBuyerGoldBeans(buyerId, orderId, buyerGoldBeans > 0 ? buyerGoldBeans : Math.round(total))
 
     // 6. 标记订单已发佣金
     await supabase.from('orders').update({ commission_distributed: true }).eq('id', orderId)
@@ -1487,10 +1487,10 @@ function calcRankNameFromRolling(rollingConsumption: number): string {
 }
 
 /** 买家获赠金豆（忠诚度返利）：消费获赠金豆写入 tb_balance（1元=1豆，与人民币1:1锚定，平台内消费币，不可提现/兑现金） */
-async function addBuyerPoints(buyerId: string, orderId: string, points: number): Promise<void> {
-  // 1:1 体系下 points 由上游按「1元消费=1积分」等额传入；此处乘 GOLD_BEAN_EARN_RATE 缩放为实发金豆，
+async function addBuyerGoldBeans(buyerId: string, orderId: string, goldBeans: number): Promise<void> {
+  // 1:1 体系下 goldBeans 由上游按「1元消费=1金豆」等额传入；此处乘 GOLD_BEAN_EARN_RATE 缩放为实发金豆，
   // 避免消费全额 100% 返现。GOLD_BEAN_EARN_RATE=0.05 → 消费1元实发0.05金豆=可抵0.05元（5%回馈）；设为1即全额返现。
-  const pts = Math.max(0, Math.round(points * GOLD_BEAN_EARN_RATE))
+  const pts = Math.max(0, Math.round(goldBeans * GOLD_BEAN_EARN_RATE))
   if (pts <= 0) return
   const { data: profile } = await supabase.from('profiles')
     .select('tb_balance').eq('id', buyerId).single()
@@ -1512,12 +1512,12 @@ export const EMOTION_TB_PER_CLAIM = 10
 export const EMOTION_CV_RATE = 0.12
 /** 平台毛利率估算（下行兼容占位，防亏损版改用净毛利 net_margin_total） */
 export const PLATFORM_GROSS_MARGIN = 0.15
-// 金豆下发比率：1:1 体系下「消费1元=1积分」等额传入，此处按比例缩放为实发金豆，避免消费全额 100% 返现。
+// 金豆下发比率：1:1 体系下「消费1元=1金豆」等额传入，此处按比例缩放为实发金豆，避免消费全额 100% 返现。
 export const GOLD_BEAN_EARN_RATE = 0.05  // 消费回馈比例（5%）：消费1元实发0.05金豆=可抵0.05元；设为 1 = 恢复全额返现
 
 // ===== 防亏损权重配置（硬约束：R_TB + R_DIV ≤ 0.5，平台永远留 ≥50% 净利） =====
 const R_TB = 0.15                  // 单笔 TB 负债上限 = 该笔净毛利 × 15%
-const R_DIV = 0.30                 // 年度成长回馈计提比例 = 平台净毛利 × 30%（仅用于成长回馈积分估算，非现金分红）
+const R_DIV = 0.30                 // 年度成长回馈计提比例 = 平台净毛利 × 30%（仅用于成长回馈金豆估算，非现金分红）
 const M_MIN = 10                   // 净毛利门槛：低于 10 元只发徽章、不发 TB/CV（零负债）
 const P_BASE = 100                 // 基准客单价（经济贡献权重归一化分母）
 const W_BEH_MAX = 1.5              // 行为权重上限（复购/评价/分享）
@@ -2214,7 +2214,7 @@ export async function checkAndGrantEmotionBadges(userId: string): Promise<Emotio
       const r = await grantEmotionBadge(userId, 'five_emotions')
       if (r.granted && r.code) newly.push(r.code)
     }
-    // 注：原「通宝藏家」徽章依赖通宝账户，已随通宝体系移除；未来可改为「百积分」等积分里程碑。
+    // 注：原「通宝藏家」徽章依赖通宝账户，已随通宝体系移除；未来可改为「百金豆」等金豆里程碑。
   } catch (e) {
     console.warn('[checkAndGrantEmotionBadges] 失败(非阻断)', e)
   }
@@ -2343,7 +2343,7 @@ export async function getRefundsByOrderId(orderId: string): Promise<import('./ty
  * 关键变更（2026-07-20 方案A 重构）：
  *  - 旧实现是「客户端直连数据库」，用 anon key 直接 update 受益人 profiles（跨用户写被 RLS 拦截 → 佣金扣回静默失败 = 资损），
  *    且完全没有发起微信退款 API（用户实付的微信款项退不回来）。
- *  - 新实现把所有资金操作（微信退款发起、金豆返还、佣金回冲、积分扣回、库存回滚、状态机）统一收敛到
+ *  - 新实现把所有资金操作（微信退款发起、金豆返还、佣金回冲、买家金豆扣回、库存回滚、状态机）统一收敛到
  *    refund-order / wechat-refund-callback 两个 Edge Function（service_role 执行，绕过 RLS、可安全调微信）。
  *  - 客户端仅做轻量前置校验（登录、幂等、金额上界），真正的退款由服务端完成。
  *
@@ -2413,13 +2413,6 @@ export async function applyRefund(params: {
     return { success: false, error: err?.message || '网络错误，请重试' }
   }
 }
-export async function getMyPointsLogs(page = 0, limit = 20): Promise<import('./types').PointsLog[]> {
-  const { data } = await supabase.from('points_logs')
-    .select('*').order('created_at', { ascending: false })
-    .range(page * limit, (page + 1) * limit - 1)
-  return Array.isArray(data) ? data : []
-}
-
 /** 获取用户余额 & 推广佣金账户余额。
  *  注意：金豆已合并为金豆，统一平台内部货币 = tb_balance（人民币1:1锚定，仅平台内消费，不可提现/兑现金）。
  *        历史遗留 gold_beans 已并入佣金，balance 已并入 tb_balance，均不再作为消费币。 */
@@ -2950,7 +2943,7 @@ export async function adminApproveWithdrawal(id: string): Promise<boolean> {
     await supabase.from('withdrawals').update({ status: 'rejected', remark: '推广佣金余额不足', updated_at: new Date().toISOString() }).eq('id', id)
     return false
   }
-  // 扣减佣金账户，并累加「已结算佣金」用于对账（消费积分 gold_beans 不在此链路）
+  // 扣减佣金账户，并累加「已结算佣金」用于对账（消费金豆 gold_beans 不在此链路）
   const settled = Number(prof?.settled_commission ?? 0) + amt
   await supabase.from('profiles').update({
     commission_balance: cur - amt,

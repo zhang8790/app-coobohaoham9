@@ -319,7 +319,7 @@ export interface OrderRow {
   commission_l1: number
   commission_l2: number
   platform_share: number
-  buyer_points: number // 购买者确权积分（从平台让利中分出）
+  buyer_points: number // 购买者确权金豆（从平台让利中分出）
   store_revenue: number // 门店收益（商家实际到账货款，取自 merchant_settlements.settle_amount）
   referrer_id: string | null
   created_at: string
@@ -456,7 +456,7 @@ export async function getOrders(
         commission_total: comm.total,
         commission_l1: comm.l1,
         commission_l2: comm.l2,
-        // 平台佣金 = 让利金额 − 一级佣金 − 二级佣金 − 购买者确权积分
+        // 平台佣金 = 让利金额 − 一级佣金 − 二级佣金 − 购买者确权金豆
         platform_share: Math.max(0, Math.round((concession - comm.total - buyerPoints) * 100) / 100),
         buyer_points: buyerPoints,
         store_revenue: storeRevenue,
@@ -562,7 +562,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       commission_total: commissionTotal,
       commission_l1: commBreak.l1,
       commission_l2: commBreak.l2,
-      // 平台佣金 = 让利金额 − 一级佣金 − 二级佣金 − 购买者确权积分
+      // 平台佣金 = 让利金额 − 一级佣金 − 二级佣金 − 购买者确权金豆
       platform_share: Math.max(0, Math.round((concession - commissionTotal - buyerPoints) * 100) / 100),
       buyer_points: buyerPoints,
       store_revenue: storeRevenue,
@@ -627,7 +627,7 @@ export async function getOrderCommissionBreakdown(orderId: string): Promise<Comm
 }
 
 // ── 商品级分佣明细（order_item_commissions，按 order_id 查）──────────────────
-// 用于「综合结算 - 订单详情」展开每商品各自让利点 / L1 / L2 / 购买者确权积分 / 平台佣金
+// 用于「综合结算 - 订单详情」展开每商品各自让利点 / L1 / L2 / 购买者确权金豆 / 平台佣金
 // 两级受益人昵称用两步直读解析（profiles 无 FK，沿用已修通范式）
 export interface ProductCommissionRow {
   id: string
@@ -715,7 +715,7 @@ export async function getOrderItemCommissions(orderId: string): Promise<ProductC
 
 // =====================================================
 // 资产流水中心（三张逐笔明细表）
-//  - 积分流水 points_logs
+//  - 买家金豆流水 points_logs（历史金豆流水表）
 //  - 金豆流水 emotion_tongbao_logs
 //  - 佣金流水 commissions
 // 均用两步直读解析用户昵称/手机（profiles 无 FK，沿用已修通范式）
@@ -779,7 +779,7 @@ export interface GoldBeanLedgerRow {
   phone: string | null
 }
 
-// ── 积分流水 ────────────────────────────────────────────────
+// ── 买家金豆流水 ──────────────────────────────────────────────
 export async function getPointsLedger(
   page: number,
   pageSize: number,

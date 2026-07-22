@@ -17,10 +17,14 @@ export interface ProductCareInfo {
   nature: string | null
   /** 固定食疗标签（最多取 3） */
   healthTags: string[]
+  /** 情绪配对标签（最多取 3）：食疗商品的「情绪人格」，是食疗+情绪配对的核心信号 */
+  emotionTags: string[]
   /** 食材清单 */
   ingredients: string[]
   /** 食养/情绪编译一句话（关怀文案），用于卡片描述位 */
   shiyang: string | null
+  /** 辅料自适应提醒文案（如"含坚果，过敏慎选"），让商品更懂用户 */
+  auxRemind: string | null
   /** 适配分档（依用户体质/人群） */
   tier: FitTier | null
   /** 关怀度 0-100：数据丰富度 + 适配度 综合，作为"游戏化"进度条 */
@@ -45,12 +49,14 @@ export function careLevel(score: number): { label: string; tone: 'high' | 'mid' 
 export function getProductCareInfo(p: Product, crowds: Crowd[] = []): ProductCareInfo {
   const nature = resolveNature(p)
   const healthTags = (p.health_tag ?? []).filter(Boolean).slice(0, 3)
+  const emotionTags = (p.emotion_tag ?? []).filter(Boolean).slice(0, 3)
   const ingredients = (p.ingredients ?? []).filter(Boolean)
   const shiyang =
     p.product_emotion?.shiyang_copy ||
     p.product_emotion?.emotion_title ||
     p.description ||
     null
+  const auxRemind = p.aux_remind ?? null
 
   let tier: FitTier | null = null
   try {
@@ -63,8 +69,10 @@ export function getProductCareInfo(p: Product, crowds: Crowd[] = []): ProductCar
   let score = 30
   if (nature) score += 16
   score += Math.min(healthTags.length, 3) * 10
+  score += Math.min(emotionTags.length, 3) * 8   // 情绪配对标签越丰富，治愈感越强
   score += Math.min(ingredients.length, 4) * 4
   if (shiyang && shiyang.length > 6) score += 16
+  if (auxRemind && auxRemind.length > 4) score += 6
   if (tier === 'recommend') score += 12
   else if (tier === 'avoid') score -= 6
   score = Math.max(20, Math.min(98, score))
@@ -72,8 +80,10 @@ export function getProductCareInfo(p: Product, crowds: Crowd[] = []): ProductCar
   return {
     nature,
     healthTags,
+    emotionTags,
     ingredients,
     shiyang,
+    auxRemind,
     tier,
     careScore: score,
     matchCount: p.match_goods?.length ?? 0,
