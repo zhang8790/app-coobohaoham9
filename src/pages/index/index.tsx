@@ -18,6 +18,7 @@ import CustomTabBar from '@/components/custom-tabbar'
 import Icon from '@/components/Icon'
 import RankProgress from '@/components/RankProgress'
 import BeanHud from '@/components/BeanHud'
+import { getProductCareInfo } from '@/utils/product-care'
 
 // 纯函数：把商品列表按"身体人群"分三档（直接吃 Product，零网络）
 function classifyProductList(products: Product[], crowds: Crowd[]) {
@@ -888,16 +889,36 @@ function FabAction({ label, icon, revealed, onPress }: {
   )
 }
 
-// FeedCard 已迁移至共享组件 @/components/ProductGridCard（两列网格，首页/自营页统一）
+// 首页紧凑商品卡（横滑 160px）与自营页 ProductGridCard 分工：
+//   FitCard      = 横滑轻卡，承载「即时匹配 / 消费推荐」流；
+//   ProductGridCard = 两列网格卡，承载自营页完整注解。
+// 两者复用同一套食养引擎 getProductCareInfo，保证注解口径一致。
 
-// ====== 智能推荐商品卡（支持身体状态分档角标） ======
+// 性味 → 色点（与 merchant-products 的 NATURE_COLOR 同源口径）
+function natureDotColor(n: string | null | undefined): string | null {
+  if (!n) return null
+  if (n.includes('平')) return '#16A34A'
+  if (n.includes('微温') || n.includes('温热')) return '#C77B47'
+  if (n.includes('大热')) return '#DC2626'
+  if (n.includes('寒')) return '#3B82F6'
+  return '#9CA3AF'
+}
+
+// ====== 智能推荐商品卡（支持身体状态分档角标 + 轻量关怀注解） ======
 function FitCard({ product, onTap, tier }: { product: Product; onTap: () => void; tier?: FitTier }) {
   const [imgFailed, setImgFailed] = useState(false)
+  const care = useMemo(() => {
+    try { return getProductCareInfo(product) } catch { return null }
+  }, [product])
   const tierBadge = tier === 'recommend'
     ? { text: '五星推荐', bg: '#16A34A', fg: '#FFFFFF' }
     : tier === 'caution'
       ? { text: '谨慎食用', bg: '#C77B47', fg: '#FFFFFF' }
       : null
+  const dot = natureDotColor(care?.nature)
+  const healthTag = care?.healthTags?.[0]
+  const emotionTag = care?.emotionTags?.[0]
+  const hasCare = !!dot || !!healthTag || !!emotionTag || (care?.conflictCount ?? 0) > 0
   return (
     <View onClick={onTap}
       className="pg-card flex-shrink-0 w-40 relative overflow-hidden"
@@ -927,6 +948,22 @@ function FitCard({ product, onTap, tier }: { product: Product; onTap: () => void
             <Text className="text-lg font-extrabold text-primary leading-none">{product.price}</Text>
           </View>
         </View>
+        {hasCare && (
+          <View className="flex items-center gap-1 mt-1.5 flex-wrap">
+            {dot && (
+              <View style={{ width: 6, height: 6, borderRadius: 9999, background: dot, flexShrink: 0 }} />
+            )}
+            {healthTag && (
+              <Text style={{ fontSize: 10, lineHeight: '14px', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 9999, background: 'rgba(194,65,12,0.12)', color: '#C2410C' }}>{healthTag}</Text>
+            )}
+            {emotionTag && (
+              <Text style={{ fontSize: 10, lineHeight: '14px', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 9999, background: 'rgba(219,39,119,0.12)', color: '#DB2777' }}>♡{emotionTag}</Text>
+            )}
+            {care && care.conflictCount > 0 && (
+              <Text style={{ fontSize: 10, lineHeight: '14px', fontWeight: 'bold', color: '#C77B47' }}>⚠{care.conflictCount}</Text>
+            )}
+          </View>
+        )}
       </View>
     </View>
   )
