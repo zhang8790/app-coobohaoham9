@@ -2,23 +2,22 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
 import { Image, Input, View, Text, ScrollView } from '@tarojs/components'
-import { getProductsByEmotion, getProducts, getAnnouncements, getOrderFeed, getOrders, getProductsByIds } from '@/db/api'
-import type { Product, Announcement, OrderFeedItem } from '@/db/types'
+import { getProducts, getAnnouncements, getOrderFeed, getOrders, getProductsByIds } from '@/db/api'
+import { getUserHealthProfile } from '@/db/food-api'
+import type { Product, Announcement, OrderFeedItem, UserHealthProfile } from '@/db/types'
 import StoreStrip from '@/components/StoreStrip'
-import {
-  analyzeEmotion, rankProductsByEmotion, getEmotionPoetry,
-  QUICK_MOOD_PRESETS, type ScoredProduct, type EmotionAnalysisResult
-} from '@/utils/emotionEngine'
+import { type ScoredProduct } from '@/utils/emotionEngine'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
-import { parseCrowdsFromText, classifyProduct as classifyOne, toFoodTherapyInput, QUICK_BODY_PRESETS, type Crowd, type FitTier } from '@/utils/food-therapy'
+import { parseCrowdsFromText, classifyProduct as classifyOne, toFoodTherapyInput, QUICK_BODY_PRESETS, profileToCrowds, type Crowd, type FitTier } from '@/utils/food-therapy'
 import { analyzeConsumption, recommendByConsumption, type ConsumptionProfile } from '@/utils/consumption-profile'
 import CustomTabBar from '@/components/custom-tabbar'
 import Icon from '@/components/Icon'
 import RankProgress from '@/components/RankProgress'
 import BeanHud from '@/components/BeanHud'
 import { getProductCareInfo } from '@/utils/product-care'
+import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 
 // 纯函数：把商品列表按"身体人群"分三档（直接吃 Product，零网络）
 function classifyProductList(products: Product[], crowds: Crowd[]) {
@@ -32,12 +31,9 @@ function classifyProductList(products: Product[], crowds: Crowd[]) {
   return res
 }
 
-// 组合"识别到的标签"作为即时匹配标题
-function buildMatchLabel(emotionTags: string[], crowds: Crowd[]): string {
-  const parts: string[] = []
-  if (crowds.length) parts.push(...crowds)
-  if (emotionTags.length) parts.push(...emotionTags.slice(0, 3))
-  return parts.join(' · ') || '好物'
+// 组合"识别到的身体人群"作为即时匹配标题（情绪不再参与）
+function buildMatchLabel(crowds: Crowd[]): string {
+  return crowds.join(' · ') || '好物'
 }
 
 export default function IndexPage() {
@@ -49,15 +45,11 @@ export default function IndexPage() {
   const shareProductRef = useRef<{ id: string; name: string; imageUrl: string } | null>(null)
 
   const [mood, setMood] = useState('')
-  const [analysis, setAnalysis] = useState<EmotionAnalysisResult | null>(null)
-  const [ipBubble, setIpBubble] = useState('侠客，今日有喜，好物相候！')
-  const [poetry, setPoetry] = useState('')
   const [feedItems, setFeedItems] = useState<ScoredProduct<Product>[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [orderFeed, setOrderFeed] = useState<OrderFeedItem[]>([])
   const [annIdx, setAnnIdx] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [emotionActive, setEmotionActive] = useState(false)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 自然语言 → 身体状态人群：自动识别后高亮对应 chip（与手动选择并存）
@@ -68,12 +60,15 @@ export default function IndexPage() {
   const [consumptionProfile, setConsumptionProfile] = useState<ConsumptionProfile | null>(null)
   const [boughtIds, setBoughtIds] = useState<Set<string>>(new Set())
 
-  // 即时匹配结果：输入心情/身体状态词后，直接配对出的商品（零额外操作）
+  // 即时匹配结果：输入身体状态词后，直接配对出的商品（零额外操作，情绪不进前台）
   const [matchItems, setMatchItems] = useState<Array<{ product: Product; tier: FitTier | null }>>([])
   const [matchAvoid, setMatchAvoid] = useState(0)
   const [matchLabel, setMatchLabel] = useState('')
   const [matchedLoading, setMatchedLoading] = useState(false)
   const hasQuery = mood.trim().length > 0
+
+  // V1 体质档案：登录后读取，驱动首页个性化（呈现"你关注的身体状况"，非"今日"）
+  const [userProfile, setUserProfile] = useState<UserHealthProfile | null>(null)
   
   // 新增：首页弹窗状态
   const [showCampaignPopup, setShowCampaignPopup] = useState(false)
@@ -162,17 +157,11 @@ export default function IndexPage() {
     setAnnouncements(data)
   }, [])
 
-  // 加载 Feed（默认无情绪时展示全量，有情绪时用情绪查询）
-  const loadFeed = useCallback(async (emotionResult?: EmotionAnalysisResult) => {
+  // 加载 Feed（默认展示全量商品；食养分档由前端 classifyProductList 处理，情绪不再参与前台）
+  const loadFeed = useCallback(async () => {
     setLoading(true)
-    let raw: Product[]
-    if (emotionResult && emotionResult.detectedTags.length > 0) {
-      raw = await getProductsByEmotion(emotionResult.detectedTags, 40, 'only')
-    } else {
-      raw = await getProducts({ limit: 30, platformFilter: 'only' })
-    }
-    const scored = rankProductsByEmotion(raw, emotionResult?.tagScores ?? {})
-    setFeedItems(scored)
+    const raw = await getProducts({ limit: 30, platformFilter: 'only' })
+    setFeedItems(raw.map(p => ({ product: p, matchScore: 1, matchLabel: null })))
     setLoading(false)
   }, [])
 
@@ -187,10 +176,10 @@ export default function IndexPage() {
     // Taro 小程序下拉刷新回调
     ;(Taro as any).onPullDownRefresh = handler
     return () => { ;(Taro as any).onPullDownRefresh = null }
-  }, [analysis, loadOrderFeed, loadAnnouncements])
+  }, [loadOrderFeed, loadAnnouncements])
 
   useEffect(() => { loadAnnouncements(); loadOrderFeed(); loadFeed() }, [loadAnnouncements, loadOrderFeed, loadFeed])
-  useDidShow(() => { loadFeed(analysis ?? undefined) })
+  useDidShow(() => { loadFeed() })
 
   // 消费偏好画像：登录后回溯历史订单 → 聚合食养偏好（health_tag 频次 / nature 众数）
   const loadConsumptionProfile = useCallback(async () => {
@@ -220,13 +209,49 @@ export default function IndexPage() {
   useEffect(() => {
     if (profile?.id) loadConsumptionProfile()
   }, [loadConsumptionProfile])
+
+  // 读取用户结构化体质档案（V1）：驱动首页"你关注的身体状况"标签 + 个性化推荐
+  useEffect(() => {
+    if (!profile?.id) return
+    let alive = true
+    getUserHealthProfile(profile.id)
+      .then((p) => { if (alive && p) setUserProfile(p) })
+      .catch((e: unknown) => console.error('[Index] 读取体质档案失败', e))
+    return () => { alive = false }
+  }, [profile?.id])
+
+  // 由体质档案推导人群（body_states + chronic_conditions），供个性化推荐分档
+  const profileCrowds = useMemo(() => (userProfile ? profileToCrowds(userProfile) : []), [userProfile])
+
+  // 体质档案个性化推荐：无手动查询时，按画像从 Feed 池挑适配好物（推荐+谨慎）
+  const profileItems = useMemo(() => {
+    if (!profileCrowds.length || hasQuery) return []
+    const tr = classifyProductList(feedItems.map((f) => f.product), profileCrowds)
+    return [...tr.recommend, ...tr.caution].slice(0, 12)
+  }, [profileCrowds, feedItems, hasQuery])
   
   // 新增：首页加载时检查是否有可领取的红包/实物活动
   useEffect(() => {
     checkCampaign()
   }, [currentCity])
 
-  // 底部 Feed 展示列表：有查询时直接展示"即时匹配"结果，无查询时展示默认推荐
+  // 商品「关怀层」信息：复用既有食养引擎，依用户体质/人群个性化适配分档 + 关怀度
+  // （displayFeed 已移至 consumptionItems 之后定义，以复用 personalizedItems 做去重）
+
+  // 消费偏好推荐：基于历史订单聚合的食养画像，从当前 Feed 候选池推荐相似好物（排除已购）
+  const consumptionItems = useMemo(() => {
+    if (!consumptionProfile?.hasData) return []
+    return recommendByConsumption(feedItems.map((f) => f.product), consumptionProfile, boughtIds, 12)
+  }, [consumptionProfile, feedItems, boughtIds])
+
+  // 个性化插卡：有画像优先展示「体质挑好物」，否则回退「常买好物」；仅展示 1 条，避免多条雷同 rail 叠加
+  const personalizedItems = useMemo(
+    () => (profileItems.length > 0 ? profileItems : consumptionItems),
+    [profileItems, consumptionItems],
+  )
+  const personalizedTitle = profileItems.length > 0 ? '为你的体质挑好物' : '根据你的常买好物'
+
+  // 底部 Feed 展示列表：有查询时直接展示「即时匹配」结果；无查询时展示默认推荐，并排除已出现在个性化插卡里的好物（去重）
   const displayFeed = useMemo<ScoredProduct<Product>[]>(() => {
     if (hasQuery && matchItems.length > 0) {
       return matchItems.map(m => ({
@@ -235,16 +260,9 @@ export default function IndexPage() {
         matchLabel: m.tier === 'recommend' ? '五星推荐' : m.tier === 'caution' ? '谨慎食用' : null,
       }))
     }
-    return feedItems
-  }, [hasQuery, matchItems, feedItems])
-
-  // 商品「关怀层」信息：复用既有食养引擎，依用户体质/人群个性化适配分档 + 关怀度
-
-  // 消费偏好推荐：基于历史订单聚合的食养画像，从当前 Feed 候选池推荐相似好物（排除已购）
-  const consumptionItems = useMemo(() => {
-    if (!consumptionProfile?.hasData) return []
-    return recommendByConsumption(feedItems.map((f) => f.product), consumptionProfile, boughtIds, 12)
-  }, [consumptionProfile, feedItems, boughtIds])
+    const hideIds = new Set(personalizedItems.map((p) => p.id))
+    return feedItems.filter((f) => !hideIds.has(f.product.id))
+  }, [hasQuery, matchItems, feedItems, personalizedItems])
   
   const checkCampaign = useCallback(async () => {
     if (!currentCity?.id) return
@@ -291,11 +309,7 @@ export default function IndexPage() {
           ;(stores || []).forEach((s: any) => { map[s.id] = s.name })
           setStoreNameMap(map)
         }
-        // 同会话仅自动弹一次；若已弹过则不重复打扰
-        if (!campaignPopupShownRef.current) {
-          campaignPopupShownRef.current = true
-          setTimeout(() => setShowCampaignPopup(true), 3000)
-        }
+        // 红包不再进首页自动强弹：改为内容流常驻入口卡片，用户主动点击才展开（campaignPopupShownRef 保留无害）
       }
     } catch (err) {
       console.error('[Index] 检查活动失败', err)
@@ -340,12 +354,10 @@ export default function IndexPage() {
     setDetectedCrowds(detected)
   }, [selectedCrowds, toggleCrowd])
 
-  // 即时匹配：输入心情文字或身体状态词（或点快捷标签）→ 直接配对商品，全程零额外操作
-  // 同时识别「情绪标签」与「身体人群」，两者其一命中即产出配对结果。
+  // 即时匹配：输入身体状态词（或点快捷标签）→ 直接配对商品，全程零额外操作
+  // 食养驱动：仅按身体人群分档，情绪不再参与前台交互（已转后台算法维度）
   const runMatch = useCallback(async (text: string, explicitCrowds?: Crowd[]) => {
-    const emotionResult = analyzeEmotion(text)
     const crowds = explicitCrowds && explicitCrowds.length ? explicitCrowds : parseCrowdsFromText(text)
-    const hasEmotion = emotionResult.detectedTags.length > 0
     const hasBody = crowds.length > 0
 
     // 同步全局人群（供详情页等复用 + 清空重置）
@@ -354,8 +366,7 @@ export default function IndexPage() {
     setMatchedLoading(true)
     let pool: Product[] = []
     try {
-      if (hasEmotion) pool = await getProductsByEmotion(emotionResult.detectedTags, 40, 'only')
-      else pool = await getProducts({ limit: 40, platformFilter: 'only' })
+      pool = await getProducts({ limit: 40, platformFilter: 'only' })
     } catch (e) {
       console.error('[Index] 匹配查询失败', e)
     }
@@ -370,36 +381,23 @@ export default function IndexPage() {
         ...tr.caution.map(p => ({ product: p, tier: 'caution' as FitTier })),
       ]
       if (matched.length === 0) {
-        // 该身体状态无录入导购字段的商品时，回退到情绪/全量候选
-        if (hasEmotion) {
-          matched = rankProductsByEmotion(pool, emotionResult.tagScores).filter(s => s.matchScore > 0).map(s => ({ product: s.product, tier: null }))
-        } else {
-          matched = pool.map(p => ({ product: p, tier: null }))
-        }
+        matched = pool.map(p => ({ product: p, tier: null }))
       }
-    } else if (hasEmotion) {
-      const scored = rankProductsByEmotion(pool, emotionResult.tagScores)
-      matched = scored.filter(s => s.matchScore > 0).map(s => ({ product: s.product, tier: null }))
-      if (matched.length === 0) matched = pool.slice(0, 12).map(p => ({ product: p, tier: null }))
     } else {
       matched = pool.slice(0, 12).map(p => ({ product: p, tier: null }))
     }
 
     setMatchItems(matched)
     setMatchAvoid(avoidCount)
-    setMatchLabel(buildMatchLabel(emotionResult.detectedTags, crowds))
+    setMatchLabel(buildMatchLabel(crowds))
     setMatchedLoading(false)
   }, [syncAutoCrowds])
 
-  // 情绪输入实时防抖分析（300ms，更跟手）
+  // 身体状态输入实时防抖（300ms，更跟手）→ 直接触发食养配对
   const handleMoodInput = (value: string) => {
     setMood(value)
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
     if (!value.trim()) {
-      setAnalysis(null)
-      setEmotionActive(false)
-      setPoetry('')
-      setIpBubble('侠客，今日有喜，好物相候！')
       setMatchItems([])
       setMatchAvoid(0)
       setMatchLabel('')
@@ -408,42 +406,21 @@ export default function IndexPage() {
       return
     }
     debounceTimer.current = setTimeout(() => {
-      const result = analyzeEmotion(value)
-      setAnalysis(result)
-      setIpBubble(result.ipBubble)
-      setPoetry(getEmotionPoetry(result.detectedTags, result.intensity))
-      setEmotionActive(result.detectedTags.length > 0)
-      // 直接配对商品：心情 + 身体状态词一并识别
+      // 仅做食养配对，情绪不进前台
       runMatch(value)
     }, 300)
   }
 
-  // 点击快捷情绪词 → 即时配对
-  const handleQuickMood = (preset: typeof QUICK_MOOD_PRESETS[number]) => {
-    setMood(preset.label)
-    const result = analyzeEmotion(preset.label)
-    setAnalysis(result)
-    setIpBubble(result.ipBubble)
-    setPoetry(getEmotionPoetry(result.detectedTags, result.intensity))
-    setEmotionActive(true)
-    Taro.showToast({ title: `${preset.emoji} ${preset.label}`, icon: 'none', duration: 700 })
-    runMatch(preset.label)
-  }
-
-  // 点击身体状态快捷词 → 即时配对（零额外操作）
+  // 点击身体状态快捷词 → 即时配对（零额外操作，食养推荐核心入口）
   const handleQuickBody = (preset: typeof QUICK_BODY_PRESETS[number]) => {
     setMood(preset.label)
     Taro.showToast({ title: `${preset.emoji} ${preset.label}`, icon: 'none', duration: 700 })
     runMatch(preset.label, preset.crowds)
   }
 
-  // 清空情绪
-  const clearEmotion = () => {
+  // 清空（仅清空前台输入态；情绪信号转后台算法维度，不在前台出现）
+  const clearStateInput = () => {
     setMood('')
-    setAnalysis(null)
-    setEmotionActive(false)
-    setPoetry('')
-    setIpBubble('侠客，今日有喜，好物相候！')
     setMatchItems([])
     setMatchAvoid(0)
     setMatchLabel('')
@@ -451,36 +428,8 @@ export default function IndexPage() {
     loadFeed()
   }
 
-
-  // 有查询时的匹配商品数
-  const matchedCount = displayFeed.filter(f => f.matchScore > 0).length
-
   return (
-    <View className="min-h-screen bg-background tabbar-pad">
-      {/* 顶部导航：墨韵国潮标题栏 */}
-      <View className="sticky top-0 z-10 bg-background px-4 pt-3 pb-2">
-        <View className="flex items-center gap-3">
-          <View className="flex items-center gap-2 flex-shrink-0">
-            <View className="w-9 h-9 rounded-full bg-card border border-primary flex items-center justify-center">
-              <Text className="text-primary font-bold text-lg">喜</Text>
-            </View>
-            <Text className="text-xl font-bold text-foreground">来电有喜</Text>
-          </View>
-          <View className="flex-1 flex items-center gap-2 bg-card rounded-full px-3 py-2 border border-border"
-            onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}>
-            <Icon name="magnify" size={18} className="text-muted-foreground" />
-            <Text className="text-sm text-muted-foreground">搜一搜情绪好物</Text>
-          </View>
-          <View
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-card border border-border flex-shrink-0"
-            onClick={() => Taro.navigateTo({ url: '/pages/city-select/index' })}
-          >
-            <Icon name="location" size={14} color="hsl(var(--primary))" />
-            <Text className="text-sm text-foreground">{currentCity?.city_name || '选择'}</Text>
-            <Icon name="chevron-down" size={12} className="text-muted-foreground" />
-          </View>
-        </View>
-      </View>
+    <View className="min-h-screen bg-background">
 
       {/* 会员资产条：金豆 / 佣金（统一货币为金豆，积分已并入金豆，零新增功能） */}
       <BeanHud
@@ -491,82 +440,52 @@ export default function IndexPage() {
       {/* 段位成长卡：读取现有 member_rank / cv_total，零新增功能 */}
       <RankProgress cvTotal={profile?.cv_total ?? 0} memberRank={profile?.member_rank} />
 
-      {/* IP伴侣气泡 —— 随情绪动态变化 */}
-      <View className={`mx-4 mt-4 p-4 rounded-2xl flex items-start gap-3 transition ink-card ${emotionActive ? 'border-primary' : ''}`}>
-        <View className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-primary"
-          style={{ boxShadow: emotionActive ? '0 0 0 4px rgba(194,65,12,0.15)' : 'none' }}>
-          {/* 武侠伴侣头像：斗笠侠客插画（base64 SVG），替换原文字印章，呼应武侠调性 */}
-          <Image
-            src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJiZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI0Y1RUJERCIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI0VBRDlDMiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgcng9IjMyIiBmaWxsPSJ1cmwoI2JnKSIvPjxwYXRoIGQ9Ik0zMiAxMiBMMTYgMzAgTDQ4IDMwIFoiIGZpbGw9IiNBODU1MkUiLz48cmVjdCB4PSIxNCIgeT0iMzAiIHdpZHRoPSIzNiIgaGVpZ2h0PSIzIiByeD0iMS41IiBmaWxsPSIjOEM0MDIzIi8+PGNpcmNsZSBjeD0iMzIiIGN5PSIzOCIgcj0iNyIgZmlsbD0iI0YwRDlCNSIvPjxjaXJjbGUgY3g9IjI5IiBjeT0iMzgiIHI9IjEuMSIgZmlsbD0iIzNBMkExRSIvPjxjaXJjbGUgY3g9IjM1IiBjeT0iMzgiIHI9IjEuMSIgZmlsbD0iIzNBMkExRSIvPjxwYXRoIGQ9Ik0yMiA0NiBRMzIgNDIgNDIgNDYgTDQ1IDU4IEwxOSA1OCBaIiBmaWxsPSIjNkU3QjVCIi8+PHBhdGggZD0iTTQ2IDQwIEw1NCAzMiIgc3Ryb2tlPSIjOEM3RTZFIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"
-            mode="aspectFill"
-            className="w-full h-full"
-          />
-        </View>
+      {/* 扫配料表 · 看安全等级 · 直接下单（唯一门面入口） */}
+      <View
+        className="mx-4 mt-4 p-4 rounded-2xl flex items-center gap-3 ink-card"
+        style={{ borderColor: 'hsl(var(--primary))', borderWidth: 1, boxShadow: '0 6px 24px rgba(194,65,12,0.12)' }}
+        onClick={() => Taro.navigateTo({ url: '/pages/food-scan/index' })}
+      >
+        <View className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl"
+          style={{ background: 'hsl(var(--primary) / 0.12)' }}>📷</View>
         <View className="flex-1">
-          <Text className="text-base text-foreground leading-relaxed">{ipBubble}</Text>
-          {/* 情绪强度指示 */}
-          {analysis && analysis.intensity !== 'low' && (
-            <View className="flex items-center gap-1 mt-1">
-              <Text className="text-sm text-muted-foreground">情绪强度</Text>
-              {[1, 2, 3].map(i => (
-                <View key={i} className="w-3 h-3 rounded-full"
-                  style={{ background: i <= (analysis.intensity === 'high' ? 3 : 2) ? 'hsl(var(--primary))' : 'hsl(var(--border))' }} />
-              ))}
-            </View>
-          )}
+          <Text className="text-lg font-bold text-foreground">扫配料表 · 看安全等级</Text>
+          <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 2 }}>
+            拍照 / 输入配料，秒出添加剂·致敏原·营养分析与食养推荐
+          </Text>
         </View>
+        <View className="px-3 py-2 rounded-full text-white text-sm font-bold"
+          style={{ background: 'hsl(var(--primary))' }}>去扫描 ›</View>
       </View>
 
-      {/* 今日状态卡：情绪 + 体质状况 统一输入，共同驱动下方推荐 */}
+      {/* 今日状态卡：身体状态输入，驱动食养推荐（情绪已转后台算法维度，不在前台） */}
       <View className="ink-card mx-4 mt-4 p-4">
         <View className="flex items-center justify-between mb-3">
           <View>
-            <Text className="text-lg font-bold text-foreground">今天的状态</Text>
-            <Text className="text-sm text-muted-foreground">说说心情，为你智能推荐</Text>
+            <Text className="text-lg font-bold text-foreground">今天想吃点什么</Text>
+            <Text className="text-sm text-muted-foreground">选体质 / 说状态，看食养推荐</Text>
           </View>
-          {(emotionActive || selectedCrowds.length > 0) && (
-            <View className="flex items-center gap-1 text-primary text-sm" onClick={() => { clearEmotion(); clearFilters() }} hoverClass="none">
+          {selectedCrowds.length > 0 && (
+            <View className="flex items-center gap-1 text-primary text-sm" onClick={() => { clearStateInput(); clearFilters() }} hoverClass="none">
               <Icon name="close-circle" size={18} />
               <Text>清空</Text>
             </View>
           )}
         </View>
 
-        {/* 快捷情绪词 —— 使用 Taro 原生 View + 内联样式，确保微信小程序 100% 可点击 */}
-        <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingBottom: '8px', marginBottom: '12px' }}>
-          {QUICK_MOOD_PRESETS.map((preset) => {
-            const isActive = mood === preset.label
-            return (
-              <View
-                key={preset.label}
-                hoverClass="none"
-                onClick={() => {
-                  // 立即反馈
-                  Taro.showToast({ title: `${preset.emoji} ${preset.label}`, icon: 'none', duration: 800 })
-                  console.log('[Mood] handleQuickMood start:', preset.label)
-                  try {
-                    setMood(preset.label)
-                    const result = analyzeEmotion(preset.label)
-                    console.log('[Mood] analyzeEmotion result:', result)
-                    setAnalysis(result)
-                    setIpBubble(result.ipBubble)
-                    setPoetry(getEmotionPoetry(result.detectedTags, result.intensity))
-                    setEmotionActive(true)
-                    loadFeed(result)
-                    console.log('[Mood] handleQuickMood done')
-                  } catch (err) {
-                    console.error('[Mood] error:', err)
-                    Taro.showToast({ title: `错误: ${String(err)}`, icon: 'none', duration: 3000 })
-                  }
-                }}
-                className={`symptom-tag ${isActive ? 'symptom-tag-active' : ''}`}
-              >
-                <Text className="text-base">{preset.emoji}</Text>
-                <Text className={`text-sm ${isActive ? 'text-white font-bold' : 'text-foreground'}`}>{preset.label}</Text>
-              </View>
-            )
-          })}
-        </View>
+        {/* 你关注的身体状况：来自 V1 体质档案，只读呈现（非"今日"，避免虚假动态感） */}
+        {profileCrowds.length > 0 && (
+          <View className="mb-3">
+            <Text className="text-sm text-muted-foreground mb-2 block">你关注的身体状况</Text>
+            <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {[...(userProfile?.body_states ?? []), ...(userProfile?.chronic_conditions ?? [])].map((s) => (
+                <View key={s} className="symptom-tag symptom-tag-active">
+                  <Text className="text-sm text-white font-bold">{s}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* 身体状态快捷词 —— 一键直接配对商品（零额外操作） */}
         <View className="mt-3">
@@ -588,50 +507,16 @@ export default function IndexPage() {
         {/* 输入框 */}
         <View className="flex items-center gap-2">
           <View className="flex-1 border-2 rounded-2xl px-4 py-3 bg-white transition"
-            style={{ borderColor: emotionActive ? 'hsl(var(--primary))' : 'hsl(var(--border))' }}>
+            style={{ borderColor: 'hsl(var(--border))' }}>
             <Input className="w-full text-base text-foreground bg-transparent outline-none"
-              placeholder="说说心情，自动为你配对好物…"
+              placeholder="说说身体状态，自动为你配对食养好物…"
               value={mood}
               onInput={(e) => { const ev = e as any; handleMoodInput(ev.detail?.value ?? ev.target?.value ?? '') }} />
           </View>
           {loading && <Icon name="loading" size={24} className="text-primary animate-spin flex-shrink-0" />}
         </View>
 
-        {/* 情绪分析结果 —— 识别到的标签 */}
-        {analysis && analysis.detectedTags.length > 0 && (
-          <View className="mt-3">
-            <View className="flex items-center gap-2 mb-2">
-              <Icon name="tag-multiple" size={18} className="text-primary" />
-              <Text className="text-sm text-muted-foreground">识别到情绪：</Text>
-            </View>
-            <View className="flex flex-wrap gap-2">
-              {analysis.detectedTags.map(tag => (
-                <Text key={tag} className="px-3 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20">
-                  #{tag}
-                </Text>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* 武侠诗意翻译 */}
-        {poetry && (
-          <View className="mt-3 p-3 bg-white rounded-xl border border-border">
-            <Text className="text-base text-secondary leading-relaxed italic">「{poetry}」</Text>
-            <View className="flex items-center justify-between mt-2">
-              {emotionActive && matchedCount > 0 && (
-                <Text className="text-sm text-primary font-bold">已为你筛选 {matchedCount} 件好物 ↓</Text>
-              )}
-              <View onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}
-                className="flex items-center gap-1 text-primary text-sm ml-auto">
-                <Text>去自营</Text>
-                <Icon name="arrow-right" size={18} />
-              </View>
-            </View>
-          </View>
-        )}
-
-        <Text className="text-xs text-muted-foreground mt-3">食养参考 · 不替代医嘱</Text>
+        <Text className="text-xs text-muted-foreground mt-3">{FOOD_THERAPY_DISCLAIMER}</Text>
       </View>
 
       {/* 即时匹配：输入/选择后直接展示配对好物，零额外操作（紧跟输入框，无需滚动） */}
@@ -669,8 +554,32 @@ export default function IndexPage() {
           )}
 
           {matchAvoid > 0 && (
-            <Text className="text-xs text-muted-foreground mt-1">另有 {matchAvoid} 件建议避开（食养参考 · 不替代医嘱）</Text>
+            <View>
+              <Text className="text-xs text-muted-foreground mt-1">另有 {matchAvoid} 件建议避开</Text>
+              <Text className="text-xs text-muted-foreground mt-1">{FOOD_THERAPY_DISCLAIMER}</Text>
+            </View>
           )}
+        </View>
+      )}
+
+      {/* 个性化插卡：有画像→体质挑好物，否则→常买好物；仅 1 条，且已与主 Feed 去重 */}
+      {!hasQuery && personalizedItems.length > 0 && (
+        <View className="mt-4 px-4">
+          <View className="flex items-center gap-2 mb-1">
+            <View className="section-accent" />
+            <Text className="text-2xl font-bold text-foreground">{personalizedTitle}</Text>
+          </View>
+          <Text className="text-base text-muted-foreground block mb-3">
+            {profileItems.length > 0
+              ? `按你关注的身体状况食养适配 · ${FOOD_THERAPY_DISCLAIMER}`
+              : '读懂你的口味，挑出同样懂身体的好物'}
+          </Text>
+          <View className="flex gap-3 overflow-x-auto pb-1">
+            {personalizedItems.map((product) => (
+              <FitCard key={product.id} product={product}
+                onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })} />
+            ))}
+          </View>
         </View>
       )}
 
@@ -682,34 +591,27 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* 注：体质状况 / 场景 输入已并入上方「今天的状态」卡片，匹配结果由上方「即时匹配」条 + 底部 Feed 直接呈现 */}
-
-      {/* 消费偏好推荐：基于历史订单聚合的食养画像，为你精选相似方向好物 */}
-      {consumptionItems.length > 0 && (
-        <View className="mt-4 px-4">
-          <View className="flex items-center gap-2 mb-1">
-            <View className="section-accent" />
-            <Text className="text-2xl font-bold text-foreground">根据你的常买好物</Text>
+      {/* 限时福利入口：常驻可见，用户主动点击才展开，不再进首页 3s 强弹打断 */}
+      {campaignList.length > 0 && !showCampaignPopup && (
+        <View
+          className="mx-4 mt-4 p-4 rounded-2xl ink-card flex items-center justify-between"
+          hoverClass="none"
+          onClick={() => setShowCampaignPopup(true)}
+        >
+          <View className="flex items-center gap-2 flex-1 min-w-0">
+            <Text className="text-2xl">🎁</Text>
+            <View className="flex-1 min-w-0">
+              <Text className="text-base font-bold text-foreground block" style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                限时福利 · {campaignList[0]?.campaign_name}
+              </Text>
+              <Text className="text-xs text-muted-foreground block truncate">
+                {(campaignList[0]?.store_id && storeNameMap[campaignList[0].store_id])
+                  ? `${storeNameMap[campaignList[0].store_id]} 专享`
+                  : '领取红包/实物，绑定专属门店优惠'}
+              </Text>
+            </View>
           </View>
-          <Text className="text-base text-muted-foreground block mb-3">
-            读懂你的口味，挑出同样懂身体的好物 · 食养参考不替代医嘱
-          </Text>
-          {consumptionProfile && consumptionProfile.topHealthTags.length > 0 && (
-            <View className="flex gap-2 flex-wrap mb-3">
-              {consumptionProfile.topHealthTags.map((ht) => (
-                <Text key={ht.tag}
-                  className="px-2.5 py-1 rounded-full text-sm bg-primary/10 text-primary border border-primary/20">
-                  {ht.tag}
-                </Text>
-              ))}
-            </View>
-          )}
-          <View className="flex gap-3 overflow-x-auto pb-1">
-            {consumptionItems.map((product) => (
-              <FitCard key={product.id} product={product}
-                onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })} />
-            ))}
-            </View>
+          <View className="ml-3 px-3 py-1.5 rounded-full bg-primary text-white text-sm font-bold flex-shrink-0">领取</View>
         </View>
       )}
 
@@ -719,9 +621,10 @@ export default function IndexPage() {
           <View className="section-accent" />
           <Text className="text-2xl font-bold text-foreground">为你精选</Text>
         </View>
-        <Text className="text-base text-muted-foreground block mb-3">
-          懂身体的江湖好物，挑挑看 · 食养参考不替代医嘱
-        </Text>
+          <Text className="text-base text-muted-foreground block mb-3">
+            懂身体的江湖好物，挑挑看
+          </Text>
+          <Text className="text-xs text-muted-foreground block mb-3">{FOOD_THERAPY_DISCLAIMER}</Text>
         {loading && feedItems.length === 0 ? (
           <View className="flex gap-3 overflow-x-auto pb-1">
             {[0, 1, 2, 3].map(i => (
@@ -862,8 +765,7 @@ function FitCard({ product, onTap, tier }: { product: Product; onTap: () => void
       : null
   const dot = natureDotColor(care?.nature)
   const healthTag = care?.healthTags?.[0]
-  const emotionTag = care?.emotionTags?.[0]
-  const hasCare = !!dot || !!healthTag || !!emotionTag || (care?.conflictCount ?? 0) > 0
+  const hasCare = !!dot || !!healthTag || (care?.conflictCount ?? 0) > 0
   return (
     <View onClick={onTap}
       className="pg-card flex-shrink-0 w-40 relative overflow-hidden"
@@ -900,9 +802,6 @@ function FitCard({ product, onTap, tier }: { product: Product; onTap: () => void
             )}
             {healthTag && (
               <Text style={{ fontSize: 10, lineHeight: '14px', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 9999, background: 'rgba(194,65,12,0.12)', color: '#C2410C' }}>{healthTag}</Text>
-            )}
-            {emotionTag && (
-              <Text style={{ fontSize: 10, lineHeight: '14px', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 9999, background: 'rgba(219,39,119,0.12)', color: '#DB2777' }}>♡{emotionTag}</Text>
             )}
             {care && care.conflictCount > 0 && (
               <Text style={{ fontSize: 10, lineHeight: '14px', fontWeight: 'bold', color: '#C77B47' }}>⚠{care.conflictCount}</Text>
