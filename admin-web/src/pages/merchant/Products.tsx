@@ -151,7 +151,7 @@ export default function MerchantProducts() {
   const detailRef    = useRef<HTMLInputElement>(null)
   const videoRef     = useRef<HTMLInputElement>(null)
 
-  // 判断是否有商家权限
+  // 判断是否有自营门店权限
   const isMerchantUser = profile?.merchant_status === 'approved' || profile?.role === 'merchant'
   const [customScene, setCustomScene] = useState('')
 
@@ -405,10 +405,10 @@ export default function MerchantProducts() {
       moments_copy: form.moments_copy || null,
       taboo_warning: form.taboo_warning || null,
     }
-    // 真实模式：写库，保证网页版与小程序商家中心同步
+    // 真实模式：写库，保证网页版与小程序自营门店中心同步
     if (!useMock) {
       if (!storeId) {
-        window.alert('未找到关联门店（stores.owner_id 未匹配当前账号），无法保存商品。\n请确认：①本账号已通过商家审核；②门店 owner_id 已设为当前登录账号。')
+        window.alert('未找到关联门店（stores.owner_id 未匹配当前账号），无法保存商品。\n请确认：①本账号已通过自营门店审核；②门店 owner_id 已设为当前登录账号。')
         return
       }
       const persist = (b: any) =>

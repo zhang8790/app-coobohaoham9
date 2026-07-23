@@ -9,7 +9,7 @@ COMMENT ON TABLE user_addresses IS '收货地址表 - 用户收货地址管理';
 COMMENT ON TABLE store_staff IS '门店员工表 - 门店员工管理、权限控制';
 
 -- 门店相关表
-COMMENT ON TABLE stores IS '门店表 - 普通入驻门店基本信息、营业设置、佣金比例';
+COMMENT ON TABLE stores IS '门店表 - 普通自营门店基本信息、营业设置、佣金比例';
 COMMENT ON TABLE self_operated_stores IS '自营门店表 - 平台自营门店配置（与普通门店分开）';
 COMMENT ON TABLE store_categories IS '门店分类表 - 门店商品分类';
 

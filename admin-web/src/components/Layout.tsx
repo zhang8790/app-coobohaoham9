@@ -5,7 +5,7 @@ import { NavIcon } from './icons'
 
 const NAV = [
   { to: '/dashboard', icon: 'grid', label: '仪表盘' },
-  { to: '/merchants', icon: 'store', label: '商家入驻' },
+  { to: '/merchants', icon: 'store', label: '自营门店' },
   { to: '/products', icon: 'box', label: '商品审阅' },
   { to: '/withdrawals', icon: 'dollar', label: '佣金兑付' },
   { to: '/ugc', icon: 'news', label: 'UGC管理' },

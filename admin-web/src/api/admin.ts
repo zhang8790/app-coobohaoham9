@@ -113,7 +113,7 @@ export async function getRecentMerchants(limit = 5): Promise<MerchantApplication
   )
 }
 
-// ── 商家审核 ───────────────────────────────────────────────────────────
+// ── 自营门店审核 ───────────────────────────────────────────────────────────
 export async function getMerchantApplications(
   status: string, page: number, pageSize: number
 ): Promise<{ data: MerchantApplication[]; total: number }> {
@@ -584,7 +584,7 @@ export async function createSelfStore(input: {
       banner_url: input.banner_url || null,
     })
     if (error) { console.error('[createSelfStore] 失败:', error); return false }
-    // 指定了店长 -> 自动赋予 merchant 角色，使其可登录小程序商家中心 + admin-web 商家后台管理本店
+    // 指定了店长 -> 自动赋予 merchant 角色，使其可登录小程序自营门店中心 + admin-web 商家后台管理本店
     if (input.owner_id) {
       await supabase.from('profiles').update({ role: 'merchant' }).eq('id', input.owner_id)
     }

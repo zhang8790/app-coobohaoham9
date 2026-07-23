@@ -2,7 +2,7 @@
 -- Seed announcements
 INSERT INTO public.announcements (content, is_active, sort_order) VALUES
 ('欢迎来到来店有喜！首单享九折优惠，快来探索吧~', true, 1),
-('【新店入驻】茶语轩精品茶饮正式上线，满50减10！', true, 2),
+('【新自营门店】茶语轩精品茶饮正式上线，满50减10！', true, 2),
 ('本周末双倍积分活动，消费即送积分，快来犒赏自己！', true, 3);
 
 -- Seed stores

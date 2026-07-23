@@ -58,7 +58,6 @@ export default function IndexPage() {
   const [annIdx, setAnnIdx] = useState(0)
   const [loading, setLoading] = useState(false)
   const [emotionActive, setEmotionActive] = useState(false)
-  const [fabOpen, setFabOpen] = useState(false)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 自然语言 → 身体状态人群：自动识别后高亮对应 chip（与手动选择并存）
@@ -804,114 +803,33 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* 悬浮操作组：右下角展开式 SpeedDial —— 默认仅主按钮（扫码）常驻，点击向上展开创作/游记；半透明遮罩点击收起 */}
-      {fabOpen && (
-        <View className="fixed inset-0 z-40" onClick={() => setFabOpen(false)} />
-      )}
-      <View className="fixed bottom-24 right-3 flex flex-col items-end gap-3 z-50">
-        <FabAction
-          label="创作"
-          icon="pencil"
-          revealed={fabOpen}
-          onPress={() => {
-            setFabOpen(false)
-            Taro.navigateTo({ url: '/pages/content-center/make/index' })
-          }}
-        />
-        <FabAction
-          label="游记"
-          icon="camera"
-          revealed={fabOpen}
-          onPress={() => {
-            setFabOpen(false)
-            Taro.navigateTo({ url: '/pages/ugc-publish/index' })
-          }}
-        />
+      {/* 首页悬浮扫码按钮：单独常驻右下角，点击直接调起微信扫码 → 扫码结果页 */}
+      <View
+        className="fixed bottom-24 right-3 z-50 flex items-center justify-center"
+        hoverClass="none"
+        onClick={() => {
+          Taro.scanCode({
+            scanType: ['barCode', 'qrCode'],
+            success: (res) => {
+              Taro.navigateTo({ url: `/pages/scan-result/index?code=${encodeURIComponent(res.result)}` })
+            },
+            fail: () => {},
+          })
+        }}
+      >
         <View
-          className="flex items-center gap-2.5"
-          hoverClass="none"
-          onClick={() => {
-            if (fabOpen) {
-              Taro.scanCode({
-                scanType: ['barCode', 'qrCode'],
-                success: (res) => {
-                  Taro.navigateTo({ url: `/pages/scan-result/index?code=${encodeURIComponent(res.result)}` })
-                },
-                fail: () => {},
-              })
-            } else {
-              setFabOpen(true)
-            }
-          }}
+          className="flex items-center justify-center"
           style={{
-            transform: fabOpen ? 'scale(0.96)' : 'scale(1)',
-            transition: 'transform 0.12s ease',
+            width: 54, height: 54, borderRadius: 9999,
+            backgroundColor: 'hsl(var(--brand-ochre))',
+            boxShadow: '0 8px 22px rgba(194,65,12,0.45), 0 0 0 4px rgba(194,65,12,0.16)',
           }}
         >
-          <View
-            className="flex items-center justify-center"
-            style={{
-              width: 54, height: 54, borderRadius: 9999,
-              backgroundColor: 'hsl(var(--brand-ochre))',
-              boxShadow: '0 8px 22px rgba(194,65,12,0.45), 0 0 0 4px rgba(194,65,12,0.16)',
-            }}
-          >
-            <Icon name="barcode-scan" size={26} className="text-white" />
-          </View>
+          <Icon name="barcode-scan" size={26} className="text-white" />
         </View>
       </View>
       {/* 自定义底部导航：独立渲染（贴底全宽），不可嵌套在 FAB 容器内，否则行囊徽标在真机渲染异常 */}
       <CustomTabBar />
-    </View>
-  )
-}
-
-// 悬浮操作按钮（首页展开式 SpeedDial 条目）—— 武侠国潮风，「标签胶囊 + 圆形图标钮」结构；
-// revealed 控制展开动画（透明度 / 位移 / 缩放），收起时不可点击；按压有轻微缩放反馈。
-function FabAction({ label, icon, revealed, onPress }: {
-  label: string
-  icon: string
-  revealed: boolean
-  onPress: () => void
-}) {
-  const [pressed, setPressed] = useState(false)
-  return (
-    <View
-      className="flex items-center gap-2.5"
-      hoverClass="none"
-      onClick={onPress}
-      onTouchStart={() => setPressed(true)}
-      onTouchEnd={() => setPressed(false)}
-      style={{
-        opacity: revealed ? 1 : 0,
-        transform: `${pressed ? 'scale(0.94)' : 'scale(1)'} translateY(${revealed ? 0 : 16}px)`,
-        pointerEvents: revealed ? 'auto' : 'none',
-        transition: 'opacity 0.22s ease, transform 0.22s cubic-bezier(0.16,1,0.3,1)',
-      }}
-    >
-      {/* 标签胶囊 */}
-      <View
-        className="px-3.5 py-1.5 rounded-full"
-        style={{
-          backgroundColor: 'rgba(255,255,255,0.92)',
-          border: '1px solid rgba(44,36,32,0.10)',
-          boxShadow: '0 4px 14px rgba(44,36,32,0.10)',
-        }}
-      >
-        <Text className="text-sm font-semibold text-foreground">{label}</Text>
-      </View>
-      {/* 圆形图标钮 */}
-      <View
-        className="flex items-center justify-center"
-        style={{
-          width: 44, height: 44, borderRadius: 9999,
-          backgroundColor: 'rgba(255,255,255,0.95)',
-          border: '1px solid rgba(44,36,32,0.10)',
-          boxShadow: '0 6px 16px rgba(44,36,32,0.12)',
-        }}
-      >
-        <Icon name={icon} size={20} className="text-foreground" />
-      </View>
     </View>
   )
 }

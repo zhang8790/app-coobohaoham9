@@ -372,7 +372,7 @@ body{
           </div>
         </div>
         <div class="caps" id="marketCaps"></div>
-        <div class="sec"><span class="dot"></span><span class="t">入驻坊主</span><span class="rule"></span></div>
+        <div class="sec"><span class="dot"></span><span class="t">自营门店</span><span class="rule"></span></div>
         <div id="storeList"></div>
       </section>
 
@@ -655,7 +655,7 @@ function renderMarket(){
 function renderStoreList(filter){
   const list = filter==='all'?stores:stores.filter(s=>(s.desc||'').includes(filter));
   const wrap=$('#storeList');
-  if(!list.length){ wrap.innerHTML='<div class="empty">暂无入驻坊主</div>'; return; }
+  if(!list.length){ wrap.innerHTML='<div class="empty">暂无自营门店</div>'; return; }
   wrap.innerHTML=list.map(s=>`
     <div class="store" data-store="${s.id}">
       <div class="em">🏮</div>

@@ -88,7 +88,7 @@ export default function SearchPage() {
     setResults([])
   }
 
-  // 支持从品牌馆(?mood=标签) / 情绪检测页(?keyword=关键词) 带参跳转自动搜索
+  // 支持从情绪检测页(?keyword=关键词) / 自营页(?mood=标签) 带参跳转自动搜索
   useEffect(() => {
     const rawMood = router.params?.mood
     const rawKw = router.params?.keyword

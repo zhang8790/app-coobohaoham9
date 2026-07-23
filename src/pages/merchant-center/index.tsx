@@ -1,4 +1,4 @@
-// @title 商家管理中心（仪表盘）
+// @title 自营门店管理中心（仪表盘）
 import { useState, useEffect } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { View, Text, Button, Image } from '@tarojs/components'
@@ -214,14 +214,14 @@ function MerchantCenterPage() {
     </View>
   )
 
-  // 已通过商家入驻但还没有门店（门店尚未创建或 owner_id 不匹配）
+  // 已通过自营门店但还没有门店（门店尚未创建或 owner_id 不匹配）
   if (!store && merchantAppStatus === 'approved') return (
     <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
       <View className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
         <Icon name="check" size={36} className="text-primary" />
       </View>
-      <Text className="text-xl font-bold text-foreground text-center">入驻已通过</Text>
-      <Text className="text-base text-muted-foreground text-center">恭喜！您的商家入驻已审核通过，正在为您准备门店数据。</Text>
+      <Text className="text-xl font-bold text-foreground text-center">自营门店已通过</Text>
+      <Text className="text-base text-muted-foreground text-center">恭喜！您的自营门店已审核通过，正在为您准备门店数据。</Text>
       <Button className="!bg-primary !border-none !rounded-2xl !px-8 !py-3"
         onClick={() => Taro.navigateTo({ url: '/pages/merchant-apply/index' })}>
         <Text className="text-base font-bold text-white">完善门店信息</Text>
@@ -237,8 +237,8 @@ function MerchantCenterPage() {
   if (!store && merchantAppStatus === 'pending') return (
     <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
       <Icon name="clock-outline" size={60} className="text-yellow-500" />
-      <Text className="text-xl font-bold text-foreground text-center">入驻申请审核中</Text>
-      <Text className="text-base text-muted-foreground text-center">您的商家入驻申请已提交，请耐心等待管理员审核。</Text>
+      <Text className="text-xl font-bold text-foreground text-center">自营门店申请审核中</Text>
+      <Text className="text-base text-muted-foreground text-center">您的自营门店申请已提交，请耐心等待管理员审核。</Text>
       <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
         onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
         <Text className="text-base text-muted-foreground">返回</Text>
@@ -250,7 +250,7 @@ function MerchantCenterPage() {
   if (!store) return (
     <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
       <Icon name="store-off" size={60} className="text-muted-foreground" />
-      <Text className="text-xl text-muted-foreground text-center">您尚未开通门店，请先申请成为商家</Text>
+      <Text className="text-xl text-muted-foreground text-center">您尚未开通门店，请先申请开通自营门店</Text>
       <Button className="!bg-primary !border-none !rounded-2xl !px-8 !py-3"
         onClick={() => Taro.navigateTo({ url: '/pages/merchant-apply/index' })}>
         <Text className="text-base font-bold text-white">申请开店</Text>

@@ -50,7 +50,7 @@ export default function EmotionFunnel() {
   }, [products])
 
   if (!isMerchantUser) {
-    return <div style={{ color: muted, padding: 40 }}>当前账号无商家权限，无法查看情绪漏斗。</div>
+    return <div style={{ color: muted, padding: 40 }}>当前账号无自营门店权限，无法查看情绪漏斗。</div>
   }
 
   const stages = [

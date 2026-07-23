@@ -673,7 +673,7 @@ function MerchantProductsPage() {
               </View>
             )}
 
-            {/* 让利% — 与犒赏铺 API discount_rate 对齐 */}
+            {/* 让利% — 与自营门店 API discount_rate 对齐 */}
             <View style={{ marginBottom: '14px' }}>
               <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>🏷️ 让利 %</Text>
               <Input

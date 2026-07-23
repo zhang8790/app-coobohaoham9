@@ -411,42 +411,10 @@ export function resolveCategoryProfile(category?: string | null): CategoryEmotio
 }
 
 // =====================
-// 本地生活类目 · 犒赏铺（合作商家）声明
-// =====================
-// 平台存在两套门店入口，类目体系不同：
-//   1) 探索页（自营门店）—— platformFilter='only'，使用「商品类目」（图书/美食/饮品/零食/日用/礼品）
-//   2) 犒赏铺（合作商家）—— platformFilter='exclude'，使用「本地生活类目」
-//      —— 即本文件定义的 11 个本地生活业态（餐饮/饮品/烘焙/水果生鲜/零售/美业/娱乐/运动健身/亲子/生活服务/酒店民宿）。
-//
-// 下列映射把犒赏铺前端展示用的门店类目，对齐到情绪编译系统的本地生活类目 key，
-// 使合作商家的商品也能正确命中情绪表达策略（消除此前「门店类目」与「情绪本地生活类目」两套语言不对齐的断层）。
-export const REWARD_SHOP_CATEGORY_TO_LOCAL_LIFE: Record<string, string> = {
-  '餐饮': '餐饮',     // 直接对应
-  '购物': '零售',     // 零售 aliases 含 百货/超市/便利店/文创
-  '娱乐': '娱乐',     // 直接对应
-  '美容': '美业',     // 美业 aliases 含 美容/美甲/护肤/SPA
-  '家政': '生活服务', // 生活服务 aliases 含 家政/保洁/维修
-  '教育': '亲子',     // 近似对齐：早教/托管/儿童/母婴
-}
-
-/** 明确的语义声明：犒赏铺属于「本地生活类目」体系（合作商家入口）。 */
-export const REWARD_SHOP_IS_LOCAL_LIFE = true
-
-/**
- * 将犒赏铺门店类目转换为情绪编译系统使用的本地生活类目 key。
- * 未命中映射时回退 '通用'（由 resolveCategoryProfile 兜底）。
- */
-export function toLocalLifeCategory(rewardShopCategory?: string | null): string {
-  if (!rewardShopCategory) return '通用'
-  return REWARD_SHOP_CATEGORY_TO_LOCAL_LIFE[rewardShopCategory] || '通用'
-}
-
-// =====================
 // 探索(自营)商品类目 → 本地生活业态 映射
 // =====================
 // 探索页展示「商品类目」(图书/美食/饮品/零食/日用/礼品)，后端按 products.category exact 匹配；
-// 此处把商品类目对齐到「本地生活业态」(category-emotion 11 业态)，点亮三套类目统一到本地生活的概念闭环：
-//   ① 探索商品类目  ② 犒赏铺门店类目(REWARD_SHOP_CATEGORY_TO_LOCAL_LIFE)  ③ 情绪本地生活类目
+// 此处把商品类目对齐到「本地生活业态」(category-emotion 11 业态)。
 export const EXPLORE_PRODUCT_CATEGORY_TO_LOCAL_LIFE: Record<string, string> = {
   '图书': '零售',
   '美食': '餐饮',
@@ -460,10 +428,9 @@ export const EXPLORE_PRODUCT_CATEGORY_TO_LOCAL_LIFE: Record<string, string> = {
 export const LOCAL_LIFE_CATEGORY_KEYS: string[] = Object.keys(CATEGORY_EMOTION_MAP)
 
 // =====================
-// 统一情绪筛选层（探索 / 犒赏铺 共用）
+// 统一情绪筛选层（自营门店）
 // =====================
-// 情绪作为贯穿「探索(自营)」与「犒赏铺(合作)」两类目体系的统一维度。
-// 下方 chips 供两页共用：探索端点击走本地 moodTag 过滤；犒赏铺端点击跳搜索页情绪配对。
+// 情绪作为自营门店商品体系的统一维度，下方 chips 供探索端点击走本地 moodTag 过滤。
 export const UNIFIED_EMOTION_FILTERS: Array<{ tag: string; icon: string }> = [
   { tag: '快乐', icon: '😊' },
   { tag: '温馨', icon: '🏠' },

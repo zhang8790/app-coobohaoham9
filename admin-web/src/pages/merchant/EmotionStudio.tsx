@@ -205,7 +205,7 @@ export default function EmotionStudio() {
   }
 
   if (!isMerchantUser) {
-    return <div style={{ color: muted, padding: 40 }}>当前账号无商家权限，无法进入情绪工作台。</div>
+    return <div style={{ color: muted, padding: 40 }}>当前账号无自营门店权限，无法进入情绪工作台。</div>
   }
 
   return (
@@ -219,7 +219,7 @@ export default function EmotionStudio() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h2 style={{ color: fg, fontSize: 20, fontWeight: 700, margin: 0 }}>情绪编译工作台</h2>
-          <p style={{ color: muted, fontSize: 13, margin: '4px 0 0' }}>为商品打五维情绪标签  实时评分  一键编译情绪文案（与小程序商家后台同源）</p>
+          <p style={{ color: muted, fontSize: 13, margin: '4px 0 0' }}>为商品打五维情绪标签  实时评分  一键编译情绪文案（与小程序自营门店后台同源）</p>
         </div>
         {active && (
           <button onClick={handleSave} disabled={saving} style={{ padding: '8px 18px', background: saving ? 'var(--border-soft)' : 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>

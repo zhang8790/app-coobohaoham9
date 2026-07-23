@@ -44,7 +44,7 @@ export const mockProfile: Profile = {
 const STORE_IMG = 'https://picsum.photos/seed/store/400/400'
 
 // =====================
-// 测试门店（多个，用于品牌馆展示）
+// 测试门店（多个，用于自营门店展示）
 // =====================
 export const mockStores: Store[] = [
   {
@@ -399,7 +399,7 @@ export const mockProducts: Product[] = [
 // =====================
 export let mockAnnouncements: Announcement[] = [
   { id: 'ann-001', content: '🎉 欢迎来到来电有喜！首单享九折优惠~', is_active: true, sort_order: 1, created_at: new Date().toISOString() },
-  { id: 'ann-002', content: '【新店入驻】茶语轩精品茶饮正式上线，满50减10！', is_active: true, sort_order: 2, created_at: new Date().toISOString() },
+  { id: 'ann-002', content: '【新自营门店】茶语轩精品茶饮正式上线，满50减10！', is_active: true, sort_order: 2, created_at: new Date().toISOString() },
   { id: 'ann-003', content: '本周末双倍金豆活动，消费即送金豆！', is_active: true, sort_order: 3, created_at: new Date().toISOString() },
 ]
 
@@ -433,7 +433,7 @@ export let mockFootprints: Footprint[] = [
 ]
 
 // =====================
-// 商家申请
+// 自营门店申请
 // =====================
 export let mockMerchantApps: MerchantApplication[] = [
   {

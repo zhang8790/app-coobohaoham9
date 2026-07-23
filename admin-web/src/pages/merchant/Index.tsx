@@ -1,4 +1,4 @@
-// @title 商家中心 - 店铺概况
+// @title 自营门店中心 - 店铺概况
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
@@ -39,7 +39,7 @@ const STATUS_COLOR: Record<string, string> = {
   cancelled: 'var(--text-dim)',
 }
 
-// 判断是否有商家权限
+// 判断是否有自营门店权限
 const isMerchantUser = (profile: any): boolean => {
   if (!profile) return false
   return profile.role === 'merchant' || profile.merchant_status === 'approved'

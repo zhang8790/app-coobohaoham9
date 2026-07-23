@@ -1,100 +1,133 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { getUserLocation, matchCityByLocation } from '@/utils/lbs-service'
+import { getNearestStores } from '@/db/api'
+import type { NearestStore } from '@/db/api'
 import type { City } from '@/db/types'
 
 interface LocationContextValue {
   currentCity: City | null
   currentLocation: { lng: number; lat: number } | null
+  currentStore: NearestStore | null
+  nearbyStores: NearestStore[]
   loading: boolean
   error: string | null
   setCity: (city: City) => void
   detectLocation: () => Promise<void>
+  setStore: (store: NearestStore) => void
+  followLocation: () => Promise<void>
 }
 
 const LocationContext = createContext<LocationContextValue | null>(null)
 
+const DEFAULT_CITY = {
+  id: 1,
+  city_code: 'SH',
+  city_name: '上海',
+  province: '上海市',
+  lng: 121.4737,
+  lat: 31.2304,
+  status: 'active',
+  created_at: '',
+} as City
+
 export function LocationProvider({ children }: { children: React.ReactNode }) {
   const [currentCity, setCurrentCity] = useState<City | null>(null)
   const [currentLocation, setCurrentLocation] = useState<{ lng: number; lat: number } | null>(null)
+  const [currentStore, setCurrentStore] = useState<NearestStore | null>(null)
+  const [nearbyStores, setNearbyStores] = useState<NearestStore[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // 从缓存恢复城市
+  // 从缓存恢复
   useEffect(() => {
-    const cached = Taro.getStorageSync('currentCity')
-    if (cached) {
-      setCurrentCity(cached)
-    } else {
-      // 默认城市：上海
-      setCurrentCity({
-        id: 1,
-        city_code: 'SH',
-        city_name: '上海',
-        province: '上海市',
-        lng: 121.4737,
-        lat: 31.2304,
-        status: 'active',
-        created_at: ''} as City)
+    const cachedCity = Taro.getStorageSync('currentCity')
+    setCurrentCity(cachedCity || DEFAULT_CITY)
+    const cachedStore = Taro.getStorageSync('currentStore')
+    if (cachedStore) setCurrentStore(cachedStore)
+    const cachedNearby = Taro.getStorageSync('nearbyStores')
+    if (cachedNearby) setNearbyStores(cachedNearby)
+  }, [])
+
+  // 根据定位解析最近的直营门店（升序前 20）
+  const resolveNearestStore = useCallback(async (lat: number, lng: number) => {
+    try {
+      const stores = await getNearestStores(lat, lng, 20)
+      if (stores && stores.length) {
+        setNearbyStores(stores)
+        Taro.setStorageSync('nearbyStores', stores)
+        const nearest = stores[0]
+        setCurrentStore(nearest)
+        Taro.setStorageSync('currentStore', nearest)
+      }
+    } catch (e) {
+      console.error('[Location] resolveNearestStore error:', e)
     }
   }, [])
 
-  // 自动检测定位
+  // 自动检测定位：城市 + 最近直营门店（按定位切换当前门店）
   const detectLocation = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      // 1. 获取用户定位
-      const location = await getUserLocation()
-      setCurrentLocation(location)
+      const loc = await getUserLocation()
+      // 规范化：currentLocation 统一为 { lng, lat }
+      setCurrentLocation({ lng: loc.longitude, lat: loc.latitude })
 
-      // 2. 匹配城市
-      const city = await matchCityByLocation(location.lng, location.lat)
-      
-      // 3. 更新城市
-      setCurrentCity(city)
-      Taro.setStorageSync('currentCity', city)
-      
+      const city = await matchCityByLocation(loc.lng, loc.lat)
+      const resolvedCity = city || DEFAULT_CITY
+      setCurrentCity(resolvedCity)
+      Taro.setStorageSync('currentCity', resolvedCity)
+
       Taro.showToast({
-        title: `已定位到${city.city_name}`,
+        title: `已定位到${resolvedCity.city_name}`,
         icon: 'success',
-        duration: 1500})
+        duration: 1500,
+      })
+
+      // 根据定位切换当前自营门店（最近门店）
+      await resolveNearestStore(loc.latitude, loc.longitude)
     } catch (err: any) {
       console.error('[Location] detectLocation error:', err)
-      setError(err.message || '定位失败')
-      // 定位失败，使用缓存或默认城市
+      setError(err?.message || '定位失败')
       if (!currentCity) {
-        const defaultCity = {
-          id: 1,
-          city_code: 'SH',
-          city_name: '上海',
-          province: '上海市',
-          lng: 121.4737,
-          lat: 31.2304,
-          status: 'active',
-          created_at: ''} as City
-        setCurrentCity(defaultCity)
-        Taro.setStorageSync('currentCity', defaultCity)
+        setCurrentCity(DEFAULT_CITY)
+        Taro.setStorageSync('currentCity', DEFAULT_CITY)
       }
     } finally {
       setLoading(false)
     }
-  }, [currentCity])
+  }, [currentCity, resolveNearestStore])
 
-  // 设置城市（手动选择）
   const setCity = useCallback((city: City) => {
     setCurrentCity(city)
     Taro.setStorageSync('currentCity', city)
   }, [])
 
+  // 手动切换门店（用户选择；下次定位会按 GPS 重新切换）
+  const setStore = useCallback((store: NearestStore) => {
+    setCurrentStore(store)
+    Taro.setStorageSync('currentStore', store)
+  }, [])
+
+  // 跟随定位：重新按 GPS 切换最近门店
+  const followLocation = useCallback(async () => {
+    await detectLocation()
+  }, [detectLocation])
+
   return (
     <LocationContext.Provider value={{
       currentCity,
       currentLocation,
+      currentStore,
+      nearbyStores,
       loading,
       error,
       setCity,
-      detectLocation}}>
+      detectLocation,
+      setStore,
+      followLocation,
+    }}>
       {children}
     </LocationContext.Provider>
   )

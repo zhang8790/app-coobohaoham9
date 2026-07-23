@@ -159,7 +159,7 @@ WECHAT_PAY_PUBLIC_KEY
 > 未配置时，`payout` 会返回 `NEED_CONFIG` 并提示线下转账后手动置「已打款」。
 
 ### 步骤 4：维护每个商家的子商户号 `stores.wx_sub_mch_id`
-- 微信支付服务商模式下，每个入驻商家需有**子商户号**；
+- 微信支付服务商模式下，每个自营门店需有**子商户号**；
 - 在 admin 后台「商家管理」维护（或 `UPDATE stores SET wx_sub_mch_id='...' WHERE id='...'`）；
 - 未配置时，`payout` 返回 `NEED_SUB_MCH`，需平台以自有资金经银行转账完成（审核页「执行分账打款」会提示）。
 

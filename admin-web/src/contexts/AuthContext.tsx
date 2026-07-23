@@ -34,13 +34,13 @@ const MOCK_ADMIN: Profile = {
   created_at: new Date().toISOString(),
 }
 const MOCK_MERCHANT: Profile = {
-  id: 'mock-merchant-001', username: 'merchant', nickname: '犒赏铺商家',
+  id: 'mock-merchant-001', username: 'merchant', nickname: '自营门店商家',
   role: 'merchant', points: 1000, balance: 0, avatar_url: '', phone: '13900139000',
   member_rank: '掌柜', merchant_status: 'approved',
   created_at: new Date().toISOString(),
 }
 
-// 判断用户是否有商家权限（role=merchant 或 merchant_status=approved）
+// 判断用户是否有自营门店权限（role=merchant 或 merchant_status=approved）
 const isMerchantUser = (p: Profile | null): boolean => {
   if (!p) return false
   return p.role === 'merchant' || (p as any).merchant_status === 'approved'
@@ -104,11 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!data.user) return '登录失败'
     const prof = await loadProfile(data.user.id)
     if (!prof) return '账号未激活，请联系管理员'
-    // 允许 admin 和有商家权限的用户
+    // 允许 admin 和有自营门店权限的用户
     if (prof.role !== 'admin' && !isMerchantUser(prof)) {
       await supabase.auth.signOut()
       setProfile(null)
-      return '无权限：该账号不是管理员或商家'
+      return '无权限：该账号不是管理员或自营门店'
     }
     return null
   }
@@ -158,12 +158,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!data.user) return '登录失败'
       await loadProfile(data.user.id)
       setUseMock(false)
-      // 允许 admin 和有商家权限的用户
+      // 允许 admin 和有自营门店权限的用户
       const { data: pData } = await supabase.from('profiles').select('role,merchant_status').eq('id', data.user.id).maybeSingle()
       if (pData && pData.role !== 'admin' && !isMerchantUser(pData as any)) {
         await supabase.auth.signOut()
         setProfile(null)
-        return '无权限：该账号不是管理员或商家'
+        return '无权限：该账号不是管理员或自营门店'
       }
       return null
     } catch (e: unknown) {
@@ -233,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (e2) throw e2
         if (d2.user) {
           await supabase.from('profiles').upsert({
-            id: d2.user.id, username: 'merchant', role: 'merchant', nickname: '犒赏铺商家',
+            id: d2.user.id, username: 'merchant', role: 'merchant', nickname: '自营门店商家',
           })
           await supabase.auth.signInWithPassword({
             email: 'merchant@laidianyouxi.com', password: 'merchant123',
@@ -299,7 +299,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e2) {
         console.warn('[Auth] DB profile 加载也失败:', e2)
       }
-      // 最终兜底：mock 商家身份
+      // 最终兜底：mock 自营门店身份
       setProfile(MOCK_MERCHANT)
       setUseMock(true)
       return null
@@ -315,7 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (pData && pData.role !== 'admin' && !isMerchantUser(pData as any)) {
         await supabase.auth.signOut()
         setProfile(null)
-        return '无权限：该账号不是管理员或商家'
+        return '无权限：该账号不是管理员或自营门店'
       }
       return null
     } catch (e: unknown) {
@@ -339,7 +339,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           fontSize: 13, fontWeight: 500, letterSpacing: 0.5,
         }}>
           ⚡ 演示模式：已使用模拟数据，连接 Supabase 后自动切换真实数据
-          （当前身份：{profile?.role === 'admin' ? '超级管理员' : (profile?.nickname || '商家')}）
+          （当前身份：{profile?.role === 'admin' ? '超级管理员' : (profile?.nickname || '自营门店')}）
         </div>
       )}
       {children}

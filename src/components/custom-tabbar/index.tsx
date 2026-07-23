@@ -2,20 +2,24 @@ import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
+import { ICON_WHITE } from '@/components/Icon/iconBase64'
 import './index.scss'
 
 // 去 AI 化手绘风底部导航
 // 注意：微信小程序 WXML 不支持 <svg> 标签，故图标以 base64 svg 经 <Image> 渲染
 // （图标由 scripts 思路生成：赭红=选中，中墨=未选）
 
-const TABS = [
+type TabItem = { key: string; label: string; path?: string; center?: boolean }
+
+// 5 项布局：首页 / 自营 / [创作·居中凸起] / 行囊 / 侠客
+// 创作居中按钮走 navigateTo（保留草稿编辑传参），不参与 switchTab
+const TABS: TabItem[] = [
   { key: 'home', label: '首页', path: '/pages/index/index' },
   { key: 'explore', label: '自营', path: '/pages/explore/index' },
+  { key: 'create', label: '创作', center: true },
   { key: 'cart', label: '行囊', path: '/pages/cart/index' },
   { key: 'user', label: '侠客', path: '/pages/user/index' },
-] as const
-
-type TabKey = typeof TABS[number]['key']
+]
 
 const TAB_ICONS_ACTIVE: Record<string, string> = {
   home: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQTg1NTJFIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNIDkgMzIgI0E4NTUyRSAxNyAyMSwyOCAxMywzMiAxMSAjQTg1NTJFIDM2IDEzLDQ3IDIyLDU1IDMyIi8+PHBhdGggZD0iTSAxNSAzMiBMIDE0LjUgNTIgTCA0OSA1MS41IEwgNDguNSAzMiIvPjxwYXRoIGQ9Ik0gMjcgNTIgTCAyNy41IDQxIEwgMzYgNDEuMiBMIDM2IDUyIi8+PC9zdmc+',
@@ -34,7 +38,7 @@ const TAB_ICONS_INACTIVE: Record<string, string> = {
 }
 
 export default function CustomTabBar() {
-  const [active, setActive] = useState<TabKey>('home')
+  const [active, setActive] = useState<string>('home')
   const cartCount = useCartCount()
 
   useDidShow(() => {
@@ -56,14 +60,30 @@ export default function CustomTabBar() {
     refreshCartCount().catch(() => {})
   }, [])
 
-  const onSwitch = (t: typeof TABS[number]) => {
-    if (t.key === active) return
+  const onSwitch = (t: TabItem) => {
+    if (!t.path || t.key === active) return
     Taro.switchTab({ url: t.path })
   }
 
   return (
     <View className="ctb">
       {TABS.map(t => {
+        // 居中「创作」凸起按钮：navigateTo 打开创作页（非 switchTab，保留草稿编辑传参）
+        if (t.center) {
+          return (
+            <View
+              key={t.key}
+              className="ctb-item ctb-center"
+              hoverClass="ctb-item--hover"
+              onClick={() => Taro.navigateTo({ url: '/pages/content-center/make/index' })}
+            >
+              <View className="ctb-center-btn">
+                <Image className="ctb-center-icon" src={ICON_WHITE['pencil']} mode="aspectFit" />
+              </View>
+              <Text className="ctb-label">{t.label}</Text>
+            </View>
+          )
+        }
         const isActive = t.key === active
         return (
           <View

@@ -1,4 +1,4 @@
-// @title 商家中心 - 店铺设置
+// @title 自营门店中心 - 店铺设置
 import { useState } from 'react'
 
 const MOCK_STORE = {

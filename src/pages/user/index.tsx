@@ -150,7 +150,7 @@ function UserPage() {
         onClick={() => Taro.navigateTo({ url: '/pages/merchant-apply/index' })}>
         <View className="flex items-center gap-2">
           <Icon name="store-plus" size={24} className="text-primary" />
-          <Text className="text-xl text-foreground font-bold">申请成为商家</Text>
+          <Text className="text-xl text-foreground font-bold">申请开通自营门店</Text>
         </View>
         <Icon name="chevron-right" size={20} className="text-muted-foreground" />
       </View>
@@ -158,7 +158,7 @@ function UserPage() {
     if (status === 'pending') return (
       <View className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-muted border border-border">
         <Icon name="clock-outline" size={24} className="text-muted-foreground" />
-        <Text className="text-xl text-muted-foreground">入驻申请审核中...</Text>
+        <Text className="text-xl text-muted-foreground">自营门店申请审核中...</Text>
       </View>
     )
     return (
@@ -166,7 +166,7 @@ function UserPage() {
         onClick={() => Taro.navigateTo({ url: '/pages/merchant-center/index' })}>
         <View className="flex items-center gap-2">
           <Icon name="store-check" size={24} className="text-primary" />
-          <Text className="text-xl text-primary font-bold">进入商家管理中心</Text>
+          <Text className="text-xl text-primary font-bold">进入自营门店管理中心</Text>
         </View>
         <Icon name="chevron-right" size={20} className="text-primary" />
       </View>
@@ -343,7 +343,7 @@ function UserPage() {
         </View>
       )}
 
-      {/* 商家申请入口 */}
+      {/* 自营门店申请入口 */}
       {user && (
         <View className="mx-4 mt-4">
           {merchantStatusNode}

@@ -216,7 +216,7 @@ export default function FinanceDashboard() {
         <Kpi label="会员总数" value={fmt(o.membersTotal)} color={C.green} to="/members" />
         <Kpi label="今日新增" value={fmt(o.membersToday)} color={C.blue} sub={dChg(momRegs)} />
         <Kpi label="活跃会员(30d)" value={fmt(o.activeMembers30d)} color={C.purple} sub="近30日有下单" />
-        <Kpi label="入住门店数" value={fmt(o.storesActive)} color={C.gold} to="/merchants" />
+        <Kpi label="自营门店数" value={fmt(o.storesActive)} color={C.gold} to="/merchants" />
       </Section>
 
       {/* 成交 / 收益 */}

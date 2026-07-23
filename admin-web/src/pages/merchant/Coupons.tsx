@@ -1,4 +1,4 @@
-// @title 商家中心 - 优惠券管理（真实数据）
+// @title 自营门店中心 - 优惠券管理（真实数据）
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import {

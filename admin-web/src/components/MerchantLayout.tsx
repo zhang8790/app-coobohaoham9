@@ -46,7 +46,7 @@ export default function MerchantLayout() {
           </div>
           {!collapsed && (
             <div>
-              <p style={{ color: 'var(--text)', fontWeight: 700, fontSize: 14, lineHeight: 1 }}>商家中心</p>
+              <p style={{ color: 'var(--text)', fontWeight: 700, fontSize: 14, lineHeight: 1 }}>自营门店中心</p>
               <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 2 }}>来电有喜</p>
             </div>
           )}
@@ -91,7 +91,7 @@ export default function MerchantLayout() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0 24px', position: 'sticky', top: 0, zIndex: 30,
         }}>
-          <h1 style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>商家管理后台</h1>
+          <h1 style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>自营门店管理后台</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 32, height: 32, background: 'var(--border)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -99,9 +99,9 @@ export default function MerchantLayout() {
               </div>
               <div>
                 <p style={{ color: 'var(--text)', fontSize: 13, fontWeight: 600, lineHeight: 1 }}>
-                  {profile?.nickname || '商家'}
+                  {profile?.nickname || '自营门店'}
                 </p>
-                <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 2 }}>商家账号</p>
+                <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 2 }}>自营门店账号</p>
               </div>
             </div>
             <button

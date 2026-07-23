@@ -1,4 +1,4 @@
-// @title 商家中心 - 会员管理（含跨店消费流水）
+// @title 自营门店中心 - 会员管理（含跨店消费流水）
 import { useState } from 'react'
 
 // ============ 类型 ============
@@ -61,33 +61,33 @@ const MOCK_MEMBERS: Member[] = [
 // 每个会员的跨店订单记录
 const MOCK_ORDERS: Record<string, OrderRecord[]> = {
   'u1': [
-    { id: 'o1', order_no: 'LD202606300001', store_name: '犒赏铺（本店）', store_id: 's1', product_name: '伯牙绝弦·云茶', amount: 268, commission: 26.8, status: 'completed', date: '2026-06-30', is_current_store: true },
+    { id: 'o1', order_no: 'LD202606300001', store_name: '自营门店（本店）', store_id: 's1', product_name: '伯牙绝弦·云茶', amount: 268, commission: 26.8, status: 'completed', date: '2026-06-30', is_current_store: true },
     { id: 'o2', order_no: 'LD202606290012', store_name: '霸王茶姬（科技园店）', store_id: 's2', commission: 5.4, status: 'completed', date: '2026-06-29', is_current_store: false },
-    { id: 'o3', order_no: 'LD202606280008', store_name: '犒赏铺（本店）', store_id: 's1', product_name: '手工红糖姜茶', amount: 39.9, commission: 4.0, status: 'completed', date: '2026-06-28', is_current_store: true },
+    { id: 'o3', order_no: 'LD202606280008', store_name: '自营门店（本店）', store_id: 's1', product_name: '手工红糖姜茶', amount: 39.9, commission: 4.0, status: 'completed', date: '2026-06-28', is_current_store: true },
     { id: 'o4', order_no: 'LD202606270015', store_name: '瑞幸咖啡（万达店）', store_id: 's3', commission: 6.0, status: 'completed', date: '2026-06-27', is_current_store: false },
-    { id: 'o5', order_no: 'LD202606260003', store_name: '犒赏铺（本店）', store_id: 's1', product_name: '傣族鲜花饼', amount: 68, commission: 6.8, status: 'completed', date: '2026-06-26', is_current_store: true },
+    { id: 'o5', order_no: 'LD202606260003', store_name: '自营门店（本店）', store_id: 's1', product_name: '傣族鲜花饼', amount: 68, commission: 6.8, status: 'completed', date: '2026-06-26', is_current_store: true },
   ],
   'u2': [
-    { id: 'o6', order_no: 'LD202606280005', store_name: '犒赏铺（本店）', store_id: 's1', product_name: '云南小粒咖啡豆', amount: 128, commission: 12.8, status: 'completed', date: '2026-06-28', is_current_store: true },
+    { id: 'o6', order_no: 'LD202606280005', store_name: '自营门店（本店）', store_id: 's1', product_name: '云南小粒咖啡豆', amount: 128, commission: 12.8, status: 'completed', date: '2026-06-28', is_current_store: true },
     { id: 'o7', order_no: 'LD202606250011', store_name: '名创优品（楚河汉街店）', store_id: 's4', commission: 7.5, status: 'completed', date: '2026-06-25', is_current_store: false },
-    { id: 'o8', order_no: 'LD202606200007', store_name: '犒赏铺（本店）', store_id: 's1', product_name: '野生菌汤包', amount: 88, commission: 8.8, status: 'completed', date: '2026-06-20', is_current_store: true },
+    { id: 'o8', order_no: 'LD202606200007', store_name: '自营门店（本店）', store_id: 's1', product_name: '野生菌汤包', amount: 88, commission: 8.8, status: 'completed', date: '2026-06-20', is_current_store: true },
   ],
   'u3': [
-    { id: 'o9',  order_no: 'LD202606300002', store_name: '犒赏铺（本店）', store_id: 's1', product_name: '古树普洱茶礼盒', amount: 398, commission: 39.8, status: 'completed', date: '2026-06-30', is_current_store: true },
+    { id: 'o9',  order_no: 'LD202606300002', store_name: '自营门店（本店）', store_id: 's1', product_name: '古树普洱茶礼盒', amount: 398, commission: 39.8, status: 'completed', date: '2026-06-30', is_current_store: true },
     { id: 'o10', order_no: 'LD202606290018', store_name: '霸王茶姬（旗舰店）', store_id: 's2', commission: 4.8, status: 'completed', date: '2026-06-29', is_current_store: false },
-    { id: 'o11', order_no: 'LD202606280022', store_name: '犒赏铺（本店）', store_id: 's1', product_name: '红糖姜茶 3盒装', amount: 99, commission: 9.9, status: 'shipped', date: '2026-06-28', is_current_store: true },
+    { id: 'o11', order_no: 'LD202606280022', store_name: '自营门店（本店）', store_id: 's1', product_name: '红糖姜茶 3盒装', amount: 99, commission: 9.9, status: 'shipped', date: '2026-06-28', is_current_store: true },
     { id: 'o12', order_no: 'LD202606270030', store_name: '良品铺子（万达店）', store_id: 's5', commission: 9.0, status: 'completed', date: '2026-06-27', is_current_store: false },
     { id: 'o13', order_no: 'LD202606260014', store_name: '瑞幸咖啡（科技园店）', store_id: 's3', commission: 6.3, status: 'completed', date: '2026-06-26', is_current_store: false },
   ],
   'u4': [
-    { id: 'o14', order_no: 'LD202606250009', store_name: '犒赏铺（本店）', store_id: 's1', product_name: '鲜花饼礼盒', amount: 68, commission: 6.8, status: 'completed', date: '2026-06-25', is_current_store: true },
-    { id: 'o15', order_no: 'LD202606200006', store_name: '犒赏铺（本店）', store_id: 's1', product_name: '云南咖啡豆', amount: 128, commission: 12.8, status: 'completed', date: '2026-06-20', is_current_store: true },
+    { id: 'o14', order_no: 'LD202606250009', store_name: '自营门店（本店）', store_id: 's1', product_name: '鲜花饼礼盒', amount: 68, commission: 6.8, status: 'completed', date: '2026-06-25', is_current_store: true },
+    { id: 'o15', order_no: 'LD202606200006', store_name: '自营门店（本店）', store_id: 's1', product_name: '云南咖啡豆', amount: 128, commission: 12.8, status: 'completed', date: '2026-06-20', is_current_store: true },
     { id: 'o16', order_no: 'LD202606150013', store_name: '霸王茶姬（楚河汉街店）', store_id: 's2', commission: 5.4, status: 'completed', date: '2026-06-15', is_current_store: false },
   ],
   'u5': [
-    { id: 'o17', order_no: 'LD202606300003', store_name: '犒赏铺（本店）', store_id: 's1', product_name: '云南咖啡豆 2袋', amount: 256, commission: 25.6, status: 'completed', date: '2026-06-30', is_current_store: true },
+    { id: 'o17', order_no: 'LD202606300003', store_name: '自营门店（本店）', store_id: 's1', product_name: '云南咖啡豆 2袋', amount: 256, commission: 25.6, status: 'completed', date: '2026-06-30', is_current_store: true },
     { id: 'o18', order_no: 'LD202606290021', store_name: '瑞幸咖啡（全部门店）', store_id: 's3', commission: 6.0, status: 'completed', date: '2026-06-29', is_current_store: false },
-    { id: 'o19', order_no: 'LD202606280025', store_name: '犒赏铺（本店）', store_id: 's1', product_name: '普洱茶饼', amount: 268, commission: 26.8, status: 'completed', date: '2026-06-28', is_current_store: true },
+    { id: 'o19', order_no: 'LD202606280025', store_name: '自营门店（本店）', store_id: 's1', product_name: '普洱茶饼', amount: 268, commission: 26.8, status: 'completed', date: '2026-06-28', is_current_store: true },
     { id: 'o20', order_no: 'LD202606270033', store_name: '霸王茶姬（全部门店）', store_id: 's2', commission: 9.6, status: 'completed', date: '2026-06-27', is_current_store: false },
   ],
 }

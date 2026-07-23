@@ -80,3 +80,28 @@
   font-weight: 600;
   color: hsl(var(--primary));
 }
+
+/* 居中「创作」凸起按钮：赭红圆钮上浮凸出 bar 上沿 */
+.ctb-center {
+  justify-content: flex-end;
+  padding-bottom: 10px;
+}
+
+.ctb-center-btn {
+  width: 50px;
+  height: 50px;
+  margin-top: -28px;            /* 上浮，凸出 bar 上沿 */
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(168, 85, 46, 0.45), 0 0 0 4px rgba(241, 233, 217, 0.92);
+  border: 2px solid #FFF7F1;
+}
+
+.ctb-center-icon {
+  width: 28px;
+  height: 28px;
+  display: block;
+}

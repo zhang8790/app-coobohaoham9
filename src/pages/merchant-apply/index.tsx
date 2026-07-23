@@ -1,4 +1,4 @@
-// @title 商家入驻
+// @title 自营门店
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Input, Textarea, Button } from '@tarojs/components'
@@ -61,7 +61,7 @@ function MerchantApplyPage() {
     if (!storeName.trim()) { Taro.showToast({ title: '请输入门店名称', icon: 'none' }); return }
     if (!contactName.trim()) { Taro.showToast({ title: '请输入联系人', icon: 'none' }); return }
     if (!/^1[3-9]\d{9}$/.test(contactPhone)) { Taro.showToast({ title: '请输入正确手机号', icon: 'none' }); return }
-    if (!agreed) { Taro.showToast({ title: '请先阅读并同意入驻协议', icon: 'none' }); return }
+    if (!agreed) { Taro.showToast({ title: '请先阅读并同意自营门店协议', icon: 'none' }); return }
     setSubmitting(true)
     try {
       await submitMerchantApplication({
@@ -102,7 +102,7 @@ function MerchantApplyPage() {
         <>
           <Icon name="check-circle" size={28} className="text-8xl text-primary" />
           <Text className="text-2xl font-bold text-primary">已通过</Text>
-          <Text className="text-xl text-muted-foreground text-center">恭喜！您的商家入驻申请已通过，可以开始管理门店了。</Text>
+          <Text className="text-xl text-muted-foreground text-center">恭喜！您的自营门店申请已通过，可以开始管理门店了。</Text>
         </>
       )}
       {existing.status === 'rejected' && (
@@ -132,10 +132,10 @@ function MerchantApplyPage() {
       <View className="mx-4 mt-6 p-4 rounded-2xl" style={{ background: '#F1E9D9' }}>
         <View className="flex items-center gap-2 mb-2">
           <Icon name="store" size={24} className="text-primary" />
-          <Text className="text-xl font-bold text-foreground">商家入驻申请</Text>
+          <Text className="text-xl font-bold text-foreground">自营门店申请</Text>
         </View>
         <Text className="text-xl text-secondary leading-relaxed">
-          加入来电有喜商家联盟，覆盖百万本地用户，坐享流量红利。填写信息后1-3个工作日完成审核。
+          加入来电有喜自营门店联盟，覆盖百万本地用户，坐享流量红利。填写信息后1-3个工作日完成审核。
         </Text>
       </View>
 
@@ -185,14 +185,14 @@ function MerchantApplyPage() {
       {/* 提交按钮 */}
       <View className="fixed bottom-0 left-0 right-0 bg-card border-t-2 border-border px-4 py-3"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
-        {/* 入驻协议勾选 */}
+        {/* 自营门店协议勾选 */}
         <View className="flex items-center gap-2 mb-3"
           onClick={() => setAgreed(v => !v)}>
           <View className={`w-5 h-5 rounded border-2 flex items-center justify-center ${agreed ? 'bg-primary border-primary' : 'border-border'}`}>
             {agreed && <Icon name="check" size={14} className="text-white" />}
           </View>
           <View className="flex-1 flex items-center" onClick={(e) => { e.stopPropagation(); Taro.navigateTo({ url: '/pages/merchant-agreement/index' }) }}>
-            <Text className="text-base text-muted-foreground">我已阅读并同意<Text className="text-primary">《商家入驻协议》</Text></Text>
+            <Text className="text-base text-muted-foreground">我已阅读并同意<Text className="text-primary">《自营门店协议》</Text></Text>
           </View>
         </View>
         <Button type="button"

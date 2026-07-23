@@ -11,6 +11,7 @@ import { MOOD_TAGS, MOOD_CATEGORIES } from '@/utils/mood-tags'
 import { calculateDynamicScore, RANK_CONFIG_TABLE_V5, calculateCommissionV5, computeMemberRank, getActiveMultiplier, getRecruitMultiplier, calcWithholdingTax, PLATFORM_CONFIG } from '@/utils/commission-calculator-v5'
 import { bumpCartCount } from '@/utils/cartStore'
 import { checkIllegalWords } from '@/utils/compliance-words'
+import { calculateDistance } from '@/utils/lbs-service'
 
 // 食材食疗导购新列（迁移 00100）：DB 未执行时软降级剥离，保证既有上架不失败
 const NEW_PRODUCT_COLUMNS = [
@@ -288,11 +289,9 @@ export async function getStores(category?: string, page = 0, limit = 20, platfor
       const isPlatformByName = PLATFORM_STORE_NAMES.includes(s.name)
       const isPlatformByField = s.is_platform === true
       const isPlatform = isPlatformById || isPlatformByName || isPlatformByField
-      // 合作品牌门店（品牌馆体系）不算自营，必须从自营列表中排除
-      const isPartnerBrand = !!s.partner_brand
-
-      if (platformFilter === 'only') return isPlatform && !isPartnerBrand
-      return !isPlatform  // exclude: 排除自营（合作品牌门店本就不在自营内）
+      // 现仅自营门店：合作品牌(partner_brand)已统一归并到自营，不再区分
+      if (platformFilter === 'only') return isPlatform
+      return !isPlatform  // exclude: 非自营（当前已无，归并后全为自营）
     })
     
     console.log(`[getStores] platformFilter=${platformFilter}, 总数=${all.length}, 过滤后=${filtered.length}`)
@@ -313,6 +312,52 @@ export async function getStoreById(id: string): Promise<Store | null> {
   return data
 }
 
+// =====================
+// 最近直营门店（按定位切换「当前门店」，客户端计算，不依赖缺失的 find_nearest_stores RPC）
+// =====================
+export interface NearestStore {
+  id: string
+  store_name: string
+  address: string
+  distance_km: number
+  is_open: boolean
+  lat: number
+  lng: number
+}
+
+/**
+ * 根据经纬度返回最近的直营门店列表（升序）。
+ * 直营判定：is_platform=true（品牌馆已归并，partner_brand 恒 NULL）。
+ */
+export async function getNearestStores(lat: number, lng: number, limit = 20): Promise<NearestStore[]> {
+  try {
+    const { data, error } = await supabase
+      .from('stores')
+      .select('id, name, address, lat, lng, is_open, is_platform')
+      .not('is_active', 'eq', false)
+    if (error) {
+      console.error('[getNearestStores] 查询失败:', error.message)
+      return []
+    }
+    const list = (data || [])
+      .filter((s: any) => s.is_platform === true && s.lat != null && s.lng != null)
+      .map((s: any) => ({
+        id: s.id,
+        store_name: s.name,
+        address: s.address || '',
+        lat: s.lat,
+        lng: s.lng,
+        is_open: s.is_open,
+        distance_km: Math.round(calculateDistance(lat, lng, s.lat, s.lng) * 100) / 100,
+      }))
+      .sort((a, b) => a.distance_km - b.distance_km)
+    return list.slice(0, limit)
+  } catch (err) {
+    console.error('[getNearestStores] 异常:', err)
+    return []
+  }
+}
+
 export async function getStoreCategories(storeId: string): Promise<StoreCategory[]> {
   const { data } = await supabase.from('store_categories').select('*').eq('store_id', storeId).order('sort_order')
   return Array.isArray(data) ? data : []
@@ -327,17 +372,15 @@ const PLATFORM_STORE_IDS = new Set([
 ])
 const PLATFORM_STORE_NAMES = ['来电有喜官方店', '来电有喜自营店', '平台自营店']
 
-/** 判断商品是否属于自营门店（⚠️ 合作品牌门店 partner_brand 有值的不算自营，必须排除） */
+/** 判断商品是否属于自营门店（现仅自营门店：合作品牌已统一归并到自营，partner_brand 不再作为排除条件） */
 function isPlatformProduct(p: Product): boolean {
   const store = (p as any).stores
   if (!store) return false
-  const isOfficial =
+  return (
     PLATFORM_STORE_IDS.has(store.id || p.store_id)
     || PLATFORM_STORE_NAMES.includes(store.name || '')
     || store.is_platform === true
-  // 合作品牌门店（品牌馆体系）一律不算自营，避免漏进自营区
-  const isPartnerBrand = !!(store as any).partner_brand
-  return isOfficial && !isPartnerBrand
+  )
 }
 
 export async function getProducts(opts: {
@@ -348,8 +391,8 @@ export async function getProducts(opts: {
   /** 城市ID：用于过滤城市商品（NULL=全国可见，非NULL=仅该城市可见） */
   cityId?: string} = {}): Promise<Product[]> {
   const { storeId, categoryId, search, moodTag, moodTags, sceneTag, page = 0, limit = 20, platformFilter, cityId } = opts
-  // 基础查询：所有活跃商品（带上 stores 信息用于 JS 过滤，含 partner_brand 以识别合作品牌门店）
-  let q = supabase.from('products').select('*, stores(id,name,image_url,is_platform,partner_brand)').not('is_active', 'eq', false)
+  // 基础查询：所有活跃商品（带上 stores 信息用于 JS 过滤；现仅自营门店，partner_brand 已归并）
+  let q = supabase.from('products').select('*, stores(id,name,image_url,is_platform)').not('is_active', 'eq', false)
     .order('created_at', { ascending: false }).range(page * limit, (page + 1) * limit - 1)
   if (storeId) q = q.eq('store_id', storeId)
   if (categoryId) q = q.eq('category_id', categoryId)
@@ -429,30 +472,16 @@ export async function getNearbyProducts(
       store_lat: item.store_lat,
       store_lng: item.store_lng,
       distance_km: Math.round(item.distance_km * 100) / 100,
-      is_platform: item.is_platform ?? false,
-      partner_brand: item.partner_brand ?? null }))
+      is_platform: item.is_platform ?? false }))
 
-    // 若 RPC 未返回 partner_brand（旧版函数 / 尚未部署 00139 迁移），补查门店维度，确保合作品牌门店能被准确识别
-    if (platformFilter && results.some(r => r.partner_brand == null)) {
-      const ids = [...new Set(results.map(r => r.store_id))].filter(Boolean)
-      if (ids.length > 0) {
-        const { data: st } = await supabase.from('stores').select('id, partner_brand').in('id', ids)
-        const brandMap: Record<string, any> = {}
-        ;(st || []).forEach((s: any) => { brandMap[s.id] = s.partner_brand })
-        results.forEach(r => { if (!r.partner_brand) r.partner_brand = brandMap[r.store_id] ?? null })
-      }
-    }
-
-    // 根据 platformFilter 过滤（合作品牌门店一律不算自营）
+    // 根据 platformFilter 过滤（现仅自营门店：partner_brand 已归并，不再排除）
     if (platformFilter) {
       results = results.filter(item => {
         const isOfficial = item.is_platform === true ||
           item.store_id === 'ffffffff-ffff-ffff-ffff-ffffffffffff' ||
           ['来电有喜官方店', '来电有喜自营店', '平台自营店'].includes(item.store_name || '')
-        const isPartnerBrand = !!item.partner_brand
-        const isPlatform = isOfficial && !isPartnerBrand
-        if (platformFilter === 'only') return isPlatform
-        return !isPlatform  // exclude
+        if (platformFilter === 'only') return isOfficial
+        return !isOfficial  // exclude: 非自营（当前已无）
       })
     }
 

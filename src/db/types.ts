@@ -65,7 +65,7 @@ export interface Store {
   min_order_amount: number | null
   announcement: string | null
   scene_tags: string[] | null
-  // 合作商家建模（品牌馆等合作品牌体系）
+  // 合作品牌标识（历史兼容字段：现已统一归并为自营门店，恒为 NULL，见迁移 00201）
   partner_brand: string | null
   partner_tier: string | null
   // 商家货款结算（迁移 00120）
@@ -154,10 +154,130 @@ export interface Ingredient {
   color: string | null
 }
 
-// 商品-食养成分关联（product_ingredients 表）
-export interface ProductIngredient {
+// 商品-配料安全关联（product_food_additives 表）—— 商品挂载的添加剂安全条目
+export interface ProductFoodAdditive {
   product_id: string
-  ingredient_id: string
+  additive_id: string
+}
+
+// 配料表 OCR 识别任务（ingredient_ocr_tasks 表）—— 商品配料表拍照识别 + 人工复核闭环
+export interface IngredientOcrTask {
+  id: string
+  product_id: string | null      // 关联商品（可先识别后挂商品）
+  store_id: string | null
+  image_url: string               // 配料表原图（OCR 输入）
+  raw_text: string | null         // OCR 原始识别文本
+  parsed_ingredients: string[] | null  // 解析出的配料名列表
+  matched_additives: string[] | null   // 已匹配安全库的配料名
+  safety_grade: 'S' | 'A' | 'C' | null // 引擎初算安全评级
+  status: 'pending' | 'reviewing' | 'approved' | 'rejected'  // 复核状态
+  reviewer_id: string | null      // 复核人
+  review_note: string | null      // 复核意见
+  risk_flags: string[] | null     // 风险标注（反式脂肪/高钠/致敏原…）
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+// 会员摄入记录（intake_logs 表）—— 用户实际消费的商品，用于健康画像聚合
+export interface IntakeLog {
+  id: string
+  user_id: string
+  product_id: string | null
+  product_name: string | null
+  ingredients: string[] | null    // 摄入的配料名/key
+  nature: string | null           // 该餐整体性味
+  health_tags: string[] | null
+  taken_at: string                // 摄入时间
+  scene: string | null            // 场景（熬夜/经期…）
+  created_at: string
+}
+
+// 会员健康画像（health_reports 表）—— 按月聚合摄入，输出体质/风险/建议
+export interface HealthReport {
+  id: string
+  user_id: string
+  period: string                  // 统计周期，如 2026-07
+  nature_distribution: Record<string, number> | null  // 性味分布
+  top_ingredients: string[] | null
+  risk_flags: string[] | null     // 累计风险（高钠/高糖…）
+  advice: string | null           // 食养建议（不替代医嘱）
+  generated_at: string
+}
+
+// =====================
+// 食品配料安全管理系统（V1.0 全量，基于原有 Supabase 基础）
+// 异业共享会员联盟不在此实现；二级分销复用来电有喜既有模型。
+// =====================
+
+// 配料安全库（food_additives 表）—— 添加剂安全壁垒资产：白/黄/黑风险 + 国标依据
+// 注意：与「食养成分 Ingredient（性味温凉平）」是两个独立概念，互不冲突。
+export type AdditiveRiskLevel = 'white' | 'yellow' | 'black'
+export interface FoodAdditive {
+  id: string
+  name: string                  // 标准名，如「山梨酸钾」
+  category: string | null       // 防腐剂/色素/增稠剂/甜味剂/香精/营养强化剂/其他
+  risk_level: AdditiveRiskLevel // 白(安全)/黄(限量)/黑(禁用)
+  age_limit: number | null      // 最小适用年龄（月），NULL=全龄
+  gb_std: string | null         // 国标依据，如 GB2760
+  risk_desc: string | null      // 风险说明文案
+  source: 'preset' | 'auto'     // preset 人工录入 / auto 识别沉淀
+  status: 'active' | 'pending_review'  // 待审核条目不进入公开匹配
+  created_by: string | null
+  reviewed_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+// 配料别名表（food_additive_aliases）—— 俗称/异体映射，提升 OCR 匹配率
+export interface FoodAdditiveAlias {
+  id: string
+  additive_id: string
+  alias: string
+}
+
+// 库存批次（stock_batches 表）—— 入库质检 + 临期预警
+export interface StockBatch {
+  id: string
+  product_id: string
+  store_id: string | null
+  batch_no: string | null
+  qty: number
+  produced_at: string | null
+  expire_at: string | null
+  status: 'normal' | 'sold_out' | 'expired' | 'blocked'
+  created_at: string
+}
+
+// 库存汇总（inventories 表）—— 按仓/车汇总实时库存
+export interface Inventory {
+  id: string
+  owner_type: 'warehouse' | 'vehicle'
+  owner_id: string
+  product_id: string
+  qty: number
+  updated_at: string
+}
+
+// 流动车（vehicles 表）
+export interface Vehicle {
+  id: string
+  store_id: string | null
+  name: string
+  status: 'active' | 'offline'
+  created_at: string
+}
+
+// 流动车调拨单（vehicle_transfers 表）—— 出库/回库/跨车，弱网离线标记
+export interface VehicleTransfer {
+  id: string
+  vehicle_id: string | null
+  type: 'out' | 'return' | 'cross'
+  product_id: string | null
+  qty: number
+  operator_id: string | null
+  sync_status: 'synced' | 'pending'   // 弱网离线标记，恢复网络后同步
+  created_at: string
 }
 
 // 情绪确权记录（消费即确权路线，由 00052 建表）

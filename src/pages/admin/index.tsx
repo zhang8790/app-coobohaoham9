@@ -45,7 +45,7 @@ function AdminPage() {
   useEffect(() => { load() }, [load])
 
   const cards = [
-    { label: '门派大典', sub: '商家入驻审核', count: stats.merchants, icon: '🏪', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', url: '/pages/admin-merchants/index' },
+    { label: '门派大典', sub: '自营门店审核', count: stats.merchants, icon: '🏪', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', url: '/pages/admin-merchants/index' },
     { label: '宝贝审阅', sub: '商品上架审核', count: stats.products, icon: '📦', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', url: '/pages/admin-products/index' },
     { label: '佣金兑付', sub: '提现申请审核', count: stats.withdrawals, icon: '💰', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', url: '/pages/admin-withdrawals/index' },
     { label: '武林贴管理', sub: 'UGC内容管理', count: stats.ugc, icon: '📰', color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200', url: '/pages/admin-ugc/index' },

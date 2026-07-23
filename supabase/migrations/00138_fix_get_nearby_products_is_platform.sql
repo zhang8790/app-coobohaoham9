@@ -1,7 +1,7 @@
 -- 00138_fix_get_nearby_products_is_platform.sql
 -- 目的：让「已定位用户」的探索页也能按门店 is_platform 过滤。
 -- 现状：get_nearby_products 返回集未含 is_platform，前端只能靠硬编码 store_id/name 兜底，
---       导致审核通过（is_platform=true）的入驻商家在已定位时进不了探索。
+--       导致审核通过（is_platform=true）的自营门店在已定位时进不了探索。
 -- 改动：保持函数签名不变（CREATE OR REPLACE 不允许改签名），仅扩展 RETURNS TABLE + SELECT 带出 is_platform。
 
 DROP FUNCTION IF EXISTS public.get_nearby_products(double precision, double precision, integer, text);

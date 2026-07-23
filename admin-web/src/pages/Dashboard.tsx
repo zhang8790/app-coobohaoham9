@@ -73,7 +73,7 @@ export default function Dashboard() {
   }, [useMock])
 
   const CARDS = [
-    { label: '待审商家', key: 'merchants', color: 'var(--warning)', to: '/merchants', icon: 'store' },
+    { label: '待审自营门店', key: 'merchants', color: 'var(--warning)', to: '/merchants', icon: 'store' },
     { label: '待审商品', key: 'products', color: 'var(--info)', to: '/products', icon: 'box' },
     { label: '待审提现', key: 'withdrawals', color: 'var(--primary)', to: '/withdrawals', icon: 'dollar' },
     { label: '文章总数', key: 'articles', color: 'var(--accent)', to: '/ugc', icon: 'news' },
@@ -147,10 +147,10 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* 最新商家申请预览 */}
+      {/* 最新自营门店申请预览 */}
       <div style={S.card}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 600 }}>最新商家申请</h2>
+          <h2 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 600 }}>最新自营门店申请</h2>
           <button onClick={() => nav('/merchants')}
             style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, cursor: 'pointer' }}>
             查看全部 →
@@ -162,7 +162,7 @@ export default function Dashboard() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['商家名称', '联系人', '类型', '申请时间', '状态'].map(h => (
+                {['自营门店名称', '联系人', '类型', '申请时间', '状态'].map(h => (
                   <th key={h} style={{ color: 'var(--text-dim)', fontSize: 12, fontWeight: 500, padding: '8px 12px', textAlign: 'left' }}>{h}</th>
                 ))}
               </tr>

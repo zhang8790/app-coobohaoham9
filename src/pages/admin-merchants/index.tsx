@@ -69,7 +69,7 @@ function AdminMerchantsPage() {
         ) : list.length === 0 ? (
           <View className="flex flex-col items-center justify-center py-20 gap-3">
             <Icon name="check-circle" size={60} className="text-emerald-500" />
-            <Text className="text-2xl text-muted-foreground">暂无待审商家申请</Text>
+            <Text className="text-2xl text-muted-foreground">暂无待审自营门店申请</Text>
           </View>
         ) : (
           <View className="flex flex-col gap-4">
@@ -136,7 +136,7 @@ function AdminMerchantsPage() {
             <View className="border-2 border-input rounded-xl px-4 py-3 bg-background">
               <Textarea className="w-full text-xl text-foreground bg-transparent outline-none"
                 style={{ height: '20vw', minHeight: '80px' }}
-                placeholder="请填写驳回理由，将告知申请商家..."
+                placeholder="请填写驳回理由，将告知申请自营门店..."
                 value={rejectReason}
                 onInput={(e) => { const ev = e as any; setRejectReason(ev.detail?.value ?? ev.target?.value ?? '') }} />
             </View>

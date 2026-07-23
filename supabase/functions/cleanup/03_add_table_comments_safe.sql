@@ -21,7 +21,7 @@ BEGIN
   -- 2. stores - 门店表
   SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stores') INTO table_exists;
   IF table_exists THEN
-    COMMENT ON TABLE stores IS '门店表 - 普通入驻门店基本信息、营业设置、佣金比例';
+    COMMENT ON TABLE stores IS '门店表 - 普通自营门店基本信息、营业设置、佣金比例';
     RAISE NOTICE '✅ 已添加备注：stores';
   ELSE
     RAISE NOTICE '⚠️ 表不存在：stores';

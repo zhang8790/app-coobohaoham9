@@ -10,7 +10,6 @@ const pages = [
   'pages/payment-result/index',
   'pages/order-center/index',
   'pages/search/index',
-  'pages/ugc-publish/index',
   'pages/merchant-apply/index',
   'pages/merchant-center/index',
   'pages/withdraw/index',
@@ -46,7 +45,7 @@ const pages = [
   'pages/points-rules/index',
   'pages/merchant-agreement/index',
   'pages/distribution-agreement/index',
-  // 商家管理中心（对齐 admin-web）
+  // 自营门店管理中心（对齐 admin-web）
   'pages/merchant-products/index',
   'pages/merchant-orders/index',
   'pages/merchant-members/index',

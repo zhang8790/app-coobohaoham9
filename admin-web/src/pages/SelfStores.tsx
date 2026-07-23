@@ -475,7 +475,7 @@ function NewStoreButton({ onCreated }: { onCreated: () => void }) {
           onCancel={() => setShow(false)} onSave={save}
           saving={saving}
           showManager
-          hint="新建将自动标记为「自营」（探索页可见）。可绑定店长：店长将获得商家身份，登录小程序商家中心与后台即可管理本店；不绑定则归平台主账号代管。"
+          hint="新建将自动标记为「自营」（探索页可见）。可绑定店长：店长将获得自营门店身份，登录小程序自营门店中心与后台即可管理本店；不绑定则归平台主账号代管。"
         />
       )}
     </>
@@ -536,7 +536,7 @@ function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSav
         <Field label="店招图 URL"><input value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })} style={inputStyle} placeholder="https://..." /></Field>
         <Field label="横幅图 URL"><input value={form.banner_url} onChange={e => setForm({ ...form, banner_url: e.target.value })} style={inputStyle} placeholder="https://..." /></Field>
         {showManager && (
-          <Field label="绑定店长（选填 · 店长可登录小程序商家中心与后台管理本店）">
+          <Field label="绑定店长（选填 · 店长可登录小程序自营门店中心与后台管理本店）">
             {form.manager_nickname ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ color: C.text, fontSize: 14 }}>已绑定：{form.manager_nickname}{form.manager_phone ? `（${form.manager_phone}）` : ''}</span>
@@ -553,7 +553,7 @@ function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSav
                     {mResults.map((u: any) => (
                       <div key={u.id} onClick={() => pickManager(u)}
                         style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: `1px solid ${C.border}`, fontSize: 13, color: C.text }}>
-                        {u.nickname}{u.phone ? `（${u.phone}）` : ''}{u.role === 'merchant' ? ' · 已有商家身份' : ''}
+                        {u.nickname}{u.phone ? `（${u.phone}）` : ''}{u.role === 'merchant' ? ' · 已有自营门店身份' : ''}
                       </div>
                     ))}
                   </div>

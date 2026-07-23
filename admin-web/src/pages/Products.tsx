@@ -132,7 +132,7 @@ export default function Products() {
             <h3 style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700, marginBottom: 6 }}>驳回商品</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 20 }}>商品：{rejectModal.name}</p>
             <textarea value={reason} onChange={e => setReason(e.target.value)}
-              placeholder="请填写驳回理由，将通知商家..."
+              placeholder="请填写驳回理由，将通知自营门店..."
               style={{ width: '100%', height: 100, padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'none', outline: 'none' }} />
             <div style={{ display: 'flex', gap: 12, marginTop: 20, justifyContent: 'flex-end' }}>
               <button onClick={() => setRejectModal(null)}

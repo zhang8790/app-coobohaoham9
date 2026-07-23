@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '商家入驻',
+  navigationBarTitleText: '自营门店',
   enableShareAppMessage: true,
   enableShareTimeline: true,
 })

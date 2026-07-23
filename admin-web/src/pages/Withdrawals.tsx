@@ -123,7 +123,7 @@ export default function Withdrawals() {
 
   const handleReject = async (w: Withdrawal) => {
     const reason = prompt(w.kind === 'settlement'
-      ? '请输入驳回原因（将通知商家，并退回货款到门店可结算余额）：'
+      ? '请输入驳回原因（将通知自营门店，并退回货款到门店可结算余额）：'
       : '请输入驳回原因（将通知用户；佣金保留在其账户余额中，未扣减）：')
     if (reason === null) return
     if (!reason.trim()) { alert('请填写驳回原因'); return }

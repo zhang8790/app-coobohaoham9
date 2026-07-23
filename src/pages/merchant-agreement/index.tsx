@@ -1,16 +1,16 @@
 import { View, Text } from '@tarojs/components'
-// @title 商家入驻协议
+// @title 自营门店协议
 
 
 function MerchantAgreement() {
   return (
     <View className="min-h-screen bg-background pb-10">
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4 text-muted-foreground text-sm leading-loose">
-        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜商家入驻协议</Text>
+        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜自营门店协议</Text>
         <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月1日\n生效日期：2026年7月1日'}</Text>
 
         <View className="mb-4">
-          <Text className="block text-foreground font-semibold mb-1 leading-snug">一、入驻资格</Text>
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">一、自营门店资格</Text>
           <Text className="block">1. 申请商家须为依法设立并有效存续的经营主体，具备相应经营资质。</Text>
           <Text className="block">2. 提交信息须真实、准确、完整，平台有权进行资质审核与实地核验。</Text>
         </View>

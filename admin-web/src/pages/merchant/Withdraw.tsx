@@ -1,4 +1,4 @@
-// @title 商家中心 - 佣金提现（真实数据）
+// @title 自营门店中心 - 佣金提现（真实数据）
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getMyMerchantStore, getMerchantWithdrawals, getCommissionBalance, createWithdrawal } from '@/api/merchant'

@@ -1,6 +1,6 @@
-// 共享加购按钮：全站统一（品牌馆门店详情 / 首页 Feed / 自营页 等复用）。
+// 共享加购按钮：全站统一（门店详情 / 首页 Feed / 自营页 等复用）。
 // 赭红圆形 + 白色购物袋图标，确保「行囊」加购入口的视觉与交互 100% 一致，
-// 避免出现「品牌馆用 cart-plus、Feed 用 bag」这类图标/形状不统一的问题。
+// 避免出现「门店详情用 cart-plus、Feed 用 bag」这类图标/形状不统一的问题。
 import { View } from '@tarojs/components'
 import { useState } from 'react'
 import Icon from '@/components/Icon'

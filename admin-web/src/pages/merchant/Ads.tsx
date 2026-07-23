@@ -1,4 +1,4 @@
-// @title 商家中心 - 营销活动管理（真实数据）
+// @title 自营门店中心 - 营销活动管理（真实数据）
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getMyMerchantStore, getMerchantCampaigns, createCampaign, updateCampaignStatus } from '@/api/merchant'

@@ -1,4 +1,4 @@
-// @title 商家中心 - 订单管理（真实数据）
+// @title 自营门店中心 - 订单管理（真实数据）
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'

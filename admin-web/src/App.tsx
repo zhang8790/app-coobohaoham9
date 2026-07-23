@@ -43,7 +43,7 @@ import EmotionFunnel from '@/pages/merchant/EmotionFunnel'
  * - requireMerchant: 仅允许 merchant，其余跳转 /dashboard
  * - 无 requireXxx: 任意已登录角色均可访问
  */
-// 判断是否有商家权限（role=merchant 或 merchant_status=approved）
+// 判断是否有自营门店权限（role=merchant 或 merchant_status=approved）
 const isMerchantUser = (profile: any): boolean => {
   if (!profile) return false
   return profile.role === 'merchant' || profile.merchant_status === 'approved'
@@ -131,7 +131,7 @@ export default function App() {
           <Route path="commission-guide" element={<CommissionGuide />} />
           </Route>
 
-          {/* ===== 犒赏铺管理后台（merchant 专属）===== */}
+          {/* ===== 自营门店管理后台（merchant 专属）===== */}
           <Route path="/merchant" element={<RequireAuth requireMerchant><MerchantLayout /></RequireAuth>}>
             <Route index element={<MerchantDashboard />} />
             <Route path="products" element={<MerchantProducts />} />

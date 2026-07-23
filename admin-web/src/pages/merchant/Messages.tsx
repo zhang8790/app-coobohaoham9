@@ -1,4 +1,4 @@
-// @title 商家中心 - 消息通知（真实数据）
+// @title 自营门店中心 - 消息通知（真实数据）
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getMyMerchantStore, getMerchantMessages } from '@/api/merchant'
