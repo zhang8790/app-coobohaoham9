@@ -6,7 +6,6 @@ import { getCartItems, updateCartQty, removeCartItem, updateCartSelected } from 
 import Icon from '@/components/Icon'
 import { subscribeCartCount, bumpCartCount } from '@/utils/cartStore'
 import { setPendingCheckout } from '@/utils/checkoutCache'
-import { generateEmotionHeadline } from '@/utils/emotion-description'
 import CustomTabBar from '@/components/custom-tabbar'
 import type { CartItem, Product } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
@@ -179,12 +178,6 @@ function CartPage() {
                       <View className="flex-1">
                         <Text className="text-xl text-foreground font-bold line-clamp-2">{item.products?.name}</Text>
                         <Text className="text-xl font-bold text-primary mt-1">¥{item.products?.price}</Text>
-                        {/* v3.1 智能卖点标题：行囊里也露一次脸，强化转化前的心智锚点 */}
-                        {(item.products?.mood_tags?.length ?? 0) > 0 && (
-                          <Text className="text-xs text-muted-foreground mt-1" style={{ display: 'block' }}>
-                            {generateEmotionHeadline(item.products as any, item.products?.mood_tags || [], item.products?.scene_tags || [])}
-                          </Text>
-                        )}
                         <View className="flex items-center justify-between mt-2">
                           <View className="flex items-center gap-3">
                             <View

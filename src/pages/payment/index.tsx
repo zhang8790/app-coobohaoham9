@@ -321,8 +321,12 @@ function PaymentPage() {
     await verifyProducts(loadedItems)
   }, [cartIds, productIdParam, quantityParam])
 
-  // 挂载即拉一次（余额/地址等首屏数据）
-  useEffect(() => { loadData() }, [loadData])
+  // 挂载即拉一次（余额/地址等首屏数据）。
+  // 注意：依赖必须是 [] 而非 [loadData]——loadData 依赖 cartIds/productIdParam/quantityParam，
+  // 而这三者又依赖 router.params（每次渲染引用不稳定），会导致 loadData 反复重建、
+  // useEffect 无限重触发、整页 setState 死循环 → 界面一闪一闪。
+  // 页面每次显示的数据刷新由下方 useDidShow 负责，这里只首屏跑一次即可。
+  useEffect(() => { loadData() }, [])
 
   // 页面每次显示都重拉商品：覆盖「首渲染 router.params 尚未就绪、后续才填充」的时序，
   // 以及「冷启动/热重载后停留在支付页、params 恢复」等场景。loadData 内 setState 不触发 useDidShow，无死循环。

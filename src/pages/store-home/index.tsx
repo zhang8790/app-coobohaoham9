@@ -366,23 +366,6 @@ export default function StoreHomePage() {
                   <View style={{ padding: '10px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                     <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#333' }} numberOfLines={2}>{p.name}</Text>
 
-                    {/* 情绪标签 */}
-                    {p.mood_tags && p.mood_tags.length > 0 && (
-                      <View style={{ display: 'flex', flexDirection: 'row', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
-                        {p.mood_tags.slice(0, 2).map((tag) => (
-                          <View
-                            key={tag}
-                            style={{
-                              borderRadius: '999px',
-                              padding: '2px 8px',
-                              backgroundColor: 'rgba(194,65,12,0.1)',
-                            }}>
-                            <Text style={{ fontSize: '11px', color: '#A8552E' }}>{tag}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-
                     {/* 价格 + 加入购物车 */}
                     <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '8px' }}>
                       <Text style={{ fontSize: '17px', fontWeight: 'bold', color: '#A8552E' }}>¥{p.price}</Text>

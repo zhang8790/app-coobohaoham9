@@ -5,23 +5,17 @@ import { View, Text, Button, ScrollView } from '@tarojs/components'
 import { getNearbyProducts, addToCart, getProducts } from '@/db/api'
 import Icon from '@/components/Icon'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
-import { getEmotionBasedRecommendations } from '@/utils/emotion-recommendation'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import { useLocation } from '@/contexts/LocationContext'
 import LazyImage from '@/components/LazyImage'
 import ProductGridCard from '@/components/ProductGridCard'
 import CustomTabBar from '@/components/custom-tabbar'
-import { generateEmotionDescription } from '@/utils/emotion-description'
-import { UNIFIED_EMOTION_FILTERS } from '@/utils/category-emotion'
 import { getProductCareInfo } from '@/utils/product-care'
 import type { NearbyProduct } from '@/db/api'
 import type { Product } from '@/db/types'
 
 // 探索(自营)商品类目：后端按 products.category exact 匹配（不可改名）。
-const CATEGORIES = ['全部', '图书', '美食', '饮品', '零食', '日用', '礼品', '情绪']
-
-// 情绪筛选层：统一情绪筛选 chips（category-emotion.ts: UNIFIED_EMOTION_FILTERS）
-const EMOTION_FILTERS = UNIFIED_EMOTION_FILTERS
+const CATEGORIES = ['全部', '图书', '美食', '饮品', '零食', '日用', '礼品']
 
 const STORE_CATEGORY_MAP: Record<string, string> = {
   '图书': '图书', '美食': '美食', '饮品': '饮品', '零食': '零食', '日用': '日用', '礼品': '礼品'
@@ -53,42 +47,13 @@ function ExploreProductImage({ src, name }: { src: string | null | undefined; na
   )
 }
 
-// 情绪推荐商品图：1:1 正方形，与商品卡统一比例
-function EmotionProductImage({ src, name }: { src: string | null | undefined; name: string }) {
-  if (!src) {
-    return (
-      <View className="relative w-full overflow-hidden" style={{ paddingTop: '100%', backgroundColor: '#F7F3EF' }}>
-        <View className="flex flex-col items-center justify-center" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <Text style={{ fontSize: '28px' }}>🎁</Text>
-          <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
-        </View>
-      </View>
-    )
-  }
-  return (
-    <View className="relative w-full overflow-hidden" style={{ paddingTop: '100%' }}>
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-        <LazyImage
-          src={src}
-          mode="aspectFill"
-          className="w-full h-full bg-muted"
-          width="100%"
-          height="100%" />
-      </View>
-    </View>
-  )
-}
-
 // 探索页商品卡复用 ProductGridCard；当前仅自营门店商品
 export default function ExplorePage() {
   const { currentLocation, currentStore, nearbyStores, setStore, followLocation, detectLocation } = useLocation()
   const [activeCat, setActiveCat] = useState('全部')
   const [products, setProducts] = useState<NearbyProduct[]>([])
-  const [emotionProducts, setEmotionProducts] = useState<Product[]>([]) // 情绪推荐商品
-  const [showEmotionSection, setShowEmotionSection] = useState(false) // 是否显示情绪推荐区
   const cartCount = useCartCount()
   const [addingId, setAddingId] = useState<string | null>(null)
-  const [addingEmotionId, setAddingEmotionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const page = useRef(0)
@@ -163,21 +128,6 @@ export default function ExplorePage() {
   useEffect(() => {
     loadProducts('全部')
     refreshCart()
-    
-    // 加载情绪推荐商品
-    const loadEmotionRecs = async () => {
-      const { supabase } = await import('@/client/supabase')
-      const uid = (await supabase.auth.getUser()).data.user?.id
-      if (!uid) return
-      
-      const recs = await getEmotionBasedRecommendations(uid, 10)
-      if (recs && recs.length > 0) {
-        setEmotionProducts(recs)
-        setShowEmotionSection(true)
-      }
-    }
-    
-    loadEmotionRecs()
   }, [refreshCart])
 
   useDidShow(() => { refreshCart() })
@@ -200,17 +150,6 @@ export default function ExplorePage() {
     setAddingId(product.product_id)
     await addToCart(product.product_id, product.store_id)
     setAddingId(null)
-    Taro.showToast({ title: '已加入行囊', icon: 'success' })
-  }
-
-  // 情绪推荐卡片的加购（商品为 Product 类型，id/store_id 字段不同）
-  const handleAddCartEmotion = async (p: any) => {
-    const { supabase } = await import('@/client/supabase')
-    const uid = (await supabase.auth.getUser()).data.user
-    if (!uid) { Taro.navigateTo({ url: '/pages/login/index' }); return }
-    setAddingEmotionId(p.id)
-    await addToCart(p.id, p.store_id)
-    setAddingEmotionId(null)
     Taro.showToast({ title: '已加入行囊', icon: 'success' })
   }
 
@@ -319,69 +258,6 @@ export default function ExplorePage() {
 
         {/* 右侧内容 */}
         <View className="flex-1 overflow-y-auto px-3 py-3">
-          {/* 情绪推荐区 */}
-          {showEmotionSection && emotionProducts.length > 0 && (
-            <View className="mb-4">
-              <View className="flex items-center gap-2 mb-3">
-                <Text className="text-xl font-bold text-foreground">😊 根据你的情绪偏好推荐</Text>
-              </View>
-              <View className="flex flex-wrap justify-between">
-                {emotionProducts.slice(0, 4).map((p: any) => (
-                  <ProductGridCard
-                    key={p.id}
-                    id={p.id}
-                    name={p.name}
-                    price={p.price}
-                    imageRatio="4:3"
-                    imageSlot={<EmotionProductImage src={p.main_image || p.image_url} name={p.name} />}
-                    moodTags={p.mood_tags}
-                    care={getProductCareInfo(p)}
-                    onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}
-                    onAddCart={() => handleAddCartEmotion(p)}
-                    adding={addingEmotionId === p.id} />
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* 情绪筛选区（当选择"情绪"分类时显示） */}
-          {activeCat === '情绪' && (
-            <View className="mb-4">
-              <Text className="text-xl font-bold text-foreground mb-3" style={{ display: 'block' }}>🎯 选择你想感受的情绪</Text>
-              <View className="flex gap-2 flex-wrap">
-                {EMOTION_FILTERS.map((item, idx) => (
-                  <View
-                    key={idx}
-                    onClick={async () => {
-                      setLoading(true)
-                      const data = await getProducts({ moodTag: item.tag, platformFilter: 'only', limit: 20, ...(currentStore?.id ? { storeId: currentStore.id } : {}) })
-                      setProducts(data.map(p => ({
-                        product_id: p.id,
-                        product_name: p.name,
-                        product_price: p.price,
-                        product_image_url: p.main_image || p.image_url || '',
-                        product_mood_tags: p.mood_tags || [],
-                        store_id: p.store_id,
-                        store_name: (p as any).stores?.name || '',
-                        store_address: '',
-                        store_lat: 0,
-                        store_lng: 0,
-                        distance_km: 0,
-                        care: getProductCareInfo(p)})))
-                      setLoading(false)
-                    }}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: '20px',
-                      background: '#F5F5F5',
-                      border: '1.5px solid #EEE'}}>
-                    <Text style={{ fontSize: '14px' }}>{item.icon} {item.tag}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
           {/* 商品网格 */}
           {loading && products.length === 0 ? (
             <View className="flex flex-wrap justify-between">
@@ -406,9 +282,7 @@ export default function ExplorePage() {
                   price={p.product_price}
                   imageRatio="4:3"
                   imageSlot={<ExploreProductImage src={p.product_image_url} name={p.product_name} />}
-                  moodTags={p.product_mood_tags}
                   care={p.care}
-                  subtitle={generateEmotionDescription({ name: p.product_name }, p.product_mood_tags || [])}
                   footerExtra={p.distance_km > 0 ? <View className="text-xs text-primary flex items-center gap-1"><Icon name="location" size={12} className="text-primary" /><Text>{p.distance_km}km</Text></View> : null}
                   onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.product_id}` })}
                   onAddCart={() => handleAddCart(p)}

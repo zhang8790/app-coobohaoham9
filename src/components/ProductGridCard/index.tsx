@@ -108,14 +108,10 @@ export default function ProductGridCard({
               <Text className="text-xs text-secondary leading-snug line-clamp-2">{care.shiyang}</Text>
             )}
             <CareBar score={care.careScore} />
-            {/* 食疗标签(赭红) 与 情绪配对(玫红) 双色并排，一眼读懂「食疗+情绪」 */}
+            {/* 食疗标签(赭红)：前台只展示食养维度，情绪配对标签已移至后台算法层 */}
             <View className="flex items-center gap-1 flex-wrap overflow-hidden" style={{ maxHeight: '44px' }}>
               {care.healthTags.slice(0, 2).map((t) => (
                 <Text key={t} className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/15">{t}</Text>
-              ))}
-              {care.emotionTags.slice(0, 2).map((t) => (
-                <Text key={t} className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-xs border"
-                  style={{ color: '#DB2777', background: 'rgba(244,63,94,0.10)', borderColor: 'rgba(244,63,94,0.20)' }}>♡ {t}</Text>
               ))}
             </View>
             {/* 性味(寒热有色) + 宜搭/慎搭智能提示：商品更懂用户、更科学搭配 */}

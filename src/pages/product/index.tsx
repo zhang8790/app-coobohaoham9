@@ -11,13 +11,13 @@ import Icon from '@/components/Icon'
 import type { Product, FoodAdditive } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
-import { MOOD_TAGS_ALL, SCENE_TAGS_ALL } from '@/utils/mood-tags'
-import { generateEmotionDescription, generateEmotionHeadline } from '@/utils/emotion-description'
-import { loadCategoryEmotionProfilesFromDb } from '@/utils/category-emotion'
+import { SCENE_TAGS_ALL } from '@/utils/mood-tags'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { toFoodTherapyInput, TIER_LABEL } from '@/utils/food-therapy'
 import { resolveIngredientEntries } from '@/utils/ingredient-analysis'
 import FoodSafetyPanel from '@/components/FoodSafetyPanel'
+import ComprehensiveSafetyReport from '@/components/ComprehensiveSafetyReport'
+import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
 
 export default function ProductPage() {
   const { user } = useAuth()
@@ -42,8 +42,6 @@ export default function ProductPage() {
   }, [product?.price, quantity])
   // 门店推荐套餐：根据 combo_product_ids 拉取关联商品
   const [comboProducts, setComboProducts] = useState<Product[]>([])
-  // 云端类目策略加载标记：拉取完成后 +1，驱动情绪翻译用最新策略重算
-  const [profilesTick, setProfilesTick] = useState(0)
 
   // 构建媒体列表：主图 + 副图 + 视频（视频放最后）
   const mediaList = useMemo(() => {
@@ -59,27 +57,6 @@ export default function ProductPage() {
 
   const videoUrl = useMemo(() => product?.video_url || '', [product])
 
-  // 情绪翻译：优先读 product_emotion 缓存（emotion-compile Edge Function 编译，可能由 LLM 生成），
-  // 无缓存且无标签时回退本地规则计算
-  const hasEmotion = !!(product?.mood_tags?.length || product?.scene_tags?.length)
-  const emotionData = useMemo<{ title: string; detail: string; headline: string; by: 'rule' | 'llm' } | null>(() => {
-    if (!product) return null
-    const category = (product as any).stores?.category
-    // v3.1 情绪卖点标题引擎：emoji + 情绪修饰短句，给商品一句「货架感」卖点小标题
-    const headline = generateEmotionHeadline(product, product.mood_tags || [], product.scene_tags || [], category)
-    const cached = product.product_emotion
-    if (cached?.emotion_detail) {
-      return { title: cached.emotion_title || '情绪翻译', detail: cached.emotion_detail, headline, by: cached.compiled_by }
-    }
-    if (!hasEmotion) return null
-    return {
-      title: '情绪翻译',
-      detail: generateEmotionDescription(product, product.mood_tags || [], product.scene_tags || [], category),
-      headline,
-      by: 'rule',
-    }
-  }, [product, hasEmotion, profilesTick])
-
   const load = useCallback(async () => {
     if (!id) return
     setLoading(true)
@@ -92,10 +69,6 @@ export default function ProductPage() {
     if (data) recordFootprint(data.id).catch(() => {})
     // 导购反馈回流：记录浏览事件（个性化权重学习）
     if (data) trackFoodTherapyEvent({ productId: data.id, eventType: 'view', healthTag: (data as any).health_tag ?? [], emotionTag: (data as any).emotion_tag ?? [] }).catch(() => {})
-    // 拉取云端类目情绪策略（运营后台改词库即时生效）；加载完驱动情绪翻译重算
-    loadCategoryEmotionProfilesFromDb()
-      .then(() => setProfilesTick(t => t + 1))
-      .catch(() => {})
   }, [id])
 
   const refreshCart = useCallback(async () => {
@@ -154,6 +127,18 @@ export default function ProductPage() {
     () => (product ? resolveIngredientEntries(product) : []),
     [product],
   )
+
+  // 全面安全分析：聚合添加剂(已挂载) + 商品标签字段(过敏原/营养) + 商品名/描述扫描
+  const safetyReport = useMemo<ReportType | null>(() => {
+    if (!product) return null
+    return analyzeFoodLabel({
+      text: [product.name, product.description].filter(Boolean).join(' '),
+      additives: foodAdditives.map((a) => ({ name: a.name, risk_level: a.risk_level })),
+      allergensDeclared: product.allergens,
+      nutrition: product.nutrition,
+      isFullLabel: true,
+    })
+  }, [product, foodAdditives])
 
   // 商品卡分享：一定是产品（商品主图 + 商品详情路径），并注入食疗分档
   useShareAppMessage(() => {
@@ -304,62 +289,13 @@ export default function ProductPage() {
           )}
         </View>
         <View className="text-2xl font-bold text-foreground mt-3 leading-tight">{product.name}</View>
-        {/* 情绪翻译：商品详情的主叙事（非电商带货腔，优先读编译缓存） */}
-        {emotionData && (
-          <View
-            className="mt-3 px-3 py-3 rounded-2xl bg-primary/5 border border-primary/15"
-            onClick={() => product && Taro.navigateTo({ url: `/pages/emotion-detail/index?productId=${encodeURIComponent(product.id)}` })}
-          >
-            {/* v3.1 智能卖点标题：作为情绪卡的主视觉锚点，引导用户一眼抓住商品情绪角度 */}
-            <View className="flex items-center gap-1.5 mb-2">
-              <Text className="text-xs font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded" style={{ display: 'inline-block' }}>卖点</Text>
-              <Text className="text-lg font-bold text-foreground leading-snug" style={{ display: 'inline-block' }}>{emotionData.headline}</Text>
-            </View>
-            <View className="flex items-center justify-between">
-              <Text className="text-base font-bold text-primary" style={{ display: 'block' }}>
-                ✨ {emotionData.title}{emotionData.by === 'llm' ? ' · 智能生成' : ''}
-              </Text>
-              <Text className="text-xs text-primary/70" style={{ flexShrink: 0, marginLeft: 8 }}>开启情绪之旅 ›</Text>
-            </View>
-            <Text className="text-xl text-foreground leading-relaxed mt-1" style={{ lineHeight: '1.7', display: 'block' }}>{emotionData.detail}</Text>
-          </View>
-        )}
         {/* 配料安全：挂载的添加剂安全分级 + 食养成分分析 */}
         <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} />
+        {/* 全面安全分析：致敏原 / 营养成分 / 标签合规 / 适宜人群 */}
+        {safetyReport && <ComprehensiveSafetyReport report={safetyReport} fullLabel />}
         {/* 商家原话（功能信息） */}
         {product.description && (
           <Text className="text-base text-muted-foreground mt-2 leading-relaxed" style={{ display: 'block' }}>商家原话：{product.description}</Text>
-        )}
-        {/* 情绪标签 - 情绪化展示 */}
-        {product.mood_tags && product.mood_tags.length > 0 && (
-          <View className="mt-3">
-            <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>😊 商品氛围</Text>
-            <View className="flex gap-2 flex-wrap">
-              {product.mood_tags.map((tag: string) => {
-                // 从情绪词库中查找标签信息
-                const tagInfo = MOOD_TAGS_ALL.find(t => t.zh === tag)
-                return (
-                  <View 
-                    key={tag}
-                    className="px-3 py-2 rounded-2xl flex items-center gap-1"
-                    style={{ 
-                      background: tagInfo?.color ? `${tagInfo.color}20` : '#F5F5F5',
-                      border: `1.5px solid ${tagInfo?.color || '#EEE'}`,
-                    }}
-                  >
-                    <Text style={{ fontSize: '16px' }}>{tagInfo?.icon || '😊'}</Text>
-                    <Text 
-                      style={{ 
-                        fontSize: '13px', 
-                        fontWeight: '600',
-                        color: tagInfo?.color || '#666',
-                      }}
-                    >{tag}</Text>
-                  </View>
-                )
-              })}
-            </View>
-          </View>
         )}
         {/* 场景标签 */}
         {product.scene_tags && product.scene_tags.length > 0 && (

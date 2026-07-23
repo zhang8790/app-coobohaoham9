@@ -15,7 +15,6 @@ const NAV_ITEMS = [
   { to: '/pages/merchant-members/index', icon: 'user', label: '会员管理', color: 'bg-brand-navy', key: 'members' },
   { to: '/pages/merchant-coupons/index', icon: 'ticket', label: '优惠券', color: 'bg-warning', key: 'coupons' },
   { to: '/pages/merchant-analytics/index', icon: 'chart', label: '数据分析', color: 'bg-brand-bronze', key: 'analytics' },
-  { to: '/pages/merchant-emotion-funnel/index', icon: 'smile', label: '情绪漏斗', color: 'bg-brand-ochre', key: 'emofunnel' },
   { to: '/pages/merchant-settings/index', icon: 'shop', label: '店铺设置', color: 'bg-secondary', key: 'settings' },
   { to: '/pages/withdraw/index', icon: 'coin', label: '货款提现', color: 'bg-accent', key: 'withdraw' },
 ]

@@ -526,12 +526,6 @@ function MerchantProductsPage() {
                 </View>
                 <View style={{ width: '1px', background: '#F1E9D9' }} />
                 <View
-                  onClick={() => Taro.navigateTo({ url: `/pages/merchant-emotion-compile/index?productId=${p.id}` })}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-                  <Text style={{ fontSize: '13px', color: '#A8552E', fontWeight: '500' }}>🎭 情绪编译</Text>
-                </View>
-                <View style={{ width: '1px', background: '#F1E9D9' }} />
-                <View
                   onClick={() => {
                     Taro.showModal({
                       title: '确认删除',
