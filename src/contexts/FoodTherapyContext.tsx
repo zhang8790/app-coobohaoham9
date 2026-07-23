@@ -9,8 +9,11 @@ import {
   toFoodTherapyInput,
   classifyProduct as classifyOne,
   classifyProducts as classifyMany,
+  CROWD_OPTIONS,
   type Crowd, type Scene, type FitTier, type FoodTherapyInput, type TierResult,
 } from '@/utils/food-therapy'
+import { profileToCrowds } from '@/utils/food-therapy/profile-map'
+import { getUserHealthProfile } from '@/db/food-api'
 import type { Product } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -39,19 +42,37 @@ export function FoodTherapyProvider({ children }: { children: ReactNode }) {
     try { return (Taro.getStorageSync(SCENE_KEY) || null) as Scene | null } catch { return null }
   })
 
-  // 用户体质档案自动注入：登录后把 profiles.constitution_tags 作为默认匹配人群，
-  // 实现"用户输入体质→自动配对商品"，无需每次手选。仅注入一次，手动调整仍持久于 storage。
+  // 用户体质档案自动注入：登录后读取 user_health_profile 结构化画像，
+  // 用 profileToCrowds 推导食疗人群并作为默认匹配项，实现"懂用户身体→自动配对商品"。
+  // 优先用结构化画像；若为空，回退 profiles.constitution_tags（历史兼容）。仅注入一次，
+  // 手动调整仍持久于 storage。
   const { profile } = useAuth()
   const seededRef = useRef(false)
   useEffect(() => {
-    if (seededRef.current) return
-    const tags = profile?.constitution_tags
-    if (tags && Array.isArray(tags) && tags.length > 0) {
-      setSelectedCrowds(tags as Crowd[])
-      try { Taro.setStorageSync(CROWD_KEY, tags) } catch { /* storage 不可用时静默降级 */ }
-      seededRef.current = true
+    if (seededRef.current || !profile?.id) return
+    seededRef.current = true
+    const seedFromTags = (tags?: string[] | null) => {
+      if (tags && Array.isArray(tags) && tags.length > 0) {
+        const valid = tags.filter((t) => (CROWD_OPTIONS as readonly string[]).includes(t)) as Crowd[]
+        if (valid.length) {
+          setSelectedCrowds(valid)
+          try { Taro.setStorageSync(CROWD_KEY, valid) } catch { /* storage 不可用时静默降级 */ }
+        }
+      }
     }
-  }, [profile])
+    getUserHealthProfile(profile.id)
+      .then((hp) => {
+        const crowds = profileToCrowds(hp)
+        if (crowds.length > 0) {
+          setSelectedCrowds(crowds)
+          try { Taro.setStorageSync(CROWD_KEY, crowds) } catch { /* ignore */ }
+        } else {
+          // 结构化画像为空时回退旧自由文本标签
+          seedFromTags(profile?.constitution_tags)
+        }
+      })
+      .catch(() => seedFromTags(profile?.constitution_tags))
+  }, [profile?.id])
 
   const toggleCrowd = useCallback((c: Crowd) => {
     setSelectedCrowds((prev) => {

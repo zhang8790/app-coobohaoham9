@@ -60,26 +60,15 @@ const pages = [
   'pages/campaign-claim/index',
   'pages/merchant-campaigns/index',
   'pages/merchant-campaigns/create/index',
-  // V5：情绪系统
-  'pages/emotion-check/index',
-  // 商家情绪编译工作台
-  'pages/merchant-emotion-compile/index',
-  // V5：五屏情绪详情页（C端沉浸式情绪导购）
-  'pages/emotion-detail/index',
-  // V5：商家情绪漏斗看板
-  'pages/merchant-emotion-funnel/index',
-  // V5：消费即确权页（支付成功后引导）
-  'pages/emotion-claim/index',
-  // V5：我的情绪账单（用户侧确权集 + 金豆）
-  'pages/emotion-bill/index',
-  // V5 P2-1：我的情绪徽章
-  'pages/emotion-badges/index',
+  // （情绪前台交互已隐藏：情绪信号转为后台算法维度，不再作为 C 端/商家前台页面）
   // 通知中心
   'pages/messages/index',
   // 扫码购物结果页（扫码 → 展示商品/价格 → 加入购物车）
   'pages/scan-result/index',
   // 食品配料安全识别（C端：文本/拍照解析添加剂安全 + 食养）
   'pages/food-scan/index',
+  // 用户结构化健康画像（V1 食疗个性化，「我的体质档案」）
+  'pages/health-profile/index',
 ]
 
 export default defineAppConfig({

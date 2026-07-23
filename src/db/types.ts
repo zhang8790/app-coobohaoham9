@@ -118,6 +118,41 @@ export interface Product {
   match_goods?: string[] | null           // 推荐搭配商品 id 列表
   conflict_goods?: string[] | null        // 冲突/慎搭商品 id 列表
   aux_remind?: string | null              // 辅料自适应提醒文案
+  // 全面安全分析（迁移 00204）：商品标签结构化字段
+  allergens?: string[] | null            // 致敏原 key 列表（allergen-dictionary key）
+  nutrition?: { energy_kj?: number | null; protein_g?: number | null; fat_g?: number | null; carb_g?: number | null; sugar_g?: number | null; sodium_mg?: number | null } | null
+  label_info?: { score?: number; present?: Record<string, boolean>; missing?: string[] } | null
+  safety_grade?: 'S' | 'A' | 'C' | 'D' | null   // 全面安全评级
+  safety_summary?: Record<string, unknown> | null  // 分析报告缓存（ComprehensiveSafetyReport JSON）
+
+}
+
+// 用户结构化健康画像（迁移 00205，1:1 profiles）
+// 替代原自由文本 constitution_tags，使食疗引擎可程序化比对「安不安全 / 适不适合」。
+// 仅作食养参考，不替代医嘱（见 compliance/shield.ts 红线）。
+export interface UserHealthProfile {
+  user_id: string
+  age_group: string | null               // 儿童/青少年/成人/孕哺期/老年
+  gender: string | null                  // 男/女/不填
+  constitution_type: string | null       // 中医九种体质 或 沿用 13 人群标签（渐进式）
+  allergies: string[] | null             // allergen-dictionary key 列表
+  chronic_conditions: string[] | null    // HEALTH_CROWD_OPTIONS
+  body_states: string[] | null           // BODY_CROWD_OPTIONS
+  health_goals: string[] | null          // 控糖/护胃/助眠/补血/抗疲劳/减脂/清热
+  privacy_flags: Record<string, unknown> | null
+  updated_at: string | null
+}
+
+// 扫描历史（学习闭环：输入/解析/画像快照/tier）
+export interface UserScanHistory {
+  id: string
+  user_id: string
+  input_type: string | null              // text / photo / barcode
+  raw_text: string | null
+  parsed: Record<string, unknown> | null // 添加剂/过敏原/营养/性味
+  profile_snapshot: Record<string, unknown> | null // 分析时画像快照
+  tier: string | null                    // recommend/caution/avoid
+  created_at: string
 }
 
 // 商品情绪编译结果缓存（由 emotion-compile Edge Function 写入，详情页直读）

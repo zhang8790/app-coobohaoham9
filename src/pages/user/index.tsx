@@ -41,6 +41,13 @@ const MENU_GROUPS = [
       { name: '帮助中心', icon: '?', page: '/pages/help/index' },
       { name: '设置', icon: '⚙', page: '/pages/settings/index' },
     ]
+  },
+  {
+    title: '食养健康',
+    icon: '🌿',
+    items: [
+      { name: '我的体质档案', icon: '📋', page: '/pages/health-profile/index' },
+    ]
   }
 ]
 
@@ -256,8 +263,6 @@ function UserPage() {
         <View className="mx-4 mt-3 rounded-2xl border border-primary/30 px-4 py-4" style={{ background: 'linear-gradient(120deg,#FFF7ED 0%,#FFEDD5 100%)' }}>
           <View className="flex items-center justify-between">
             <Text className="text-xl font-bold text-foreground">我的会员权益</Text>
-            <Text className="text-base text-primary font-bold"
-              onClick={() => Taro.navigateTo({ url: '/pages/emotion-bill/index' })}>确权记录 ›</Text>
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: '12px' }}>
             <View style={{ flex: 1 }}>
@@ -320,7 +325,6 @@ function UserPage() {
               { name: '我的段位', icon: 'medal', page: '/pages/my-promotion/index', desc: '查看推广码' },
               { name: '我的金豆', icon: 'coin', page: '/pages/withdraw/index', desc: '金豆明细' },
               { name: '我的好友', icon: 'account-group', page: '/pages/my-referrals/index', desc: '查看推荐' },
-              { name: '情绪账单', icon: 'heart', page: '/pages/emotion-bill/index', desc: '确权集' },
             ].map(item => (
               <View key={item.name}
                 hoverClass="none"

@@ -30,8 +30,11 @@ import type {
   Inventory,
   Vehicle,
   VehicleTransfer,
+  UserHealthProfile,
+  UserScanHistory,
 } from './types'
 import { matchIngredientKeys } from '@/utils/ingredient-analysis'
+import { matchAdditiveKeys } from '@/utils/additive-dictionary'
 
 // ============================================================
 // 1. 配料安全库 food_additives（白/黄/黑风险 + 国标）
@@ -209,18 +212,19 @@ export async function updateProductFoodFields(
 
 /**
  * 将 OCR 原文本 / 商品名解析出的配料，匹配到安全库 food_additives。
- * 复用现有 ingredient-analysis 的 matchIngredientKeys（基于 shiyang-dictionary 做初筛），
- * 再以命中词去 food_additives 取安全分级。
+ * 用专用添加剂字典 ADDITIVE_DICT 做名称/别名包含匹配（覆盖 GB 2760 常见添加剂，高于食材食养字典），
+ * 再以命中名去 food_additives 取安全分级。返回 { additives, matchedNames } 便于前端区分
+ * 「命中但库未收录」与「完全未命中」两种情形。
  */
-export async function resolveFoodAdditivesByText(text: string): Promise<FoodAdditive[]> {
-  const keys = matchIngredientKeys(text)
-  if (!keys.length) return []
-  const { data, error } = await supabase.from('food_additives').select('*').in('name', keys)
+export async function resolveFoodAdditivesByText(text: string): Promise<{ additives: FoodAdditive[]; matchedNames: string[] }> {
+  const names = matchAdditiveKeys(text)
+  if (!names.length) return { additives: [], matchedNames: [] }
+  const { data, error } = await supabase.from('food_additives').select('*').in('name', names)
   if (error) {
     console.error('[resolveFoodAdditivesByText] 查询失败:', error.message)
-    return []
+    return { additives: [], matchedNames: names }
   }
-  return (data as FoodAdditive[]) ?? []
+  return { additives: (data as FoodAdditive[]) ?? [], matchedNames: names }
 }
 
 // ============================================================
@@ -588,4 +592,90 @@ export async function getHealthReport(
     .eq('period', period)
     .maybeSingle()
   return (data as HealthReport) ?? null
+}
+
+// ============================================================
+// 9. 用户结构化健康画像 user_health_profile（V1 食疗个性化，迁移 00205）
+// ============================================================
+export async function getUserHealthProfile(
+  userId: string,
+): Promise<UserHealthProfile | null> {
+  if (!userId) return null
+  const { data, error } = await supabase
+    .from('user_health_profile')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) {
+    // 表未创建（00205 未执行）时静默降级，不阻断主流程
+    if (!String(error.message).includes('does not exist')) {
+      console.error('[getUserHealthProfile] 查询失败:', error.message)
+    }
+    return null
+  }
+  return (data as UserHealthProfile) ?? null
+}
+
+export async function upsertUserHealthProfile(
+  payload: Partial<UserHealthProfile> & { user_id: string },
+): Promise<UserHealthProfile | null> {
+  const row = {
+    age_group: null,
+    gender: null,
+    constitution_type: null,
+    allergies: [],
+    chronic_conditions: [],
+    body_states: [],
+    health_goals: [],
+    privacy_flags: { history_store: true, cross_store_aggregate: false },
+    ...payload,
+    updated_at: new Date().toISOString(),
+  }
+  const { data, error } = await supabase
+    .from('user_health_profile')
+    .upsert(row, { onConflict: 'user_id' })
+    .select()
+    .maybeSingle()
+  if (error) {
+    console.error('[upsertUserHealthProfile] 写入失败:', error.message)
+    return null
+  }
+  return (data as UserHealthProfile) ?? null
+}
+
+// ============================================================
+// 10. 扫描历史 user_scan_history（学习闭环，迁移 00205）
+// ============================================================
+export async function addScanHistory(
+  payload: Omit<UserScanHistory, 'id' | 'created_at'>,
+): Promise<UserScanHistory | null> {
+  const { data, error } = await supabase
+    .from('user_scan_history')
+    .insert(payload)
+    .select()
+    .maybeSingle()
+  if (error) {
+    // 学习闭环为增值能力，写入失败仅告警不阻断
+    console.error('[addScanHistory] 写入失败:', error.message)
+    return null
+  }
+  return (data as UserScanHistory) ?? null
+}
+
+export async function getScanHistory(
+  userId: string,
+  opts: { limit?: number } = {},
+): Promise<UserScanHistory[]> {
+  let q = supabase
+    .from('user_scan_history')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (opts.limit) q = q.limit(opts.limit)
+  const { data, error } = await q
+  if (error) {
+    console.error('[getScanHistory] 查询失败:', error.message)
+    return []
+  }
+  return (data as UserScanHistory[]) ?? []
 }
