@@ -172,8 +172,11 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // 下载配料表图片（bucket 需为公开读或 EF 用 service_role 可访问）
-    const imgResp = await fetch(task.image_url)
+    // 下载配料表图片（带 service_role 授权头，兼容非公开 bucket；不依赖 bucket 公开设置）
+    const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const imgResp = await fetch(task.image_url, {
+      headers: { Authorization: `Bearer ${serviceRole}` },
+    })
     if (!imgResp.ok) throw new Error(`图片下载失败 HTTP ${imgResp.status}`)
     const buf = new Uint8Array(await imgResp.arrayBuffer())
     let binary = ''
