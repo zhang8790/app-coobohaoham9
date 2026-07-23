@@ -15,6 +15,7 @@ import { generateEmotionDescription } from '@/utils/emotion-description'
 import { UNIFIED_EMOTION_FILTERS } from '@/utils/category-emotion'
 import { getProductCareInfo } from '@/utils/product-care'
 import type { NearbyProduct } from '@/db/api'
+import type { Product } from '@/db/types'
 
 // 探索(自营)商品类目：后端按 products.category exact 匹配（不可改名）。
 const CATEGORIES = ['全部', '图书', '美食', '饮品', '零食', '日用', '礼品', '情绪']
@@ -264,6 +265,20 @@ export default function ExplorePage() {
         </View>
       </View>
 
+      {/* 食品配料安全识别入口 */}
+      <View
+        className="mx-4 mt-3 rounded-2xl border border-black/5 px-4 py-3 flex flex-row items-center justify-between"
+        style={{ background: '#fff' }}
+        onClick={() => Taro.navigateTo({ url: '/pages/food-scan/index' })}
+      >
+        <View className="flex flex-row items-center" style={{ gap: 8 }}>
+          <Text style={{ fontSize: 18 }}>🍱</Text>
+          <Text className="text-sm font-semibold text-foreground">食品配料安全</Text>
+          <Text className="text-xs text-muted-foreground">拍照/输入即时识别添加剂</Text>
+        </View>
+        <Text className="text-xs text-primary">去识别 ›</Text>
+      </View>
+
       {/* 当前自营门店：按定位自动切换，可手动切换 */}
       <View className="px-4 py-2 flex items-center justify-between" style={{ borderBottom: '1px solid #F0E9DF', background: '#FFF8F0' }}>
         <View className="flex items-center gap-2 min-w-0">
@@ -403,7 +418,7 @@ export default function ExplorePage() {
           )}
           {hasMore.current && products.length > 0 && (
             <View className="flex justify-center pt-4 pb-2">
-              <Button type="button" className="px-6 py-2 rounded-full bg-muted text-xl text-muted-foreground"
+              <Button type="default" className="px-6 py-2 rounded-full bg-muted text-xl text-muted-foreground"
                 onClick={handleLoadMore}>
                 {loading ? '加载中...' : '加载更多'}
               </Button>
@@ -427,7 +442,7 @@ export default function ExplorePage() {
                 <View key={s.id}
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    paddingVertical: 12, paddingHorizontal: 8, borderRadius: 12, marginBottom: 8,
+                    padding: '12px 8px', borderRadius: 12, marginBottom: 8,
                     backgroundColor: currentStore?.id === s.id ? '#FDEFE0' : '#F5F5F5',
                   }}
                   onClick={() => {

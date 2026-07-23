@@ -3,11 +3,12 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { Image, Button, Swiper, SwiperItem, Video, View, Text } from '@tarojs/components'
 import { getProductById, addToCart, isFavorited, toggleFavorite, recordFootprint, trackFoodTherapyEvent, bindStoreReferrer } from '@/db/api'
+import { getProductFoodAdditives } from '@/db/food-api'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
 import { setPendingCheckout } from '@/utils/checkoutCache'
 import { buildProductShare } from '@/utils/share'
 import Icon from '@/components/Icon'
-import type { Product } from '@/db/types'
+import type { Product, FoodAdditive } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
 import { MOOD_TAGS_ALL, SCENE_TAGS_ALL } from '@/utils/mood-tags'
@@ -15,6 +16,8 @@ import { generateEmotionDescription, generateEmotionHeadline } from '@/utils/emo
 import { loadCategoryEmotionProfilesFromDb } from '@/utils/category-emotion'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { toFoodTherapyInput, TIER_LABEL } from '@/utils/food-therapy'
+import { resolveIngredientEntries } from '@/utils/ingredient-analysis'
+import FoodSafetyPanel from '@/components/FoodSafetyPanel'
 
 export default function ProductPage() {
   const { user } = useAuth()
@@ -24,6 +27,7 @@ export default function ProductPage() {
     return params?.id ? decodeURIComponent(params.id) : ''
   }, [])
   const [product, setProduct] = useState<Product | null>(null)
+  const [foodAdditives, setFoodAdditives] = useState<FoodAdditive[]>([])
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
   const cartCount = useCartCount()
@@ -124,6 +128,32 @@ export default function ProductPage() {
       .catch(() => {})
     return () => { alive = false }
   }, [product])
+
+  // 拉取本商品挂载的配料安全条目（product_food_additives → food_additives）
+  useEffect(() => {
+    if (!id) return
+    let alive = true
+    getProductFoodAdditives(id)
+      .then((links) => {
+        if (!alive) return
+        if (!links.length) { setFoodAdditives([]); return }
+        const ids = links.map((l) => l.additive_id)
+        supabase
+          .from('food_additives')
+          .select('*')
+          .in('id', ids)
+          .then(({ data }) => { if (alive) setFoodAdditives((data as FoodAdditive[]) || []) })
+          .catch(() => { if (alive) setFoodAdditives([]) })
+      })
+      .catch(() => { if (alive) setFoodAdditives([]) })
+    return () => { alive = false }
+  }, [id])
+
+  // 食养成分分析：优先用持久化 ingredients，回退商品名匹配
+  const shiyangEntries = useMemo(
+    () => (product ? resolveIngredientEntries(product) : []),
+    [product],
+  )
 
   // 商品卡分享：一定是产品（商品主图 + 商品详情路径），并注入食疗分档
   useShareAppMessage(() => {
@@ -294,6 +324,8 @@ export default function ProductPage() {
             <Text className="text-xl text-foreground leading-relaxed mt-1" style={{ lineHeight: '1.7', display: 'block' }}>{emotionData.detail}</Text>
           </View>
         )}
+        {/* 配料安全：挂载的添加剂安全分级 + 食养成分分析 */}
+        <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} />
         {/* 商家原话（功能信息） */}
         {product.description && (
           <Text className="text-base text-muted-foreground mt-2 leading-relaxed" style={{ display: 'block' }}>商家原话：{product.description}</Text>
@@ -556,14 +588,14 @@ export default function ProductPage() {
             <Text className="text-lg font-bold text-primary">¥{totalPrice.toFixed(2)}</Text>
           </View>
         </View>
-        <Button type="button"
+        <Button type="default"
           className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-primary bg-card"
           onClick={handleAddCart}>
           <View className="py-4 text-xl font-bold text-primary">
             {adding ? '加入中...' : '加入行囊'}
           </View>
         </Button>
-        <Button type="button"
+        <Button type="default"
           className="flex-1 flex items-center justify-center leading-none rounded-2xl bg-primary"
           onClick={handleBuyNow}>
           <View className="py-4 text-xl font-bold text-white">立即购买</View>

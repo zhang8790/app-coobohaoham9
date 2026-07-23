@@ -78,6 +78,8 @@ const pages = [
   'pages/messages/index',
   // 扫码购物结果页（扫码 → 展示商品/价格 → 加入购物车）
   'pages/scan-result/index',
+  // 食品配料安全识别（C端：文本/拍照解析添加剂安全 + 食养）
+  'pages/food-scan/index',
 ]
 
 export default defineAppConfig({

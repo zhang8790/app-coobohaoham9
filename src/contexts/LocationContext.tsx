@@ -3,16 +3,16 @@ import Taro from '@tarojs/taro'
 import { getUserLocation, matchCityByLocation } from '@/utils/lbs-service'
 import { getNearestStores } from '@/db/api'
 import type { NearestStore } from '@/db/api'
-import type { City } from '@/db/types'
+import type { CityInfo } from '@/utils/lbs-service'
 
 interface LocationContextValue {
-  currentCity: City | null
+  currentCity: CityInfo | null
   currentLocation: { lng: number; lat: number } | null
   currentStore: NearestStore | null
   nearbyStores: NearestStore[]
   loading: boolean
   error: string | null
-  setCity: (city: City) => void
+  setCity: (city: CityInfo) => void
   detectLocation: () => Promise<void>
   setStore: (store: NearestStore) => void
   followLocation: () => Promise<void>
@@ -20,19 +20,20 @@ interface LocationContextValue {
 
 const LocationContext = createContext<LocationContextValue | null>(null)
 
-const DEFAULT_CITY = {
-  id: 1,
+const DEFAULT_CITY: CityInfo = {
+  id: '1',
   city_code: 'SH',
   city_name: '上海',
   province: '上海市',
   lng: 121.4737,
   lat: 31.2304,
+  geo_hash: '',
   status: 'active',
-  created_at: '',
-} as City
+  config_json: null,
+}
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
-  const [currentCity, setCurrentCity] = useState<City | null>(null)
+  const [currentCity, setCurrentCity] = useState<CityInfo | null>(null)
   const [currentLocation, setCurrentLocation] = useState<{ lng: number; lat: number } | null>(null)
   const [currentStore, setCurrentStore] = useState<NearestStore | null>(null)
   const [nearbyStores, setNearbyStores] = useState<NearestStore[]>([])
@@ -74,7 +75,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       // 规范化：currentLocation 统一为 { lng, lat }
       setCurrentLocation({ lng: loc.longitude, lat: loc.latitude })
 
-      const city = await matchCityByLocation(loc.lng, loc.lat)
+      const city = await matchCityByLocation(loc.latitude, loc.longitude)
       const resolvedCity = city || DEFAULT_CITY
       setCurrentCity(resolvedCity)
       Taro.setStorageSync('currentCity', resolvedCity)
@@ -99,7 +100,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentCity, resolveNearestStore])
 
-  const setCity = useCallback((city: City) => {
+  const setCity = useCallback((city: CityInfo) => {
     setCurrentCity(city)
     Taro.setStorageSync('currentCity', city)
   }, [])

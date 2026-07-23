@@ -174,6 +174,19 @@ alter table public.vehicle_transfers       enable row level security;
 alter table public.intake_logs             enable row level security;
 alter table public.health_reports          enable row level security;
 
+-- 先 DROP 已存在的同名策略（幂等重跑：让脚本可重复执行）
+drop policy if exists "food_additives_read"  on public.food_additives;
+drop policy if exists "food_additives_write" on public.food_additives;
+drop policy if exists "faa_all" on public.food_additive_aliases;
+drop policy if exists "pfa_all" on public.product_food_additives;
+drop policy if exists "ocr_all" on public.ingredient_ocr_tasks;
+drop policy if exists "sb_all"  on public.stock_batches;
+drop policy if exists "inv_all" on public.inventories;
+drop policy if exists "veh_all" on public.vehicles;
+drop policy if exists "vt_all"  on public.vehicle_transfers;
+drop policy if exists "intake_all" on public.intake_logs;
+drop policy if exists "health_all" on public.health_reports;
+
 -- 配料安全库：公开可读；写开放（MVP，生产改 Edge Function）
 create policy "food_additives_read"  on public.food_additives for select using (true);
 create policy "food_additives_write" on public.food_additives for all    using (true) with check (true);
