@@ -58,6 +58,20 @@ export async function getFoodAdditives(opts: {
   return (data as FoodAdditive[]) ?? []
 }
 
+export async function getFoodAdditivesByNames(names: string[]): Promise<FoodAdditive[]> {
+  if (!names?.length) return []
+  const { data, error } = await supabase
+    .from('food_additives')
+    .select('*')
+    .in('name', names)
+    .eq('status', 'active')
+  if (error) {
+    console.error('[getFoodAdditivesByNames] 查询失败:', error.message)
+    return []
+  }
+  return (data as FoodAdditive[]) ?? []
+}
+
 export async function getFoodAdditive(id: string): Promise<FoodAdditive | null> {
   const { data } = await supabase.from('food_additives').select('*').eq('id', id).maybeSingle()
   return (data as FoodAdditive) ?? null

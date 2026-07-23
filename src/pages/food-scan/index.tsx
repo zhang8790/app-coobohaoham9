@@ -2,7 +2,8 @@
 import { useState, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Textarea, Button, Image } from '@tarojs/components'
-import { resolveFoodAdditivesByText, createIngredientOcrTask } from '@/db/food-api'
+import { resolveFoodAdditivesByText, createIngredientOcrTask, getFoodAdditivesByNames } from '@/db/food-api'
+import { supabase } from '@/client/supabase'
 import { matchIngredientKeys, resolveIngredientEntries } from '@/utils/ingredient-analysis'
 import type { IngredientEntry } from '@/utils/shiyang-dictionary'
 import FoodSafetyPanel from '@/components/FoodSafetyPanel'
@@ -61,9 +62,32 @@ export default function FoodScanPage() {
       try {
         const url = await uploadToStorage(tp, { bucket: 'product-images' })
         const task = await createIngredientOcrTask({ image_url: url, store_id: currentStore?.id || null })
-        setOcrMsg(task ? '已提交配料识别，服务端审核后将更新结果' : '提交失败，请重试')
+        if (!task) {
+          setOcrMsg('提交失败，请重试')
+          return
+        }
+        setOcrMsg('正在识别配料表...')
+        const { data: ef, error: efErr } = await supabase.functions.invoke('ocr-ingredient', {
+          body: { task_id: task.id },
+        })
+        if (efErr || !ef?.success) {
+          const msg: string = ef?.error || efErr?.message || '识别服务异常'
+          if (msg.includes('百度OCR未配置') || msg.includes('BAIDU_OCR')) {
+            setOcrMsg('OCR 识别服务未配置，请改用「粘贴配料文字」方式分析')
+          } else {
+            setOcrMsg('识别失败：' + msg)
+          }
+          return
+        }
+        // 用引擎回传的命中名回查完整安全库记录，复用既有评级与面板
+        const full = await getFoodAdditivesByNames(ef.matched_additives || [])
+        setAdditives(full)
+        const keys = matchIngredientKeys((ef.parsed_ingredients || []).join(','))
+        setShiyang(resolveIngredientEntries({ ingredients: keys }))
+        setAnalyzed(true)
+        setOcrMsg(ef.safety_grade === 'C' ? '识别完成：含慎用成分，请查看安全评级' : '识别完成')
       } catch (e: any) {
-        setOcrMsg('上传失败：' + (e?.message || '网络异常'))
+        setOcrMsg('处理失败：' + (e?.message || '网络异常'))
       } finally {
         setOcrLoading(false)
       }
