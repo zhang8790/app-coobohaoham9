@@ -80,7 +80,7 @@ export default function MessagesPage() {
     }
     // 跳转
     const target = (n.payload?.page as string | undefined) ?? 'pages/order-center/index'
-    if (target === 'pages/messages/index') {
+    if (target === 'pages/mine/messages/index') {
       // 当前页，刷新即可
       load()
       return

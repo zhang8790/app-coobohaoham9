@@ -97,7 +97,7 @@ function CampaignClaimPage() {
 
   // 转发给好友 / 朋友圈：携带 campaignId + 我的推广码
   useShareAppMessage(() => {
-    const path = `/pages/campaign-claim/index?campaignId=${campaignId}${myCode ? `&ref=${myCode}` : ''}`
+    const path = `/pages/marketing/campaign-claim/index?campaignId=${campaignId}${myCode ? `&ref=${myCode}` : ''}`
     const title = campaign?.campaign_type === 'redpacket'
       ? `🧧 ${campaign.gift_value}元现金红包，限时免费领！`
       : `🎁 ${campaign?.gift_name || '实物好礼'}，限时免费领！`

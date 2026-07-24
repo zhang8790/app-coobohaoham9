@@ -75,7 +75,7 @@ export default function CustomTabBar() {
               key={t.key}
               className="ctb-item ctb-center"
               hoverClass="ctb-item--hover"
-              onClick={() => Taro.navigateTo({ url: '/pages/content-center/make/index' })}
+              onClick={() => Taro.navigateTo({ url: '/pages/content/content-center/make/index' })}
             >
               <View className="ctb-center-btn">
                 <Image className="ctb-center-icon" src={ICON_WHITE['pencil']} mode="aspectFit" />

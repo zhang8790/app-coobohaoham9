@@ -153,7 +153,7 @@ function OrderCenterPage() {
                 {['pending_ship', 'pending_receive', 'pending_pickup', 'pending_review', 'completed', 'paid'].includes(order.status) && (
                   <View
                     className="flex items-center justify-center leading-none rounded-xl bg-muted"
-                    onClick={() => Taro.navigateTo({ url: `/pages/refund-apply/index?orderId=${encodeURIComponent(order.id)}` })}>
+                    onClick={() => Taro.navigateTo({ url: `/pages/trade/refund-apply/index?orderId=${encodeURIComponent(order.id)}` })}>
                     <View className="py-2 px-4 text-base text-muted-foreground font-normal">申请退款</View>
                   </View>
                 )}
@@ -167,7 +167,7 @@ function OrderCenterPage() {
                 {order.status === 'pending_review' && (
                   <View
                     className="flex items-center justify-center leading-none rounded-xl border-2 border-primary bg-card"
-                    onClick={() => Taro.navigateTo({ url: `/pages/review/index?orderId=${encodeURIComponent(order.id)}` })}>
+                    onClick={() => Taro.navigateTo({ url: `/pages/mine/review/index?orderId=${encodeURIComponent(order.id)}` })}>
                     <View className="py-2 px-4 text-base text-primary font-bold">去评价</View>
                   </View>
                 )}

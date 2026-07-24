@@ -10,69 +10,94 @@ const pages = [
   'pages/payment-result/index',
   'pages/order-center/index',
   'pages/search/index',
-  'pages/merchant-apply/index',
-  'pages/merchant-center/index',
-  'pages/withdraw/index',
-  'pages/content-center/make/index',
-  'pages/content-center/my-articles/index',
-  'pages/refund-apply/index',
-  'pages/my-promotion/index',
-  'pages/address/index',
-  'pages/favorites/index',
-  'pages/footprint/index',
-  'pages/coupon/index',
-  'pages/help/index',
-  'pages/settings/index',
-  'pages/review/index',
-  'pages/commission-detail/index',
-  'pages/tongbao-ledger/index',
-  'pages/admin/index',
-  'pages/admin-merchants/index',
-  'pages/admin-products/index',
-  'pages/admin-withdrawals/index',
-  'pages/admin-ugc/index',
-  // 管理后台补充页面（与 admin-web 配对）
-  'pages/admin-users/index',
-  'pages/admin-refunds/index',
-  'pages/admin-announcements/index',
-  'pages/privacy-policy/index',
-  'pages/user-agreement/index',
-  // 协议/规则页面
-  'pages/trade-rules/index',
-  'pages/withdraw-rules/index',
-  'pages/commission-rules/index',
-  'pages/rank-rules/index',
-  'pages/points-rules/index',
-  'pages/merchant-agreement/index',
-  'pages/distribution-agreement/index',
-  // 自营门店管理中心（对齐 admin-web）
-  'pages/merchant-products/index',
-  'pages/merchant-orders/index',
-  'pages/merchant-members/index',
-  'pages/merchant-coupons/index',
-  'pages/merchant-analytics/index',
-  'pages/merchant-settings/index',
-  'pages/my-referrals/index',
-  'pages/employee/index',
-  'pages/article-detail/index',
-  // V4：多区域架构 + LBS定位 + 红包实物引流
-  'pages/city-select/index',
-  'pages/campaign-claim/index',
-  'pages/merchant-campaigns/index',
-  'pages/merchant-campaigns/create/index',
-  // （情绪前台交互已隐藏：情绪信号转为后台算法维度，不再作为 C 端/商家前台页面）
-  // 通知中心
-  'pages/messages/index',
-  // 扫码购物结果页（扫码 → 展示商品/价格 → 加入购物车）
-  'pages/scan-result/index',
-  // 食品配料安全识别（C端：文本/拍照解析添加剂安全 + 食养）
-  'pages/food-scan/index',
-  // 用户结构化健康画像（V1 食疗个性化，「我的体质档案」）
-  'pages/health-profile/index',
+]
+
+// 分包：按业务域拆分，降低主包体积（目标 < 1.5MB）
+const subPackages = [
+  {
+    root: 'pages/merchant',
+    pages: [
+      'merchant-apply/index',
+      'merchant-center/index',
+      'merchant-products/index',
+      'merchant-orders/index',
+      'merchant-members/index',
+      'merchant-coupons/index',
+      'merchant-analytics/index',
+      'merchant-settings/index',
+      'merchant-campaigns/index',
+      'merchant-campaigns/create/index',
+    ],
+  },
+  {
+    root: 'pages/mine',
+    pages: [
+      'my-promotion/index',
+      'address/index',
+      'favorites/index',
+      'footprint/index',
+      'coupon/index',
+      'settings/index',
+      'review/index',
+      'my-referrals/index',
+      'city-select/index',
+      'messages/index',
+      'health-profile/index',
+    ],
+  },
+  {
+    root: 'pages/trade',
+    pages: ['withdraw/index', 'refund-apply/index', 'commission-detail/index', 'tongbao-ledger/index'],
+  },
+  {
+    root: 'pages/admin',
+    pages: [
+      'admin/index',
+      'admin-merchants/index',
+      'admin-products/index',
+      'admin-withdrawals/index',
+      'admin-ugc/index',
+      'admin-users/index',
+      'admin-refunds/index',
+      'admin-announcements/index',
+    ],
+  },
+  {
+    root: 'pages/agreement',
+    pages: [
+      'help/index',
+      'privacy-policy/index',
+      'user-agreement/index',
+      'trade-rules/index',
+      'withdraw-rules/index',
+      'commission-rules/index',
+      'rank-rules/index',
+      'points-rules/index',
+      'merchant-agreement/index',
+      'distribution-agreement/index',
+    ],
+  },
+  {
+    root: 'pages/content',
+    pages: ['content-center/make/index', 'content-center/my-articles/index', 'article-detail/index'],
+  },
+  {
+    root: 'pages/marketing',
+    pages: ['campaign-claim/index'],
+  },
+  {
+    root: 'pages/food',
+    pages: ['scan-result/index', 'food-scan/index'],
+  },
+  {
+    root: 'pages/ext',
+    pages: ['employee/index'],
+  },
 ]
 
 export default defineAppConfig({
   pages,
+  subPackages,
   tabBar: {
     custom: true,           // 使用 custom-tabbar 内联手绘 SVG，去 AI 化
     color: '#9A8070',
@@ -92,6 +117,8 @@ export default defineAppConfig({
     navigationBarTitleText: '来电有喜',
     navigationBarTextStyle: 'black',
   },
+  // 组件按需注入：仅加载页面/组件实际用到的自定义组件，减小启动体积
+  lazyCodeLoading: 'requiredComponents',
   // 微信小程序隐私权限声明（基础库 3.7.0+ 要求）
   requiredPrivateInfos: ['getLocation'],
   // 微信小程序权限声明

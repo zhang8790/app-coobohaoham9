@@ -1,5 +1,5 @@
 // @title 行囊
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
 import { getCartItems, updateCartQty, removeCartItem, updateCartSelected } from '@/db/api'
@@ -15,21 +15,40 @@ import { checkCartConflicts, toFoodTherapyInput, type CartConflict } from '@/uti
 function CartPage() {
   const { user } = useAuth()
   const [items, setItems] = useState<CartItem[]>([])
-  const [loading, setLoading] = useState(false)
   const [conflictModal, setConflictModal] = useState<CartConflict[] | null>(null)
+
+  // 防重入：同一时间只跑一次 loadCart；并发的回调直接复用 in-flight promise
+  // （避免 useDidShow + subscribeCartCount 立即回调 + AuthContext 重发导致的多次 fetch 闪烁）
+  const inflightRef = useRef<Promise<void> | null>(null)
+  // 自触发抑制：自己 +/-/删除时已乐观更新 items，跳过紧接一次订阅回流
+  // （否则 bumpCartCount → 整页 setLoading(true) → 闪烁）
+  const ignoreNextReloadRef = useRef(false)
 
   const loadCart = useCallback(async () => {
     if (!user) return
-    setLoading(true)
-    const data = await getCartItems()
-    setItems(data)
-    setLoading(false)
+    if (inflightRef.current) return inflightRef.current
+    inflightRef.current = (async () => {
+      try {
+        const data = await getCartItems()
+        setItems(data)
+      } finally {
+        inflightRef.current = null
+      }
+    })()
+    return inflightRef.current
   }, [user])
 
-  useEffect(() => { loadCart() }, [loadCart])
+  // 仅在页面显示时拉取（mount + 切回 tab 都覆盖）
   useDidShow(() => { loadCart() })
-  // 实时联动：购物车总件数变化（如其他端加购/删除）时立即重载行囊物品
-  useEffect(() => subscribeCartCount(() => { loadCart() }), [loadCart])
+  // 实时联动：购物车总件数变化（其他端加购/删除）时立即重载；
+  // 自触发场景通过 ignoreNextReloadRef 抑制，避免整页重 fetch 闪烁
+  useEffect(() => subscribeCartCount(() => {
+    if (ignoreNextReloadRef.current) {
+      ignoreNextReloadRef.current = false
+      return
+    }
+    loadCart()
+  }), [loadCart])
 
   // 按门店分组
   const grouped = items.reduce((acc: Record<string, { storeName: string; storeId: string; items: CartItem[] }>, item) => {
@@ -61,10 +80,12 @@ function CartPage() {
     const newQty = current + delta
     if (newQty <= 0) {
       await removeCartItem(id)
+      ignoreNextReloadRef.current = true // 移除当前件数，徽标实时 -current；跳过订阅回流，整页不闪
       bumpCartCount(-current) // 移除当前件数，徽标实时 -current
       setItems(prev => prev.filter(i => i.id !== id))
     } else {
       await updateCartQty(id, newQty)
+      ignoreNextReloadRef.current = true // 件数变化，徽标实时 ±delta；跳过订阅回流，整页不闪
       bumpCartCount(delta) // 件数变化，徽标实时 ±delta
       setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: newQty } : i))
     }
@@ -76,6 +97,7 @@ function CartPage() {
     Taro.showModal({ title: '确认删除', content: '确认从行囊中移除此商品？', success: async (res) => {
       if (res.confirm) {
         await removeCartItem(id)
+        ignoreNextReloadRef.current = true // 删除整行，徽标实时 -件数；跳过订阅回流，整页不闪
         bumpCartCount(-q) // 删除整行，徽标实时 -件数
         setItems(prev => prev.filter(i => i.id !== id))
       }
@@ -110,11 +132,7 @@ function CartPage() {
   const selectedTotal = selectedItems.reduce((s, i) => s + (i.products?.price || 0) * i.quantity, 0)
   const selectedCount = selectedItems.reduce((s, i) => s + i.quantity, 0)
 
-  if (loading) return (
-    <View className="flex items-center justify-center min-h-screen bg-background">
-      <Icon name="loading" size={36} className="text-primary animate-spin" />
-    </View>
-  )
+  if (items.length === 0 && !user) return null // 未登录且无购物车：RouteGuard 已跳转登录（兜底防闪烁）
 
   return (<RouteGuard>
     <View className="h-screen flex flex-col bg-background tabbar-pad">

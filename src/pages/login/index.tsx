@@ -114,7 +114,7 @@ export default function LoginPage() {
           .maybeSingle()
         if (staff) {
           // 是员工 → 跳员工中心
-          Taro.reLaunch({ url: '/pages/employee/index' })
+          Taro.reLaunch({ url: '/pages/ext/employee/index' })
           return
         }
       }
@@ -308,7 +308,7 @@ export default function LoginPage() {
                 className="text-primary"
                 onClick={(e) => {
                   e.stopPropagation()
-                  Taro.navigateTo({ url: '/pages/user-agreement/index' })
+                  Taro.navigateTo({ url: '/pages/agreement/user-agreement/index' })
                 }}
               >《用户服务协议》</Text>
               <Text>及</Text>
@@ -316,7 +316,7 @@ export default function LoginPage() {
                 className="text-primary"
                 onClick={(e) => {
                   e.stopPropagation()
-                  Taro.navigateTo({ url: '/pages/privacy-policy/index' })
+                  Taro.navigateTo({ url: '/pages/agreement/privacy-policy/index' })
                 }}
               >《隐私政策》</Text>
             </View>

@@ -333,7 +333,7 @@ function MyPromotionPage() {
           <Text className="text-xl font-bold text-foreground">佣金概览</Text>
           <View className="flex-1" />
           <View className="flex items-center gap-1 text-primary text-xl"
-            onClick={() => Taro.navigateTo({ url: '/pages/commission-detail/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/trade/commission-detail/index' })}>
             <Text>明细</Text>
             <Icon name="chevron-right" size={20} />
           </View>
@@ -365,19 +365,19 @@ function MyPromotionPage() {
         {/* 余额与佣金（佣金已改为金豆发放，可在平台内直接消费支付） */}
         <View className="mx-4 mt-4 grid grid-cols-3 gap-3">
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
-            onClick={() => Taro.navigateTo({ url: '/pages/tongbao-ledger/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/trade/tongbao-ledger/index' })}>
             <Icon name="star-circle" size={30} className="text-primary" />
             <Text className="text-2xl font-bold text-foreground">{rankData?.points || 0}</Text>
             <Text className="text-base text-muted-foreground">我的贡献值</Text>
           </View>
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
-            onClick={() => Taro.navigateTo({ url: '/pages/tongbao-ledger/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/trade/tongbao-ledger/index' })}>
             <Icon name="wallet" size={30} className="text-primary" />
             <Text className="text-2xl font-bold text-foreground">{Number(rankData?.balance || 0).toFixed(2)}</Text>
             <Text className="text-base text-muted-foreground">我的金豆</Text>
           </View>
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
-            onClick={() => Taro.navigateTo({ url: '/pages/commission-detail/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/trade/commission-detail/index' })}>
             <View className="text-primary"><Icon name="coin" size={28} /></View>
             <Text className="text-2xl font-bold text-foreground">{Number(commSummary?.total_earned || 0).toFixed(2)}</Text>
             <Text className="text-base text-muted-foreground">累计佣金(金豆)</Text>
@@ -404,7 +404,7 @@ function MyPromotionPage() {
           ))}
         </View>
         <View className="mt-3 pt-3 border-t border-border text-center"
-          onClick={() => Taro.navigateTo({ url: '/pages/commission-rules/index' })}>
+          onClick={() => Taro.navigateTo({ url: '/pages/agreement/commission-rules/index' })}>
           <Text className="text-base text-primary">查看完整《推广规则》</Text>
         </View>
       </View>
@@ -445,12 +445,12 @@ function MyPromotionPage() {
         </View>
         <View className="flex flex-col gap-1">
           <View className="flex items-center justify-between py-2"
-            onClick={() => Taro.navigateTo({ url: '/pages/distribution-agreement/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/agreement/distribution-agreement/index' })}>
             <Text className="text-base text-muted-foreground">《推广服务协议》</Text>
             <Icon name="chevron-right" size={20} className="text-muted-foreground" />
           </View>
           <View className="flex items-center justify-between py-2"
-            onClick={() => Taro.navigateTo({ url: '/pages/commission-rules/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/agreement/commission-rules/index' })}>
             <Text className="text-base text-muted-foreground">《佣金规则》</Text>
             <Icon name="chevron-right" size={20} className="text-muted-foreground" />
           </View>

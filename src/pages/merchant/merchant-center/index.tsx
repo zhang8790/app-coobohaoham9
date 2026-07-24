@@ -10,13 +10,13 @@ import Icon from '@/components/Icon'
 
 // 仪表盘导航项
 const NAV_ITEMS = [
-  { to: '/pages/merchant-products/index', icon: 'box', label: '商品管理', color: 'bg-brand-jade', key: 'products' },
-  { to: '/pages/merchant-orders/index', icon: 'order', label: '订单管理', color: 'bg-primary', key: 'orders' },
-  { to: '/pages/merchant-members/index', icon: 'user', label: '会员管理', color: 'bg-brand-navy', key: 'members' },
-  { to: '/pages/merchant-coupons/index', icon: 'ticket', label: '优惠券', color: 'bg-warning', key: 'coupons' },
-  { to: '/pages/merchant-analytics/index', icon: 'chart', label: '数据分析', color: 'bg-brand-bronze', key: 'analytics' },
-  { to: '/pages/merchant-settings/index', icon: 'shop', label: '店铺设置', color: 'bg-secondary', key: 'settings' },
-  { to: '/pages/withdraw/index', icon: 'coin', label: '货款提现', color: 'bg-accent', key: 'withdraw' },
+  { to: '/pages/merchant/merchant-products/index', icon: 'box', label: '商品管理', color: 'bg-brand-jade', key: 'products' },
+  { to: '/pages/merchant/merchant-orders/index', icon: 'order', label: '订单管理', color: 'bg-primary', key: 'orders' },
+  { to: '/pages/merchant/merchant-members/index', icon: 'user', label: '会员管理', color: 'bg-brand-navy', key: 'members' },
+  { to: '/pages/merchant/merchant-coupons/index', icon: 'ticket', label: '优惠券', color: 'bg-warning', key: 'coupons' },
+  { to: '/pages/merchant/merchant-analytics/index', icon: 'chart', label: '数据分析', color: 'bg-brand-bronze', key: 'analytics' },
+  { to: '/pages/merchant/merchant-settings/index', icon: 'shop', label: '店铺设置', color: 'bg-secondary', key: 'settings' },
+  { to: '/pages/trade/withdraw/index', icon: 'coin', label: '货款提现', color: 'bg-accent', key: 'withdraw' },
 ]
 
 function MerchantCenterPage() {
@@ -222,7 +222,7 @@ function MerchantCenterPage() {
       <Text className="text-xl font-bold text-foreground text-center">自营门店已通过</Text>
       <Text className="text-base text-muted-foreground text-center">恭喜！您的自营门店已审核通过，正在为您准备门店数据。</Text>
       <Button className="!bg-primary !border-none !rounded-2xl !px-8 !py-3"
-        onClick={() => Taro.navigateTo({ url: '/pages/merchant-apply/index' })}>
+        onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-apply/index' })}>
         <Text className="text-base font-bold text-white">完善门店信息</Text>
       </Button>
       <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
@@ -251,7 +251,7 @@ function MerchantCenterPage() {
       <Icon name="store-off" size={60} className="text-muted-foreground" />
       <Text className="text-xl text-muted-foreground text-center">您尚未开通门店，请先申请开通自营门店</Text>
       <Button className="!bg-primary !border-none !rounded-2xl !px-8 !py-3"
-        onClick={() => Taro.navigateTo({ url: '/pages/merchant-apply/index' })}>
+        onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-apply/index' })}>
         <Text className="text-base font-bold text-white">申请开店</Text>
       </Button>
     </View>
@@ -323,7 +323,7 @@ function MerchantCenterPage() {
           </View>
           <Button
             className="!m-0 !p-0 !bg-success !border-none !rounded-2xl !leading-none"
-            onClick={() => Taro.navigateTo({ url: `/pages/withdraw/index?kind=settlement&storeId=${store.id}` })}>
+            onClick={() => Taro.navigateTo({ url: `/pages/trade/withdraw/index?kind=settlement&storeId=${store.id}` })}>
             <View className="px-5 py-2.5 flex items-center gap-1">
               <Text className="text-base font-bold text-white">货款提现</Text>
             </View>
@@ -352,14 +352,14 @@ function MerchantCenterPage() {
         <Text className="text-lg font-bold text-foreground mb-2">快捷操作</Text>
         <View className="flex gap-3">
           <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-2xl !leading-none"
-            onClick={() => Taro.navigateTo({ url: '/pages/merchant-products/index?action=add' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-products/index?action=add' })}>
             <View className="py-3 flex items-center gap-1">
               <Icon name="plus" size={20} className="text-white" />
               <Text className="text-base font-bold text-white">新增商品</Text>
             </View>
           </Button>
           <Button className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-primary !rounded-2xl !leading-none"
-            onClick={() => Taro.navigateTo({ url: '/pages/merchant-products/index?action=scan' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-products/index?action=scan' })}>
             <View className="py-3 flex items-center gap-1">
               <Icon name="barcode-scan" size={20} className="text-primary" />
               <Text className="text-base font-bold text-primary">扫码上架</Text>
@@ -369,14 +369,14 @@ function MerchantCenterPage() {
         {/* 红包发放入口 */}
         <View className="flex gap-3 mt-3">
           <Button className="!flex-1 !m-0 !p-0 !bg-destructive !border-none !rounded-2xl !leading-none"
-            onClick={() => Taro.navigateTo({ url: '/pages/merchant-campaigns/create/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-campaigns/create/index' })}>
             <View className="py-3 flex items-center gap-1">
               <Icon name="gift" size={20} className="text-white" />
               <Text className="text-base font-bold text-white">发放红包</Text>
             </View>
           </Button>
           <Button className="!flex-1 !m-0 !p-0 !bg-warning !border-none !rounded-2xl !leading-none"
-            onClick={() => Taro.navigateTo({ url: '/pages/merchant-campaigns/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-campaigns/index' })}>
             <View className="py-3 flex items-center gap-1">
               <Icon name="gift-outline" size={20} className="text-white" />
               <Text className="text-base font-bold text-white">管理活动</Text>
@@ -389,7 +389,7 @@ function MerchantCenterPage() {
       <View className="px-4 mt-4">
         <View className="flex items-center justify-between mb-2">
           <Text className="text-lg font-bold text-foreground">最近订单</Text>
-          <Button className="!p-0 !bg-transparent !border-none" onClick={() => Taro.navigateTo({ url: '/pages/merchant-orders/index' })}>
+          <Button className="!p-0 !bg-transparent !border-none" onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-orders/index' })}>
             <Text className="text-base text-primary">查看全部 →</Text>
           </Button>
         </View>

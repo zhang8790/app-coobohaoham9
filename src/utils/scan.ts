@@ -5,7 +5,7 @@ interface ScanToProductOptions {
   redirect?: boolean
 }
 
-const RESULT_PAGE = '/pages/scan-result/index'
+const RESULT_PAGE = '/pages/food/scan-result/index'
 
 /**
  * 统一扫码入口：调起微信扫码 → 跳转/重定向到扫码购物结果页。

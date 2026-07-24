@@ -21,32 +21,32 @@ const MENU_GROUPS = [
     icon: '⚔',
     items: [
       { name: '全部订单', icon: '📋', page: '/pages/order-center/index' },
-      { name: '地址管理', icon: '🗺', page: '/pages/address/index' },
-      { name: '优惠券', icon: '🎫', page: '/pages/coupon/index' },
+      { name: '地址管理', icon: '🗺', page: '/pages/mine/address/index' },
+      { name: '优惠券', icon: '🎫', page: '/pages/mine/coupon/index' },
     ]
   },
   {
     title: '珍宝库',
     icon: '◆',
     items: [
-      { name: '我的收藏', icon: '❤', page: '/pages/favorites/index' },
-      { name: '浏览足迹', icon: '⟲', page: '/pages/footprint/index' },
+      { name: '我的收藏', icon: '❤', page: '/pages/mine/favorites/index' },
+      { name: '浏览足迹', icon: '⟲', page: '/pages/mine/footprint/index' },
     ]
   },
   {
     title: '江湖事',
     icon: '👥',
     items: [
-      { name: '消息中心', icon: '🔔', page: '/pages/messages/index', badge: 'unread' },
-      { name: '帮助中心', icon: '?', page: '/pages/help/index' },
-      { name: '设置', icon: '⚙', page: '/pages/settings/index' },
+      { name: '消息中心', icon: '🔔', page: '/pages/mine/messages/index', badge: 'unread' },
+      { name: '帮助中心', icon: '?', page: '/pages/agreement/help/index' },
+      { name: '设置', icon: '⚙', page: '/pages/mine/settings/index' },
     ]
   },
   {
     title: '食养健康',
     icon: '🌿',
     items: [
-      { name: '我的体质档案', icon: '📋', page: '/pages/health-profile/index' },
+      { name: '我的体质档案', icon: '📋', page: '/pages/mine/health-profile/index' },
     ]
   }
 ]
@@ -154,7 +154,7 @@ function UserPage() {
     const status = profile?.merchant_status || application?.status || 'none'
     if (status === 'none') return (
       <View className="flex items-center justify-between px-4 py-3 rounded-2xl bg-card border border-border"
-        onClick={() => Taro.navigateTo({ url: '/pages/merchant-apply/index' })}>
+        onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-apply/index' })}>
         <View className="flex items-center gap-2">
           <Icon name="store-plus" size={24} className="text-primary" />
           <Text className="text-xl text-foreground font-bold">申请开通自营门店</Text>
@@ -170,7 +170,7 @@ function UserPage() {
     )
     return (
       <View className="flex items-center justify-between px-4 py-3 rounded-2xl bg-card border border-primary"
-        onClick={() => Taro.navigateTo({ url: '/pages/merchant-center/index' })}>
+        onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-center/index' })}>
         <View className="flex items-center gap-2">
           <Icon name="store-check" size={24} className="text-primary" />
           <Text className="text-xl text-primary font-bold">进入自营门店管理中心</Text>
@@ -322,9 +322,9 @@ function UserPage() {
           </View>
           <View className="grid grid-cols-4 py-3">
             {[
-              { name: '我的段位', icon: 'medal', page: '/pages/my-promotion/index', desc: '查看推广码' },
-              { name: '我的金豆', icon: 'coin', page: '/pages/withdraw/index', desc: '金豆明细' },
-              { name: '我的好友', icon: 'account-group', page: '/pages/my-referrals/index', desc: '查看推荐' },
+              { name: '我的段位', icon: 'medal', page: '/pages/mine/my-promotion/index', desc: '查看推广码' },
+              { name: '我的金豆', icon: 'coin', page: '/pages/trade/withdraw/index', desc: '金豆明细' },
+              { name: '我的好友', icon: 'account-group', page: '/pages/mine/my-referrals/index', desc: '查看推荐' },
             ].map(item => (
               <View key={item.name}
                 hoverClass="none"

@@ -191,7 +191,7 @@ function MerchantApplyPage() {
           <View className={`w-5 h-5 rounded border-2 flex items-center justify-center ${agreed ? 'bg-primary border-primary' : 'border-border'}`}>
             {agreed && <Icon name="check" size={14} className="text-white" />}
           </View>
-          <View className="flex-1 flex items-center" onClick={(e) => { e.stopPropagation(); Taro.navigateTo({ url: '/pages/merchant-agreement/index' }) }}>
+          <View className="flex-1 flex items-center" onClick={(e) => { e.stopPropagation(); Taro.navigateTo({ url: '/pages/agreement/merchant-agreement/index' }) }}>
             <Text className="text-base text-muted-foreground">我已阅读并同意<Text className="text-primary">《自营门店协议》</Text></Text>
           </View>
         </View>

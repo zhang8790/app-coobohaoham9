@@ -234,7 +234,7 @@ export default function StoreHomePage() {
       {storeCampaign && (
         <View
           className="store-redpacket-banner"
-          onClick={() => Taro.navigateTo({ url: `/pages/campaign-claim/index?campaignId=${storeCampaign.id}` })}
+          onClick={() => Taro.navigateTo({ url: `/pages/marketing/campaign-claim/index?campaignId=${storeCampaign.id}` })}
           style={{
             margin: '10px 16px 0',
             padding: '12px 16px',

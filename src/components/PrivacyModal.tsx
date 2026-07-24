@@ -84,13 +84,13 @@ export default function PrivacyModal() {
         {/* 协议列表 */}
         <View className="px-6 pb-4 flex flex-col gap-3">
           <View className="flex items-center gap-2 py-2"
-            onClick={() => Taro.navigateTo({ url: '/pages/user-agreement/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/agreement/user-agreement/index' })}>
             <Icon name="file-document" size={20} className="text-primary" />
             <Text className="text-base text-primary flex-1">《用户服务协议》</Text>
             <Icon name="chevron-right" size={16} className="text-muted-foreground" />
           </View>
           <View className="flex items-center gap-2 py-2"
-            onClick={() => Taro.navigateTo({ url: '/pages/privacy-policy/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/agreement/privacy-policy/index' })}>
             <Icon name="shield-account" size={20} className="text-primary" />
             <Text className="text-base text-primary flex-1">《隐私政策》</Text>
             <Icon name="chevron-right" size={16} className="text-muted-foreground" />

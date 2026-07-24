@@ -277,7 +277,7 @@ export default function MakePage() {
       
       Taro.showToast({ title: '发布成功！', icon: 'success' })
       setTimeout(() => {
-        Taro.navigateTo({ url: '/pages/content-center/my-articles/index?tab=published' })
+        Taro.navigateTo({ url: '/pages/content/content-center/my-articles/index?tab=published' })
       }, 800)
     } catch (e: any) {
       console.error('[MakePage] 发布失败:', e.message || e)
@@ -364,7 +364,7 @@ export default function MakePage() {
 
           {/* 查看我的文章 */}
           <View className="p-4 rounded-2xl bg-card border border-border flex items-center gap-3"
-            onClick={() => Taro.navigateTo({ url: '/pages/content-center/my-articles/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/content/content-center/my-articles/index' })}>
             <Icon name="text-box-multiple" size={24} className="text-primary" />
             <Text className="text-xl text-foreground flex-1">查看我的文章</Text>
             <Icon name="chevron-right" size={24} className="text-muted-foreground" />

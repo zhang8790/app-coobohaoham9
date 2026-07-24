@@ -48,7 +48,7 @@ export default function ArticleDetailPage() {
 
   useShareWithReferral({
     title: shareTitle,
-    path: `/pages/article-detail/index?id=${articleId}`,
+    path: `/pages/content/article-detail/index?id=${articleId}`,
     imageUrl: sharePosterUrl || article?.cover_image || '',
     timelineTitle: shareTitle,
     timelineQuery: `id=${articleId}`})
@@ -330,7 +330,7 @@ export default function ArticleDetailPage() {
                   className="related-card"
                   onClick={() => {
                     Taro.navigateTo({
-                      url: `/pages/article-detail/index?id=${item.id}`})
+                      url: `/pages/content/article-detail/index?id=${item.id}`})
                   }}
                 >
                   {item.cover_image && (

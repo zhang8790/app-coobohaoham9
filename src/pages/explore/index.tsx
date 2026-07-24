@@ -199,7 +199,7 @@ export default function ExplorePage() {
       <View
         className="mx-4 mt-3 rounded-2xl border border-black/5 px-4 py-3 flex flex-row items-center justify-between"
         style={{ background: '#fff' }}
-        onClick={() => Taro.navigateTo({ url: '/pages/food-scan/index' })}
+        onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}
       >
         <View className="flex flex-row items-center" style={{ gap: 8 }}>
           <Text style={{ fontSize: 18 }}>🍱</Text>

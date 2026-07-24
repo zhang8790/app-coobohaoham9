@@ -30,7 +30,7 @@ export default function MyArticlesPage() {
     title: shareArticle
       ? `【来电有喜】${shareArticle.title}`
       : '我在来电有喜发现了好内容，快来看看！',
-    path: `/pages/content-center/my-articles/index${shareArticle ? `?articleId=${shareArticle.id}` : ''}`}))
+    path: `/pages/content/content-center/my-articles/index${shareArticle ? `?articleId=${shareArticle.id}` : ''}`}))
   useShareTimeline(() => ({
     title: shareArticle
       ? `【来电有喜】${shareArticle.title}`
@@ -59,13 +59,13 @@ export default function MyArticlesPage() {
   }
 
   const handleEdit = (article: Article) => {
-    Taro.navigateTo({ url: `/pages/content-center/make/index?articleId=${article.id}` })
+    Taro.navigateTo({ url: `/pages/content/content-center/make/index?articleId=${article.id}` })
   }
 
   const handlePreview = (e: any, article: Article) => {
     // 阻止事件冒泡，避免触发行点击
     if (e?.stopPropagation) e.stopPropagation()
-    Taro.navigateTo({ url: `/pages/article-detail/index?id=${article.id}` })
+    Taro.navigateTo({ url: `/pages/content/article-detail/index?id=${article.id}` })
   }
 
   return (
@@ -104,7 +104,7 @@ export default function MyArticlesPage() {
             </Text>
             <Button type="button"
               className="px-6 flex items-center justify-center leading-none rounded-xl bg-primary"
-              onClick={() => Taro.navigateTo({ url: '/pages/content-center/make/index' })}>
+              onClick={() => Taro.navigateTo({ url: '/pages/content/content-center/make/index' })}>
               <View className="py-3 text-xl text-white font-bold">开始创作</View>
             </Button>
           </View>

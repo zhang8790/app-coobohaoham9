@@ -445,7 +445,7 @@ export default function IndexPage() {
       <View
         className="mx-4 mt-4 p-4 rounded-2xl flex items-center gap-3 pg-card"
         style={{ borderColor: 'hsl(var(--primary))', borderWidth: 1, boxShadow: '0 6px 24px rgba(194,65,12,0.12)' }}
-        onClick={() => Taro.navigateTo({ url: '/pages/food-scan/index' })}
+        onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}
       >
         <View className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl"
           style={{ background: 'hsl(var(--primary) / 0.12)' }}>📷</View>
@@ -685,7 +685,7 @@ export default function IndexPage() {
                     className="w-full py-3 rounded-2xl bg-primary text-white text-center text-xl font-bold"
                     onClick={() => {
                       Taro.navigateTo({
-                        url: `/pages/campaign-claim/index?campaignId=${campaign.id}`
+                        url: `/pages/marketing/campaign-claim/index?campaignId=${campaign.id}`
                       })
                       setShowCampaignPopup(false)
                     }}

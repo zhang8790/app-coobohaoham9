@@ -257,14 +257,14 @@ function SettingsPage() {
           <Text className="text-xl font-bold text-foreground">关于</Text>
         </View>
         {[
-          { label: '用户协议', handler: () => Taro.navigateTo({ url: '/pages/user-agreement/index' }) },
-          { label: '隐私政策', handler: () => Taro.navigateTo({ url: '/pages/privacy-policy/index' }) },
-          { label: '交易规则', handler: () => Taro.navigateTo({ url: '/pages/trade-rules/index' }) },
-          { label: '提现规则', handler: () => Taro.navigateTo({ url: '/pages/withdraw-rules/index' }) },
-          { label: '佣金规则', handler: () => Taro.navigateTo({ url: '/pages/commission-rules/index' }) },
-          { label: '段位规则', handler: () => Taro.navigateTo({ url: '/pages/rank-rules/index' }) },
-          { label: '资产规则', handler: () => Taro.navigateTo({ url: '/pages/points-rules/index' }) },
-          { label: '自营门店协议', handler: () => Taro.navigateTo({ url: '/pages/merchant-agreement/index' }) },
+          { label: '用户协议', handler: () => Taro.navigateTo({ url: '/pages/agreement/user-agreement/index' }) },
+          { label: '隐私政策', handler: () => Taro.navigateTo({ url: '/pages/agreement/privacy-policy/index' }) },
+          { label: '交易规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/trade-rules/index' }) },
+          { label: '提现规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/withdraw-rules/index' }) },
+          { label: '佣金规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/commission-rules/index' }) },
+          { label: '段位规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/rank-rules/index' }) },
+          { label: '资产规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/points-rules/index' }) },
+          { label: '自营门店协议', handler: () => Taro.navigateTo({ url: '/pages/agreement/merchant-agreement/index' }) },
           { label: '版本信息', handler: () => Taro.showToast({ title: 'v1.0.0 来电有喜', icon: 'none' }) },
         ].map(item => (
           <View key={item.label} className="flex items-center justify-between px-4 py-4 border-b border-border last:border-0"

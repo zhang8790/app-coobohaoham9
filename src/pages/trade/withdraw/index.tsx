@@ -455,7 +455,7 @@ function WithdrawPage() {
               ? '货款提现为商家销售货款结算，审核通过后由微信直接打款到您的账户；如含金豆垫付部分，由平台自有资金打款。'
               : '提现按申请金额发放，审核 1-3 个工作日到账；推广佣金为劳务报酬所得，请依法履行纳税申报义务'}
           </Text>
-          <View className="mt-2 text-center" onClick={() => Taro.navigateTo({ url: '/pages/withdraw-rules/index' })}>
+          <View className="mt-2 text-center" onClick={() => Taro.navigateTo({ url: '/pages/agreement/withdraw-rules/index' })}>
             <Text className="text-base text-primary">查看《提现规则》</Text>
           </View>
         </View>

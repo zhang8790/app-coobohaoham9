@@ -792,12 +792,12 @@ function PaymentPage() {
         <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
           <View className="px-4 py-3 border-b border-border flex items-center justify-between">
             <Text className="text-xl font-bold text-foreground">收货地址</Text>
-            <View onClick={() => Taro.navigateTo({ url: '/pages/address/index' })}>
+            <View onClick={() => Taro.navigateTo({ url: '/pages/mine/address/index' })}>
               <Text className="text-xl text-primary">管理</Text>
             </View>
           </View>
           {selectedAddress ? (
-            <View className="px-4 py-4" onClick={() => Taro.navigateTo({ url: '/pages/address/index' })}>
+            <View className="px-4 py-4" onClick={() => Taro.navigateTo({ url: '/pages/mine/address/index' })}>
               <View className="flex items-center gap-2 mb-2">
                 <Text className="text-xl font-bold text-foreground">{selectedAddress.name}</Text>
                 <Text className="text-xl text-muted-foreground">{selectedAddress.phone}</Text>
@@ -811,7 +811,7 @@ function PaymentPage() {
             </View>
           ) : (
             <View className="px-4 py-8 flex flex-col items-center gap-2"
-              onClick={() => Taro.navigateTo({ url: '/pages/address/index' })}>
+              onClick={() => Taro.navigateTo({ url: '/pages/mine/address/index' })}>
               <View className="text-primary"><Icon name="location" size={32} /></View>
               <Text className="text-xl text-primary font-bold">新增收货地址</Text>
             </View>
@@ -899,7 +899,7 @@ function PaymentPage() {
         </View>
         <View
           className="flex items-center justify-center py-1"
-          onClick={() => Taro.navigateTo({ url: '/pages/trade-rules/index' })}>
+          onClick={() => Taro.navigateTo({ url: '/pages/agreement/trade-rules/index' })}>
           <Text className="text-base text-muted-foreground text-center">支付即视为同意<Text className="text-primary">《来电有喜交易规则》</Text></Text>
         </View>
       </View>

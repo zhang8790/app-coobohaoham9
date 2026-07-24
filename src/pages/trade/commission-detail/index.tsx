@@ -51,7 +51,7 @@ function CommissionDetailPage() {
         <View className="px-4 pb-4">
           <Button type="button"
             className="w-full flex items-center justify-center leading-none rounded-xl border border-white/40 bg-white/10"
-            onClick={() => Taro.navigateTo({ url: '/pages/withdraw/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/trade/withdraw/index' })}>
             <View className="py-2 text-xl text-white font-bold">申请提现 →</View>
           </Button>
         </View>
