@@ -56,10 +56,14 @@ function MerchantCenterPage() {
 
     // 分别加载，避免一个失败影响另一个
     const loadData = async () => {
-      try {
-        // 先检查登录状态
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-        if (authError || !user) {
+    try {
+      // 先检查登录状态（race 8s 超时，避免 getUser 在异常网络下永久挂起导致整页 loading 卡死）
+      const authRes = await Promise.race<any>([
+        supabase.auth.getUser(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('getUser timeout 8s')), 8000)),
+      ]).catch((err) => { console.warn('[MerchantCenter] getUser 超时', err); return { data: { user: null }, error: err } })
+      const { data: { user }, error: authError } = authRes
+      if (authError || !user) {
           console.error('[MerchantCenter] 用户未登录')
           if (!cancelled) {
             setLoading(false)
@@ -126,7 +130,7 @@ function MerchantCenterPage() {
       getMerchantOrders(store.id),
       getMerchantSettlement(store.id).catch(() => null),
       supabase.rpc('get_store_locked_members', { p_store_id: store.id })
-        .then(r => (r.data ?? []) as any[]).catch(() => [] as any[]),
+        .then((r: { data?: any[] }) => (r.data ?? []) as any[]).catch(() => [] as any[]),
     ]).then(([prods, ords, sett, members]) => {
       if (cancelled) return
       if (sett) setSettlement(sett)
@@ -208,8 +212,13 @@ function MerchantCenterPage() {
   }))
 
   if (loading) return (
-    <View className="flex items-center justify-center min-h-screen bg-background">
+    <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
       <Icon name="loading" size={36} className="text-primary animate-spin" />
+      <Text className="text-base text-muted-foreground">正在加载门店数据…</Text>
+      <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
+        onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
+        <Text className="text-base text-muted-foreground">返回侠客</Text>
+      </Button>
     </View>
   )
 

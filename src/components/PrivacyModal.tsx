@@ -66,10 +66,11 @@ export default function PrivacyModal() {
     <View className="fixed inset-0 z-50 flex items-center justify-center">
       {/* 遮罩 */}
       <View
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0"
+        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
         onClick={handleDisagree} />
       {/* 弹窗内容 */}
-      <View className="relative w-80 rounded-2xl bg-white overflow-hidden">
+      <View className="relative rounded-2xl bg-white overflow-hidden" style={{ width: '80%', maxWidth: '320px' }}>
         {/* 标题 */}
         <View className="px-6 pt-8 pb-4 flex flex-col items-center">
           <View className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
