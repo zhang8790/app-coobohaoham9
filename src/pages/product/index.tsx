@@ -115,7 +115,7 @@ export default function ProductPage() {
           .from('food_additives')
           .select('*')
           .in('id', ids)
-          .then(({ data }) => { if (alive) setFoodAdditives((data as FoodAdditive[]) || []) })
+          .then(({ data }: { data: any }) => { if (alive) setFoodAdditives((data as FoodAdditive[]) || []) })
           .catch(() => { if (alive) setFoodAdditives([]) })
       })
       .catch(() => { if (alive) setFoodAdditives([]) })

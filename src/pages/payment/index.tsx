@@ -356,14 +356,14 @@ function PaymentPage() {
               .update({ status: 'cancelled' })
               .eq('order_no', orderNo)
               .eq('status', 'pending_pay')  // ⬅ 守卫：已支付/已金豆支付/已取消的订单不被覆盖
-              .then(({ data }) => {
+              .then(({ data }: { data: any }) => {
                 if (data && (data as any[]).length > 0) {
                   console.log('[支付超时] 订单已取消', orderNo)
                 } else {
                   console.log('[支付超时] 订单状态已变更，跳过取消', orderNo)
                 }
               })
-              .catch(err => console.error('[支付超时] 取消订单失败', err))
+              .catch((err: any) => console.error('[支付超时] 取消订单失败', err))
           }
           Taro.showModal({ title: '订单超时', content: '支付超时，订单已取消', showCancel: false, success: () => Taro.navigateBack() })
           return 0

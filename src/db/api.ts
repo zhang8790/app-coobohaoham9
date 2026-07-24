@@ -5,8 +5,11 @@ import type {
 
 
   EmotionAsset, EmotionTongbaoLog, EmotionTongbaoReason,
-  EmotionBadgeDef, EmotionBadgeGrant} from './types'
+  EmotionBadgeDef, EmotionBadgeGrant,
+  ProductEmotion, Order, OrderStatus, Article,
+  MerchantApplication, Announcement, EmotionClaim} from './types'
 import { generateEmotionDescription } from '@/utils/emotion-description'
+import { type ProductCareInfo } from '@/utils/product-care'
 import { MOOD_TAGS, MOOD_CATEGORIES } from '@/utils/mood-tags'
 import { calculateDynamicScore, RANK_CONFIG_TABLE_V5, calculateCommissionV5, computeMemberRank, getActiveMultiplier, getRecruitMultiplier, calcWithholdingTax, PLATFORM_CONFIG } from '@/utils/commission-calculator-v5'
 import { bumpCartCount } from '@/utils/cartStore'
@@ -117,7 +120,7 @@ export async function getMyReferrals(): Promise<{
     .order('created_at', { ascending: false })
 
   // 二级推荐（一级推荐人的推荐人）
-  const l1Ids = (level_1 || []).map(p => p.id)
+  const l1Ids = (level_1 || []).map((p: any) => p.id)
   let level_2: any[] = []
   if (l1Ids.length > 0) {
     const { data } = await supabase
@@ -350,7 +353,7 @@ export async function getNearestStores(lat: number, lng: number, limit = 20): Pr
         is_open: s.is_open,
         distance_km: Math.round(calculateDistance(lat, lng, s.lat, s.lng) * 100) / 100,
       }))
-      .sort((a, b) => a.distance_km - b.distance_km)
+      .sort((a: any, b: any) => a.distance_km - b.distance_km)
     return list.slice(0, limit)
   } catch (err) {
     console.error('[getNearestStores] 异常:', err)
@@ -476,7 +479,7 @@ export async function getNearbyProducts(
 
     // 根据 platformFilter 过滤（现仅自营门店：partner_brand 已归并，不再排除）
     if (platformFilter) {
-      results = results.filter(item => {
+      results = results.filter((item: any) => {
         const isOfficial = item.is_platform === true ||
           item.store_id === 'ffffffff-ffff-ffff-ffff-ffffffffffff' ||
           ['来电有喜官方店', '来电有喜自营店', '平台自营店'].includes(item.store_name || '')
@@ -1019,7 +1022,7 @@ export async function createOrderV2(params: {
     const verifiedItems = params.items.map(item => {
       const dbPrice = dbPriceMap.get(item.product_id)
       if (dbPrice == null || dbPrice <= 0) {
-        const exists = (dbProducts || []).some(p => p.id === item.product_id)
+        const exists = (dbProducts || []).some((p: any) => p.id === item.product_id)
         const reason = exists ? '商品价格缺失' : '商品不存在或已下架'
         console.error(`[createOrderV2] INVALID_PRODUCT: ${reason}, product_id=${item.product_id}, name=${item.product_name}, clientPrice=${item.price}`)
         Taro.showToast({ title: `含无效商品：${reason}`, icon: 'none', duration: 5000 })
@@ -1139,7 +1142,7 @@ export async function createOrderV2(params: {
     if (params.pay_mode === 'pure_gold' && isInStore && insertedOrders && insertedOrders.length > 0) {
       const ids = (insertedOrders as any[]).map(o => o.id)
       await supabase.from('orders').update({ verified_at: nowIso }).in('id', ids)
-        .then(({ error }) => {
+        .then(({ error }: { error: any }) => {
           if (error) console.warn('[createOrderV2] verified_at 补标失败(列可能缺失,不影响支付):', error?.message || error)
           else console.log('[createOrderV2] verified_at 补标成功', ids.length, '单')
         })
@@ -1148,7 +1151,7 @@ export async function createOrderV2(params: {
 
     // 创建订单商品：每个子订单下挂对应门店的所有商品
     if (insertedOrders && insertedOrders.length > 0) {
-      const orderItems = insertedOrders.flatMap((order, storeIdx) => {
+      const orderItems = insertedOrders.flatMap((order: any, storeIdx: any) => {
         const [, items] = storeGroupArray[storeIdx]
         return items.map(item => ({
           order_id: order.id,
@@ -2231,14 +2234,14 @@ export async function checkAndGrantEmotionBadges(userId: string): Promise<Emotio
       .from('emotion_claims')
       .select('product_id,selected_emotion')
       .eq('user_id', userId)
-    const products = new Set((claims || []).map(c => c.product_id).filter(Boolean))
+    const products = new Set((claims || []).map((c: any) => c.product_id).filter(Boolean))
     if (products.size >= 10) {
       const r = await grantEmotionBadge(userId, 'empath')
       if (r.granted && r.code) newly.push(r.code)
     }
     // 3) 五味杂陈：累计 5 个不同情绪维度（粗略：取所有 selected_emotion 拼接去重）
     const dimSet = new Set<string>()
-    ;(claims || []).forEach(c => (c.selected_emotion || []).forEach((e: string) => dimSet.add(e)))
+    ;(claims || []).forEach((c: any) => (c.selected_emotion || []).forEach((e: string) => dimSet.add(e)))
     if (dimSet.size >= 5) {
       const r = await grantEmotionBadge(userId, 'five_emotions')
       if (r.granted && r.code) newly.push(r.code)
@@ -2258,14 +2261,14 @@ export async function getBadgeStats(userId: string): Promise<{ count: number; ra
       .from('emotion_badge_grants')
       .select('badge_code')
       .eq('user_id', userId)
-    const codes = (grants || []).map(g => (g as any).badge_code).filter(Boolean)
+    const codes = (grants || []).map((g: any) => (g as any).badge_code).filter(Boolean)
     if (codes.length === 0) return { count: 0, rareCount: 0 }
     const { data: defs } = await supabase
       .from('emotion_badge_defs')
       .select('code, rarity')
       .in('code', codes)
     const rareSet = new Set(['epic', 'legend'])
-    const rareCount = (defs || []).filter(d => rareSet.has((d as any).rarity)).length
+    const rareCount = (defs || []).filter((d: any) => rareSet.has((d as any).rarity)).length
     return { count: codes.length, rareCount }
   } catch (e) {
     console.warn('[getBadgeStats] 失败(非阻断)', e)

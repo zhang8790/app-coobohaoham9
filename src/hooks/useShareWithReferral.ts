@@ -22,7 +22,7 @@ export function useShareWithReferral(options: {
     if (user) {
       import('@/client/supabase').then(({ supabase }) => {
         supabase.from('profiles').select('invite_code').maybeSingle()
-          .then(({ data }) => {
+          .then(({ data }: { data: any }) => {
             if (data?.invite_code) setMyCode(data.invite_code)
           })
           .catch(() => {}) // 忽略错误

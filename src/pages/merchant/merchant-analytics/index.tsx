@@ -23,7 +23,7 @@ function MerchantAnalyticsPage() {
           getMerchantProducts(s.id),
           getMerchantOrders(s.id),
           supabase.rpc('get_store_locked_members', { p_store_id: s.id })
-            .then(r => (r.data ?? []) as any[]).catch(() => [] as any[]),
+            .then((r: any) => (r.data ?? []) as any[]).catch(() => [] as any[]),
         ])
         // getMerchantOrders 返回 order_items（一行一商品），先按 order_no 去重为独立订单，
         // 否则一笔多商品订单会被重复计数、营收也会按商品行数翻倍。

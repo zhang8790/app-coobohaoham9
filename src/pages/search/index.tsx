@@ -73,7 +73,7 @@ export default function SearchPage() {
             onInput={(e) => { const ev = e as any; setKeyword(ev.detail?.value ?? ev.target?.value ?? '') }}
             onConfirm={() => doSearch(keyword)} />
           {keyword && (
-            <View className="text-xl text-muted-foreground" onClick={() => { setKeyword(''); setSearched(false); setResults([]); setScored([]); setEmotion(null) }} />
+            <View className="text-xl text-muted-foreground" onClick={() => { setKeyword(''); setSearched(false); setResults([]) }} />
           )}
         </View>
         <View className="flex items-center justify-center flex-shrink-0"

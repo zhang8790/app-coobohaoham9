@@ -114,7 +114,7 @@ export default function IndexPage() {
     if (finalStore) {
       import('@/client/supabase').then(({ supabase }) => {
         supabase.from('stores').select('id').eq('short_code', finalStore).maybeSingle()
-          .then(({ data }) => {
+          .then(({ data }: { data: any }) => {
             if (data?.id) {
               Taro.navigateTo({ url: `/pages/store-home/index?id=${data.id}` })
             }
@@ -169,7 +169,7 @@ export default function IndexPage() {
   // 下拉刷新（注：loadOrderFeed/loadAnnouncements/loadFeed 已在上文声明，避免依赖数组 TDZ）
   useEffect(() => {
     const handler = () => {
-      loadFeed(analysis)
+      loadFeed()
       loadAnnouncements()
       loadOrderFeed()
       Taro.stopPullDownRefresh()
@@ -288,7 +288,7 @@ export default function IndexPage() {
 
       // 前端过滤：开始日期 / 结束日期 / 领取上限（仅保留「仍有可发放库存」的活动）
       const today = new Date()
-      const activeList = (data || []).filter(c => {
+      const activeList = (data || []).filter((c: any) => {
         if (c.start_date && new Date(c.start_date) > today) return false
         if (c.end_date && new Date(c.end_date) < today) return false
         // total_limit 缺失视为不限量；claimed_count 缺失按 0 计。仅当剩余库存 > 0 才展示

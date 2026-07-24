@@ -13,7 +13,7 @@ export function initEmotionTracker() {
   if (_cachedUserId !== undefined) return
   _cachedUserId = null // 占位，防止重复触发
   supabase.auth.getUser()
-    .then(({ data }) => { _cachedUserId = data.user?.id ?? null })
+    .then(({ data }: { data: any }) => { _cachedUserId = data.user?.id ?? null })
     .catch(() => { _cachedUserId = null })
 }
 
@@ -41,6 +41,6 @@ export function trackEmotionEvent(
     })
     .then(
       () => {},
-      (e) => console.warn('[emotion-analytics] track failed:', e),
+      (e: any) => console.warn('[emotion-analytics] track failed:', e),
     )
 }

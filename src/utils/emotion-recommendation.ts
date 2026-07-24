@@ -68,10 +68,10 @@ export async function getUserEmotionProfile(userId: string): Promise<Record<stri
 
     // 汇总情绪标签权重
     const profile: Record<string, number> = {}
-    data.forEach(record => {
+    data.forEach((record: any) => {
       const tags = record.mood_tags || []
       const weight = record.weight || 1
-      tags.forEach(tag => {
+      tags.forEach((tag: any) => {
         profile[tag] = (profile[tag] || 0) + weight
       })
     })

@@ -68,7 +68,7 @@ export default function PaginationList<T>(props: PaginationListProps<T>) {
   const mountedRef = useRef(true)
 
   useEffect(() => {
-    MountedRef.current = true
+    mountedRef.current = true
     return () => { mountedRef.current = false }
   }, [])
 

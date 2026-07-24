@@ -52,7 +52,7 @@ export default function StoreHomePage() {
 
             // 通过短码查询门店 ID
             supabase.from('stores').select('id').eq('short_code', shortCode).maybeSingle()
-              .then(({ data }) => {
+              .then(({ data }: { data: any }) => {
                 if (data?.id) {
                   console.log('[StoreHome] 找到门店 ID:', data.id)
                   setStoreId(data.id)
@@ -60,7 +60,7 @@ export default function StoreHomePage() {
                   Taro.showToast({ title: '门店不存在', icon: 'none' })
                 }
               })
-              .catch((err) => {
+              .catch((err: any) => {
                 console.error('[StoreHome] 查询门店失败:', err)
               })
           }

@@ -343,7 +343,7 @@ function WithdrawPage() {
                       <View className="flex items-center gap-2 ml-2">
                         {isActive && <Icon name="check-circle" size={24} className="text-primary" />}
                         <Icon name="trash-can-outline" size={24} className="text-muted-foreground p-1"
-                          onClick={async (e) => {
+                          onClick={async (e: any) => {
                             e?.stopPropagation?.()
                             const res = await Taro.showModal({ title: '删除该账户？', content: '删除后下次提现需重新填写', confirmText: '删除', confirmColor: '#EF4444' })
                             if (!res.confirm) return

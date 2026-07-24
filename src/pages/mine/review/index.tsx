@@ -181,7 +181,7 @@ function ReviewPage() {
 
               {/* 情绪标签选择 */}
               <View className="flex gap-2 flex-wrap">
-                {(MOOD_CATEGORIES[activeMoodCategory as keyof typeof MOOD_CATEGORIES]?.tags || []).map(tagZh => {
+                {(MOOD_CATEGORIES[activeMoodCategory as keyof typeof MOOD_CATEGORIES]?.tags || []).map((tagZh: any) => {
                   const tag = MOOD_TAGS_ALL.find(t => t.zh === tagZh)
                   if (!tag) return null
                   const selected = rev.mood_tags.includes(tag.zh)

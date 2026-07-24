@@ -1,6 +1,6 @@
 // 本地开发模式：模拟数据
 // 当 TARO_APP_LOCAL_DEV=true 时生效
-import type { Product, Store, StoreCategory, Profile, CartItem, Order, Article, MerchantApplication, Withdrawal, Refund, Announcement, Coupon, UserAddress, Favorite, Footprint } from '@/db/types'
+import type { Product, Store, CartItem, Order, Article, MerchantApplication, Withdrawal, Refund, Announcement, Coupon, UserAddress, Favorite, Footprint, Commission, PointsLog } from '@/db/types'
 
 // =====================
 // 测试用户
@@ -12,7 +12,7 @@ export const mockUser = {
   role: 'authenticated',
 }
 
-export const mockProfile: Profile = {
+export const mockProfile: any = {
   id: mockUser.id,
   username: 'tester',
   phone: '18701410500',
@@ -46,7 +46,7 @@ const STORE_IMG = 'https://picsum.photos/seed/store/400/400'
 // =====================
 // 测试门店（多个，用于自营门店展示）
 // =====================
-export const mockStores: Store[] = [
+export const mockStores: any[] = [
   {
     id: 'store-001',
     owner_id: mockUser.id,
@@ -115,7 +115,7 @@ export const mockStore: Store = mockStores[0]
 // =====================
 // 门店商品分类（每个门店的分类）
 // =====================
-export const mockStoreCategories: StoreCategory[] = [
+export const mockStoreCategories: any[] = [
   // 门店1：测试江湖客栈（餐饮）
   { id: 'cat-001', store_id: 'store-001', name: '招牌菜', sort_order: 1, created_at: new Date().toISOString() },
   { id: 'cat-002', store_id: 'store-001', name: '面食', sort_order: 2, created_at: new Date().toISOString() },
