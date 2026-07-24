@@ -11,9 +11,9 @@ import { supabase } from '@/client/supabase'
 import CustomTabBar from '@/components/custom-tabbar'
 import Icon from '@/components/Icon'
 import RankProgress from '@/components/RankProgress'
+import { RANK_COLOR_MAP } from '@/constants/ranks'
 
 const WUXIA_NAMES = ['剑影飘鸿', '凌云一笑', '碧落寒烟', '寒光碎月', '幽谷清风', '紫电青霜', '千机云鹤', '翠微长啸', '玉骨冰心', '逍遥散人']
-const RANK_COLORS: Record<string, string> = { '凡心': '#78350F', '初心': '#A8552E', '明心': '#9A8070', '静心': '#A8552E', '悟心': '#9A8070', '无心境': '#DC2626' }
 
 const MENU_GROUPS = [
   {
@@ -119,7 +119,7 @@ function UserPage() {
     getEquitySummary().catch(() => null).then(eq => { if (eq) setEquity(eq) })
   }, [user])
 
-  const rankColor = profile ? (RANK_COLORS[profile.member_rank] || '#78350F') : '#78350F'
+  const rankColor = profile ? (RANK_COLOR_MAP[profile.member_rank] || '#78350F') : '#78350F'
 
   const handleRandomNick = async () => {
     const nick = WUXIA_NAMES[Math.floor(Math.random() * WUXIA_NAMES.length)]
@@ -266,13 +266,13 @@ function UserPage() {
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: '12px' }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#A8552E' }}>
+              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>
                 {equity ? (equity.shareRatio * 100 < 0.01 ? (equity.shareRatio * 100).toFixed(4) : (equity.shareRatio * 100).toFixed(2)) + '%' : '0%'}
               </Text>
               <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>我的消费贡献占比</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#A8552E' }}>
+              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>
                 {equity ? (equity.dividendEstimate || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '0'}
               </Text>
               <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>年度消费回馈·馈赠金豆</Text>

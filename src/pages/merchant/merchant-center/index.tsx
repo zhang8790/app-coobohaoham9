@@ -505,7 +505,7 @@ function MerchantCenterPage() {
               <Button
                 openType="share"
                 className="!flex-1 !m-0 !p-0 !rounded-2xl"
-                style={{ background: 'linear-gradient(135deg, #A8552E, #A8552E)', border: 'none' }}>
+                style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)))', border: 'none' }}>
                 <View className="py-3 flex items-center justify-center gap-2">
                   <Icon name="share-variant" size={20} className="text-white" />
                   <Text className="text-lg font-bold text-white">分享二维码</Text>

@@ -69,7 +69,7 @@ function AdminPage() {
       </View>
 
       {/* 头部 */}
-      <View className="px-4 pt-4 pb-5" style={{ background: 'linear-gradient(135deg,#7C2D12 0%,#A8552E 100%)' }}>
+      <View className="px-4 pt-4 pb-5" style={{ background: 'linear-gradient(135deg,#7C2D12 0%,hsl(var(--primary)) 100%)' }}>
         <View className="flex items-center gap-3">
           <Icon name="shield-crown" size={36} className="text-white" />
           <View>

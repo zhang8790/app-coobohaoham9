@@ -276,11 +276,11 @@ export default function StoreHomePage() {
               padding: '6px 18px',
               borderRadius: '999px',
               borderWidth: '2px',
-              borderColor: '#A8552E',
+              borderColor: 'hsl(var(--primary))',
               backgroundColor: 'rgba(194,65,12,0.08)',
               marginRight: '10px',
             }}>
-            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#A8552E' }}>{label}</Text>
+            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>{label}</Text>
           </View>
         ))}
       </View>
@@ -299,9 +299,9 @@ export default function StoreHomePage() {
               padding: '16px 0',
               backgroundColor: activeCat === 'all' ? '#FFF' : 'transparent',
               borderLeftWidth: activeCat === 'all' ? '3px' : '0',
-              borderLeftColor: '#A8552E',
+              borderLeftColor: 'hsl(var(--primary))',
             }}>
-            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === 'all' ? '#A8552E' : '#333' }}>全部</Text>
+            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === 'all' ? 'hsl(var(--primary))' : '#333' }}>全部</Text>
           </View>
           {categories.map((cat) => (
             <View
@@ -314,9 +314,9 @@ export default function StoreHomePage() {
                 padding: '16px 0',
                 backgroundColor: activeCat === cat.id ? '#FFF' : 'transparent',
                 borderLeftWidth: activeCat === cat.id ? '3px' : '0',
-                borderLeftColor: '#A8552E',
+                borderLeftColor: 'hsl(var(--primary))',
               }}>
-              <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === cat.id ? '#A8552E' : '#333' }}>{cat.name}</Text>
+              <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === cat.id ? 'hsl(var(--primary))' : '#333' }}>{cat.name}</Text>
             </View>
           ))}
         </ScrollView>
@@ -368,7 +368,7 @@ export default function StoreHomePage() {
 
                     {/* 价格 + 加入购物车 */}
                     <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '8px' }}>
-                      <Text style={{ fontSize: '17px', fontWeight: 'bold', color: '#A8552E' }}>¥{p.price}</Text>
+                      <Text style={{ fontSize: '17px', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>¥{p.price}</Text>
                       <AddToCartButton onAdd={() => handleAddCart(p)} adding={addingId === p.id} size={36} />
                     </View>
                   </View>

@@ -37,7 +37,7 @@ function CommissionDetailPage() {
     <View className="min-h-screen bg-background pb-8">
 
       {/* 汇总卡 */}
-      <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #A8552E, #A8552E)' }}>
+      <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)))' }}>
         <View className="grid grid-cols-2 py-5">
           <View className="flex flex-col items-center gap-1 border-r border-white/20">
             <Text className="text-3xl font-black text-white">¥{totalPending.toFixed(2)}</Text>

@@ -379,10 +379,10 @@ function MerchantProductsPage() {
 
       {/* 商品收益（对齐网页版商家后台） */}
       <View style={{ margin: '10px 14px 0', padding: '14px', borderRadius: '16px', background: 'linear-gradient(135deg, #FFF3EC, #FFE7D6)', border: '1px solid #F8D9C0' }}>
-        <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#A8552E' }}>商品收益</Text>
+        <Text style={{ fontSize: '14px', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>商品收益</Text>
         <View style={{ display: 'flex', marginTop: '10px' }}>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={{ fontSize: '20px', fontWeight: 'bold', color: '#A8552E' }}>¥{revenue.totalRevenue.toFixed(2)}</Text>
+            <Text style={{ fontSize: '20px', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>¥{revenue.totalRevenue.toFixed(2)}</Text>
             <Text style={{ fontSize: '12px', color: '#A86A4A', marginTop: '2px' }}>总营收</Text>
           </View>
           <View style={{ flex: 1, alignItems: 'center', borderLeftWidth: '1px', borderLeftColor: '#F0D3BC', borderLeftStyle: 'solid', borderRightWidth: '1px', borderRightColor: '#F0D3BC', borderRightStyle: 'solid' }}>
@@ -425,7 +425,7 @@ function MerchantProductsPage() {
             }}>
             <Text style={{
               fontSize: '14px', fontWeight: 'bold',
-              color: filter === key ? '#A8552E' : '#999',
+              color: filter === key ? 'hsl(var(--primary))' : '#999',
             }}>{key === 'all' ? '全部' : key === 'online' ? '在售' : '下架'}</Text>
           </View>
         ))}
@@ -439,7 +439,7 @@ function MerchantProductsPage() {
           style={{
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '13px 16px', borderRadius: '14px',
-            background: 'linear-gradient(135deg, #C77B47, #A8552E)',
+            background: 'linear-gradient(135deg, #C77B47, hsl(var(--primary)))',
             boxShadow: '0 2px 8px rgba(255,87,34,0.25)',
           }}>
           <Text style={{ color: '#FFF', fontSize: '15px', fontWeight: 'bold' }}>+ 新增商品</Text>
@@ -453,8 +453,8 @@ function MerchantProductsPage() {
             background: '#FFF', border: '2px solid #FF8A65',
           }}>
           {scanning
-            ? <Text style={{ fontSize: '15px', color: '#A8552E' }}>扫描中…</Text>
-            : <Text style={{ color: '#A8552E', fontSize: '15px', fontWeight: 'bold' }}>📷 扫码上架</Text>}
+            ? <Text style={{ fontSize: '15px', color: 'hsl(var(--primary))' }}>扫描中…</Text>
+            : <Text style={{ color: 'hsl(var(--primary))', fontSize: '15px', fontWeight: 'bold' }}>📷 扫码上架</Text>}
         </View>
       </View>
 
@@ -492,13 +492,13 @@ function MerchantProductsPage() {
                       <Text style={{ fontSize: '11px', color: p.is_active ? '#16A34A' : '#999' }}>{p.is_active ? '在售' : '下架'}</Text>
                     </View>
                   </View>
-                  <Text style={{ fontSize: '18px', fontWeight: 'bold', color: '#A8552E', marginTop: '4px' }}>¥{p.price}</Text>
+                  <Text style={{ fontSize: '18px', fontWeight: 'bold', color: 'hsl(var(--primary))', marginTop: '4px' }}>¥{p.price}</Text>
                   {p.original_price && <Text style={{ fontSize: '12px', color: '#BBB', textDecorationLine: 'line-through', marginLeft: '4px' }}>¥{p.original_price}</Text>}
                   {p.cost_price != null && (
                     <Text style={{ fontSize: '12px', color: '#AAA', marginTop: '2px' }}>成本 ¥{p.cost_price} · 毛利 {margin}</Text>
                   )}
                   {p.discount_rate != null && (
-                    <Text style={{ fontSize: '12px', color: '#A8552E', marginTop: '2px' }}>🏷️ 让利 {p.discount_rate}%</Text>
+                    <Text style={{ fontSize: '12px', color: 'hsl(var(--primary))', marginTop: '2px' }}>🏷️ 让利 {p.discount_rate}%</Text>
                   )}
                   <Text style={{ fontSize: '12px', color: '#AAA', marginTop: '2px' }}>库存：{p.stock}</Text>
                 </View>
@@ -510,7 +510,7 @@ function MerchantProductsPage() {
                 <View
                   onClick={() => openEdit(p)}
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-                  <Text style={{ fontSize: '13px', color: '#A8552E', fontWeight: '500' }}>✏️ 编辑</Text>
+                  <Text style={{ fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: '500' }}>✏️ 编辑</Text>
                 </View>
                 <View style={{ width: '1px', background: '#F1E9D9' }} />
                 <View
@@ -1071,7 +1071,7 @@ function MerchantProductsPage() {
                   style={{
                     padding: '6px 12px',
                     borderRadius: '8px',
-                    background: form.mood_tags.length > 0 || form.scene_tags.length > 0 ? '#A8552E' : '#E5E7EB',
+                    background: form.mood_tags.length > 0 || form.scene_tags.length > 0 ? 'hsl(var(--primary))' : '#E5E7EB',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
@@ -1101,7 +1101,7 @@ function MerchantProductsPage() {
                       }}>
                       <Text style={{ fontSize: '13px', color: '#333', lineHeight: '1.6' }}>{desc}</Text>
                       <View style={{ marginTop: '6px', display: 'flex', justifyContent: 'flex-end' }}>
-                        <Text style={{ fontSize: '11px', color: '#A8552E' }}>点击采用 →</Text>
+                        <Text style={{ fontSize: '11px', color: 'hsl(var(--primary))' }}>点击采用 →</Text>
                       </View>
                     </View>
                   ))}
@@ -1128,7 +1128,7 @@ function MerchantProductsPage() {
 
             {/* 🌿 智能食养 · 情绪配对（让商品更懂用户，科学化表达） */}
             <View style={{ marginBottom: '16px', padding: '12px', borderRadius: '12px', background: '#FCF8F2', border: '1px solid #F0E6D8' }}>
-              <Text style={{ fontSize: '14px', color: '#A8552E', fontWeight: '700', marginBottom: '8px', display: 'block' }}>🌿 智能食养 · 情绪配对</Text>
+              <Text style={{ fontSize: '14px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}>🌿 智能食养 · 情绪配对</Text>
 
               {/* 实时预览：顾客端卡片长什么样（边填边看，更赏心悦目） */}
               <Text style={{ fontSize: '12px', color: '#888', marginBottom: '6px', display: 'block' }}>实时预览（顾客视角）</Text>
@@ -1184,7 +1184,7 @@ function MerchantProductsPage() {
                     <View key={n} onClick={() => setForm(f => ({ ...f, overall_nature: sel ? '' : n }))}
                       style={{
                         padding: '6px 12px', borderRadius: '9999px',
-                        background: sel ? (NATURE_COLOR[n] || '#A8552E') : '#FFF',
+                        background: sel ? (NATURE_COLOR[n] || 'hsl(var(--primary))') : '#FFF',
                         border: `1px solid ${NATURE_COLOR[n] || '#DDD'}`,
                       }}>
                       <Text style={{ fontSize: '13px', color: sel ? '#FFF' : (NATURE_COLOR[n] || '#666'), fontWeight: sel ? '700' : '400' }}>{n}</Text>
@@ -1205,7 +1205,7 @@ function MerchantProductsPage() {
                         background: sel ? 'hsl(var(--brand-ochre))' : '#FFF',
                         border: '1px solid rgba(194,65,12,0.25)',
                       }}>
-                      <Text style={{ fontSize: '13px', color: sel ? '#FFF' : '#A8552E', fontWeight: sel ? '700' : '400' }}>{t}</Text>
+                      <Text style={{ fontSize: '13px', color: sel ? '#FFF' : 'hsl(var(--primary))', fontWeight: sel ? '700' : '400' }}>{t}</Text>
                     </View>
                   )
                 })}
@@ -1274,7 +1274,7 @@ function MerchantProductsPage() {
               <Switch
                 checked={form.is_active}
                 onChange={(v: any) => setForm(f => ({ ...f, is_active: v.detail.value }))}
-                color="#A8552E" />
+                color="hsl(var(--primary))" />
             </View>
 
             {/* 保存按钮 */}
@@ -1284,7 +1284,7 @@ function MerchantProductsPage() {
                 width: '100%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '14px', borderRadius: '14px',
-                background: saving ? '#F0C9A8' : 'linear-gradient(135deg, #C77B47, #A8552E)',
+                background: saving ? '#F0C9A8' : 'linear-gradient(135deg, #C77B47, hsl(var(--primary)))',
                 boxShadow: saving ? 'none' : '0 3px 12px rgba(255,87,34,0.3)',
               }}>
               <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#FFF' }}>

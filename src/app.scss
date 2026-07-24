@@ -86,7 +86,7 @@
   }
   /* 加购胶囊（墨韵赭红渐变 + 磁吸按压） */
   .pg-add {
-    background: linear-gradient(135deg, #C77B47 0%, #A8552E 100%);
+    background: linear-gradient(135deg, #C77B47 0%, hsl(var(--primary)) 100%);
     color: #fff;
     box-shadow: 0 4px 12px rgba(168, 85, 46, 0.30);
     transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
@@ -123,7 +123,7 @@
     width: 4px;
     height: 18px;
     border-radius: 999px;
-    background: linear-gradient(180deg, #C77B47, #A8552E);
+    background: linear-gradient(180deg, #C77B47, hsl(var(--primary)));
   }
 
   /* ===== 墨韵国潮·手绘装饰工具类（加法，不改动现有） ===== */

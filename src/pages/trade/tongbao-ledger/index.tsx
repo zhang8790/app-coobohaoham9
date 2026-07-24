@@ -95,7 +95,7 @@ function TongbaoLedgerPage() {
     <RouteGuard>
       <View className="min-h-screen bg-background" onScrollToLower={onScrollToLower}>
         {/* 顶部汇总 */}
-        <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #A8552E, #A8552E)' }}>
+        <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)))' }}>
           <View className="px-4 pt-5 pb-3">
             <Text className="text-white/80 text-base">当前金豆余额</Text>
             <Text className="text-white text-4xl font-black mt-1">{balance.toFixed(2)}</Text>

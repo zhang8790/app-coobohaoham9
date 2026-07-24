@@ -12,7 +12,7 @@
 
 /* 品牌渐变背景（无图片时的 Banner 底色） */
 .brand-gradient-bg {
-  background: linear-gradient(135deg, #A8552E 0%, #7C2D12 50%, #431407 100%);
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, #7C2D12 50%, #431407 100%);
 }
 
 /* 门店红包横幅（进店领→归属）— inline 不支持渐变，用 class */

@@ -211,7 +211,7 @@ function MyPromotionPage() {
     }, fail: () => Taro.showToast({ title: '下载失败', icon: 'none' }) })
   }
 
-  const rankColor = userRankInfo?.rankName ? (RANK_COLOR_MAP[userRankInfo.rankName] || '#A8552E') : '#A8552E'
+  const rankColor = userRankInfo?.rankName ? (RANK_COLOR_MAP[userRankInfo.rankName] || 'hsl(var(--primary))') : 'hsl(var(--primary))'
   const rankIdx = RANK_ORDER.indexOf(rankData?.current_rank || '凡心')
 
   if (loading) return (
@@ -340,7 +340,7 @@ function MyPromotionPage() {
         </View>
         <View className="grid grid-cols-3 py-4">
           {[
-            { label: '待结算', value: `¥${Number(commSummary?.total_pending || 0).toFixed(2)}`, color: '#A8552E' },
+            { label: '待结算', value: `¥${Number(commSummary?.total_pending || 0).toFixed(2)}`, color: 'hsl(var(--primary))' },
             { label: '已结算', value: `¥${Number(commSummary?.total_settled || 0).toFixed(2)}`, color: '#2E7D5B' },
             { label: '总笔数', value: `${commSummary?.total_count || 0}笔`, color: '#3B5B7A' },
           ].map(item => (

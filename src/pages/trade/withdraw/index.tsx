@@ -220,7 +220,7 @@ function WithdrawPage() {
           <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}（含金豆支付等值部分，由平台垫付）</Text>
         </View>
       ) : (
-        <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #A8552E, #A8552E)' }}>
+        <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)))' }}>
           <Text className="text-xl text-white/80 mb-1">我的金豆（推广佣金发放至此）</Text>
           <Text className="text-4xl font-bold text-white">{balance.toLocaleString()}<Text className="text-xl ml-1">豆</Text></Text>
           <Text className="text-xl text-white/70 mt-2">可直接在平台内消费支付 · 不可提现</Text>
