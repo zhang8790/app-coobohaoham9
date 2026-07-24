@@ -18,6 +18,7 @@ import RankProgress from '@/components/RankProgress'
 import BeanHud from '@/components/BeanHud'
 import { getProductCareInfo } from '@/utils/product-care'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
+import { scanToProduct } from '@/utils/scan'
 
 // 纯函数：把商品列表按"身体人群"分三档（直接吃 Product，零网络）
 function classifyProductList(products: Product[], crowds: Crowd[]) {
@@ -710,15 +711,7 @@ export default function IndexPage() {
       <View
         className="fixed bottom-24 right-3 z-50 flex items-center justify-center"
         hoverClass="none"
-        onClick={() => {
-          Taro.scanCode({
-            scanType: ['barCode', 'qrCode'],
-            success: (res) => {
-              Taro.navigateTo({ url: `/pages/scan-result/index?code=${encodeURIComponent(res.result)}` })
-            },
-            fail: () => {},
-          })
-        }}
+        onClick={() => scanToProduct()}
       >
         <View
           className="flex items-center justify-center"

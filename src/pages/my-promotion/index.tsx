@@ -9,13 +9,9 @@ import { supabase } from '@/client/supabase'
 import { generateQrcode } from '@/db/api'
 import { calculateDynamicScore, getRankByDynamicScoreV5, RANK_CONFIG_TABLE_V5 } from '@/utils/commission-calculator-v5'
 import RiskWarning from '@/components/RiskWarning'
+import { RANK_ORDER, RANK_COLOR_MAP } from '@/constants/ranks'
 
-const RANK_ORDER = ['凡心', '初心', '明心', '静心', '悟心', '无心境']
-const RANK_COLORS: Record<string, string> = {
-  '凡心': '#78350F', '初心': '#A8552E', '明心': '#9A8070',
-  '静心': '#A8552E', '悟心': '#9A8070', '无心境': '#DC2626',
-}
-// 段位配置从V4算法动态获取（不再硬编码）
+// 段位顺序与颜色统一引用 src/constants/ranks（RANK_ORDER / RANK_COLOR_MAP）
 
 interface RankProgress {
   current_rank: string; next_rank: string; direct_count: number
@@ -215,7 +211,7 @@ function MyPromotionPage() {
     }, fail: () => Taro.showToast({ title: '下载失败', icon: 'none' }) })
   }
 
-  const rankColor = userRankInfo?.rankName ? (RANK_COLORS[userRankInfo.rankName] || '#A8552E') : '#A8552E'
+  const rankColor = userRankInfo?.rankName ? (RANK_COLOR_MAP[userRankInfo.rankName] || '#A8552E') : '#A8552E'
   const rankIdx = RANK_ORDER.indexOf(rankData?.current_rank || '凡心')
 
   if (loading) return (

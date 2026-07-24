@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
 import { setPendingCheckout } from '@/utils/checkoutCache'
 import type { Product } from '@/db/types'
+import { scanToProduct } from '@/utils/scan'
 
 export default function ScanResultPage() {
   const { user } = useAuth()
@@ -75,15 +76,7 @@ export default function ScanResultPage() {
     Taro.navigateTo({ url: `/pages/payment/index?productId=${encodeURIComponent(product.id)}&total=${product.price}&quantity=1` })
   }
 
-  const rescan = () => {
-    Taro.scanCode({
-      scanType: ['barCode', 'qrCode'],
-      success: (res) => {
-        Taro.redirectTo({ url: `/pages/scan-result/index?code=${encodeURIComponent(res.result)}` })
-      },
-      fail: () => {},
-    })
-  }
+  const rescan = () => { scanToProduct({ redirect: true }) }
 
   // 加载中
   if (loading) return (

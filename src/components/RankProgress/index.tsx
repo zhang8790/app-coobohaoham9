@@ -1,18 +1,11 @@
 import { View, Text } from '@tarojs/components'
+import { RANK_TIERS as TIERS } from '@/constants/ranks'
 
 /**
  * 段位成长可视化（纯展示，读取现有 member_rank + cv_total，不新增任何字段/功能）
- * 阈值与 src/pages/rank-rules 公布阶梯一致：凡心0/初心200/明心800/静心2000/悟心6000/无心境20000
+ * 阈值与顺序统一引用 src/constants/ranks（与 rank-rules / v5 / my-promotion 单一来源一致）
  * 视觉：赭红渐变 hero 卡（对齐墨韵原型）
  */
-const TIERS: { rank: string; min: number }[] = [
-  { rank: '凡心', min: 0 },
-  { rank: '初心', min: 200 },
-  { rank: '明心', min: 800 },
-  { rank: '静心', min: 2000 },
-  { rank: '悟心', min: 6000 },
-  { rank: '无心境', min: 20000 },
-]
 
 export interface RankProgressProps {
   cvTotal?: number

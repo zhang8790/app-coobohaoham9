@@ -4,38 +4,39 @@ import { View, Text } from '@tarojs/components'
 
 import { getMyProfile } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { RANK_COLOR_MAP } from '@/constants/ranks'
 import './index.scss'
 
-// 六阶高端段位（颜色与 commission-calculator-v5 RANK_CONFIG_TABLE_V5 保持一致）
+// 六阶高端段位（颜色统一引用 src/constants/ranks，消除与 v5 / my-promotion 的历史不一致）
 // 段位由个人【近 6 个月滚动消费】决定基础门槛，高段位叠加「徽章收集度」软门槛；团队 / 邀请新用户仅作推广佣金系数，不进入段位。
 const RANK_TIERS = [
   {
-    rank: '无心境', score: '≥ 20,000', color: '#D4AF37',
+    rank: '无心境', score: '≥ 20,000', color: RANK_COLOR_MAP['无心境'],
     identity: '荣誉身份',
     benefits: ['荣誉身份铭牌', '年度成长盛典邀约', '无心境专属客服'],
     gate: '徽章 ≥ 8 且含史诗/传说'},
   {
-    rank: '悟心', score: '≥ 6,000', color: '#9CA3AF',
+    rank: '悟心', score: '≥ 6,000', color: RANK_COLOR_MAP['悟心'],
     identity: '高阶 · 共创',
     benefits: ['食养·情绪 共创权（命名 / 配方投票）', '私享品鉴'],
     gate: '徽章收集度 ≥ 4'},
   {
-    rank: '静心', score: '≥ 2,000', color: '#CD7F32',
+    rank: '静心', score: '≥ 2,000', color: RANK_COLOR_MAP['静心'],
     identity: '中坚 · 专属',
     benefits: ['1v1 情绪管家（季度）× 1', '线下主题沙龙邀约'],
     gate: '累计确权 ≥ N'},
   {
-    rank: '明心', score: '≥ 800', color: '#4A90D9',
+    rank: '明心', score: '≥ 800', color: RANK_COLOR_MAP['明心'],
     identity: '进阶 · 优先',
     benefits: ['新品优先体验', '专属食养配方卡'],
     gate: '—'},
   {
-    rank: '初心', score: '≥ 200', color: '#50C878',
+    rank: '初心', score: '≥ 200', color: RANK_COLOR_MAP['初心'],
     identity: '入门 + · 关怀',
     benefits: ['月度「情绪顾问」轻咨询 × 1', '生日情绪礼'],
     gate: '—'},
   {
-    rank: '凡心', score: '≥ 0', color: '#90EE90',
+    rank: '凡心', score: '≥ 0', color: RANK_COLOR_MAP['凡心'],
     identity: '入门',
     benefits: ['情绪确权基础礼包'],
     gate: '—'},

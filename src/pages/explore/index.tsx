@@ -7,6 +7,7 @@ import Icon from '@/components/Icon'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import { useLocation } from '@/contexts/LocationContext'
+import { scanToProduct } from '@/utils/scan'
 import LazyImage from '@/components/LazyImage'
 import ProductGridCard from '@/components/ProductGridCard'
 import CustomTabBar from '@/components/custom-tabbar'
@@ -181,17 +182,7 @@ export default function ExplorePage() {
           <Text className="text-xl text-muted-foreground">搜索商品...</Text>
         </View>
         <View className="w-10 h-10 flex items-center justify-center"
-          onClick={() => {
-            Taro.scanCode({
-              onlyFromCamera: false,
-              success: (res) => {
-                Taro.navigateTo({ url: `/pages/scan-result/index?code=${encodeURIComponent(res.result)}` })
-              },
-              fail: (err) => {
-                console.log('[Explore] 扫码取消或失败:', err)
-              }
-            })
-          }}>
+          onClick={() => scanToProduct()} >
           <Icon name="qrcode-scan" size={24} className="text-foreground" />
         </View>
         <View className="relative" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>

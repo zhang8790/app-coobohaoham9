@@ -13,6 +13,8 @@
  */
 
 // ============ 段位配置（收敛后） ============
+import { RANK_COLOR_MAP } from '@/constants/ranks'
+
 export interface RankConfigV5 {
   rank: MemberRankV5;
   minDynamicScore: number;
@@ -40,7 +42,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     l2CommissionRate: 0.15,
     goldBeanRate: 0.30,
     icon: '🍃',
-    color: '#90EE90'
+    color: RANK_COLOR_MAP['凡心']
   },
   {
     rank: '初心',
@@ -49,7 +51,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     l2CommissionRate: 0.16,
     goldBeanRate: 0.32,
     icon: '🌿',
-    color: '#50C878'
+    color: RANK_COLOR_MAP['初心']
   },
   {
     rank: '明心',
@@ -58,7 +60,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     l2CommissionRate: 0.17,
     goldBeanRate: 0.34,
     icon: '📚',
-    color: '#4A90D9'
+    color: RANK_COLOR_MAP['明心']
   },
   {
     rank: '静心',
@@ -67,7 +69,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     l2CommissionRate: 0.18,
     goldBeanRate: 0.37,
     icon: '⚔️',
-    color: '#CD7F32'
+    color: RANK_COLOR_MAP['静心']
   },
   {
     rank: '悟心',
@@ -76,7 +78,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     l2CommissionRate: 0.18,
     goldBeanRate: 0.40,
     icon: '🏯',
-    color: '#C0C0C0'
+    color: RANK_COLOR_MAP['悟心']
   },
   {
     rank: '无心境',
@@ -85,7 +87,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     l2CommissionRate: 0.18,
     goldBeanRate: 0.40,
     icon: '👑',
-    color: '#FFD700'
+    color: RANK_COLOR_MAP['无心境']
   },
 ]
 

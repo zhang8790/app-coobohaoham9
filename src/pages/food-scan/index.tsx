@@ -18,6 +18,7 @@ import { useLocation } from '@/contexts/LocationContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { uploadToStorage } from '@/utils/upload'
 import type { FoodAdditive, Product, UserHealthProfile } from '@/db/types'
+import { scanToProduct } from '@/utils/scan'
 
 export default function FoodScanPage() {
   const { currentStore } = useLocation()
@@ -227,13 +228,7 @@ export default function FoodScanPage() {
           📷 拍照识别
         </Button>
         <Button
-          onClick={() => {
-            Taro.scanCode({
-              scanType: ['barCode', 'qrCode'],
-              success: (res) => Taro.navigateTo({ url: `/pages/scan-result/index?code=${encodeURIComponent(res.result)}` }),
-              fail: () => {},
-            })
-          }}
+          onClick={() => scanToProduct()}
           className="rounded-full"
           style={{ background: '#EAF2FF', color: 'hsl(var(--foreground))', fontSize: 14 }}
         >
