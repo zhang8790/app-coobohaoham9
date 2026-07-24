@@ -1,10 +1,13 @@
 // @title 消息中心
 // @description 展示用户全部业务通知（订单/佣金/退款/提现/公告）
+// 样式对齐全站「墨韵国潮」暖米亮色主题（设计 token: app.scss :root），
+// 与首页/自营/行囊/侠客 4 个 tab 页保持一致，移除离群的暗色皮肤。
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { View, Text, ScrollView } from '@tarojs/components'
 import { supabase } from '@/client/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { formatRelativeTime } from '@/utils/format'
 
 interface Notification {
   id: string
@@ -18,24 +21,17 @@ interface Notification {
   created_at: string
 }
 
+// 状态语义色映射到全局 token（app.scss :root），统一国潮调，不再用离群 hex
 const TYPE_META: Record<string, { icon: string; color: string; label: string }> = {
-  order_paid:         { icon: '🛒', color: '#10B981', label: '订单' },
-  commission_arrived: { icon: '💰', color: '#F59E0B', label: '佣金' },
-  withdraw_progress:  { icon: '💸', color: '#3B82F6', label: '提现' },
-  refund_result:      { icon: '↩',  color: '#EF4444', label: '退款' },
-  announcement:       { icon: '📢', color: '#A8552E', label: '公告' },
+  order_paid:         { icon: '🛒', color: 'success',    label: '订单' },
+  commission_arrived: { icon: '💰', color: 'warning',    label: '佣金' },
+  withdraw_progress:  { icon: '💸', color: 'info',       label: '提现' },
+  refund_result:      { icon: '↩',  color: 'destructive', label: '退款' },
+  announcement:       { icon: '📢', color: 'primary',    label: '公告' },
 }
 
-function formatTime(iso: string): string {
-  const d = new Date(iso)
-  const now = new Date()
-  const diff = (now.getTime() - d.getTime()) / 1000
-  if (diff < 60) return '刚刚'
-  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
-  if (diff < 7 * 86400) return `${Math.floor(diff / 86400)}天前`
-  return d.toLocaleDateString('zh-CN')
-}
+// hsl(var(--token)) 便捷生成
+const cvar = (token: string) => `hsl(var(--${token}))`
 
 export default function MessagesPage() {
   const { user } = useAuth()
@@ -108,79 +104,83 @@ export default function MessagesPage() {
 
   if (!user) {
     return (
-      <View style={{ padding: '40px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}>
-        登录后查看消息
+      <View className="min-h-screen bg-background flex items-center justify-center px-5">
+        <Text className="text-base text-muted-foreground">登录后查看消息</Text>
       </View>
     )
   }
 
   return (
-    <ScrollView scrollY style={{ minHeight: '100vh', background: '#0B0F19' }}>
-      {/* Header */}
-      <View style={{ padding: '20px 20px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#080C14', borderBottom: '1px solid #1F2937' }}>
+    <ScrollView scrollY className="min-h-screen bg-background">
+      {/* 头部：对齐全站亮色卡片风格 */}
+      <View className="flex items-center justify-between px-4 py-3 bg-card border-b border-border">
         <View>
-          <Text style={{ color: '#E5E7EB', fontSize: 20, fontWeight: 700 }}>消息中心</Text>
-          <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 2, display: 'block' }}>
+          <Text className="text-xl font-bold text-foreground">消息中心</Text>
+          <Text className="text-xs text-muted-foreground mt-0.5 block">
             {unread > 0 ? `未读 ${unread} 条` : '全部已读'}
           </Text>
         </View>
         {unread > 0 && (
-          <View onClick={markAllRead} style={{ padding: '6px 14px', background: 'transparent', border: '1px solid #374151', borderRadius: 16 }}>
-            <Text style={{ color: '#9CA3AF', fontSize: 12 }}>全部已读</Text>
+          <View onClick={markAllRead} className="px-3 py-1.5 rounded-full border border-border">
+            <Text className="text-xs text-muted-foreground">全部已读</Text>
           </View>
         )}
       </View>
 
-      {/* List */}
+      {/* 列表 */}
       {loading && list.length === 0 ? (
-        <View style={{ padding: '60px 0', textAlign: 'center', color: '#6B7280', fontSize: 14 }}>加载中…</View>
+        <View className="py-16 text-center">
+          <Text className="text-sm text-muted-foreground">加载中…</Text>
+        </View>
       ) : list.length === 0 ? (
-        <View style={{ padding: '60px 20px', textAlign: 'center' }}>
-          <Text style={{ fontSize: 48, display: 'block', marginBottom: 12 }}>📭</Text>
-          <Text style={{ color: '#9CA3AF', fontSize: 14, display: 'block' }}>暂无消息</Text>
-          <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 8, display: 'block' }}>
+        <View className="py-16 px-5 text-center">
+          <Text className="text-5xl block mb-3">📭</Text>
+          <Text className="text-base text-muted-foreground block">暂无消息</Text>
+          <Text className="text-xs text-muted-foreground mt-2 block">
             订单支付成功、佣金到账、退款结果、提现进度都会在这里通知
           </Text>
         </View>
       ) : (
-        <View style={{ padding: '12px 0' }}>
+        <View className="py-3">
           {list.map(n => {
-            const meta = TYPE_META[n.type] ?? { icon: '🔔', color: '#6B7280', label: '其他' }
-            const unread = !n.read_at
+            const meta = TYPE_META[n.type] ?? { icon: '🔔', color: 'muted-foreground', label: '其他' }
+            const accent = cvar(meta.color)
+            const unreadFlag = !n.read_at
             return (
               <View
                 key={n.id}
                 onClick={() => openDetail(n)}
                 style={{
                   margin: '8px 12px', padding: '14px 16px',
-                  background: unread ? '#1F293722' : '#0F172A',
-                  border: `1px solid ${unread ? meta.color + '66' : '#1F2937'}`,
-                  borderRadius: 10, display: 'flex', gap: 12, alignItems: 'flex-start',
+                  background: unreadFlag ? 'hsl(var(--primary) / 0.06)' : 'hsl(var(--card))',
+                  border: `1px solid ${unreadFlag ? 'hsl(var(--primary) / 0.45)' : 'hsl(var(--border))'}`,
+                  borderRadius: 16, display: 'flex', gap: 12, alignItems: 'flex-start',
                 }}
               >
                 <View style={{
                   width: 40, height: 40, borderRadius: 20,
-                  background: meta.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  background: `${accent} / 0.13`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                 }}>
                   <Text style={{ fontSize: 20 }}>{meta.icon}</Text>
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ color: '#E5E7EB', fontSize: 15, fontWeight: unread ? 700 : 500 }}>{n.title}</Text>
-                    {unread && (
-                      <View style={{ width: 8, height: 8, borderRadius: 4, background: meta.color, flexShrink: 0, marginLeft: 8 }} />
+                    <Text style={{ color: 'hsl(var(--foreground))', fontSize: 15, fontWeight: unreadFlag ? 700 : 500 }}>{n.title}</Text>
+                    {unreadFlag && (
+                      <View style={{ width: 8, height: 8, borderRadius: 4, background: accent, flexShrink: 0, marginLeft: 8 }} />
                     )}
                   </View>
-                  <Text style={{ color: '#9CA3AF', fontSize: 13, lineHeight: 1.5, display: 'block', marginBottom: 4 }} numberOfLines={2}>
+                  <Text style={{ color: 'hsl(var(--muted-foreground))', fontSize: 13, lineHeight: 1.5, display: 'block', marginBottom: 4 }} numberOfLines={2}>
                     {n.body}
                   </Text>
                   <View style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ color: meta.color, fontSize: 11, padding: '1px 6px', background: meta.color + '15', borderRadius: 4 }}>
+                    <Text style={{ color: accent, fontSize: 11, padding: '1px 6px', background: `${accent} / 0.12`, borderRadius: 4 }}>
                       {meta.label}
                     </Text>
-                    <Text style={{ color: '#6B7280', fontSize: 11 }}>{formatTime(n.created_at)}</Text>
+                    <Text style={{ color: 'hsl(var(--muted-foreground))', fontSize: 11 }}>{formatRelativeTime(n.created_at)}</Text>
                     {!n.sent_at && (
-                      <Text style={{ color: '#6B7280', fontSize: 11 }}>· 未推送</Text>
+                      <Text style={{ color: 'hsl(var(--muted-foreground))', fontSize: 11 }}>· 未推送</Text>
                     )}
                   </View>
                 </View>

@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getMyTongbaoLogs, getMyProfile } from '@/db/api'
 import type { TongbaoLog } from '@/db/types'
 import Icon from '@/components/Icon'
+import { formatDateTime } from '@/utils/format'
 
 const TYPE_LABEL: Record<string, string> = {
   purchase_spend: '消费支出',
@@ -30,13 +31,6 @@ const TYPE_COLOR: Record<string, string> = {
   commission_earn: '#10B981',
 }
 
-function fmtDate(s?: string): string {
-  if (!s) return ''
-  const d = new Date(s)
-  if (isNaN(d.getTime())) return ''
-  const p = (n: number) => (n < 10 ? '0' + n : '' + n)
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
 
 const PAGE_SIZE = 20
 
@@ -153,7 +147,7 @@ function TongbaoLedgerPage() {
                         </View>
                         <View>
                           <Text className="text-lg font-bold text-foreground">{TYPE_LABEL[it.type] || it.type}</Text>
-                          <Text className="text-sm text-muted-foreground mt-0.5">{fmtDate(it.created_at)}</Text>
+                          <Text className="text-sm text-muted-foreground mt-0.5">{formatDateTime(it.created_at)}</Text>
                         </View>
                       </View>
                       <View className="text-right">

@@ -429,7 +429,7 @@ export default function IndexPage() {
   }
 
   return (
-    <View className="min-h-screen bg-background">
+    <View className="min-h-screen bg-background tabbar-pad">
 
       {/* 会员资产条：金豆 / 佣金（统一货币为金豆，积分已并入金豆，零新增功能） */}
       <BeanHud
