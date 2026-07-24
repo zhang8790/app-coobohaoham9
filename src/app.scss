@@ -153,13 +153,6 @@
   .gold-text {
     color: hsl(var(--brand-gold));
   }
-  /* 国潮卡：淡墨描边 + 软投影（与 pg-card 并存，可选替换） */
-  .ink-card {
-    background: hsl(var(--card));
-    border-radius: 16px;
-    border: 1px solid hsl(var(--brand-ink) / 0.14);
-    box-shadow: 0 6px 20px rgba(28, 22, 16, 0.06);
-  }
   /* 情绪/体质药丸标签 */
   .symptom-tag {
     display: inline-flex;

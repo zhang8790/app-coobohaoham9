@@ -8,6 +8,8 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import { supabase } from '@/client/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatRelativeTime } from '@/utils/format'
+import EmptyState from '@/components/ui/EmptyState'
+import Skeleton from '@/components/ui/Skeleton'
 
 interface Notification {
   id: string
@@ -129,17 +131,13 @@ export default function MessagesPage() {
 
       {/* 列表 */}
       {loading && list.length === 0 ? (
-        <View className="py-16 text-center">
-          <Text className="text-sm text-muted-foreground">加载中…</Text>
-        </View>
+        <Skeleton count={3} height={56} rounded="rounded-xl" className="px-4 mt-4" />
       ) : list.length === 0 ? (
-        <View className="py-16 px-5 text-center">
-          <Text className="text-5xl block mb-3">📭</Text>
-          <Text className="text-base text-muted-foreground block">暂无消息</Text>
-          <Text className="text-xs text-muted-foreground mt-2 block">
-            订单支付成功、佣金到账、退款结果、提现进度都会在这里通知
-          </Text>
-        </View>
+        <EmptyState
+          icon={<Text className="text-5xl block mb-3">📭</Text>}
+          title="暂无消息"
+          description="订单支付成功、佣金到账、退款结果、提现进度都会在这里通知"
+        />
       ) : (
         <View className="py-3">
           {list.map(n => {

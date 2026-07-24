@@ -8,6 +8,8 @@ import { getMyTongbaoLogs, getMyProfile } from '@/db/api'
 import type { TongbaoLog } from '@/db/types'
 import Icon from '@/components/Icon'
 import { formatDateTime } from '@/utils/format'
+import EmptyState from '@/components/ui/EmptyState'
+import Skeleton from '@/components/ui/Skeleton'
 
 const TYPE_LABEL: Record<string, string> = {
   purchase_spend: '消费支出',
@@ -124,15 +126,13 @@ function TongbaoLedgerPage() {
         {/* 列表 */}
         <View className="px-4 mt-4 pb-8">
           {loading && items.length === 0 ? (
-            <View className="flex justify-center py-16">
-              <Icon name="loading" size={36} className="text-primary animate-spin" />
-            </View>
+            <Skeleton count={4} height={56} rounded="rounded-xl" className="px-4 mt-4" />
           ) : filtered.length === 0 ? (
-            <View className="flex flex-col items-center py-16 gap-3">
-              <Icon name="cash-remove" size={60} className="text-muted-foreground/30" />
-              <Text className="text-xl text-muted-foreground">暂无金豆明细</Text>
-              <Text className="text-base text-muted-foreground text-center px-8">佣金、充值、消费都会在这里记录</Text>
-            </View>
+            <EmptyState
+              icon={<Icon name="cash-remove" size={60} className="text-muted-foreground/30" />}
+              title="暂无金豆明细"
+              description="佣金、充值、消费都会在这里记录"
+            />
           ) : (
             <View className="flex flex-col gap-3">
               {filtered.map(it => {

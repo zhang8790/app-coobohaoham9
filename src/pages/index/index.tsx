@@ -442,7 +442,7 @@ export default function IndexPage() {
 
       {/* 扫配料表 · 看安全等级 · 直接下单（唯一门面入口） */}
       <View
-        className="mx-4 mt-4 p-4 rounded-2xl flex items-center gap-3 ink-card"
+        className="mx-4 mt-4 p-4 rounded-2xl flex items-center gap-3 pg-card"
         style={{ borderColor: 'hsl(var(--primary))', borderWidth: 1, boxShadow: '0 6px 24px rgba(194,65,12,0.12)' }}
         onClick={() => Taro.navigateTo({ url: '/pages/food-scan/index' })}
       >
@@ -459,7 +459,7 @@ export default function IndexPage() {
       </View>
 
       {/* 今日状态卡：身体状态输入，驱动食养推荐（情绪已转后台算法维度，不在前台） */}
-      <View className="ink-card mx-4 mt-4 p-4">
+      <View className="pg-card mx-4 mt-4 p-4">
         <View className="flex items-center justify-between mb-3">
           <View>
             <Text className="text-lg font-bold text-foreground">今天想吃点什么</Text>
@@ -521,7 +521,7 @@ export default function IndexPage() {
 
       {/* 即时匹配：输入/选择后直接展示配对好物，零额外操作（紧跟输入框，无需滚动） */}
       {hasQuery && (
-        <View className="ink-card mx-4 mt-4 p-4 rounded-2xl">
+        <View className="pg-card mx-4 mt-4 p-4 rounded-2xl">
           <View className="flex items-center justify-between mb-2">
             <Text className="text-xl font-bold text-foreground flex-1 min-w-0" style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
               为「{matchLabel}」匹配到 {matchItems.length} 件好物 🔥
@@ -594,7 +594,7 @@ export default function IndexPage() {
       {/* 限时福利入口：常驻可见，用户主动点击才展开，不再进首页 3s 强弹打断 */}
       {campaignList.length > 0 && !showCampaignPopup && (
         <View
-          className="mx-4 mt-4 p-4 rounded-2xl ink-card flex items-center justify-between"
+          className="mx-4 mt-4 p-4 rounded-2xl pg-card flex items-center justify-between"
           hoverClass="none"
           onClick={() => setShowCampaignPopup(true)}
         >

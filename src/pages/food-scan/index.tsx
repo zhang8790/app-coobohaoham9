@@ -210,7 +210,7 @@ export default function FoodScanPage() {
           onClick={analyze}
           loading={loading}
           className="mt-2 rounded-full"
-          style={{ background: '#1A1A1A', color: '#fff', fontSize: 14 }}
+          style={{ background: 'hsl(var(--primary))', color: '#fff', fontSize: 14 }}
         >
           解析配料
         </Button>
@@ -222,7 +222,7 @@ export default function FoodScanPage() {
           onClick={chooseImage}
           loading={ocrLoading}
           className="rounded-full"
-          style={{ background: '#F0EDE8', color: '#1A1A1A', fontSize: 14 }}
+          style={{ background: '#F0EDE8', color: 'hsl(var(--foreground))', fontSize: 14 }}
         >
           📷 拍照识别
         </Button>
@@ -235,7 +235,7 @@ export default function FoodScanPage() {
             })
           }}
           className="rounded-full"
-          style={{ background: '#EAF2FF', color: '#1A1A1A', fontSize: 14 }}
+          style={{ background: '#EAF2FF', color: 'hsl(var(--foreground))', fontSize: 14 }}
         >
           📦 扫条码购买
         </Button>

@@ -31,9 +31,9 @@ function Chip({
       onClick={onClick}
       className="px-4 py-2 rounded-full text-base border"
       style={{
-        background: active ? (danger ? '#FEE2E2' : '#1A1A1A') : '#fff',
-        borderColor: active ? (danger ? '#DC2626' : '#1A1A1A') : 'rgba(0,0,0,0.08)',
-        color: active ? (danger ? '#DC2626' : '#fff') : '#444',
+        background: active ? (danger ? '#FEE2E2' : 'hsl(var(--primary))') : '#fff',
+        borderColor: active ? (danger ? '#DC2626' : 'hsl(var(--primary))') : 'rgba(0,0,0,0.08)',
+        color: active ? (danger ? '#DC2626' : '#fff') : 'hsl(var(--muted-foreground))',
       }}
     >
       <Text style={{ color: 'inherit' }}>{label}</Text>
@@ -172,7 +172,7 @@ export default function HealthProfilePage() {
         onClick={handleSave}
         loading={saving}
         className="mt-6 rounded-full"
-        style={{ background: '#1A1A1A', color: '#fff', fontSize: 15 }}
+        style={{ background: 'hsl(var(--primary))', color: '#fff', fontSize: 15 }}
       >
         保存体质档案
       </Button>
