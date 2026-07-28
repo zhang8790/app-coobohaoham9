@@ -16,7 +16,8 @@ const C = {
 const cardStyle: React.CSSProperties = {
   background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 20px',
 }
-const fmt = (n: number) => n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+const fmt = (n: number | null | undefined) =>
+  n == null ? '—' : n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 const fmtMoney = (n: number) => `¥${fmt(n)}`
 const fmtDate = (s: string) => new Date(s).toLocaleString('zh-CN', { hour12: false })
 

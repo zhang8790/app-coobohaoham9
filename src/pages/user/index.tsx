@@ -49,6 +49,7 @@ const MENU_GROUPS = [
     title: '食养健康',
     icon: '🌿',
     items: [
+      { name: '今日食养推荐', icon: '🌟', page: '/pages/food/today-food-therapy/index' },
       { name: '食养偏好自测', icon: '🧪', page: '/pages/food/constitution-test/index' },
     ]
   }

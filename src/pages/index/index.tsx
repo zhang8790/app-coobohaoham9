@@ -41,6 +41,11 @@ export default function IndexPage() {
   const { profile } = useAuth()
   const { currentCity, currentStore, nearbyStores, setStore, loading: locationLoading, detectLocation } = useLocation()
   const { selectedCrowds, toggleCrowd, clearFilters } = useFoodTherapy()
+  // 定位自动触发：用 ref 持有 detectLocation（函数已稳定化，不放入 effect 依赖以免触发重跑），
+  // 并用 locatingRef 在首批定位完成前锁住后续触发，根治「定位一直在闪烁」的回流循环
+  const detectLocationRef = useRef(detectLocation)
+  detectLocationRef.current = detectLocation
+  const locatingRef = useRef(false)
   const myRef = profile?.referral_code || ''
   // 记录当前要分享的商品，供 useShareAppMessage 闭包读取
   const shareProductRef = useRef<{ id: string; name: string; imageUrl: string } | null>(null)
@@ -135,11 +140,17 @@ export default function IndexPage() {
   }, [routeParams])
 
   // 首页启动时自动获取定位；若附近门店尚未解析（如城市已缓存但首次无附近列表），一并定位解析
+  // 修法：移除对 detectLocation 函数本体的依赖（改用 ref 持有，函数已稳定化不会反复重装引用），
+  // 并用 locatingRef 在定位进行中锁住重复触发——彻底消除因 nearbyStores 异步就绪前的渲染间隙
+  // 反复进入 detectLocation 造成的定位 pill 闪烁（与购物车闪烁同源：乐观更新 + 并发去重 + 自触发抑制）
   useEffect(() => {
-    if (!currentCity || nearbyStores.length === 0) {
-      detectLocation()
-    }
-  }, [currentCity, nearbyStores.length, detectLocation])
+    if (locatingRef.current) return
+    if (currentCity && nearbyStores.length > 0) return
+    locatingRef.current = true
+    detectLocationRef.current()
+      .catch(() => {})
+      .finally(() => { locatingRef.current = false })
+  }, [currentCity, nearbyStores.length])
 
   // 首页分享：若用户点击了某商品的分享按钮则分享该商品，否则分享首页（均携带推广码）
   useShareAppMessage(() => {
@@ -465,12 +476,20 @@ export default function IndexPage() {
   return (
     <View className="min-h-screen bg-background tabbar-pad">
 
-      {/* ===== 新版 Hero：品牌锚点 + 定位弱化 + 搜索/扫码合一 ===== */}
+      {/* ===== 新版 Hero：国潮装饰锚点 + 品牌徽标 + 定位弱化 + 扫码合一 ===== */}
       <View className="mx-4 mt-4 pg-hero p-4 rounded-2xl">
-        <View className="flex items-center justify-between">
-          <View>
-            <Text className="text-2xl font-extrabold text-foreground leading-tight">来电有喜</Text>
-            <Text className="text-sm text-muted-foreground block mt-0.5">懂身体的好物</Text>
+        {/* 国潮装饰层（印章圆环 + 松绿柔光，纯视觉不挡操作） */}
+        <View className="pg-hero-seal" />
+        <View className="pg-hero-glow" />
+        <View className="flex items-center justify-between relative" style={{ zIndex: 1 }}>
+          <View className="flex items-center gap-3">
+            <View className="pg-hero-badge">
+              <Text className="text-xl">🍃</Text>
+            </View>
+            <View>
+              <Text className="text-2xl font-extrabold text-foreground leading-tight">来电有喜</Text>
+              <Text className="text-sm text-muted-foreground block mt-0.5">懂身体的好物</Text>
+            </View>
           </View>
           <View
             className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-card border border-border flex-shrink-0 active:scale-95 transition-transform"
@@ -485,8 +504,8 @@ export default function IndexPage() {
 
       {/* 唯一扫码入口：扫码查安全（合并原“搜索/扫码合一”+ 悬浮FAB 两处重复为单一核心主张） */}
       <View
-        className="mx-4 mt-3 rounded-2xl p-4 flex items-center justify-between active:scale-[0.99] transition-transform"
-        style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, #F59E0B 100%)' }}
+        className="mx-4 mt-3 rounded-2xl p-4 flex items-center justify-between active:scale-[0.99] transition-transform relative"
+        style={{ zIndex: 1, background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--brand-gold)) 100%)' }}
         hoverClass="none"
         onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}
       >
@@ -503,6 +522,8 @@ export default function IndexPage() {
       {/* hero 容器闭合：扫码入口卡位于 hero 内，下方食养工具区为独立模块 */}
       </View>
 
+      {/* 区块分隔：墨线 */}
+      <View className="ink-rule mx-4 mt-5" />
       {/* 食养工具 · 首页统一入口（知识图谱 + 节气食盒，原仅置于扫码页底部，现提至首页） */}
       <View className="mx-4 mt-4 flex items-center justify-between">
         <Text className="text-sm font-bold text-foreground">食养工具</Text>
@@ -511,32 +532,34 @@ export default function IndexPage() {
       <View className="mx-4 mt-2 grid grid-cols-2 gap-3">
         {/* 知识图谱 */}
         <View
-          className="rounded-2xl p-3 active:scale-[0.98] transition-transform"
-          style={{ background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)', boxShadow: '0 2px 12px rgba(22,163,74,0.12)' }}
+          className="pg-card rounded-2xl p-3 active:scale-[0.98] transition-transform"
+          style={{ background: 'linear-gradient(135deg, hsl(var(--brand-jade) / 0.10) 0%, hsl(var(--brand-jade) / 0.03) 100%)' }}
           hoverClass="none"
           onClick={() => Taro.navigateTo({ url: '/pages/food/knowledge-atlas/index' })}
         >
           <Text className="text-lg">🧭</Text>
-          <Text className="text-sm font-bold text-[#16A34A] block mt-1">食安知识图谱</Text>
-          <Text className="text-[11px] text-[#16A34A] mt-1 opacity-70" style={{ lineHeight: 1.4 }}>
+          <Text className="text-sm font-bold block mt-1" style={{ color: 'hsl(var(--brand-jade))' }}>食安知识图谱</Text>
+          <Text className="text-[11px] mt-1 opacity-70" style={{ color: 'hsl(var(--brand-jade))', lineHeight: 1.4 }}>
             {knowledgeCount === 0 ? '扫配料发现新成分' : `已收录 ${knowledgeCount} 种`}
           </Text>
         </View>
         {/* 节气食盒 */}
         <View
-          className="rounded-2xl p-3 active:scale-[0.98] transition-transform"
-          style={{ background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)', boxShadow: '0 2px 12px rgba(217,119,6,0.12)' }}
+          className="pg-card rounded-2xl p-3 active:scale-[0.98] transition-transform"
+          style={{ background: 'linear-gradient(135deg, hsl(var(--brand-gold) / 0.14) 0%, hsl(var(--brand-gold) / 0.05) 100%)' }}
           hoverClass="none"
           onClick={() => Taro.navigateTo({ url: '/pages/food/seasonal-box/index' })}
         >
           <Text className="text-lg">🌾</Text>
-          <Text className="text-sm font-bold text-[#B45309] block mt-1">节气食盒</Text>
-          <Text className="text-[11px] text-[#B45309] mt-1 opacity-70" style={{ lineHeight: 1.4 }}>
+          <Text className="text-sm font-bold block mt-1" style={{ color: 'hsl(var(--brand-ochre))' }}>节气食盒</Text>
+          <Text className="text-[11px] mt-1 opacity-70" style={{ color: 'hsl(var(--brand-ochre))', lineHeight: 1.4 }}>
             当前{termName} · 顺时而食
           </Text>
         </View>
       </View>
 
+      {/* 区块分隔：墨线 */}
+      <View className="ink-rule mx-4 mt-5" />
       {/* ===== 附近门店推荐：基于定位推荐最近自营门店，可一键切换 ===== */}
       {nearbyStores.length > 0 ? (
         <View className="mx-4 mt-4 pg-card p-4">
@@ -717,6 +740,8 @@ export default function IndexPage() {
         </View>
       )}
 
+      {/* 区块分隔：墨线 */}
+      <View className="ink-rule mx-4 mt-5" />
       {/* 个性化插卡：有画像→体质挑好物，否则→常买好物；仅 1 条，且已与主 Feed 去重 */}
       {!hasQuery && personalizedItems.length > 0 && (
         <View className="mt-4 px-4">
@@ -748,6 +773,8 @@ export default function IndexPage() {
         </View>
       )}
 
+      {/* 区块分隔：墨线 */}
+      <View className="ink-rule mx-4 mt-5" />
       {/* 限时福利入口：常驻可见，用户主动点击才展开，不再进首页 3s 强弹打断 */}
       {campaignList.length > 0 && !showCampaignPopup && (
         <View
@@ -772,6 +799,8 @@ export default function IndexPage() {
         </View>
       )}
 
+      {/* 区块分隔：墨线 */}
+      <View className="ink-rule mx-4 mt-5" />
       {/* 默认商品流：非查询态展示主池（已排除个性化插卡 + 叠加分类筛选）；两列网格瀑布 */}
       {!hasQuery && (
         <View className="mt-4 px-4">

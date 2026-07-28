@@ -12,6 +12,7 @@ import ComprehensiveSafetyReport from '@/components/ComprehensiveSafetyReport'
 import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
 import { getProductCareInfo } from '@/utils/product-care'
 import { analyzeForProfile, profileToCrowds } from '@/utils/food-therapy'
+import { buildHealthShortfalls, evaluateShortfall } from '@/utils/food-therapy/health-shortfall'
 import { matchAllergens } from '@/utils/allergen-dictionary'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import { useLocation } from '@/contexts/LocationContext'
@@ -136,6 +137,18 @@ export default function FoodScanPage() {
     if (g === 'S') suitable.push('可作日常选择')
     return { buy, child, suitable, unsuitable }
   }, [analyzed, report, labelAllergenHits])
+
+  // 健康短板：体质标签来自 profiles.constitution_tags（自测写入的 body_state）+ user_health_profile.body_states，
+  // 过敏原来自 user_health_profile.allergies。归一为体质后构建短板清单，并与扫描食养性味比对。
+  const shortfalls = useMemo(
+    () =>
+      buildHealthShortfalls(
+        [...(authProfile?.constitution_tags ?? []), ...(userProfile?.body_states ?? [])],
+        userProfile?.allergies ?? [],
+      ),
+    [authProfile, userProfile],
+  )
+  const shortfallEval = useMemo(() => evaluateShortfall(shiyang, shortfalls), [shiyang, shortfalls])
 
   const analyze = async () => {
     if (!text.trim()) {
@@ -339,6 +352,47 @@ export default function FoodScanPage() {
         </View>
       )}
 
+      {/* 针对用户的健康短板：把扫描配料性味 vs 用户短板 → 补/伤/中性 */}
+      {analyzed && shortfalls.length > 0 && (
+        <View className="mt-4 rounded-2xl border p-4" style={{ borderColor: '#F3D9E6', background: '#FFFBF7' }}>
+          <Text className="text-base font-bold text-[#1A1A1A]">🎯 针对你的健康短板</Text>
+          {shortfallEval.hits.filter((h) => h.kind === 'harm').length > 0 && (
+            <View className="mt-2">
+              <Text className="text-xs font-semibold" style={{ color: '#DC2626', display: 'block', marginBottom: 4 }}>
+                偏伤短板，建议少碰或避开
+              </Text>
+              <View className="flex flex-wrap gap-2">
+                {shortfallEval.hits.filter((h) => h.kind === 'harm').map((h, i) => (
+                  <View key={i} className="rounded-full px-3 py-1" style={{ background: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' }}>
+                    <Text className="text-xs" style={{ color: '#B91C1C' }}>{h.item} · {h.shortfallLabel}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+          {shortfallEval.hits.filter((h) => h.kind === 'boost').length > 0 && (
+            <View className="mt-2">
+              <Text className="text-xs font-semibold" style={{ color: '#16A34A', display: 'block', marginBottom: 4 }}>
+                正好补短板，可常吃
+              </Text>
+              <View className="flex flex-wrap gap-2">
+                {shortfallEval.hits.filter((h) => h.kind === 'boost').map((h, i) => (
+                  <View key={i} className="rounded-full px-3 py-1" style={{ background: '#ECFDF3', borderWidth: 1, borderColor: '#BBF7D0' }}>
+                    <Text className="text-xs" style={{ color: '#15803D' }}>{h.item} · {h.shortfallLabel}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+          {shortfallEval.hits.length === 0 && (
+            <Text className="text-xs text-[#6B7280] mt-2 block" style={{ lineHeight: 1.7 }}>
+              当前配料与你已知的短板无明显冲突，可放心看其他维度。
+            </Text>
+          )}
+          <Text className="text-[11px] text-[#9CA3AF] mt-2 block" style={{ lineHeight: 1.6 }}>{FOOD_THERAPY_DISCLAIMER}</Text>
+        </View>
+      )}
+
       {/* 明细面板（命中添加剂或食材才展示） */}
       {analyzed && (additives.length > 0 || shiyang.length > 0) && (
         <FoodSafetyPanel foodAdditives={additives} shiyangEntries={shiyang} />
@@ -444,22 +498,22 @@ function SeasonalBoxEntry() {
   const termName = current?.name || '当季'
   return (
     <View
-      className="mt-4 rounded-2xl p-4"
-      style={{ background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)', boxShadow: '0 2px 12px rgba(217,119,6,0.12)' }}
+      className="mt-4 pg-card rounded-2xl p-4"
+      style={{ background: 'linear-gradient(135deg, hsl(var(--brand-gold) / 0.14) 0%, hsl(var(--brand-gold) / 0.05) 100%)' }}
       onClick={() => Taro.navigateTo({ url: '/pages/food/seasonal-box/index' })}
     >
       <View className="flex items-center justify-between">
         <View className="flex-1">
-          <Text className="text-sm font-bold text-[#B45309]">🌾 节气食盒</Text>
-          <Text className="text-xs text-[#B45309] mt-1 opacity-70">
+          <Text className="text-sm font-bold" style={{ color: 'hsl(var(--brand-ochre))' }}>🌾 节气食盒</Text>
+          <Text className="text-xs mt-1 opacity-70" style={{ color: 'hsl(var(--brand-ochre))', lineHeight: 1.4 }}>
             当前{termName} · 应季食材精选，顺时而食
           </Text>
         </View>
         <View className="flex items-center gap-2">
-          <View className="w-10 h-10 rounded-xl bg-[#F59E0B]/10 flex items-center justify-center">
+          <View className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'hsl(var(--brand-gold) / 0.14)' }}>
             <Text className="text-xl">{current?.emoji || '🌾'}</Text>
           </View>
-          <Text className="text-[#B45309] text-sm">→</Text>
+          <Text className="text-sm" style={{ color: 'hsl(var(--brand-ochre))' }}>→</Text>
         </View>
       </View>
     </View>
@@ -472,24 +526,24 @@ function KnowledgeAtlasEntry() {
   const count = Object.keys(collected).length
   return (
     <View
-      className="mt-6 rounded-2xl p-4"
-      style={{ background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)', boxShadow: '0 2px 12px rgba(22,163,74,0.12)' }}
+      className="mt-6 pg-card rounded-2xl p-4"
+      style={{ background: 'linear-gradient(135deg, hsl(var(--brand-jade) / 0.10) 0%, hsl(var(--brand-jade) / 0.03) 100%)' }}
       onClick={() => Taro.navigateTo({ url: '/pages/food/knowledge-atlas/index' })}
     >
       <View className="flex items-center justify-between">
         <View className="flex-1">
-          <Text className="text-sm font-bold text-[#16A34A]">🧭 食安知识图谱</Text>
-          <Text className="text-xs text-[#16A34A] mt-1 opacity-70">
+          <Text className="text-sm font-bold" style={{ color: 'hsl(var(--brand-jade))' }}>🧭 食安知识图谱</Text>
+          <Text className="text-xs mt-1 opacity-70" style={{ color: 'hsl(var(--brand-jade))', lineHeight: 1.4 }}>
             {count === 0
               ? '扫描配料表，发现新成分收入图谱'
               : `已收录 ${count} 种成分，继续探索解锁更多`}
           </Text>
         </View>
         <View className="flex items-center gap-2">
-          <View className="w-10 h-10 rounded-xl bg-[#16A34A]/10 flex items-center justify-center">
+          <View className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'hsl(var(--brand-jade) / 0.12)' }}>
             <Text className="text-xl">🧪</Text>
           </View>
-          <Text className="text-[#16A34A] text-sm">→</Text>
+          <Text className="text-sm" style={{ color: 'hsl(var(--brand-jade))' }}>→</Text>
         </View>
       </View>
     </View>

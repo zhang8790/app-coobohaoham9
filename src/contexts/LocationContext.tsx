@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import Taro from '@tarojs/taro'
 import { getUserLocation, matchCityByLocation } from '@/utils/lbs-service'
 import { getNearestStores } from '@/db/api'
@@ -40,6 +40,12 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // 用 ref 持有 currentCity 最新值，避免 detectLocation 因依赖 currentCity 而反复重装引用（这是首页定位闪烁的根因之一）
+  const cityRef = useRef<CityInfo | null>(null)
+  cityRef.current = currentCity
+  // 定位并发去重：正在定位时重复调用直接返回，杜绝首页 effect 在 nearbyStores 异步就绪前的渲染间隙重复拉 GPS
+  const locateInFlightRef = useRef(false)
+
   // 从缓存恢复
   useEffect(() => {
     const cachedCity = Taro.getStorageSync('currentCity')
@@ -68,6 +74,10 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
 
   // 自动检测定位：城市 + 最近直营门店（按定位切换当前门店）
   const detectLocation = useCallback(async () => {
+    // 并发去重：首页 effect 在 nearbyStores 异步就绪前的渲染间隙可能重复进入，
+    // 这里直接拦掉重复调用，避免反复拉 GPS 导致定位 pill 一直闪烁
+    if (locateInFlightRef.current) return
+    locateInFlightRef.current = true
     setLoading(true)
     setError(null)
     try {
@@ -85,14 +95,15 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       console.error('[Location] detectLocation error:', err)
       setError(err?.message || '定位失败')
-      if (!currentCity) {
+      if (!cityRef.current) {
         setCurrentCity(DEFAULT_CITY)
         Taro.setStorageSync('currentCity', DEFAULT_CITY)
       }
     } finally {
       setLoading(false)
+      locateInFlightRef.current = false
     }
-  }, [currentCity, resolveNearestStore])
+  }, [resolveNearestStore])
 
   const setCity = useCallback((city: CityInfo) => {
     setCurrentCity(city)

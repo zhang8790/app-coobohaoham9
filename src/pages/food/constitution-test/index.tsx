@@ -17,6 +17,7 @@ import {
   type TestResult,
   type ConstitutionType,
 } from '@/utils/constitution-test'
+import { buildHealthShortfalls } from '@/utils/food-therapy/health-shortfall'
 import { getProducts, updateProfile } from '@/db/api'
 import { upsertUserHealthProfile } from '@/db/food-api'
 import { ALLERGY_OPTIONS } from '@/utils/food-therapy/profile-map'
@@ -117,6 +118,7 @@ export default function ConstitutionTestPage() {
 
   // ── 结果卡配色 ─────────────────────────────────────────────
   const primary: ConstitutionType | null = result?.primary ?? null
+  const shortfalls = result ? buildHealthShortfalls([result.primary.key], []) : []
 
   return (
     <View className="min-h-screen bg-[#FFFBF7] px-4 pt-5 pb-16">
@@ -262,6 +264,22 @@ export default function ConstitutionTestPage() {
                   <Text className="text-xs text-[#DC2626]">慎 · {primary.avoidNature.join(' / ')}</Text>
                 </View>
               )}
+            </View>
+          </View>
+
+          {/* 你的健康短板 */}
+          <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+            <Text className="text-sm font-bold text-[#1A1A1A]">你的健康短板</Text>
+            <View className="mt-2 flex flex-col gap-2">
+              {shortfalls.map((s) => (
+                <View key={s.key} className="rounded-xl px-3 py-2" style={{ background: s.severity === 'low' ? '#F0FDF4' : '#FFFBF7', borderWidth: 1, borderColor: '#F3D9E6' }}>
+                  <View className="flex items-center gap-1.5">
+                    <Text className="text-base">{s.emoji}</Text>
+                    <Text className="text-sm font-semibold text-[#1A1A1A]">{s.label}</Text>
+                  </View>
+                  <Text className="text-xs text-[#6B7280] mt-1 block" style={{ lineHeight: 1.6 }}>{s.desc}</Text>
+                </View>
+              ))}
             </View>
           </View>
 

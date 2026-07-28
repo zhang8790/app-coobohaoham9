@@ -9,10 +9,50 @@
   transform: scale(0.96);
 }
 
-/* 首页 Hero 锚点：墨韵平涂底色 + 轻浮雕，制造视觉记忆点（替代原功能条堆叠） */
+/* 首页 Hero 锚点：墨韵平涂底色 + 轻浮雕 + 国潮装饰层，制造视觉记忆点 */
 .pg-hero {
-  background: hsl(var(--primary) / 0.06);
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120px 120px at 92% -8%, hsl(var(--brand-gold) / 0.18), transparent 70%),
+    radial-gradient(160px 160px at -12% 120%, hsl(var(--brand-jade) / 0.12), transparent 70%),
+    hsl(var(--primary) / 0.06);
   border: 1px solid hsl(var(--primary) / 0.20);
   border-radius: 20px;
   box-shadow: 0 8px 28px rgba(194, 65, 12, 0.08);
+}
+/* Hero 装饰：古金印章圆环（右上） */
+.pg-hero-seal {
+  position: absolute;
+  right: -20px;
+  top: -20px;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 2px solid hsl(var(--brand-gold) / 0.35);
+  background: hsl(var(--brand-gold) / 0.08);
+  pointer-events: none;
+}
+/* Hero 装饰：松绿柔光晕（左下） */
+.pg-hero-glow {
+  position: absolute;
+  left: -34px;
+  bottom: -34px;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(circle, hsl(var(--brand-jade) / 0.16), transparent 70%);
+  pointer-events: none;
+}
+/* Hero 品牌标识圆：古金→赭红渐变徽标 */
+.pg-hero-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, hsl(var(--brand-gold)) 0%, hsl(var(--primary)) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(168, 85, 46, 0.28);
+  flex-shrink: 0;
 }
