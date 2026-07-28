@@ -265,7 +265,7 @@ const 火锅: LexiconEntry = {
     sensory: ['温热', '馥郁', '酥脆'],
     functionTags: ['正餐'],
     identityTags: ['不将就', '自由', '分享'],
-    metaphors: ['咕嘟冒泡的红汤', '一桌人伸筷的暖', '蒸汽糊住眼镜的笑', '蘸料碗里调出的江湖'],
+    metaphors: ['咕嘟冒泡的红汤', '一桌人伸筷的暖', '蒸汽糊住眼镜的笑', '蘸料碗里调出的烟火气'],
     angles: ['一群人围着一口锅，什么隔阂都化了。', '汤一沸，话就多。'],
     bodyTemplates: [
       `{name}的汤一沸，{attr}香味先攻陷整张桌子，{metaphor}般的{realm}把寒气和生分一起煮化——{angle}`,

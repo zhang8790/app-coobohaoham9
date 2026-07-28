@@ -11,14 +11,14 @@ import './index.scss'
 
 type TabItem = { key: string; label: string; path?: string; center?: boolean }
 
-// 5 项布局：首页 / 自营 / [创作·居中凸起] / 行囊 / 侠客
+// 5 项布局：首页 / 自营 / [创作·居中凸起] / 购物车 / 用户
 // 创作居中按钮走 navigateTo（保留草稿编辑传参），不参与 switchTab
 const TABS: TabItem[] = [
   { key: 'home', label: '首页', path: '/pages/index/index' },
   { key: 'explore', label: '自营', path: '/pages/explore/index' },
   { key: 'create', label: '创作', center: true },
-  { key: 'cart', label: '行囊', path: '/pages/cart/index' },
-  { key: 'user', label: '侠客', path: '/pages/user/index' },
+  { key: 'cart', label: '购物车', path: '/pages/cart/index' },
+  { key: 'user', label: '我的', path: '/pages/user/index' },
 ]
 
 const TAB_ICONS_ACTIVE: Record<string, string> = {
@@ -98,7 +98,7 @@ export default function CustomTabBar() {
                 src={(isActive ? TAB_ICONS_ACTIVE : TAB_ICONS_INACTIVE)[t.key]}
                 mode="aspectFit"
               />
-              {/* 行囊（购物车）实时件数徽标：订阅全局 cartStore，加购/删改即时同步 */}
+              {/* 购物车（购物车）实时件数徽标：订阅全局 cartStore，加购/删改即时同步 */}
               {t.key === 'cart' && cartCount > 0 && (
                 <View className="ctb-badge">{cartCount > 99 ? '99+' : cartCount}</View>
               )}

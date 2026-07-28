@@ -63,7 +63,7 @@ export default function ScanResultPage() {
     await refreshCartCount()
     trackFoodTherapyEvent({ productId: product.id, eventType: 'add_cart', healthTag: (product as any).health_tag ?? [], emotionTag: (product as any).emotion_tag ?? [] }).catch(() => {})
     setAdding(false)
-    Taro.showToast({ title: '已加入行囊', icon: 'success' })
+    Taro.showToast({ title: '已加入购物车', icon: 'success' })
   }
 
   const handleBuyNow = async () => {
@@ -182,7 +182,7 @@ export default function ScanResultPage() {
           className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-primary bg-card"
           onClick={handleAddCart} disabled={inactive}>
           <View className="py-4 text-xl font-bold text-primary">
-            {added ? '已加入 ✓' : (adding ? '加入中...' : '收入行囊')}
+            {added ? '已加入 ✓' : (adding ? '加入中...' : '收入购物车')}
           </View>
         </Button>
         <Button type="button"

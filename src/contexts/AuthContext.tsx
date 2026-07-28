@@ -168,7 +168,6 @@ export function AuthProvider({children}: {children: ReactNode}) {
             })
             if (sessionError) throw sessionError
 
-            console.log('[Auth] 1856 硬登陆成功（force-login）')
             return { error: null }
           } catch (forceLoginErr) {
             // force-login 也失败（可能函数未部署 404 或其他错误），回退密码登录
@@ -184,7 +183,6 @@ export function AuthProvider({children}: {children: ReactNode}) {
               password: password || '12345678',
             })
             if (pwError) throw pwError
-            console.log('[Auth] 1870 登录成功（密码）')
             return { error: null }
           } catch (pwLoginErr) {
             throw new Error('1870 登录失败：' + (pwLoginErr as Error).message + '（请先在本机 Supabase SQL Editor 跑 scripts/fix-1870-password.sql）')
@@ -211,7 +209,6 @@ export function AuthProvider({children}: {children: ReactNode}) {
       
       // 如果是测试账号且登录失败（用户不存在），自动创建（仅 DEV 构建生效）
       if (process.env.TARO_APP_LOCAL_DEV === 'true' && error && email === 'test18701410500@test.com' && error.message.includes('Invalid login credentials')) {
-        console.log('[Auth] 测试账号不存在，自动创建...')
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -258,7 +255,6 @@ export function AuthProvider({children}: {children: ReactNode}) {
       if (data.user) {
         const { convertPendingReferral } = await import('@/db/api')
         await convertPendingReferral(data.user.id)
-        console.log('[Auth] 已转化预归属记录:', data.user.id)
       }
       
       return {error: null}
@@ -280,7 +276,6 @@ export function AuthProvider({children}: {children: ReactNode}) {
       if (data.user) {
         const { convertPendingReferral } = await import('@/db/api')
         await convertPendingReferral(data.user.id)
-        console.log('[Auth] 已转化预归属记录:', data.user.id)
       }
       
       return {error: null}
@@ -353,7 +348,6 @@ export function AuthProvider({children}: {children: ReactNode}) {
         
         // 如果用户不存在，自动创建
         if (error && error.message.includes('Invalid login credentials')) {
-          console.log('[Auth] 短信登录：测试账号不存在，自动创建...')
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: 'test18701410500@test.com',
             password: '12345678',
@@ -385,7 +379,6 @@ export function AuthProvider({children}: {children: ReactNode}) {
         if (user) {
           const { convertPendingReferral } = await import('@/db/api')
           await convertPendingReferral(user.id)
-          console.log('[Auth] 已转化预归属记录:', user.id)
         }
         
         return { error: null }
@@ -403,7 +396,6 @@ export function AuthProvider({children}: {children: ReactNode}) {
       if (data.user) {
         const { convertPendingReferral } = await import('@/db/api')
         await convertPendingReferral(data.user.id)
-        console.log('[Auth] 已转化预归属记录:', data.user.id)
       }
       
       return { error: null }

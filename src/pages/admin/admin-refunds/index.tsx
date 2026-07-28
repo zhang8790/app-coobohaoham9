@@ -129,7 +129,7 @@ function AdminRefundsPage() {
             <View key={r.id} className="rounded-2xl bg-card border border-border p-4 flex flex-col gap-3">
               <View className="flex items-start justify-between">
                 <View className="flex flex-col gap-1">
-                  <Text className="text-2xl font-bold text-foreground">{r.profiles?.nickname || '侠客'}</Text>
+                  <Text className="text-2xl font-bold text-foreground">{r.profiles?.nickname || '用户'}</Text>
                   <Text className="text-xl text-muted-foreground">{maskPhone(r.profiles?.phone) || '未知手机'}</Text>
                 </View>
                 <Text className="text-3xl font-black text-destructive">¥{Number(r.refund_amount).toFixed(2)}</Text>

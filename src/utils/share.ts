@@ -71,7 +71,6 @@ export async function handleInviterFromQuery(): Promise<void> {
     // 【新增】创建预归属记录（不登录也记录）
     const { createPendingReferral } = await import('@/db/api')
     await createPendingReferral({ referral_code: inviterCode })
-    console.log('[handleInviterFromQuery] 已创建预归属记录:', inviterCode)
 
     const { supabase } = await import('@/client/supabase')
     const { data: { user } } = await supabase.auth.getUser()

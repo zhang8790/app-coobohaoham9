@@ -26,7 +26,7 @@ export default function RankProgress({ cvTotal = 0, memberRank }: RankProgressPr
   return (
     <View className="rank-card">
       <View className="rank-top">
-        <Text className="rank-title">少侠之路</Text>
+        <Text className="rank-title">成长之路</Text>
         <Text className="rank-name">当前：{cur.rank}</Text>
       </View>
       <View className="rank-bar">

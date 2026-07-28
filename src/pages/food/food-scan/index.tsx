@@ -19,6 +19,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { uploadToStorage } from '@/utils/upload'
 import type { FoodAdditive, Product, UserHealthProfile } from '@/db/types'
 import { scanToProduct } from '@/utils/scan'
+import { useFoodKnowledgeStore } from '@/store/foodKnowledgeStore'
+import { getCurrentTerm } from '@/utils/seasonal-box'
 
 export default function FoodScanPage() {
   const { currentStore } = useLocation()
@@ -87,7 +89,7 @@ export default function FoodScanPage() {
             .slice(0, 8)
             .map((x) => x.p)
           setRecommend(scored)
-          setRecommendNote('完成「我的体质档案」后，推荐会更贴合您的身体')
+          setRecommendNote('完成「食养偏好自测」后，推荐会更贴合您的身体')
         }
       })
       .catch(() => {})
@@ -102,6 +104,38 @@ export default function FoodScanPage() {
     if (additives.some((a) => a.risk_level === 'yellow')) return { g: 'A', label: '含限量成分', color: '#D97706' }
     return { g: 'S', label: '配料较安全', color: '#16A34A' }
   }, [additives])
+
+  // P4 结论层：把评级/年龄/过敏聚合为「能买吗 / 能给孩子吃吗 / 适合谁」的直接判断
+  const conclusion = useMemo(() => {
+    if (!analyzed || !report) return null
+    const g = report.overall.grade
+    // 能买吗（结合用户过敏原命中）
+    let buy: { emoji: string; text: string; color: string }
+    if (labelAllergenHits.length > 0) {
+      buy = { emoji: '🔴', text: '不建议购买（含您过敏的成分）', color: '#DC2626' }
+    } else if (g === 'D' || g === 'C') {
+      buy = { emoji: '🟠', text: '谨慎购买（含风险成分，建议少买少吃）', color: '#DC2626' }
+    } else if (g === 'A') {
+      buy = { emoji: '🟡', text: '可适量食用', color: '#D97706' }
+    } else {
+      buy = { emoji: '🟢', text: '可放心选购', color: '#16A34A' }
+    }
+    // 能给孩子吃吗（复用引擎 ageSuitability.infantSafe）
+    const childSafe = report.ageSuitability.infantSafe
+    const child: { emoji: string; text: string; color: string } = childSafe
+      ? { emoji: '🟢', text: '儿童可食用（仍建议适量、家长酌情）', color: '#16A34A' }
+      : { emoji: '🔴', text: '不建议给婴幼儿/儿童食用', color: '#DC2626' }
+    // 适合 / 不适合人群
+    const unsuitable: string[] = []
+    if (labelAllergenHits.length > 0) unsuitable.push('对您不适合（含过敏成分）')
+    if (report.allergens.contains) {
+      unsuitable.push(`过敏人群（含${report.allergens.detected.map((a) => a.name).join('、')}）`)
+    }
+    if (!childSafe) unsuitable.push('婴幼儿及儿童')
+    const suitable: string[] = unsuitable.length === 0 ? ['一般人群均可食用'] : ['无相关过敏/禁忌的一般人群']
+    if (g === 'S') suitable.push('可作日常选择')
+    return { buy, child, suitable, unsuitable }
+  }, [analyzed, report, labelAllergenHits])
 
   const analyze = async () => {
     if (!text.trim()) {
@@ -126,6 +160,11 @@ export default function FoodScanPage() {
         }),
       )
       setAnalyzed(true)
+
+      // 发现新知识碎片（食安知识图谱）
+      for (const additive of res.additives) {
+        discoverFragment(additive.name)
+      }
     } catch (e) {
       console.error('[FoodScan] 解析失败', e)
       Taro.showToast({ title: '解析失败，请重试', icon: 'none' })
@@ -262,6 +301,44 @@ export default function FoodScanPage() {
         </View>
       )}
 
+      {/* P4 结论层：直接回答「能买吗 / 能给孩子吃吗 / 适合谁」 */}
+      {analyzed && conclusion && (
+        <View
+          className="mt-3 rounded-2xl border-2 p-4"
+          style={{ borderColor: conclusion.buy.color + '66', backgroundColor: conclusion.buy.color + '0D' }}
+        >
+          <Text className="text-base font-bold text-foreground" style={{ display: 'block', marginBottom: 10 }}>
+            📌 一句话结论
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={{ fontSize: 18, marginRight: 8 }}>{conclusion.buy.emoji}</Text>
+            <Text className="text-sm font-semibold" style={{ color: conclusion.buy.color, flex: 1, lineHeight: 1.5 }}>
+              {conclusion.buy.text}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+            <Text style={{ fontSize: 18, marginRight: 8 }}>{conclusion.child.emoji}</Text>
+            <Text className="text-sm font-semibold" style={{ color: conclusion.child.color, flex: 1, lineHeight: 1.5 }}>
+              {conclusion.child.text}
+            </Text>
+          </View>
+          <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)', paddingTop: 10 }}>
+            <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginBottom: 4, lineHeight: 1.6 }}>
+              适合：{conclusion.suitable.join('；')}
+            </Text>
+            <Text
+              className="text-xs"
+              style={{ display: 'block', color: conclusion.unsuitable.length ? '#B91C1C' : '#16A34A', lineHeight: 1.6 }}
+            >
+              不适合：{conclusion.unsuitable.length ? conclusion.unsuitable.join('；') : '暂无明显禁忌人群'}
+            </Text>
+          </View>
+          <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 10, lineHeight: 1.6 }}>
+            {FOOD_THERAPY_DISCLAIMER}
+          </Text>
+        </View>
+      )}
+
       {/* 明细面板（命中添加剂或食材才展示） */}
       {analyzed && (additives.length > 0 || shiyang.length > 0) && (
         <FoodSafetyPanel foodAdditives={additives} shiyangEntries={shiyang} />
@@ -351,6 +428,70 @@ export default function FoodScanPage() {
           未识别到已知配料或食材，请检查输入内容。
         </Text>
       )}
+
+      {/* 食安知识图谱入口 */}
+      <KnowledgeAtlasEntry />
+
+      {/* 节气食盒入口 */}
+      <SeasonalBoxEntry />
+    </View>
+  )
+}
+
+// 节气食盒入口（独立hook取当前节气，避免JSX内直接调用getState）
+function SeasonalBoxEntry() {
+  const current = getCurrentTerm()
+  const termName = current?.name || '当季'
+  return (
+    <View
+      className="mt-4 rounded-2xl p-4"
+      style={{ background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)', boxShadow: '0 2px 12px rgba(217,119,6,0.12)' }}
+      onClick={() => Taro.navigateTo({ url: '/pages/food/seasonal-box/index' })}
+    >
+      <View className="flex items-center justify-between">
+        <View className="flex-1">
+          <Text className="text-sm font-bold text-[#B45309]">🌾 节气食盒</Text>
+          <Text className="text-xs text-[#B45309] mt-1 opacity-70">
+            当前{termName} · 应季食材精选，顺时而食
+          </Text>
+        </View>
+        <View className="flex items-center gap-2">
+          <View className="w-10 h-10 rounded-xl bg-[#F59E0B]/10 flex items-center justify-center">
+            <Text className="text-xl">{current?.emoji || '🌾'}</Text>
+          </View>
+          <Text className="text-[#B45309] text-sm">→</Text>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+// 知识图谱入口组件（独立hook调用，避免JSX内直接调用getState）
+function KnowledgeAtlasEntry() {
+  const collected = useFoodKnowledgeStore((s) => s.collected)
+  const count = Object.keys(collected).length
+  return (
+    <View
+      className="mt-6 rounded-2xl p-4"
+      style={{ background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)', boxShadow: '0 2px 12px rgba(22,163,74,0.12)' }}
+      onClick={() => Taro.navigateTo({ url: '/pages/food/knowledge-atlas/index' })}
+    >
+      <View className="flex items-center justify-between">
+        <View className="flex-1">
+          <Text className="text-sm font-bold text-[#16A34A]">🧭 食安知识图谱</Text>
+          <Text className="text-xs text-[#16A34A] mt-1 opacity-70">
+            {count === 0
+              ? '扫描配料表，发现新成分收入图谱'
+              : `已收录 ${count} 种成分，继续探索解锁更多`}
+          </Text>
+        </View>
+        <View className="flex items-center gap-2">
+          <View className="w-10 h-10 rounded-xl bg-[#16A34A]/10 flex items-center justify-center">
+            <Text className="text-xl">🧪</Text>
+          </View>
+          <Text className="text-[#16A34A] text-sm">→</Text>
+        </View>
+      </View>
     </View>
   )
 }

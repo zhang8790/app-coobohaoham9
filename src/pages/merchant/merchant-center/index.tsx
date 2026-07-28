@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { View, Text, Button, Image } from '@tarojs/components'
-import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMyMerchantApplication, generateQrcode, getMerchantSettlement } from '@/db/api'
+import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMyMerchantApplication, generateQrcode, getMerchantSettlement, getNearExpiryProducts } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { to: '/pages/merchant/merchant-analytics/index', icon: 'chart', label: '数据分析', color: 'bg-brand-bronze', key: 'analytics' },
   { to: '/pages/merchant/merchant-settings/index', icon: 'shop', label: '店铺设置', color: 'bg-secondary', key: 'settings' },
   { to: '/pages/trade/withdraw/index', icon: 'coin', label: '货款提现', color: 'bg-accent', key: 'withdraw' },
+  { to: '/pages/merchant/merchant-expiry/index', icon: 'bell-outline', label: '临期预警', color: 'bg-destructive', key: 'expiry' },
 ]
 
 function MerchantCenterPage() {
@@ -26,6 +27,9 @@ function MerchantCenterPage() {
   const [statsLoaded, setStatsLoaded] = useState(false)
   const [merchantAppStatus, setMerchantAppStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // 临期预警摘要（按本店 store.id 过滤）
+  const [expiryStats, setExpiryStats] = useState<{ total: number; red: number; orange: number; amber: number } | null>(null)
 
   // 商家货款结算概览（迁移 00120）
   const [settlement, setSettlement] = useState<{
@@ -72,7 +76,6 @@ function MerchantCenterPage() {
           return
         }
 
-        console.log('[MerchantCenter] 开始加载，用户ID:', user.id)
 
         // 并行加载，但分别处理错误
         const [storeResult, appResult] = await Promise.allSettled([
@@ -84,7 +87,6 @@ function MerchantCenterPage() {
 
         // 处理商家信息
         if (storeResult.status === 'fulfilled') {
-          console.log('[MerchantCenter] 商家信息:', storeResult.value)
           setStore(storeResult.value)
         } else {
           console.error('[MerchantCenter] 加载商家信息失败:', storeResult.reason)
@@ -92,7 +94,6 @@ function MerchantCenterPage() {
 
         // 处理审核状态
         if (appResult.status === 'fulfilled') {
-          console.log('[MerchantCenter] 审核状态:', appResult.value)
           setMerchantAppStatus(appResult.value?.status || null)
         } else {
           console.error('[MerchantCenter] 加载审核状态失败:', appResult.reason)
@@ -100,7 +101,6 @@ function MerchantCenterPage() {
 
         // 无论成功失败，都退出加载状态
         setLoading(false)
-        console.log('[MerchantCenter] 加载完成，loading设为false')
 
       } catch (error) {
         console.error('[MerchantCenter] 加载过程异常:', error)
@@ -131,7 +131,8 @@ function MerchantCenterPage() {
       getMerchantSettlement(store.id).catch(() => null),
       supabase.rpc('get_store_locked_members', { p_store_id: store.id })
         .then((r: { data?: any[] }) => (r.data ?? []) as any[]).catch(() => [] as any[]),
-    ]).then(([prods, ords, sett, members]) => {
+      getNearExpiryProducts({ storeId: store.id, limit: 200 }).catch(() => [] as any[]),
+    ]).then(([prods, ords, sett, members, expiry]) => {
       if (cancelled) return
       if (sett) setSettlement(sett)
       const online = prods.filter(p => p.is_active).length
@@ -144,6 +145,12 @@ function MerchantCenterPage() {
       const memberList = Array.isArray(members) ? members : []
       const crossStore = memberList.filter((m: any) => m.referrer_store_id && m.referrer_store_id !== store.id).length
       setStats({ products: prods.length, online, orders: orderNoSet.size, todayOrders: todayOrderNoSet.size, members: memberList.length, crossStore })
+      // 临期摘要：按 discount_stage 分组计数
+      const expiryList = Array.isArray(expiry) ? expiry : []
+      const red = expiryList.filter((e: any) => e.discount_stage === 'red').length
+      const orange = expiryList.filter((e: any) => e.discount_stage === 'orange').length
+      const amber = expiryList.filter((e: any) => e.discount_stage === 'amber').length
+      setExpiryStats({ total: expiryList.length, red, orange, amber })
       // 取最近 5 笔去重订单（order_items 一行一商品，按 order_no 聚合）
       const seen = new Set<string>()
       const recent: any[] = []
@@ -217,7 +224,7 @@ function MerchantCenterPage() {
       <Text className="text-base text-muted-foreground">正在加载门店数据…</Text>
       <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
         onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
-        <Text className="text-base text-muted-foreground">返回侠客</Text>
+        <Text className="text-base text-muted-foreground">返回个人</Text>
       </Button>
     </View>
   )
@@ -342,6 +349,39 @@ function MerchantCenterPage() {
           货款以人民币结算（含金豆支付等值部分，由平台垫付），由微信直接打款到您的账户，可提现。
         </Text>
       </View>
+
+      {/* ============ 临期预警摘要卡（按本店过滤） ============ */}
+      {expiryStats && expiryStats.total > 0 && (
+        <View
+          className="mx-4 mt-3 p-4 rounded-2xl border border-destructive/30"
+          style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.10), rgba(249,115,22,0.06))' }}
+          onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-expiry/index' })}>
+          <View className="flex items-center justify-between">
+            <View className="flex items-center gap-2">
+              <View className="w-9 h-9 rounded-xl bg-destructive/15 flex items-center justify-center">
+                <Icon name="bell-outline" size={20} className="text-destructive" />
+              </View>
+              <Text className="text-lg font-bold text-foreground">临期预警</Text>
+            </View>
+            <Text className="text-base text-destructive font-bold">{expiryStats.total} 件 →</Text>
+          </View>
+          <View className="flex gap-4 mt-3">
+            <View className="flex items-center gap-1.5">
+              <View style={{ width: 10, height: 10, borderRadius: 5, background: '#DC2626' }} />
+              <Text className="text-base text-foreground">紧急 {expiryStats.red}</Text>
+            </View>
+            <View className="flex items-center gap-1.5">
+              <View style={{ width: 10, height: 10, borderRadius: 5, background: '#EA580C' }} />
+              <Text className="text-base text-foreground">紧迫 {expiryStats.orange}</Text>
+            </View>
+            <View className="flex items-center gap-1.5">
+              <View style={{ width: 10, height: 10, borderRadius: 5, background: '#D97706' }} />
+              <Text className="text-base text-foreground">临期 {expiryStats.amber}</Text>
+            </View>
+          </View>
+          <Text className="text-sm text-muted-foreground mt-2">引擎已自动写入折扣，点此查看/调整</Text>
+        </View>
+      )}
 
       {/* 功能导航网格 */}
       <View className="grid grid-cols-4 gap-3 px-4 mt-4">

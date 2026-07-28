@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '行囊',
+  navigationBarTitleText: '购物车',
   enableShareAppMessage: true,
   enableShareTimeline: true,
 })

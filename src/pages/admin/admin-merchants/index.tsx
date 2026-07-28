@@ -1,5 +1,5 @@
 import { View, Button, Textarea, Text } from '@tarojs/components'
-// @title 门派大典
+// @title 门店审核
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { getAdminMerchantApplications, adminApproveApplication, adminRejectApplication } from '@/db/api'

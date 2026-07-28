@@ -22,6 +22,9 @@ import SymptomRules from '@/pages/SymptomRules'
 import MarketingTemplates from '@/pages/MarketingTemplates'
 import SelfStores from '@/pages/SelfStores'
 import CommissionGuide from '@/pages/CommissionGuide'
+import Categories from '@/pages/Categories'
+import Settings from '@/pages/Settings'
+import Expiry from '@/pages/Expiry'
 // 商家管理页面
 import MerchantDashboard from '@/pages/merchant/Index'
 import MerchantProducts from '@/pages/merchant/Products'
@@ -129,7 +132,10 @@ export default function App() {
           <Route path="marketing-templates" element={<MarketingTemplates />} />
           <Route path="self-stores" element={<SelfStores />} />
           <Route path="commission-guide" element={<CommissionGuide />} />
-          </Route>
+            <Route path="categories" element={<Categories />} />
+            <Route path="expiry" element={<Expiry />} />
+            <Route path="settings" element={<Settings />} />
+            </Route>
 
           {/* ===== 自营门店管理后台（merchant 专属）===== */}
           <Route path="/merchant" element={<RequireAuth requireMerchant><MerchantLayout /></RequireAuth>}>

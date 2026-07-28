@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
-import type { Product } from '@/types'
+import type { Product, StoreCategory } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { getCategories, createStoreCategory, updateStoreCategory, deleteStoreCategory } from '@/api/categories'
 import { localCompileEmotion, recommendDimensions } from '@/utils/emotion'
 import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/utils/shiyang'
 import { NATURE_SCALE, CROWD_OPTIONS, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
+import { analyzeDish } from '@/utils/dish-analyzer'
 
 interface ProductWithExt extends Product {
   status: 'online' | 'offline'
@@ -145,6 +147,7 @@ export default function MerchantProducts() {
     guide_sentence: '',
     moments_copy: '',
     taboo_warning: '',
+    category_id: '',
   })
   const mainImgRef   = useRef<HTMLInputElement>(null)
   const subImgRef    = useRef<HTMLInputElement>(null)
@@ -154,6 +157,23 @@ export default function MerchantProducts() {
   // 判断是否有自营门店权限
   const isMerchantUser = profile?.merchant_status === 'approved' || profile?.role === 'merchant'
   const [customScene, setCustomScene] = useState('')
+
+  // —— 商品分类（store_categories：本店 + 平台全局）——
+  const [categories, setCategories] = useState<StoreCategory[]>([])
+  const [showCatModal, setShowCatModal] = useState(false)
+  const [newCatName, setNewCatName] = useState('')
+  const [editingCatId, setEditingCatId] = useState<string | null>(null)
+  const [editingCatName, setEditingCatName] = useState('')
+
+  // 加载本店分类（含平台全局），仅在真实模式且已拿到 storeId 时
+  useEffect(() => {
+    if (useMock || !storeId) { setCategories([]); return }
+    const loadCats = async () => {
+      const data = await getCategories({ storeId, includeGlobal: true })
+      setCategories(data)
+    }
+    loadCats()
+  }, [useMock, storeId])
 
   // 获取当前商家的 store_id
   useEffect(() => {
@@ -252,7 +272,7 @@ export default function MerchantProducts() {
       overall_nature: '', health_tag: [], emotion_tag: [], match_goods: [], conflict_goods: [], aux_remind: '',
       food_category: '', positive_effect: '', risk_warning: '', emotion_copy: '', scenes: [],
       rec_crowds: [], cautious_crowds: [], cautious_notes: '', forbidden_crowds: [], forbidden_reasons: '',
-      combo_product_ids: [], guide_sentence: '', moments_copy: '', taboo_warning: '' })
+      combo_product_ids: [], guide_sentence: '', moments_copy: '', taboo_warning: '', category_id: '' })
     setShowModal(true)
   }
 
@@ -291,11 +311,57 @@ export default function MerchantProducts() {
       guide_sentence: (p as any).guide_sentence ?? '',
       moments_copy: (p as any).moments_copy ?? '',
       taboo_warning: (p as any).taboo_warning ?? '',
+      category_id: (p as any).category_id ?? '',
     })
     setShowModal(true)
   }
 
   const closeModal = () => { setShowModal(false); setEditing(null) }
+
+  // —— 商品分类管理（新建/改名/排序/删除，仅店内分类可改；全局分类只读）——
+  const catNameOf = (id: string | null | undefined): string => {
+    if (!id) return '未分类'
+    const c = categories.find(x => x.id === id)
+    return c ? c.name : '未分类'
+  }
+
+  const handleAddCategory = async () => {
+    if (!storeId) { alert('未关联门店，无法新建分类'); return }
+    const name = newCatName.trim()
+    if (!name) { alert('请输入分类名称'); return }
+    const created = await createStoreCategory({ storeId, name })
+    if (!created) { alert('创建失败，请重试'); return }
+    setNewCatName('')
+    setCategories(await getCategories({ storeId, includeGlobal: true }))
+  }
+
+  const handleSaveRename = async (c: StoreCategory) => {
+    const name = editingCatName.trim()
+    if (!name) { setEditingCatId(null); return }
+    await updateStoreCategory(c.id, { name })
+    setEditingCatId(null)
+    setCategories(await getCategories({ storeId, includeGlobal: true }))
+  }
+
+  const handleDeleteCategory = async (c: StoreCategory) => {
+    if (!confirm(`确认删除「${c.name}」？该分类下商品将自动归为「未分类」。`)) return
+    await deleteStoreCategory(c.id)
+    if (form.category_id === c.id) setForm(f => ({ ...f, category_id: '' }))
+    setCategories(await getCategories({ storeId, includeGlobal: true }))
+  }
+
+  const handleMoveCategory = async (c: StoreCategory, dir: -1 | 1) => {
+    const sorted = [...categories].sort((a, b) => a.sort_order - b.sort_order)
+    const idx = sorted.findIndex(x => x.id === c.id)
+    const swapIdx = idx + dir
+    if (swapIdx < 0 || swapIdx >= sorted.length) return
+    const other = sorted[swapIdx]
+    await updateStoreCategory(c.id, { sort_order: other.sort_order })
+    await updateStoreCategory(other.id, { sort_order: c.sort_order })
+    setCategories(await getCategories({ storeId, includeGlobal: true }))
+  }
+
+  const catBtn: React.CSSProperties = { padding: '4px 8px', background: 'transparent', border: '1px solid var(--border-soft)', borderRadius: 6, cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)' }
 
   // 主图选择
   const handleMainImgChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -355,6 +421,24 @@ export default function MerchantProducts() {
     const keys = matchIngredientKeys(form.name)
     setForm(f => ({ ...f, ingredients: Array.from(new Set([...f.ingredients, ...keys])) }))
   }
+  // 食疗分析：按菜名系统拆解食材并组合生成全部食养字段（回填表单）
+  const handleAnalyzeDish = () => {
+    if (!form.name) return
+    const r = analyzeDish(form.name, form.ingredients)
+    setForm(f => ({
+      ...f,
+      ingredients: r.ingredients,
+      food_category: r.food_category || f.food_category,
+      overall_nature: r.overall_nature || f.overall_nature,
+      health_tag: r.health_tag.length ? r.health_tag : f.health_tag,
+      positive_effect: r.positive_effect || f.positive_effect,
+      risk_warning: r.risk_warning || f.risk_warning,
+      scenes: r.scenes.length ? r.scenes : f.scenes,
+      rec_crowds: r.rec_crowds.length ? r.rec_crowds : f.rec_crowds,
+      cautious_crowds: Array.from(new Set([...f.cautious_crowds, ...r.cautious_crowds])),
+      forbidden_crowds: r.forbidden_crowds.length ? r.forbidden_crowds : f.forbidden_crowds,
+    }))
+  }
   // 通用多选数组 toggle（场景 / 三类人群 / 升单套餐）
   const toggleArr = (key: 'scenes' | 'rec_crowds' | 'cautious_crowds' | 'forbidden_crowds' | 'combo_product_ids', val: string) => {
     setForm(f => {
@@ -378,6 +462,7 @@ export default function MerchantProducts() {
       detail_images: form.detail_images,
       video_url: form.video_url,
       discount_rate: dr || null,
+      category_id: form.category_id || null,
     }
     const body = {
       ...payload,
@@ -631,7 +716,7 @@ export default function MerchantProducts() {
               {/* info */}
               <div>
                 <p style={{ color: 'var(--text)', fontSize: 14, fontWeight: 500, margin: 0 }}>{p.name}</p>
-                <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: '2px 0 0' }}>编号: {p.id.slice(0, 8)}</p>
+                <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: '2px 0 0' }}>编号: {p.id.slice(0, 8)} · 🏷️ {catNameOf((p as any).category_id)}</p>
                 {/* 副图预览缩略图 */}
                 {p.sub_images && p.sub_images.length > 0 && (
                   <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
@@ -902,14 +987,39 @@ export default function MerchantProducts() {
               <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>粉面 / 炖汤 / 热饮 / 小菜，驱动食疗导购分类筛选</span>
             </div>
 
+            {/* 商品自定义分类（store_categories：本店 + 平台全局） */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>商品分类（自定义）</span>
+                <button type="button" onClick={() => setShowCatModal(true)}
+                  style={{ padding: '4px 12px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--primary)', cursor: 'pointer', fontSize: 12 }}>
+                  管理分类
+                </button>
+              </div>
+              <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
+                style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
+                <option value="">未分类</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}{c.scope === 'global' ? ' 🌐' : ''}</option>
+                ))}
+              </select>
+              <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>可新建店内分类；🌐 为平台全局分类，对所有门店生效</span>
+            </div>
+
             {/*  原料成分分析（可选） */}
             <div style={{ marginTop: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}> 原料成分分析（可选）</span>
-                <button type="button" onClick={autoDetectIngredients} disabled={!form.name}
-                  style={{ padding: '6px 14px', background: (!form.name) ? 'var(--border-soft)' : 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 8, color: (!form.name) ? 'var(--text-dim)' : 'var(--text)', cursor: (!form.name) ? 'not-allowed' : 'pointer', fontSize: 13 }}>
-                  智能识别
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={autoDetectIngredients} disabled={!form.name}
+                    style={{ padding: '6px 14px', background: (!form.name) ? 'var(--border-soft)' : 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 8, color: (!form.name) ? 'var(--text-dim)' : 'var(--text)', cursor: (!form.name) ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+                    智能识别
+                  </button>
+                  <button type="button" onClick={handleAnalyzeDish} disabled={!form.name}
+                    style={{ padding: '6px 14px', background: (!form.name) ? 'var(--border-soft)' : 'var(--success-strong)', border: '1px solid var(--success-strong)', borderRadius: 8, color: (!form.name) ? 'var(--text-dim)' : '#fff', cursor: (!form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                    ✨ 食疗分析
+                  </button>
+                </div>
               </div>
               <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>根据商品名自动识别食材，匹配食养成分（性味 / 功效 / 适合人群 / 场景）。</p>
               {form.ingredients.length === 0 ? (
@@ -976,9 +1086,9 @@ export default function MerchantProducts() {
               {/* 情绪价值文案（固定三段式模板填空） */}
               <div style={{ marginBottom: 14 }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>情绪价值文案（三段式）</span>
-                <textarea value={form.emotion_copy} onChange={e => setForm(f => ({ ...f, emotion_copy: e.target.value }))} placeholder={'第一段：热汤通体暖意\n第二段：治愈经期低落\n第三段：犒劳长期疲惫的自己'} rows={3}
+                <textarea value={form.emotion_copy} onChange={e => setForm(f => ({ ...f, emotion_copy: e.target.value }))} placeholder={'第一段：热汤通体暖意\n第二段：疲惫时的温柔抚慰\n第三段：犒劳长期辛苦的自己'} rows={3}
                   style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
-                <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>温暖陪伴 / 治愈低落 / 犒劳自己，三段换行填写</span>
+                <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>温暖陪伴 / 放松时刻 / 犒劳自己，三段换行填写</span>
               </div>
 
               {/* 适配消费场景（预设 + 自定义） */}
@@ -1080,7 +1190,7 @@ export default function MerchantProducts() {
               </div>
               <div style={{ marginBottom: 14 }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>朋友圈种草文案</span>
-                <textarea value={form.moments_copy} onChange={e => setForm(f => ({ ...f, moments_copy: e.target.value }))} placeholder="如：今天被这碗鸡汤治愈了，暖到心底✨" rows={2}
+                <textarea value={form.moments_copy} onChange={e => setForm(f => ({ ...f, moments_copy: e.target.value }))} placeholder="如：今天被这碗鸡汤暖到了，暖到心底✨" rows={2}
                   style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
               </div>
               <div style={{ marginBottom: 4 }}>
@@ -1099,6 +1209,55 @@ export default function MerchantProducts() {
                 fontSize: 14, fontWeight: 600,
               }}>确定</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 商品分类管理弹窗 */}
+      {showCatModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowCatModal(false)}>
+          <div style={{ background: 'var(--surface)', width: '100%', maxWidth: 640, maxHeight: '85vh', overflowY: 'auto', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <h3 style={{ margin: 0, color: 'var(--text)', fontSize: 17, fontWeight: 700 }}>管理商品分类</h3>
+              <button onClick={() => setShowCatModal(false)} style={{ background: 'transparent', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer' }}>×</button>
+            </div>
+
+            {/* 新建 */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              <input value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="输入新分类名称"
+                style={{ flex: 1, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 14, outline: 'none' }} />
+              <button onClick={handleAddCategory} style={{ padding: '8px 16px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}>新建</button>
+            </div>
+
+            {/* 列表 */}
+            {categories.length === 0 && <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>还没有分类，先在上方新建一个吧</p>}
+            {[...categories].sort((a, b) => a.sort_order - b.sort_order).map(c => {
+              const isGlobal = c.scope === 'global'
+              return (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                  {editingCatId === c.id ? (
+                    <input autoFocus value={editingCatName} onChange={e => setEditingCatName(e.target.value)} onBlur={() => handleSaveRename(c)}
+                      style={{ flex: 1, padding: '6px 10px', background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 6, color: 'var(--text)', fontSize: 14, outline: 'none' }} />
+                  ) : (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }}>
+                      <span style={{ fontSize: 15, color: 'var(--text)' }}>{c.name}</span>
+                      {isGlobal && <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>🌐 平台</span>}
+                    </div>
+                  )}
+                  {!isGlobal && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <button onClick={() => handleMoveCategory(c, -1)} style={catBtn}>↑</button>
+                      <button onClick={() => handleMoveCategory(c, 1)} style={catBtn}>↓</button>
+                      {editingCatId === c.id
+                        ? <button onClick={() => handleSaveRename(c)} style={{ ...catBtn, color: 'var(--success-strong)' }}>✓</button>
+                        : <button onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }} style={{ ...catBtn, color: 'var(--info-strong)' }}>改名</button>}
+                      <button onClick={() => handleDeleteCategory(c)} style={{ ...catBtn, color: 'var(--danger)' }}>删</button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 12 }}>🌐 平台分类由总部统一维护，店内不可修改；店内分类仅对本店商品生效。</p>
           </div>
         </div>
       )}

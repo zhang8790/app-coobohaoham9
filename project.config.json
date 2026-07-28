@@ -1,7 +1,7 @@
 {
     "miniprogramRoot": "dist/",
     "projectname": "来电有喜",
-    "description": "来电有喜 - 武侠生活好物平台",
+    "description": "来电有喜 - 好物生活平台",
     "appid": "wxb5bdfdbb471a500f",
     "setting": {
         "urlCheck": false,
@@ -9,7 +9,7 @@
         "enhance": false,
         "compileHotReLoad": false,
         "postcss": false,
-        "minified": false,
+        "minified": true,
         "babelSetting": {
             "ignore": [],
             "disablePlugins": [],

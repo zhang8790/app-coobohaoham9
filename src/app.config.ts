@@ -27,11 +27,14 @@ const subPackages = [
       'merchant-settings/index',
       'merchant-campaigns/index',
       'merchant-campaigns/create/index',
+      'merchant-expiry/index',
+      'merchant-batch/index',
     ],
   },
   {
     root: 'pages/mine',
     pages: [
+      'my-badges/index',
       'my-promotion/index',
       'address/index',
       'favorites/index',
@@ -42,7 +45,8 @@ const subPackages = [
       'my-referrals/index',
       'city-select/index',
       'messages/index',
-      'health-profile/index',
+      'article-favorites/index',
+      'followed-authors/index',
     ],
   },
   {
@@ -60,6 +64,7 @@ const subPackages = [
       'admin-users/index',
       'admin-refunds/index',
       'admin-announcements/index',
+      'admin-expiry/index',
     ],
   },
   {
@@ -87,7 +92,7 @@ const subPackages = [
   },
   {
     root: 'pages/food',
-    pages: ['scan-result/index', 'food-scan/index'],
+    pages: ['scan-result/index', 'food-scan/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index'],
   },
   {
     root: 'pages/ext',
@@ -107,8 +112,8 @@ export default defineAppConfig({
     list: [
       { pagePath: 'pages/index/index',     text: '首页' },
       { pagePath: 'pages/explore/index',   text: '自营' },
-      { pagePath: 'pages/cart/index',      text: '行囊' },
-      { pagePath: 'pages/user/index',      text: '侠客' },
+      { pagePath: 'pages/cart/index',      text: '购物车' },
+      { pagePath: 'pages/user/index',      text: '我的' },
     ],
   },
   window: {

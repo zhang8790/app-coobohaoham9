@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components'
-// @title 武林盟
+// @title 管理后台
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { getAdminStats } from '@/db/api'
@@ -45,10 +45,10 @@ function AdminPage() {
   useEffect(() => { load() }, [load])
 
   const cards = [
-    { label: '门派大典', sub: '自营门店审核', count: stats.merchants, icon: '🏪', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', url: '/pages/admin/admin/admin-merchants/index' },
+    { label: '门店审核', sub: '自营门店审核', count: stats.merchants, icon: '🏪', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', url: '/pages/admin/admin/admin-merchants/index' },
     { label: '宝贝审阅', sub: '商品上架审核', count: stats.products, icon: '📦', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', url: '/pages/admin/admin/admin-products/index' },
     { label: '佣金兑付', sub: '提现申请审核', count: stats.withdrawals, icon: '💰', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', url: '/pages/admin/admin/admin-withdrawals/index' },
-    { label: '武林贴管理', sub: 'UGC内容管理', count: stats.ugc, icon: '📰', color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200', url: '/pages/admin/admin/admin-ugc/index' },
+    { label: '内容管理', sub: 'UGC内容管理', count: stats.ugc, icon: '📰', color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200', url: '/pages/admin/admin/admin-ugc/index' },
   ]
 
   const platformCards = [
@@ -65,7 +65,7 @@ function AdminPage() {
           onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
           <Icon name="arrow-left" size={24} className="text-foreground" />
         </View>
-        <View className="flex-1 text-center text-xl font-bold text-foreground pr-10">武林盟</View>
+        <View className="flex-1 text-center text-xl font-bold text-foreground pr-10">管理后台</View>
       </View>
 
       {/* 头部 */}
@@ -73,7 +73,7 @@ function AdminPage() {
         <View className="flex items-center gap-3">
           <Icon name="shield-crown" size={36} className="text-white" />
           <View>
-            <Text className="text-3xl font-black text-white">武林盟</Text>
+            <Text className="text-3xl font-black text-white">管理后台</Text>
             <Text className="text-xl text-orange-200">超级管理后台</Text>
           </View>
         </View>
@@ -121,7 +121,7 @@ function AdminPage() {
             <View className="mt-6 rounded-2xl bg-card border border-border p-4">
               <View className="flex items-center gap-2 mb-3">
                 <Icon name="lightning-bolt" size={24} className="text-primary" />
-                <Text className="text-2xl font-bold text-foreground">武林盟令牌</Text>
+                <Text className="text-2xl font-bold text-foreground">管理令牌</Text>
               </View>
               {[
                 { name: '全部数字均为待处理数量', icon: 'ⓘ', color: 'text-primary' },

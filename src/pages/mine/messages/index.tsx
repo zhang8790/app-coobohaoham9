@@ -1,7 +1,7 @@
 // @title 消息中心
 // @description 展示用户全部业务通知（订单/佣金/退款/提现/公告）
 // 样式对齐全站「墨韵国潮」暖米亮色主题（设计 token: app.scss :root），
-// 与首页/自营/行囊/侠客 4 个 tab 页保持一致，移除离群的暗色皮肤。
+// 与首页/自营/购物车/用户 4 个 tab 页保持一致，移除离群的暗色皮肤。
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { View, Text, ScrollView } from '@tarojs/components'

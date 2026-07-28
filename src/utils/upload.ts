@@ -109,12 +109,10 @@ export async function uploadToStorage(tempFilePath: string, options?: { bucket?:
     try {
       const { data: userData } = await supabase.auth.getUser()
       if (userData?.user?.id) userId = userData.user.id
-      console.log('[uploadToStorage] 用户ID:', userId)
     } catch (authErr: any) {
       console.warn('[uploadToStorage] 获取用户失败，使用 public:', authErr?.message)
     }
     const storagePath = `${userId}/${fileName}`
-    console.log('[uploadToStorage] 目标路径:', storagePath, '| 桶:', bucket)
 
     // 微信小程序必须先读成 ArrayBuffer 再传给 Supabase
     let fileBody: FileBody = tempFilePath
@@ -124,7 +122,6 @@ export async function uploadToStorage(tempFilePath: string, options?: { bucket?:
         fs.readFile({
           filePath: tempFilePath,
           success: (res: any) => {
-            console.log('[uploadToStorage] readFile 成功，大小:', res.data?.byteLength || 'unknown')
             resolve(res.data as ArrayBuffer)
           },
           fail: (err: any) => {
@@ -138,7 +135,6 @@ export async function uploadToStorage(tempFilePath: string, options?: { bucket?:
       // readFile 失败时继续用原始路径尝试（某些情况下 supabase-js 可直接处理）
     }
 
-    console.log('[uploadToStorage] 开始上传到 Supabase Storage...')
     const { data, error } = await supabase.storage
       .from(bucket)
       .upload(storagePath, fileBody, {
@@ -174,7 +170,6 @@ export async function uploadToStorage(tempFilePath: string, options?: { bucket?:
     // 获取公网 URL
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path)
     const publicUrl = urlData?.publicUrl || ''
-    console.log('[uploadToStorage] ✅ 上传成功! URL:', publicUrl.slice(0, 80))
     return publicUrl
   } catch (error: any) {
     const errMsg = error?.message || error?.errMsg || String(error)

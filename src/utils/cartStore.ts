@@ -1,6 +1,6 @@
 // 全局购物车计数 store —— 解决「加购后角标/数量不同步，需刷新才显示」的问题。
 // 设计：模块级单一 count + 订阅池；任何页面加购/改数量/删除都即时 bump，
-// 底部自定义 TabBar（CustomTabBar）订阅本 store 自行渲染「行囊」徽标（ctb-badge），
+// 底部自定义 TabBar（CustomTabBar）订阅本 store 自行渲染「购物车」徽标（ctb-badge），
 // 不再依赖原生 setTabBarBadge（原生 tabBar 已 hideTabBar 隐藏）。
 // 计数语义 = 购物车总件数（Σ quantity），最贴合「购物数量」心智。
 import { useState, useEffect } from 'react'

@@ -82,7 +82,6 @@ async function runV5Commission(orderId: string, storeId: string, totalAmount: nu
       buyer_points: Math.round(commissionResult.buyerGoldBeans),
       platform_income: commissionResult.platformTotalIncome,
       commission_calculated: true}).eq('id', orderId)
-    console.log('[V5] 佣金计算完成', commissionResult)
   } catch (err) {
     console.error('[V5] 佣金计算失败', err)
   }
@@ -97,7 +96,9 @@ async function grantOneClaim(orderNo: string, item: any) {
       storeId: item.store_id || '',
       selectedEmotion: [],
       badgeText: '情绪确权'})
-    if (res.ok) console.log('[确权] 支付后自动确权成功', orderNo)
+    if (res.ok) {
+      // 支付后自动确权成功
+    }
     else console.warn('[确权] 支付后自动确权跳过', orderNo, res?.already ? '已确权' : '未过闸')
   } catch (e) {
     console.warn('[确权] 支付后自动确权异常(不影响订单)', e)
@@ -238,7 +239,6 @@ function PaymentPage() {
       setProductCheck({ loading: false, invalid: [] })
       return
     }
-    console.log('[预校验] 开始回查商品状态, ids=', ids)
     try {
       const { data: dbProds, error } = await supabase
         .from('products').select('id, price, is_active').in('id', ids)
@@ -247,7 +247,6 @@ function PaymentPage() {
         setProductCheck({ loading: false, invalid: [] })
         return
       }
-      console.log('[预校验] 回查结果:', dbProds)
       const map = new Map((dbProds || []).map((p: any) => [p.id, p]))
       const invalid: Array<{ product_id: string; name: string; reason: string }> = []
       for (const item of loadedItems) {
@@ -257,7 +256,6 @@ function PaymentPage() {
       }
       setProductCheck({ loading: false, invalid })
       if (invalid.length > 0) console.warn('[预校验] 发现失效商品:', invalid)
-      else console.log('[预校验] 全部商品有效')
     } catch (e) {
       console.warn('[预校验] 异常，跳过', e)
       setProductCheck({ loading: false, invalid: [] })
@@ -274,7 +272,6 @@ function PaymentPage() {
 
     // 余额优先取已验证正确的 getMyProfile.tb_balance（金豆），getMyBalance 作兜底（双保险防 RLS 偏差导致读成 0）
     const finalBalance = profile?.tb_balance ?? bal.tb_balance ?? 0
-    console.log('[Payment] 金豆余额加载结果:', { profileTb: profile?.tb_balance, apiTb: bal.tb_balance, final: finalBalance, version: '2026-07-18-v1' })
     setBalance(finalBalance)
     setAddresses(addrList)
 
@@ -358,9 +355,7 @@ function PaymentPage() {
               .eq('status', 'pending_pay')  // ⬅ 守卫：已支付/已金豆支付/已取消的订单不被覆盖
               .then(({ data }: { data: any }) => {
                 if (data && (data as any[]).length > 0) {
-                  console.log('[支付超时] 订单已取消', orderNo)
                 } else {
-                  console.log('[支付超时] 订单状态已变更，跳过取消', orderNo)
                 }
               })
               .catch((err: any) => console.error('[支付超时] 取消订单失败', err))
@@ -430,7 +425,6 @@ function PaymentPage() {
       if (error) {
         console.error('[跨门店支付] 确认子订单失败', error)
       } else {
-        console.log('[跨门店支付] 所有子订单已确认')
       }
     } catch (err) {
       console.error('[跨门店支付] 确认子订单异常', err)
@@ -442,7 +436,6 @@ function PaymentPage() {
     if (!ids || ids.length === 0) return
     try {
       await Promise.all(ids.map(id => removeCartItem(id).catch(() => null)))
-      console.log('[payment] 已清理购物车条目', ids)
     } catch (e) {
       console.warn('[payment] 清理购物车失败(不影响)', e)
     }
@@ -627,7 +620,6 @@ function PaymentPage() {
               const { error: derr } = await supabase.from('profiles').update({ tb_balance: p2.tb_balance - actualGoldBeansUsed }).eq('id', prof.id)
               if (derr) console.warn('[混合支付] 金豆扣减失败(不影响订单)', derr)
               else {
-                console.log('[混合支付] 金豆扣减成功', actualGoldBeansUsed)
                 // 非阻塞写金豆流水（混合支付消费抵扣）；表缺失(404)也不影响订单
                 supabase.from('tongbao_logs').insert({
                   user_id: prof.id,

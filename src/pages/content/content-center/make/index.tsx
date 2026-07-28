@@ -1,61 +1,38 @@
-// @title 创作江湖令
+// @title 创作中心
 import { useState, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text, Image, ScrollView, Input, Textarea } from '@tarojs/components'
+import { View, Text, Image, ScrollView, Input, Textarea, Video, Button } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { createArticle, updateArticle, searchProducts } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import './index.scss'
 import Icon from '@/components/Icon'
+import { uploadToStorage } from '@/utils/upload'
+import { useDebouncedCallback } from '@/utils/debounce'
 
 type Step = 'choose' | 'fetch' | 'edit'
 type EditMode = 'blank' | 'fetch' | 'template'
 
-// 创作方式卡片配置
-const MODES = [
-  {
-    key: 'blank' as EditMode,
-    icon: 'pencil-outline',
-    emoji: '✏️',
-    title: '空白原创',
-    desc: '从零开始，尽情挥毫',
-    bg: '#F1E9D9',
-    border: '#F59E0B'},
-  {
-    key: 'fetch' as EditMode,
-    icon: '🔗',
-    emoji: '🔗',
-    title: '链接导入',
-    desc: '导入好文，改编再创',
-    bg: '#EFF6FF',
-    border: '#3B82F6'},
-  {
-    key: 'template' as EditMode,
-    icon: 'file-document-outline',
-    emoji: '📝',
-    title: '模板套用',
-    desc: '套用范式，快速成文',
-    bg: '#F0FDF4',
-    border: '#22C55E'},
-]
+// 创作方式选择已移除（默认直达编辑）；模板仍由 TEMPLATES 提供
+
 
 // 内置模板
 const TEMPLATES = [
-  { name: '探店推荐', content: '【探店地址】\n\n【环境氛围】\n\n【主推好物】\n\n【性价比评分】\n\n【侠客总结】' },
+  { name: '探店推荐', content: '【探店地址】\n\n【环境氛围】\n\n【主推好物】\n\n【性价比评分】\n\n【总结】' },
   { name: '美食攻略', content: '【必点菜品】\n\n【口味描述】\n\n【人均消费】\n\n【排队情况】\n\n【推荐指数】⭐⭐⭐⭐⭐' },
   { name: '购物心得', content: '【购买理由】\n\n【使用体验】\n\n【优缺点分析】\n\n【适合人群】\n\n【是否回购】' },
-  { name: '江湖见闻', content: '【时间地点】\n\n【所见所闻】\n\n【心情感悟】\n\n【江湖寄语】' },
+  { name: '生活见闻', content: '【时间地点】\n\n【所见所闻】\n\n【心情感悟】\n\n【寄语】' },
 ]
 
 export default function MakePage() {
   const { user } = useAuth()
-  const [step, setStep] = useState<Step>('choose')
+  const [step, setStep] = useState<Step>('edit')
   const [editMode, setEditMode] = useState<EditMode>('blank')
 
   // 链接导入
   const [fetchUrl, setFetchUrl] = useState('')
   const [fetchLoading, setFetchLoading] = useState(false)
-  const [fetchResult, setFetchResult] = useState<{ title: string; content: string; images?: string[] } | null>(null)
+  const [fetchResult, setFetchResult] = useState<{ title: string; content: string; images?: string[]; videos?: string[] } | null>(null)
 
   // 模板选择
   const [showTemplates, setShowTemplates] = useState(false)
@@ -65,6 +42,11 @@ export default function MakePage() {
   const [content, setContent] = useState('')
   const [coverImage, setCoverImage] = useState<string | null>(null)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [videoTemp, setVideoTemp] = useState<string | null>(null)
+  const [videoUploading, setVideoUploading] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [showVideoLink, setShowVideoLink] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
   const [fetchedImages, setFetchedImages] = useState<string[]>([])
   const [publishing, setPublishing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -100,6 +82,27 @@ export default function MakePage() {
     }
   }
 
+  // 防抖：实时搜索每输入一个字就打一次网络请求，300ms 内连续输入只发最后一次（解决「防抖/速度慢」）
+  const debouncedProductSearch = useDebouncedCallback(handleProductSearch, 300)
+
+  // ── 分享（预览页顶栏「分享」按钮触发页面级转发）──
+  // 已存草稿/编辑已有文章 → 直接转发详情页链接；纯新草稿未保存 → 由预览页「分享」先存草稿再分享
+  Taro.useShareAppMessage(() => {
+    const t = (title && title.trim()) || '来电有喜 · 好文分享'
+    const path = articleId
+      ? `/pages/content/article-detail/index?id=${articleId}`
+      : `/pages/content/content-center/make/index`
+    return { title: t, path, imageUrl: coverImage || undefined }
+  })
+  // 朋友圈分享（部分基础库支持）
+  ;(Taro as any).useShareTimeline?.((() => {
+    const t = (title && title.trim()) || '来电有喜 · 好文分享'
+    return { title: t, query: articleId ? `id=${articleId}` : '', imageUrl: coverImage || undefined }
+  }) as any)
+  useEffect(() => {
+    Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
+  }, [])
+
   // 插入占位符到文末（避免重复）
   const insertProductCard = (product: any) => {
     if (insertedProducts.includes(product.id)) {
@@ -120,18 +123,8 @@ export default function MakePage() {
     Taro.showToast({ title: '已移除', icon: 'none' })
   }
 
-  const handleChooseMode = (mode: EditMode) => {
-    setEditMode(mode)
-    if (mode === 'blank') {
-      setTitle(''); setContent(''); setCoverImage(null); setArticleId(null)
-      setStep('edit')
-    } else if (mode === 'fetch') {
-      setFetchUrl(''); setFetchResult(null)
-      setStep('fetch')
-    } else {
-      setShowTemplates(true)
-    }
-  }
+  // 创作方式选择已移除（默认直达编辑）；模板仍由模板弹层提供
+
 
   const handleSelectTemplate = (tpl: typeof TEMPLATES[number]) => {
     setShowTemplates(false)
@@ -157,7 +150,7 @@ export default function MakePage() {
         if (imgSectionIndex > 0) {
           cleanContent = cleanContent.slice(0, imgSectionIndex).trim()
         }
-        setFetchResult({ title: data.title, content: cleanContent, images: data.images })
+        setFetchResult({ title: data.title, content: cleanContent, images: data.images, videos: data.videos })
       } else {
         // 后端不可用 → 智能辅助模式：从URL解析信息，引导用户手动输入
         const url = fetchUrl.trim()
@@ -215,10 +208,23 @@ export default function MakePage() {
 
   const handleUseFetched = () => {
     if (!fetchResult) return
-    setTitle(fetchResult.title); setContent(fetchResult.content)
-    setCoverImage(null); setArticleId(null); setVideoUrl(null)
-    // 保存提取的图片
-    setFetchedImages(fetchResult.images || [])
+    const imgs = fetchResult.images || []
+    const vids = fetchResult.videos || []
+    // 把图片以内联 [[img:url]] token 追加到正文（公众号式图文混排）
+    let body = fetchResult.content || ''
+    if (imgs.length) {
+      const imgTokens = imgs.map((u) => `[[img:${u}]]`).join('\n')
+      body = body.trim() ? `${body.trim()}\n\n${imgTokens}` : imgTokens
+    }
+    setTitle(fetchResult.title)
+    setContent(body)
+    // 封面不强制取自提取图（避免误用 logo），由用户点「封面」自选；图片已内联展示
+    setCoverImage(null)
+    setArticleId(null)
+    // 提取到的首条视频作为视频源
+    setVideoUrl(vids[0] ?? null)
+    // 保存提取的图片（写入 articles.images 列，作为详情页兜底）
+    setFetchedImages(imgs)
     setStep('edit')
   }
 
@@ -229,19 +235,57 @@ export default function MakePage() {
     }).catch(() => {})
   }
 
+  // 选视频并上传到 Storage（复用 uploadToStorage，自动处理小程序 readFile→ArrayBuffer→上传）
+  const handleChooseVideo = async () => {
+    try {
+      const res: any = await Taro.chooseMedia({
+        count: 1,
+        mediaType: ['video'],
+        sourceType: ['album', 'camera'],
+        maxDuration: 60,
+      })
+      const file = res?.tempFiles?.[0] || res?.tempFilePaths?.[0]
+      const tempPath: string = typeof file === 'string' ? file : (file?.tempFilePath || '')
+      if (!tempPath) return
+      setVideoTemp(tempPath)
+      setVideoUploading(true)
+      const url = await uploadToStorage(tempPath, { bucket: 'videos' })
+      if (url) {
+        setVideoUrl(url)
+        Taro.showToast({ title: '视频已上传', icon: 'success' })
+      } else {
+        Taro.showToast({ title: '上传失败，可贴视频链接', icon: 'none' })
+      }
+      setVideoUploading(false)
+    } catch {
+      setVideoUploading(false)
+    }
+  }
+
+  // 返回：navigateTo 进入，优先返回上一页
+  const handleBack = () => {
+    Taro.navigateBack().catch(() => Taro.switchTab({ url: '/pages/index/index' }))
+  }
+
   // 存草稿
+  // 预览页「分享」：纯新草稿未保存时，先存草稿（拿到 articleId 才有可分享的详情链接），再提示再次点击分享
+  const prepareShare = async () => {
+    if (articleId) return
+    if (!title.trim()) { Taro.showToast({ title: '请先填写标题', icon: 'none' }); return }
+    await handleSaveDraft()
+    Taro.showToast({ title: '草稿已存，再点分享', icon: 'none' })
+  }
+
   const handleSaveDraft = async () => {
     if (!title.trim()) { Taro.showToast({ title: '请填写标题', icon: 'none' }); return }
     setSaving(true)
     try {
-      console.log('[MakePage] 开始保存草稿...', { title, contentLength: content.length, articleId })
       
       if (articleId) {
         await updateArticle(articleId, { title, content, status: 'draft', images: fetchedImages, video_url: videoUrl })
         Taro.showToast({ title: '草稿已更新', icon: 'success' })
       } else {
         const art = await createArticle(title, content, fetchedImages, [], { status: 'draft', cover_image: coverImage ?? undefined, video_url: videoUrl ?? undefined })
-        console.log('[MakePage] 草稿创建成功:', art)
         if (art?.id) setArticleId(art.id)
         Taro.showToast({ title: '已存草稿', icon: 'success' })
       }
@@ -263,15 +307,11 @@ export default function MakePage() {
     if (publishing) return
     setPublishing(true)
     try {
-      console.log('[MakePage] 开始发布文章...', { title, contentLength: content.length, articleId })
       
       if (articleId) {
-        console.log('[MakePage] 更新已有文章:', articleId)
         await updateArticle(articleId, { title, content, status: 'published', cover_image: coverImage ?? undefined, images: fetchedImages, video_url: videoUrl })
       } else {
-        console.log('[MakePage] 创建新文章...')
         const art = await createArticle(title, content, fetchedImages, [], { status: 'published', cover_image: coverImage ?? undefined, video_url: videoUrl ?? undefined })
-        console.log('[MakePage] 文章创建成功:', art)
         if (art?.id) setArticleId(art.id)
       }
       
@@ -296,10 +336,9 @@ export default function MakePage() {
     if (showTemplates) {
       Taro.setNavigationBarTitle({ title: '选择模板' })
     } else {
-      const titleMap = { choose: '创作江湖令', fetch: '链接导入', edit: '文章编辑' }
-      Taro.setNavigationBarTitle({ title: titleMap[step] })
+      Taro.setNavigationBarTitle({ title: '写文章' })
     }
-  }, [step, showTemplates])
+  }, [showTemplates])
 
   // ── 模板弹层 ──
   if (showTemplates) {
@@ -327,147 +366,57 @@ export default function MakePage() {
   }
 
   return (
-    <View className="min-h-screen bg-background pb-10">
-      {/* ── 创作方式选择 ── */}
-      {step === 'choose' && (
-        <View className="p-4">
-          {/* 题头 */}
-          <View className="mb-6 p-4 rounded-2xl flex items-center gap-3" style={{ background: 'linear-gradient(135deg,#FFEEDD,#FFFBF7)' }}>
-            <View className="w-12 h-12 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-              <Text className="text-white text-2xl">✍️</Text>
-            </View>
-            <View>
-              <Text className="text-2xl font-bold text-foreground">创作你的江湖令</Text>
-              <Text className="text-xl text-muted-foreground mt-1">一文传千里，好物享江湖</Text>
-            </View>
-          </View>
-
-          {/* 三种方式 */}
-          <View className="flex flex-col gap-4 mb-6">
-            {MODES.map(mode => (
-              <View key={mode.key}
-                onClick={() => handleChooseMode(mode.key)}
-                className="p-4 rounded-2xl flex items-center gap-4"
-                style={{ background: mode.bg, border: `2px solid ${mode.border}22`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <View className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: mode.border + '22' }}>
-                  <Text className="text-3xl">{mode.emoji}</Text>
-                </View>
-                <View className="flex-1">
-                  <Text className="text-2xl font-bold text-foreground">{mode.title}</Text>
-                  <Text className="text-xl text-muted-foreground mt-1">{mode.desc}</Text>
-                </View>
-                <Icon name="chevron-right" size={24} className="text-muted-foreground" />
-              </View>
-            ))}
-          </View>
-
-          {/* 查看我的文章 */}
-          <View className="p-4 rounded-2xl bg-card border border-border flex items-center gap-3"
-            onClick={() => Taro.navigateTo({ url: '/pages/content/content-center/my-articles/index' })}>
-            <Icon name="text-box-multiple" size={24} className="text-primary" />
-            <Text className="text-xl text-foreground flex-1">查看我的文章</Text>
-            <Icon name="chevron-right" size={24} className="text-muted-foreground" />
-          </View>
+    <View className="min-h-screen bg-background mk-page">
+      {/* 顶栏：我的文章入口（解决「发过的文章模块」找不到） */}
+      <View className="mk-topbar">
+        <View className="mk-topbar-my" hoverClass="none" onClick={() => Taro.navigateTo({ url: '/pages/content/content-center/my-articles/index' })}>
+          <Icon name="file-document" size={20} className="text-primary" />
+          <Text className="text-sm text-primary">我的文章</Text>
         </View>
-      )}
+      </View>
 
-      {/* ── 链接导入 ── */}
-      {step === 'fetch' && (
-        <View className="p-4">
-          <View className="mb-4 p-3 rounded-xl bg-muted/50 flex items-start gap-2">
-            <Icon name="information-outline" size={20} className="text-primary flex-shrink-0 mt-0.5" />
-            <Text className="text-xl text-muted-foreground leading-relaxed">粘贴链接后自动识别来源平台，生成编辑模板，支持微信/知乎/小红书等</Text>
+      {/* 创作方式选择已整合为编辑页内嵌入口（顶部「导入文章」+ 工具栏「模板」），默认直达编辑 */}
+
+      {/* 链接导入已整合为编辑页内嵌「导入文章」入口（见下方 showImport 折叠区） */}
+
+      {/* ── 沉浸式编辑器：直达编辑，无前置选择（系统导航栏管标题与返回） ── */}
+
+      {/* 链接导入（内嵌折叠入口） */}
+      {showImport && (
+        <View className="mk-import">
+          <View className="flex items-center justify-between mb-2">
+            <Text className="text-xl font-bold text-foreground">导入文章链接</Text>
+            <View className="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center" hoverClass="none" onClick={() => setShowImport(false)}>
+              <Icon name="close" size={20} className="text-muted-foreground" />
+            </View>
           </View>
-
-          {/* 链接输入 */}
-          <Text className="text-xl font-bold text-foreground mb-2">文章链接</Text>
-          <View className="border-2 border-input rounded-xl px-4 py-3 bg-card mb-4">
+          <View className="border-2 border-input rounded-xl px-4 py-3 bg-card mb-3">
             <Input
               className="w-full text-xl text-foreground bg-transparent outline-none"
               placeholder="粘贴文章链接..."
               value={fetchUrl}
-              onInput={(e) => { const ev = e as any; setFetchUrl(ev.detail?.value ?? ev.target?.value ?? '') }} />
+              onInput={(e: any) => setFetchUrl(e.detail?.value || e.target?.value || '')} />
           </View>
-
           <View
             className={`w-full flex items-center justify-center leading-none rounded-xl ${fetchLoading ? 'bg-primary/50' : 'bg-primary'}`}
+            hoverClass="none"
             onClick={handleFetchArticle}>
-            <View className="py-4 flex items-center gap-2">
-              {fetchLoading
-                ? <Icon name="loading" size={24} className="text-white animate-spin" />
-                : <Icon name="download" size={24} className="text-white" />}
+            <View className="py-3 flex items-center gap-2">
+              {fetchLoading ? <Icon name="loading" size={22} className="text-white animate-spin" /> : <Icon name="download" size={22} className="text-white" />}
               <Text className="text-xl text-white font-bold">{fetchLoading ? '提取中...' : '提取内容'}</Text>
             </View>
           </View>
-
-          {/* 提取结果 */}
           {fetchResult && (
-            <View className="mt-4 p-4 rounded-2xl bg-card border-2 border-primary/30">
-              <View className="flex items-center gap-2 mb-3">
-                <Icon name="check-circle" size={24} className="text-primary" />
-                <Text className="text-xl font-bold text-primary">提取成功</Text>
-              </View>
-              <Text className="text-2xl font-bold text-foreground mb-2">{fetchResult.title}</Text>
-              <Text className="text-xl text-muted-foreground line-clamp-4 leading-relaxed">
-                {fetchResult.content.slice(0, 150)}{fetchResult.content.length > 150 ? '...' : ''}
-              </Text>
-
-              {/* 图片预览 */}
-              {fetchResult.images && fetchResult.images.length > 0 && (
-                <View className="mt-3">
-                  <View className="flex items-center gap-1 mb-2">
-                    <Icon name="image-multiple" size={18} className="text-primary" />
-                    <Text className="text-base font-bold text-primary">原文图片 ({fetchResult.images.length}张)</Text>
-                  </View>
-                  <ScrollView scrollX style={{ whiteSpace: 'nowrap' }} className="flex-row gap-2">
-                    {fetchResult.images.slice(0, 9).map((imgUrl, idx) => (
-                      <View key={idx}
-                        className="flex-shrink-0 rounded-xl overflow-hidden"
-                        style={{ width: '120px', height: '90px', position: 'relative' }}
-                        onClick={() => {
-                          // 点击预览大图
-                          Taro.previewImage({ urls: fetchResult.images!, current: imgUrl })
-                        }}>
-                        <Image src={imgUrl} mode="aspectFill" style={{ width: '120px', height: '90px' }} lazyLoad />
-                        <View style={{
-                          position: 'absolute', bottom: 2, right: 4,
-                          background: 'rgba(0,0,0,0.5)', borderRadius: '8px',
-                          padding: '1px 6px'}}>
-                          <Text style={{ fontSize: '10px', color: '#FFF' }}>🔍</Text>
-                        </View>
-                      </View>
-                    ))}
-                    {fetchResult.images.length > 9 && (
-                      <View
-                        className="flex-shrink-0 rounded-xl flex items-center justify-center"
-                        style={{ width: '120px', height: '90px', background: '#F5F5F5' }}
-                        onClick={() => {
-                          Taro.previewImage({ urls: fetchResult.images!, current: fetchResult.images![9] })
-                        }}>
-                        <Text style={{ fontSize: '14px', color: '#999' }}>+{fetchResult.images.length - 9}张</Text>
-                      </View>
-                    )}
-                  </ScrollView>
-                  {/* 设为封面按钮 */}
-                  {!coverImage && fetchResult.images[0] && (
-                    <View
-                      className="mt-2 flex items-center justify-center gap-1 py-2 rounded-lg bg-blue-50 border border-blue-200"
-                      onClick={() => setCoverImage(fetchResult!.images![0])}>
-                      <Icon name="image-plus" size={16} className="text-blue-600" />
-                      <Text className="text-base text-blue-600 font-bold">用第1张图做封面</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-
-              <Text className="text-base text-muted-foreground mt-3 italic">💡 可在编辑页补充原文内容和你的观点</Text>
+            <View className="mt-3 p-3 rounded-xl bg-card border border-primary/30">
+              <Text className="text-lg font-bold text-foreground mb-1">{fetchResult.title}</Text>
+              <Text className="text-base text-muted-foreground line-clamp-3">{fetchResult.content.slice(0, 120)}{fetchResult.content.length > 120 ? '...' : ''}</Text>
               <View
-                className="mt-4 w-full flex items-center justify-center leading-none rounded-xl bg-primary"
+                className="mt-2 w-full flex items-center justify-center leading-none rounded-lg bg-primary"
+                hoverClass="none"
                 onClick={handleUseFetched}>
-                <View className="py-4 flex items-center gap-2">
-                  <Icon name="pencil" size={20} className="text-white" />
-                  <Text className="text-xl text-white font-bold">使用此内容，开始编辑</Text>
+                <View className="py-2 flex items-center gap-2">
+                  <Icon name="pencil" size={18} className="text-white" />
+                  <Text className="text-base text-white font-bold">使用此内容</Text>
                 </View>
               </View>
             </View>
@@ -475,166 +424,146 @@ export default function MakePage() {
         </View>
       )}
 
-      {/* ── 文章编辑 ── */}
-      {step === 'edit' && (
-        <View className="p-4">
-          {/* 标题 */}
-          <View className="mb-4">
-            <Text className="text-xl font-bold text-foreground mb-2">
-              文章标题 <Text className="text-destructive">*</Text>
-            </Text>
-            <View className="border-2 border-input rounded-xl px-4 py-3 bg-card">
-              <Input
-                className="w-full text-2xl text-foreground bg-transparent outline-none font-bold"
-                placeholder="输入文章标题（吸引人的标题更容易传播）"
-                value={title}
-                onInput={(e) => { const ev = e as any; setTitle(ev.detail?.value ?? ev.target?.value ?? '') }} />
-            </View>
-          </View>
+      {/* 编辑主体 */}
+      <View className="mk-body">
+        {/* 顶部：导入文章入口 */}
+        <View className="mk-import-entry" hoverClass="none" onClick={() => setShowImport(true)}>
+          <Icon name="link-variant" size={18} className="text-primary" />
+          <Text className="text-base text-primary">导入文章链接 / 转载</Text>
+        </View>
 
-          {/* 内容 */}
-          <View className="mb-4">
-            <Text className="text-xl font-bold text-foreground mb-2">
-              文章内容 <Text className="text-destructive">*</Text>
-            </Text>
-            <View className="border-2 border-input rounded-xl px-4 py-3 bg-card">
-              <Textarea
-                className="w-full text-xl text-foreground bg-transparent outline-none leading-relaxed"
-                style={{ height: '40vw', minHeight: '200px' }}
-                placeholder="在这里尽情挥毫，分享你的江湖见闻..."
-                maxLength={5000}
-                value={content}
-                onInput={(e) => { const ev = e as any; setContent(ev.detail?.value ?? ev.target?.value ?? '') }} />
-            </View>
-            <Text className="text-right text-base text-muted-foreground mt-1">{wordCount}/5000</Text>
-          </View>
+        {/* 标题 */}
+        <View className="mb-3">
+          <Input
+            className="mk-title-input w-full text-foreground bg-transparent outline-none font-bold"
+            placeholder="起个响亮标题"
+            value={title}
+            onInput={(e) => { const ev = e as any; setTitle(ev.detail?.value ?? ev.target?.value ?? '') }} />
+        </View>
 
-          {/* 封面图 */}
-          <View className="mb-6">
-            <Text className="text-xl font-bold text-foreground mb-2">封面图（可选）</Text>
-            {coverImage ? (
-              <View className="relative rounded-xl overflow-hidden" style={{ height: '160px' }}>
-                <Image src={coverImage} mode="aspectFill" className="w-full" style={{ height: '160px' }} />
-                <View
-                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center"
-                  onClick={() => setCoverImage(null)}>
-                  <Icon name="close" size={20} className="text-white" />
-                </View>
+        {/* 内容 */}
+        <View className="mb-4">
+          <Textarea
+            className="mk-content w-full text-foreground bg-transparent outline-none leading-relaxed"
+            style={{ height: '44vh', minHeight: '240px' }}
+            placeholder="在这里尽情挥毫，分享你的生活见闻..."
+            maxLength={10000}
+            value={content}
+            onInput={(e) => { const ev = e as any; setContent(ev.detail?.value ?? ev.target?.value ?? '') }} />
+          <Text className="text-right text-sm text-muted-foreground mt-1">{wordCount}/10000</Text>
+        </View>
+
+        {/* 媒体预览：封面 + 视频 */}
+        <View className="mk-media-row">
+          {coverImage && (
+            <View className="mk-media-thumb">
+              <Image src={coverImage} mode="aspectFill" className="w-full h-full" />
+              <View className="mk-media-del" hoverClass="none" onClick={() => setCoverImage(null)}>
+                <Icon name="close" size={16} className="text-white" />
               </View>
-            ) : (
-              <View
-                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl bg-muted/30"
-                style={{ height: '100px' }}
-                onClick={handleChooseCover}>
-                <Icon name="image-plus" size={30} className="text-muted-foreground" />
-                <Text className="text-xl text-muted-foreground">选择封面图</Text>
+            </View>
+          )}
+          {(videoTemp || videoUrl) && (
+            <View className="mk-media-thumb mk-media-video">
+              <Video src={videoTemp || videoUrl || ''} className="w-full h-full" controls={false} />
+              {videoUploading && (
+                <View className="mk-media-loading"><Icon name="loading" size={20} className="text-white animate-spin" /></View>
+              )}
+              <View className="mk-media-del" hoverClass="none" onClick={() => { setVideoUrl(null); setVideoTemp(null) }}>
+                <Icon name="close" size={16} className="text-white" />
               </View>
-            )}
-          </View>
+            </View>
+          )}
+        </View>
 
-          {/* 视频链接（可选） */}
-          <View className="mb-6">
-            <Text className="text-xl font-bold text-foreground mb-2">视频链接（可选）</Text>
-            <View className="flex items-center gap-2">
-              <View className="flex-1 border-2 border-input rounded-xl px-4 py-3 bg-card">
+        {/* 视频链接备选（上传之外，也可直接贴外链） */}
+        <View className="mt-2">
+          <View className="flex items-center gap-1.5" hoverClass="none" onClick={() => setShowVideoLink(v => !v)}>
+            <Icon name="link-variant" size={16} className="text-muted-foreground" />
+            <Text className="text-sm text-muted-foreground">或粘贴视频链接</Text>
+          </View>
+          {showVideoLink && (
+            <View className="mt-2 flex items-center gap-2">
+              <View className="flex-1 border-2 border-input rounded-xl px-3 py-2 bg-card">
                 <Input
-                  className="w-full text-xl text-foreground bg-transparent outline-none"
-                  placeholder="粘贴视频链接（mp4直链或B站/抖音等）"
+                  className="w-full text-base text-foreground bg-transparent outline-none"
+                  placeholder="mp4 直链或 B站/抖音链接"
                   value={videoUrl || ''}
                   onInput={(e: any) => setVideoUrl((e.detail?.value || e.target?.value || '').trim() || null)} />
               </View>
-              {videoUrl && (
-                <View
-                  className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center flex-shrink-0"
-                  onClick={() => setVideoUrl(null)}
-                >
-                  <Icon name="close" size={20} className="text-white" />
-                </View>
-              )}
             </View>
-            <Text className="text-base text-muted-foreground mt-1">支持 mp4 直链视频（可播放）或外链（复制链接观看）</Text>
-          </View>
+          )}
+        </View>
 
-          {/* 插入好物卡（文章内商品转化卡片） */}
-          <View className="mb-6">
-            <View className="flex items-center justify-between mb-2">
-              <Text className="text-xl font-bold text-foreground">🛍️ 插入好物卡</Text>
-              <View
-                className="px-3 py-1.5 rounded-full bg-primary/10 flex items-center gap-1"
-                onClick={openProductPicker}>
-                <Icon name="plus" size={16} className="text-primary" />
-                <Text className="text-base text-primary font-bold">选商品</Text>
-              </View>
-            </View>
-            <Text className="text-base text-muted-foreground mb-2">选中商品会附在文末，读者读到此处可见情绪好物卡并直达购买。</Text>
-            {insertedProducts.length > 0 ? (
-              <View className="flex flex-col gap-2">
-                {insertedProducts.map(pid => {
-                  const p = productList.find(x => x.id === pid)
-                  return (
-                    <View key={pid} className="flex items-center gap-2 p-2 rounded-xl bg-card border border-border">
-                      {p?.image_url ? (
-                        <Image src={p.image_url} mode="aspectFill" className="w-12 h-12 rounded-lg flex-shrink-0" />
-                      ) : (
-                        <View className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                          <Icon name="package-variant" size={20} className="text-muted-foreground" />
-                        </View>
-                      )}
-                      <View className="flex-1 min-w-0">
-                        <Text className="text-base font-bold text-foreground truncate block">{p?.name || '商品'}</Text>
-                        {p?.product_emotion?.emotion_title && (
-                          <Text className="text-sm text-primary truncate block">✨ {p.product_emotion.emotion_title}</Text>
-                        )}
-                      </View>
-                      <View
-                        className="w-7 h-7 rounded-full bg-black/5 flex items-center justify-center flex-shrink-0"
-                        onClick={() => removeProductCard(pid)}>
-                        <Icon name="close" size={16} className="text-muted-foreground" />
-                      </View>
+        {/* 已插入好物卡 */}
+        {insertedProducts.length > 0 && (
+          <View className="mt-2 flex flex-col gap-2">
+            {insertedProducts.map(pid => {
+              const p = productList.find(x => x.id === pid)
+              return (
+                <View key={pid} className="flex items-center gap-2 p-2 rounded-xl bg-card border border-border">
+                  {p?.image_url ? (
+                    <Image src={p.image_url} mode="aspectFill" className="w-12 h-12 rounded-lg flex-shrink-0" />
+                  ) : (
+                    <View className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                      <Icon name="package-variant" size={20} className="text-muted-foreground" />
                     </View>
-                  )
-                })}
-              </View>
-            ) : (
-              <View className="p-3 rounded-xl bg-muted/30 border border-dashed border-border flex items-center gap-2">
-                <Icon name="package-variant-closed" size={20} className="text-muted-foreground" />
-                <Text className="text-base text-muted-foreground">尚未插入好物，点击右上「选商品」</Text>
-              </View>
-            )}
-          </View>
-
-          {/* 操作按钮 */}
-          <View className="flex flex-col gap-3">
-            {/* 发布按钮 */}
-            <View
-              className={`w-full flex items-center justify-center leading-none rounded-xl ${publishing ? 'bg-primary/50' : 'bg-primary'}`}
-              onClick={handlePublish}>
-              <View className="py-4 flex items-center gap-2">
-                {publishing && <Icon name="loading" size={24} className="text-white animate-spin" />}
-                <Text className="text-xl text-white font-bold">{publishing ? '发布中...' : (articleId ? '更新文章' : '发布文章')}</Text>
-              </View>
-            </View>
-
-            <View className="flex gap-3">
-              {/* 存草稿 */}
-              <View
-                className={`flex-1 flex items-center justify-center leading-none rounded-xl border-2 border-border bg-card ${saving ? 'opacity-50' : ''}`}
-                onClick={handleSaveDraft}>
-                <View className="py-3 flex items-center gap-2">
-                  {saving && <Icon name="loading" size={20} className="text-foreground animate-spin" />}
-                  <Text className="text-xl text-foreground">{saving ? '保存中...' : '存草稿'}</Text>
+                  )}
+                  <View className="flex-1 min-w-0">
+                    <Text className="text-base font-bold text-foreground truncate block">{p?.name || '商品'}</Text>
+                    {p?.store_name && <Text className="text-sm text-muted-foreground truncate block">{p.store_name}</Text>}
+                  </View>
+                  <View className="w-7 h-7 rounded-full bg-black/5 flex items-center justify-center flex-shrink-0" hoverClass="none" onClick={() => removeProductCard(pid)}>
+                    <Icon name="close" size={16} className="text-muted-foreground" />
+                  </View>
                 </View>
-              </View>
-              {/* 返回重选 */}
-              <View
-                className="flex-1 flex items-center justify-center leading-none rounded-xl border-2 border-border bg-card"
-                onClick={() => setStep('choose')}>
-                <View className="py-3 text-xl text-muted-foreground">返回重选</View>
-              </View>
+              )
+            })}
+          </View>
+        )}
+      </View>
+
+      {/* 底部固定工具栏：封面 / 视频 / 好物 / 模板（已添加项高亮） */}
+      <View className="mk-toolbar">
+        <View className={`mk-tool ${coverImage ? 'mk-tool-active' : ''}`} hoverClass="none" onClick={handleChooseCover}>
+          <Icon name="image-plus" size={22} className={coverImage ? 'text-primary' : 'text-foreground'} />
+          <Text className={`text-xs mt-1 ${coverImage ? 'text-primary' : 'text-muted-foreground'}`}>封面</Text>
+        </View>
+        <View className={`mk-tool ${(videoTemp || videoUrl) ? 'mk-tool-active' : ''}`} hoverClass="none" onClick={handleChooseVideo}>
+          <Icon name="video-plus" size={22} className={(videoTemp || videoUrl) ? 'text-primary' : 'text-foreground'} />
+          <Text className={`text-xs mt-1 ${(videoTemp || videoUrl) ? 'text-primary' : 'text-muted-foreground'}`}>视频</Text>
+        </View>
+        <View className={`mk-tool ${insertedProducts.length > 0 ? 'mk-tool-active' : ''}`} hoverClass="none" onClick={openProductPicker}>
+          <Icon name="package-variant" size={22} className={insertedProducts.length > 0 ? 'text-primary' : 'text-foreground'} />
+          <Text className={`text-xs mt-1 ${insertedProducts.length > 0 ? 'text-primary' : 'text-muted-foreground'}`}>好物</Text>
+        </View>
+        <View className="mk-tool" hoverClass="none" onClick={() => setShowTemplates(true)}>
+          <Icon name="file-document" size={22} className="text-foreground" />
+          <Text className="text-xs text-muted-foreground mt-1">模板</Text>
+        </View>
+        <View className={`mk-tool ${showPreview ? 'mk-tool-active' : ''}`} hoverClass="none" onClick={() => setShowPreview(true)}>
+          <Icon name="eye" size={22} className={showPreview ? 'text-primary' : 'text-foreground'} />
+          <Text className={`text-xs mt-1 ${showPreview ? 'text-primary' : 'text-muted-foreground'}`}>预览</Text>
+        </View>
+      </View>
+
+      {/* 底部固定发布区：存草稿 + 发布（发布占主权重 2:1） */}
+      <View className="mk-publish">
+        <View className="flex gap-3">
+          <View style={{ flex: 1 }} className={`flex items-center justify-center leading-none rounded-2xl border-2 border-border bg-card ${saving ? 'opacity-50' : ''}`} hoverClass="none" onClick={handleSaveDraft}>
+            <View className="py-3 flex items-center gap-2">
+              {saving && <Icon name="loading" size={18} className="text-foreground animate-spin" />}
+              <Text className="text-lg text-foreground">{saving ? '保存中' : '草稿'}</Text>
+            </View>
+          </View>
+          <View style={{ flex: 2 }} className={`flex items-center justify-center leading-none rounded-2xl ${publishing ? 'bg-primary/50' : 'bg-primary'}`} hoverClass="none" onClick={handlePublish}>
+            <View className="py-3 flex items-center gap-2">
+              {publishing && <Icon name="loading" size={18} className="text-white animate-spin" />}
+              <Text className="text-lg text-white font-bold">{publishing ? '发布中' : (articleId ? '更新文章' : '发布文章')}</Text>
             </View>
           </View>
         </View>
-      )}
+      </View>
 
       {/* ── 商品选择器弹层（插入好物卡） ── */}
       {showProductPicker && (
@@ -653,7 +582,7 @@ export default function MakePage() {
                 className="w-full text-xl text-foreground bg-transparent outline-none"
                 placeholder="搜索商品名 / 关键词"
                 value={productSearch}
-                onInput={(e: any) => handleProductSearch(e.detail?.value || e.target?.value || '')} />
+                onInput={(e: any) => debouncedProductSearch(e.detail?.value || e.target?.value || '')} />
             </View>
 
             {/* 列表 */}
@@ -707,6 +636,165 @@ export default function MakePage() {
           </View>
         </View>
       )}
+
+      {/* ── 实时预览弹层（公众号式：无需保存即可看真实排版） ── */}
+      {showPreview && (
+        <PreviewSheet
+          title={title}
+          content={content}
+          coverImage={coverImage}
+          videoUrl={videoUrl || videoTemp}
+          articleId={articleId}
+          onPrepareShare={prepareShare}
+          onClose={() => setShowPreview(false)}
+        />
+      )}
+    </View>
+  )
+}
+
+// ─────────────────────────────────────────────
+// 实时预览弹层：本地(未保存)渲染当前 标题/封面/图片/视频/商品卡
+// 与详情页渲染逻辑一致，关掉即可继续编辑。
+// ─────────────────────────────────────────────
+type PreviewPart =
+  | { type: 'text'; value: string }
+  | { type: 'img'; url: string }
+  | { type: 'video'; url: string }
+  | { type: 'product'; id: string }
+
+function parsePreviewContent(content: string): PreviewPart[] {
+  if (!content) return []
+  const raw = content.split(/(\[\[img:[^\]]+\]\]|\[\[video:[^\]]+\]\]|\[\[product:[\w-]+\]\])/g)
+  const parts: PreviewPart[] = []
+  for (const seg of raw) {
+    if (!seg) continue
+    let m = seg.match(/^\[\[img:([^\]]+)\]\]$/)
+    if (m) { parts.push({ type: 'img', url: m[1] }); continue }
+    m = seg.match(/^\[\[video:([^\]]+)\]\]$/)
+    if (m) { parts.push({ type: 'video', url: m[1] }); continue }
+    m = seg.match(/^\[\[product:([\w-]+)\]\]$/)
+    if (m) { parts.push({ type: 'product', id: m[1] }); continue }
+    if (seg.trim() !== '') parts.push({ type: 'text', value: seg })
+  }
+  return parts
+}
+
+// 预览内商品卡（拉取商品详情）
+function PreviewProductCard({ productId }: { productId: string }) {
+  const [product, setProduct] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    let alive = true
+    getProductById(productId)
+      .then((p) => { if (alive) { setProduct(p); setLoading(false) } })
+      .catch(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [productId])
+  if (loading) {
+    return <View className="apc-skeleton"><View className="apc-skeleton-img" /><View className="apc-skeleton-line" /></View>
+  }
+  if (!product) {
+    return (
+      <View className="apc-fallback">
+        <Text className="apc-fallback-text">好物卡片（商品可能已下架）</Text>
+      </View>
+    )
+  }
+  const emo = product.product_emotion
+  return (
+    <View className="article-product-card">
+      <View className="apc-media">
+        {product.image_url ? (
+          <Image src={product.image_url} mode="aspectFill" className="apc-img" />
+        ) : (
+          <View className="apc-img apc-img-fallback"><Icon name="package-variant" size={30} className="text-muted-foreground" /></View>
+        )}
+        <View className="apc-badge">🛍️ 好物推荐</View>
+      </View>
+      <View className="apc-body">
+        {emo?.emotion_title && <Text className="apc-emotion">✨ {emo.emotion_title}</Text>}
+        <Text className="apc-name">{product.name}</Text>
+        <View className="apc-foot">
+          <Text className="apc-price">¥{(product.price ?? 0).toFixed(2)}</Text>
+          <View className="apc-cta">立即拥有 ›</View>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+function PreviewSheet({ title, content, coverImage, videoUrl, articleId, onPrepareShare, onClose }: {
+  title: string; content: string; coverImage: string | null; videoUrl: string | null
+  articleId: string | null; onPrepareShare: () => void; onClose: () => void
+}) {
+  const parts = parsePreviewContent(content)
+  return (
+    <View className="preview-mask">
+      <View className="preview-sheet">
+        {/* 顶栏：标题在左，分享 + 关闭在右 */}
+        <View className="preview-bar">
+          <Text className="preview-bar-title">预览</Text>
+          <View className="preview-bar-actions">
+            {articleId ? (
+              <Button openType="share" className="preview-bar-share" hoverClass="none">
+                <Icon name="share-variant" size={20} className="text-foreground" />
+              </Button>
+            ) : (
+              <View className="preview-bar-share" hoverClass="none" onClick={onPrepareShare}>
+                <Icon name="share-variant" size={20} className="text-foreground" />
+              </View>
+            )}
+            <View className="preview-bar-close" hoverClass="none" onClick={onClose}>
+              <Icon name="close" size={22} className="text-foreground" />
+            </View>
+          </View>
+        </View>
+        {/* 内容 */}
+        <ScrollView scrollY className="preview-scroll" enhanced showScrollbar={false}>
+          {coverImage && (
+            <Image src={coverImage} mode="aspectFill" className="preview-cover" />
+          )}
+          <Text className="preview-title">{title || '未命名标题'}</Text>
+          {parts.length === 0 && (
+            <Text className="preview-empty">还没有内容，写点什么再预览吧～</Text>
+          )}
+          {parts.map((part, idx) => {
+            if (part.type === 'img') {
+              return (
+                <Image
+                  key={idx}
+                  src={part.url}
+                  mode="widthFix"
+                  className="preview-img"
+                  onClick={() => Taro.previewImage({ urls: [part.url], current: part.url })}
+                />
+              )
+            }
+            if (part.type === 'video') {
+              return (
+                <View key={idx} className="preview-video-bar">
+                  <Icon name="video" size={18} className="text-primary" />
+                  <Text className="preview-video-text">视频：{part.url.slice(0, 40)}{part.url.length > 40 ? '…' : ''}</Text>
+                </View>
+              )
+            }
+            if (part.type === 'product') {
+              return <PreviewProductCard key={idx} productId={part.id} />
+            }
+            return (
+              <Text key={idx} className="preview-text">{part.value}</Text>
+            )
+          })}
+          {videoUrl && parts.length > 0 && (
+            <View className="preview-video-bar">
+              <Icon name="video" size={18} className="text-primary" />
+              <Text className="preview-video-text">本文包含视频内容</Text>
+            </View>
+          )}
+          <View className="safe-bottom" />
+        </ScrollView>
+      </View>
     </View>
   )
 }

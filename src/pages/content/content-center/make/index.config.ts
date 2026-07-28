@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '创作江湖令',
+  navigationBarTitleText: '创作中心',
   enableShareAppMessage: true,
   enableShareTimeline: true,
 })

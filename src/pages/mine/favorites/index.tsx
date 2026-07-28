@@ -57,7 +57,7 @@ function FavoritesPage() {
                   onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${encodeURIComponent(p.id)}` })}>
                   <View className="relative" style={{ height: '160px' }}>
                     <LazyImage
-                      src={p.image_url}
+                      src={p.main_image || p.image_url || ''}
                       mode="aspectFill"
                       style={{ width: '100%', height: '160px' }} />
                     <View type="button"

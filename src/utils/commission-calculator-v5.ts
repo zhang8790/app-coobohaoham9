@@ -387,7 +387,6 @@ export function calcWithholdingTax(income: number): number {
 
 // ============ 测试函数 ============
 export function testV5Algorithm(): void {
-  console.log('===== V5 算法测试（2026-07-18 滚动段位 + 收敛比例）=====')
 
   // 测试1：全无心境（滚动消费=终身，最高段位，活跃+邀请新用户）
   const result1 = calculateCommissionV5({
@@ -405,19 +404,6 @@ export function testV5Algorithm(): void {
     buyerRollingConsumption: 50000,
   })
 
-  console.log('【全无心境】订单100元，让利率10%')
-  console.log('平台让利：', result1.discountPool)
-  console.log('平台最低抽成（10%）：', result1.platformMinIncome)
-  console.log('剩余池：', result1.remainingPool)
-  console.log('流动一级佣金：', result1.l1Commission, `(${(result1.l1Rate * 100).toFixed(1)}%)`)
-  console.log('静态二级佣金：', result1.l2Commission, `(${(result1.l2Rate * 100).toFixed(1)}%)`)
-  console.log('买家金豆：', result1.buyerGoldBeans, `(${(result1.goldBeanRate * 100).toFixed(1)}%)`)
-  console.log('平台额外收入：', result1.platformExtraIncome)
-  console.log('平台总收入：', result1.platformTotalIncome, `(${(result1.platformTotalIncome / result1.discountPool * 100).toFixed(1)}%)`)
-  console.log('用户名义佣金(L1+L2)：', result1.userGrossCommission)
-  console.log('支付通道费(用户承担)：', result1.channelFee)
-  console.log('代扣个税(用户承担)：', result1.taxWithheld)
-  console.log('用户净到手：', result1.userNetCommission)
 
   // 测试2：全散修（最低段位，无活跃/无邀请新用户 → 系数归零）
   const result2 = calculateCommissionV5({
@@ -430,9 +416,6 @@ export function testV5Algorithm(): void {
     buyerId: 'buyer-2',
   })
 
-  console.log('\n【全散修·躺平】订单100元，让利率10%（近6月0消费+60天无推荐成交）')
-  console.log('流动一级佣金：', result2.l1Commission, '(活跃系数=0 → 归零，杜绝躺赚)')
-  console.log('平台总收入：', result2.platformTotalIncome, `(${(result2.platformTotalIncome / result2.discountPool * 100).toFixed(1)}%)`)
 }
 
 if (typeof window !== 'undefined') {

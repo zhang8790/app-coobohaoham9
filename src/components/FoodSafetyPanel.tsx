@@ -15,6 +15,10 @@ const RISK_META: Record<string, { label: string; color: string; bg: string; icon
   black: { label: '慎用', color: '#DC2626', bg: 'rgba(239,68,68,0.10)', icon: '✕' },
 }
 
+// 配料安全段免责声明：基于国标整理、仅供选购参考，不替代专业判断
+const ADDITIVE_DISCLAIMER =
+  '以上配料安全信息依据国家食品添加剂使用标准（GB）整理，仅供选购参考，实际请以产品包装标识为准。'
+
 export default function FoodSafetyPanel({
   foodAdditives,
   shiyangEntries,
@@ -69,6 +73,12 @@ export default function FoodSafetyPanel({
               </View>
             )
           })}
+          <Text
+            className="text-[11px] text-muted-foreground"
+            style={{ display: 'block', marginTop: 4, lineHeight: 1.6, opacity: 0.8 }}
+          >
+            {ADDITIVE_DISCLAIMER}
+          </Text>
         </View>
       )}
 

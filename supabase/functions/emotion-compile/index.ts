@@ -14,6 +14,7 @@
 //   - 配置 LLM_API_KEY / LLM_BASE_URL 后，理解与编译均升级为 LLM，结果仍落库缓存。
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { getLlmConfig, type LlmConfig } from '../_shared/llmConfig.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,15 +42,13 @@ function json(body: any, status = 200, headers = corsHeaders) {
   })
 }
 
-function hasLLM(): boolean {
-  return !!Deno.env.get('LLM_API_KEY')
-}
+// LLM 启用判定改由 getLlmConfig() 在各 handler 内统一处理（读 system_config 表，回退 env）
 
 // OpenAI 兼容调用；返回解析后的 JSON 对象
-async function callLLM(system: string, user: string): Promise<any | null> {
-  const key = Deno.env.get('LLM_API_KEY')
-  const base = Deno.env.get('LLM_BASE_URL') || 'https://api.openai.com/v1'
-  const model = Deno.env.get('LLM_MODEL') || 'gpt-4o-mini'
+async function callLLM(system: string, user: string, cfg: LlmConfig): Promise<any | null> {
+  const key = cfg.key
+  const base = cfg.base || 'https://api.openai.com/v1'
+  const model = cfg.model || 'gpt-4o-mini'
   try {
     const resp = await fetch(`${base}/chat/completions`, {
       method: 'POST',
@@ -110,12 +109,13 @@ const CANONICAL_TAGS = [
 async function handleUnderstand(supabase: any, text: string, headers: any) {
   if (!text || !text.trim()) return json({ success: false, error: 'empty text' }, 400, headers)
 
-  if (hasLLM()) {
+  const cfg = await getLlmConfig()
+  if (cfg.key) {
     const sys = `你是情绪理解引擎。把用户的话归类到唯一一个中文标准情绪标签。
 可选标签（只返回其中之一，不要解释）：
 ${CANONICAL_TAGS.join('、')}
 只输出 JSON：{"canonical_tag": "..."}`
-    const res = await callLLM(sys, `用户说：${text}`)
+    const res = await callLLM(sys, `用户说：${text}`, cfg)
     if (res?.canonical_tag && CANONICAL_TAGS.includes(res.canonical_tag)) {
       return json({ success: true, canonical_tag: res.canonical_tag, inner_label: res.canonical_tag, source: 'llm' }, 200, headers)
     }
@@ -177,7 +177,8 @@ async function handleCompile(supabase: any, body: any, headers: any) {
   let result: any
   let compiledBy = 'rule'
 
-  if (hasLLM()) {
+  const cfg = await getLlmConfig()
+  if (cfg.key) {
     const sys = `你是「情绪编译」文案师，为本地生活电商把商品编译成有武侠气韵、无推销腔的情绪化叙事。
 要求：
 - 绝不使用"抢购/手慢无/最佳选择/限时/划算/爆款/必买"等任何带货话术
@@ -195,7 +196,7 @@ async function handleCompile(supabase: any, body: any, headers: any) {
 商品描述：${description || ''}
 情绪标签：${(mood_tags || []).join('、')}
 场景标签：${(scene_tags || []).join('、')}`
-    const res = await callLLM(sys, ctx)
+    const res = await callLLM(sys, ctx, cfg)
     if (res && res.emotion_detail) {
       result = {
         emotion_title: res.emotion_title || `${name}·心选`,
@@ -221,7 +222,7 @@ async function handleCompile(supabase: any, body: any, headers: any) {
       mood_tags_used: result.mood_tags_used,
       category_profile_id: profile?.id || null,
       compiled_by: compiledBy,
-      model: compiledBy === 'llm' ? (Deno.env.get('LLM_MODEL') || 'gpt-4o-mini') : null,
+      model: compiledBy === 'llm' ? cfg.model : null,
       compiled_at: new Date().toISOString(),
     }
     const { error } = await supabase

@@ -67,7 +67,7 @@ function FootprintPage() {
                       onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${encodeURIComponent(p.id)}` })}>
                       <View className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
                         <LazyImage
-                          src={p.image_url}
+                          src={p.main_image || p.image_url || ''}
                           mode="aspectFill"
                           style={{ width: '64px', height: '64px' }} />
                       </View>

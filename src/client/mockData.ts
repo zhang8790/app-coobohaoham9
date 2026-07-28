@@ -16,7 +16,7 @@ export const mockProfile: any = {
   id: mockUser.id,
   username: 'tester',
   phone: '18701410500',
-  nickname: '测试侠客',
+  nickname: '测试用户',
   avatar_url: 'https://picsum.photos/seed/avatar/200/200',
   role: 'user',
   openid: 'mock-openid-001',
@@ -50,9 +50,9 @@ export const mockStores: any[] = [
   {
     id: 'store-001',
     owner_id: mockUser.id,
-    name: '测试江湖客栈',
-    description: '本地开发测试门店，卖各种江湖好货',
-    address: '江湖路 88 号',
+    name: '测试本地客栈',
+    description: '本地开发测试门店，卖各种好物',
+    address: '喜乐路 88 号',
     phone: '13800138000',
     category: '餐饮',
     image_url: STORE_IMG,
@@ -67,7 +67,7 @@ export const mockStores: any[] = [
     owner_id: mockUser.id,
     name: '茶语轩',
     description: '精品茶饮，现泡现卖，口感醇厚',
-    address: '江湖路 66 号',
+    address: '喜乐路 66 号',
     phone: '13800138001',
     category: '饮品',
     image_url: 'https://picsum.photos/seed/store2/400/400',
@@ -81,7 +81,7 @@ export const mockStores: any[] = [
     id: 'store-003',
     owner_id: '00000000-0000-0000-0000-000000000002',
     name: '书香阁',
-    description: '精选图书，文武双全侠客必访',
+    description: '精选图书，爱书人必访',
     address: '文武街 12 号',
     phone: '13800138002',
     category: '图书',
@@ -95,7 +95,7 @@ export const mockStores: any[] = [
   {
     id: 'store-004',
     owner_id: '00000000-0000-0000-0000-000000000003',
-    name: '零食江湖',
+    name: '零食优选',
     description: '各地特色零食，一网打尽',
     address: '美食巷 5 号',
     phone: '13800138003',
@@ -116,7 +116,7 @@ export const mockStore: Store = mockStores[0]
 // 门店商品分类（每个门店的分类）
 // =====================
 export const mockStoreCategories: any[] = [
-  // 门店1：测试江湖客栈（餐饮）
+  // 门店1：测试本地客栈（餐饮）
   { id: 'cat-001', store_id: 'store-001', name: '招牌菜', sort_order: 1, created_at: new Date().toISOString() },
   { id: 'cat-002', store_id: 'store-001', name: '面食', sort_order: 2, created_at: new Date().toISOString() },
   { id: 'cat-003', store_id: 'store-001', name: '甜品饮品', sort_order: 3, created_at: new Date().toISOString() },
@@ -124,10 +124,10 @@ export const mockStoreCategories: any[] = [
   { id: 'cat-004', store_id: 'store-002', name: '茶饮', sort_order: 1, created_at: new Date().toISOString() },
   { id: 'cat-005', store_id: 'store-002', name: '奶茶', sort_order: 2, created_at: new Date().toISOString() },
   // 门店3：书香阁（图书）
-  { id: 'cat-006', store_id: 'store-003', name: '武功秘籍', sort_order: 1, created_at: new Date().toISOString() },
-  { id: 'cat-007', store_id: 'store-003', name: '内功心法', sort_order: 2, created_at: new Date().toISOString() },
+  { id: 'cat-006', store_id: 'store-003', name: '必买清单', sort_order: 1, created_at: new Date().toISOString() },
+  { id: 'cat-007', store_id: 'store-003', name: '镇店之宝', sort_order: 2, created_at: new Date().toISOString() },
   { id: 'cat-008', store_id: 'store-003', name: '轻功身法', sort_order: 3, created_at: new Date().toISOString() },
-  // 门店4：零食江湖（零食）
+  // 门店4：零食优选（零食）
   { id: 'cat-009', store_id: 'store-004', name: '肉脯类', sort_order: 1, created_at: new Date().toISOString() },
   { id: 'cat-010', store_id: 'store-004', name: '果干类', sort_order: 2, created_at: new Date().toISOString() },
   { id: 'cat-011', store_id: 'store-004', name: '坚果炒货', sort_order: 3, created_at: new Date().toISOString() },
@@ -137,11 +137,11 @@ export const mockStoreCategories: any[] = [
 // 测试商品（多个门店）
 // =====================
 export const mockProducts: Product[] = [
-  // 门店1：测试江湖客栈（餐饮）
+  // 门店1：测试本地客栈（餐饮）
   {
     id: 'prod-001',
     store_id: 'store-001',
-    name: '江湖秘制烤鱼',
+    name: '秘制烤鱼',
     description: '精选草鱼，秘制酱料烤制，香辣可口',
     price: 68.00,
     original_price: 88.00,
@@ -171,7 +171,7 @@ export const mockProducts: Product[] = [
   {
     id: 'prod-002',
     store_id: 'store-001',
-    name: '侠客牛肉面',
+    name: '招牌牛肉面',
     description: '大块牛肉搭配手工拉面，汤鲜味美',
     price: 28.00,
     original_price: 35.00,
@@ -199,7 +199,7 @@ export const mockProducts: Product[] = [
   {
     id: 'prod-003',
     store_id: 'store-001',
-    name: '武林冰粉',
+    name: '招牌冰粉',
     description: '手搓冰粉配上红糖、花生碎、葡萄干，清凉解暑',
     price: 12.00,
     original_price: 15.00,
@@ -253,7 +253,7 @@ export const mockProducts: Product[] = [
   {
     id: 'prod-005',
     store_id: 'store-002',
-    name: '江湖云雾茶',
+    name: '云雾茶',
     description: '高山云雾茶，回甘悠长',
     price: 25.00,
     original_price: 35.00,
@@ -281,7 +281,7 @@ export const mockProducts: Product[] = [
   {
     id: 'prod-006',
     store_id: 'store-002',
-    name: '侠客奶茶',
+    name: '招牌奶茶',
     description: '现煮红茶配鲜奶，甜而不腻',
     price: 18.00,
     original_price: 22.00,
@@ -310,8 +310,8 @@ export const mockProducts: Product[] = [
   {
     id: 'prod-007',
     store_id: 'store-003',
-    name: '武林秘籍·内功篇',
-    description: '江湖传说中的内功心法，修炼必备',
+    name: '精选必买篇',
+    description: '店里的镇店之宝，闭眼入',
     price: 45.00,
     original_price: 60.00,
     image_url: 'https://picsum.photos/seed/book1/400/400',
@@ -335,11 +335,11 @@ export const mockProducts: Product[] = [
     stores: mockStores[2],
     created_at: new Date().toISOString(),
   },
-  // 门店4：零食江湖（零食）
+  // 门店4：零食优选（零食）
   {
     id: 'prod-008',
     store_id: 'store-004',
-    name: '江湖肉脯',
+    name: '手作肉脯',
     description: '秘制酱料腌制，炭火慢烤，嚼劲十足',
     price: 35.00,
     original_price: 45.00,
@@ -367,7 +367,7 @@ export const mockProducts: Product[] = [
   {
     id: 'prod-009',
     store_id: 'store-004',
-    name: '侠客果干拼盘',
+    name: '果干拼盘',
     description: '芒果、草莓、黄桃三种果干，酸甜可口',
     price: 22.00,
     original_price: 30.00,
@@ -439,7 +439,7 @@ export let mockMerchantApps: MerchantApplication[] = [
   {
     id: 'merchant-app-001',
     user_id: mockUser.id,
-    store_name: '测试江湖客栈',
+    store_name: '测试本地客栈',
     contact_name: '测试掌柜',
     contact_phone: '13800138000',
     business_type: '餐饮',

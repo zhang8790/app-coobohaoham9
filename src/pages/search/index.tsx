@@ -148,7 +148,7 @@ export default function SearchPage() {
               {results.map(p => (
                 <View key={p.id} className="bg-card rounded-2xl border border-border mb-3 flex overflow-hidden"
                   onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}>
-                  <Image src={p.image_url || ''} mode="aspectFill" style={{ width: '100px', height: '100px', flexShrink: 0 }} />
+                  <Image src={p.main_image || p.image_url || ''} mode="aspectFill" style={{ width: '100px', height: '100px', flexShrink: 0 }} />
                   <View className="flex-1 p-3 flex flex-col justify-between">
                     <Text className="text-xl font-bold text-foreground line-clamp-2">{p.name}</Text>
                     <View className="flex items-center gap-2">

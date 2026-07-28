@@ -1,0 +1,89 @@
+/* ============================================
+   自营(探索)页 · 与全局墨韵国潮设计系统统一
+   消除硬编码色值，复用 HSL token + 底部抽屉语义
+   对齐首页 pg-card / 创作页 product-picker-sheet 风格
+   ============================================ */
+
+/* 顶部搜索栏分隔线（替代硬编码 #E7DDD0） */
+.ex-search-bar {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+/* 当前门店信息条：primary 软底（替代硬编码 #FFF8F0） */
+.ex-store-bar {
+  background: hsl(var(--primary) / 0.06);
+  border-bottom: 1px solid hsl(var(--border) / 0.6);
+}
+
+/* 切换门店胶囊：primary 软底（替代硬编码 #FDEFE0） */
+.ex-store-switch {
+  background: hsl(var(--primary) / 0.10);
+  transition: background 0.2s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ex-store-switch:active {
+  background: hsl(var(--primary) / 0.18);
+  transform: scale(0.96);
+}
+
+/* 左侧分类项（过渡统一曲线） */
+.ex-cat {
+  transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ex-cat-active {
+  background: hsl(var(--background));
+  color: hsl(var(--primary));
+  border-left: 4px solid hsl(var(--primary));
+  font-weight: 700;
+}
+
+/* 门店切换底部抽屉（对齐创作页 .product-picker-sheet 圆角 + 安全区） */
+.ex-sheet-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.ex-sheet {
+  background: hsl(var(--card));
+  border-radius: 24px 24px 0 0;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -4px 24px rgba(20, 15, 11, 0.12);
+}
+
+/* 门店项（替代内联 #F5F5F5 / #FDEFE0） */
+.ex-store-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 8px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  background: hsl(var(--muted));
+  transition: background 0.2s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ex-store-item:active {
+  background: hsl(var(--muted) / 0.7);
+  transform: scale(0.99);
+}
+.ex-store-item-active {
+  background: hsl(var(--primary) / 0.10);
+}
+
+/* 加载更多按钮（统一按压缩放反馈） */
+.ex-loadmore {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+.ex-loadmore:active {
+  transform: scale(0.97);
+  opacity: 0.8;
+}

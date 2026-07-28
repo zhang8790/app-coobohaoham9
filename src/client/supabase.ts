@@ -6,8 +6,6 @@ import { mockSupabase } from './supabase.mock'
 
 const isLocalDev = process.env.TARO_APP_LOCAL_DEV === 'true'
 
-console.log('[supabase.ts] TARO_APP_LOCAL_DEV:', process.env.TARO_APP_LOCAL_DEV, '| isLocalDev:', isLocalDev)
-console.log('[supabase.ts] supabaseUrl:', process.env.TARO_APP_SUPABASE_URL)
 
 const supabaseUrl = process.env.TARO_APP_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.TARO_APP_SUPABASE_ANON_KEY || 'TOKEN'

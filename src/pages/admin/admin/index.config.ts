@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '武林盟',
+  navigationBarTitleText: '管理后台',
   enableShareAppMessage: true,
   enableShareTimeline: true,
 })

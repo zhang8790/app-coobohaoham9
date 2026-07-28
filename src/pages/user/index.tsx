@@ -1,4 +1,4 @@
-// @title 侠客
+// @title 我的
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image, Input } from '@tarojs/components'
@@ -13,11 +13,11 @@ import Icon from '@/components/Icon'
 import RankProgress from '@/components/RankProgress'
 import { RANK_COLOR_MAP } from '@/constants/ranks'
 
-const WUXIA_NAMES = ['剑影飘鸿', '凌云一笑', '碧落寒烟', '寒光碎月', '幽谷清风', '紫电青霜', '千机云鹤', '翠微长啸', '玉骨冰心', '逍遥散人']
+const NEUTRAL_NICKNAMES = ['小确幸', '慢生活', '元气满满', '暖洋洋', '甜豆豆', '乐悠悠', '小欢喜', '轻飘飘', '棉花糖', '微醺猫']
 
 const MENU_GROUPS = [
   {
-    title: '侠客令',
+    title: '喜号',
     icon: '⚔',
     items: [
       { name: '全部订单', icon: '📋', page: '/pages/order-center/index' },
@@ -29,12 +29,15 @@ const MENU_GROUPS = [
     title: '珍宝库',
     icon: '◆',
     items: [
-      { name: '我的收藏', icon: '❤', page: '/pages/mine/favorites/index' },
+      { name: '商品收藏', icon: '❤', page: '/pages/mine/favorites/index' },
+      { name: '文章收藏', icon: '📑', page: '/pages/mine/article-favorites/index' },
+      { name: '我的关注', icon: '👤', page: '/pages/mine/followed-authors/index' },
       { name: '浏览足迹', icon: '⟲', page: '/pages/mine/footprint/index' },
+      { name: '我的徽章', icon: '🏅', page: '/pages/mine/my-badges/index' },
     ]
   },
   {
-    title: '江湖事',
+    title: '动态',
     icon: '👥',
     items: [
       { name: '消息中心', icon: '🔔', page: '/pages/mine/messages/index', badge: 'unread' },
@@ -46,7 +49,7 @@ const MENU_GROUPS = [
     title: '食养健康',
     icon: '🌿',
     items: [
-      { name: '我的体质档案', icon: '📋', page: '/pages/mine/health-profile/index' },
+      { name: '食养偏好自测', icon: '🧪', page: '/pages/food/constitution-test/index' },
     ]
   }
 ]
@@ -122,10 +125,10 @@ function UserPage() {
   const rankColor = profile ? (RANK_COLOR_MAP[profile.member_rank] || '#78350F') : '#78350F'
 
   const handleRandomNick = async () => {
-    const nick = WUXIA_NAMES[Math.floor(Math.random() * WUXIA_NAMES.length)]
+    const nick = NEUTRAL_NICKNAMES[Math.floor(Math.random() * NEUTRAL_NICKNAMES.length)]
     await updateProfile({ nickname: nick })
     setProfile(prev => prev ? { ...prev, nickname: nick } : prev)
-    Taro.showToast({ title: '侠号已更换', icon: 'success' })
+    Taro.showToast({ title: '喜号已更换', icon: 'success' })
   }
 
   const handleSaveNick = async () => {
@@ -133,7 +136,7 @@ function UserPage() {
     await updateProfile({ nickname: nickInput.trim() })
     setProfile(prev => prev ? { ...prev, nickname: nickInput.trim() } : prev)
     setEditingNick(false)
-    Taro.showToast({ title: '侠号已保存', icon: 'success' })
+    Taro.showToast({ title: '喜号已保存', icon: 'success' })
   }
 
   const handleSignOut = async () => {
@@ -313,23 +316,23 @@ function UserPage() {
         </View>
       )}
 
-      {/* 侠客中心 */}
+      {/* 个人中心 */}
       {user && (
         <View className="mx-4 mt-4 bg-card rounded-2xl border border-border">
           <View className="flex items-center px-4 py-3 border-b border-border gap-2">
-            <Icon name="sword" size={24} className="text-primary" />
-            <Text className="text-xl font-bold text-foreground">侠客中心</Text>
+            <Icon name="user" size={24} className="text-primary" />
+            <Text className="text-xl font-bold text-foreground">个人中心</Text>
           </View>
           <View className="grid grid-cols-4 py-3">
             {[
               { name: '我的段位', icon: 'medal', page: '/pages/mine/my-promotion/index', desc: '查看推广码' },
               { name: '我的金豆', icon: 'coin', page: '/pages/trade/withdraw/index', desc: '金豆明细' },
               { name: '我的好友', icon: 'account-group', page: '/pages/mine/my-referrals/index', desc: '查看推荐' },
+              { name: '我的创作', icon: 'file-document', page: '/pages/content/content-center/my-articles/index', desc: '文章/草稿' },
             ].map(item => (
               <View key={item.name}
                 hoverClass="none"
                 onClick={() => {
-                  console.log('[User] 点击:', item.name, '→', item.page)
                   Taro.navigateTo({ url: item.page })
                 }}
                 style={{

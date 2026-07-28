@@ -1,4 +1,4 @@
-// @title 行囊
+// @title 购物车
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
@@ -94,7 +94,7 @@ function CartPage() {
   const handleRemove = async (id: string) => {
     const target = items.find(i => i.id === id)
     const q = target?.quantity || 0
-    Taro.showModal({ title: '确认删除', content: '确认从行囊中移除此商品？', success: async (res) => {
+    Taro.showModal({ title: '确认删除', content: '确认从购物车中移除此商品？', success: async (res) => {
       if (res.confirm) {
         await removeCartItem(id)
         ignoreNextReloadRef.current = true // 删除整行，徽标实时 -件数；跳过订阅回流，整页不闪
@@ -156,7 +156,7 @@ function CartPage() {
         {items.length === 0 ? (
           <View className="flex flex-col items-center justify-center pt-32 gap-4">
             <View className="text-muted-foreground"><Icon name="bag" size={64} /></View>
-            <Text className="text-2xl text-muted-foreground">行囊空空如也</Text>
+            <Text className="text-2xl text-muted-foreground">购物车空空如也</Text>
             <View
               className="flex items-center justify-center leading-none rounded-2xl bg-primary"
               onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}>
@@ -190,7 +190,7 @@ function CartPage() {
                         onClick={() => toggleItem(item.id, !item.selected)}>
                         {item.selected && <Icon name="check" size={12} className="text-white" />}
                       </View>
-                      <Image src={item.products?.image_url || ''} mode="aspectFill"
+                      <Image src={item.products?.main_image || item.products?.image_url || ''} mode="aspectFill"
                         style={{ width: '72px', height: '72px', borderRadius: '8px', flexShrink: 0 }}
                         onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${item.product_id}` })} />
                       <View className="flex-1">

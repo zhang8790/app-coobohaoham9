@@ -1,4 +1,4 @@
-// @title 侠客推广中心
+// @title 推广中心
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { Button, Image, View, Text } from '@tarojs/components'
@@ -183,7 +183,7 @@ function MyPromotionPage() {
   }
 
   const handleShareLink = () => {
-    const link = `来电有喜 - 武侠生活平台，专属推广码：${referralCode}，下载并使用我的推广码注册享优惠！`
+    const link = `来电有喜，专属推广码：${referralCode}，下载并使用我的推广码注册享优惠！`
     Taro.setClipboardData({ data: link, success: () =>
       Taro.showToast({ title: '推广链接已复制', icon: 'success' })
     })
@@ -420,10 +420,10 @@ function MyPromotionPage() {
           {directTeam.slice(0, 5).map((m, i) => (
             <View key={m.id} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-0">
               <View className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                <Text className="text-xl font-bold text-foreground">{(m.nickname || '侠').charAt(0)}</Text>
+                <Text className="text-xl font-bold text-foreground">{(m.nickname || '喜').charAt(0)}</Text>
               </View>
               <View className="flex-1">
-                <Text className="text-xl text-foreground font-bold">{m.nickname || '江湖侠客'}</Text>
+                <Text className="text-xl text-foreground font-bold">{m.nickname || '用户'}</Text>
                 <Text className="text-base text-muted-foreground">{m.member_rank}</Text>
               </View>
               <Text className="text-base text-muted-foreground">{new Date(m.created_at).toLocaleDateString('zh-CN')}</Text>
@@ -431,7 +431,7 @@ function MyPromotionPage() {
           ))}
           {directTeam.length > 5 && (
             <View className="flex items-center justify-center py-3">
-              <Text className="text-xl text-muted-foreground">还有 {directTeam.length - 5} 位侠客...</Text>
+              <Text className="text-xl text-muted-foreground">还有 {directTeam.length - 5} 位用户...</Text>
             </View>
           )}
         </View>

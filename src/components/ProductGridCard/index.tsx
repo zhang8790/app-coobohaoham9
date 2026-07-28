@@ -12,7 +12,6 @@ export interface ProductGridCardProps {
   price: number
   imageUrl?: string | null
   originalPrice?: number
-  moodTags?: string[]
   storeName?: string
   subtitle?: string
   matchLabel?: string
@@ -47,7 +46,7 @@ const NATURE_COLOR: Record<string, string> = {
 }
 
 export default function ProductGridCard({
-  id, name, price, imageUrl, originalPrice, moodTags, storeName, subtitle,
+  id, name, price, imageUrl, originalPrice, storeName, subtitle,
   matchLabel, care, imageSlot, footerExtra, width = '48%', imageRatio = '1:1',
   onTap, onAddCart, adding, onShare, disabled,
 }: ProductGridCardProps) {
@@ -101,14 +100,14 @@ export default function ProductGridCard({
       <View className="px-2.5 py-2 flex flex-col gap-1 flex-1">
         <Text className="text-base font-bold text-foreground leading-tight line-clamp-2">{name}</Text>
 
-        {/* 关怀层：食养一句话 + 关怀度 + 食疗/情绪双色标签 + 性味/搭配智能提示 */}
+        {/* 关怀层：食养一句话 + 关怀度 + 食疗标签 + 性味/搭配智能提示 */}
         {care && (
           <View className="flex flex-col gap-1">
             {care.shiyang && (
               <Text className="text-xs text-secondary leading-snug line-clamp-2">{care.shiyang}</Text>
             )}
             <CareBar score={care.careScore} />
-            {/* 食疗标签(赭红)：前台只展示食养维度，情绪配对标签已移至后台算法层 */}
+            {/* 食疗标签(赭红)：前台只展示食养维度 */}
             <View className="flex items-center gap-1 flex-wrap overflow-hidden" style={{ maxHeight: '44px' }}>
               {care.healthTags.slice(0, 2).map((t) => (
                 <Text key={t} className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/15">{t}</Text>
@@ -133,14 +132,6 @@ export default function ProductGridCard({
 
         {subtitle && (
           <Text className="text-xs text-muted-foreground line-clamp-1">{subtitle}</Text>
-        )}
-
-        {moodTags && moodTags.length > 0 && (
-          <View className="flex gap-1 flex-wrap overflow-hidden" style={{ maxHeight: '24px' }}>
-            {moodTags.slice(0, 2).map((t) => (
-              <Text key={t} className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary">{t}</Text>
-            ))}
-          </View>
         )}
 
         {storeName && (

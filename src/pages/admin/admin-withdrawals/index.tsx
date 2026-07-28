@@ -93,7 +93,7 @@ function AdminWithdrawalsPage() {
                   <View className="flex items-start justify-between">
                     <View className="flex flex-col gap-1">
                       <Text className="text-2xl font-bold text-foreground">
-                        {w.profiles?.nickname || '侠客'}
+                        {w.profiles?.nickname || '用户'}
                       </Text>
                       <Text className="text-xl text-muted-foreground">{maskPhone(w.profiles?.phone) || '未知手机'}</Text>
                     </View>
@@ -103,7 +103,7 @@ function AdminWithdrawalsPage() {
                   <View className="bg-muted rounded-xl p-3 flex flex-col gap-2">
                     {[
                       { label: '提现方式', val: METHOD_LABELS[w.withdraw_method] || w.withdraw_method },
-                      { label: '江湖税(10%)', val: `-¥${taxAmount.toFixed(2)}` },
+                      { label: '平台服务费(10%)', val: `-¥${taxAmount.toFixed(2)}` },
                       { label: '实际到手', val: `¥${actualAmount.toFixed(2)}` },
                       { label: '申请时间', val: new Date(w.created_at).toLocaleString('zh-CN') },
                     ].map(item => (

@@ -17,6 +17,7 @@ import { toFoodTherapyInput, TIER_LABEL } from '@/utils/food-therapy'
 import { resolveIngredientEntries } from '@/utils/ingredient-analysis'
 import FoodSafetyPanel from '@/components/FoodSafetyPanel'
 import ComprehensiveSafetyReport from '@/components/ComprehensiveSafetyReport'
+import { getFoodBenefit } from '@/data/foodBenefits'
 import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
 
 export default function ProductPage() {
@@ -58,17 +59,32 @@ export default function ProductPage() {
   const videoUrl = useMemo(() => product?.video_url || '', [product])
 
   const load = useCallback(async () => {
-    if (!id) return
+    if (!id) {
+      setLoading(false)
+      Taro.showToast({ title: '商品参数缺失', icon: 'none' })
+      return
+    }
     setLoading(true)
-    const data = await getProductById(id)
-    setProduct(data)
-    // 强引导门店自推码：进商品详情即绑所属门店 owner 推广码（让利佣金回流门店）
-    if (data?.store_id) bindStoreReferrer(data.store_id).catch(() => {})
-    setLoading(false)
-    // 记录浏览足迹
-    if (data) recordFootprint(data.id).catch(() => {})
-    // 导购反馈回流：记录浏览事件（个性化权重学习）
-    if (data) trackFoodTherapyEvent({ productId: data.id, eventType: 'view', healthTag: (data as any).health_tag ?? [], emotionTag: (data as any).emotion_tag ?? [] }).catch(() => {})
+    try {
+      // 10s 超时兜底：网络/查询挂起时也能解除 loading，避免一直转圈
+      const data = await Promise.race<Product | null>([
+        getProductById(id),
+        new Promise<Product | null>((resolve) => setTimeout(() => resolve(null), 10000)),
+      ])
+      setProduct(data)
+      // 强引导门店自推码：进商品详情即绑所属门店 owner 推广码（让利佣金回流门店）
+      if (data?.store_id) bindStoreReferrer(data.store_id).catch(() => {})
+      // 记录浏览足迹
+      if (data) recordFootprint(data.id).catch(() => {})
+      // 导购反馈回流：记录浏览事件（个性化权重学习）
+      if (data) trackFoodTherapyEvent({ productId: data.id, eventType: 'view', healthTag: (data as any).health_tag ?? [], emotionTag: (data as any).emotion_tag ?? [] }).catch(() => {})
+      if (!data) Taro.showToast({ title: '商品不存在或加载超时', icon: 'none' })
+    } catch (e) {
+      console.error('[product] load failed', e)
+      Taro.showToast({ title: '加载失败，请重试', icon: 'none' })
+    } finally {
+      setLoading(false)
+    }
   }, [id])
 
   const refreshCart = useCallback(async () => {
@@ -140,6 +156,9 @@ export default function ProductPage() {
     })
   }, [product, foodAdditives])
 
+  // 菜品级食养作用：原材料食材组合的现代营养 + 中医食疗（演示用，按 id/名称匹配）
+  const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
+
   // 商品卡分享：一定是产品（商品主图 + 商品详情路径），并注入食疗分档
   useShareAppMessage(() => {
     if (!product) return { title: '来电有喜', path: '/pages/product/index' }
@@ -183,7 +202,7 @@ export default function ProductPage() {
     setAdding(false)
     // 导购反馈回流：加购=强偏好
     trackFoodTherapyEvent({ productId: product.id, eventType: 'add_cart', healthTag: product.health_tag ?? [], emotionTag: product.emotion_tag ?? [] }).catch(() => {})
-    Taro.showToast({ title: '已加入行囊', icon: 'success' })
+    Taro.showToast({ title: '已加入购物车', icon: 'success' })
   }
 
   const handleBuyNow = async () => {
@@ -326,7 +345,7 @@ export default function ProductPage() {
             </View>
           </View>
         )}
-        {/* 食材食疗智能导购 · 六模块纯展示（读取商家预存成品内容） */}
+        {/* 食材食疗智能导购 · 五模块纯展示（读取商家预存成品内容） */}
         {product && (() => {
           const input = toFoodTherapyInput(product)
           const tier = classifyProduct(product)
@@ -337,7 +356,16 @@ export default function ProductPage() {
               <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>🍵 食材食疗导购</Text>
 
               {/* 模块1：基础原材料 */}
-              {input.ingredients && input.ingredients.length > 0 && (
+              {foodBenefit ? (
+                <View className="mb-3">
+                  <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>① 基础原材料</Text>
+                  {foodBenefit.ingredients.map((ing, i) => (
+                    <Text key={i} style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>
+                      {ing.icon ? `${ing.icon} ` : ''}{ing.name}：{ing.role}
+                    </Text>
+                  ))}
+                </View>
+              ) : input.ingredients && input.ingredients.length > 0 ? (
                 <View className="mb-3">
                   <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>① 基础原材料</Text>
                   <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>{input.ingredients.join('、')}</Text>
@@ -345,30 +373,38 @@ export default function ProductPage() {
                     <Text style={{ fontSize: '12px', color: '#16A34A', display: 'block', marginTop: 2 }}>分类：{input.food_category}{input.overall_nature ? ` · 整体性味 ${input.overall_nature}` : ''}</Text>
                   )}
                 </View>
-              )}
+              ) : null}
 
-              {/* 模块2：食疗滋养效果（正面 + 风险） */}
+              {/* 模块2：食养作用（现代营养 + 中医食疗） */}
               <View className="mb-3">
-                <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>② 食疗滋养效果</Text>
-                {input.positive_effect ? (
+                <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>② 食养作用</Text>
+                {foodBenefit ? (
+                  <View>
+                    <Text style={{ fontSize: '13px', fontWeight: 'bold', color: '#D97706', display: 'block', marginTop: 4 }}>🥗 现代营养</Text>
+                    {foodBenefit.modernNutrition.map((it, i) => (
+                      <Text key={i} style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>· {it.title}：{it.desc}</Text>
+                    ))}
+                    <Text style={{ fontSize: '13px', fontWeight: 'bold', color: '#16A34A', display: 'block', marginTop: 8 }}>🌿 中医食疗</Text>
+                    {foodBenefit.tcmTherapy.map((it, i) => (
+                      <Text key={i} style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>· {it.title}：{it.desc}</Text>
+                    ))}
+                  </View>
+                ) : input.positive_effect ? (
                   <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>✅ {input.positive_effect}</Text>
-                ) : <Text style={{ fontSize: '12px', color: '#9CA3AF', display: 'block' }}>暂无说明</Text>}
-                {input.risk_warning && (
+                ) : (
+                  <Text style={{ fontSize: '12px', color: '#9CA3AF', display: 'block' }}>暂无说明</Text>
+                )}
+                {!foodBenefit && input.risk_warning && (
                   <Text style={{ fontSize: '13px', color: '#A8552E', display: 'block', lineHeight: '1.6', marginTop: 4 }}>⚠️ 风险提示：{input.risk_warning}</Text>
                 )}
               </View>
 
-              {/* 模块3：情绪价值 */}
-              {input.emotion_copy && (
-                <View className="mb-3">
-                  <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>③ 情绪价值</Text>
-                  <Text style={{ fontSize: '13px', color: '#7C3AED', display: 'block', lineHeight: '1.6' }}>{input.emotion_copy}</Text>
-                </View>
-              )}
-
-              {/* 模块4：适配 & 慎食 & 禁食人群 */}
+              {/* 模块3：适配 & 慎食 & 禁食人群 */}
               <View className="mb-3">
-                <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>④ 人群适配提示</Text>
+                <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>③ 人群适配提示</Text>
+                {foodBenefit?.suitableFor?.length > 0 && (
+                  <Text style={{ fontSize: '13px', color: '#16A34A', display: 'block', lineHeight: '1.6' }}>🌟 适配人群：{foodBenefit.suitableFor.join('、')}</Text>
+                )}
                 {input.rec_crowds && input.rec_crowds.length > 0 && (
                   <Text style={{ fontSize: '13px', color: '#16A34A', display: 'block', lineHeight: '1.6' }}>🌟 适配人群：{input.rec_crowds.join('、')}{input.guide_sentence ? `（${input.guide_sentence}）` : ''}</Text>
                 )}
@@ -378,14 +414,14 @@ export default function ProductPage() {
                 {input.forbidden_crowds && input.forbidden_crowds.length > 0 && (
                   <Text style={{ fontSize: '13px', color: '#DC2626', display: 'block', lineHeight: '1.6', marginTop: 2 }}>🔴 不建议人群：{input.forbidden_crowds.join('、')}{input.forbidden_reasons ? `（${input.forbidden_reasons}）` : ''}</Text>
                 )}
-                {(!input.rec_crowds?.length && !input.cautious_crowds?.length && !input.forbidden_crowds?.length) && (
+                {(!foodBenefit?.suitableFor?.length && !input.rec_crowds?.length && !input.cautious_crowds?.length && !input.forbidden_crowds?.length) && (
                   <Text style={{ fontSize: '12px', color: '#9CA3AF', display: 'block' }}>暂无特定人群标注</Text>
                 )}
               </View>
 
-              {/* 模块5：门店推荐搭配套餐 */}
+              {/* 模块4：门店推荐搭配套餐 */}
               <View className="mb-3">
-                <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>⑤ 门店推荐搭配</Text>
+                <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>④ 门店推荐搭配</Text>
                 {comboProducts.length > 0 ? (
                   <View className="flex gap-2 flex-wrap">
                     {comboProducts.map((c) => (
@@ -418,7 +454,7 @@ export default function ProductPage() {
                 </View>
               )}
 
-              {/* 模块6：底部忌口警示 */}
+              {/* 模块5：底部忌口警示 */}
               {input.taboo_warning && (
                 <View className="mt-1 px-2 py-2 rounded-xl" style={{ background: '#FEE2E2', border: '1px solid #FCA5A5' }}>
                   <Text className="text-base font-bold" style={{ color: '#B91C1C', display: 'block' }}>⚠️ 忌口警示</Text>
@@ -489,52 +525,54 @@ export default function ProductPage() {
         </View>
       )}
 
-      {/* 底部操作栏 */}
-      <View className="fixed bottom-0 left-0 right-0 bg-card border-t-2 border-border px-4 py-3 flex gap-3"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
-        {/* 左侧：工具 + 合计 */}
+      {/* 底部操作栏：左侧工具 + 合计，右侧双主操作；图标缩小、边线减轻，避免在窄屏挤压 CTA 文字 */}
+      <View className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border px-3 py-2.5 flex items-center gap-2.5"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}>
+        {/* 左侧：工具（购物车 / 收藏 / 分享）+ 合计 */}
         <View className="flex items-center gap-2">
           {/* 购物车图标入口 */}
           <View className="relative flex-shrink-0" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
-            <View className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center border-2 border-border">
-              <View className="text-foreground"><Icon name="bag" size={24} /></View>
+            <View className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center border border-border">
+              <View className="text-foreground"><Icon name="bag" size={22} /></View>
             </View>
             {cartCount > 0 && (
-              <View className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full bg-primary flex items-center justify-center px-1">
-                <Text className="text-white text-xs font-bold">{cartCount > 99 ? '99+' : cartCount}</Text>
+              <View className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary flex items-center justify-center px-1">
+                <Text className="text-white text-[10px] font-bold leading-none">{cartCount > 99 ? '99+' : cartCount}</Text>
               </View>
             )}
           </View>
           {/* 收藏按钮 */}
-          <View className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
+          <View className="w-12 h-12 rounded-xl bg-muted flex-shrink-0 flex items-center justify-center border border-border"
             onClick={handleToggleFav}>
             {favLoading
-              ? <Icon name="loading" size={24} className="text-primary animate-spin" />
-              : <Icon name="heart" size={24} className={isFav ? 'text-red-400' : 'text-foreground'} />}
+              ? <Icon name="loading" size={22} className="text-primary animate-spin" />
+              : <Icon name="heart" size={22} className={isFav ? 'text-red-400' : 'text-foreground'} />}
           </View>
           {/* 分享按钮 */}
           <Button openType="share"
-            className="w-14 h-14 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center border-2 border-border"
-            style={{ background: '#f5f5f5', border: '2px solid #e5e5e5', padding: 0 }}>
-            <Icon name="share-variant" size={24} className="text-foreground" />
+            className="w-12 h-12 rounded-xl bg-muted flex-shrink-0 flex items-center justify-center border border-border"
+            style={{ background: '#f5f5f5', border: '1px solid #e5e5e5', padding: 0 }}>
+            <Icon name="share-variant" size={22} className="text-foreground" />
           </Button>
           {/* 合计金额 */}
-          <View className="flex flex-col items-end justify-center ml-1">
-            <Text className="text-xs text-muted-foreground">合计</Text>
-            <Text className="text-lg font-bold text-primary">¥{totalPrice.toFixed(2)}</Text>
+          <View className="flex flex-col items-end justify-center ml-0.5">
+            <Text className="text-[10px] text-muted-foreground">合计</Text>
+            <Text className="text-base font-bold text-primary leading-tight">¥{totalPrice.toFixed(2)}</Text>
           </View>
         </View>
+        {/* 加入购物车 */}
         <Button type="default"
-          className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-primary bg-card"
+          className="flex-1 flex items-center justify-center leading-none rounded-xl border border-primary bg-card"
           onClick={handleAddCart}>
-          <View className="py-4 text-xl font-bold text-primary">
-            {adding ? '加入中...' : '加入行囊'}
+          <View className="py-3 text-base font-bold text-primary truncate">
+            {adding ? '加入中...' : '加入购物车'}
           </View>
         </Button>
+        {/* 立即购买 */}
         <Button type="default"
-          className="flex-1 flex items-center justify-center leading-none rounded-2xl bg-primary"
+          className="flex-1 flex items-center justify-center leading-none rounded-xl bg-primary"
           onClick={handleBuyNow}>
-          <View className="py-4 text-xl font-bold text-white">立即购买</View>
+          <View className="py-3 text-base font-bold text-white truncate">立即购买</View>
         </Button>
       </View>
     </View>

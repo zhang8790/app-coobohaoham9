@@ -6,6 +6,7 @@ import {
 } from '@/api/finance'
 import { downloadCSV, csvTimestamp, type CsvColumn } from '@/lib/csv'
 import { maskPhone } from '@/utils/mask'
+import { useAuth } from '@/contexts/AuthContext'
 
 const C = {
   bg: 'var(--bg)', card: 'var(--card)', border: 'var(--border)', text: 'var(--text)',
@@ -65,7 +66,9 @@ export default function Ledgers() {
   const [exporting, setExporting] = useState(false)
   const PAGE = 15
 
-  const isPrivileged = !!import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
+  // 后台以真实管理员会话登录（is_admin() RLS 已授权全量读取），不再依赖 service_role 密钥。
+  const { profile } = useAuth()
+  const isPrivileged = profile?.role === 'admin'
 
   const handleExport = async () => {
     setExporting(true)
@@ -185,7 +188,7 @@ export default function Ledgers() {
         <p style={{ color: C.dim, fontSize: 14 }}>买家金豆 / 历史金豆 / 佣金 / 金豆 — 全平台逐笔明细，与用户端同源</p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 12px', borderRadius: 8, background: isPrivileged ? 'var(--success-soft)' : 'var(--danger-soft)', border: `1px solid ${isPrivileged ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
           <span style={{ fontSize: 13, color: isPrivileged ? C.green : C.red }}>
-            {isPrivileged ? '✅ 已启用特权客户端，可读取全平台流水' : '⚠️ 当前为只读模式，部分流水可能无法读取'}
+            {isPrivileged ? '✅ 已以管理员身份登录，可读取全平台流水' : '⚠️ 当前非管理员登录，部分流水可能无法读取'}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
@@ -315,9 +318,8 @@ export default function Ledgers() {
                       <span style={{ color: C.red }}>查询失败：{error}</span>
                       {!isPrivileged && (
                         <span style={{ fontSize: 13, maxWidth: 520, lineHeight: 1.6 }}>
-                          当前未配置 <code style={{ color: C.text, background: 'var(--border)', padding: '2px 6px', borderRadius: 4 }}>VITE_SUPABASE_SERVICE_ROLE_KEY</code>，
-                          后台客户端以 <strong>anon</strong> 角色请求，已被 00081 生产 RLS 加固拦截。
-                          请在 <code style={{ color: C.text, background: 'var(--border)', padding: '2px 6px', borderRadius: 4 }}>admin-web/.env.local</code> 中填入 service_role key 并重启服务。
+                          当前登录账号非管理员（role≠admin）。后台以真实管理员会话读取全量数据，
+                          请使用 role=admin 的账号登录；若已登录管理员仍为空，请检查 00081/00092/00095 的 is_admin() RLS 是否已执行。
                         </span>
                       )}
                       {isPrivileged && (

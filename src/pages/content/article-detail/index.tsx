@@ -1,11 +1,11 @@
 // @title 文章详情页 - 公众号风格
 import { useState, useEffect, useRef } from 'react'
 import Taro, {} from '@tarojs/taro'
-import { View, Text, Image, ScrollView, RichText, Button, Canvas } from '@tarojs/components'
+import { View, Text, Image, ScrollView, RichText, Button, Canvas, Video } from '@tarojs/components'
 import './index.scss'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { getArticleById, incrementArticleView, getArticles, getProductById } from '@/db/api'
+import { getArticleById, incrementArticleView, getArticles, getProductById, toggleArticleFavorite, isArticleFavorited, toggleAuthorFollow, isFollowingAuthor } from '@/db/api'
 import { handleInviterFromQuery, buildArticleShareTitle } from '@/utils/share'
 import { generateArticleSharePoster, POSTER_WIDTH, POSTER_HEIGHT } from '@/utils/share-poster'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
@@ -18,6 +18,7 @@ export default function ArticleDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isFavorited, setIsFavorited] = useState(false)
+  const [isFollowing, setIsFollowing] = useState(false)
   const viewedRef = useRef(false)
 
   const instance = Taro.getCurrentInstance()
@@ -95,6 +96,10 @@ export default function ArticleDetailPage() {
       } else {
         setArticle(data)
 
+        // 拉取当前用户对该文章的收藏/关注作者状态（报告 P3 内容闭环）
+        isArticleFavorited(articleId!).then(setIsFavorited).catch(() => {})
+        if (data.user_id) isFollowingAuthor(data.user_id).then(setIsFollowing).catch(() => {})
+
         if (!viewedRef.current) {
           viewedRef.current = true
           incrementArticleView(articleId!).catch(() => {})
@@ -126,14 +131,28 @@ export default function ArticleDetailPage() {
     } catch {}
   }
 
-  const handleFavorite = () => {
+  const handleFavorite = async () => {
     if (!user) {
       Taro.showToast({ title: '请先登录', icon: 'none' })
       return
     }
-    setIsFavorited(!isFavorited)
+    const { isFav } = await toggleArticleFavorite(articleId!)
+    setIsFavorited(isFav)
     Taro.showToast({
-      title: isFavorited ? '已取消收藏' : '收藏成功',
+      title: isFav ? '收藏成功' : '已取消收藏',
+      icon: 'success'})
+  }
+
+  const handleFollow = async () => {
+    if (!user) {
+      Taro.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+    if (!article?.user_id) return
+    const { isFollowing: f } = await toggleAuthorFollow(article.user_id)
+    setIsFollowing(f)
+    Taro.showToast({
+      title: f ? '已关注作者' : '已取消关注',
       icon: 'success'})
   }
 
@@ -206,14 +225,14 @@ export default function ArticleDetailPage() {
               ) : (
                 <View className="avatar-default">
                   <Text className="avatar-default-text">
-                    {(profile.nickname || '侠')[0]}
+                    {(profile.nickname || '喜')[0]}
                   </Text>
                 </View>
               )}
             </View>
             <View className="author-meta">
               <Text className="author-name">
-                {profile.nickname || '匿名侠客'}
+                {profile.nickname || '匿名用户'}
               </Text>
               <Text className="author-date">
                 {new Date(article.created_at).toLocaleDateString('zh-CN', {
@@ -235,6 +254,18 @@ export default function ArticleDetailPage() {
               {isFavorited ? '已收藏' : '收藏'}
             </Text>
           </View>
+
+          {/* 关注作者（报告 P3） */}
+          <View
+            className={`fav-btn ${isFollowing ? 'fav-active' : ''}`}
+            style={{ marginLeft: 10 }}
+            onClick={handleFollow}
+          >
+            <Text className="fav-btn-icon">{isFollowing ? '✓' : '＋'}</Text>
+            <Text className="fav-btn-text">
+              {isFollowing ? '已关注' : '关注'}
+            </Text>
+          </View>
         </View>
 
         {/* ===== 标签 ===== */}
@@ -248,8 +279,8 @@ export default function ArticleDetailPage() {
 
         {/* ===== 正文内容（公众号风格排版） ===== */}
         <View className="content-body">
-          {/* 图片列表 */}
-          {article.images && article.images.length > 0 && (
+          {/* 图片列表（仅当正文未内联图片时展示，避免与 [[img:]] 重复） */}
+          {article.images && article.images.length > 0 && !/\[\[img:/.test(article.content || '') && (
             <View className="content-images">
               {article.images.map((imgUrl: string, idx: number) => (
                 <Image
@@ -357,7 +388,7 @@ export default function ArticleDetailPage() {
         <View className="account-footer">
           <View className="account-line" />
           <Text className="account-name">来电有喜</Text>
-          <Text className="account-desc">武侠生活 · 好物推荐</Text>
+          <Text className="account-desc">好物推荐</Text>
         </View>
 
         <View className="safe-bottom" />
@@ -376,21 +407,51 @@ export default function ArticleDetailPage() {
 // ─────────────────────────────────────────────
 // 文中商品卡：把 content 里的 [[product:ID]] 占位符替换成可点击的商品卡
 // ─────────────────────────────────────────────
-type ContentPart = { type: 'product'; id: string } | { type: 'text'; value: string }
+type ContentPart =
+  | { type: 'product'; id: string }
+  | { type: 'img'; url: string }
+  | { type: 'video'; url: string }
+  | { type: 'text'; value: string }
 
 function parseContent(content: string): ContentPart[] {
   if (!content) return []
-  const raw = content.split(/(\[\[product:[\w-]+\]\])/g)
+  const raw = content.split(/(\[\[img:[^\]]+\]\]|\[\[video:[^\]]+\]\]|\[\[product:[\w-]+\]\])/g)
   const parts: ContentPart[] = []
   for (const seg of raw) {
-    const m = seg.match(/^\[\[product:([\w-]+)\]\]$/)
-    if (m) {
-      parts.push({ type: 'product', id: m[1] })
-    } else if (seg.trim() !== '') {
-      parts.push({ type: 'text', value: seg })
-    }
+    if (!seg) continue
+    let m = seg.match(/^\[\[img:([^\]]+)\]\]$/)
+    if (m) { parts.push({ type: 'img', url: m[1] }); continue }
+    m = seg.match(/^\[\[video:([^\]]+)\]\]$/)
+    if (m) { parts.push({ type: 'video', url: m[1] }); continue }
+    m = seg.match(/^\[\[product:([\w-]+)\]\]$/)
+    if (m) { parts.push({ type: 'product', id: m[1] }); continue }
+    if (seg.trim() !== '') parts.push({ type: 'text', value: seg })
   }
   return parts
+}
+
+// 内联视频播放器（尝试直接播放，失败则显示复制链接）
+function InlineVideo({ url }: { url: string }) {
+  const [playable, setPlayable] = useState(true)
+  if (!playable) {
+    return (
+      <View className="video-tip-bar">
+        <Text className="video-tip-icon">🎬</Text>
+        <Text className="video-tip-text">本文包含视频内容</Text>
+        <View className="video-copy-btn" onClick={() => { Taro.setClipboardData({ data: url }); Taro.showToast({ title: '链接已复制', icon: 'success' }) }}>
+          <Text className="video-copy-text">复制链接</Text>
+        </View>
+      </View>
+    )
+  }
+  return (
+    <Video
+      src={url}
+      className="content-inline-video"
+      controls
+      onError={() => setPlayable(false)}
+    />
+  )
 }
 
 // 单个商品卡（内联渲染于文章流中）
@@ -452,6 +513,15 @@ function ArticleContentWithProducts({ content, articleId }: { content: string; a
       {parts.map((part, idx) =>
         part.type === 'product' ? (
           <ProductCardInline key={idx} productId={part.id} articleId={articleId} />
+        ) : part.type === 'img' ? (
+          <Image
+            key={idx}
+            src={part.url}
+            mode="widthFix"
+            className="content-img"
+            onClick={() => Taro.previewImage({ urls: [part.url], current: part.url })} />
+        ) : part.type === 'video' ? (
+          <InlineVideo key={idx} url={part.url} />
         ) : (
           <RichText key={idx} nodes={part.value} className="rich-content" />
         )

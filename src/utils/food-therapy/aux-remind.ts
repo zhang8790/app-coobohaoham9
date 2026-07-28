@@ -14,14 +14,14 @@ export function buildAuxRemind(input: FoodTherapyInput, rule?: FitRule | null): 
   if (rule) {
     const ban = rule.banNatures as string[]
     if (ban.includes('寒凉') || ban.includes('大寒')) {
-      parts.push('体质偏寒/经期建议加姜丝、红枣温中')
+      parts.push('您口味偏温润，搭配姜丝、红枣更相宜')
     }
     if (ban.includes('温热') || ban.includes('大热')) {
-      parts.push('易上火/咽喉不适建议去辣减油，可配梨汤、绿豆')
+      parts.push('口味偏重喜辛辣，建议搭配梨汤、绿豆更清爽')
     }
   } else if (nature) {
-    if (nature === '大寒' || nature === '寒凉') parts.push('偏寒凉，可加姜、红枣平衡')
-    if (nature === '温热' || nature === '大热') parts.push('偏温热，建议搭配凉润食材如梨、冬瓜')
+    if (nature === '大寒' || nature === '寒凉') parts.push('口感偏凉润，可加姜、红枣更温润')
+    if (nature === '温热' || nature === '大热') parts.push('口感偏温润，建议搭配清爽食材如梨、冬瓜')
   }
 
   return parts.length ? parts.join('；') : '可按口味自由搭配辅料，适量为佳'

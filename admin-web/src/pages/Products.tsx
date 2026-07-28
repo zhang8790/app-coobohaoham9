@@ -1,7 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getPendingProducts, approveProduct, rejectProduct } from '@/api/admin'
 import type { Product } from '@/types'
+import { supabase } from '@/lib/supabase'
 import { resolveIngredientEntries, SHIYANG_DISCLAIMER } from '@/utils/shiyang'
+import { analyzeDish } from '@/utils/dish-analyzer'
 
 const PAGE_SIZE = 10
 
@@ -14,6 +17,10 @@ export default function Products() {
   const [rejectModal, setRejectModal] = useState<{ id: string; name: string } | null>(null)
   const [reason, setReason] = useState('')
   const [detailModal, setDetailModal] = useState<Product | null>(null)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analyzeMsg, setAnalyzeMsg] = useState('')
+  const [expiryMap, setExpiryMap] = useState<Record<string, string>>({})
+  const navigate = useNavigate()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -22,6 +29,24 @@ export default function Products() {
   }, [page])
 
   useEffect(() => { load() }, [load])
+
+  // 商品管理 ↔ 临期预警串联：拉全平台临期视图，按 product_id 聚合最严重阶段
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('v_near_expiry_products')
+          .select('product_id, discount_stage')
+        const rank: Record<string, number> = { red: 3, orange: 2, amber: 1 }
+        const m: Record<string, string> = {}
+        ;((data as unknown as { product_id: string; discount_stage: string }[]) || []).forEach(r => {
+          const cur = m[r.product_id]
+          if (!cur || (rank[r.discount_stage] ?? 0) > (rank[cur] ?? 0)) m[r.product_id] = r.discount_stage
+        })
+        setExpiryMap(m)
+      } catch { /* 临期视图不可读时静默，不影响商品审阅 */ }
+    })()
+  }, [])
 
   const handleApprove = async (id: string) => {
     if (!confirm('确认批准该商品上架？')) return
@@ -35,6 +60,41 @@ export default function Products() {
     setProcessing(rejectModal.id)
     await rejectProduct(rejectModal.id, reason.trim())
     setProcessing(null); setRejectModal(null); setReason(''); load()
+  }
+
+  // 食疗分析补全：基于菜名系统分析，回填食养字段（admin 有写权限，与商家端同引擎）
+  const handleAnalyzeAndFill = async () => {
+    if (!detailModal) return
+    setAnalyzing(true); setAnalyzeMsg('')
+    const p = detailModal as any
+    const r = analyzeDish(p.name || '', Array.isArray(p.ingredients) ? p.ingredients : [])
+    const body: any = {
+      ingredients: r.ingredients.length ? r.ingredients : null,
+      food_category: r.food_category || null,
+      overall_nature: r.overall_nature || null,
+      health_tag: r.health_tag.length ? r.health_tag : null,
+      positive_effect: r.positive_effect || null,
+      risk_warning: r.risk_warning || null,
+      scenes: r.scenes.length ? r.scenes : null,
+      rec_crowds: r.rec_crowds.length ? r.rec_crowds : null,
+      cautious_crowds: r.cautious_crowds.length ? r.cautious_crowds : null,
+      forbidden_crowds: r.forbidden_crowds.length ? r.forbidden_crowds : null,
+    }
+    try {
+      const { error } = await supabase.from('products').update(body).eq('id', p.id)
+      if (error) throw error
+      setAnalyzeMsg('✅ 已补全食养字段并写入数据库')
+      setDetailModal({ ...detailModal, ...body })
+    } catch (e: any) {
+      const msg = e?.message || ''
+      if (/column|does not exist/.test(msg)) {
+        setAnalyzeMsg('⚠️ 部分字段写入失败（迁移 00100/00104 未执行），请在本机连 DB 环境执行迁移后再补全')
+      } else {
+        setAnalyzeMsg('❌ 补全失败：' + msg)
+      }
+    } finally {
+      setAnalyzing(false)
+    }
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -83,6 +143,17 @@ export default function Products() {
                             {resolveIngredientEntries(p).length} 味原料
                           </span>
                         )}
+                        {expiryMap[p.id] && (() => {
+                          const s = expiryMap[p.id]
+                          const map: Record<string, { c: string; t: string }> = { red: { c: '#DC2626', t: '紧急' }, orange: { c: '#EA580C', t: '紧迫' }, amber: { c: '#D97706', t: '临期' } }
+                          const info = map[s] || map.amber
+                          return (
+                            <button onClick={() => navigate('/expiry')}
+                              style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 6, marginTop: 6, padding: '2px 8px', background: `${info.c}22`, border: `1px solid ${info.c}`, borderRadius: 999, color: info.c, fontSize: 11, cursor: 'pointer' }}>
+                              临期·{info.t}
+                            </button>
+                          )
+                        })()}
                       </div>
                     </div>
                   </td>
@@ -204,6 +275,20 @@ export default function Products() {
                   </div>
                 )
               })()}
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18, marginTop: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <p style={{ color: 'var(--text)', fontSize: 15, fontWeight: 700, margin: 0 }}>食疗分析补全</p>
+                <button onClick={handleAnalyzeAndFill} disabled={analyzing || !detailModal}
+                  style={{ padding: '6px 14px', background: (analyzing || !detailModal) ? 'var(--border-soft)' : 'var(--success-strong)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, cursor: (analyzing || !detailModal) ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
+                  {analyzing ? '分析中…' : '✨ 一键分析并补全'}
+                </button>
+              </div>
+              <p style={{ color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.5, margin: '0 0 8px' }}>基于菜名自动拆解食材，回填食养字段（性味 / 功效 / 人群 / 场景）。与商家端录入同一引擎，数据同步一致。</p>
+              {analyzeMsg && (
+                <p style={{ color: analyzeMsg.startsWith('✅') ? 'var(--success-strong)' : analyzeMsg.startsWith('⚠️') ? 'var(--warning)' : 'var(--danger)', fontSize: 12, margin: 0 }}>{analyzeMsg}</p>
+              )}
             </div>
           </div>
         </div>

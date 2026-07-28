@@ -5,7 +5,7 @@
 // 固定食疗标签库（9 项，与迁移 00100 health_tag 注释一致）
 export const HEALTH_TAGS = [
   '温中散寒', '健脾养胃', '滋阴润燥', '清热降火', '补气养血',
-  '安神助眠', '消食化积', '润肺止咳', '利水消肿',
+  '舒缓安适', '消食化积', '润养舒喉', '利水消肿',
 ] as const
 export type HealthTag = typeof HEALTH_TAGS[number]
 

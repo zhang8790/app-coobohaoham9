@@ -14,6 +14,7 @@
 //   - 配置 LLM_API_KEY / LLM_BASE_URL 后，理解与润色升级为 LLM，结果仍受医疗宣称词闸门约束。
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { getLlmConfig, type LlmConfig } from '../_shared/llmConfig.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,15 +28,13 @@ function json(body: any, status = 200, headers = corsHeaders) {
   })
 }
 
-function hasLLM(): boolean {
-  return !!Deno.env.get('LLM_API_KEY')
-}
+// LLM 启用判定改由 getLlmConfig() 在各 handler 内统一处理（读 system_config 表，回退 env）
 
 // OpenAI 兼容调用；返回解析后的 JSON 对象（失败返回 null → 调用方走兜底）
-async function callLLM(system: string, user: string): Promise<any | null> {
-  const key = Deno.env.get('LLM_API_KEY')
-  const base = Deno.env.get('LLM_BASE_URL') || 'https://api.openai.com/v1'
-  const model = Deno.env.get('LLM_MODEL') || 'gpt-4o-mini'
+async function callLLM(system: string, user: string, cfg: LlmConfig): Promise<any | null> {
+  const key = cfg.key
+  const base = cfg.base || 'https://api.openai.com/v1'
+  const model = cfg.model || 'gpt-4o-mini'
   try {
     const resp = await fetch(`${base}/chat/completions`, {
       method: 'POST',
@@ -73,11 +72,12 @@ function hasMedicalClaim(text: string): boolean {
 async function handleNlu(supabase: any, text: string, headers: any) {
   if (!text || !text.trim()) return json({ success: false, error: 'empty text' }, 400, headers)
 
-  if (hasLLM()) {
+  const cfg = await getLlmConfig()
+  if (cfg.key) {
     const sys = `你是食材食疗导购的「理解」引擎。把用户描述身体状态/场景的自由文本，解析为结构化信号。
 只输出 JSON：{"matched_rule_label":"最贴合的规则名称或空串","health_tags":["食疗标签"],"emotion_tags":["情绪标签"],"nature_hint":"偏寒/偏热/平和/空串","keywords":["命中的关键词"]}
 注意：仅做饮食文化层面的理解，绝不输出任何医疗诊断或治疗建议。`
-    const res = await callLLM(sys, `用户说：${text}`)
+    const res = await callLLM(sys, `用户说：${text}`, cfg)
     if (res && (res.health_tags || res.matched_rule_label || res.emotion_tags)) {
       // 用 DB 规则做对齐，确保 matched_rule_id 落在已知规则集
       const aligned = await alignRule(supabase, res.matched_rule_label, text)
@@ -137,14 +137,15 @@ async function handleCopy(supabase: any, body: any, headers: any) {
   let result: any = null
   let source = 'rule'
 
-  if (hasLLM()) {
+  const cfg = await getLlmConfig()
+  if (cfg.key) {
     const sys = `你是「食材食疗导购」的文案师，为本地生活电商把导购文案润色得更自然、有温度、口语化。
 要求：
 - 绝不使用"抢购/手慢无/最佳选择/限时/划算/爆款/必买/治疗/治愈/疗效"等任何带货或医疗宣称话术
 - 保留原文的核心信息（性味、食疗侧重、免责说明）
 - 输出 JSON，字段与输入一致：short_sales_word / detail_desc / circle_copy / risk_tip`
     const user = `原始文案：\n${JSON.stringify(rule_copy, null, 2)}\n\n商品上下文：\n${ctx}`
-    const res = await callLLM(sys, user)
+    const res = await callLLM(sys, user, cfg)
     if (res && res.short_sales_word) {
       // 医疗宣称词闸门：任一字段含医疗宣称词 → 整段回退规则文案
       const bad = [res.short_sales_word, res.detail_desc, res.circle_copy, res.risk_tip].some((t) => hasMedicalClaim(t || ''))

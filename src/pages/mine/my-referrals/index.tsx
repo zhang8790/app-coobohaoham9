@@ -124,7 +124,7 @@ export default function MyReferrals() {
                 mode="aspectFill"
                 onError={() => {}} />
               <View className="flex-1">
-                <Text className="text-base font-bold text-foreground">{p.nickname || '江湖侠客'}</Text>
+                <Text className="text-base font-bold text-foreground">{p.nickname || '用户'}</Text>
                 <Text className="text-xs text-muted-foreground mt-0.5">
                   {p.member_rank || '凡心'} · 金豆 {p.tb_balance || 0}
                 </Text>

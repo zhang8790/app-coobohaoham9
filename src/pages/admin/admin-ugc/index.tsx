@@ -1,4 +1,4 @@
-// @title 武林贴管理
+// @title 内容管理
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { Image, View, Button, Text } from '@tarojs/components'

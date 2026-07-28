@@ -80,12 +80,6 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       setCurrentCity(resolvedCity)
       Taro.setStorageSync('currentCity', resolvedCity)
 
-      Taro.showToast({
-        title: `已定位到${resolvedCity.city_name}`,
-        icon: 'success',
-        duration: 1500,
-      })
-
       // 根据定位切换当前自营门店（最近门店）
       await resolveNearestStore(loc.latitude, loc.longitude)
     } catch (err: any) {

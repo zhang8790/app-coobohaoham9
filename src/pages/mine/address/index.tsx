@@ -124,7 +124,6 @@ function AddressPage() {
         } catch (chooseErr: any) {
           // 用户取消选择，不处理
           if (chooseErr.errMsg && chooseErr.errMsg.includes('cancel')) {
-            console.log('[Address] 用户取消选择位置')
           } else {
             console.warn('[Address] chooseLocation 失败:', chooseErr)
           }

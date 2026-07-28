@@ -88,7 +88,7 @@ function AdminUsersPage() {
               <View className="flex items-start justify-between">
                 <View className="flex flex-col gap-1">
                   <View className="flex items-center gap-2">
-                    <Text className="text-2xl font-bold text-foreground">{u.nickname || '侠客'}</Text>
+                    <Text className="text-2xl font-bold text-foreground">{u.nickname || '用户'}</Text>
                     {u.role === 'admin' && (
                       <View className="px-2 py-0.5 rounded-full bg-primary/15">
                         <Text className="text-xs text-primary font-bold">管理员</Text>

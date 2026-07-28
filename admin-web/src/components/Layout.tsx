@@ -23,6 +23,8 @@ const NAV = [
   { to: '/marketing-templates', icon: 'chat', label: '导购话术库' },
   { to: '/self-stores', icon: 'building', label: '自营门店' },
   { to: '/commission-guide', icon: 'calculator', label: '佣金说明' },
+  { to: '/categories', icon: 'tag', label: '商品分类' },
+  { to: '/expiry', icon: 'alert', label: '临期预警' },
 ]
 
 // NavIcon 已抽到 ./icons 共享组件
@@ -67,7 +69,7 @@ export default function Layout() {
         </div>
 
         {/* 导航 */}
-        <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <nav style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {NAV.map(item => (
             <NavLink key={item.to} to={item.to}
               style={({ isActive }) => ({
@@ -86,6 +88,28 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+
+        {/* 系统配置固定入口：导航再长也不会被视口裁切 */}
+        <div style={{ padding: '8px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          <NavLink
+            to="/settings"
+            aria-label="AI 模型配置"
+            title={collapsed ? 'AI 模型配置' : undefined}
+            style={({ isActive }) => ({
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: collapsed ? '10px 14px' : '10px 12px',
+              borderRadius: 8,
+              background: isActive ? 'var(--primary-soft)' : 'transparent',
+              color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+              textDecoration: 'none', fontSize: 14, fontWeight: isActive ? 600 : 500,
+              transition: 'all 0.15s',
+              borderLeft: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+            })}
+          >
+            <NavIcon name="cpu" />
+            {!collapsed && <span>AI 模型配置</span>}
+          </NavLink>
+        </div>
 
         {/* 折叠按钮 */}
         <button

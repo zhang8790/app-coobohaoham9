@@ -760,14 +760,19 @@ export async function getOrderItemCommissions(orderId: string): Promise<ProductC
 // 均用两步直读解析用户昵称/手机（profiles 无 FK，沿用已修通范式）
 // =====================================================
 
+// points_logs 实际列（以 distribute-commission v5 写入为准；与 00003 迁移定义不一致）：
+//   id, user_id, type, amount, source, related_order_id, created_at
+// 真实表无 order_id / delta / balance_after / remark 四个列，故前端做字段映射后导出本类型。
+// 为兼容 Ledgers.tsx 通用渲染（共用 r.delta/r.balance_after/r.order_id/r.remark 引用），
+// 类型字段名沿用旧名，并在 getPointsLedger 中做映射，balance_after 真实表无值故固定 null。
 export interface PointsLedgerRow {
   id: string
-  user_id: string | null
-  order_id: string | null
-  type: string
-  delta: number
-  balance_after: number
-  remark: string | null
+  user_id: string | null       // 真实列
+  order_id: string | null      // 真实列 related_order_id
+  type: string                 // 真实列
+  delta: number                // 真实列 amount
+  balance_after: number | null // 真实表无此列，固定 null（前端展示 "—"）
+  remark: string | null        // 真实列 source
   created_at: string
   nickname: string | null
   phone: string | null
@@ -819,6 +824,10 @@ export interface GoldBeanLedgerRow {
 }
 
 // ── 买家金豆流水 ──────────────────────────────────────────────
+// points_logs 实际列：id, user_id, type, amount, source, related_order_id, created_at
+// （与 00003 迁移定义不一致；distribute-commission v5 EF 写入用 amount/related_order_id/source，
+//  详见 00137_part2:30 注释 + refund-order:232 注释）
+// 前端做字段映射：delta←amount, order_id←related_order_id, remark←source；balance_after 真实表无列故固定 null。
 export async function getPointsLedger(
   page: number,
   pageSize: number,
@@ -827,7 +836,7 @@ export async function getPointsLedger(
   try {
     let q = supabase.from('points_logs').select('*', { count: 'exact' })
     if (filters.type && filters.type !== 'all') q = q.eq('type', filters.type)
-    if (filters.keyword) q = q.ilike('remark', `%${filters.keyword}%`)
+    if (filters.keyword) q = q.ilike('source', `%${filters.keyword}%`)
     const { data, count, error } = await q
       .order('created_at', { ascending: false })
       .range(page * pageSize, (page + 1) * pageSize - 1)
@@ -843,11 +852,11 @@ export async function getPointsLedger(
     const data2: PointsLedgerRow[] = rows.map(r => ({
       id: r.id,
       user_id: r.user_id ?? null,
-      order_id: r.order_id ?? null,
+      order_id: r.related_order_id ?? null,   // 真实列 related_order_id
       type: r.type,
-      delta: Number(r.delta || 0),
-      balance_after: Number(r.balance_after || 0),
-      remark: r.remark ?? null,
+      delta: Number(r.amount || 0),            // 真实列 amount
+      balance_after: null,                     // 真实表无此列，固定 null（UI 展示 "—"）
+      remark: r.source ?? null,                // 真实列 source
       created_at: r.created_at,
       nickname: uMap.get(r.user_id)?.nickname ?? null,
       phone: uMap.get(r.user_id)?.phone ?? null,

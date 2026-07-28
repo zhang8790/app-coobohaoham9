@@ -62,6 +62,17 @@ export interface Product {
   stores?: { name: string } | null
 }
 
+/** 商品分类（store_categories 表）：平台全局分类(scope='global') + 商家店内分类(scope='store') */
+export interface StoreCategory {
+  id: string
+  store_id: string | null
+  name: string
+  sort_order: number
+  scope: 'global' | 'store'
+  /** 是否上架：false=下架（前端自营页入口隐藏，"全部"仍可见） */
+  is_active: boolean
+}
+
 // 商品情绪编译结果（与小程序端共用 product_emotion 同一张表）
 export interface ProductEmotionData {
   emotion_title?: string | null

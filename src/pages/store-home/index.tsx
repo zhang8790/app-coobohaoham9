@@ -42,19 +42,16 @@ export default function StoreHomePage() {
       if (scene) {
         try {
           const decodedScene = decodeURIComponent(scene)
-          console.log('[StoreHome] scene:', decodedScene)
 
           // 匹配 s=门店短码（8位字母数字）
           const storeMatch = decodedScene.match(/s=([A-Za-z0-9]{4,12})/i)
           if (storeMatch) {
             const shortCode = storeMatch[1].toUpperCase()
-            console.log('[StoreHome] 查找门店 short_code:', shortCode)
 
             // 通过短码查询门店 ID
             supabase.from('stores').select('id').eq('short_code', shortCode).maybeSingle()
               .then(({ data }: { data: any }) => {
                 if (data?.id) {
-                  console.log('[StoreHome] 找到门店 ID:', data.id)
                   setStoreId(data.id)
                 } else {
                   Taro.showToast({ title: '门店不存在', icon: 'none' })
@@ -128,7 +125,7 @@ export default function StoreHomePage() {
     setAddingId(product.id)
     await addToCart(product.id, product.store_id || storeId)
     setAddingId(null)
-    Taro.showToast({ title: '已加入行囊', icon: 'success' })
+    Taro.showToast({ title: '已加入购物车', icon: 'success' })
   }
 
   // 加载中

@@ -25,16 +25,22 @@ export default function MyArticlesPage() {
   const [myCode, setMyCode] = useState('')
   const [shareArticle, setShareArticle] = useState<Article | null>(null)
 
-  // 分享：携带推广码归属推荐关系，动态返回文章标题
+  // 分享：跳到文章详情页（带推广码归属推荐关系 + 封面缩略图），原生面板含好友/群/朋友圈
   useShareAppMessage(() => ({
     title: shareArticle
       ? `【来电有喜】${shareArticle.title}`
       : '我在来电有喜发现了好内容，快来看看！',
-    path: `/pages/content/content-center/my-articles/index${shareArticle ? `?articleId=${shareArticle.id}` : ''}`}))
+    path: `/pages/content/article-detail/index${shareArticle ? `?id=${shareArticle.id}${myCode ? `&from=${myCode}` : ''}` : ''}`,
+    imageUrl: shareArticle?.cover_image || undefined,
+  }))
+  // 朋友圈分享（query 拼 id + from）
   useShareTimeline(() => ({
     title: shareArticle
       ? `【来电有喜】${shareArticle.title}`
-      : '来电有喜 · 武侠生活平台'}))
+      : '来电有喜',
+    query: shareArticle ? `id=${shareArticle.id}${myCode ? `&from=${myCode}` : ''}` : '',
+    imageUrl: shareArticle?.cover_image || undefined,
+  }))
 
   const loadArticles = useCallback(async () => {
     setLoading(true)
@@ -146,8 +152,8 @@ export default function MyArticlesPage() {
                     <Icon name="eye-outline" size={20} className="text-blue-600" />
                     <Text className="text-xl text-blue-600">预览</Text>
                   </Button>
-                  {/* 分享按钮 — 已发布的文章才能分享归属 */}
-                  {article.status === 'published' && (
+                  {/* 分享按钮 — 已发布走原生分享面板（好友/群/朋友圈），草稿引导先发布 */}
+                  {article.status === 'published' ? (
                     <Button
                       openType="share"
                       data-id={article.id}
@@ -155,7 +161,18 @@ export default function MyArticlesPage() {
                       style={{ lineHeight: 'normal', padding: '8px 0', fontSize: '20px', color: '#16A34A', fontWeight: 'bold' }}
                       onClick={() => setShareArticle(article)}
                     >
-                      分享赚佣
+                      <Icon name="share-variant" size={20} className="text-green-600" />
+                      分享
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-gray-300 bg-gray-50"
+                      style={{ lineHeight: 'normal', padding: '8px 0', fontSize: '20px', color: '#6B7280', fontWeight: 'bold' }}
+                      onClick={(e) => { e.stopPropagation(); Taro.showToast({ title: '草稿暂不支持分享，请先发布', icon: 'none' }) }}
+                    >
+                      <Icon name="share-variant" size={20} className="text-gray-500" />
+                      分享
                     </Button>
                   )}
                   <Button type="button"

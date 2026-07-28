@@ -186,7 +186,6 @@ export async function saveUserFrequentAddress(
   try {
     const key = `frequent_address_${userId}_${addressType}`
     Taro.setStorageSync(key, location)
-    console.log(`[LBS] 保存常用地址：${addressType}`, location)
   } catch (err) {
     console.error('[LBS] 保存常用地址失败', err)
   }

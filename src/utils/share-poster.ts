@@ -125,7 +125,7 @@ export async function generateArticleSharePoster(
           ctx.fillText('来电有喜', textLeft + 60, brandY)
           ctx.fillStyle = '#a5b4fc'
           ctx.font = '16px sans-serif'
-          ctx.fillText('武侠生活 · 好物推荐', textLeft + 60, brandY + 26)
+          ctx.fillText('好物推荐', textLeft + 60, brandY + 26)
 
           // 5. 保存为临时图片
           Taro.canvasToTempFilePath({

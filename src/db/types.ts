@@ -77,9 +77,31 @@ export interface Store {
 
 export interface StoreCategory {
   id: string
-  store_id: string
+  store_id: string | null
   name: string
   sort_order: number
+  scope: 'global' | 'store'
+  /** 是否上架：false=下架（前端入口隐藏，"全部"仍可见） */
+  is_active: boolean
+}
+
+/** 临期特惠商品（读自视图 v_near_expiry_products，数据层通用，按 store_id 可过滤） */
+export interface StoreNearExpiry {
+  product_id: string
+  store_id: string
+  name: string | null
+  image_url: string | null
+  price: number
+  original_price: number | null
+  batch_id: string
+  auto_discount_rate: number
+  qty: number
+  effective_price: number
+  expire_at: string
+  days_left: number
+  discount_stage: 'amber' | 'orange' | 'red'
+  ai_reason: string | null
+  decided_by: 'rule' | 'ai'
 }
 
 export interface Product {
@@ -578,7 +600,7 @@ export interface Announcement {
   created_at: string
 }
 
-// 首页「江湖动态」：实时下单脱敏聚合（由 get_recent_order_feed RPC 返回）
+// 首页「好物动态」：实时下单脱敏聚合（由 get_recent_order_feed RPC 返回）
 export interface OrderFeedItem {
   id: string
   masked_name: string
@@ -610,6 +632,22 @@ export interface Favorite {
   product_id: string
   created_at: string
   products?: Product
+}
+
+export interface ArticleFavorite {
+  id: string
+  user_id: string
+  article_id: string
+  created_at: string
+  articles?: any
+}
+
+export interface AuthorFollow {
+  id: string
+  user_id: string
+  author_id: string
+  created_at: string
+  profiles?: any
 }
 
 export interface Footprint {

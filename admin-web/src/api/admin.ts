@@ -741,3 +741,47 @@ export async function getSelfStoreStats(storeId: string): Promise<SelfStoreStats
     }
   }, { productTotal: 0, productActive: 0, orderTotal: 0, gmv: 0 })
 }
+
+// ── 系统 LLM 配置（总管理后台填写，全项目共用）──────────────────────────
+// 对应 supabase/migrations/20260726_system_llm_config.sql 的 system_config 表（key='llm'）。
+// RLS：仅 is_admin() 可读写；anon/普通用户读不到 → API Key 不外泄。
+
+export interface LlmConfigValue {
+  base_url: string
+  api_key: string
+  model: string
+  enabled: boolean
+}
+
+/** 读取当前 LLM 配置（管理后台初始化表单用）。无配置返回 null。 */
+export async function getLlmConfig(): Promise<LlmConfigValue | null> {
+  return safeQuery(async () => {
+    const { data, error } = await supabase
+      .from('system_config').select('value').eq('key', 'llm').maybeSingle()
+    if (error) throw error
+    return (data?.value as LlmConfigValue) ?? null
+  }, null)
+}
+
+/** 保存 LLM 配置（upsert key='llm'）。仅 admin 可写（RLS 约束）。 */
+export async function saveLlmConfig(value: LlmConfigValue): Promise<boolean> {
+  return safeQuery(async () => {
+    const { error } = await supabase
+      .from('system_config')
+      .upsert({ key: 'llm', value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+    if (error) throw error
+    return true
+  }, true)
+}
+
+/** 测试 LLM 连通性：通过 product-analyze 的 test 模式验证当前配置可用（不跑完整识别）。 */
+export async function testLlmConfig(): Promise<{ ok: boolean; message: string; source?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('product-analyze', { body: { test: true, name: '连通性测试' } })
+    if (error) return { ok: false, message: error.message }
+    if (data?.success) return { ok: true, message: '连接成功，模型可用', source: data.source }
+    return { ok: false, message: data?.message || '测试失败（可能未配置或密钥无效）' }
+  } catch (e: any) {
+    return { ok: false, message: e?.message ?? '调用失败' }
+  }
+}

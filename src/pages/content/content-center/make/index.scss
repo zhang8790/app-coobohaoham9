@@ -1,5 +1,5 @@
 /* ============================================
-   创作江湖令 - 插入好物卡 商品选择器
+   创作中心 - 插入好物卡 商品选择器
    ============================================ */
 
 /* --- 遮罩层 --- */
@@ -97,4 +97,323 @@
   .picker-item {
     background: #2a2a2a;
   }
+}
+
+/* ============================================
+   创作页沉浸式编辑器（重设布局 + 简化操作 + 视频上传）
+   ============================================ */
+.mk-page {
+  padding-bottom: 180px;
+}
+
+/* 导入文章折叠区 */
+.mk-import {
+  margin: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* 导入入口行（在 mk-body 内，去掉水平 margin 避免双间距） */
+.mk-import-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: hsl(var(--primary) / 0.08);
+  border: 1px dashed hsl(var(--primary) / 0.4);
+}
+
+/* 顶栏：我的文章入口 */
+.mk-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 16px calc(4px + env(safe-area-inset-top));
+}
+.mk-topbar-my {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: hsl(var(--primary) / 0.08);
+}
+
+/* 编辑主体 — 微暖纸面氛围，让创作空间有归属感 */
+.mk-body {
+  padding: 16px;
+  margin: 12px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.03) 0%, transparent 60%);
+  border: 1px solid hsl(var(--border) / 0.6);
+}
+
+/* 标题输入 — 聚焦时 primary 高亮 */
+.mk-title-input {
+  font-size: 24px;
+  font-weight: 700;
+  padding: 10px 0;
+  border-bottom: 2px solid hsl(var(--border));
+  transition: border-color 0.25s ease;
+}
+.mk-title-input:focus {
+  border-bottom-color: hsl(var(--primary));
+}
+
+/* 内容输入 */
+.mk-content {
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+/* 媒体预览行 */
+.mk-media-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+.mk-media-thumb {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f0f0f0;
+}
+.mk-media-video {
+  background: #000;
+}
+.mk-media-del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mk-media-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* 底部固定工具栏 */
+.mk-toolbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  z-index: 50;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 56px;
+  background: #ffffff;
+  border-top: 1px solid hsl(var(--border));
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+}
+.mk-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  transition: transform 0.2s ease;
+}
+.mk-tool:active {
+  transform: scale(0.92);
+}
+/* 工具栏已选高亮（封面/视频已添加时） */
+.mk-tool-active {
+  position: relative;
+}
+.mk-tool-active::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: 50%;
+  transform: translateX(20px);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+}
+
+/* 发布区 */
+.mk-publish {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: #ffffff;
+  border-top: 1px solid hsl(var(--border));
+}
+
+/* ── 实时预览弹层（公众号式） ── */
+.preview-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+}
+.preview-sheet {
+  width: 100%;
+  height: 92vh;
+  background: hsl(var(--background));
+  border-radius: 20px 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: preview-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes preview-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  padding: 12px 16px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.preview-bar-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+.preview-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.preview-bar-share {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: hsl(var(--muted));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  line-height: normal;
+  border: none;
+  &::after { border: none; }
+}
+.preview-bar-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: hsl(var(--muted));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.preview-scroll {
+  flex: 1;
+  padding: 16px;
+}
+.preview-cover {
+  width: 100%;
+  height: 200px;
+  border-radius: 16px;
+  margin-bottom: 14px;
+}
+.preview-title {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: hsl(var(--foreground));
+  margin-bottom: 14px;
+  display: block;
+}
+.preview-empty {
+  font-size: 15px;
+  color: hsl(var(--muted-foreground));
+  display: block;
+  padding: 30px 0;
+  text-align: center;
+}
+.preview-text {
+  font-size: 17px;
+  line-height: 1.8;
+  color: hsl(var(--foreground));
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: block;
+  margin-bottom: 6px;
+}
+.preview-img {
+  width: 100%;
+  border-radius: 12px;
+  margin: 8px 0;
+  background: #f0f0f0;
+}
+.preview-video-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  margin: 8px 0;
+  border-radius: 12px;
+  background: hsl(var(--primary) / 0.08);
+}
+.preview-video-text {
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+  flex: 1;
+}
+
+/* 预览内商品卡（复用详情页 .article-product-card 视觉） */
+.apc-skeleton {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  margin: 8px 0;
+}
+.apc-skeleton-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  background: hsl(var(--muted));
+}
+.apc-skeleton-line {
+  flex: 1;
+  height: 16px;
+  border-radius: 8px;
+  background: hsl(var(--muted));
+  align-self: center;
+}
+.apc-fallback {
+  padding: 16px;
+  border-radius: 14px;
+  background: hsl(var(--card));
+  border: 1px dashed hsl(var(--border));
+  margin: 8px 0;
+}
+.apc-fallback-text {
+  font-size: 15px;
+  color: hsl(var(--muted-foreground));
 }

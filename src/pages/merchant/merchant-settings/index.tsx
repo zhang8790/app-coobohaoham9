@@ -105,22 +105,18 @@ function MerchantSettingsPage() {
       if (!res.tempFiles?.length) return
 
       const tempPath = res.tempFiles[0].tempFilePath
-      console.log('[banner] chooseMedia 返回路径:', tempPath)
 
       // ① 立即预览（本地路径，无需网络，立即可见）
       setPreviewPath(tempPath)
-      console.log('[banner] 预览已设置:', tempPath.slice(0, 80))
 
       // ② 异步上传到 Storage（获取公网 URL 用于持久化）
       Taro.showLoading({ title: '上传中...' })
       try {
         const publicUrl = await uploadToStorage(tempPath)
-        console.log('[banner] uploadToStorage 返回:', publicUrl ? publicUrl.slice(0, 80) : '(空)')
 
         if (publicUrl) {
           // 同时更新 banner_url 和 image_url，确保所有页面都能看到新图
           setForm(f => ({ ...f, banner_url: publicUrl, image_url: publicUrl }))
-          console.log('[banner] banner_url + image_url 已更新:', publicUrl.slice(0, 80))
           Taro.showToast({ title: '上传成功', icon: 'success' })
         } else {
           // 上传失败：预览图仍保留（用户可先保存本地路径或重新尝试）
@@ -193,7 +189,7 @@ function MerchantSettingsPage() {
               src={previewPath}
               mode="aspectFill"
               style={{ width: '100%', height: '176px', display: 'block' }}
-              onLoad={() => console.log('[banner] 预览图加载成功:', previewPath.slice(0, 60))}
+              onLoad={() => {}}
               onError={(e: any) => {
                 console.error('[banner] 预览图加载失败:', previewPath.slice(0, 80), e)
                 // 加载失败时清除预览，显示占位符（避免空白区域）
