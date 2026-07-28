@@ -236,32 +236,6 @@ export interface IngredientOcrTask {
   updated_at: string
 }
 
-// 会员摄入记录（intake_logs 表）—— 用户实际消费的商品，用于健康画像聚合
-export interface IntakeLog {
-  id: string
-  user_id: string
-  product_id: string | null
-  product_name: string | null
-  ingredients: string[] | null    // 摄入的配料名/key
-  nature: string | null           // 该餐整体性味
-  health_tags: string[] | null
-  taken_at: string                // 摄入时间
-  scene: string | null            // 场景（熬夜/经期…）
-  created_at: string
-}
-
-// 会员健康画像（health_reports 表）—— 按月聚合摄入，输出体质/风险/建议
-export interface HealthReport {
-  id: string
-  user_id: string
-  period: string                  // 统计周期，如 2026-07
-  nature_distribution: Record<string, number> | null  // 性味分布
-  top_ingredients: string[] | null
-  risk_flags: string[] | null     // 累计风险（高钠/高糖…）
-  advice: string | null           // 食养建议（不替代医嘱）
-  generated_at: string
-}
-
 // =====================
 // 食品配料安全管理系统（V1.0 全量，基于原有 Supabase 基础）
 // 异业共享会员联盟不在此实现；二级分销复用来电有喜既有模型。
@@ -306,36 +280,6 @@ export interface StockBatch {
   created_at: string
 }
 
-// 库存汇总（inventories 表）—— 按仓/车汇总实时库存
-export interface Inventory {
-  id: string
-  owner_type: 'warehouse' | 'vehicle'
-  owner_id: string
-  product_id: string
-  qty: number
-  updated_at: string
-}
-
-// 流动车（vehicles 表）
-export interface Vehicle {
-  id: string
-  store_id: string | null
-  name: string
-  status: 'active' | 'offline'
-  created_at: string
-}
-
-// 流动车调拨单（vehicle_transfers 表）—— 出库/回库/跨车，弱网离线标记
-export interface VehicleTransfer {
-  id: string
-  vehicle_id: string | null
-  type: 'out' | 'return' | 'cross'
-  product_id: string | null
-  qty: number
-  operator_id: string | null
-  sync_status: 'synced' | 'pending'   // 弱网离线标记，恢复网络后同步
-  created_at: string
-}
 
 // 情绪确权记录（消费即确权路线，由 00052 建表）
 export interface EmotionClaim {
