@@ -200,33 +200,54 @@ async function triggerClawback(
 ) {
   const ratio = totalAmount > 0 ? refundAmount / totalAmount : 1
 
-  // 佣金扣回：按比例标记，并同步回滚受益人「情绪豆账户」(tb_balance)。
-  // 2026-07-19 起推广佣金统一发放到 tb_balance（不再进 commission_balance），
-  // 故此处必须扣 tb_balance，否则已退款订单的佣金仍留在 tb_balance 可被消费 = 资损。
-  // 历史遗留（pre-07-19 发往 commission_balance 的极少订单）如遇，可另写迁移补扣。
+  // 佣金扣回：按比例标记，并同步回滚受益人「金豆账户」(tb_balance) 与「可提现佣金账户」(commission_balance)。
+  // 2026-07-29 起推广收益按「50% 可提现佣金 + 50% 金豆」拆分发放，故此处须按 commissions 表的
+  // cash_portion/bean_portion 双账户回滚，否则已退款订单的佣金仍留在账户可被消费/提现 = 资损。
+  // 历史遗留（pre-07-29 无拆分列的行）自动按整笔 commission_amount 视为金豆，兼容回滚。
   const { data: commissions } = await supabase.from('commissions')
-    .select('id, beneficiary_id, commission_amount, status')
+    .select('id, beneficiary_id, commission_amount, cash_portion, bean_portion, status')
     .eq('order_id', orderId)
     .in('status', ['pending', 'settled'])
 
   for (const c of (commissions ?? [])) {
-    const clawback = Math.max(0, Math.round(Number(c.commission_amount || 0) * ratio * 100) / 100)
     await supabase.from('commissions').update({ status: 'refunded' }).eq('id', c.id)
-    if (clawback > 0 && c.beneficiary_id) {
+    if (!c.beneficiary_id) continue
+    // 拆分回滚：金豆一半回 tb_balance，现金一半回 commission_balance。
+    // 兼容历史行（pre-07-29 无拆分列，整笔均为金豆）：cash+bean 均为 0 时按整笔 commission_amount 视为金豆。
+    const cashPortion = Number(c.cash_portion || 0)
+    const beanPortion = Number(c.bean_portion || 0)
+    const legacy = (cashPortion + beanPortion) === 0
+    const effBean = legacy ? Number(c.commission_amount || 0) : beanPortion
+    const effCash = legacy ? 0 : cashPortion
+    const beanClawback = Math.max(0, Math.round(effBean * ratio * 100) / 100)
+    const cashClawback = Math.max(0, Math.round(effCash * ratio * 100) / 100)
+    if (beanClawback > 0) {
       const { data: bProf } = await supabase.from('profiles')
         .select('tb_balance').eq('id', c.beneficiary_id).maybeSingle()
       if (bProf) {
-        const newTb = Math.round((Number(bProf.tb_balance || 0) - clawback) * 100) / 100
+        const newTb = Math.round((Number(bProf.tb_balance || 0) - beanClawback) * 100) / 100
         await supabase.from('profiles').update({ tb_balance: newTb }).eq('id', c.beneficiary_id)
-        // 佣金回冲流水（与 distribute-commission 的 commission_earn 对应，便于对账防资损）
         await supabase.from('tongbao_logs').insert({
           user_id: c.beneficiary_id, order_id: orderId,
-          type: 'commission_revoke', delta: -clawback, balance_after: newTb,
-          remark: `订单${orderNo}退款佣金回冲`,
+          type: 'commission_revoke', delta: -beanClawback, balance_after: newTb,
+          remark: `订单${orderNo}退款佣金回冲(金豆)`,
         })
       }
     }
-    console.log(`[clawback] commission ${c.id} marked refunded, clawback=${clawback}`)
+    if (cashClawback > 0) {
+      const { data: bProf } = await supabase.from('profiles')
+        .select('commission_balance').eq('id', c.beneficiary_id).maybeSingle()
+      if (bProf) {
+        const newBal = Math.round((Number(bProf.commission_balance || 0) - cashClawback) * 100) / 100
+        await supabase.from('profiles').update({ commission_balance: newBal }).eq('id', c.beneficiary_id)
+        await supabase.from('commission_balance_logs').insert({
+          user_id: c.beneficiary_id, order_id: orderId, commission_id: c.id,
+          type: 'commission_revoke', delta: -cashClawback, balance_after: newBal,
+          remark: `订单${orderNo}退款佣金回冲(可提现)`,
+        }).catch((e: any) => console.warn('[commission_balance_logs] 回冲失败:', (e as any)?.message))
+      }
+    }
+    console.log(`[clawback] commission ${c.id} marked refunded, bean=${beanClawback}, cash=${cashClawback}`)
   }
 
   // 积分扣回（points_logs 真实列：related_order_id/amount/type/source，无 order_id/delta/balance_after）

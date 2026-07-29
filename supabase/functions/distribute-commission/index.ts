@@ -9,7 +9,8 @@
  * - 上级链统一用 profiles.referrer_id（uuid 上级），修复原 L2 段位记录用 calculateDynamicScore(0) 写死"凡心"的 bug。
  *
  * 段位判定：动态分数 = 近6月滚动消费（含情绪豆，1:1；被 6 月窗口锁死不会变永久杠杆）。
- * 分佣基数：自 2026-07-19 起统一为订单全额 total_amount（含情绪豆抵扣），情绪豆全额参与分佣；推广佣金以「情绪豆」(tb_balance) 发放，可直接消费支付、回流。
+ * 分佣基数：自 2026-07-19 起统一为订单全额 total_amount（含情绪豆抵扣），情绪豆全额参与分佣；
+ * 推广收益自 2026-07-29 起按「一半可提现佣金(commission_balance) + 一半金豆(tb_balance)」发放。
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
@@ -39,6 +40,9 @@ const CHANNEL_FEE_RATE = Number(Deno.env.get('CHANNEL_FEE_RATE') ?? '0.006')
 /** 代扣个税（劳务报酬/佣金所得）：税率与免征额，由用户承担，从佣金扣除；可由环境变量覆盖 */
 const TAX_RATE = Number(Deno.env.get('COMMISSION_TAX_RATE') ?? '0.20')
 const TAX_THRESHOLD = Number(Deno.env.get('COMMISSION_TAX_THRESHOLD') ?? '800')
+
+/** 推广收益净额拆分比例：50% 进可提现佣金账户(commission_balance)，50% 进金豆账户(tb_balance)。可由环境变量 COMMISSION_CASH_RATIO 覆盖。 */
+const COMMISSION_CASH_RATIO = Number(Deno.env.get('COMMISSION_CASH_RATIO') ?? '0.5')
 
 /** 视为「有效成交」的订单状态
  *  ⚠️ 必须与 public.order_status 枚举的真实值一致（00001 定义：
@@ -438,6 +442,8 @@ Deno.serve(async (req: Request) => {
       // 写入佣金记录（通道费/代扣税按金额比例分摊到每行，由用户承担）
       if (l1Commission > 0) {
         const a = allocCommission(l1Commission, userGrossCommission, channelFee, taxWithheld)
+        const l1CashPortion = toFixed4(a.net * COMMISSION_CASH_RATIO)
+        const l1BeanPortion = toFixed4(a.net - l1CashPortion)
         commissionRows.push({
           order_id,
           order_no,
@@ -451,6 +457,8 @@ Deno.serve(async (req: Request) => {
           channel_fee: a.channelFee,
           tax_withheld: a.taxWithheld,
           net_amount: a.net,
+          cash_portion: l1CashPortion,
+          bean_portion: l1BeanPortion,
           b_coef: 1.0,
           // 风控：可疑佣金冻结待审(status=frozen)，正常为 pending
           risk_flag: riskFlag,
@@ -460,6 +468,8 @@ Deno.serve(async (req: Request) => {
 
       if (l2Commission > 0) {
         const a2 = allocCommission(l2Commission, userGrossCommission, channelFee, taxWithheld)
+        const l2CashPortion = toFixed4(a2.net * COMMISSION_CASH_RATIO)
+        const l2BeanPortion = toFixed4(a2.net - l2CashPortion)
         commissionRows.push({
           order_id,
           order_no,
@@ -473,6 +483,8 @@ Deno.serve(async (req: Request) => {
           channel_fee: a2.channelFee,
           tax_withheld: a2.taxWithheld,
           net_amount: a2.net,
+          cash_portion: l2CashPortion,
+          bean_portion: l2BeanPortion,
           b_coef: 1.0,
           status: 'pending',
         })
@@ -586,60 +598,74 @@ Deno.serve(async (req: Request) => {
       await supabase.from('points_logs').insert(pointsRows)
     }
 
-    // 2026-07-19 业务决策（覆盖原资产隔离铁律）：推广佣金改发「情绪豆」(tb_balance)，
-    // 直接进入用户内部货币钱包，可在平台内消费支付，形成「分佣→情绪豆→支付→再分佣」回流飞轮。
-    // 不再进可提现 commission_balance（情绪豆按平台规则不可提现/兑现金）。
-    const balanceDelta = new Map<string, number>()
+    // 2026-07-29 决策「一半佣金，一半金豆」：推广收益净额 50% 发放至可提现佣金账户
+    // (commission_balance，推广服务费，依法代扣个税)，50% 发放至金豆账户(tb_balance，仅消费抵扣、不可提现)。
+    // 两账户严格隔离、各自留账。冻结(frozen)佣金不结算、待人工审核。
+    const beneficiaryTotals = new Map<string, { cash: number; bean: number }>()
     for (const c of commissionRows) {
-      // 风控：冻结(frozen)佣金不结算、不发情绪豆，待人工审核放行/拒结
       if (c.status === 'frozen') {
         console.warn('[V5 Risk] 冻结佣金跳过发放:', order_no, c.beneficiary_id, c.risk_flag)
         continue
       }
-      const amt = Number(c.net_amount || 0)  // 累加净额（已扣通道费+代扣税），用户实际到手情绪豆
-      if (amt <= 0 || !c.beneficiary_id) continue
-      balanceDelta.set(c.beneficiary_id, Math.round(((balanceDelta.get(c.beneficiary_id) || 0) + amt) * 100) / 100)
+      const cash = Number(c.cash_portion || 0)
+      const bean = Number(c.bean_portion || 0)
+      if ((cash <= 0 && bean <= 0) || !c.beneficiary_id) continue
+      const prev = beneficiaryTotals.get(c.beneficiary_id) || { cash: 0, bean: 0 }
+      beneficiaryTotals.set(c.beneficiary_id, {
+        cash: Math.round((prev.cash + cash) * 100) / 100,
+        bean: Math.round((prev.bean + bean) * 100) / 100,
+      })
     }
-    for (const [uid, amt] of balanceDelta.entries()) {
-      const { data: bal } = await supabase.from('profiles').select('tb_balance').eq('id', uid).maybeSingle()
-      if (bal) {
-        const newTb = Math.round((Number(bal.tb_balance || 0) + amt) * 100) / 100
-        await supabase.from('profiles').update({
-          tb_balance: newTb,
-        }).eq('id', uid)
 
-        // 情绪豆流水（tb_balance 变动必须留账，便于对账与防资损）
-        supabase.from('tongbao_logs').insert({
-          user_id: uid,
-          order_id: order_id,
-          type: 'commission_earn',
-          delta: amt,
-          balance_after: newTb,
-          remark: `订单${order_no}推广佣金（金豆）`,
-        }).then(() => {}).catch((e: any) => {
-          if ((e as any)?.code === '42P01' || (e as any)?.status === 404) {
-            console.warn('[tongbao_logs] 表不存在(00096未执行)，佣金流水暂不记录')
-          }
-        })
-
-        // 推送「分佣到账」通知（每个受益人 1 条，async 不阻塞分佣）
-        supabase.functions.invoke('send-notification', {
-          body: {
-            user_id: uid,
-            type: 'commission_arrived',
-    title: '佣金到账（金豆）',
-    body: `订单 ${order_no} 的佣金 ${amt.toFixed(2)} 金豆已到账，可在平台内直接消费支付`,
-    order_id: order_id,
-    payload: {
-      order_no: order_no,
-      net_amount: amt.toFixed(2),
-      arrived_at: new Date().toLocaleString('zh-CN'),
-      remark: '佣金到账(金豆)',
-              page: 'pages/my-promotion/index',
-            },
-          }
-        }).catch(e => console.warn('[distribute-commission] send-notification error:', e))
+    for (const [uid, { cash, bean }] of beneficiaryTotals.entries()) {
+      // 金豆一半 → tb_balance（含流水）
+      if (bean > 0) {
+        const { data: bal } = await supabase.from('profiles').select('tb_balance').eq('id', uid).maybeSingle()
+        if (bal) {
+          const newTb = Math.round((Number(bal.tb_balance || 0) + bean) * 100) / 100
+          await supabase.from('profiles').update({ tb_balance: newTb }).eq('id', uid)
+          supabase.from('tongbao_logs').insert({
+            user_id: uid, order_id: order_id, type: 'commission_earn',
+            delta: bean, balance_after: newTb,
+            remark: `订单${order_no}推广佣金（金豆50%）`,
+          }).then(() => {}).catch((e: any) => {
+            if ((e as any)?.code === '42P01' || (e as any)?.status === 404) console.warn('[tongbao_logs] 表不存在')
+          })
+        }
       }
+      // 可提现佣金一半 → commission_balance（含现金账户流水）
+      if (cash > 0) {
+        const { data: bal } = await supabase.from('profiles').select('commission_balance').eq('id', uid).maybeSingle()
+        if (bal) {
+          const newBal = Math.round((Number(bal.commission_balance || 0) + cash) * 100) / 100
+          await supabase.from('profiles').update({ commission_balance: newBal }).eq('id', uid)
+          supabase.from('commission_balance_logs').insert({
+            user_id: uid, order_id: order_id, type: 'commission_earn',
+            delta: cash, balance_after: newBal,
+            remark: `订单${order_no}推广佣金（可提现50%）`,
+          }).then(() => {}).catch((e: any) => console.warn('[commission_balance_logs] 写入失败:', (e as any)?.message))
+        }
+      }
+      // 推送「分佣到账」通知（每个受益人 1 条，async 不阻塞分佣）
+      const total = Math.round((cash + bean) * 100) / 100
+      supabase.functions.invoke('send-notification', {
+        body: {
+          user_id: uid,
+          type: 'commission_arrived',
+          title: '佣金到账（一半可提现+一半金豆）',
+          body: `订单 ${order_no} 的佣金 ${total.toFixed(2)} 元已到账：可提现 ¥${cash.toFixed(2)} + 金豆 ¥${bean.toFixed(2)}`,
+          order_id: order_id,
+          payload: {
+            order_no: order_no,
+            cash_amount: cash.toFixed(2),
+            bean_amount: bean.toFixed(2),
+            net_amount: total.toFixed(2),
+            arrived_at: new Date().toLocaleString('zh-CN'),
+            remark: '佣金到账(一半可提现+一半金豆)',
+            page: 'pages/my-promotion/index',
+          },
+        },
+      }).catch(e => console.warn('[distribute-commission] send-notification error:', e))
     }
 
     // 标记已分佣

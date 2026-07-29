@@ -11,7 +11,6 @@ import Icon from '@/components/Icon'
 import type { Product, FoodAdditive } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
-import { SCENE_TAGS_ALL } from '@/utils/mood-tags'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { toFoodTherapyInput, TIER_LABEL } from '@/utils/food-therapy'
 import { resolveIngredientEntries } from '@/utils/ingredient-analysis'
@@ -312,37 +311,11 @@ export default function ProductPage() {
         <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} />
         {/* 全面安全分析：致敏原 / 营养成分 / 标签合规 / 适宜人群 */}
         {safetyReport && <ComprehensiveSafetyReport report={safetyReport} fullLabel />}
-        {/* 商家原话（功能信息） */}
+        {/* 📣 商家寄语（醒目卡片：暖白底 + 品牌色边条，与配料安全/食疗导购区隔） */}
         {product.description && (
-          <Text className="text-base text-muted-foreground mt-2 leading-relaxed" style={{ display: 'block' }}>商家原话：{product.description}</Text>
-        )}
-        {/* 场景标签 */}
-        {product.scene_tags && product.scene_tags.length > 0 && (
-          <View className="mt-3">
-            <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>🏷️ 适用场景</Text>
-            <View className="flex gap-2 flex-wrap">
-              {product.scene_tags.map((tag: string) => {
-                const tagInfo = SCENE_TAGS_ALL.find(t => t.zh === tag)
-                return (
-                  <View 
-                    key={tag}
-                    className="px-3 py-1 rounded-full flex items-center gap-1"
-                    style={{ 
-                      background: tagInfo?.color ? `${tagInfo.color}15` : '#F9F9F9',
-                      border: `1px solid ${tagInfo?.color || '#EEE'}`,
-                    }}
-                  >
-                    <Text style={{ fontSize: '14px' }}>{tagInfo?.icon || '🏷️'}</Text>
-                    <Text 
-                      style={{ 
-                        fontSize: '12px', 
-                        color: tagInfo?.color || '#666',
-                      }}
-                    >{tag}</Text>
-                  </View>
-                )
-              })}
-            </View>
+          <View className="mt-3" style={{ padding: '12px 14px', borderRadius: '14px', background: '#FFFAF5', border: '1px solid #F0D9C0', borderLeftWidth: '4px', borderLeftColor: 'hsl(var(--primary))' }}>
+            <Text style={{ fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '4px', display: 'block' }}>📣 商家寄语</Text>
+            <Text className="text-foreground leading-relaxed" style={{ fontSize: '15px', display: 'block' }}>{product.description}</Text>
           </View>
         )}
         {/* 食材食疗智能导购 · 五模块纯展示（读取商家预存成品内容） */}
@@ -525,15 +498,15 @@ export default function ProductPage() {
         </View>
       )}
 
-      {/* 底部操作栏：左侧工具 + 合计，右侧双主操作；图标缩小、边线减轻，避免在窄屏挤压 CTA 文字 */}
-      <View className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border px-3 py-2.5 flex items-center gap-2.5"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}>
-        {/* 左侧：工具（购物车 / 收藏 / 分享）+ 合计 */}
-        <View className="flex items-center gap-2">
+      {/* 底部操作栏：左 3 个工具图标（缩小去边框）+ 右侧双主操作；移除「合计」（主图区已显示），主操作「立即支付」加阴影 + 不截断 */}
+      <View className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border px-3 flex items-center gap-2"
+        style={{ paddingTop: '10px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}>
+        {/* 左侧：工具（购物车 / 收藏 / 分享）— 缩小到 40×40，弱化边框，主色 Icon 提示 */}
+        <View className="flex items-center gap-1.5">
           {/* 购物车图标入口 */}
           <View className="relative flex-shrink-0" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
-            <View className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center border border-border">
-              <View className="text-foreground"><Icon name="bag" size={22} /></View>
+            <View className="w-10 h-10 rounded-xl bg-muted/60 flex items-center justify-center">
+              <View className="text-foreground"><Icon name="bag" size={20} /></View>
             </View>
             {cartCount > 0 && (
               <View className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary flex items-center justify-center px-1">
@@ -542,37 +515,35 @@ export default function ProductPage() {
             )}
           </View>
           {/* 收藏按钮 */}
-          <View className="w-12 h-12 rounded-xl bg-muted flex-shrink-0 flex items-center justify-center border border-border"
+          <View className="w-10 h-10 rounded-xl bg-muted/60 flex-shrink-0 flex items-center justify-center"
             onClick={handleToggleFav}>
             {favLoading
-              ? <Icon name="loading" size={22} className="text-primary animate-spin" />
-              : <Icon name="heart" size={22} className={isFav ? 'text-red-400' : 'text-foreground'} />}
+              ? <Icon name="loading" size={20} className="text-primary animate-spin" />
+              : <Icon name="heart" size={20} className={isFav ? 'text-red-400' : 'text-foreground'} />}
           </View>
           {/* 分享按钮 */}
           <Button openType="share"
-            className="w-12 h-12 rounded-xl bg-muted flex-shrink-0 flex items-center justify-center border border-border"
-            style={{ background: '#f5f5f5', border: '1px solid #e5e5e5', padding: 0 }}>
-            <Icon name="share-variant" size={22} className="text-foreground" />
+            className="w-10 h-10 rounded-xl bg-muted/60 flex-shrink-0 flex items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.04)', padding: 0, lineHeight: 0 }}>
+            <Icon name="share-variant" size={20} className="text-foreground" />
           </Button>
-          {/* 合计金额 */}
-          <View className="flex flex-col items-end justify-center ml-0.5">
-            <Text className="text-[10px] text-muted-foreground">合计</Text>
-            <Text className="text-base font-bold text-primary leading-tight">¥{totalPrice.toFixed(2)}</Text>
-          </View>
         </View>
-        {/* 加入购物车 */}
+        {/* 主操作区：双按钮均 flex-1，"立即支付"略宽作主操作，加阴影；文字 whiteSpace:nowrap 彻底解决截断 */}
+        {/* 加入购物车：白底品牌色描边 */}
         <Button type="default"
-          className="flex-1 flex items-center justify-center leading-none rounded-xl border border-primary bg-card"
+          className="flex-1 flex items-center justify-center leading-none rounded-xl bg-card"
+          style={{ border: '1.5px solid hsl(var(--primary))' }}
           onClick={handleAddCart}>
-          <View className="py-3 text-base font-bold text-primary truncate">
+          <View className="py-2.5 text-[15px] font-bold text-primary" style={{ whiteSpace: 'nowrap' }}>
             {adding ? '加入中...' : '加入购物车'}
           </View>
         </Button>
-        {/* 立即购买 */}
+        {/* 立即支付：品牌色实心 + 阴影，作为主操作 */}
         <Button type="default"
-          className="flex-1 flex items-center justify-center leading-none rounded-xl bg-primary"
+          className="flex-[1.2] flex items-center justify-center leading-none rounded-xl bg-primary"
+          style={{ boxShadow: '0 4px 12px hsl(var(--primary) / 0.35)' }}
           onClick={handleBuyNow}>
-          <View className="py-3 text-base font-bold text-white truncate">立即购买</View>
+          <View className="py-2.5 text-[15px] font-bold text-white" style={{ whiteSpace: 'nowrap' }}>立即支付</View>
         </Button>
       </View>
     </View>

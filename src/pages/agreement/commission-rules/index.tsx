@@ -10,13 +10,13 @@ function CommissionRules() {
 
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4 text-muted-foreground text-sm leading-loose">
         <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜推广规则</Text>
-        <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月10日\n生效日期：2026年7月10日'}</Text>
+        <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月29日\n生效日期：2026年7月29日'}</Text>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">一、佣金来源（二级推广）</Text>
           <Text className="block">1. 邀请好友消费，您可获得「我的好友」佣金；好友再邀请其好友消费，您可获得「我的粉丝」佣金。</Text>
           <Text className="block">2. 本平台仅设二级推广（我的好友 + 我的粉丝），仅两级，不发展第三级及多级分润。</Text>
-          <Text className="block">3. 佣金依托真实商品交易产生，以金豆形式发放至金豆余额，可在平台内消费抵扣，不可提现或兑现金。</Text>
+          <Text className="block">3. 佣金依托真实商品交易产生，按「一半可提现佣金 + 一半金豆」发放：50% 发放至可提现佣金余额（属推广服务费，依法代扣个税后可提现）；50% 发放至金豆余额（仅本平台消费抵扣，不可提现或兑现金）。</Text>
         </View>
 
         <View className="mb-4">
@@ -27,7 +27,7 @@ function CommissionRules() {
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">三、结算与发放</Text>
-          <Text className="block">1. 订单完成且无售后纠纷后，佣金转为已结算并发放至金豆余额。</Text>
+          <Text className="block">1. 订单完成且无售后纠纷后，佣金转为已结算，按「50% 可提现佣金余额 + 50% 金豆余额」发放到账。</Text>
           <Text className="block">2. 推广佣金属依法应申报的劳务报酬，请依法履行个人所得税纳税申报义务。</Text>
         </View>
 

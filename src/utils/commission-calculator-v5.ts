@@ -148,6 +148,10 @@ export interface CommissionResultV5 {
   taxWithheld: number;           // 代扣个税（**用户承担**，从佣金扣除）
   userNetCommission: number;     // 用户净到手 = 名义佣金 − 通道费 − 代扣税
 
+  // 2026-07-29 决策「一半佣金，一半金豆」：净额按 50/50 拆分为可提现佣金与金豆
+  userCashCommission: number;    // 净额中可提现佣金部分（→ commission_balance）
+  userBeanCommission: number;    // 净额中金豆部分（→ tb_balance，仅消费抵扣）
+
   // 比例（基于剩余池）
   l1Rate: number;
   l2Rate: number;
@@ -271,6 +275,11 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
   // 7.5 用户净到手 = 名义佣金 − 通道费 − 代扣税
   const userNetCommission = toPrecision(afterChannel - taxWithheld)
 
+  // 7.6 净额 50/50 拆分（与 distribute-commission 的 COMMISSION_CASH_RATIO=0.5 一致）
+  const COMMISSION_CASH_RATIO_V5 = 0.5
+  const userCashCommission = toPrecision(userNetCommission * COMMISSION_CASH_RATIO_V5)
+  const userBeanCommission = toPrecision(userNetCommission - userCashCommission)
+
   return {
     orderAmount,
     discountPool,
@@ -285,6 +294,8 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
     channelFee,
     taxWithheld,
     userNetCommission,
+    userCashCommission,
+    userBeanCommission,
     l1Rate: remainingPool > 0 ? l1Commission / remainingPool : 0,
     l2Rate: remainingPool > 0 ? l2Commission / remainingPool : 0,
     goldBeanRate: remainingPool > 0 ? buyerGoldBeans / remainingPool : 0,

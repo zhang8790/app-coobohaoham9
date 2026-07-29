@@ -195,21 +195,6 @@ export default function ExplorePage() {
         </View>
       </View>
 
-      {/* 临期特惠入口：跳转 C 端独立频道页，让买家直接逛自动折扣商品 */}
-      <View className="px-3 pt-2" onClick={() => Taro.navigateTo({ url: '/pages/expiry/index' })}>
-        <View className="flex items-center justify-between px-4 py-3 rounded-2xl"
-          style={{ background: 'linear-gradient(135deg, #F97316 0%, #EF4444 100%)' }}>
-          <View className="flex flex-col">
-            <Text className="text-white text-lg font-extrabold">临期特惠</Text>
-            <Text className="text-white/90 text-xs mt-0.5">越临近过期折扣越大 · 闭眼囤不浪费</Text>
-          </View>
-          <View className="flex items-center">
-            <Text className="text-white text-sm mr-1">去逛逛</Text>
-            <Text className="text-white text-lg">›</Text>
-          </View>
-        </View>
-      </View>
-
       {/* 主体：左分类 + 右商品（全部为自营门店商品） */}
       <View className="flex flex-1 overflow-hidden">
         {/* 左侧分类：全部 + 后台动态类目（下架的已被 is_active 过滤不显示） */}
