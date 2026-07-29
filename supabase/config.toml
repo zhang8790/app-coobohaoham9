@@ -3,3 +3,9 @@ enable_confirmations = false
 
 [auth.phone]
 enable_confirmations = false
+
+# 关闭 ocr-ingredient 的 JWT 校验：前端用 anon key 调用，开启会导致 401 →
+# "Failed to send a request to the Edge Function"。函数内部无强 auth 要求，
+# 按 Supabase 推荐做法（OFF + 函数内自定义校验）关闭。
+[functions.ocr-ingredient]
+verify_jwt = false

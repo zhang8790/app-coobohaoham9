@@ -89,6 +89,8 @@ function MerchantProductsPage() {
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [scanning, setScanning] = useState(false)
+  // 批量配料安全分析：对缺失安全评级的商品跑本地确定性引擎并回写
+  const [batchAnalyzing, setBatchAnalyzing] = useState(false)
   const [generating, setGenerating] = useState(false) // 是否正在生成描述
   const [descriptionCandidates, setDescriptionCandidates] = useState<string[]>([]) // 候选描述列表
   const [ingredientQuery, setIngredientQuery] = useState('')
@@ -207,6 +209,60 @@ function MerchantProductsPage() {
         }
       },
       fail: () => { setScanning(false); Taro.showToast({ title: '扫码取消', icon: 'none' }) },
+    })
+  }
+
+  // 批量配料安全分析：对缺失安全评级的商品跑本地确定性引擎（菜名→食材→食养/安全字段），
+  // 派生初评级(A/C)后回写 products，运营只需复核标红项，无需逐个手填。纯前端、零网络、可重复跑。
+  const handleBatchAnalyze = async () => {
+    if (!store || batchAnalyzing) return
+    const pending = products.filter((p) => !(p as any).safety_grade)
+    if (pending.length === 0) {
+      Taro.showToast({ title: '全部商品已分析', icon: 'none' })
+      return
+    }
+    Taro.showModal({
+      title: '批量配料安全分析',
+      content: `将对 ${pending.length} 款未评级商品跑本地食养引擎并回写安全评级，预计数秒。是否继续？`,
+      confirmText: '开始分析',
+      success: async (r) => {
+        if (!r.confirm) return
+        setBatchAnalyzing(true)
+        Taro.showLoading({ title: `分析中 0/${pending.length}` })
+        let done = 0
+        const updated: Product[] = []
+        for (const p of pending) {
+          try {
+            const a = analyzeProductFromName(p.name, (p as any).ingredients || [])
+            // 初评级：有风险文案或过敏原 → C，否则 A（供运营复核，非最终判定）
+            const grade = a.risk_warning || (a.allergens && a.allergens.length) ? 'C' : 'A'
+            const payload = {
+              overall_nature: a.overall_nature || '',
+              health_tag: a.health_tag || [],
+              allergens: a.allergens || [],
+              safety_grade: grade,
+              safety_summary: a.safety_summary || '',
+              aux_remind: a.aux_remind || '',
+            }
+            await updateProduct(p.id, payload as any)
+            updated.push({ ...p, ...payload } as Product)
+          } catch (e) {
+            console.error('[批量分析] 单品失败', p.id, e)
+          }
+          done += 1
+          if (done % 5 === 0 || done === pending.length) {
+            Taro.showLoading({ title: `分析中 ${done}/${pending.length}` })
+          }
+        }
+        // 本地状态合并回写结果
+        setProducts((prev) => {
+          const map = new Map(updated.map((u) => [u.id, u]))
+          return prev.map((p) => map.get(p.id) || p)
+        })
+        Taro.hideLoading()
+        setBatchAnalyzing(false)
+        Taro.showToast({ title: `已分析 ${done} 款`, icon: 'success' })
+      },
     })
   }
 
@@ -609,6 +665,22 @@ function MerchantProductsPage() {
           {scanning
             ? <Text style={{ fontSize: '15px', color: 'hsl(var(--primary))' }}>扫描中…</Text>
             : <Text style={{ color: 'hsl(var(--primary))', fontSize: '15px', fontWeight: 'bold' }}>📷 扫码上架</Text>}
+        </View>
+      </View>
+
+      {/* 批量配料安全分析按钮 */}
+      <View style={{ display: 'flex', gap: '10px', padding: '10px 14px 0' }}>
+        <View
+          onClick={handleBatchAnalyze}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '13px 16px', borderRadius: '14px',
+            background: batchAnalyzing ? '#F0E6DA' : '#FFF',
+            border: '2px dashed #C77B47',
+          }}>
+          {batchAnalyzing
+            ? <Text style={{ color: 'hsl(var(--primary))', fontSize: '15px', fontWeight: 'bold' }}>分析中…</Text>
+            : <Text style={{ color: 'hsl(var(--primary))', fontSize: '15px', fontWeight: 'bold' }}>🧪 批量分析配料安全</Text>}
         </View>
       </View>
 

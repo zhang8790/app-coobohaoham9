@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image, Input } from '@tarojs/components'
-import { getMyProfile, getMyMerchantApplication, getOrderCounts, updateProfile, getEquitySummary } from '@/db/api'
+import { getMyProfile, getMyMerchantApplication, getOrderCounts, updateProfile, getEquitySummary, getOrders, getProductsByIds } from '@/db/api'
 import type { EquitySummary } from '@/db/api'
 import type { Profile, MerchantApplication } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
@@ -12,6 +12,9 @@ import CustomTabBar from '@/components/custom-tabbar'
 import Icon from '@/components/Icon'
 import RankProgress from '@/components/RankProgress'
 import { RANK_COLOR_MAP } from '@/constants/ranks'
+import { buildRadarProfile, type RadarDim } from '@/utils/food-therapy/radar-profile'
+import { getCurrentTerm } from '@/utils/seasonal-box'
+import RadarChart from '@/components/food/RadarChart'
 
 const NEUTRAL_NICKNAMES = ['小确幸', '慢生活', '元气满满', '暖洋洋', '甜豆豆', '乐悠悠', '小欢喜', '轻飘飘', '棉花糖', '微醺猫']
 
@@ -49,7 +52,9 @@ const MENU_GROUPS = [
     title: '食养健康',
     icon: '🌿',
     items: [
+      { name: '食养中心', icon: '🌿', page: '/pages/food/index' },
       { name: '今日食养推荐', icon: '🌟', page: '/pages/food/today-food-therapy/index' },
+      { name: '食品配料安全', icon: '🕵️', page: '/pages/food/food-scan/index' },
       { name: '食养偏好自测', icon: '🧪', page: '/pages/food/constitution-test/index' },
     ]
   }
@@ -73,6 +78,13 @@ function UserPage() {
   const [profileLoading, setProfileLoading] = useState(true)
   const [equity, setEquity] = useState<EquitySummary | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
+
+  // 消费偏好雷达图
+  const [radarDims, setRadarDims] = useState<RadarDim[]>([])
+  const [radarSummary, setRadarSummary] = useState('')
+  const [radarLoading, setRadarLoading] = useState(false)
+  const [radarHasData, setRadarHasData] = useState(false)
+  const [radarBought, setRadarBought] = useState(0)
 
   const loadData = useCallback(async () => {
     if (!user) { setProfileLoading(false); return }
@@ -114,9 +126,56 @@ function UserPage() {
     }
   }, [user?.id])
 
+  // 消费偏好雷达图：已购商品 → 六维；24h 缓存
+  const loadRadar = useCallback(async () => {
+    if (!user?.id) return
+    const cacheKey = `radar_v1_${user.id}`
+    try {
+      const cached = Taro.getStorageSync(cacheKey)
+      if (cached && cached.ts && Date.now() - cached.ts < 24 * 3600 * 1000) {
+        setRadarDims(cached.dims)
+        setRadarSummary(cached.summary)
+        setRadarHasData(cached.hasData)
+        setRadarBought(cached.bought)
+        return
+      }
+    } catch { /* ignore cache read */ }
+
+    setRadarLoading(true)
+    try {
+      const orders = await getOrders().catch(() => [])
+      const ids: string[] = []
+      for (const o of orders) {
+        for (const it of (o as any).order_items || []) {
+          if (it?.product_id) ids.push(it.product_id)
+        }
+      }
+      const products = await getProductsByIds(ids).catch(() => [])
+      const profile = buildRadarProfile(products, getCurrentTerm())
+      setRadarDims(profile.dims)
+      setRadarSummary(profile.summary)
+      setRadarHasData(profile.hasData)
+      setRadarBought(profile.boughtCount)
+      try {
+        Taro.setStorageSync(cacheKey, {
+          ts: Date.now(),
+          dims: profile.dims,
+          summary: profile.summary,
+          hasData: profile.hasData,
+          bought: profile.boughtCount,
+        })
+      } catch { /* ignore cache write */ }
+    } catch (e) {
+      console.warn('[User] loadRadar fail', e)
+    } finally {
+      setRadarLoading(false)
+    }
+  }, [user?.id])
+
   useEffect(() => { loadData() }, [loadData])
   useEffect(() => { loadUnread() }, [loadUnread])
-  useDidShow(() => { loadData(); loadUnread() })
+  useEffect(() => { loadRadar() }, [loadRadar])
+  useDidShow(() => { loadData(); loadUnread(); loadRadar() })
 
   useEffect(() => {
     if (!user) return
@@ -289,6 +348,52 @@ function UserPage() {
         </View>
       )}
 
+      {/* 我的食养画像（消费偏好雷达图） */}
+      {user && profile && (
+        <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+          <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
+            <Icon name="chart" size={24} className="text-primary" />
+            <Text className="text-xl font-bold text-foreground">我的食养画像</Text>
+            <Text className="text-base text-muted-foreground ml-auto">六维消费偏好</Text>
+          </View>
+
+          {radarLoading ? (
+            <View className="py-10 flex items-center justify-center">
+              <Icon name="loading" size={28} className="text-muted-foreground animate-spin" />
+            </View>
+          ) : !radarHasData ? (
+            <View className="px-4 py-6 flex flex-col items-center">
+              <Text className="text-4xl mb-2">🥗</Text>
+              <Text className="text-base text-muted-foreground text-center mb-3">
+                做完体质测试、多买几单，雷达图就越圆满
+              </Text>
+              <View className="flex gap-2">
+                <View className="px-4 py-2 rounded-full border border-primary"
+                  onClick={() => Taro.navigateTo({ url: '/pages/food/constitution-test/index' })}>
+                  <Text className="text-primary text-base">去做体质测试</Text>
+                </View>
+                <View className="px-4 py-2 rounded-full bg-primary"
+                  onClick={() => Taro.navigateTo({ url: '/pages/index/index' })}>
+                  <Text className="text-white text-base">去逛逛</Text>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View className="py-4">
+              <RadarChart dims={radarDims} size={260} />
+              <Text className="text-base text-muted-foreground text-center px-4 mt-2 block">
+                {radarSummary}
+              </Text>
+              <View className="flex items-center justify-center gap-1 mt-1"
+                onClick={() => Taro.navigateTo({ url: '/pages/food/today-food-therapy/index' })}>
+                <Text className="text-primary text-base">越买越圆满，看看今日推荐</Text>
+                <Icon name="chevron-right" size={18} className="text-primary" />
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
       {/* 订单统计 */}
       {user && (
         <View className="mx-4 mt-4 bg-card rounded-2xl border border-border">
@@ -324,12 +429,11 @@ function UserPage() {
             <Icon name="user" size={24} className="text-primary" />
             <Text className="text-xl font-bold text-foreground">个人中心</Text>
           </View>
-          <View className="grid grid-cols-4 py-3">
+          <View className="grid grid-cols-3 py-3">
             {[
               { name: '我的段位', icon: 'medal', page: '/pages/mine/my-promotion/index', desc: '查看推广码' },
-              { name: '我的金豆', icon: 'coin', page: '/pages/trade/withdraw/index', desc: '金豆明细' },
+              { name: '我的金豆', icon: 'coin', page: '/pages/trade/tongbao-ledger/index', desc: '金豆明细' },
               { name: '我的好友', icon: 'account-group', page: '/pages/mine/my-referrals/index', desc: '查看推荐' },
-              { name: '我的创作', icon: 'file-document', page: '/pages/content/content-center/my-articles/index', desc: '文章/草稿' },
             ].map(item => (
               <View key={item.name}
                 hoverClass="none"

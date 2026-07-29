@@ -4,7 +4,7 @@ import Taro from '@tarojs/taro'
 import { View, Text, Textarea, Button, Image, ScrollView } from '@tarojs/components'
 import { resolveFoodAdditivesByText, createIngredientOcrTask, getFoodAdditivesByNames, getUserHealthProfile } from '@/db/food-api'
 import { getProducts } from '@/db/api'
-import { supabase } from '@/client/supabase'
+import { supabase, callEdgeFunction } from '@/client/supabase'
 import { matchIngredientKeys, resolveIngredientEntries } from '@/utils/ingredient-analysis'
 import type { IngredientEntry } from '@/utils/shiyang-dictionary'
 import FoodSafetyPanel from '@/components/FoodSafetyPanel'
@@ -205,14 +205,18 @@ export default function FoodScanPage() {
           return
         }
         setOcrMsg('正在识别配料表...')
-        const { data: ef, error: efErr } = await supabase.functions.invoke('ocr-ingredient', {
-          body: { task_id: task.id },
-        })
+        // 直连 Edge Function（auth:false 跳过 403 登录态前戏，公开函数无需 token）
+        const { data: ef, error: efErr } = await callEdgeFunction(
+          'ocr-ingredient',
+          { task_id: task.id },
+          { auth: false },
+        )
         if (efErr || !ef?.success) {
           const msg: string = ef?.error || efErr?.message || '识别服务异常'
           if (msg.includes('百度OCR未配置') || msg.includes('BAIDU_OCR')) {
             setOcrMsg('OCR 识别服务未配置，请改用「粘贴配料文字」方式分析')
           } else {
+            console.error('[OCR] 识别失败:', msg)
             setOcrMsg('识别失败：' + msg)
           }
           return
@@ -234,7 +238,13 @@ export default function FoodScanPage() {
         setAnalyzed(true)
         setOcrMsg(ef.safety_grade === 'C' ? '识别完成：含慎用成分，请查看安全评级' : '识别完成')
       } catch (e: any) {
-        setOcrMsg('处理失败：' + (e?.message || '网络异常'))
+        // 兜底日志（OCR 排查用）
+        console.error('[OCR] 异常详情:', {
+          message: e?.message,
+          name: e?.name,
+          stack: e?.stack?.slice(0, 500),
+        })
+        setOcrMsg('识别失败：' + (e?.message || '网络异常'))
       } finally {
         setOcrLoading(false)
       }

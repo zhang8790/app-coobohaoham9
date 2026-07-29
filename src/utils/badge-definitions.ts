@@ -226,6 +226,44 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDisplay> = {
     bgGradient: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
   },
 
+  // ── 食安侦探徽章（食安侦探局玩法） ──────────────────────
+  detective_1: {
+    code: 'detective_1',
+    name: '初出茅庐',
+    icon: '🕵️',
+    rarity: 'rare',
+    rarityLabel: '稀有',
+    rarityColor: '#EC4899',
+    condition: '破获第1个食安案件',
+    hint: '你拿起放大镜的那一刻，就是 protecting 家人健康的第一步',
+    borderColor: '#F9A8D4',
+    bgGradient: 'linear-gradient(135deg, #FDF2F8 0%, #FBCFE8 100%)',
+  },
+  detective_5: {
+    code: 'detective_5',
+    name: '火眼金睛',
+    icon: '🔎',
+    rarity: 'epic',
+    rarityLabel: '史诗',
+    rarityColor: '#F59E0B',
+    condition: '破获5个食安案件',
+    hint: '配料表上的伪装再也骗不过你，这是实打实的硬功夫',
+    borderColor: '#FCD34D',
+    bgGradient: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+  },
+  detective_all: {
+    code: 'detective_all',
+    name: '食安神探',
+    icon: '🏅',
+    rarity: 'legendary',
+    rarityLabel: '传说',
+    rarityColor: '#DC2626',
+    condition: '破获全部食安案件',
+    hint: '你把食安知识变成了一种本能——这份专业值得所有人信赖',
+    borderColor: '#FCA5A5',
+    bgGradient: 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)',
+  },
+
   // ── 积分兑换徽章 ───────────────────────────────────────────
   first_redeem: {
     code: 'first_redeem',
@@ -255,9 +293,9 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDisplay> = {
 
 /** 所有徽章代码列表（按稀有度分组） */
 export const BADGE_CODES_BY_RARITY: Record<string, string[]> = {
-  legendary: [],
-  epic: ['knowledge_expert', 'community_builder', 'emo_free', 'loyalty_30'],
-  rare: ['empath', 'five_flavor', 'constitution_test', 'safe_eater', 'emo_relax', 'emo_heal', 'emo_calm', 'emo_brave', 'emo_warm', 'emo_miss', 'emo_joy'],
+  legendary: ['detective_all'],
+  epic: ['knowledge_expert', 'community_builder', 'emo_free', 'loyalty_30', 'detective_5'],
+  rare: ['empath', 'five_flavor', 'constitution_test', 'safe_eater', 'emo_relax', 'emo_heal', 'emo_calm', 'emo_brave', 'emo_warm', 'emo_miss', 'emo_joy', 'detective_1'],
   common: ['first_claim', 'first_share', 'first_redeem'],
 }
 

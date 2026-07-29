@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { parseCrowdsFromText, classifyProduct as classifyOne, toFoodTherapyInput, QUICK_BODY_PRESETS, profileToCrowds, FOOD_CATEGORIES, type Crowd, type FitTier } from '@/utils/food-therapy'
+import { getTodayFoodTherapy, resolveConstitution, type TodayFoodTherapyResult } from '@/utils/today-food-therapy'
 import { analyzeConsumption, recommendByConsumption, type ConsumptionProfile } from '@/utils/consumption-profile'
 import CustomTabBar from '@/components/custom-tabbar'
 import Icon from '@/components/Icon'
@@ -40,7 +41,7 @@ function buildMatchLabel(crowds: Crowd[]): string {
 export default function IndexPage() {
   const { profile } = useAuth()
   const { currentCity, currentStore, nearbyStores, setStore, loading: locationLoading, detectLocation } = useLocation()
-  const { selectedCrowds, toggleCrowd, clearFilters } = useFoodTherapy()
+  const { selectedCrowds, toggleCrowd, clearFilters, getSuitability, userAllergens, hasHealthProfile } = useFoodTherapy()
   // 定位自动触发：用 ref 持有 detectLocation（函数已稳定化，不放入 effect 依赖以免触发重跑），
   // 并用 locatingRef 在首批定位完成前锁住后续触发，根治「定位一直在闪烁」的回流循环
   const detectLocationRef = useRef(detectLocation)
@@ -53,6 +54,9 @@ export default function IndexPage() {
   const [mood, setMood] = useState('')
   // 首页分类金刚区：本地筛选主商品流（不影响画像/即时匹配区块）
   const [catFilter, setCatFilter] = useState<string | null>(null)
+  // 「适合我」个性化筛选：仅看适合我的好物 / 仅看无我过敏源的好物
+  const [fitOnly, setFitOnly] = useState(false)
+  const [noAllergen, setNoAllergen] = useState(false)
   // 状态卡「你关注的食养偏好」默认折叠，降低首屏高度
   const [showBodyStates, setShowBodyStates] = useState(false)
   // 状态卡默认收起为「一行胶囊」，点击才展开输入（去头重脚轻）
@@ -284,7 +288,14 @@ export default function IndexPage() {
   )
   const personalizedTitle = profileItems.length > 0 ? '按你的食养偏好挑好物' : '根据你的常买好物'
 
-  // 底部 Feed 展示列表：有查询时直接展示「即时匹配」结果；无查询时展示默认推荐，并排除已出现在个性化插卡里的好物（去重）+ 叠加分类金刚区筛选
+  // 今日食养推荐：复用 getTodayFoodTherapy 纯函数（无网络），从首页商品池 + 画像算预览
+  const todayResult = useMemo<TodayFoodTherapyResult>(() => {
+    const constitution = resolveConstitution(profile ?? null)
+    const products = feedItems.map((f) => f.product)
+    return getTodayFoodTherapy(constitution, consumptionProfile, products, boughtIds)
+  }, [profile, feedItems, consumptionProfile, boughtIds])
+
+  // 底部 Feed 展示列表：有查询时直接展示「即时匹配」结果；无查询时展示默认推荐，并排除已出现在个性化插卡里的好物（去重）+ 叠加分类金刚区筛选 + 「适合我」个性化筛选
   const displayFeed = useMemo<ScoredProduct<Product>[]>(() => {
     if (hasQuery && matchItems.length > 0) {
       return matchItems.map(m => ({
@@ -294,12 +305,18 @@ export default function IndexPage() {
       }))
     }
     const hideIds = new Set(personalizedItems.map((p) => p.id))
+    const allergenSet = new Set(userAllergens)
     return feedItems.filter((f) => {
       if (hideIds.has(f.product.id)) return false
       if (catFilter && (f.product.food_category || '') !== catFilter) return false
+      if (fitOnly && getSuitability(f.product) !== 'recommend') return false
+      if (noAllergen && allergenSet.size > 0) {
+        const pa = (f.product as any).allergens as string[] | undefined
+        if (pa && pa.some((a) => allergenSet.has(a))) return false
+      }
       return true
     })
-  }, [hasQuery, matchItems, feedItems, personalizedItems, catFilter])
+  }, [hasQuery, matchItems, feedItems, personalizedItems, catFilter, fitOnly, noAllergen, getSuitability, userAllergens])
 
   // 安全取商品关怀层（食养注解），避免单条异常影响整页渲染
   const careOf = (p: Product) => {
@@ -558,6 +575,87 @@ export default function IndexPage() {
         </View>
       </View>
 
+      {/* 今日食养推荐 + 为你优选：合并节气/画像双维度为单一卡片，消除首页两张雷同食品 rail（原「个性化插卡」已并入此处） */}
+      {todayResult && (
+        <View
+          className="mx-4 mt-3 rounded-2xl p-4 pg-card active:scale-[0.99] transition-transform"
+          hoverClass="none"
+        >
+          <View className="flex items-center justify-between mb-2">
+            <View className="flex items-center gap-2 min-w-0">
+              <Text className="text-2xl flex-shrink-0">{todayResult.term?.emoji || '🌿'}</Text>
+              <View className="min-w-0">
+                <Text className="text-sm font-bold text-foreground">今日食养推荐</Text>
+                {todayResult.term && (
+                  <Text className="text-xs text-muted-foreground block truncate">{todayResult.term.name} · {todayResult.term.nature}</Text>
+                )}
+              </View>
+            </View>
+            <Text
+              className="text-xs text-primary font-bold flex-shrink-0 ml-2"
+              hoverClass="none"
+              onClick={() => Taro.navigateTo({ url: '/pages/food/today-food-therapy/index' })}
+            >看完整 ›</Text>
+          </View>
+
+          {/* 每日建议（截断 2 行） */}
+          {todayResult.dailyAdvice && (
+            <Text
+              className="text-xs text-muted-foreground block"
+              style={{ lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+            >
+              {todayResult.dailyAdvice}
+            </Text>
+          )}
+
+          {/* top3 推荐 */}
+          {todayResult.recommendations.length > 0 && (
+            <View className="mt-2 flex gap-2 overflow-x-auto pb-1">
+              {todayResult.recommendations.slice(0, 3).map((item, i) => (
+                <View
+                  key={i}
+                  className="flex-shrink-0 rounded-xl px-3 py-2 bg-background border border-border flex items-center gap-2"
+                  style={{ minWidth: 96 }}
+                >
+                  <Text className="text-lg flex-shrink-0">{item.emoji}</Text>
+                  <View className="min-w-0">
+                    <Text
+                      className="text-xs font-bold text-foreground block"
+                      style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                    >
+                      {item.name}
+                    </Text>
+                    <Text className="text-[10px] text-primary">匹配 {item.score}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* 为你优选：个性化商品网格（体质/常买），与今日推荐互补，去重展示 */}
+          {!hasQuery && personalizedItems.length > 0 && (
+            <View className="mt-3 pt-3 border-t border-border">
+              <View className="flex items-center gap-2 mb-2">
+                <View className="section-accent" />
+                <Text className="text-base font-bold text-foreground">{personalizedTitle}</Text>
+              </View>
+              <View style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                {personalizedItems.slice(0, 6).map((product) => (
+                  <ProductGridCard key={product.id} id={product.id} name={product.name} price={product.price}
+                    imageUrl={product.main_image || product.image_url || ''} storeName={product.store_name}
+                    care={careOf(product)}
+                    suitability={getSuitability(product)}
+                    onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })} />
+                ))}
+              </View>
+              {profileItems.length > 0 && (
+                <Text className="text-[10px] text-muted-foreground mt-2">{FOOD_THERAPY_DISCLAIMER}</Text>
+              )}
+            </View>
+          )}
+        </View>
+      )}
+
       {/* 区块分隔：墨线 */}
       <View className="ink-rule mx-4 mt-5" />
       {/* ===== 附近门店推荐：基于定位推荐最近自营门店，可一键切换 ===== */}
@@ -742,28 +840,7 @@ export default function IndexPage() {
 
       {/* 区块分隔：墨线 */}
       <View className="ink-rule mx-4 mt-5" />
-      {/* 个性化插卡：有画像→体质挑好物，否则→常买好物；仅 1 条，且已与主 Feed 去重 */}
-      {!hasQuery && personalizedItems.length > 0 && (
-        <View className="mt-4 px-4">
-          <View className="flex items-center gap-2 mb-1">
-            <View className="section-accent" />
-            <Text className="text-2xl font-bold text-foreground">{personalizedTitle}</Text>
-          </View>
-          <Text className="text-base text-muted-foreground block mb-3">
-            {profileItems.length > 0
-              ? `按你关注的食养偏好食养适配 · ${FOOD_THERAPY_DISCLAIMER}`
-              : '读懂你的口味，挑出同样懂身体的好物'}
-          </Text>
-          <View style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-            {personalizedItems.slice(0, 6).map((product) => (
-              <ProductGridCard key={product.id} id={product.id} name={product.name} price={product.price}
-                imageUrl={product.main_image || product.image_url || ''} storeName={product.store_name}
-                care={careOf(product)}
-                onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })} />
-            ))}
-          </View>
-        </View>
-      )}
+      {/* 原「个性化插卡·体质挑好物」已合并至上方「今日食养推荐」卡（为你优选网格），避免首页两张雷同食品 rail 重复渲染 */}
 
       {/* 公告栏 / 好物动态：官方公告 + 全站实时下单（脱敏）合并轮播 */}
       {homeFeed.length > 0 && (
@@ -798,6 +875,27 @@ export default function IndexPage() {
           <View className="ml-3 px-3 py-1.5 rounded-full bg-primary text-white text-sm font-bold flex-shrink-0">领取</View>
         </View>
       )}
+
+      {/* 临期特惠入口：跳转 C 端专属频道页（自动折扣，临近保质期商品超值购） */}
+      <View
+        className="mx-4 mt-4 p-4 rounded-2xl flex items-center justify-between"
+        style={{ background: 'linear-gradient(135deg, #FFF4E6, #FFE3CC)', border: '1px solid #F6C99B' }}
+        hoverClass="none"
+        onClick={() => Taro.navigateTo({ url: '/pages/expiry/index' })}
+      >
+        <View className="flex items-center gap-2 flex-1 min-w-0">
+          <Text className="text-2xl">⏰</Text>
+          <View className="flex-1 min-w-0">
+            <Text className="text-base font-bold block" style={{ color: '#9A3324', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              临期特惠 · 临近保质期超值购
+            </Text>
+            <Text className="text-xs block truncate" style={{ color: '#B26A3C' }}>
+              好物不浪费，限时折扣更划算
+            </Text>
+          </View>
+        </View>
+        <View className="ml-3 px-3 py-1.5 rounded-full text-sm font-bold flex-shrink-0" style={{ background: '#9A3324', color: '#FFF' }}>去逛逛</View>
+      </View>
 
       {/* 区块分隔：墨线 */}
       <View className="ink-rule mx-4 mt-5" />
@@ -844,6 +942,42 @@ export default function IndexPage() {
                 </View>
               )
             })}
+
+            {/* 「适合我」个性化筛选：仅对已完成健康画像的用户展示，无画像时免打扰 */}
+            {hasHealthProfile && (
+              <>
+                {/* 适合我：仅看画像推荐(recommend)的好物 */}
+                <View
+                  hoverClass="none"
+                  onClick={() => setFitOnly((v) => !v)}
+                  className="px-3 py-1.5 rounded-full text-sm flex-shrink-0 flex items-center gap-1"
+                  style={{
+                    background: fitOnly ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--card))',
+                    color: fitOnly ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                    borderWidth: 1,
+                    borderColor: fitOnly ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border))',
+                    fontWeight: fitOnly ? 'bold' : 'normal',
+                  }}
+                >
+                  <Text>✅ 适合我</Text>
+                </View>
+                {/* 无我过敏源：排除含我过敏原的好物 */}
+                <View
+                  hoverClass="none"
+                  onClick={() => setNoAllergen((v) => !v)}
+                  className="px-3 py-1.5 rounded-full text-sm flex-shrink-0 flex items-center gap-1"
+                  style={{
+                    background: noAllergen ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--card))',
+                    color: noAllergen ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                    borderWidth: 1,
+                    borderColor: noAllergen ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border))',
+                    fontWeight: noAllergen ? 'bold' : 'normal',
+                  }}
+                >
+                  <Text>🚫 无我过敏源</Text>
+                </View>
+              </>
+            )}
           </View>
 
           {loading && feedItems.length === 0 ? (
@@ -858,6 +992,7 @@ export default function IndexPage() {
                 <ProductGridCard key={f.product.id} id={f.product.id} name={f.product.name} price={f.product.price}
                   imageUrl={f.product.main_image || f.product.image_url || ''} storeName={f.product.store_name}
                   care={careOf(f.product)}
+                  suitability={getSuitability(f.product)}
                   onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${f.product.id}` })} />
               ))}
             </View>

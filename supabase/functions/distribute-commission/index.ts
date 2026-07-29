@@ -341,6 +341,32 @@ Deno.serve(async (req: Request) => {
         .maybeSingle()
       l2UserId = (l1Profile as any)?.referrer_id || null
 
+      // ===== 风控：自推自 / 小号链检测 =====
+      const isDirectSelfRef = l1UserId === payer_id
+      const isSmallAccountChain = !!l2UserId && l2UserId === payer_id
+      let riskFlag: string | null = null
+      if (isDirectSelfRef) {
+        // 直接自推：L1 即买家本人 → 整条 L1/L2 链不发放，买家积分照发、平台收全
+        console.warn('[V5 Risk] 直接自推自(L1=买家本人)，跳过 L1 佣金:', order_no)
+      } else if (isSmallAccountChain) {
+        // 小号链：L1 是买家下级（L2 回指买家本人）→ 标记自推自嫌疑，冻结待审
+        riskFlag = 'self_referral'
+        console.warn('[V5 Risk] 小号链自推自嫌疑(L2=买家本人)，冻结待审:', order_no, l1UserId)
+      }
+      // 新注册账号嫌疑：L1 注册 < 7 天即产生推荐成交，疑似养号
+      if (!isDirectSelfRef && l1UserId) {
+        try {
+          const { data: l1prof } = await supabase
+            .from('profiles').select('created_at').eq('id', l1UserId).maybeSingle()
+          const regDays = l1prof?.created_at
+            ? (Date.now() - new Date((l1prof as any).created_at).getTime()) / 86400000 : 999
+          if (regDays < 7) {
+            riskFlag = riskFlag ? `${riskFlag},new_account_referral` : 'new_account_referral'
+            console.warn('[V5 Risk] L1 为新注册账号(<7天)，疑似养号:', order_no, l1UserId, regDays.toFixed(1))
+          }
+        } catch (e) { console.warn('[V5 Risk] 读取 L1 注册时间失败:', (e as any)?.message) }
+      }
+
       if (l2UserId && l2UserId !== payer_id) {
         const l2Metrics = await fetchBeneficiaryMetrics(supabase, l2UserId)
         const l2DynamicScore = calculateDynamicScore(l2Metrics.rollingConsumption)
@@ -365,7 +391,8 @@ Deno.serve(async (req: Request) => {
       l1Active = l1Metrics.activeMult
       l1Recruit = l1Metrics.recruitMult
       let l1Commission = 0
-      if (l1Active > 0) {
+      // 直接自推（L1=买家本人）→ 不发 L1 佣金；小号链仍计算但标记冻结待审
+      if (l1Active > 0 && !isDirectSelfRef) {
         l1Commission = toFixed4(commissionPool * l1Rank.l1 * l1Active * l1Recruit)
       }
 
@@ -425,7 +452,9 @@ Deno.serve(async (req: Request) => {
           tax_withheld: a.taxWithheld,
           net_amount: a.net,
           b_coef: 1.0,
-          status: 'pending',
+          // 风控：可疑佣金冻结待审(status=frozen)，正常为 pending
+          risk_flag: riskFlag,
+          status: riskFlag ? 'frozen' : 'pending',
         })
       }
 
@@ -562,6 +591,11 @@ Deno.serve(async (req: Request) => {
     // 不再进可提现 commission_balance（情绪豆按平台规则不可提现/兑现金）。
     const balanceDelta = new Map<string, number>()
     for (const c of commissionRows) {
+      // 风控：冻结(frozen)佣金不结算、不发情绪豆，待人工审核放行/拒结
+      if (c.status === 'frozen') {
+        console.warn('[V5 Risk] 冻结佣金跳过发放:', order_no, c.beneficiary_id, c.risk_flag)
+        continue
+      }
       const amt = Number(c.net_amount || 0)  // 累加净额（已扣通道费+代扣税），用户实际到手情绪豆
       if (amt <= 0 || !c.beneficiary_id) continue
       balanceDelta.set(c.beneficiary_id, Math.round(((balanceDelta.get(c.beneficiary_id) || 0) + amt) * 100) / 100)

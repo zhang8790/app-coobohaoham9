@@ -437,6 +437,22 @@ export default function TodayFoodTherapyPage() {
         {/* 体质 + 每日建议 */}
         <ConstitutionCard result={result} />
 
+        {/* 食材配对探索器入口 */}
+        <View
+          className="flex items-center justify-between rounded-2xl p-4 mb-4"
+          style={{ background: 'linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)' }}
+          onClick={() => Taro.navigateTo({ url: '/pages/food/ingredient-pairing/index' })}
+        >
+          <View className="flex items-center gap-2">
+            <Text className="text-2xl">🤝</Text>
+            <View>
+              <Text className="text-sm font-bold text-[#831843]">食材配对探索器</Text>
+              <Text className="text-xs text-[#9D174D]">一种食材，告诉你能跟谁搭、适合谁</Text>
+            </View>
+          </View>
+          <Text className="text-xs font-medium text-[#831843]">去探索 →</Text>
+        </View>
+
         {/* 季节推荐食材 */}
         {result.seasonalIngredients.length > 0 && (
           <View className="mb-4">

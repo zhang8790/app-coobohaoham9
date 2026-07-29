@@ -25,18 +25,36 @@ const TTL_MS = 5 * 60 * 1000
 
 let cache: { data: LlmConfig; ts: number } | null = null
 
+/** 判断是否为本地推理端点（本机 Ollama 等：无需真实 Key、不走公网）。 */
+function isLocalBase(base: string): boolean {
+  return /localhost|127\.0\.0\.1|\[::1\]/.test(base) || base.includes(':11434')
+}
+
 function envConfig(): LlmConfig {
-  const key = Deno.env.get('LLM_API_KEY') || ''
+  const rawKey = Deno.env.get('LLM_API_KEY') || ''
+  const base = Deno.env.get('LLM_BASE_URL') || DEFAULT_BASE
+  const local = isLocalBase(base)
+  // 本地模型（如 Ollama）不校验 Key：缺省填充占位 "ollama" 并视为已启用
+  const key = rawKey || (local ? 'ollama' : '')
+  const model = Deno.env.get('LLM_MODEL') || (local ? 'qwen2.5:3b' : DEFAULT_MODEL)
   return {
     key,
-    base: Deno.env.get('LLM_BASE_URL') || DEFAULT_BASE,
-    model: Deno.env.get('LLM_MODEL') || DEFAULT_MODEL,
+    base,
+    model,
     enabled: key.length > 0,
   }
 }
 
 /** 读取 LLM 配置（带缓存）。任何异常都安全回退到 env。 */
 export async function getLlmConfig(): Promise<LlmConfig> {
+  // 本地开发模式（LLM_LOCAL_DEV=1）：直接读 env，指向本机 Ollama，
+  // 不读远端 system_config，便于离线 / 零成本自测。
+  if (Deno.env.get('LLM_LOCAL_DEV') === '1') {
+    const env = envConfig()
+    cache = { data: env, ts: Date.now() }
+    return env
+  }
+
   const now = Date.now()
   if (cache && now - cache.ts < TTL_MS) return cache.data
 

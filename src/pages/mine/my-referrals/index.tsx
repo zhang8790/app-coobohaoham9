@@ -61,6 +61,20 @@ export default function MyReferrals() {
         </View>
       </View>
 
+      {/* 交叉入口：前往推广中心查看段位与佣金（与「推广中心」页互引，消除两页功能重叠困惑） */}
+      <View className="mx-4 mt-4 p-4 rounded-2xl bg-card border border-border flex items-center justify-between"
+        hoverClass="none"
+        onClick={() => Taro.navigateTo({ url: '/pages/mine/my-promotion/index' })}>
+        <View className="flex items-center gap-2">
+          <Icon name="medal" size={24} className="text-primary" />
+          <View>
+            <Text className="text-base font-bold text-foreground">推广中心</Text>
+            <Text className="text-xs text-muted-foreground">我的段位 · 佣金进度 · 分享获客</Text>
+          </View>
+        </View>
+        <Icon name="chevron-right" size={20} className="text-muted-foreground" />
+      </View>
+
       {/* 我的推广码 */}
       <View className="mx-4 mt-4 p-4 rounded-2xl bg-card border border-border">
         <Text className="text-base font-bold text-foreground">我的推广码</Text>

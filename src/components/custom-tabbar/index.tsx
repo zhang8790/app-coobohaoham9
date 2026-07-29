@@ -2,7 +2,7 @@ import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
-import { ICON_WHITE } from '@/components/Icon/iconBase64'
+import { ICON_WHITE, ICON_PRIMARY } from '@/components/Icon/iconBase64'
 import './index.scss'
 
 // 去 AI 化手绘风底部导航
@@ -20,6 +20,9 @@ const TABS: TabItem[] = [
   { key: 'cart', label: '购物车', path: '/pages/cart/index' },
   { key: 'user', label: '我的', path: '/pages/user/index' },
 ]
+
+// 创作中心半屏弹层：模板快选名称（与 make 页 TEMPLATES 对齐）
+const HUB_TEMPLATES = ['探店推荐', '美食攻略', '购物心得', '生活见闻']
 
 const TAB_ICONS_ACTIVE: Record<string, string> = {
   home: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQTg1NTJFIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNIDkgMzIgI0E4NTUyRSAxNyAyMSwyOCAxMywzMiAxMSAjQTg1NTJFIDM2IDEzLDQ3IDIyLDU1IDMyIi8+PHBhdGggZD0iTSAxNSAzMiBMIDE0LjUgNTIgTCA0OSA1MS41IEwgNDguNSAzMiIvPjxwYXRoIGQ9Ik0gMjcgNTIgTCAyNy41IDQxIEwgMzYgNDEuMiBMIDM2IDUyIi8+PC9zdmc+',
@@ -39,6 +42,7 @@ const TAB_ICONS_INACTIVE: Record<string, string> = {
 
 export default function CustomTabBar() {
   const [active, setActive] = useState<string>('home')
+  const [showHub, setShowHub] = useState(false)
   const cartCount = useCartCount()
 
   useDidShow(() => {
@@ -75,7 +79,7 @@ export default function CustomTabBar() {
               key={t.key}
               className="ctb-item ctb-center"
               hoverClass="ctb-item--hover"
-              onClick={() => Taro.navigateTo({ url: '/pages/content/content-center/make/index' })}
+              onClick={() => setShowHub(true)}
             >
               <View className="ctb-center-btn">
                 <Image className="ctb-center-icon" src={ICON_WHITE['pencil']} mode="aspectFit" />
@@ -107,6 +111,54 @@ export default function CustomTabBar() {
           </View>
         )
       })}
+
+      {/* 创作中心半屏弹层：写文章 + 模板快选 + 我的创作（收编原「我的」页的「我的创作」入口） */}
+      {showHub && (
+        <View className="ctb-hub-mask" onClick={() => setShowHub(false)}>
+          <View className="ctb-hub-sheet" onClick={(e: any) => e.stopPropagation()}>
+            <View className="ctb-hub-grip" />
+            <View className="ctb-hub-head">
+              <Text className="ctb-hub-title">创作中心</Text>
+              <View className="ctb-hub-close" hoverClass="none" onClick={() => setShowHub(false)}>
+                <Image className="ctb-hub-close-ic" src={ICON_PRIMARY['close']} mode="aspectFit" />
+              </View>
+            </View>
+
+            {/* 主行动：写文章 / 发笔记 */}
+            <View className="ctb-hub-primary" hoverClass="none"
+              onClick={() => { setShowHub(false); Taro.navigateTo({ url: '/pages/content/content-center/make/index' }) }}>
+              <View className="ctb-hub-primary-ic">
+                <Image className="ctb-hub-primary-img" src={ICON_WHITE['pencil']} mode="aspectFit" />
+              </View>
+              <View className="ctb-hub-primary-body">
+                <Text className="ctb-hub-primary-t">写文章 / 发笔记</Text>
+                <Text className="ctb-hub-primary-s">图文混排 · 插入好物卡 · 一键分享</Text>
+              </View>
+              <Text className="ctb-hub-arrow">›</Text>
+            </View>
+
+            {/* 模板快选 */}
+            <Text className="ctb-hub-sub">选个模板，更快上手</Text>
+            <View className="ctb-hub-chips">
+              {HUB_TEMPLATES.map(t => (
+                <View key={t} className="ctb-hub-chip" hoverClass="none"
+                  onClick={() => { setShowHub(false); Taro.navigateTo({ url: `/pages/content/content-center/make/index?template=${encodeURIComponent(t)}` }) }}>
+                  <Text className="ctb-hub-chip-t">{t}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* 我的创作：原散落在「我的」页个人中心，现统一收编进创作中枢 */}
+            <View className="ctb-hub-row" hoverClass="none"
+              onClick={() => { setShowHub(false); Taro.navigateTo({ url: '/pages/content/content-center/my-articles/index' }) }}>
+              <Image className="ctb-hub-row-ic" src={ICON_PRIMARY['file-document']} mode="aspectFit" />
+              <Text className="ctb-hub-row-t">我的创作</Text>
+              <Text className="ctb-hub-row-s">已发布 · 草稿箱</Text>
+              <Text className="ctb-hub-row-arrow">›</Text>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   )
 }

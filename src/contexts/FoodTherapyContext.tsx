@@ -30,6 +30,12 @@ interface FoodTherapyCtx {
   classifyProduct: (p: Product) => FitTier | null
   // 批量分组（仅含命中三栏的商品）
   classifyProducts: (list: Product[]) => TierResult
+  // 用户结构化画像的过敏原（来自 user_health_profile.allergens）
+  userAllergens: string[]
+  // 是否已建立健康画像（用于决定是否展示「适合我」个性化）
+  hasHealthProfile: boolean
+  // 「适合我」三态：结合用户过敏原 + 人群/场景，返回 适合/慎吃/忌口/未判定
+  getSuitability: (p: Product) => FitTier | null
 }
 
 const Ctx = createContext<FoodTherapyCtx | null>(null)
@@ -41,6 +47,9 @@ export function FoodTherapyProvider({ children }: { children: ReactNode }) {
   const [selectedScene, setSelectedScene] = useState<Scene | null>(() => {
     try { return (Taro.getStorageSync(SCENE_KEY) || null) as Scene | null } catch { return null }
   })
+  // 用户结构化画像的过敏原（驱动「适合我」三态中的「忌口」判定）
+  const [userAllergens, setUserAllergens] = useState<string[]>([])
+  const [hasHealthProfile, setHasHealthProfile] = useState(false)
 
   // 用户体质档案自动注入：登录后读取 user_health_profile 结构化画像，
   // 用 profileToCrowds 推导食疗人群并作为默认匹配项，实现"懂用户身体→自动配对商品"。
@@ -70,6 +79,10 @@ export function FoodTherapyProvider({ children }: { children: ReactNode }) {
           // 结构化画像为空时回退旧自由文本标签
           seedFromTags(profile?.constitution_tags)
         }
+        // 过敏原：驱动「适合我」三态中的「忌口」；空数组表示未设置
+        const allergens = Array.isArray((hp as any)?.allergens) ? ((hp as any).allergens as string[]) : []
+        setUserAllergens(allergens)
+        setHasHealthProfile(!!hp)
       })
       .catch(() => seedFromTags(profile?.constitution_tags))
   }, [profile?.id])
@@ -111,9 +124,22 @@ export function FoodTherapyProvider({ children }: { children: ReactNode }) {
     [selectedCrowds, selectedScene],
   )
 
+  // 「适合我」三态：过敏原命中 → 忌口（最高优先级）；否则按人群/场景分档
+  const getSuitability = useCallback(
+    (p: Product): FitTier | null => {
+      const pa = (p as any).allergens as string[] | undefined
+      if (userAllergens.length && pa && pa.length) {
+        const set = new Set(userAllergens)
+        if (pa.some((a) => set.has(a))) return 'avoid'
+      }
+      return classifyOne(toFoodTherapyInput(p), selectedCrowds, selectedScene)
+    },
+    [userAllergens, selectedCrowds, selectedScene],
+  )
+
   const value = useMemo<FoodTherapyCtx>(
-    () => ({ selectedCrowds, selectedScene, toggleCrowd, setScene, clearFilters, classifyProduct, classifyProducts }),
-    [selectedCrowds, selectedScene, toggleCrowd, setScene, clearFilters, classifyProduct, classifyProducts],
+    () => ({ selectedCrowds, selectedScene, toggleCrowd, setScene, clearFilters, classifyProduct, classifyProducts, userAllergens, hasHealthProfile, getSuitability }),
+    [selectedCrowds, selectedScene, toggleCrowd, setScene, clearFilters, classifyProduct, classifyProducts, userAllergens, hasHealthProfile, getSuitability],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

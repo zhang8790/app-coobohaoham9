@@ -92,11 +92,15 @@ const subPackages = [
   },
   {
     root: 'pages/food',
-    pages: ['scan-result/index', 'food-scan/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index'],
+    pages: ['index', 'scan-result/index', 'food-scan/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index', 'ingredient-pairing/index'],
   },
   {
     root: 'pages/ext',
     pages: ['employee/index'],
+  },
+  {
+    root: 'pages/expiry',
+    pages: ['index'],
   },
 ]
 

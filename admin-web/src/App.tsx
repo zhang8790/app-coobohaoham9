@@ -23,6 +23,7 @@ import MarketingTemplates from '@/pages/MarketingTemplates'
 import SelfStores from '@/pages/SelfStores'
 import CommissionGuide from '@/pages/CommissionGuide'
 import Categories from '@/pages/Categories'
+import Risk from '@/pages/Risk'
 import Settings from '@/pages/Settings'
 import Expiry from '@/pages/Expiry'
 // 商家管理页面
@@ -134,6 +135,7 @@ export default function App() {
           <Route path="commission-guide" element={<CommissionGuide />} />
             <Route path="categories" element={<Categories />} />
             <Route path="expiry" element={<Expiry />} />
+            <Route path="risk" element={<Risk />} />
             <Route path="settings" element={<Settings />} />
             </Route>
 

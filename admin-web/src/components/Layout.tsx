@@ -3,28 +3,57 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { NavIcon } from './icons'
 
-const NAV = [
-  { to: '/dashboard', icon: 'grid', label: '仪表盘' },
-  { to: '/merchants', icon: 'store', label: '自营门店' },
-  { to: '/products', icon: 'box', label: '商品审阅' },
-  { to: '/withdrawals', icon: 'dollar', label: '佣金兑付' },
-  { to: '/ugc', icon: 'news', label: 'UGC管理' },
-  { to: '/users', icon: 'user', label: '用户管理' },
-  { to: '/refunds', icon: 'refund', label: '退款管理' },
-  { to: '/announcements', icon: 'megaphone', label: '公告管理' },
-  { to: '/emotion-claims', icon: 'shield', label: '确权治理' },
-  { to: '/finance', icon: 'chart', label: '财务看板' },
-  { to: '/members', icon: 'users', label: '会员明细' },
-  { to: '/orders', icon: 'document', label: '成交订单' },
-  { to: '/ledgers', icon: 'book', label: '资产流水' },
-  { to: '/merchant-settlements', icon: 'bank', label: '货款结算' },
-  { to: '/behavior', icon: 'trending', label: '行为分析' },
-  { to: '/symptom-rules', icon: 'tea', label: '食疗规则库' },
-  { to: '/marketing-templates', icon: 'chat', label: '导购话术库' },
-  { to: '/self-stores', icon: 'building', label: '自营门店' },
-  { to: '/commission-guide', icon: 'calculator', label: '佣金说明' },
-  { to: '/categories', icon: 'tag', label: '商品分类' },
-  { to: '/expiry', icon: 'alert', label: '临期预警' },
+type NavItem = { to: string; icon: string; label: string }
+type NavSection = { title: string; items: NavItem[] }
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: '运营管理',
+    items: [
+      { to: '/dashboard', icon: 'grid', label: '仪表盘' },
+      { to: '/merchants', icon: 'store', label: '自营门店申请' },
+      { to: '/products', icon: 'box', label: '商品审阅' },
+      { to: '/ugc', icon: 'news', label: 'UGC管理' },
+      { to: '/users', icon: 'user', label: '用户管理' },
+      { to: '/refunds', icon: 'refund', label: '退款管理' },
+      { to: '/announcements', icon: 'megaphone', label: '公告管理' },
+      { to: '/emotion-claims', icon: 'shield', label: '确权治理' },
+      { to: '/orders', icon: 'document', label: '成交订单' },
+      { to: '/expiry', icon: 'alert', label: '临期预警' },
+    ],
+  },
+  {
+    title: '风控中心',
+    items: [
+      { to: '/risk', icon: 'shield-alert', label: '推广风控' },
+    ],
+  },
+  {
+    title: '财务中心',
+    items: [
+      { to: '/withdrawals', icon: 'dollar', label: '佣金兑付' },
+      { to: '/finance', icon: 'chart', label: '财务看板' },
+      { to: '/ledgers', icon: 'book', label: '资产流水' },
+      { to: '/merchant-settlements', icon: 'bank', label: '货款结算' },
+    ],
+  },
+  {
+    title: '商品与内容',
+    items: [
+      { to: '/members', icon: 'users', label: '会员明细' },
+      { to: '/behavior', icon: 'trending', label: '行为分析' },
+      { to: '/symptom-rules', icon: 'tea', label: '食疗规则库' },
+      { to: '/marketing-templates', icon: 'chat', label: '导购话术库' },
+      { to: '/categories', icon: 'tag', label: '商品分类' },
+    ],
+  },
+  {
+    title: '帮助',
+    items: [
+      { to: '/self-stores', icon: 'building', label: '自营门店' },
+      { to: '/commission-guide', icon: 'calculator', label: '佣金说明' },
+    ],
+  },
 ]
 
 // NavIcon 已抽到 ./icons 共享组件
@@ -70,22 +99,31 @@ export default function Layout() {
 
         {/* 导航 */}
         <nav style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {NAV.map(item => (
-            <NavLink key={item.to} to={item.to}
-              style={({ isActive }) => ({
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: collapsed ? '10px 14px' : '10px 12px',
-                borderRadius: 8,
-                background: isActive ? 'var(--primary-soft)' : 'transparent',
-                color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                textDecoration: 'none', fontSize: 14, fontWeight: isActive ? 600 : 400,
-                transition: 'all 0.15s',
-                borderLeft: isActive ? '2px solid var(--primary)' : '2px solid transparent',
-              })}
-            >
-              <NavIcon name={item.icon} />
-              {!collapsed && <span>{item.label}</span>}
-            </NavLink>
+          {NAV_SECTIONS.map(section => (
+            <div key={section.title} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {!collapsed && (
+                <p style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 600, padding: '14px 12px 4px', letterSpacing: 1, margin: 0 }}>
+                  {section.title}
+                </p>
+              )}
+              {section.items.map(item => (
+                <NavLink key={item.to} to={item.to}
+                  style={({ isActive }) => ({
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: collapsed ? '10px 14px' : '10px 12px',
+                    borderRadius: 8,
+                    background: isActive ? 'var(--primary-soft)' : 'transparent',
+                    color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                    textDecoration: 'none', fontSize: 14, fontWeight: isActive ? 600 : 400,
+                    transition: 'all 0.15s',
+                    borderLeft: isActive ? '2px solid var(--primary)' : '2px solid transparent',
+                  })}
+                >
+                  <NavIcon name={item.icon} />
+                  {!collapsed && <span>{item.label}</span>}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 

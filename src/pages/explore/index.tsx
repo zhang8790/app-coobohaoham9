@@ -195,8 +195,8 @@ export default function ExplorePage() {
         </View>
       </View>
 
-      {/* 临期特惠入口：跳转独立频道页，让 C 端直接体验自动折扣 */}
-      <View className="px-3 pt-2" onClick={() => Taro.navigateTo({ url: '/pages/admin/admin-expiry/index' })}>
+      {/* 临期特惠入口：跳转 C 端独立频道页，让买家直接逛自动折扣商品 */}
+      <View className="px-3 pt-2" onClick={() => Taro.navigateTo({ url: '/pages/expiry/index' })}>
         <View className="flex items-center justify-between px-4 py-3 rounded-2xl"
           style={{ background: 'linear-gradient(135deg, #F97316 0%, #EF4444 100%)' }}>
           <View className="flex flex-col">

@@ -30,6 +30,7 @@ const BAIDU_TOKEN_URL = 'https://aip.baidubce.com/oauth/2.0/token'
 const BAIDU_OCR_URL = 'https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic'
 
 let baiduTokenCache: { token: string; exp: number } | null = null
+let baiduTokenPromise: Promise<string> | null = null
 
 async function getBaiduToken(): Promise<string> {
   const apiKey = Deno.env.get('BAIDU_OCR_API_KEY')
@@ -38,18 +39,27 @@ async function getBaiduToken(): Promise<string> {
     throw new Error('百度OCR未配置(BAIDU_OCR_API_KEY/BAIDU_OCR_SECRET_KEY)')
   }
   if (baiduTokenCache && baiduTokenCache.exp > Date.now() + 60_000) return baiduTokenCache.token
-  const resp = await fetch(
-    `${BAIDU_TOKEN_URL}?grant_type=client_credentials&client_id=${encodeURIComponent(apiKey)}&client_secret=${encodeURIComponent(secretKey)}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' } },
-  )
-  if (!resp.ok) throw new Error(`百度token获取失败 HTTP ${resp.status}`)
-  const j = await resp.json()
-  if (!j.access_token) throw new Error(`百度token异常: ${JSON.stringify(j)}`)
-  baiduTokenCache = {
-    token: j.access_token,
-    exp: Date.now() + (Number(j.expires_in) || 2_592_000) * 1000,
-  }
-  return j.access_token
+  // 并发去重：冷启动后多个请求同时进来时，只真正打一次百度 token 接口
+  if (baiduTokenPromise) return baiduTokenPromise
+  baiduTokenPromise = (async () => {
+    try {
+      const resp = await fetch(
+        `${BAIDU_TOKEN_URL}?grant_type=client_credentials&client_id=${encodeURIComponent(apiKey)}&client_secret=${encodeURIComponent(secretKey)}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' } },
+      )
+      if (!resp.ok) throw new Error(`百度token获取失败 HTTP ${resp.status}`)
+      const j = await resp.json()
+      if (!j.access_token) throw new Error(`百度token异常: ${JSON.stringify(j)}`)
+      baiduTokenCache = {
+        token: j.access_token,
+        exp: Date.now() + (Number(j.expires_in) || 2_592_000) * 1000,
+      }
+      return j.access_token
+    } finally {
+      baiduTokenPromise = null
+    }
+  })()
+  return baiduTokenPromise
 }
 
 async function ocrImage(base64: string): Promise<string[]> {
@@ -182,6 +192,15 @@ Deno.serve(async (req: Request) => {
     let binary = ''
     for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i])
     const base64 = btoa(binary)
+
+    // 百度 accurate_basic 硬限原始图片 ≤ 4MB（base64 后约 5.3MB），超限返回 216201。
+    // 提前拦截给出友好降级文案，避免白烧 token 额度。
+    if (buf.length > 4 * 1024 * 1024) {
+      return json(
+        { success: false, error: '图片过大（超过 4MB），请压缩后重试，或用「粘贴配料文字」方式分析' },
+        400,
+      )
+    }
 
     const words = await ocrImage(base64)
     const candidates = parseIngredients(words)

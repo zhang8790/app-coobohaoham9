@@ -30,6 +30,8 @@ const TYPE_META: Record<string, { icon: string; color: string; label: string }> 
   withdraw_progress:  { icon: '💸', color: 'info',       label: '提现' },
   refund_result:      { icon: '↩',  color: 'destructive', label: '退款' },
   announcement:       { icon: '📢', color: 'primary',    label: '公告' },
+  season_reminder:    { icon: '🍂', color: 'primary',    label: '换季' },
+  expiry_alert:       { icon: '⏰', color: 'warning',    label: '临期' },
 }
 
 // hsl(var(--token)) 便捷生成
@@ -78,8 +80,11 @@ export default function MessagesPage() {
       setUnread(u => Math.max(0, u - 1))
       setList(l => l.map(r => r.id === n.id ? { ...r, read_at: new Date().toISOString() } : r))
     }
-    // 跳转
-    const target = (n.payload?.page as string | undefined) ?? 'pages/order-center/index'
+    // 跳转：优先 jump_page（换季提醒等新增类型），兼容旧 page 字段
+    const target =
+      (n.payload?.jump_page as string | undefined) ??
+      (n.payload?.page as string | undefined) ??
+      'pages/order-center/index'
     if (target === 'pages/mine/messages/index') {
       // 当前页，刷新即可
       load()
@@ -136,7 +141,7 @@ export default function MessagesPage() {
         <EmptyState
           icon={<Text className="text-5xl block mb-3">📭</Text>}
           title="暂无消息"
-          description="订单支付成功、佣金到账、退款结果、提现进度都会在这里通知"
+          description="订单支付成功、佣金到账、退款结果、提现进度、换季提醒都会在这里通知"
         />
       ) : (
         <View className="py-3">

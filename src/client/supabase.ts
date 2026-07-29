@@ -41,7 +41,7 @@ const customFetch: typeof fetch = async (url: string, options: RequestInit) => {
     header: headers,
     data: body,
     responseType: 'text',
-    timeout: 10000, // 10秒超时，防止请求永久挂起
+    timeout: 30000, // Edge Function（含百度 OCR）可能较慢，放宽到 30s
   })
 
   if (res.statusCode > 300 && res.data?.code === 'SupabaseNotReady' && !noticed) {
@@ -53,8 +53,14 @@ const customFetch: typeof fetch = async (url: string, options: RequestInit) => {
   return {
     ok: res.statusCode >= 200 && res.statusCode < 300,
     status: res.statusCode,
-    json: async () => res.data,
-    text: async () => JSON.stringify(res.data),
+    json: async () => {
+      const d = res.data
+      if (typeof d === 'string') {
+        try { return JSON.parse(d) } catch { return d }
+      }
+      return d
+    },
+    text: async () => (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)),
     data: res.data,
     headers: {
       get: (key: string) => {
@@ -68,6 +74,10 @@ const customFetch: typeof fetch = async (url: string, options: RequestInit) => {
     }
   } as unknown as Response
 }
+
+// 微信小程序无全局 fetch：polyfill 成 Taro.request 封装版，使 supabase-js 的
+// FunctionsClient 能正常发请求（修复所有 functions.invoke 调用）。
+;(globalThis as any).fetch = customFetch
 
 const realSupabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: { fetch: customFetch },
@@ -86,5 +96,50 @@ const realSupabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   }
 })
+
+/**
+ * 直连 Edge Function，绕过 supabase.functions.invoke。
+ *
+ * 为什么需要它：supabase-js 的 `functions.invoke` 在真正发请求前会强制走
+ *   auth.getSession() → getUser() → GET /auth/v1/user
+ * 未登录时这段请求会 403 且耗时 1~2s（即"403 前戏"）。对于 verify_jwt=false 的
+ * 公开函数（如 ocr-ingredient），根本不需要登录态，传 { auth: false } 即可跳过整段
+ * 会话查询，彻底消除这段延迟。同时复用 customFetch（Taro.request 封装），与全局
+ * polyfill 一致，各环境都能正常发请求。
+ *
+ * 需要登录态的函数（支付/登录等）保持默认 auth: true 即可，会自动附加 Authorization。
+ */
+export async function callEdgeFunction<T = any>(
+  name: string,
+  body?: any,
+  opts: { auth?: boolean } = {},
+): Promise<{ data: T | null; error: { message: string } | null }> {
+  const url = `${supabaseUrl}/functions/v1/${name}`
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    apikey: supabaseAnonKey,
+  }
+  // 仅当需要登录态时附加会话 token；公开函数跳过整段 getSession 查询（省掉 403 前戏）
+  if (opts.auth !== false) {
+    try {
+      const { data } = await realSupabase.auth.getSession()
+      if (data.session?.access_token) {
+        headers['Authorization'] = `Bearer ${data.session.access_token}`
+      }
+    } catch {
+      /* 忽略：降级为匿名调用 */
+    }
+  }
+  const res = await customFetch(url, {
+    method: 'POST',
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  const json = (await res.json()) as any
+  if (!res.ok) {
+    return { data: null, error: { message: json?.error || json?.message || `HTTP ${res.status}` } }
+  }
+  return { data: json as T, error: null }
+}
 
 export const supabase = isLocalDev ? mockSupabase : realSupabase

@@ -83,13 +83,29 @@ export const INGREDIENT_DICT: Record<string, IngredientEntry> = {
   miantiao:     { zh: '面条',   nature: '平', icon: '🍜', color: '#FCD34D', benefits: ['补充能量','饱腹'],             audiences: ['日常'],                       scenarios: ['日常','主食'], aliases: ['面','挂面'] },
   muer:         { zh: '木耳',   nature: '平', icon: '⚫', color: '#1F2937', benefits: ['润燥','清理肠道'],             audiences: ['日常'],                       scenarios: ['日常'], aliases: ['黑木耳','云耳'] },
   xianggu:      { zh: '香菇',   nature: '平', icon: '🍄', color: '#9A8070', benefits: ['健脾','增强食欲'],             audiences: ['日常'],                       scenarios: ['日常'], aliases: ['香蕈','冬菇'] },
+
+  // ── 搭配常客 · 高频配对食材（食材配对探索器补充）──
+  hongtang:     { zh: '红糖',   nature: '温', icon: '🟤', color: '#8B4513', benefits: ['温中暖身','补中'],               audiences: ['手脚冰凉','经期后','畏寒'],    scenarios: ['日常温补','经期调理'], aliases: ['红糖','黑糖'] },
+  huangqi:      { zh: '黄芪',   nature: '微温', icon: '🌿', color: '#9CAF88', benefits: ['补气固表','健脾'],             audiences: ['体虚','易疲劳'],              scenarios: ['煲汤','换季调养'], aliases: ['北芪','黄耆'] },
+  danggui:      { zh: '当归',   nature: '温', icon: '🌿', color: '#8F9779', benefits: ['补血活血','润燥'],               audiences: ['气血偏弱','经期后'],          scenarios: ['煲汤','冬季进补'], aliases: ['秦归','云归'] },
+  songzi:       { zh: '松子',   nature: '温', icon: '🌰', color: '#A0522D', benefits: ['润肠','健脑'],                   audiences: ['用脑多','肠燥'],              scenarios: ['日常','零食'], aliases: ['松仁','海松子'] },
+  lizhi:        { zh: '荔枝',   nature: '温', icon: '🔴', color: '#B91C1C', benefits: ['补气血','温中'],                 audiences: ['气血偏弱','经期后'],          scenarios: ['夏季','日常'], aliases: ['荔支','丹荔'] },
+  huasheng:     { zh: '花生',   nature: '平', icon: '🥜', color: '#C19A6B', benefits: ['养血健脾','补充蛋白'],           audiences: ['气血偏弱','日常'],            scenarios: ['日常','加餐'], aliases: ['花生米','落花生'] },
+  hongdou:      { zh: '红豆',   nature: '平', icon: '🫘', color: '#A0522D', benefits: ['利水消肿','补血'],               audiences: ['湿热','水肿'],                scenarios: ['夏季','日常'], aliases: ['赤豆','赤小豆','红小豆'] },
+  heidou:       { zh: '黑豆',   nature: '平', icon: '⚫', color: '#1F2937', benefits: ['补肾养血','补充蛋白'],           audiences: ['发质干','日常滋养'],          scenarios: ['日常'], aliases: ['乌豆','黑大豆'] },
+  hongshu:      { zh: '红薯',   nature: '平', icon: '🍠', color: '#C1440E', benefits: ['补中和胃','补充能量'],           audiences: ['胃弱','日常'],                scenarios: ['日常','主食'], aliases: ['地瓜','番薯','甘薯'] },
+  putaogan:     { zh: '葡萄干', nature: '平', icon: '🍇', color: '#6B21A8', benefits: ['补气血','补充能量'],             audiences: ['气血偏弱','日常'],            scenarios: ['日常','加餐'], aliases: ['葡萄乾'] },
+  yumi:         { zh: '玉米',   nature: '平', icon: '🌽', color: '#FCD34D', benefits: ['健脾','补充膳食纤维'],           audiences: ['日常','肠胃偏弱'],            scenarios: ['日常','主食'], aliases: ['苞米','玉蜀黍'] },
+  baibian:      { zh: '白扁豆', nature: '平', icon: '🫘', color: '#E5E7EB', benefits: ['健脾化湿','和中'],               audiences: ['湿热','脾胃偏弱'],            scenarios: ['夏季','煲汤'], aliases: ['扁豆','峨眉豆'] },
+  yanmai:       { zh: '燕麦',   nature: '平', icon: '🥣', color: '#D6C7A1', benefits: ['饱腹','补充膳食纤维'],           audiences: ['日常','肠胃偏弱'],            scenarios: ['早餐','日常'], aliases: ['雀麦','皮燕麦'] },
+  heimi:        { zh: '黑米',   nature: '平', icon: '🍚', color: '#1F2937', benefits: ['补血','补肾'],                   audiences: ['气血偏弱','发质干'],          scenarios: ['日常','主食'], aliases: ['黑稻','药米'] },
 };
 
 // 编译 UI 标签（按分类整理，供商家在打标页选用）
 export const SHIYANG_CATEGORIES: Record<string, { label: string; tags: ShiyangTag[] }> = {
   warm: {
     label: '温性·暖身',
-    tags: ['jiang','hongzao','guiyuan','hetao','nangua','chenpi','xingren','shanzha','jirou','zhurou','xia','paigu','yangrou'].map(k => {
+    tags: ['jiang','hongzao','guiyuan','hetao','nangua','chenpi','xingren','shanzha','jirou','zhurou','xia','paigu','yangrou','hongtang','huangqi','danggui','songzi','lizhi'].map(k => {
       const e = INGREDIENT_DICT[k]; return { zh: e.zh, icon: e.icon, color: e.color }
     }),
   },
@@ -101,7 +117,7 @@ export const SHIYANG_CATEGORIES: Record<string, { label: string; tags: ShiyangTa
   },
   neutral: {
     label: '平性·滋养',
-    tags: ['fengmi','yiner','baihe','lianzi','shanyao','gouqi','heizhima','xiaomi','pingguo','huluobo','niunai','jidan','niurou','jiyu','bingtang','papaya','tudou','dami','miantiao','muer','xianggu'].map(k => {
+    tags: ['fengmi','yiner','baihe','lianzi','shanyao','gouqi','heizhima','xiaomi','pingguo','huluobo','niunai','jidan','niurou','jiyu','bingtang','papaya','tudou','dami','miantiao','muer','xianggu','huasheng','hongdou','heidou','hongshu','putaogan','yumi','baibian','yanmai','heimi'].map(k => {
       const e = INGREDIENT_DICT[k]; return { zh: e.zh, icon: e.icon, color: e.color }
     }),
   },

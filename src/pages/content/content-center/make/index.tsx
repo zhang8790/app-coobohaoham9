@@ -1,6 +1,6 @@
 // @title 创作中心
 import { useState, useEffect, useMemo } from 'react'
-import Taro from '@tarojs/taro'
+import Taro, { useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
 import { View, Text, Image, ScrollView, Input, Textarea, Video, Button } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { createArticle, updateArticle, searchProducts } from '@/db/api'
@@ -13,9 +13,6 @@ import { useDebouncedCallback } from '@/utils/debounce'
 type Step = 'choose' | 'fetch' | 'edit'
 type EditMode = 'blank' | 'fetch' | 'template'
 
-// 创作方式选择已移除（默认直达编辑）；模板仍由 TEMPLATES 提供
-
-
 // 内置模板
 const TEMPLATES = [
   { name: '探店推荐', content: '【探店地址】\n\n【环境氛围】\n\n【主推好物】\n\n【性价比评分】\n\n【总结】' },
@@ -26,6 +23,7 @@ const TEMPLATES = [
 
 export default function MakePage() {
   const { user } = useAuth()
+  const router = useRouter()
   const [step, setStep] = useState<Step>('edit')
   const [editMode, setEditMode] = useState<EditMode>('blank')
 
@@ -87,7 +85,7 @@ export default function MakePage() {
 
   // ── 分享（预览页顶栏「分享」按钮触发页面级转发）──
   // 已存草稿/编辑已有文章 → 直接转发详情页链接；纯新草稿未保存 → 由预览页「分享」先存草稿再分享
-  Taro.useShareAppMessage(() => {
+  useShareAppMessage(() => {
     const t = (title && title.trim()) || '来电有喜 · 好文分享'
     const path = articleId
       ? `/pages/content/article-detail/index?id=${articleId}`
@@ -95,12 +93,27 @@ export default function MakePage() {
     return { title: t, path, imageUrl: coverImage || undefined }
   })
   // 朋友圈分享（部分基础库支持）
-  ;(Taro as any).useShareTimeline?.((() => {
+  useShareTimeline(() => {
     const t = (title && title.trim()) || '来电有喜 · 好文分享'
     return { title: t, query: articleId ? `id=${articleId}` : '', imageUrl: coverImage || undefined }
-  }) as any)
+  })
   useEffect(() => {
     Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
+  }, [])
+
+  // 模板预填：由 ?template=<名称> 传入，直达对应模板
+  useEffect(() => {
+    const tplName = router.params?.template
+    if (tplName) {
+      const tpl = TEMPLATES.find(t => t.name === decodeURIComponent(tplName))
+      if (tpl && !title) {
+        setTitle(tpl.name)
+        setContent(tpl.content)
+        setArticleId(null)
+        setStep('edit')
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 插入占位符到文末（避免重复）
@@ -122,9 +135,6 @@ export default function MakePage() {
     setContent(next)
     Taro.showToast({ title: '已移除', icon: 'none' })
   }
-
-  // 创作方式选择已移除（默认直达编辑）；模板仍由模板弹层提供
-
 
   const handleSelectTemplate = (tpl: typeof TEMPLATES[number]) => {
     setShowTemplates(false)
@@ -267,13 +277,11 @@ export default function MakePage() {
     Taro.navigateBack().catch(() => Taro.switchTab({ url: '/pages/index/index' }))
   }
 
-  // 存草稿
-  // 预览页「分享」：纯新草稿未保存时，先存草稿（拿到 articleId 才有可分享的详情链接），再提示再次点击分享
+  // 存草稿（分享前若未保存则先落库，拿到 articleId 才有可分享的详情链接）
   const prepareShare = async () => {
     if (articleId) return
     if (!title.trim()) { Taro.showToast({ title: '请先填写标题', icon: 'none' }); return }
     await handleSaveDraft()
-    Taro.showToast({ title: '草稿已存，再点分享', icon: 'none' })
   }
 
   const handleSaveDraft = async () => {
@@ -375,11 +383,7 @@ export default function MakePage() {
         </View>
       </View>
 
-      {/* 创作方式选择已整合为编辑页内嵌入口（顶部「导入文章」+ 工具栏「模板」），默认直达编辑 */}
-
-      {/* 链接导入已整合为编辑页内嵌「导入文章」入口（见下方 showImport 折叠区） */}
-
-      {/* ── 沉浸式编辑器：直达编辑，无前置选择（系统导航栏管标题与返回） ── */}
+      {/* ── 沉浸式编辑器：直达编辑，无前置选择 ── */}
 
       {/* 链接导入（内嵌折叠入口） */}
       {showImport && (
@@ -736,15 +740,13 @@ function PreviewSheet({ title, content, coverImage, videoUrl, articleId, onPrepa
         <View className="preview-bar">
           <Text className="preview-bar-title">预览</Text>
           <View className="preview-bar-actions">
-            {articleId ? (
-              <Button openType="share" className="preview-bar-share" hoverClass="none">
-                <Icon name="share-variant" size={20} className="text-foreground" />
-              </Button>
-            ) : (
-              <View className="preview-bar-share" hoverClass="none" onClick={onPrepareShare}>
-                <Icon name="share-variant" size={20} className="text-foreground" />
-              </View>
-            )}
+            <Button
+            openType="share"
+            className="preview-bar-share"
+            hoverClass="none"
+            onClick={() => { if (!articleId) prepareShare() }}>
+            <Icon name="share-variant" size={20} className="text-foreground" />
+          </Button>
             <View className="preview-bar-close" hoverClass="none" onClick={onClose}>
               <Icon name="close" size={22} className="text-foreground" />
             </View>

@@ -1,10 +1,11 @@
 // @title 搜索
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
 import { View, Text, Image, Input } from '@tarojs/components'
 import { searchProducts } from '@/db/api'
 import Icon from '@/components/Icon'
 import type { Product } from '@/db/types'
+import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 
 const HOT_WORDS = ['手账套装', '奶茶', '咖啡', '礼品盒', '人间失格', '香薰', '红烧肉', '零食大礼包']
 
@@ -13,6 +14,10 @@ export default function SearchPage() {
   const [results, setResults] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  // 「适合我」个性化筛选（仅对已完成健康画像的用户生效）
+  const [fitOnly, setFitOnly] = useState(false)
+  const [noAllergen, setNoAllergen] = useState(false)
+  const { getSuitability, userAllergens, hasHealthProfile } = useFoodTherapy()
   const [history, setHistory] = useState<string[]>(() => {
     try { return JSON.parse(Taro.getStorageSync('search_history') || '[]') } catch { return [] }
   })
@@ -46,6 +51,20 @@ export default function SearchPage() {
     setSearched(false)
     setResults([])
   }
+
+  // 「适合我」筛选：基于画像分档 + 过敏原排除，零网络，纯前端过滤
+  const filteredResults = useMemo(() => {
+    if (!hasHealthProfile) return results
+    const allergenSet = new Set(userAllergens)
+    return results.filter((p) => {
+      if (fitOnly && getSuitability(p) !== 'recommend') return false
+      if (noAllergen && allergenSet.size > 0) {
+        const pa = (p as any).allergens as string[] | undefined
+        if (pa && pa.some((a) => allergenSet.has(a))) return false
+      }
+      return true
+    })
+  }, [results, fitOnly, noAllergen, getSuitability, userAllergens, hasHealthProfile])
 
   // 支持从情绪检测页(?keyword=关键词) / 自营页(?mood=标签) 带参跳转自动搜索
   useEffect(() => {
@@ -144,8 +163,44 @@ export default function SearchPage() {
             </View>
           ) : (
             <View>
-              <Text className="text-xl text-muted-foreground mb-4">共找到 <Text className="text-primary font-bold">{results.length}</Text> 件商品</Text>
-              {results.map(p => (
+              <Text className="text-xl text-muted-foreground mb-2">共找到 <Text className="text-primary font-bold">{results.length}</Text> 件商品</Text>
+              {/* 「适合我」个性化筛选开关（仅对已完成健康画像的用户展示） */}
+              {hasHealthProfile && (
+                <View className="flex items-center gap-2 mb-3">
+                  <View
+                    hoverClass="none"
+                    onClick={() => setFitOnly((v) => !v)}
+                    className="px-3 py-1.5 rounded-full text-sm flex-shrink-0"
+                    style={{
+                      background: fitOnly ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--card))',
+                      color: fitOnly ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                      borderWidth: 1,
+                      borderColor: fitOnly ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border))',
+                      fontWeight: fitOnly ? 'bold' : 'normal',
+                    }}
+                  >
+                    <Text>✅ 适合我</Text>
+                  </View>
+                  <View
+                    hoverClass="none"
+                    onClick={() => setNoAllergen((v) => !v)}
+                    className="px-3 py-1.5 rounded-full text-sm flex-shrink-0"
+                    style={{
+                      background: noAllergen ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--card))',
+                      color: noAllergen ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                      borderWidth: 1,
+                      borderColor: noAllergen ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border))',
+                      fontWeight: noAllergen ? 'bold' : 'normal',
+                    }}
+                  >
+                    <Text>🚫 无我过敏源</Text>
+                  </View>
+                  {(fitOnly || noAllergen) && (
+                    <Text className="text-sm text-muted-foreground">已筛出 <Text className="text-primary font-bold">{filteredResults.length}</Text> 件</Text>
+                  )}
+                </View>
+              )}
+              {filteredResults.map(p => (
                 <View key={p.id} className="bg-card rounded-2xl border border-border mb-3 flex overflow-hidden"
                   onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}>
                   <Image src={p.main_image || p.image_url || ''} mode="aspectFill" style={{ width: '100px', height: '100px', flexShrink: 0 }} />

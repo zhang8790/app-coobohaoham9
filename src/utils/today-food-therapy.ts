@@ -4,7 +4,7 @@
  * 所有推荐基于食材属性（性味/功效标签），不含疾病诊断
  */
 
-import type { Product } from '@/db/types'
+import type { Product, Profile } from '@/db/types'
 import { getCurrentTerm, type SeasonalTerm } from './seasonal-box'
 import { CONSTITUTION_TYPES, type ConstitutionType } from './constitution-test'
 import { type ConsumptionProfile } from './consumption-profile'
@@ -335,4 +335,23 @@ export function isSeasonTransition(term: SeasonalTerm): boolean {
   // 节气开始时 3天内 或 结束前 3天内
   return (diffFromStart >= 0 && diffFromStart <= 3 * 86400000) ||
          (diffToEnd >= 0 && diffToEnd <= 3 * 86400000)
+}
+
+// ── 体质解析（公共） ─────────────────────────────────────────────────────
+
+/**
+ * 由 profiles.constitution_tags（body_state 标签 / 体质 key / 体质名）解析出体质类型。
+ * 解析顺序：key → 名 → bodyState 匹配（与今日页 getConstitution 同源逻辑，抽为公共函数供首页预览复用）。
+ */
+export function resolveConstitution(profile: Profile | null): ConstitutionType | null {
+  if (!profile) return null
+  const tags: string[] = (profile as any).constitution_tags ?? []
+  for (const tag of tags) {
+    if (CONSTITUTION_TYPES[tag]) return CONSTITUTION_TYPES[tag]
+    const byName = Object.keys(CONSTITUTION_TYPES).find((k) => CONSTITUTION_TYPES[k].name === tag)
+    if (byName) return CONSTITUTION_TYPES[byName]
+    const byBody = Object.keys(CONSTITUTION_TYPES).find((k) => CONSTITUTION_TYPES[k].bodyStates.includes(tag))
+    if (byBody) return CONSTITUTION_TYPES[byBody]
+  }
+  return null
 }

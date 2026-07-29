@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import Icon from '@/components/Icon'
 import AddToCartButton from '@/components/AddToCartButton'
 import { type ProductCareInfo, careLevel } from '@/utils/product-care'
+import type { FitTier } from '@/utils/food-therapy/types'
 
 export interface ProductGridCardProps {
   id: string
@@ -25,6 +26,8 @@ export interface ProductGridCardProps {
   width?: string
   /** 图片区比例：'1:1'（默认）或 '4:3'（更小更紧凑），三列网格建议 4:3 */
   imageRatio?: '1:1' | '4:3'
+  /** 「适合我」三态（基于登录用户画像）：适合我 / 慎吃 / 忌口，传 null 不展示 */
+  suitability?: FitTier | null
   onTap?: () => void
   onAddCart?: (id: string) => void
   adding?: boolean
@@ -48,10 +51,19 @@ const NATURE_COLOR: Record<string, string> = {
 export default function ProductGridCard({
   id, name, price, imageUrl, originalPrice, storeName, subtitle,
   matchLabel, care, imageSlot, footerExtra, width = '48%', imageRatio = '1:1',
-  onTap, onAddCart, adding, onShare, disabled,
+  suitability, onTap, onAddCart, adding, onShare, disabled,
 }: ProductGridCardProps) {
   const [imgFailed, setImgFailed] = useState(false)
   const ratioPad = imageRatio === '4:3' ? '75%' : '100%'
+
+  // 「适合我」三态标签配色（绿=适合 / 橙=慎吃 / 红=忌口）
+  const suitBadge = suitability === 'recommend'
+    ? { text: '适合我', bg: '#16A34A', fg: '#FFFFFF' }
+    : suitability === 'caution'
+      ? { text: '慎吃', bg: '#C77B47', fg: '#FFFFFF' }
+      : suitability === 'avoid'
+        ? { text: '忌口', bg: '#DC2626', fg: '#FFFFFF' }
+        : null
   return (
     <View
       className="pg-card relative flex flex-col overflow-hidden"
@@ -99,6 +111,16 @@ export default function ProductGridCard({
       {/* 信息区：标准化垂直节奏（py-2 / gap-1），3 列窄卡更紧凑 */}
       <View className="px-2.5 py-2 flex flex-col gap-1 flex-1">
         <Text className="text-base font-bold text-foreground leading-tight line-clamp-2">{name}</Text>
+
+        {/* 「适合我」三态标签：个性化食养适配，一眼可见 */}
+        {suitBadge && (
+          <View className="flex items-center" style={{ marginTop: -2 }}>
+            <View className="px-2 py-0.5 rounded-full text-xs font-bold"
+              style={{ background: suitBadge.bg, color: suitBadge.fg }}>
+              {suitBadge.text}
+            </View>
+          </View>
+        )}
 
         {/* 关怀层：食养一句话 + 关怀度 + 食疗标签 + 性味/搭配智能提示 */}
         {care && (

@@ -437,6 +437,20 @@ function MyPromotionPage() {
         </View>
       )}
 
+      {/* 交叉入口：查看完整两级推荐关系（与「我的推荐」页互引，消除两页功能重叠困惑） */}
+      <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border flex items-center justify-between"
+        hoverClass="none"
+        onClick={() => Taro.navigateTo({ url: '/pages/mine/my-referrals/index' })}>
+        <View className="flex items-center gap-2">
+          <Icon name="account-group" size={24} className="text-primary" />
+          <View>
+            <Text className="text-lg font-bold text-foreground">我的推荐关系</Text>
+            <Text className="text-sm text-muted-foreground">查看我的好友 / 我的粉丝完整名单</Text>
+          </View>
+        </View>
+        <Icon name="chevron-right" size={20} className="text-muted-foreground" />
+      </View>
+
       {/* 相关协议入口 */}
       <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
         <View className="flex items-center gap-2 mb-2">
