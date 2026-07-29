@@ -60,6 +60,8 @@ history/*.json
 .workbuddy/supabase-bin/
 .workbuddy/tmp/
 oxlint_out.txt
+tsc_out.txt
+*.lnk
 *.zip
 
 # WorkBuddy local memory (not project source)
