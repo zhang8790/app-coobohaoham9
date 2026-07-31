@@ -477,9 +477,9 @@ export default function ProductPage() {
             {therapyReport.warnings.filter((w) => w.level === 'red').length > 0 && (
               <View style={{ marginTop: 8 }}>
                 {therapyReport.warnings.filter((w) => w.level === 'red').map((w, i) => (
-                  <View key={w.code + i} style={{ flexDirection: 'row', alignItems: 'flex-start', background: '#FEE2E2', borderRadius: '10px', padding: '8px 10px', marginTop: i === 0 ? 0 : 6, border: '1px solid #FCA5A5' }}>
-                    <Text style={{ fontSize: '13px', marginRight: 4, lineHeight: '1.5' }}>🔴</Text>
-                    <Text style={{ fontSize: '13px', color: '#B91C1C', flex: 1, lineHeight: '1.5' }}>
+                  <View key={w.code + i} style={{ flexDirection: 'row', alignItems: 'flex-start', background: '#FEF2F2', borderRadius: '10px', padding: '8px 10px', marginTop: i === 0 ? 0 : 6, border: '1px solid #F1B0B0' }}>
+                    <Text style={{ fontSize: '13px', marginRight: 4, lineHeight: '1.5' }}>⚠️</Text>
+                    <Text style={{ fontSize: '13px', color: '#C0392B', flex: 1, lineHeight: '1.5' }}>
                       <Text style={{ fontWeight: '700' }}>{w.label}：</Text>{w.text}
                     </Text>
                   </View>
