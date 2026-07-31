@@ -11,7 +11,6 @@ import Ugc from '@/pages/Ugc'
 import Users from '@/pages/Users'
 import Refunds from '@/pages/Refunds'
 import Announcements from '@/pages/Announcements'
-import EmotionClaims from '@/pages/EmotionClaims'
 import FinanceDashboard from '@/pages/FinanceDashboard'
 import Members from '@/pages/Members'
 import Orders from '@/pages/Orders'
@@ -26,6 +25,8 @@ import Categories from '@/pages/Categories'
 import Risk from '@/pages/Risk'
 import Settings from '@/pages/Settings'
 import Expiry from '@/pages/Expiry'
+import FoodSafetyLibs from '@/pages/FoodSafetyLibs'
+import FoodIngredients from '@/pages/FoodIngredients'
 // 商家管理页面
 import MerchantDashboard from '@/pages/merchant/Index'
 import MerchantProducts from '@/pages/merchant/Products'
@@ -36,8 +37,6 @@ import MerchantAds from '@/pages/merchant/Ads'
 import MerchantMessages from '@/pages/merchant/Messages'
 import MerchantWithdraw from '@/pages/merchant/Withdraw'
 import MerchantMembers from '@/pages/merchant/Members'
-import EmotionStudio from '@/pages/merchant/EmotionStudio'
-import EmotionFunnel from '@/pages/merchant/EmotionFunnel'
 
 // ============ 路由守卫 ============
 
@@ -122,7 +121,6 @@ export default function App() {
             <Route path="users" element={<Users />} />
           <Route path="refunds" element={<Refunds />} />
           <Route path="announcements" element={<Announcements />} />
-          <Route path="emotion-claims" element={<EmotionClaims />} />
           <Route path="finance" element={<FinanceDashboard />} />
           <Route path="members" element={<Members />} />
           <Route path="orders" element={<Orders />} />
@@ -135,6 +133,8 @@ export default function App() {
           <Route path="commission-guide" element={<CommissionGuide />} />
             <Route path="categories" element={<Categories />} />
             <Route path="expiry" element={<Expiry />} />
+            <Route path="food-safety-libs" element={<FoodSafetyLibs />} />
+            <Route path="food-ingredients" element={<FoodIngredients />} />
             <Route path="risk" element={<Risk />} />
             <Route path="settings" element={<Settings />} />
             </Route>
@@ -150,8 +150,6 @@ export default function App() {
             <Route path="messages" element={<MerchantMessages />} />
             <Route path="withdraw" element={<MerchantWithdraw />} />
             <Route path="members" element={<MerchantMembers />} />
-            <Route path="emotion-studio" element={<EmotionStudio />} />
-            <Route path="emotion-funnel" element={<EmotionFunnel />} />
           </Route>
 
           {/* 兜底：未匹配路由 → 按角色跳转 */}

@@ -24,7 +24,7 @@ export function generateMarketingCopy(input: FoodTherapyInput, rule?: FitRule | 
 
   const short_sales_word = salesTpl ? fillTemplate(salesTpl, v) : `${v.name}｜${v.natureText}，${v.tagText}，一口就懂你的口味`
   const detail_desc = detailTpl ? fillTemplate(detailTpl, v) : `【${v.name}】${v.natureText}。${v.tagSentence}用心选材，让每一餐都有温度。`
-  const circle_copy = circleTpl ? fillTemplate(circleTpl, v) : `今天点了${v.name}，${v.natureText}的治愈感真的绝了～${v.tagSentence}日常小确幸 get✨`
+  const circle_copy = circleTpl ? fillTemplate(circleTpl, v) : `今天点了${v.name}，${v.natureText}的舒心感真的绝了～${v.tagSentence}日常小确幸 get✨`
   const risk_tip = riskTpl
     ? fillTemplate(riskTpl, v)
     : `温馨提示：${v.remindText}。食养建议不替代医嘱，适量为佳。`

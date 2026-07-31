@@ -51,7 +51,7 @@ const BENEFIT_TO_HEALTH_TAG: { kw: string[]; tag: HealthTag }[] = [
 
 // benefit 关键词 → EMOTION_TAGS（情绪配对，最多取 3）
 const BENEFIT_TO_EMOTION: { kw: string[]; tag: EmotionTag }[] = [
-  { kw: ['安神', '养心', '清心', '宁神', '宁心', '舒缓'], tag: '治愈放松' },
+  { kw: ['安神', '养心', '清心', '宁神', '宁心', '舒缓'], tag: '舒心放松' },
   { kw: ['温中', '驱寒', '暖身', '温补', '补益', '补中'], tag: '温暖陪伴' },
   { kw: ['清热', '降火', '解暑', '生津', '润燥', '润肠', '利水', '消肿'], tag: '清爽解压' },
   { kw: ['消食', '化积', '理气', '开胃'], tag: '小确幸' },

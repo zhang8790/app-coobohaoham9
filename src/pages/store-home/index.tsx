@@ -1,5 +1,5 @@
 // @title 门店详情
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import './index.scss'
@@ -8,10 +8,13 @@ import LazyImage from '@/components/LazyImage'
 // 关键：必须从 common.js 导入至少一项，否则 Rollup 会 tree-sh掉 common.js 和 vendors.js
 // 导致小程序运行时缺少必要代码 → 页面空白崩溃
 import { getStoreById, getStoreCategories, getProducts, addToCart, bindStoreReferrer } from '@/db/api'
+import { showCartToast } from '@/utils/cartToast'
 import type { Store, StoreCategory, Product } from '@/db/types'
 import { supabase } from '@/client/supabase'
 import Icon from '@/components/Icon'
 import AddToCartButton from '@/components/AddToCartButton'
+import { buildTherapyReport, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 
 export default function StoreHomePage() {
   const [storeId, setStoreId] = useState('')
@@ -23,6 +26,11 @@ export default function StoreHomePage() {
   const [addingId, setAddingId] = useState<string | null>(null)
   // 门店专属红包（进店领→归属）
   const [storeCampaign, setStoreCampaign] = useState<any | null>(null)
+  // 食疗食材字典：驱动门店商品卡实时三色预警 / 整体性味（与详情页同源引擎）
+  const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
+  useEffect(() => {
+    getFoodIngredients().then(setIngredientDict).catch(() => {})
+  }, [])
 
   // 获取路由参数（支持 id 直接传参 + scene 扫码参数）
   useEffect(() => {
@@ -118,6 +126,35 @@ export default function StoreHomePage() {
     ? products
     : products.filter(p => p.category_id === activeCat)
 
+  // 食疗引擎：为当前展示的每个商品实时算「三色预警 + 整体性味」（与详情页同源）
+  const therapyMap = useMemo<Record<string, ProductTherapyReport | null>>(() => {
+    const map: Record<string, ProductTherapyReport | null> = {}
+    if (!ingredientDict.length) return map
+    const dictMap = new Map(ingredientDict.map((r) => [r.name, r]))
+    for (const p of filteredProducts) {
+      const names = (p.ingredients as string[] | undefined) || []
+      if (!names.length) { map[p.id] = null; continue }
+      const inputs: ProductIngredientInput[] = names
+        .map((name: string) => {
+          const row = dictMap.get(name)
+          if (!row) return null
+          const ing: FoodIngredient = {
+            name: row.name,
+            nature: row.nature,
+            base_effect: row.base_effect,
+            caution_crowds: row.caution_crowds,
+            allergens: row.allergens || [],
+            chronic_tags: row.chronic_tags || [],
+            neutralize: row.neutralize,
+          }
+          return { ingredient: ing }
+        })
+        .filter((x): x is ProductIngredientInput => x !== null)
+      map[p.id] = inputs.length ? buildTherapyReport(p.name, inputs) : null
+    }
+    return map
+  }, [filteredProducts, ingredientDict])
+
   // 加入购物车（门店详情页商品）
   const handleAddCart = async (product: Product) => {
     const uid = (await supabase.auth.getUser()).data.user
@@ -125,14 +162,14 @@ export default function StoreHomePage() {
     setAddingId(product.id)
     await addToCart(product.id, product.store_id || storeId)
     setAddingId(null)
-    Taro.showToast({ title: '已加入购物车', icon: 'success' })
+    showCartToast()
   }
 
   // 加载中
   if (loading && !store) {
     return (
       <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '500px' }}>
-        <Text style={{ fontSize: '16px', color: '#999' }}>加载中...</Text>
+        <Text style={{ fontSize: '16px', color: '#9A8C7A' }}>加载中...</Text>
       </View>
     )
   }
@@ -141,7 +178,7 @@ export default function StoreHomePage() {
   if (!store) {
     return (
       <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '500px' }}>
-        <Text style={{ fontSize: '16px', color: '#999' }}>暂无门店信息</Text>
+        <Text style={{ fontSize: '16px', color: '#9A8C7A' }}>暂无门店信息</Text>
       </View>
     )
   }
@@ -159,7 +196,7 @@ export default function StoreHomePage() {
   }
 
   return (
-    <View style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#F5F5F5' }}>
+    <View style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#FFFBF7' }}>
 
       {/* ========== 门店头部 Banner ========== */}
       <View style={{ position: 'relative', height: '180px', flexShrink: 0 }}>
@@ -263,7 +300,7 @@ export default function StoreHomePage() {
         padding: '10px 16px',
         backgroundColor: '#FFF',
         borderBottomWidth: '1px',
-        borderBottomColor: '#E5E5E5',
+        borderBottomColor: '#EAE3DA',
         flexShrink: 0,
       }}>
         {['堂食', '配送'].map(label => (
@@ -286,7 +323,7 @@ export default function StoreHomePage() {
       <View style={{ display: 'flex', flexDirection: 'row', flex: 1, overflow: 'hidden' }}>
 
         {/* 左侧分类栏 */}
-        <ScrollView scrollY style={{ width: '88px', height: '100%', backgroundColor: '#F5F5F5' }}>
+        <ScrollView scrollY style={{ width: '88px', height: '100%', backgroundColor: '#FFFBF7' }}>
           <View
             onClick={() => setActiveCat('all')}
             style={{
@@ -298,7 +335,7 @@ export default function StoreHomePage() {
               borderLeftWidth: activeCat === 'all' ? '3px' : '0',
               borderLeftColor: 'hsl(var(--primary))',
             }}>
-            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === 'all' ? 'hsl(var(--primary))' : '#333' }}>全部</Text>
+            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === 'all' ? 'hsl(var(--primary))' : '#1A1A1A' }}>全部</Text>
           </View>
           {categories.map((cat) => (
             <View
@@ -313,7 +350,7 @@ export default function StoreHomePage() {
                 borderLeftWidth: activeCat === cat.id ? '3px' : '0',
                 borderLeftColor: 'hsl(var(--primary))',
               }}>
-              <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === cat.id ? 'hsl(var(--primary))' : '#333' }}>{cat.name}</Text>
+              <Text style={{ fontSize: '15px', fontWeight: 'bold', color: activeCat === cat.id ? 'hsl(var(--primary))' : '#1A1A1A' }}>{cat.name}</Text>
             </View>
           ))}
         </ScrollView>
@@ -322,11 +359,13 @@ export default function StoreHomePage() {
         <ScrollView scrollY style={{ flex: 1, height: '100%', padding: '12px' }}>
           {filteredProducts.length === 0 ? (
             <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '80px' }}>
-              <Text style={{ fontSize: '15px', color: '#999' }}>暂无商品</Text>
+              <Text style={{ fontSize: '15px', color: '#9A8C7A' }}>暂无商品</Text>
             </View>
           ) : (
             <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '10px' }}>
-              {filteredProducts.map((p) => (
+              {filteredProducts.map((p) => {
+                const tr = therapyMap[p.id]
+                return (
                 <View
                   key={p.id}
                   onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}
@@ -336,7 +375,7 @@ export default function StoreHomePage() {
                     borderRadius: '12px',
                     overflow: 'hidden',
                     borderWidth: '1px',
-                    borderColor: '#EDEDED',
+                    borderColor: '#EAE3DA',
                     display: 'flex',
                     flexDirection: 'column',
                   }}>
@@ -361,7 +400,30 @@ export default function StoreHomePage() {
                     )
                   })()}
                   <View style={{ padding: '10px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                    <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#333' }} numberOfLines={2}>{p.name}</Text>
+                    {/* 食疗引擎结果：整体性味 + 三色预警（与详情页同源） */}
+                    {tr && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+                        {tr.overall_nature ? (
+                          <View style={{ backgroundColor: '#F1ECE4', borderRadius: '6px', paddingVertical: '1px', paddingHorizontal: '6px' }}>
+                            <Text style={{ fontSize: '10px', color: '#7A6A55' }}>{tr.overall_nature}</Text>
+                          </View>
+                        ) : null}
+                        {tr.warnings.slice(0, 3).map((w, i) => (
+                          <View
+                            key={i}
+                            style={{
+                              backgroundColor: w.level === 'red' ? '#FEE2E2' : w.level === 'orange' ? '#FEF3C7' : '#DBEAFE',
+                              borderRadius: '6px',
+                              paddingVertical: '1px',
+                              paddingHorizontal: '5px',
+                            }}
+                          >
+                            <Text style={{ fontSize: '10px', color: '#7A6A55' }} numberOfLines={1}>{w.label}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#1A1A1A' }} numberOfLines={2}>{p.name}</Text>
 
                     {/* 价格 + 加入购物车 */}
                     <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '8px' }}>
@@ -370,7 +432,8 @@ export default function StoreHomePage() {
                     </View>
                   </View>
                 </View>
-              ))}
+                )
+              })}
             </View>
           )}
           <View style={{ height: '20px' }} />

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { View, Text, Button, Image } from '@tarojs/components'
-import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMyMerchantApplication, generateQrcode, getMerchantSettlement, getNearExpiryProducts } from '@/db/api'
+import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMerchantOrderStats, getMyMerchantApplication, generateQrcode, getMerchantSettlement, getNearExpiryProducts } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/pages/merchant/merchant-settings/index', icon: 'shop', label: '店铺设置', color: 'bg-secondary', key: 'settings' },
   { to: '/pages/trade/withdraw/index', icon: 'coin', label: '货款提现', color: 'bg-accent', key: 'withdraw' },
   { to: '/pages/merchant/merchant-expiry/index', icon: 'bell-outline', label: '临期预警', color: 'bg-destructive', key: 'expiry' },
+  { to: '/pages/merchant/food-therapy-copy/index', icon: 'video', label: '食疗文案', color: 'bg-brand-bronze', key: 'copy' },
 ]
 
 function MerchantCenterPage() {
@@ -127,24 +128,19 @@ function MerchantCenterPage() {
 
     Promise.all([
       getMerchantProducts(store.id),
-      getMerchantOrders(store.id),
+      getMerchantOrders(store.id),            // 仍用于「最近订单」列表渲染（仅 20 行，快）
+      getMerchantOrderStats(store.id),        // 准确的订单总数/今日订单（count 查询，不被截断）
       getMerchantSettlement(store.id).catch(() => null),
       supabase.rpc('get_store_locked_members', { p_store_id: store.id })
         .then((r: { data?: any[] }) => (r.data ?? []) as any[]).catch(() => [] as any[]),
       getNearExpiryProducts({ storeId: store.id, limit: 200 }).catch(() => [] as any[]),
-    ]).then(([prods, ords, sett, members, expiry]) => {
+    ]).then(([prods, ords, stats, sett, members, expiry]) => {
       if (cancelled) return
       if (sett) setSettlement(sett)
       const online = prods.filter(p => p.is_active).length
-      const today = new Date().toISOString().slice(0, 10)
-      // getMerchantOrders 返回 order_items 一行一商品，需按 order_no 去重为独立订单，否则多商品订单会被重复计数
-      const orderNoSet = new Set(ords.map(o => o.orders?.order_no).filter(Boolean))
-      const todayOrderNoSet = new Set(
-        ords.filter(o => (o.orders?.created_at || '').startsWith(today)).map(o => o.orders?.order_no).filter(Boolean)
-      )
       const memberList = Array.isArray(members) ? members : []
       const crossStore = memberList.filter((m: any) => m.referrer_store_id && m.referrer_store_id !== store.id).length
-      setStats({ products: prods.length, online, orders: orderNoSet.size, todayOrders: todayOrderNoSet.size, members: memberList.length, crossStore })
+      setStats({ products: prods.length, online, orders: stats.totalOrders, todayOrders: stats.todayOrders, members: memberList.length, crossStore })
       // 临期摘要：按 discount_stage 分组计数
       const expiryList = Array.isArray(expiry) ? expiry : []
       const red = expiryList.filter((e: any) => e.discount_stage === 'red').length
@@ -346,7 +342,7 @@ function MerchantCenterPage() {
           </Button>
         </View>
         <Text className="text-sm text-muted-foreground mt-2">
-          货款以人民币结算（含金豆支付等值部分，由平台垫付），由微信直接打款到您的账户，可提现。
+          货款以人民币结算（含健康豆支付等值部分，由平台垫付），由微信直接打款到您的账户，可提现。
         </Text>
       </View>
 

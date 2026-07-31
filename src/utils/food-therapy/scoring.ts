@@ -84,7 +84,7 @@ export function scoreFoodTherapy(input: FoodTherapyInput, rule: FitRule, weights
   return { score, tier: tierOf(score), matchedTags: matched, plus, minus }
 }
 
-// 情绪维度打分（内在价值：情绪标签越丰富，情绪治愈感越强）
+// 情绪维度打分（内在价值：情绪标签越丰富，情绪舒心感越强）
 export function scoreEmotion(input: FoodTherapyInput): EmotionScore {
   const tags = input.emotion_tag ?? []
   let score = 40
@@ -106,7 +106,7 @@ export function buildProductFit(input: FoodTherapyInput, rule: FitRule, weights?
   if (ft.minus.length) summaryParts.push(ft.minus.join('；'))
   summaryParts.push(
     `【情绪价值 ${em.score}分】${
-      em.tier === 'recommend' ? '情绪治愈感强' : em.tier === 'caution' ? '有情绪陪伴感' : '情绪标签待丰富'
+      em.tier === 'recommend' ? '情绪舒心感强' : em.tier === 'caution' ? '有情绪陪伴感' : '情绪标签待丰富'
     }`,
   )
   if (nature) summaryParts.push(`整体性味：${nature}`)

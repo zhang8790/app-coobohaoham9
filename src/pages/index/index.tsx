@@ -1,8 +1,9 @@
 // @title 首页
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
-import { Image, Input, View, Text, ScrollView } from '@tarojs/components'
-import { getProducts, getAnnouncements, getOrderFeed, getOrders, getProductsByIds } from '@/db/api'
+import { Image, Input, View, Text, ScrollView, Map as MapView } from '@tarojs/components'
+import { getProducts, getAnnouncements, getOrderFeed, getOrders, getProductsByIds, addToCart } from '@/db/api'
+import { showCartToast } from '@/utils/cartToast'
 import { getUserHealthProfile } from '@/db/food-api'
 import type { Product, Announcement, OrderFeedItem, UserHealthProfile } from '@/db/types'
 import StoreStrip from '@/components/StoreStrip'
@@ -11,11 +12,14 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { parseCrowdsFromText, classifyProduct as classifyOne, toFoodTherapyInput, QUICK_BODY_PRESETS, profileToCrowds, FOOD_CATEGORIES, type Crowd, type FitTier } from '@/utils/food-therapy'
+import { buildTherapyReport, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 import { getTodayFoodTherapy, resolveConstitution, type TodayFoodTherapyResult } from '@/utils/today-food-therapy'
 import { analyzeConsumption, recommendByConsumption, type ConsumptionProfile } from '@/utils/consumption-profile'
 import CustomTabBar from '@/components/custom-tabbar'
 import Icon from '@/components/Icon'
 import ProductGridCard from '@/components/ProductGridCard'
+import AddToCartButton from '@/components/AddToCartButton'
 import { getProductCareInfo } from '@/utils/product-care'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import { useFoodKnowledgeStore } from '@/store/foodKnowledgeStore'
@@ -38,9 +42,40 @@ function buildMatchLabel(crowds: Crowd[]): string {
   return crowds.join(' · ') || '好物'
 }
 
+// ============ 首页本地缓存：打开即渲染缓存内容，后台静默刷新 ============
+// 根治「反应速度慢 / 缓存慢」：原每次切回首页都重新拉全量 Feed + 50 笔订单，
+// 现改为先用 storage 缓存秒出，再后台刷新，用户感知不到网络等待。
+const FEED_CACHE_KEY = 'home_feed_cache_v1'
+const FEED_CACHE_TTL = 5 * 60 * 1000
+const CONSUME_CACHE_KEY = 'home_consume_cache_v1'
+const CONSUME_CACHE_TTL = 10 * 60 * 1000
+
+function readFeedCache(): ScoredProduct<Product>[] | null {
+  try {
+    const raw = Taro.getStorageSync(FEED_CACHE_KEY) as { t: number; items: ScoredProduct<Product>[] } | null
+    if (!raw?.items?.length) return null
+    if (Date.now() - raw.t > FEED_CACHE_TTL) return null
+    return raw.items
+  } catch { return null }
+}
+function writeFeedCache(items: ScoredProduct<Product>[]) {
+  try { Taro.setStorageSync(FEED_CACHE_KEY, { t: Date.now(), items }) } catch { /* ignore */ }
+}
+function readConsumeCache(uid: string): { profile: ConsumptionProfile; boughtIds: string[] } | null {
+  try {
+    const raw = Taro.getStorageSync(CONSUME_CACHE_KEY) as { uid: string; t: number; profile: ConsumptionProfile; boughtIds: string[] } | null
+    if (!raw || raw.uid !== uid) return null
+    if (Date.now() - raw.t > CONSUME_CACHE_TTL) return null
+    return raw
+  } catch { return null }
+}
+function writeConsumeCache(uid: string, data: { profile: ConsumptionProfile; boughtIds: string[] }) {
+  try { Taro.setStorageSync(CONSUME_CACHE_KEY, { uid, t: Date.now(), ...data }) } catch { /* ignore */ }
+}
+
 export default function IndexPage() {
   const { profile } = useAuth()
-  const { currentCity, currentStore, nearbyStores, setStore, loading: locationLoading, detectLocation } = useLocation()
+  const { currentCity, currentLocation, currentStore, nearbyStores, setStore, loading: locationLoading, detectLocation } = useLocation()
   const { selectedCrowds, toggleCrowd, clearFilters, getSuitability, userAllergens, hasHealthProfile } = useFoodTherapy()
   // 定位自动触发：用 ref 持有 detectLocation（函数已稳定化，不放入 effect 依赖以免触发重跑），
   // 并用 locatingRef 在首批定位完成前锁住后续触发，根治「定位一直在闪烁」的回流循环
@@ -50,6 +85,19 @@ export default function IndexPage() {
   const myRef = profile?.referral_code || ''
   // 记录当前要分享的商品，供 useShareAppMessage 闭包读取
   const shareProductRef = useRef<{ id: string; name: string; imageUrl: string } | null>(null)
+
+  // 首页商品卡「加入购物车」：未登录由 addToCart 内部引导登录；加购成功内部 bumpCartCount 实时刷新角标
+  const [addingId, setAddingId] = useState<string | null>(null)
+  const handleAddCart = useCallback(async (productId: string, storeId?: string) => {
+    if (addingId === productId) return // 防快速连点并发，避免加购竞态丢失增量（「不能叠加」根因）
+    setAddingId(productId)
+    try {
+      const ok = await addToCart(productId, storeId || '')
+      if (ok) showCartToast()
+    } finally {
+      setAddingId(null)
+    }
+  }, [addingId])
 
   const [mood, setMood] = useState('')
   // 首页分类金刚区：本地筛选主商品流（不影响画像/即时匹配区块）
@@ -90,7 +138,7 @@ export default function IndexPage() {
 
   // V1 体质档案：登录后读取，驱动首页个性化（呈现"你关注的食养偏好"，非"今日"）
   const [userProfile, setUserProfile] = useState<UserHealthProfile | null>(null)
-  
+
   // 新增：首页弹窗状态
   const [showCampaignPopup, setShowCampaignPopup] = useState(false)
   const [campaignList, setCampaignList] = useState<any[]>([])
@@ -99,6 +147,10 @@ export default function IndexPage() {
   const [loadingCampaign, setLoadingCampaign] = useState(false)
   // 门店红包对应的门店名（用于在首页弹窗标注「XX店专享」）
   const [storeNameMap, setStoreNameMap] = useState<Record<string, string>>({})
+  const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
+  useEffect(() => {
+    getFoodIngredients().then(setIngredientDict).catch(() => {})
+  }, [])
 
   // 修复：用 useRouter() 取响应式 params，原 useMemo(..., []) 冻结首屏快照，
   // 导致冷启动/首渲染时 router 尚未就绪则永久丢失 scene/ref/s 推广参数。
@@ -146,7 +198,7 @@ export default function IndexPage() {
   // 首页启动时自动获取定位；若附近门店尚未解析（如城市已缓存但首次无附近列表），一并定位解析
   // 修法：移除对 detectLocation 函数本体的依赖（改用 ref 持有，函数已稳定化不会反复重装引用），
   // 并用 locatingRef 在定位进行中锁住重复触发——彻底消除因 nearbyStores 异步就绪前的渲染间隙
-  // 反复进入 detectLocation 造成的定位 pill 闪烁（与购物车闪烁同源：乐观更新 + 并发去重 + 自触发抑制）
+  // 反复进入 detectLocation 造成的定位 pill 闪烁（与购物车页同源：乐观更新 + 并发去重 + 自触发抑制）
   useEffect(() => {
     if (locatingRef.current) return
     if (currentCity && nearbyStores.length > 0) return
@@ -183,7 +235,7 @@ export default function IndexPage() {
     setAnnouncements(data)
   }, [])
 
-  // 加载 Feed（默认展示全量商品；食养分档由前端 classifyProductList 处理，情绪不再参与前台）
+  // 加载 Feed（首页推荐：定位就绪时按最近门店聚合附近多店商品；食养分档由前端 classifyProductList 处理，情绪不再参与前台）
   // 防重入：并发的 loadFeed（useEffect 挂载 + useDidShow 切回 tab）只跑一次网络请求，
   // 避免首页 Feed 双拉取导致的列表重渲染/重影（与购物车页同源修复）
   const feedInflightRef = useRef<Promise<void> | null>(null)
@@ -191,16 +243,39 @@ export default function IndexPage() {
     if (feedInflightRef.current) return feedInflightRef.current
     feedInflightRef.current = (async () => {
       try {
-        setLoading(true)
-        const raw = await getProducts({ limit: 30, platformFilter: 'only' })
-        setFeedItems(raw.map(p => ({ product: p, matchScore: 1, matchLabel: null })))
+        // ① 先用缓存秒出，避免每次打开白屏等网络（下拉刷新仍会强制走下面网络）
+        const cached = readFeedCache()
+        if (cached && cached.length) {
+          setFeedItems(cached)
+          setLoading(false)
+        } else {
+          setLoading(true)
+        }
+        let raw: Product[] = []
+        // 附近多店聚合：按 nearbyStores（已按距离排序，可能来自 GPS 定位或杭州兜底）取最近 5 家店各拉商品
+        // 注意：不再强制要求 currentLocation，否则用户拒绝定位权限（currentLocation 为 null）时
+        // 会永远走全平台降级、看不到最近门店商品。只要 nearbyStores 有值即可聚合。
+        if (nearbyStores.length > 0) {
+          const storeIds = nearbyStores.slice(0, 5).map((s) => s.id)
+          const batches = await Promise.all(
+            storeIds.map((id) => getProducts({ storeId: id, platformFilter: 'only', limit: 12 })),
+          )
+          raw = batches.flat()
+        }
+        // 降级：未定位 / 附近门店无商品 → 全平台自营商品
+        if (raw.length === 0) {
+          raw = await getProducts({ limit: 30, platformFilter: 'only' })
+        }
+        const next = raw.map(p => ({ product: p, matchScore: 1, matchLabel: null }))
+        setFeedItems(next)
+        writeFeedCache(next)
       } finally {
         setLoading(false)
         feedInflightRef.current = null
       }
     })()
     return feedInflightRef.current
-  }, [])
+  }, [currentLocation, nearbyStores])
 
   // 下拉刷新（注：loadOrderFeed/loadAnnouncements/loadFeed 已在上文声明，避免依赖数组 TDZ）
   useEffect(() => {
@@ -222,6 +297,13 @@ export default function IndexPage() {
   const loadConsumptionProfile = useCallback(async () => {
     if (!profile?.id) return
     try {
+      // 命中缓存直接秒出，省去 50 笔订单 + 商品详情两次网络往返
+      const cached = readConsumeCache(profile.id)
+      if (cached) {
+        setBoughtIds(new Set(cached.boughtIds))
+        setConsumptionProfile(cached.profile)
+        return
+      }
       const orders = await getOrders(undefined, 0, 50)
       const ids: string[] = []
       for (const o of orders) {
@@ -231,13 +313,16 @@ export default function IndexPage() {
       }
       const uniq = Array.from(new Set(ids))
       if (uniq.length === 0) {
-        setConsumptionProfile({ hasData: false, boughtCount: 0, topHealthTags: [], naturePref: null })
+        const empty = { hasData: false, boughtCount: 0, topHealthTags: [], naturePref: null }
+        setConsumptionProfile(empty)
+        writeConsumeCache(profile.id, { profile: empty, boughtIds: [] })
         return
       }
       const bought = await getProductsByIds(uniq)
       const prof = analyzeConsumption(bought)
       setBoughtIds(new Set(uniq))
       setConsumptionProfile(prof)
+      writeConsumeCache(profile.id, { profile: prof, boughtIds: uniq })
     } catch (err) {
       console.error('[Index] 消费画像聚合失败', err)
     }
@@ -266,7 +351,7 @@ export default function IndexPage() {
     const tr = classifyProductList(feedItems.map((f) => f.product), profileCrowds)
     return [...tr.recommend, ...tr.caution].slice(0, 12)
   }, [profileCrowds, feedItems, hasQuery])
-  
+
   // 新增：首页加载时检查是否有可领取的红包/实物活动
   useEffect(() => {
     checkCampaign()
@@ -318,11 +403,74 @@ export default function IndexPage() {
     })
   }, [hasQuery, matchItems, feedItems, personalizedItems, catFilter, fitOnly, noAllergen, getSuitability, userAllergens])
 
+  // 食疗引擎报告映射（与详情页/门店卡同源）：首页商品池一次性算好，卡片直接取用
+  const therapyMap = useMemo<Record<string, ProductTherapyReport | null>>(() => {
+    const map: Record<string, ProductTherapyReport | null> = {}
+    const dictMap = new Map(ingredientDict.map((d) => [d.name, d]))
+    const calc = (p?: Product | null) => {
+      if (!p || !p.ingredients || (p.ingredients as string[]).length === 0) return null
+      const inputs: ProductIngredientInput[] = (p.ingredients as string[]).map((name) => {
+        const row = dictMap.get(name)
+        if (!row) return null
+        const fi: FoodIngredient = {
+          name: row.name, nature: row.nature, base_effect: row.base_effect ?? null,
+          fit_scenes: row.fit_scenes ?? null, caution_crowds: row.caution_crowds ?? null,
+          allergens: row.allergens ?? null, chronic_tags: row.chronic_tags ?? null, neutralize: row.neutralize ?? null,
+        }
+        return { ingredient: fi }
+      }).filter(Boolean) as ProductIngredientInput[]
+      return buildTherapyReport(p.name, inputs)
+    }
+    personalizedItems.forEach((p) => { map[p.id] = calc(p) })
+    displayFeed.forEach((f) => { map[f.product.id] = calc(f.product) })
+    return map
+  }, [personalizedItems, displayFeed, ingredientDict])
+
+  // ===== 定位地图：地图中心 + 附近门店标记 + 点击切换当前门店 =====
+  // 中心优先级：用户定位 → 当前门店 → 杭州兜底
+  const mapCenter = useMemo(() => {
+    if (currentLocation) return { lat: currentLocation.lat, lng: currentLocation.lng }
+    if (currentStore) return { lat: currentStore.lat, lng: currentStore.lng }
+    return { lat: 30.2741, lng: 120.1551 } // 杭州兜底
+  }, [currentLocation, currentStore])
+
+  // 附近门店标记（前 6 家，callout 显示店名 + 距离）
+  const storeMarkers = useMemo(
+    () =>
+      nearbyStores.slice(0, 6).map((s, i) => ({
+        id: i,
+        latitude: s.lat,
+        longitude: s.lng,
+        width: 28,
+        height: 28,
+        callout: {
+          content: `${s.store_name}\n${s.distance_km}km`,
+          color: '#1A1A1A',
+          fontSize: 12,
+          borderRadius: 8,
+          bgColor: '#FFFBF7',
+          padding: 8,
+          display: 'ALWAYS' as const,
+        },
+      })),
+    [nearbyStores],
+  )
+
+  // 点击地图门店标记 → 切换当前门店
+  const handleStoreMarkerTap = (e: any) => {
+    const id = e?.detail?.markerId
+    const s = nearbyStores[id]
+    if (s) {
+      setStore(s)
+      Taro.showToast({ title: `已切换到${s.store_name}`, icon: 'none' })
+    }
+  }
+
   // 安全取商品关怀层（食养注解），避免单条异常影响整页渲染
   const careOf = (p: Product) => {
     try { return getProductCareInfo(p) } catch { return null }
   }
-  
+
   const checkCampaign = useCallback(async () => {
     if (!currentCity?.id) return
 
@@ -491,9 +639,9 @@ export default function IndexPage() {
   }
 
   return (
-    <View className="min-h-screen bg-background tabbar-pad">
+    <View className="min-h-screen bg-background tabbar-pad index-page">
 
-      {/* ===== 新版 Hero：国潮装饰锚点 + 品牌徽标 + 定位弱化 + 扫码合一 ===== */}
+      {/* ===================== L0 主视觉：品牌 + 定位 + 唯一核心动作 ===================== */}
       <View className="mx-4 mt-4 pg-hero p-4 rounded-2xl">
         {/* 国潮装饰层（印章圆环 + 松绿柔光，纯视觉不挡操作） */}
         <View className="pg-hero-seal" />
@@ -508,100 +656,66 @@ export default function IndexPage() {
               <Text className="text-sm text-muted-foreground block mt-0.5">懂身体的好物</Text>
             </View>
           </View>
+          {/* 右上角定位块：门店 + 城市（点击切城市）。定位信息统一在右上角，不占中间 C 位 */}
           <View
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-card border border-border flex-shrink-0 active:scale-95 transition-transform"
+            className="flex flex-col items-end gap-0.5 px-3 py-1.5 rounded-2xl bg-card border border-border flex-shrink-0 active:scale-95 transition-transform text-right"
             hoverClass="none"
             onClick={() => Taro.navigateTo({ url: '/pages/mine/city-select/index' })}
           >
-            <Icon name="crosshairs-gps" size={16} className="text-primary" />
-            {locationLoading && <Icon name="loading" size={14} className="text-primary animate-spin" />}
-            <Text className="text-xs text-foreground truncate" style={{ maxWidth: 72 }}>{locationLoading ? '定位中' : (currentCity?.city_name || '选择城市')}</Text>
+            <View className="flex items-center gap-1">
+              <Icon name="crosshairs-gps" size={14} className="text-primary" />
+              {locationLoading && <Icon name="loading" size={12} className="text-primary animate-spin" />}
+              <Text className="text-xs font-semibold text-foreground truncate" style={{ maxWidth: 96 }}>
+                {locationLoading ? '定位中' : (currentStore?.store_name || currentCity?.city_name || '选择城市')}
+              </Text>
+            </View>
+            {!locationLoading && (
+              <Text className="text-[10px] text-muted-foreground truncate" style={{ maxWidth: 110 }}>
+                {currentStore && typeof currentStore.distance_km === 'number'
+                  ? `${currentCity?.city_name || '杭州'} · 约${currentStore.distance_km}km`
+                  : (currentCity?.city_name || '')}
+              </Text>
+            )}
           </View>
         </View>
 
-      {/* 唯一扫码入口：扫码查安全（合并原“搜索/扫码合一”+ 悬浮FAB 两处重复为单一核心主张） */}
-      <View
-        className="mx-4 mt-3 rounded-2xl p-4 flex items-center justify-between active:scale-[0.99] transition-transform relative"
-        style={{ zIndex: 1, background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--brand-gold)) 100%)' }}
-        hoverClass="none"
-        onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}
-      >
-        <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text className="text-lg font-extrabold text-white block">📷 扫码查安全</Text>
-          <Text className="text-xs text-white/90 block mt-1" style={{ lineHeight: 1.5 }}>
-            扫一下配料表，立刻知道这包食品安不安全、能不能给孩子吃
-          </Text>
-        </View>
-        <View className="px-4 py-2 rounded-full bg-white text-xs font-bold flex-shrink-0" style={{ color: 'hsl(var(--primary))' }}>
-          立即扫码
-        </View>
-      </View>
-      {/* hero 容器闭合：扫码入口卡位于 hero 内，下方食养工具区为独立模块 */}
-      </View>
-
-      {/* 区块分隔：墨线 */}
-      <View className="ink-rule mx-4 mt-5" />
-      {/* 食养工具 · 首页统一入口（知识图谱 + 节气食盒，原仅置于扫码页底部，现提至首页） */}
-      <View className="mx-4 mt-4 flex items-center justify-between">
-        <Text className="text-sm font-bold text-foreground">食养工具</Text>
-        <Text className="text-xs text-muted-foreground">扫码自动收录 · 顺时而食</Text>
-      </View>
-      <View className="mx-4 mt-2 grid grid-cols-2 gap-3">
-        {/* 知识图谱 */}
+        {/* 唯一核心动作：扫码查安全（渐变实心块 = 全站唯一主角，其余皆退为米纸卡） */}
         <View
-          className="pg-card rounded-2xl p-3 active:scale-[0.98] transition-transform"
-          style={{ background: 'linear-gradient(135deg, hsl(var(--brand-jade) / 0.10) 0%, hsl(var(--brand-jade) / 0.03) 100%)' }}
+          className="mx-4 mt-3 rounded-2xl p-4 flex items-center justify-between active:scale-[0.99] transition-transform relative"
+          style={{ zIndex: 1, background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--brand-gold)) 100%)' }}
           hoverClass="none"
-          onClick={() => Taro.navigateTo({ url: '/pages/food/knowledge-atlas/index' })}
+          onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}
         >
-          <Text className="text-lg">🧭</Text>
-          <Text className="text-sm font-bold block mt-1" style={{ color: 'hsl(var(--brand-jade))' }}>食安知识图谱</Text>
-          <Text className="text-[11px] mt-1 opacity-70" style={{ color: 'hsl(var(--brand-jade))', lineHeight: 1.4 }}>
-            {knowledgeCount === 0 ? '扫配料发现新成分' : `已收录 ${knowledgeCount} 种`}
-          </Text>
-        </View>
-        {/* 节气食盒 */}
-        <View
-          className="pg-card rounded-2xl p-3 active:scale-[0.98] transition-transform"
-          style={{ background: 'linear-gradient(135deg, hsl(var(--brand-gold) / 0.14) 0%, hsl(var(--brand-gold) / 0.05) 100%)' }}
-          hoverClass="none"
-          onClick={() => Taro.navigateTo({ url: '/pages/food/seasonal-box/index' })}
-        >
-          <Text className="text-lg">🌾</Text>
-          <Text className="text-sm font-bold block mt-1" style={{ color: 'hsl(var(--brand-ochre))' }}>节气食盒</Text>
-          <Text className="text-[11px] mt-1 opacity-70" style={{ color: 'hsl(var(--brand-ochre))', lineHeight: 1.4 }}>
-            当前{termName} · 顺时而食
-          </Text>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text className="text-lg font-extrabold text-white block">📷 扫码查安全</Text>
+            <Text className="text-xs text-white/90 block mt-1" style={{ lineHeight: 1.5 }}>
+              扫一下配料表，立刻知道这包食品安不安全、能不能给孩子吃
+            </Text>
+          </View>
+          <View className="px-4 py-2 rounded-full bg-white text-xs font-bold flex-shrink-0" style={{ color: 'hsl(var(--primary))' }}>
+            立即扫码
+          </View>
         </View>
       </View>
 
-      {/* 今日食养推荐 + 为你优选：合并节气/画像双维度为单一卡片，消除首页两张雷同食品 rail（原「个性化插卡」已并入此处） */}
+      {/* ===================== L1 个性食养层：懂你的推荐 ===================== */}
+      {/* 今日食养推荐 + 为你优选：合并节气/画像双维度为单一卡片，消除首页两张雷同食品 rail */}
       {todayResult && (
         <View
-          className="mx-4 mt-3 rounded-2xl p-4 pg-card active:scale-[0.99] transition-transform"
+          className="mx-4 mt-5 rounded-2xl p-4 pg-card active:scale-[0.99] transition-transform"
           hoverClass="none"
         >
-          <View className="flex items-center justify-between mb-2">
-            <View className="flex items-center gap-2 min-w-0">
-              <Text className="text-2xl flex-shrink-0">{todayResult.term?.emoji || '🌿'}</Text>
-              <View className="min-w-0">
-                <Text className="text-sm font-bold text-foreground">今日食养推荐</Text>
-                {todayResult.term && (
-                  <Text className="text-xs text-muted-foreground block truncate">{todayResult.term.name} · {todayResult.term.nature}</Text>
-                )}
-              </View>
-            </View>
-            <Text
-              className="text-xs text-primary font-bold flex-shrink-0 ml-2"
-              hoverClass="none"
-              onClick={() => Taro.navigateTo({ url: '/pages/food/today-food-therapy/index' })}
-            >看完整 ›</Text>
-          </View>
+          <SectionHeader
+            emoji="🌿"
+            title="今日食养"
+            subtitle={todayResult.term ? `${todayResult.term.name} · ${todayResult.term.nature}` : '顺时而食'}
+            action={{ label: '看完整 ›', onClick: () => Taro.navigateTo({ url: '/pages/food/today-food-therapy/index' }) }}
+          />
 
           {/* 每日建议（截断 2 行） */}
           {todayResult.dailyAdvice && (
             <Text
-              className="text-xs text-muted-foreground block"
+              className="text-xs text-muted-foreground block mb-2"
               style={{ lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
             >
               {todayResult.dailyAdvice}
@@ -610,7 +724,7 @@ export default function IndexPage() {
 
           {/* top3 推荐 */}
           {todayResult.recommendations.length > 0 && (
-            <View className="mt-2 flex gap-2 overflow-x-auto pb-1">
+            <View className="flex gap-2 overflow-x-auto pb-1">
               {todayResult.recommendations.slice(0, 3).map((item, i) => (
                 <View
                   key={i}
@@ -642,10 +756,13 @@ export default function IndexPage() {
               <View style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                 {personalizedItems.slice(0, 6).map((product) => (
                   <ProductGridCard key={product.id} id={product.id} name={product.name} price={product.price}
-                    imageUrl={product.main_image || product.image_url || ''} storeName={product.store_name}
-                    care={careOf(product)}
-                    suitability={getSuitability(product)}
-                    onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })} />
+                    imageUrl={product.main_image || product.image_url || ''} storeName={product.store_name || ''}
+                  care={careOf(product)}
+                  suitability={getSuitability(product)}
+                  therapyReport={therapyMap[product.id] ?? null}
+                    onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })}
+                    onAddCart={(id) => handleAddCart(id, (product as any).store_id)} sales={product.sales_count} adding={addingId === product.id}
+                    compact />
                 ))}
               </View>
               {profileItems.length > 0 && (
@@ -655,58 +772,6 @@ export default function IndexPage() {
           )}
         </View>
       )}
-
-      {/* 区块分隔：墨线 */}
-      <View className="ink-rule mx-4 mt-5" />
-      {/* ===== 附近门店推荐：基于定位推荐最近自营门店，可一键切换 ===== */}
-      {nearbyStores.length > 0 ? (
-        <View className="mx-4 mt-4 pg-card p-4">
-          <View className="flex items-center justify-between mb-3">
-            <View className="flex items-center gap-2">
-              <View className="section-accent" />
-              <Text className="text-xl font-bold text-foreground">附近的门店</Text>
-            </View>
-          </View>
-          <ScrollView scrollX showScrollbar={false}>
-            <View className="flex flex-row gap-2 pr-3" style={{ display: 'flex', flexDirection: 'row' }}>
-              {nearbyStores.slice(0, 6).map((s) => {
-                const active = currentStore?.id === s.id
-                return (
-                  <View
-                    key={s.id}
-                    hoverClass="none"
-                    onClick={() => {
-                      setStore(s)
-                      Taro.showToast({ title: `已切换到${s.store_name}`, icon: 'none' })
-                    }}
-                    style={{
-                      width: 140,
-                      flexShrink: 0,
-                      borderRadius: 16,
-                      padding: 12,
-                      background: active ? 'hsl(var(--primary) / 0.10)' : 'hsl(var(--card))',
-                      borderWidth: 1,
-                      borderColor: active ? 'hsl(var(--primary) / 0.4)' : 'hsl(var(--border))',
-                    }}
-                  >
-                    <View className="flex items-center justify-between">
-                      <Text className="text-base font-bold text-foreground" style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden', maxWidth: 92 }}>{s.store_name}</Text>
-                      {active && (
-                        <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 9999, background: 'hsl(var(--primary))', flexShrink: 0 }}>
-                          <Text className="text-xs text-white font-bold">当前</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text className="text-xs text-muted-foreground mt-1 block">{s.distance_km} km · {s.is_open === false ? '休息中' : '营业中'}</Text>
-                  </View>
-                )
-              })}
-            </View>
-          </ScrollView>
-        </View>
-      ) : null}
-
-      {/* 金刚区已迁移至商品流顶部 sticky 分类条（见下方「为你精选」区块） */}
 
       {/* 状态卡：默认收起为一行胶囊，点开才展开输入（去头重脚轻）；情绪不进前台 */}
       <View id="state-card" className="pg-card mx-4 mt-4 p-4">
@@ -798,15 +863,12 @@ export default function IndexPage() {
       {/* 即时匹配：输入/选择后直接展示配对好物，零额外操作（紧跟输入框，无需滚动） */}
       {hasQuery && (
         <View className="pg-card mx-4 mt-4 p-4 rounded-2xl">
-          <View className="flex items-center justify-between mb-2">
-            <Text className="text-xl font-bold text-foreground flex-1 min-w-0" style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              为「{matchLabel}」匹配到 {matchItems.length} 件好物 🔥
-            </Text>
-            <View className="flex items-center gap-1 text-primary text-xl ml-2 flex-shrink-0" onClick={() => Taro.pageScrollTo({ scrollTop: 99999, duration: 300 })} hoverClass="none">
-              <Text>看全部</Text>
-              <Icon name="arrow-down" size={20} />
-            </View>
-          </View>
+          <SectionHeader
+            emoji="🔥"
+            title={`为「${matchLabel}」匹配好物`}
+            action={{ label: '看全部 ›', onClick: () => Taro.pageScrollTo({ scrollTop: 99999, duration: 300 }) }}
+          />
+          <Text className="text-sm text-muted-foreground mb-2 block">共 {matchItems.length} 件 · 按食养适配度排序</Text>
 
           {matchedLoading && matchItems.length === 0 && (
             <View className="flex gap-3 overflow-x-auto pb-1">
@@ -824,7 +886,8 @@ export default function IndexPage() {
             <View className="flex gap-3 overflow-x-auto pb-1">
               {matchItems.slice(0, 10).map(({ product, tier }) => (
                 <FitCard key={product.id} product={product} tier={tier ?? undefined}
-                  onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })} />
+                  onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })}
+                  onAddCart={(id) => handleAddCart(id, product.store_id)} adding={addingId === product.id} />
               ))}
             </View>
           )}
@@ -838,78 +901,145 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* 区块分隔：墨线 */}
-      <View className="ink-rule mx-4 mt-5" />
-      {/* 原「个性化插卡·体质挑好物」已合并至上方「今日食养推荐」卡（为你优选网格），避免首页两张雷同食品 rail 重复渲染 */}
+      {/* ===================== L2 工具与附近：效率型轻量模块 ===================== */}
+      <SectionHeader className="mx-4 mt-6" emoji="🧰" title="食养工具" subtitle="扫码自动收录 · 顺时而食" />
+      <View className="mx-4 mt-2 grid grid-cols-2 gap-3">
+        {/* 知识图谱 */}
+        <View
+          className="pg-card rounded-2xl p-3 active:scale-[0.98] transition-transform"
+          style={{ background: 'linear-gradient(135deg, hsl(var(--brand-jade) / 0.10) 0%, hsl(var(--brand-jade) / 0.03) 100%)' }}
+          hoverClass="none"
+          onClick={() => Taro.navigateTo({ url: '/pages/food/knowledge-atlas/index' })}
+        >
+          <Text className="text-lg">🧭</Text>
+          <Text className="text-sm font-bold block mt-1" style={{ color: 'hsl(var(--brand-jade))' }}>食安知识图谱</Text>
+          <Text className="text-[11px] mt-1 opacity-70" style={{ color: 'hsl(var(--brand-jade))', lineHeight: 1.4 }}>
+            {knowledgeCount === 0 ? '扫配料发现新成分' : `已收录 ${knowledgeCount} 种`}
+          </Text>
+        </View>
+        {/* 节气食盒 */}
+        <View
+          className="pg-card rounded-2xl p-3 active:scale-[0.98] transition-transform"
+          style={{ background: 'linear-gradient(135deg, hsl(var(--brand-gold) / 0.14) 0%, hsl(var(--brand-gold) / 0.05) 100%)' }}
+          hoverClass="none"
+          onClick={() => Taro.navigateTo({ url: '/pages/food/seasonal-box/index' })}
+        >
+          <Text className="text-lg">🌾</Text>
+          <Text className="text-sm font-bold block mt-1" style={{ color: 'hsl(var(--brand-ochre))' }}>节气食盒</Text>
+          <Text className="text-[11px] mt-1 opacity-70" style={{ color: 'hsl(var(--brand-ochre))', lineHeight: 1.4 }}>
+            当前{termName} · 顺时而食
+          </Text>
+        </View>
+      </View>
 
-      {/* 公告栏 / 好物动态：官方公告 + 全站实时下单（脱敏）合并轮播 */}
+      {/* 附近的门店 + 定位地图：基于定位显示地图与最近自营门店，可点击切换 */}
+      {nearbyStores.length > 0 && (
+        <View className="mx-4 mt-5 pg-card overflow-hidden rounded-2xl">
+          <SectionHeader className="mx-4 mt-4" emoji="🗺️" title="附近的门店" subtitle={`${currentCity?.city_name || '杭州'} · 自动定位`} />
+          <MapView
+            style={{ width: '100%', height: 180 }}
+            latitude={mapCenter.lat}
+            longitude={mapCenter.lng}
+            scale={14}
+            showLocation
+            markers={storeMarkers}
+            onMarkertap={handleStoreMarkerTap}
+            enableZoom={false}
+          />
+          <ScrollView scrollX showScrollbar={false} className="px-4 pb-4 pt-3">
+            <View className="flex flex-row gap-2 pr-3" style={{ display: 'flex', flexDirection: 'row' }}>
+              {nearbyStores.slice(0, 6).map((s) => {
+                const active = currentStore?.id === s.id
+                return (
+                  <View
+                    key={s.id}
+                    hoverClass="none"
+                    onClick={() => {
+                      setStore(s)
+                      Taro.showToast({ title: `已切换到${s.store_name}`, icon: 'none' })
+                    }}
+                    style={{
+                      width: 140,
+                      flexShrink: 0,
+                      borderRadius: 16,
+                      padding: 12,
+                      background: active ? 'hsl(var(--primary) / 0.10)' : 'hsl(var(--card))',
+                      borderWidth: 1,
+                      borderColor: active ? 'hsl(var(--primary) / 0.4)' : 'hsl(var(--border))',
+                    }}
+                  >
+                    <View className="flex items-center justify-between">
+                      <Text className="text-base font-bold text-foreground" style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden', maxWidth: 92 }}>{s.store_name}</Text>
+                      {active && (
+                        <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 9999, background: 'hsl(var(--primary))', flexShrink: 0 }}>
+                          <Text className="text-xs text-white font-bold">当前</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text className="text-xs text-muted-foreground mt-1 block">{s.distance_km} km · {s.is_open === false ? '休息中' : '营业中'}</Text>
+                  </View>
+                )
+              })}
+            </View>
+          </ScrollView>
+        </View>
+      )}
+
+      {/* ===================== L3 运营惠专区：福利 + 临期双列并排 ===================== */}
+      <View className="mx-4 mt-5 grid grid-cols-2 gap-3">
+        {/* 限时福利：常驻可见，用户主动点击才展开，不再进首页强弹打断 */}
+        {campaignList.length > 0 && !showCampaignPopup && (
+          <View
+            className="p-3 rounded-2xl pg-card flex flex-col"
+            hoverClass="none"
+            onClick={() => setShowCampaignPopup(true)}
+          >
+            <View className="flex items-center gap-2 min-w-0">
+              <Text className="text-2xl">🎁</Text>
+              <Text className="text-sm font-bold text-foreground block" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                限时福利 · {campaignList[0]?.campaign_name}
+              </Text>
+            </View>
+            <Text className="text-[11px] text-muted-foreground mt-1 block" style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {(campaignList[0]?.store_id && storeNameMap[campaignList[0].store_id])
+                ? `${storeNameMap[campaignList[0].store_id]} 专享`
+                : '领取红包/实物，绑定专属门店优惠'}
+            </Text>
+            <View className="mt-auto pt-2 self-start px-3 py-1.5 rounded-full bg-primary text-white text-sm font-bold flex-shrink-0">领取</View>
+          </View>
+        )}
+        {/* 临期特惠入口：跳转 C 端专属频道页（自动折扣，临近保质期商品超值购） */}
+        <View
+          className="p-3 rounded-2xl flex flex-col"
+          style={{ background: 'linear-gradient(135deg, #FFF4E6, #FFE3CC)', border: '1px solid #F6C99B' }}
+          hoverClass="none"
+          onClick={() => Taro.navigateTo({ url: '/pages/expiry/index' })}
+        >
+          <View className="flex items-center gap-2 min-w-0">
+            <Text className="text-2xl">⏰</Text>
+            <Text className="text-sm font-bold block" style={{ color: '#9A3324', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              临期特惠
+            </Text>
+          </View>
+          <Text className="text-[11px] mt-1 block" style={{ color: '#B26A3C', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            临近保质期超值购
+          </Text>
+          <View className="mt-auto pt-2 self-start px-3 py-1.5 rounded-full text-sm font-bold flex-shrink-0" style={{ background: '#9A3324', color: '#FFF' }}>去逛逛</View>
+        </View>
+      </View>
+
+      {/* ===================== 公告 / 好物动态 ===================== */}
       {homeFeed.length > 0 && (
-        <View id="home-feed" className="mx-4 mt-4 notice-pill">
+        <View id="home-feed" className="mx-4 mt-5 notice-pill">
           <Text className="text-base">{homeFeed[annIdx]?.type === 'order' ? '🛒' : '📢'}</Text>
           <Text className="text-sm text-foreground flex-1 truncate">{homeFeed[annIdx]?.text}</Text>
         </View>
       )}
 
-      {/* 区块分隔：墨线 */}
-      <View className="ink-rule mx-4 mt-5" />
-      {/* 限时福利入口：常驻可见，用户主动点击才展开，不再进首页 3s 强弹打断 */}
-      {campaignList.length > 0 && !showCampaignPopup && (
-        <View
-          className="mx-4 mt-4 p-4 rounded-2xl pg-card flex items-center justify-between"
-          hoverClass="none"
-          onClick={() => setShowCampaignPopup(true)}
-        >
-          <View className="flex items-center gap-2 flex-1 min-w-0">
-            <Text className="text-2xl">🎁</Text>
-            <View className="flex-1 min-w-0">
-              <Text className="text-base font-bold text-foreground block" style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                限时福利 · {campaignList[0]?.campaign_name}
-              </Text>
-              <Text className="text-xs text-muted-foreground block truncate">
-                {(campaignList[0]?.store_id && storeNameMap[campaignList[0].store_id])
-                  ? `${storeNameMap[campaignList[0].store_id]} 专享`
-                  : '领取红包/实物，绑定专属门店优惠'}
-              </Text>
-            </View>
-          </View>
-          <View className="ml-3 px-3 py-1.5 rounded-full bg-primary text-white text-sm font-bold flex-shrink-0">领取</View>
-        </View>
-      )}
-
-      {/* 临期特惠入口：跳转 C 端专属频道页（自动折扣，临近保质期商品超值购） */}
-      <View
-        className="mx-4 mt-4 p-4 rounded-2xl flex items-center justify-between"
-        style={{ background: 'linear-gradient(135deg, #FFF4E6, #FFE3CC)', border: '1px solid #F6C99B' }}
-        hoverClass="none"
-        onClick={() => Taro.navigateTo({ url: '/pages/expiry/index' })}
-      >
-        <View className="flex items-center gap-2 flex-1 min-w-0">
-          <Text className="text-2xl">⏰</Text>
-          <View className="flex-1 min-w-0">
-            <Text className="text-base font-bold block" style={{ color: '#9A3324', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              临期特惠 · 临近保质期超值购
-            </Text>
-            <Text className="text-xs block truncate" style={{ color: '#B26A3C' }}>
-              好物不浪费，限时折扣更划算
-            </Text>
-          </View>
-        </View>
-        <View className="ml-3 px-3 py-1.5 rounded-full text-sm font-bold flex-shrink-0" style={{ background: '#9A3324', color: '#FFF' }}>去逛逛</View>
-      </View>
-
-      {/* 区块分隔：墨线 */}
-      <View className="ink-rule mx-4 mt-5" />
-      {/* 默认商品流：非查询态展示主池（已排除个性化插卡 + 叠加分类筛选）；两列网格瀑布 */}
+      {/* ===================== L4 发现：分类金刚区 + 商品流（主力内容） ===================== */}
       {!hasQuery && (
-        <View className="mt-4 px-4">
-          <View className="flex items-center gap-2 mb-1">
-            <View className="section-accent" />
-            <Text className="text-2xl font-bold text-foreground">为你精选{catFilter ? ` · ${catFilter}` : ''}</Text>
-          </View>
-          <Text className="text-base text-muted-foreground block mb-2">
-            懂身体的好物，挑挑看
-          </Text>
-          <Text className="text-xs text-muted-foreground block mb-2">{FOOD_THERAPY_DISCLAIMER}</Text>
+        <View className="mt-5 px-4">
+          <SectionHeader emoji="🍱" title="为你精选" subtitle="懂身体的好物，挑挑看" />
 
           {/* 顶部分类筛选 sticky 条：统一筛选心智（替代原首屏金刚区），吸顶常驻 */}
           <View
@@ -990,10 +1120,13 @@ export default function IndexPage() {
             <View style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
               {displayFeed.map((f) => (
                 <ProductGridCard key={f.product.id} id={f.product.id} name={f.product.name} price={f.product.price}
-                  imageUrl={f.product.main_image || f.product.image_url || ''} storeName={f.product.store_name}
+                  imageUrl={f.product.main_image || f.product.image_url || ''} storeName={f.product.store_name || ''}
                   care={careOf(f.product)}
                   suitability={getSuitability(f.product)}
-                  onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${f.product.id}` })} />
+                  therapyReport={therapyMap[f.product.id] ?? null}
+                  onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${f.product.id}` })}
+                  onAddCart={(id) => handleAddCart(id, (f.product as any).store_id)} sales={f.product.sales_count} adding={addingId === f.product.id}
+                  compact />
               ))}
             </View>
           ) : (
@@ -1012,7 +1145,7 @@ export default function IndexPage() {
             <Text className="text-base text-muted-foreground text-center block mb-6">
               领取红包/实物，绑定专属门店优惠
             </Text>
-            
+
             {/* 活动列表 */}
             <View className="gap-4 mb-6">
               {campaignList.map((campaign, index) => (
@@ -1026,7 +1159,7 @@ export default function IndexPage() {
                         {campaign.campaign_name}
                       </Text>
                       <Text className="text-base text-muted-foreground">
-                        {campaign.campaign_type === 'red_packet' 
+                        {campaign.campaign_type === 'red_packet'
                           ? `¥${campaign.gift_value} 现金红包`
                           : campaign.gift_name}
                       </Text>
@@ -1053,7 +1186,7 @@ export default function IndexPage() {
                 </View>
               ))}
             </View>
-            
+
             {/* 关闭按钮 */}
             <View
               className="w-full py-3 rounded-2xl bg-muted text-muted-foreground text-center text-xl font-bold"
@@ -1068,6 +1201,34 @@ export default function IndexPage() {
       {/* 悬浮扫码按钮已合并至首屏「扫码查安全」唯一入口，避免首页扫码重复 */}
       {/* 自定义底部导航：独立渲染（贴底全宽），不可嵌套在 FAB 容器内，否则购物车徽标在真机渲染异常 */}
       <CustomTabBar />
+    </View>
+  )
+}
+
+// 首页统一区块标题：emoji 圆标 + 主标题 + 副标题 + 可选操作，建立目录式标题语言让层级分明
+function SectionHeader({ emoji, title, subtitle, action, className }: {
+  emoji?: string
+  title: string
+  subtitle?: string
+  action?: { label: string; onClick: () => void }
+  className?: string
+}) {
+  return (
+    <View className={`flex items-center justify-between mb-3 ${className || ''}`}>
+      <View className="flex items-center gap-2 min-w-0">
+        {emoji && <View className="section-emoji">{emoji}</View>}
+        <View className="min-w-0">
+          <Text className="text-lg font-extrabold text-foreground leading-tight block truncate">{title}</Text>
+          {subtitle && <Text className="text-xs text-muted-foreground block truncate mt-0.5">{subtitle}</Text>}
+        </View>
+      </View>
+      {action && (
+        <Text
+          className="text-xs text-primary font-bold flex-shrink-0 ml-2"
+          hoverClass="none"
+          onClick={action.onClick}
+        >{action.label}</Text>
+      )}
     </View>
   )
 }
@@ -1088,7 +1249,7 @@ function natureDotColor(n: string | null | undefined): string | null {
 }
 
 // ====== 智能推荐商品卡（支持身体状态分档角标 + 轻量关怀注解） ======
-function FitCard({ product, onTap, tier }: { product: Product; onTap: () => void; tier?: FitTier }) {
+function FitCard({ product, onTap, tier, onAddCart }: { product: Product; onTap: () => void; tier?: FitTier; onAddCart?: (id: string) => void }) {
   const [imgFailed, setImgFailed] = useState(false)
   const care = useMemo(() => {
     try { return getProductCareInfo(product) } catch { return null }
@@ -1129,6 +1290,7 @@ function FitCard({ product, onTap, tier }: { product: Product; onTap: () => void
             <Text className="text-xs text-primary font-bold leading-none">¥</Text>
             <Text className="text-lg font-extrabold text-primary leading-none">{product.price}</Text>
           </View>
+          {onAddCart && <AddToCartButton size={28} onAdd={() => onAddCart(product.id)} />}
         </View>
         {hasCare && (
           <View className="flex items-center gap-1 mt-1.5 flex-wrap">

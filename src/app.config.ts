@@ -10,6 +10,7 @@ const pages = [
   'pages/payment-result/index',
   'pages/order-center/index',
   'pages/search/index',
+  'pages/food-detective/index',
 ]
 
 // 分包：按业务域拆分，降低主包体积（目标 < 1.5MB）
@@ -29,6 +30,7 @@ const subPackages = [
       'merchant-campaigns/create/index',
       'merchant-expiry/index',
       'merchant-batch/index',
+      'food-therapy-copy/index',
     ],
   },
   {
@@ -51,7 +53,7 @@ const subPackages = [
   },
   {
     root: 'pages/trade',
-    pages: ['withdraw/index', 'refund-apply/index', 'commission-detail/index', 'tongbao-ledger/index'],
+    pages: ['withdraw/index', 'refund-apply/index', 'commission-detail/index', 'goldbean-ledger/index'],
   },
   {
     root: 'pages/admin',
@@ -84,7 +86,7 @@ const subPackages = [
   },
   {
     root: 'pages/content',
-    pages: ['content-center/make/index', 'content-center/my-articles/index', 'article-detail/index'],
+    pages: ['content-center/make/index', 'content-center/make-rich/index', 'content-center/make-video/index', 'content-center/my-articles/index', 'article-detail/index'],
   },
   {
     root: 'pages/marketing',
@@ -92,7 +94,7 @@ const subPackages = [
   },
   {
     root: 'pages/food',
-    pages: ['index', 'scan-result/index', 'food-scan/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index', 'ingredient-pairing/index'],
+    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index', 'ingredient-pairing/index'],
   },
   {
     root: 'pages/ext',

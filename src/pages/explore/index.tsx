@@ -1,19 +1,26 @@
 // @title 自营
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
 import { addToCart, getProducts, getCategories } from '@/db/api'
+import { showCartToast } from '@/utils/cartToast'
 import Icon from '@/components/Icon'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import { useLocation } from '@/contexts/LocationContext'
-import { scanToProduct } from '@/utils/scan'
+import { scanAndRoute } from '@/utils/scan'
 import LazyImage from '@/components/LazyImage'
 import ProductGridCard from '@/components/ProductGridCard'
 import CustomTabBar from '@/components/custom-tabbar'
 import { getProductCareInfo } from '@/utils/product-care'
+import { buildTherapyReport, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
+import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import type { NearbyProduct } from '@/db/api'
-import type { Product } from '@/db/types'
+import type { Product, StoreCategory } from '@/db/types'
+
+// 自营页商品 = 基础商品信息 + 原始 Product（透传给食养引擎，保证关怀层/适合我与首页口径一致）
+type ExploreProduct = NearbyProduct & { raw?: Product }
 
 // 探索(自营)商品类目：改为读 store_categories(scope='global', is_active=true)，后台可编辑/上架下架
 // 点选后按类目名精确匹配 products.category 文本（见 getProducts 的 categoryName 参数）
@@ -47,9 +54,39 @@ function ExploreProductImage({ src, name }: { src: string | null | undefined; na
 // 探索页商品卡复用 ProductGridCard；当前仅自营门店商品
 export default function ExplorePage() {
   const { currentStore } = useLocation()
+  const { getSuitability } = useFoodTherapy()
   const [activeCat, setActiveCat] = useState('全部')
   const [categories, setCategories] = useState<StoreCategory[]>([])  // 动态类目（已过滤上架+全局）
-  const [products, setProducts] = useState<NearbyProduct[]>([])
+  const [products, setProducts] = useState<ExploreProduct[]>([])
+  const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
+  useEffect(() => {
+    getFoodIngredients().then(setIngredientDict).catch(() => {})
+  }, [])
+  // 与首页同源的食养关怀层抽取（包 try/catch 兜底，单品异常不影响整列表）
+  const safeCare = (p?: Product): ReturnType<typeof getProductCareInfo> | null => {
+    try { return p ? getProductCareInfo(p) : null } catch { return null }
+  }
+  // 食疗引擎报告映射（与详情页/门店卡/首页同源）：自营页商品池一次性算好，卡片直接取用
+  const therapyMap = useMemo<Record<string, ProductTherapyReport | null>>(() => {
+    const map: Record<string, ProductTherapyReport | null> = {}
+    const dictMap = new Map(ingredientDict.map((d) => [d.name, d]))
+    products.forEach((p) => {
+      const raw = p.raw as Product | undefined
+      if (!raw || !raw.ingredients || (raw.ingredients as string[]).length === 0) { map[p.product_id] = null; return }
+      const inputs: ProductIngredientInput[] = (raw.ingredients as string[]).map((name) => {
+        const row = dictMap.get(name)
+        if (!row) return null
+        const fi: FoodIngredient = {
+          name: row.name, nature: row.nature, base_effect: row.base_effect ?? null,
+          fit_scenes: row.fit_scenes ?? null, caution_crowds: row.caution_crowds ?? null,
+          allergens: row.allergens ?? null, chronic_tags: row.chronic_tags ?? null, neutralize: row.neutralize ?? null,
+        }
+        return { ingredient: fi }
+      }).filter(Boolean) as ProductIngredientInput[]
+      map[p.product_id] = buildTherapyReport(raw.name, inputs)
+    })
+    return map
+  }, [products, ingredientDict])
   const cartCount = useCartCount()
   const [addingId, setAddingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -68,19 +105,20 @@ export default function ExplorePage() {
       try {
         // 默认只显示【当前自营门店】商品；未选定门店时降级为附近/全部自营聚合
         const catParam = cat !== '全部' ? cat : undefined
-        const mapToNearby = (p: any) => ({
-          product_id: p.id,
-          product_name: p.name,
-          product_price: p.price,
-          product_image_url: p.main_image || p.image_url || '',
-          product_mood_tags: p.mood_tags || [],
-          store_id: p.store_id,
-          store_name: (p as any).stores?.name || '',
-          store_address: '',
-          store_lat: 0,
-          store_lng: 0,
-          distance_km: 0,
-        })
+          const mapToNearby = (p: any): ExploreProduct => ({
+            product_id: p.id,
+            product_name: p.name,
+            product_price: p.price,
+            product_image_url: p.main_image || p.image_url || '',
+            product_mood_tags: p.mood_tags || [],
+            store_id: p.store_id,
+            store_name: (p as any).stores?.name || '',
+            store_address: '',
+            store_lat: 0,
+            store_lng: 0,
+            distance_km: 0,
+            raw: p,  // 透传原始 Product，供食养引擎算关怀层/适合我
+          })
 
         if (currentStore?.id) {
           // ✅ 已选定当前门店：仅该门店商品（按时间倒序）
@@ -156,7 +194,7 @@ export default function ExplorePage() {
     setAddingId(product.product_id)
     await addToCart(product.product_id, product.store_id)
     setAddingId(null)
-    Taro.showToast({ title: '已加入购物车', icon: 'success' })
+    showCartToast()
   }
 
   const handleLoadMore = () => {
@@ -182,7 +220,7 @@ export default function ExplorePage() {
           <Text className="text-xl text-muted-foreground">搜索商品...</Text>
         </View>
         <View className="w-10 h-10 flex items-center justify-center"
-          onClick={() => scanToProduct()} >
+          onClick={() => scanAndRoute()} >
           <Icon name="qrcode-scan" size={24} className="text-foreground" />
         </View>
         <View className="relative" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
@@ -239,10 +277,13 @@ export default function ExplorePage() {
                   price={p.product_price}
                   imageRatio="4:3"
                   imageSlot={<ExploreProductImage src={p.product_image_url} name={p.product_name} />}
-                  care={p.care}
+                  care={safeCare(p.raw)}
+                  suitability={getSuitability(p.raw as Product)}
+                  therapyReport={therapyMap[p.product_id] ?? null}
                   footerExtra={null}
+                  sales={p.raw?.sales_count}
                   onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.product_id}` })}
-                  onAddCart={() => handleAddCart(p)}
+                  onAddCart={() => handleAddCart(p as NearbyProduct)}
                   adding={addingId === p.product_id} />
               ))}
             </View>

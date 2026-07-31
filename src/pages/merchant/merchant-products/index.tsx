@@ -7,20 +7,19 @@ import ProductGridCard from '@/components/ProductGridCard'
 import { getProductCareInfo } from '@/utils/product-care'
 import { HEALTH_TAGS, NATURE_SCALE } from '@/utils/food-therapy/types'
 import {
-  getMerchantStore, getMerchantProducts, getMerchantOrders,
+  getMerchantStore, getMerchantProducts, getMerchantProductSales,
   createProduct, updateProduct, deleteProduct, getProductByBarcode,
   getCategories, createStoreCategory, updateStoreCategory, deleteStoreCategory,
   getNearExpiryProducts,
 } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import { uploadImage, uploadVideo } from '@/utils/upload'
-import { matchIngredientKeys, getIngredientEntries, searchIngredients } from '@/utils/ingredient-analysis'
 import { analyzeProductFromName, type ProductAnalysis } from '@/utils/food-therapy/dishAnalyzer'
+import { buildTherapyReport, type ProductIngredientInput } from '@/utils/food-therapy/product-therapy'
+import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 import type { Product, Store, StoreCategory } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
-
-// 仅已付款/完成订单计入商品收益（与数据分析页 merchant-analytics 的 REVENUE_STATUSES 对齐）
-const REVENUE_STATUSES = ['pending_ship', 'pending_receive', 'pending_review', 'completed']
+import CategoryManager from './CategoryManager'
 
 type FormState = {
   name: string; price: string; original_price: string; cost_price: string
@@ -71,6 +70,23 @@ const NATURE_COLOR: Record<string, string> = {
   '微温': '#F97316', '温热': '#EA580C', '大热': '#DC2626',
 }
 
+// 结构化食材项（食疗商品系统化：从食材库选择 + 占比 + 烹饪 + 辅料）
+type IngredientItem = {
+  id: string
+  name: string
+  nature: string
+  base_effect?: string | null
+  caution_crowds?: string | null
+  allergens: string[]
+  chronic_tags: string[]
+  neutralize?: string | null
+  ratio: number
+  cooking: string
+  aux: string[]
+}
+const COOKING_METHODS = ['清炒', '少油', '重油', '红烧', '水煮', '凉拌']
+const AUX_OPTIONS = ['盐', '糖', '食用油', '酱油', '味精']
+
 function MerchantProductsPage() {
   const [store, setStore] = useState<Store | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -85,6 +101,9 @@ function MerchantProductsPage() {
   const [batchAnalyzing, setBatchAnalyzing] = useState(false)
   const [ingredientQuery, setIngredientQuery] = useState('')
   const [ingredientResults, setIngredientResults] = useState<string[]>([])
+  // 食疗商品系统化：食材库（DB 可维护）+ 结构化食材项
+  const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
+  const [ingredientItems, setIngredientItems] = useState<IngredientItem[]>([])
   const [revenue, setRevenue] = useState({ totalRevenue: 0, totalProfit: 0, totalSales: 0 })
   // —— 商品分类（store_categories：本店 + 平台全局）——
   const [categories, setCategories] = useState<StoreCategory[]>([])
@@ -128,27 +147,17 @@ function MerchantProductsPage() {
           })
           setExpiryMap(m)
         } catch { /* 容错：临期视图不可读不影响商品管理 */ }
-        // 商品收益：从订单明细聚合（order_items 无 store_id 列，复用已按门店过滤的 getMerchantOrders）
+        // 商品收益：服务端 RPC 聚合（每款商品销量+营收），彻底消除「拉 1 万条 order_items 到客户端聚合」的卡顿
         try {
-          const items = (await getMerchantOrders(s.id, 0, 10000) || [])
-            .filter((it: any) => REVENUE_STATUSES.includes(it.orders?.status))
-          const agg: Record<string, { sales: number; revenue: number }> = {}
-          ;(items || []).forEach((it: any) => {
-            const pid = it.product_id
-            if (!pid) return
-            if (!agg[pid]) agg[pid] = { sales: 0, revenue: 0 }
-            const qty = Number(it.quantity || 0)
-            const price = Number(it.price ?? it.unit_price ?? 0)
-            agg[pid].sales += qty
-            agg[pid].revenue += price * qty
-          })
+          const salesMap = await getMerchantProductSales(s.id)
           const costMap: Record<string, number> = {}
           ;(prods || []).forEach((p: any) => { costMap[p.id] = Number(p.cost_price || 0) })
           let totalSales = 0, totalRevenue = 0, totalProfit = 0
-          Object.keys(agg).forEach(pid => {
-            totalSales += agg[pid].sales
-            totalRevenue += agg[pid].revenue
-            totalProfit += agg[pid].revenue - costMap[pid] * agg[pid].sales
+          Object.keys(salesMap).forEach(pid => {
+            const sm = salesMap[pid]
+            totalSales += sm.sales
+            totalRevenue += sm.revenue
+            totalProfit += sm.revenue - (costMap[pid] || 0) * sm.sales
           })
           setRevenue({ totalSales, totalRevenue, totalProfit })
         } catch (re) {
@@ -165,10 +174,49 @@ function MerchantProductsPage() {
   useEffect(() => { load() }, [load])
   useEffect(() => { loadCategories() }, [loadCategories])
 
+  // 加载全局食材库（食疗商品系统化内核）
+  useEffect(() => {
+    getFoodIngredients().then(setIngredientDict).catch(() => {})
+  }, [])
+
+  // 把食材库行转为结构化编辑项
+  const dictRowToItem = (row: FoodIngredientRow): IngredientItem => ({
+    id: row.id, name: row.name, nature: row.nature,
+    base_effect: row.base_effect, caution_crowds: row.caution_crowds,
+    allergens: row.allergens || [], chronic_tags: row.chronic_tags || [],
+    neutralize: row.neutralize, ratio: 50, cooking: '清炒', aux: [],
+  })
+
+  // 实时食疗分析（引擎：性味合并 / 过敏原 / 三色预警 / 商家寄语）
+  const therapyReport = useMemo(() => {
+    if (!ingredientItems.length) return null
+    const inputs: ProductIngredientInput[] = ingredientItems.map(it => ({
+      ingredient: {
+        name: it.name, nature: it.nature, base_effect: it.base_effect,
+        caution_crowds: it.caution_crowds, allergens: it.allergens, chronic_tags: it.chronic_tags, neutralize: it.neutralize,
+      },
+      ratio: it.ratio, cooking: it.cooking, aux: it.aux,
+    }))
+    return buildTherapyReport(form.name || '本菜品', inputs)
+  }, [ingredientItems, form.name])
+
+  // 引擎结果自动回填商品食养字段（系统算，商家可微调）
+  useEffect(() => {
+    if (!therapyReport) return
+    setForm(f => ({
+      ...f,
+      overall_nature: therapyReport.overall_nature_code,
+      allergens: therapyReport.allergens.map(a => a.name),
+      safety_summary: [therapyReport.caution_people, ...therapyReport.chronic_tags].filter(Boolean).join('；'),
+      aux_remind: therapyReport.caution_people,
+    }))
+  }, [therapyReport])
+
   // ─── 打开新增表单 ───
   const handleNewProduct = () => {
     setForm(emptyForm())
     setEditId(null)
+    setIngredientItems([])
     setShowForm(true)
   }
 
@@ -235,7 +283,7 @@ function MerchantProductsPage() {
               aux_remind: a.aux_remind || '',
             }
             await updateProduct(p.id, payload as any)
-            updated.push({ ...p, ...payload } as Product)
+            updated.push({ ...p, ...payload } as unknown as Product)
           } catch (e) {
             console.error('[批量分析] 单品失败', p.id, e)
           }
@@ -284,6 +332,12 @@ function MerchantProductsPage() {
       category_id: p.category_id ?? '',
     })
     setEditId(p.id); setShowForm(true)
+    const items: IngredientItem[] = (p.ingredients ?? []).map((nm: string) => {
+      const row = ingredientDict.find(r => r.name === nm)
+      if (row) return dictRowToItem(row)
+      return { id: nm, name: nm, nature: '平性', base_effect: null, caution_crowds: null, allergens: [], chronic_tags: [], neutralize: null, ratio: 50, cooking: '清炒', aux: [] }
+    })
+    setIngredientItems(items)
   }
 
   const handleSave = async () => {
@@ -323,7 +377,7 @@ function MerchantProductsPage() {
         cost_price: form.cost_price ? parseFloat(form.cost_price) : undefined,
         original_price: form.original_price ? parseFloat(form.original_price) : undefined,
         discount_rate: form.discount_rate ? Math.min(30, Math.max(0, parseFloat(form.discount_rate))) : undefined,
-        ingredients: form.ingredients.length > 0 ? form.ingredients : undefined,
+        ingredients: ingredientItems.map(i => i.name).length > 0 ? ingredientItems.map(i => i.name) : undefined,
         overall_nature: form.overall_nature || undefined,
         health_tag: form.health_tag.length > 0 ? form.health_tag : undefined,
         match_goods: form.match_goods.length > 0 ? form.match_goods : undefined,
@@ -366,6 +420,7 @@ function MerchantProductsPage() {
   // 关闭弹窗
   const handleCloseForm = () => {
     setShowForm(false)
+    setIngredientItems([])
   }
 
   // —— 商品分类管理（新建/改名/删除/排序）——
@@ -502,16 +557,25 @@ function MerchantProductsPage() {
       })
       if (data?.success && data.analysis) {
         fillFromAnalysis(data.analysis as ProductAnalysis)
-        Taro.showToast({ title: 'AI 识别完成', icon: 'success' })
+        Taro.showToast({ title: '智能识图完成', icon: 'success' })
       } else {
         const local = analyzeProductFromName(dishName.trim(), form.ingredients)
         fillFromAnalysis(local)
-        Taro.showToast({ title: '已本地识别（未配置AI）', icon: 'none' })
+        // 区分真实原因：未配置 / LLM 服务异常 / 其他
+        const source = data?.source as string | undefined
+        const message = data?.message as string | undefined
+        if (source === 'none') {
+          Taro.showToast({ title: '已本地识别（未配置智能识图）', icon: 'none' })
+        } else if (source === 'llm_error') {
+          Taro.showToast({ title: `智能识图失败：${message || '服务异常'}`, icon: 'none' })
+        } else {
+          Taro.showToast({ title: `智能识图失败：${message || '请重试'}`, icon: 'none' })
+        }
       }
     } catch (e) {
       const local = analyzeProductFromName(dishName.trim(), form.ingredients)
       fillFromAnalysis(local)
-      Taro.showToast({ title: '已本地识别', icon: 'none' })
+      Taro.showToast({ title: '已本地识别（网络异常）', icon: 'none' })
     } finally {
       setAnalyzing(false)
     }
@@ -549,12 +613,18 @@ function MerchantProductsPage() {
       : { label: '✅ 平稳', bg: '#EAF6EC', border: '#BFE3C4', fg: '#2E7D32' }
   }, [liveSafety])
 
-  // 智能识别原料：按商品名称匹配食材字典
+  // 智能识别食材：按商品名称匹配食材库（食疗系统化）
   const handleIdentifyIngredients = () => {
-    const keys = matchIngredientKeys(form.name)
-    if (!keys.length) { Taro.showToast({ title: '未从名称识别到食材', icon: 'none' }); return }
-    setForm(f => ({ ...f, ingredients: Array.from(new Set([...f.ingredients, ...keys])) }))
-    Taro.showToast({ title: `已识别 ${keys.length} 种食材`, icon: 'success' })
+    if (!form.name.trim()) { Taro.showToast({ title: '请先填写商品名称', icon: 'none' }); return }
+    const hits = ingredientDict.filter(r => form.name.includes(r.name))
+    if (!hits.length) { Taro.showToast({ title: '未从名称识别到食材', icon: 'none' }); return }
+    let added = 0
+    setIngredientItems(prev => {
+      const next = [...prev]
+      for (const r of hits) if (!next.some(i => i.id === r.id)) { next.push(dictRowToItem(r)); added++ }
+      return next
+    })
+    Taro.showToast({ title: `已识别 ${hits.length} 种食材`, icon: 'success' })
   }
 
   const filtered = filter === 'all' ? products : products.filter(p => filter === 'online' ? p.is_active : !p.is_active)
@@ -729,6 +799,9 @@ function MerchantProductsPage() {
                     <Text style={{ fontSize: '12px', color: 'hsl(var(--primary))', marginTop: '2px' }}>🏷️ 让利 {p.discount_rate}%</Text>
                   )}
                   <Text style={{ fontSize: '12px', color: '#AAA', marginTop: '2px' }}>库存：{p.stock}</Text>
+                  {(p as any).sales_count != null && (
+                    <Text style={{ fontSize: '12px', color: '#AAA', marginTop: '2px' }}>已售：{(p as any).sales_count}</Text>
+                  )}
                 </View>
               </View>
               {/* 操作栏 */}
@@ -1149,22 +1222,22 @@ function MerchantProductsPage() {
                   onInput={(e: any) => {
                     const v = e.detail.value
                     setIngredientQuery(v)
-                    setIngredientResults(searchIngredients(v))
+                    setIngredientResults(ingredientDict.filter(r => r.name.includes(v.trim())).map(r => r.name))
                   }}
                   placeholder='或直接输入原料名（如：姜、梨、番茄）快速添加'
                   style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E0E0E0', fontSize: '13px', background: '#FFF' }} />
                 {ingredientResults.length > 0 && (
                   <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                    {ingredientResults.map(key => {
-                      const e = getIngredientEntries([key])[0]
-                      if (!e) return null
-                      const selected = form.ingredients.includes(key)
+                    {ingredientResults.map(name => {
+                      const row = ingredientDict.find(r => r.name === name)
+                      if (!row) return null
+                      const selected = ingredientItems.some(i => i.id === row.id)
                       return (
                         <View
-                          key={key}
-                          onClick={() => { toggleIngredient(key); setIngredientQuery(''); setIngredientResults([]) }}
+                          key={row.id}
+                          onClick={() => { if (!selected) setIngredientItems(prev => [...prev, dictRowToItem(row)]); setIngredientQuery(''); setIngredientResults([]) }}
                           style={{ padding: '4px 10px', borderRadius: '14px', border: `1px solid ${selected ? '#34A853' : '#D1D5DB'}`, background: selected ? '#E8F7EC' : '#FFF' }}>
-                          <Text style={{ fontSize: '13px', color: selected ? '#34A853' : '#374151' }}>{e.icon} {e.zh}</Text>
+                          <Text style={{ fontSize: '13px', color: selected ? '#34A853' : '#374151' }}>{name}</Text>
                         </View>
                       )
                     })}
@@ -1176,29 +1249,55 @@ function MerchantProductsPage() {
                 <Text style={{ fontSize: '11px', color: '#E08A00', marginTop: '6px', display: 'block' }}>👆 提示：先填写商品名称，识别更准确</Text>
               )}
 
-              {form.ingredients.length > 0 && (
+              {ingredientItems.length > 0 && (
                 <View style={{ marginTop: '10px' }}>
-                  {form.ingredients.map((key: string) => {
-                    const e = getIngredientEntries([key])[0]
-                    if (!e) return null
-                    return (
-                      <View key={key} style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '12px', background: '#F6FBF7', border: '1px solid #D6EFD8' }}>
-                        <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <View style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Text style={{ fontSize: '18px' }}>{e.icon}</Text>
-                            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#1F2937' }}>{e.zh}</Text>
-                            <Text style={{ fontSize: '11px', color: '#fff', background: '#34A853', padding: '1px 8px', borderRadius: '10px' }}>{e.nature}</Text>
-                          </View>
-                          <View onClick={() => toggleIngredient(key)} style={{ padding: '2px 8px' }}>
-                            <Text style={{ fontSize: '13px', color: '#EF4444' }}>✕ 移除</Text>
-                          </View>
+                  {ingredientItems.map((it) => (
+                    <View key={it.id} style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '12px', background: '#F6FBF7', border: '1px solid #D6EFD8' }}>
+                      <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <View style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#1F2937' }}>{it.name}</Text>
+                          <Text style={{ fontSize: '11px', color: '#fff', background: '#34A853', padding: '1px 8px', borderRadius: '10px' }}>{it.nature}</Text>
                         </View>
-                        <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '6px', display: 'block' }}>功效：{e.benefits.join('、')}</Text>
-                        <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '2px', display: 'block' }}>适合：{e.audiences.join('、')}</Text>
-                        <Text style={{ fontSize: '12px', color: '#4B5563', marginTop: '2px', display: 'block' }}>场景：{e.scenarios.join('、')}</Text>
+                        <View onClick={() => setIngredientItems(prev => prev.filter(x => x.id !== it.id))} style={{ padding: '2px 8px' }}>
+                          <Text style={{ fontSize: '13px', color: '#EF4444' }}>✕ 移除</Text>
+                        </View>
                       </View>
-                    )
-                  })}
+                      {/* 占比 */}
+                      <View style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                        <Text style={{ fontSize: '12px', color: '#4B5563' }}>占比</Text>
+                        <Input
+                          value={String(it.ratio)}
+                          type="number"
+                          onInput={(e: any) => { const v = Math.max(0, Math.min(100, Number(e.detail.value) || 0)); setIngredientItems(prev => prev.map(x => x.id === it.id ? { ...x, ratio: v } : x)) }}
+                          style={{ width: '64px', height: '30px', borderRadius: '8px', border: '1px solid #E0E0E0', fontSize: '13px', padding: '0 8px', background: '#FFF' }} />
+                        <Text style={{ fontSize: '11px', color: '#9CA3AF' }}>%（越高过敏提醒越强）</Text>
+                      </View>
+                      {/* 烹饪方式 */}
+                      <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                        {COOKING_METHODS.map(m => {
+                          const sel = it.cooking === m
+                          return (
+                            <View key={m} onClick={() => setIngredientItems(prev => prev.map(x => x.id === it.id ? { ...x, cooking: m } : x))}
+                              style={{ padding: '3px 10px', borderRadius: '9999px', background: sel ? '#34A853' : '#FFF', border: `1px solid ${sel ? '#34A853' : '#D1D5DB'}` }}>
+                              <Text style={{ fontSize: '12px', color: sel ? '#FFF' : '#374151' }}>{m}</Text>
+                            </View>
+                          )
+                        })}
+                      </View>
+                      {/* 辅料 */}
+                      <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                        {AUX_OPTIONS.map(a => {
+                          const sel = it.aux.includes(a)
+                          return (
+                            <View key={a} onClick={() => setIngredientItems(prev => prev.map(x => x.id === it.id ? { ...x, aux: sel ? x.aux.filter(y => y !== a) : [...x.aux, a] } : x))}
+                              style={{ padding: '3px 10px', borderRadius: '9999px', background: sel ? '#FDE68A' : '#FFF', border: '1px solid #E5C07B' }}>
+                              <Text style={{ fontSize: '12px', color: sel ? '#92400E' : '#374151' }}>{a}</Text>
+                            </View>
+                          )
+                        })}
+                      </View>
+                    </View>
+                  ))}
                 </View>
               )}
             </View>
@@ -1248,42 +1347,50 @@ function MerchantProductsPage() {
                     <Text style={{ fontSize: '13px', color: '#FFF', fontWeight: '700' }}>{analyzing ? '识别中…' : '✨ 一键识别'}</Text>
                   </View>
                 </View>
-                <Text style={{ fontSize: '11px', color: '#999', marginTop: '8px', display: 'block' }}>识别后自动填充下方食养字段，仍可手动微调。配置 AI 后支持"看图识菜"。</Text>
+                <Text style={{ fontSize: '11px', color: '#999', marginTop: '8px', display: 'block' }}>识别后自动填充下方食养字段，仍可手动微调。配置智能识图后支持"看图识菜"。</Text>
               </View>
 
-              {/* 🔍 实时配料安全分析：边填边算，商家即时看到系统会判定什么 */}
+              {/* 🔍 实时食疗安全分析（引擎边填边算） */}
               <View style={{ marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#FBF7F2', border: '1.5px solid #E8D9C8' }}>
-                <Text style={{ fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}>🔍 实时配料安全分析（边填边算）</Text>
-                {liveSafety && safetyTone ? (
+                <Text style={{ fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}>🔍 实时食疗安全分析（引擎边填边算）</Text>
+                {therapyReport ? (
                   <View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                      <View style={{ padding: '4px 10px', borderRadius: '9999px', background: safetyTone.bg, border: `1px solid ${safetyTone.border}` }}>
-                        <Text style={{ fontSize: '12px', color: safetyTone.fg, fontWeight: '700' }}>{safetyTone.label}</Text>
+                      <View style={{ padding: '4px 10px', borderRadius: '9999px', background: '#EAF6EC', border: '1px solid #BFE3C4' }}>
+                        <Text style={{ fontSize: '12px', color: '#2E7D32', fontWeight: '700' }}>整体性味 · {therapyReport.overall_nature}</Text>
                       </View>
-                      {liveSafety.overall_nature ? (
-                        <Text style={{ fontSize: '12px', color: '#666' }}>整体性味 · {liveSafety.overall_nature}</Text>
-                      ) : null}
                     </View>
-                    <Text style={{ fontSize: '12px', color: '#666', marginBottom: '4px', display: 'block' }}>预测过敏原</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                      {liveSafety.allergens.length ? liveSafety.allergens.map((a: string) => (
-                        <View key={a} style={{ padding: '3px 9px', borderRadius: '9999px', background: '#FDECEC', border: '1px solid #F5C2C2' }}>
-                          <Text style={{ fontSize: '11px', color: '#C0392B' }}>{a}</Text>
-                        </View>
-                      )) : (
-                        <Text style={{ fontSize: '12px', color: '#2E7D32' }}>暂未识别到常见过敏原</Text>
-                      )}
+                    {/* 三色预警：红=过敏 / 橙=慎食 / 蓝=慢病适配 */}
+                    {therapyReport.warnings.length > 0 && (
+                      <View style={{ marginBottom: '8px' }}>
+                        {therapyReport.warnings.map((w, i) => {
+                          const tone = w.level === 'red'
+                            ? { bg: '#FDECEC', border: '#F5C2C2', fg: '#C0392B' }
+                            : w.level === 'orange'
+                              ? { bg: '#FFF4E5', border: '#F7D9A8', fg: '#B45309' }
+                              : { bg: '#E8F0FE', border: '#BFD3F5', fg: '#1D4ED8' }
+                          return (
+                            <View key={i} style={{ padding: '6px 8px', borderRadius: '8px', background: tone.bg, borderLeftWidth: '3px', borderLeftColor: tone.fg, borderTopWidth: '1px', borderRightWidth: '1px', borderBottomWidth: '1px', borderTopColor: tone.border, borderRightColor: tone.border, borderBottomColor: tone.border, marginBottom: '6px' }}>
+                              <Text style={{ fontSize: '11px', fontWeight: '700', color: tone.fg }}>{w.level === 'red' ? '🔴' : w.level === 'orange' ? '🟠' : '🔵'} {w.label}</Text>
+                              <Text style={{ fontSize: '12px', color: '#444', lineHeight: '17px', display: 'block', marginTop: '2px' }}>{w.text}</Text>
+                            </View>
+                          )
+                        })}
+                      </View>
+                    )}
+                    {/* 商家寄语模板 + 一键套用 */}
+                    <View style={{ marginTop: '6px', padding: '8px 10px', borderRadius: '8px', background: '#FFFAF5', border: '1px dashed #F0D9C0' }}>
+                      <Text style={{ fontSize: '11px', color: '#999' }}>系统生成商家寄语（80字内，可一键套用到下方描述）</Text>
+                      <Text style={{ fontSize: '12px', color: '#333', lineHeight: '18px', display: 'block', marginTop: '4px' }}>{therapyReport.merchant_note}</Text>
+                      <View onClick={() => setForm(f => ({ ...f, description: therapyReport.merchant_note }))}
+                        style={{ marginTop: '6px', alignSelf: 'flex-start', padding: '4px 12px', borderRadius: '9999px', background: 'hsl(var(--primary))' }}>
+                        <Text style={{ fontSize: '12px', color: '#FFF' }}>一键套用寄语</Text>
+                      </View>
                     </View>
-                    {liveSafety.safety_summary ? (
-                      <Text style={{ fontSize: '12px', color: '#444', lineHeight: '18px', display: 'block' }}>{liveSafety.safety_summary}</Text>
-                    ) : null}
-                    {liveSafety.risk_warning ? (
-                      <Text style={{ fontSize: '12px', color: '#C0392B', lineHeight: '18px', marginTop: '4px', display: 'block' }}>⚠️ {liveSafety.risk_warning}</Text>
-                    ) : null}
-                    <Text style={{ fontSize: '10px', color: '#AAA', marginTop: '6px', display: 'block' }}>食养参考，非医疗诊断。点「✨ 一键识别」可让 AI 增强评级。</Text>
+                    <Text style={{ fontSize: '10px', color: '#AAA', marginTop: '6px', display: 'block' }}>{therapyReport.disclaimer}</Text>
                   </View>
                 ) : (
-                  <Text style={{ fontSize: '12px', color: '#999', display: 'block' }}>填写商品名称或添加配料后，这里实时显示过敏原 / 风险等级 / 安全摘要。</Text>
+                  <Text style={{ fontSize: '12px', color: '#999', display: 'block' }}>从食材库添加食材或点「智能识别食材」后，这里实时显示整体性味 / 三色预警 / 商家寄语。</Text>
                 )}
               </View>
 
@@ -1331,8 +1438,8 @@ function MerchantProductsPage() {
                 })()}
               </View>
 
-              {/* 整体性味色阶：寒热有色，一眼可读、更科学 */}
-              <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>整体性味（寒热有色，一眼可读）</Text>
+              {/* 整体性味（引擎自动计算，可手动覆盖） */}
+              <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>整体性味（引擎自动算，可手动覆盖）</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
                 {NATURE_SCALE.map((n: string) => {
                   const sel = form.overall_nature === n
@@ -1433,69 +1540,21 @@ function MerchantProductsPage() {
         </View>
       )}
 
-    {/* 商品分类管理抽屉（新建 / 改名 / 排序 / 删除） */}
-    {showCatModal && (
-      <View
-        style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.55)' }}
-        onClick={() => setShowCatModal(false)}>
-        <View
-          style={{ marginTop: 'auto', width: '100%', background: '#FFF', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', paddingHorizontal: '20px', paddingTop: '20px', paddingBottom: '40px', maxHeight: '85vh', overflowY: 'scroll' }}
-          onClick={(e: any) => e.stopPropagation()}>
-          {/* 标题 */}
-          <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <Text style={{ fontSize: '18px', fontWeight: 'bold', color: '#333' }}>管理商品分类</Text>
-            <View onClick={() => setShowCatModal(false)} style={{ width: '32px', height: '32px', borderRadius: '16px', background: '#F0F0F0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: '18px', color: '#999' }}>✕</Text>
-            </View>
-          </View>
-
-          {/* 新建分类 */}
-          <View style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-            <Input
-              value={newCatName}
-              onInput={(e: any) => setNewCatName(e.detail?.value ?? '')}
-              placeholder="输入新分类名称"
-              style={{ flex: 1, height: '42px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '14px', padding: '0 12px', boxSizing: 'border-box' }} />
-            <View onClick={handleAddCategory} style={{ padding: '0 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', background: 'linear-gradient(135deg, #C77B47, hsl(var(--primary)))' }}>
-              <Text style={{ fontSize: '14px', color: '#FFF', fontWeight: 'bold' }}>新建</Text>
-            </View>
-          </View>
-
-          {/* 分类列表（按 sort_order 排序） */}
-          {categories.length === 0 && <Text style={{ fontSize: '13px', color: '#BBB' }}>还没有分类，先在上方新建一个吧</Text>}
-          {[...categories].sort((a: StoreCategory, b: StoreCategory) => a.sort_order - b.sort_order).map((c: StoreCategory) => {
-            const isGlobal = c.scope === 'global'
-            return (
-              <View key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 0', borderBottomWidth: '1px', borderBottomColor: '#F2F2F2', borderBottomStyle: 'solid' }}>
-                {editingCatId === c.id ? (
-                  <Input
-                    value={editingCatName}
-                    focus
-                    onInput={(e: any) => setEditingCatName(e.detail?.value ?? '')}
-                    style={{ flex: 1, height: '38px', borderRadius: '8px', background: '#FAFAFA', border: '1px solid hsl(var(--primary))', fontSize: '14px', padding: '0 10px' }} />
-                ) : (
-                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: '6px' }} onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }}>
-                    <Text style={{ fontSize: '15px', color: '#333' }}>{c.name}</Text>
-                    {isGlobal && <Text style={{ fontSize: '11px', color: '#BBB' }}>🌐 平台</Text>}
-                  </View>
-                )}
-                {!isGlobal && (
-                  <View style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                    <View onClick={() => handleMoveCategory(c, -1)} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '15px', color: '#888' }}>↑</Text></View>
-                    <View onClick={() => handleMoveCategory(c, 1)} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '15px', color: '#888' }}>↓</Text></View>
-                    {editingCatId === c.id
-                      ? <View onClick={() => handleSaveRename(c)} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: 'bold' }}>✓</Text></View>
-                      : <View onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '13px', color: '#3B82F6' }}>改名</Text></View>}
-                    <View onClick={() => handleDeleteCategory(c)} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '13px', color: '#EF4444' }}>删</Text></View>
-                  </View>
-                )}
-              </View>
-            )
-          })}
-          <Text style={{ fontSize: '11px', color: '#BBB', marginTop: '12px', display: 'block' }}>🌐 平台分类由总部统一维护，店内不可修改；店内分类仅对本店商品生效。</Text>
-        </View>
-      </View>
-    )}
+    <CategoryManager
+      visible={showCatModal}
+      categories={categories}
+      newCatName={newCatName}
+      setNewCatName={setNewCatName}
+      editingCatId={editingCatId}
+      setEditingCatId={setEditingCatId}
+      editingCatName={editingCatName}
+      setEditingCatName={setEditingCatName}
+      onClose={() => setShowCatModal(false)}
+      onAddCategory={handleAddCategory}
+      onMoveCategory={handleMoveCategory}
+      onSaveRename={handleSaveRename}
+      onDeleteCategory={handleDeleteCategory}
+    />
 
     </View>
     </RouteGuard>

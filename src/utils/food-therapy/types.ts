@@ -1,7 +1,7 @@
 // 食材食疗智能导购 —— 共享类型与固定标签库
 // 纯函数引擎，不依赖网络；被小程序导购页 / 收银后台 / 营销生成复用。
 
-import type { Product } from '../db/types'
+import type { Product } from '../../db/types'
 
 // 固定食疗标签库（9 项，与迁移 00100 health_tag 注释一致）
 export const HEALTH_TAGS = [
@@ -12,7 +12,7 @@ export type HealthTag = typeof HEALTH_TAGS[number]
 
 // 固定情绪标签库（8 项，与迁移 00100 emotion_tag 注释一致）
 export const EMOTION_TAGS = [
-  '治愈放松', '元气满满', '温暖陪伴', '清爽解压',
+  '舒心放松', '元气满满', '温暖陪伴', '清爽解压',
   '怀旧慰藉', '仪式感', '小确幸', '社交分享',
 ] as const
 export type EmotionTag = typeof EMOTION_TAGS[number]
@@ -108,6 +108,7 @@ export function toFoodTherapyInput(p: Product): FoodTherapyInput {
     name: p.name,
     ingredients: p.ingredients ?? null,
     overall_nature: p.overall_nature ?? null,
+    food_stage: (p as any).food_stage ?? null,
     health_tag: p.health_tag ?? null,
     emotion_tag: p.emotion_tag ?? null,
     match_goods: p.match_goods ?? null,

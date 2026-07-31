@@ -8,13 +8,13 @@ import { resolveSymptomRule } from './symptom-rules'
 
 // 惰性加载 supabase 客户端：避免在非 Taro 运行环境（如引擎自测脚本）于模块顶层加载
 // @tarojs/runtime 触发 `ENABLE_INNER_HTML is not defined` 崩溃。Taro 构建中动态 import 同样会被 webpack 解析。
-let _supabase: import('@/client/supabase').supabase | null = null
+let _supabase: import('@supabase/supabase-js').SupabaseClient | null = null
 async function getSupabase() {
   if (!_supabase) {
     const mod = await import('@/client/supabase')
     _supabase = mod.supabase
   }
-  return _supabase
+  return _supabase!
 }
 
 export interface NluResult {

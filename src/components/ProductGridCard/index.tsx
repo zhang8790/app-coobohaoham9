@@ -6,6 +6,7 @@ import Icon from '@/components/Icon'
 import AddToCartButton from '@/components/AddToCartButton'
 import { type ProductCareInfo, careLevel } from '@/utils/product-care'
 import type { FitTier } from '@/utils/food-therapy/types'
+import type { ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 
 export interface ProductGridCardProps {
   id: string
@@ -33,6 +34,12 @@ export interface ProductGridCardProps {
   adding?: boolean
   onShare?: (id: string) => void
   disabled?: boolean
+  /** 累计销量（件），传入即渲染「已售 X」 */
+  sales?: number
+  /** 紧凑模式：首页用，4:3 图 + 更小信息区，纵向占位更短 */
+  compact?: boolean
+  /** 食疗引擎报告（与详情页/门店卡同源）：传入即渲染整体性味 + 三色预警 */
+  therapyReport?: ProductTherapyReport | null
 }
 
 const GRID_MATCH_STYLE: Record<string, string> = {
@@ -51,10 +58,12 @@ const NATURE_COLOR: Record<string, string> = {
 export default function ProductGridCard({
   id, name, price, imageUrl, originalPrice, storeName, subtitle,
   matchLabel, care, imageSlot, footerExtra, width = '48%', imageRatio = '1:1',
-  suitability, onTap, onAddCart, adding, onShare, disabled,
+  suitability, onTap, onAddCart, adding, onShare, disabled, sales, compact, therapyReport,
 }: ProductGridCardProps) {
   const [imgFailed, setImgFailed] = useState(false)
-  const ratioPad = imageRatio === '4:3' ? '75%' : '100%'
+  // 紧凑模式：首页默认 4:3 短图（除非显式传 1:1）
+  const effRatio = compact && imageRatio === '1:1' ? '4:3' : imageRatio
+  const ratioPad = effRatio === '4:3' ? '75%' : '100%'
 
   // 「适合我」三态标签配色（绿=适合 / 橙=慎吃 / 红=忌口）
   const suitBadge = suitability === 'recommend'
@@ -67,7 +76,7 @@ export default function ProductGridCard({
   return (
     <View
       className="pg-card relative flex flex-col overflow-hidden"
-      style={{ width, marginBottom: '12px' }}
+      style={{ width, marginBottom: compact ? '8px' : '12px' }}
       hoverClass="pg-hover"
       onClick={() => { if (!disabled) onTap?.() }}>
       {/* 图片区：1:1 / 4:3 自适应；自定义 imageSlot（探索页特效图）用 absolute inset-0
@@ -108,9 +117,35 @@ export default function ProductGridCard({
         )}
       </View>
 
-      {/* 信息区：标准化垂直节奏（py-2 / gap-1），3 列窄卡更紧凑 */}
-      <View className="px-2.5 py-2 flex flex-col gap-1 flex-1">
+      {/* 信息区：紧凑模式(py-1.5 / 更矮 minHeight) 缩短首页卡片纵向占位 */}
+      <View className={`flex flex-col gap-1 flex-1 ${compact ? 'px-2 py-1.5' : 'px-2.5 py-2'}`}
+        style={{ minHeight: care ? (compact ? '128px' : '172px') : (compact ? '84px' : '108px') }}>
         <Text className="text-base font-bold text-foreground leading-tight line-clamp-2">{name}</Text>
+
+        {/* 食疗引擎三色预警（与详情页/门店卡同源）：整体性味 + 红/橙/蓝预警 */}
+        {therapyReport && (
+          <View className="flex items-center gap-1 flex-wrap" style={{ marginTop: 2 }}>
+            {therapyReport.overall_nature_code ? (
+              <Text className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: '#F3F4F6', color: NATURE_COLOR[therapyReport.overall_nature_code] ?? '#8C7E6E' }}>
+                {therapyReport.overall_nature_code}
+              </Text>
+            ) : null}
+            {therapyReport.warnings.slice(0, 3).map((w) => {
+              const bg = w.level === 'red' ? '#FEE2E2' : w.level === 'orange' ? '#FEF3C7' : '#DBEAFE'
+              const fg = w.level === 'red' ? '#B91C1C' : w.level === 'orange' ? '#92400E' : '#1E40AF'
+              const dot = w.level === 'red' ? '🔴' : w.level === 'orange' ? '🟠' : '🔵'
+              return (
+                <Text key={w.code} className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: bg, color: fg, whiteSpace: 'nowrap' }} numberOfLines={1}>
+                  {dot}{w.label}
+                </Text>
+              )
+            })}
+          </View>
+        )}
+
+        {sales != null && (
+          <Text className="text-xs text-muted-foreground leading-none">已售 {formatSales(sales)}</Text>
+        )}
 
         {/* 「适合我」三态标签：个性化食养适配，一眼可见 */}
         {suitBadge && (
@@ -175,6 +210,13 @@ export default function ProductGridCard({
       </View>
     </View>
   )
+}
+
+// 销量数字格式化：>=1万 显示 X.X万，否则原值
+function formatSales(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return '0'
+  if (n >= 10000) return `${(Math.floor(n / 1000) / 10).toFixed(1)}万`
+  return `${n}`
 }
 
 // 关怀度进度条（游戏化：分数越高越被「悉心照看」）
