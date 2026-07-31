@@ -13,7 +13,7 @@ import type { Store, StoreCategory, Product } from '@/db/types'
 import { supabase } from '@/client/supabase'
 import Icon from '@/components/Icon'
 import AddToCartButton from '@/components/AddToCartButton'
-import { buildTherapyReport, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 
 export default function StoreHomePage() {
@@ -400,25 +400,22 @@ export default function StoreHomePage() {
                     )
                   })()}
                   <View style={{ padding: '10px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                    {/* 食疗引擎结果：整体性味 + 三色预警（与详情页同源） */}
+                    {/* 食疗引擎结果：体感 · 适宜 · 过敏（与详情页/卡片同源，合规一致） */}
                     {tr && (
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
-                        {tr.overall_nature ? (
+                        {tr.overall_nature_code ? (
                           <View style={{ backgroundColor: '#F1ECE4', borderRadius: '6px', paddingVertical: '1px', paddingHorizontal: '6px' }}>
-                            <Text style={{ fontSize: '10px', color: '#7A6A55' }}>{tr.overall_nature}</Text>
+                            <Text style={{ fontSize: '10px', color: '#7A6A55' }}>{NATURE_FEELING[tr.overall_nature_code] || tr.overall_nature_code}</Text>
                           </View>
                         ) : null}
-                        {tr.warnings.slice(0, 3).map((w, i) => (
-                          <View
-                            key={i}
-                            style={{
-                              backgroundColor: w.level === 'red' ? '#FEE2E2' : w.level === 'orange' ? '#FEF3C7' : '#DBEAFE',
-                              borderRadius: '6px',
-                              paddingVertical: '1px',
-                              paddingHorizontal: '5px',
-                            }}
-                          >
-                            <Text style={{ fontSize: '10px', color: '#7A6A55' }} numberOfLines={1}>{w.label}</Text>
+                        {tr.fit_people ? (
+                          <View style={{ backgroundColor: '#DCFCE7', borderRadius: '6px', paddingVertical: '1px', paddingHorizontal: '6px' }}>
+                            <Text style={{ fontSize: '10px', color: '#16A34A' }} numberOfLines={1}>✅{tr.fit_people.split(/[、,，]/)[0]}</Text>
+                          </View>
+                        ) : null}
+                        {tr.warnings.filter((w) => w.level === 'red').slice(0, 1).map((w, i) => (
+                          <View key={i} style={{ backgroundColor: '#FEE2E2', borderRadius: '6px', paddingVertical: '1px', paddingHorizontal: '5px', borderWidth: '1px', borderColor: '#FCA5A5' }}>
+                            <Text style={{ fontSize: '10px', color: '#B91C1C' }} numberOfLines={1}>🔴{w.label}</Text>
                           </View>
                         ))}
                       </View>

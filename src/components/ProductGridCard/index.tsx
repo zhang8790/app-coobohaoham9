@@ -6,7 +6,7 @@ import Icon from '@/components/Icon'
 import AddToCartButton from '@/components/AddToCartButton'
 import { type ProductCareInfo, careLevel } from '@/utils/product-care'
 import type { FitTier } from '@/utils/food-therapy/types'
-import type { ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { type ProductTherapyReport, NATURE_FEELING } from '@/utils/food-therapy/product-therapy'
 
 export interface ProductGridCardProps {
   id: string
@@ -131,7 +131,7 @@ export default function ProductGridCard({
           <View className="flex items-center gap-1 flex-wrap" style={{ marginTop: 2 }}>
             {therapyReport.overall_nature_code ? (
               <Text className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: '#F3F4F6', color: NATURE_COLOR[therapyReport.overall_nature_code] ?? '#8C7E6E' }}>
-                {therapyReport.overall_nature_code}
+                {NATURE_FEELING[therapyReport.overall_nature_code] || therapyReport.overall_nature_code}
               </Text>
             ) : null}
             {fitChip ? (
