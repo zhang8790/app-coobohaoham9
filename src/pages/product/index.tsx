@@ -20,7 +20,7 @@ import ComprehensiveSafetyReport from '@/components/ComprehensiveSafetyReport'
 import { getFoodBenefit } from '@/data/foodBenefits'
 import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
 import { PRODUCT_DISCLAIMER } from '@/utils/compliance/shield'
-import { buildTherapyReport, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, buildTherapyHeadline, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 
 function CollapsibleSection({ title, children }: { title: string; children: ReactNode }) {
@@ -458,15 +458,19 @@ export default function ProductPage() {
         {therapyReport && (
           <View className="mt-3" style={{ padding: '12px 14px', borderRadius: '16px', background: '#F7F9FF', border: '1px solid #D9E2F3' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: '15px', fontWeight: '700', color: '#1E3A8A', display: 'block' }}>🔍 食疗安全分析</Text>
-              {therapyReport.overall_nature ? (
-                <Text style={{ fontSize: '12px', color: '#1E3A8A', background: '#E0E7FF', paddingVertical: '2px', paddingHorizontal: '8px', borderRadius: '999px' }}>整体食性 · {therapyReport.overall_nature}</Text>
+              <Text style={{ fontSize: '15px', fontWeight: '700', color: '#1E3A8A', display: 'block' }}>🍃 这口吃得安心吗</Text>
+              {NATURE_FEELING[therapyReport.overall_nature_code] ? (
+                <Text style={{ fontSize: '12px', color: '#1E3A8A', background: '#E0E7FF', paddingVertical: '2px', paddingHorizontal: '8px', borderRadius: '999px' }}>体感 · {NATURE_FEELING[therapyReport.overall_nature_code]}</Text>
               ) : null}
+            </View>
+            <View style={{ marginTop: 8 }}>
+              <Text style={{ fontSize: '18px', fontWeight: '800', color: '#1E3A8A', display: 'block', lineHeight: '1.4' }}>{buildTherapyHeadline(therapyReport).main}</Text>
+              <Text style={{ fontSize: '12px', color: '#64748B', display: 'block', marginTop: 2 }}>{buildTherapyHeadline(therapyReport).sub}</Text>
             </View>
             {therapyReport.fit_people ? (
               <View style={{ marginTop: 8, padding: '8px 10px', borderRadius: '10px', background: '#ECFDF3', border: '1px solid #BBF7D0' }}>
-                <Text style={{ fontSize: '12px', color: '#16A34A', fontWeight: '700', display: 'block', marginBottom: 2 }}>✅ 适宜参考</Text>
-                <Text style={{ fontSize: '13px', color: '#14532D', display: 'block', lineHeight: '1.6' }}>{therapyReport.fit_people}</Text>
+                <Text style={{ fontSize: '12px', color: '#16A34A', fontWeight: '700', display: 'block', marginBottom: 2 }}>适合谁</Text>
+                <Text style={{ fontSize: '13px', color: '#14532D', display: 'block', lineHeight: '1.6' }}>{therapyReport.fit_people.split('、').slice(0, 3).join('、')}{therapyReport.fit_people.split('、').length > 3 ? ' 等' : ''}</Text>
               </View>
             ) : null}
             {/* 过敏原警示：强制常驻显著（满足消法第18条警示义务 + GB7718 过敏原标示 + 微信平台要求，不得隐藏/弱化） */}
@@ -489,7 +493,7 @@ export default function ProductPage() {
               return (
                 <View style={{ marginTop: 8 }}>
                   <View onClick={() => setExpandCautions((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                    <Text style={{ fontSize: '13px', color: '#475569', fontWeight: '600' }}>🍃 食用注意（{cautions.length}）</Text>
+                    <Text style={{ fontSize: '13px', color: '#475569', fontWeight: '600' }}>小提醒（{cautions.length}）</Text>
                     <Text style={{ fontSize: '12px', color: '#94A3B8' }}>{expandCautions ? '收起 ▲' : '查看详情 ›'}</Text>
                   </View>
                   {expandCautions && (

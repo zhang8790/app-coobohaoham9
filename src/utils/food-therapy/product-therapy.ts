@@ -75,6 +75,13 @@ const NATURE_LABEL: Record<string, string> = {
   平性: '平性', 平: '平性', 微温: '微温', 温: '温', 温热: '温热', 大热: '大热', 热: '大热',
 }
 
+// 性味 → 体感短句（抓心用，仅描述口感/体感，不写功效断言，守住合规底线）
+export const NATURE_FEELING: Record<string, string> = {
+  大寒: '寒凉清润', 寒凉: '清爽凉润', 凉: '清爽偏凉', 微凉: '清润爽口',
+  平性: '平和养胃', 平: '平和适口', 微温: '温润舒服', 温: '温润暖胃',
+  温热: '温热养身', 大热: '辛温偏燥', 热: '温通偏燥',
+}
+
 function natureToValue(n?: string | null): number {
   if (!n) return 0
   const v = NATURE_VALUE[n.trim()]
@@ -319,4 +326,29 @@ export function buildTherapyReport(
     merchant_note,
     disclaimer: THERAPY_DISCLAIMER,
   }
+}
+
+// 首屏一句话抓心结论：基于真实配料计算，给确定性体感，非功效断言。
+// 过敏存在时主句硬提示（合规不可弱化），否则给正向体感结论。
+export interface TherapyHeadline {
+  main: string // 抓心主句（首屏最大字号）
+  sub: string // 补充副句
+}
+
+export function buildTherapyHeadline(r: ProductTherapyReport): TherapyHeadline {
+  const red = r.warnings.find((w) => w.level === 'red')
+  const feeling = NATURE_FEELING[r.overall_nature_code] || ''
+  if (red) {
+    const m = red.text.match(/含([^，。、\s]+)/)
+    const name = m ? m[1] : '过敏成分'
+    return {
+      main: `含${name} · 过敏请务必留意`,
+      sub: feeling ? `${feeling} · 其余朋友可安心享用` : '其余朋友可安心享用',
+    }
+  }
+  const main = feeling ? `${feeling} · 多数人都能安心吃` : '食养参考 · 适量为宜'
+  const sub = r.fit_people
+    ? `适合${r.fit_people.split('、')[0].replace(/等$/, '')}等`
+    : '基于真实配料实时计算'
+  return { main, sub }
 }
