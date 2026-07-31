@@ -148,9 +148,9 @@ export default function ProductPage() {
     return buildTherapyReport(product.name, inputs)
   }, [product, ingredientDict])
 
-  // 特殊人群自动弹窗：进店即按三色预警提示，每个商品仅弹一次
+  // 特殊人群自动弹窗：只推正向能量（有适宜人群或含提示即弹），每个商品仅弹一次
   useEffect(() => {
-    if (therapyReport && therapyReport.warnings.length > 0 && crowdPopupShownForRef.current !== id) {
+    if (therapyReport && (therapyReport.fit_people || therapyReport.warnings.length > 0) && crowdPopupShownForRef.current !== id) {
       crowdPopupShownForRef.current = id
       setShowCrowdPopup(true)
     }
@@ -844,29 +844,24 @@ export default function ProductPage() {
         </Button>
       </View>
 
-      {/* 特殊人群自动弹窗：三色预警重点提示，可一键关闭（每个商品仅弹一次） */}
+      {/* 特殊人群自动弹窗：只给正向能量（适宜参考+体感），不堆谨慎/不能吃；过敏与食用注意仍在本页下方可见（合规不弱化） */}
       {showCrowdPopup && therapyReport && (
         <View style={{ position: 'fixed', left: 0, right: 0, top: 0, bottom: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
           <View style={{ width: '100%', maxWidth: '320px', background: '#fff', borderRadius: '16px', padding: '18px 16px' }}>
-            <Text style={{ fontSize: '17px', fontWeight: '700', color: '#1E3A8A', display: 'block', marginBottom: 4 }}>🔍 食疗安全提示</Text>
-            <Text style={{ fontSize: '12px', color: '#6B7280', display: 'block', marginBottom: 10, lineHeight: '1.5' }}>{product?.name} 的食养安全要点，请按需查看</Text>
+            <Text style={{ fontSize: '17px', fontWeight: '700', color: '#16A34A', display: 'block', marginBottom: 4 }}>🍃 这道很合你口味</Text>
+            <Text style={{ fontSize: '12px', color: '#6B7280', display: 'block', marginBottom: 10, lineHeight: '1.5' }}>{product?.name} · 先看看它适合谁</Text>
+            {therapyReport.overall_nature_code ? (
+              <Text style={{ fontSize: '13px', color: '#475569', display: 'block', marginBottom: 8, lineHeight: '1.5' }}>整体{NATURE_FEELING[therapyReport.overall_nature_code] || therapyReport.overall_nature_code}，适量享用，吃出好状态～</Text>
+            ) : null}
             {therapyReport.fit_people ? (
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', background: '#ECFDF3', borderRadius: '10px', padding: '7px 9px', marginBottom: 8 }}>
                 <Text style={{ fontSize: '13px', marginRight: 5, lineHeight: '1.5' }}>✅</Text>
                 <Text style={{ fontSize: '13px', color: '#14532D', flex: 1, lineHeight: '1.5' }}>{therapyReport.fit_people}</Text>
               </View>
             ) : null}
-            {therapyReport.warnings.map((w, i) => {
-              const c = w.level === 'red' ? { bg: '#FEE2E2', fg: '#DC2626', icon: '🔴' } : w.level === 'orange' ? { bg: '#FEF3C7', fg: '#A8552E', icon: '🟠' } : { bg: '#DBEAFE', fg: '#2563EB', icon: '🔵' }
-              return (
-                <View key={w.code + i} style={{ flexDirection: 'row', alignItems: 'flex-start', background: c.bg, borderRadius: '10px', padding: '7px 9px', marginTop: i === 0 ? 0 : 6 }}>
-                  <Text style={{ fontSize: '14px', marginRight: 5, lineHeight: '1.5' }}>{c.icon}</Text>
-                  <Text style={{ fontSize: '13px', color: c.fg, flex: 1, lineHeight: '1.5' }}>
-                    <Text style={{ fontWeight: '700' }}>{w.label}：</Text>{w.text}
-                  </Text>
-                </View>
-              )
-            })}
+            {therapyReport.warnings.length > 0 ? (
+              <Text style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginTop: 2, lineHeight: '1.5' }}>含过敏原或食用注意，下滑本页即可查看 ›</Text>
+            ) : null}
             <View
               onClick={() => setShowCrowdPopup(false)}
               style={{ marginTop: 14, paddingVertical: 10, borderRadius: 12, background: 'hsl(var(--primary))', alignItems: 'center' }}
