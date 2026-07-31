@@ -54,6 +54,7 @@ export default function ProductPage() {
   const [product, setProduct] = useState<Product | null>(null)
   const [foodAdditives, setFoodAdditives] = useState<FoodAdditive[]>([])
   const [loading, setLoading] = useState(true)
+  const [expandCautions, setExpandCautions] = useState(false)
   const [adding, setAdding] = useState(false)
   const cartCount = useCartCount()
   const [myCode, setMyCode] = useState('')
@@ -462,21 +463,53 @@ export default function ProductPage() {
                 <Text style={{ fontSize: '12px', color: '#1E3A8A', background: '#E0E7FF', paddingVertical: '2px', paddingHorizontal: '8px', borderRadius: '999px' }}>整体食性 · {therapyReport.overall_nature}</Text>
               ) : null}
             </View>
-            {therapyReport.warnings.length > 0 && (
+            {therapyReport.fit_people ? (
+              <View style={{ marginTop: 8, padding: '8px 10px', borderRadius: '10px', background: '#ECFDF3', border: '1px solid #BBF7D0' }}>
+                <Text style={{ fontSize: '12px', color: '#16A34A', fontWeight: '700', display: 'block', marginBottom: 2 }}>✅ 适宜参考</Text>
+                <Text style={{ fontSize: '13px', color: '#14532D', display: 'block', lineHeight: '1.6' }}>{therapyReport.fit_people}</Text>
+              </View>
+            ) : null}
+            {/* 过敏原警示：强制常驻显著（满足消法第18条警示义务 + GB7718 过敏原标示 + 微信平台要求，不得隐藏/弱化） */}
+            {therapyReport.warnings.filter((w) => w.level === 'red').length > 0 && (
               <View style={{ marginTop: 8 }}>
-                {therapyReport.warnings.map((w, i) => {
-                  const c = w.level === 'red' ? { bg: '#FEE2E2', fg: '#DC2626', icon: '🔴' } : w.level === 'orange' ? { bg: '#FEF3C7', fg: '#A8552E', icon: '🟠' } : { bg: '#DBEAFE', fg: '#2563EB', icon: '🔵' }
-                  return (
-                    <View key={w.code + i} style={{ flexDirection: 'row', alignItems: 'flex-start', background: c.bg, borderRadius: '10px', padding: '6px 8px', marginTop: i === 0 ? 0 : 6 }}>
-                      <Text style={{ fontSize: '13px', marginRight: 4, lineHeight: '1.5' }}>{c.icon}</Text>
-                      <Text style={{ fontSize: '13px', color: c.fg, flex: 1, lineHeight: '1.5' }}>
-                        <Text style={{ fontWeight: '700' }}>{w.label}：</Text>{w.text}
-                      </Text>
-                    </View>
-                  )
-                })}
+                {therapyReport.warnings.filter((w) => w.level === 'red').map((w, i) => (
+                  <View key={w.code + i} style={{ flexDirection: 'row', alignItems: 'flex-start', background: '#FEE2E2', borderRadius: '10px', padding: '8px 10px', marginTop: i === 0 ? 0 : 6, border: '1px solid #FCA5A5' }}>
+                    <Text style={{ fontSize: '13px', marginRight: 4, lineHeight: '1.5' }}>🔴</Text>
+                    <Text style={{ fontSize: '13px', color: '#B91C1C', flex: 1, lineHeight: '1.5' }}>
+                      <Text style={{ fontWeight: '700' }}>{w.label}：</Text>{w.text}
+                    </Text>
+                  </View>
+                ))}
               </View>
             )}
+            {/* 食用注意（慎食/慢病）：建议性质，默认折叠，用户主动展开——信息可获取不隐藏，亦不靠排版误导 */}
+            {(() => {
+              const cautions = therapyReport.warnings.filter((w) => w.level !== 'red')
+              if (cautions.length === 0) return null
+              return (
+                <View style={{ marginTop: 8 }}>
+                  <View onClick={() => setExpandCautions((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <Text style={{ fontSize: '13px', color: '#475569', fontWeight: '600' }}>🍃 食用注意（{cautions.length}）</Text>
+                    <Text style={{ fontSize: '12px', color: '#94A3B8' }}>{expandCautions ? '收起 ▲' : '查看详情 ›'}</Text>
+                  </View>
+                  {expandCautions && (
+                    <View style={{ marginTop: 6 }}>
+                      {cautions.map((w, i) => {
+                        const c = w.level === 'orange' ? { bg: '#FEF3C7', fg: '#A8552E', icon: '🟠' } : { bg: '#DBEAFE', fg: '#2563EB', icon: '🔵' }
+                        return (
+                          <View key={w.code + i} style={{ flexDirection: 'row', alignItems: 'flex-start', background: c.bg, borderRadius: '10px', padding: '6px 8px', marginTop: i === 0 ? 0 : 6 }}>
+                            <Text style={{ fontSize: '13px', marginRight: 4, lineHeight: '1.5' }}>{c.icon}</Text>
+                            <Text style={{ fontSize: '13px', color: c.fg, flex: 1, lineHeight: '1.5' }}>
+                              <Text style={{ fontWeight: '700' }}>{w.label}：</Text>{w.text}
+                            </Text>
+                          </View>
+                        )
+                      })}
+                    </View>
+                  )}
+                </View>
+              )
+            })()}
             {therapyReport.merchant_note ? (
               <View style={{ marginTop: 8, padding: '8px 10px', borderRadius: '10px', background: '#FFFDF7', border: '1px solid #F0E6CF' }}>
                 <Text style={{ fontSize: '12px', color: '#C2410C', fontWeight: '700', display: 'block', marginBottom: 2 }}>📣 商家食养寄语（系统生成）</Text>
@@ -813,6 +846,12 @@ export default function ProductPage() {
           <View style={{ width: '100%', maxWidth: '320px', background: '#fff', borderRadius: '16px', padding: '18px 16px' }}>
             <Text style={{ fontSize: '17px', fontWeight: '700', color: '#1E3A8A', display: 'block', marginBottom: 4 }}>🔍 食疗安全提示</Text>
             <Text style={{ fontSize: '12px', color: '#6B7280', display: 'block', marginBottom: 10, lineHeight: '1.5' }}>{product?.name} 的食养安全要点，请按需查看</Text>
+            {therapyReport.fit_people ? (
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', background: '#ECFDF3', borderRadius: '10px', padding: '7px 9px', marginBottom: 8 }}>
+                <Text style={{ fontSize: '13px', marginRight: 5, lineHeight: '1.5' }}>✅</Text>
+                <Text style={{ fontSize: '13px', color: '#14532D', flex: 1, lineHeight: '1.5' }}>{therapyReport.fit_people}</Text>
+              </View>
+            ) : null}
             {therapyReport.warnings.map((w, i) => {
               const c = w.level === 'red' ? { bg: '#FEE2E2', fg: '#DC2626', icon: '🔴' } : w.level === 'orange' ? { bg: '#FEF3C7', fg: '#A8552E', icon: '🟠' } : { bg: '#DBEAFE', fg: '#2563EB', icon: '🔵' }
               return (

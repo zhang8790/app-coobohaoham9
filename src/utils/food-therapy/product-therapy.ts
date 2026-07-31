@@ -247,14 +247,14 @@ export function buildTherapyReport(
       level: 'red',
       code: `allergen_${a.name}`,
       label: '过敏风险',
-      text: `${a.name}${a.severity === 'high' ? '（重度提醒）' : ''}，过敏人群禁止食用。`,
+      text: `${a.name}${a.severity === 'high' ? '（重度提醒）' : ''}，过敏者请勿食用。`,
     })
   }
 
   // 橙：体质慎食
   for (const cat of careCategories) {
     const tipMap: Record<string, string> = {
-      体寒: '体寒怕冷、脾胃虚寒、女生生理期人群：番茄等偏凉食材建议搭配生姜同食，不宜空腹吃。',
+      体寒: '体寒怕冷、脾胃虚寒、女生生理期人群：偏凉食材建议搭配生姜、红枣等同食，更温和适口。',
       经期: '生理期女性：偏凉食材建议搭配温性辅料，不宜过量生冷。',
       上火: '容易上火、咽喉肿痛人群：温补食材建议单次少量食用。',
     }
@@ -263,7 +263,7 @@ export function buildTherapyReport(
   // 其它未归类慎食人群也进橙标（去重）
   for (const c of caution) {
     if (warnings.some((w) => w.text.includes(c))) continue
-    warnings.push({ level: 'orange', code: `caution_${c}`, label: '慎食提醒', text: `${c}。`,
+    warnings.push({ level: 'orange', code: `caution_${c}`, label: '食用注意', text: `${c}。`,
     } as TherapyWarning)
   }
 
@@ -284,12 +284,20 @@ export function buildTherapyReport(
     })
   }
 
-  // 适宜人群 = 慢病标签里的「友好/适宜/补充」类 + 通用
-  const fit = chronic
-    .filter((t) => /友好|适宜|营养|补充/.test(t))
-    .join('、')
+  // 适宜人群 = 食材适用场景(fit_scenes) 聚合 + 慢病标签「友好/适宜/营养/补充」类 + 通用兜底
+  // 由食材真实驱动，避免写死通用串；与 warnings 成对呈现，给用户正向信号而非纯警示。
+  const fitScenes = Array.from(
+    new Set(
+      items
+        .flatMap((it) => splitCrowds(it.ingredient.fit_scenes))
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  )
+  const chronicFit = chronic.filter((t) => /友好|适宜|营养|补充/.test(t))
+  const fitParts = [...fitScenes, ...chronicFit]
   const fit_people = sanitizeTherapyCopy(
-    (fit ? fit + '、' : '') + '日常上班族、食欲不佳人群、青少年补充营养',
+    (fitParts.length ? fitParts.join('、') + '、' : '') + '日常佐餐、上班族、青少年营养补给',
   )
 
   // 商家寄语模板（80 字内，合规过滤）

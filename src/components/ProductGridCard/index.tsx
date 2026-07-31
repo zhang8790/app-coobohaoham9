@@ -73,6 +73,10 @@ export default function ProductGridCard({
       : suitability === 'avoid'
         ? { text: '忌口', bg: '#DC2626', fg: '#FFFFFF' }
         : null
+  // 食疗引擎「适宜参考」首条：卡片正向信号，与预警成对呈现，避免只给风险让人划走
+  const fitChip = therapyReport?.fit_people
+    ? therapyReport.fit_people.split(/[、，,]/)[0].slice(0, 6)
+    : ''
   return (
     <View
       className="pg-card relative flex flex-col overflow-hidden"
@@ -130,16 +134,17 @@ export default function ProductGridCard({
                 {therapyReport.overall_nature_code}
               </Text>
             ) : null}
-            {therapyReport.warnings.slice(0, 3).map((w) => {
-              const bg = w.level === 'red' ? '#FEE2E2' : w.level === 'orange' ? '#FEF3C7' : '#DBEAFE'
-              const fg = w.level === 'red' ? '#B91C1C' : w.level === 'orange' ? '#92400E' : '#1E40AF'
-              const dot = w.level === 'red' ? '🔴' : w.level === 'orange' ? '🟠' : '🔵'
-              return (
-                <Text key={w.code} className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: bg, color: fg, whiteSpace: 'nowrap' }} numberOfLines={1}>
-                  {dot}{w.label}
-                </Text>
-              )
-            })}
+            {fitChip ? (
+              <Text className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: '#DCFCE7', color: '#16A34A', whiteSpace: 'nowrap' }} numberOfLines={1}>
+                ✅{fitChip}
+              </Text>
+            ) : null}
+            {/* 卡片仅常驻「过敏」强制警示（合规硬提示），慎食/慢病进详情页主动展开，避免列表靠色差字号误导 */}
+            {therapyReport.warnings.filter((w) => w.level === 'red').slice(0, 1).map((w) => (
+              <Text key={w.code} className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: '#FEE2E2', color: '#B91C1C', whiteSpace: 'nowrap', borderWidth: '1px', borderColor: '#FCA5A5' }} numberOfLines={1}>
+                🔴{w.label}
+              </Text>
+            ))}
           </View>
         )}
 
