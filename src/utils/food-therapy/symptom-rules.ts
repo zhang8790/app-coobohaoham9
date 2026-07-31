@@ -136,6 +136,19 @@ export const DEFAULT_SYMPTOM_RULES: FitRule[] = [
     banHealthTags: [],
     remindText: '运动后可温补，忌立刻冰饮',
   },
+
+  // ── 五、术后 / 体弱调养（食养参考，非医疗建议）──
+  {
+    id: 'recovery-postop',
+    category: 'scene',
+    label: '术后/体弱调养',
+    keywords: ['手术', '术后', '开刀', '开完刀', '伤口', '恢复', '康复', '体弱', '虚弱', '化疗', '病后', '刚出院'],
+    // 术后调养三原则：补气血（恢复体力）+ 健脾胃（易消化）+ 滋阴（助组织修复）
+    priorityHealthTags: ['补气养血', '健脾养胃', '滋阴润燥'],
+    banNatures: ['寒凉', '大寒'],
+    banHealthTags: [],
+    remindText: '温和易消化、循序渐进，忌生冷与发物，具体遵医嘱',
+  },
 ]
 
 // ── 运行时激活规则（可被 DB 覆盖）──

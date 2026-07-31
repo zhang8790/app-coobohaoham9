@@ -94,7 +94,7 @@ const subPackages = [
   },
   {
     root: 'pages/food',
-    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index', 'ingredient-pairing/index'],
+    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index', 'ingredient-pairing/index', 'consult/index'],
   },
   {
     root: 'pages/ext',

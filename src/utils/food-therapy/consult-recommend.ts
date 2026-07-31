@@ -13,11 +13,11 @@
 
 import type { Product, Profile } from '@/db/types'
 import { buildRadarProfile, type RadarProfile } from './radar-profile'
-import { analyzeConsumption, type ConsumptionProfile } from './consumption-profile'
+import { analyzeConsumption, type ConsumptionProfile } from '../consumption-profile'
 import { resolveConstitution } from '../today-food-therapy'
 import { type ConstitutionType } from '@/utils/constitution-test'
 import { getCurrentTerm, getTermNatureTags, type SeasonalTerm } from '../seasonal-box'
-import { nluParseSymptoms, type NluResult } from './llm'
+import { nluParseSymptoms, recommendProductsLLM, type NluResult } from './llm'
 
 // 商品整体性味 6 档（与 NATURE_SCALE 一致）：大寒/寒凉/平性/微温/温热/大热
 const WARM = new Set(['微温', '温热', '大热'])
@@ -188,6 +188,33 @@ export interface RecommendForConsultInput {
   limit?: number
 }
 
+// 食类 → 商品侧匹配词（与 llm.ts FOOD_TYPE_RULES 对齐；命中 category/food_category/name 任一处即算）
+const FOOD_TYPE_MATCH: Record<string, string[]> = {
+  水果: ['水果', '果', '鲜果', '果蔬'],
+  坚果: ['坚果', '果仁', '核桃', '腰果', '花生', '瓜子'],
+  茶: ['茶'],
+  汤羹: ['汤', '羹', '煲'],
+  蔬菜: ['蔬菜', '青菜', '菜'],
+  主食: ['饭', '粥', '面', '杂粮', '米'],
+  零食: ['零食', '糕点', '饼干', '糖果', '蜜饯'],
+  饮: ['饮', '汁', '奶', '酸奶'],
+}
+
+function productMatchesType(p: Product, type: string): boolean {
+  const words = FOOD_TYPE_MATCH[type]
+  if (!words || !words.length) return false
+  const hay = `${(p as any).food_category || ''} ${(p as any).category || ''} ${p.name || ''}`
+  return words.some((w) => hay.includes(w))
+}
+
+// 医疗相关措辞（命中则综述追加"日常食养参考，遵医嘱"声明，符合合规红线）
+const MEDICAL_HINT_WORDS = ['手术', '术后', '开刀', '伤口', '化疗', '病', '药', '医院', '孕期', '怀孕', '哺乳', '炎症', '糖尿', '高血', '医嘱']
+
+function isMedicalQuery(text: string): boolean {
+  if (!text) return false
+  return MEDICAL_HINT_WORDS.some((w) => text.includes(w))
+}
+
 /**
  * 端到端食疗咨询推荐。
  * - 自动构建用户六维画像（来自已购商品）+ 消费偏好 + 体质
@@ -219,12 +246,61 @@ export async function recommendForConsult(input: RecommendForConsultInput): Prom
     boostTags: input.boostTags,
   }
 
-  const recs = input.products
-    .filter((p) => p && p.id)
+  // 候选池：若 NLU 识别出用户点名的食类（如"水果"），则收窄到该类目；
+  // 仅在确能命中时才收窄，避免返回空结果。这是"商品很多时快速定位"的关键。
+  let candidates = input.products.filter((p) => p && p.id)
+  if (nlu?.food_type) {
+    const narrowed = candidates.filter((p) => productMatchesType(p, nlu.food_type!))
+    if (narrowed.length > 0) candidates = narrowed
+  }
+
+  // ── 优先：Qwen 推荐大脑（LLM 网关 food-therapy-ai mode=recommend）──
+  // 把收窄后的候选商品 + 用户画像 + 提问一起发给 Qwen，由它直接排序并给出人话理由。
+  // 这彻底解决了"提问只占 ≤14% 权重、按历史购买乱推"的问题——现在提问才是主导信号。
+  try {
+    const llm = await recommendProductsLLM({
+      queryText: input.queryText || '',
+      products: candidates.slice(0, 40).map(toLlmProduct),
+      profile: buildLlmProfile(constitution, consumption, input.profile ?? null),
+      termName: term?.name,
+      isMedical: isMedicalQuery(input.queryText || ''),
+    })
+    if (llm.source === 'llm' && llm.items.length) {
+      const byId = new Map(candidates.map((p) => [p.id, p]))
+      const recs = llm.items
+        .map((it): ConsultRecommendation | null => {
+          const p = byId.get(it.product_id)
+          if (!p) return null
+          const base = buildConsultRecommendation(p, ctx) // 复用六维/性味/标签富字段
+          const score = clamp01(it.score)
+          return {
+            ...base,
+            total: clamp(Math.round(score * 100), 0, 100),
+            tier: score >= 0.72 ? 'recommend' : score >= 0.4 ? 'caution' : 'avoid',
+            reasons: it.reasons?.length ? it.reasons.slice(0, 3) : base.reasons,
+          }
+        })
+        .filter((x): x is ConsultRecommendation => x !== null)
+      if (recs.length) {
+        return {
+          recommendations: recs,
+          radar,
+          consumption,
+          constitution,
+          nlu,
+          summary: llm.summary || buildSummary(recs, ctx),
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[recommendForConsult] LLM 大脑失败，回退规则引擎', e)
+  }
+
+  // ── 兜底：规则引擎（原逻辑，未配 LLM 或 LLM 异常时照常可用）──
+  const recs = candidates
     .map((p) => buildConsultRecommendation(p, ctx))
     .sort((a, b) => b.total - a.total)
 
-  // 优先展示综合分≥42 的优选项；若全低（画像/池子极不匹配）则兜底取最高 4 件，保证有结果
   const picked = recs.filter((r) => r.total >= 42).slice(0, input.limit ?? 8)
   const finalRecs = picked.length ? picked : recs.slice(0, Math.min(4, recs.length))
 
@@ -238,16 +314,43 @@ export async function recommendForConsult(input: RecommendForConsultInput): Prom
   }
 }
 
+// 候选商品 → 精简 payload（控制 token，描述截断）
+function toLlmProduct(p: Product) {
+  return {
+    id: p.id,
+    name: p.name,
+    nature: p.overall_nature || '',
+    health_tags: (p.health_tag || []).filter(Boolean),
+    food_category: ((p as any).food_category || (p as any).category || '') as string,
+    price: p.price,
+    description: (p.description || '').slice(0, 60),
+    allergens: (p.allergens || []).filter(Boolean),
+  }
+}
+
+// 用户画像 → LLM 推荐大脑所需的精简结构
+function buildLlmProfile(
+  constitution: ConstitutionType | null,
+  consumption: ConsumptionProfile,
+  profile: Profile | null,
+) {
+  return {
+    constitutionName: constitution?.name || '',
+    avoidNature: constitution?.avoidNature || [],
+    topTags: (consumption.topHealthTags || []).map((t) => t.tag),
+    allergies: ((profile?.constitution_tags as string[]) || []).filter(Boolean),
+  }
+}
+
 function buildSummary(recs: ConsultRecommendation[], ctx: ConsultContext): string {
   if (!recs.length) return '当前门店暂无可推荐商品，换个门店或换个诉求再试试～'
   const top = recs[0]
   const parts: string[] = []
-  if (ctx.constitution) parts.push(`结合你的${ctx.constitution.name}`)
-  else if (ctx.radar.hasData) parts.push('结合你的食养画像')
-  else parts.push('结合当季食养')
-  parts.push(`为你优选 ${recs.length} 款`)
+  const ft = ctx.nlu?.food_type
+  parts.push(`为你优选 ${recs.length} 款${ft ? ft : ''}`)
   if (ctx.term) parts.push(`（${ctx.term.name}时令）`)
-  parts.push(`，首选「${top.product.name}」适配度 ${top.total} 分`)
+  parts.push('，首选「' + top.product.name + '」')
+  if (ctx.nlu && isMedicalQuery(ctx.queryText)) parts.push('。以上为日常食养参考，具体请遵医嘱')
   return parts.join('')
 }
 

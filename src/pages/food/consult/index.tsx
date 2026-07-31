@@ -1,8 +1,9 @@
-// 食疗咨询页 · 「我适合吃什么」自动推荐
+// 食疗咨询页 · 「我适合吃什么」自动推荐（纯净咨询窗口）
 // ------------------------------------------------------------
 // 入口：首页悬浮「食疗咨询」+ 我的菜单「食疗咨询」
-// 能力：用户自由问话 → NLU 解析诉求 → 融合「体质 + 已购六维画像 + 节气」
-//       自动排序推荐，呈现六维契合明细与理由。零外部依赖（NLU 规则兜底）。
+// 能力：用户自由问话 → NLU 解析诉求 → 后台融合「体质 + 已购六维画像 + 节气」
+//       自动排序推荐。界面只呈现咨询对话与推荐结果，不展示体质/六维/已购等分析面板。
+//       零外部依赖（NLU 规则兜底）。
 
 import { useEffect, useRef, useState } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
@@ -11,7 +12,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
 import { getProducts, getOrders, getProductsByIds, addToCart } from '@/db/api'
 import { recommendForConsult, type ConsultResult, type ConsultRecommendation } from '@/utils/food-therapy/consult-recommend'
-import RadarChart from '@/components/food/RadarChart'
 import { bumpCartCount } from '@/utils/cartStore'
 import type { Product } from '@/db/types'
 import './index.scss'
@@ -25,14 +25,14 @@ const QUICK_PROMPTS = [
   '体寒怕冷怎么吃',
   '想消暑解腻',
   '脾胃调理吃什么',
+  '刚做完手术，适合吃什么水果',
+  '术后想补补，喝点什么汤',
+  '熬夜后喝什么茶养胃',
+  '想吃点坚果补补脑',
+  '换季干燥，吃什么蔬菜好',
+  '脾胃弱，喝点什么粥养胃',
+  '想吃点粗粮主食替代米饭',
 ]
-
-const TIER_COLOR: Record<string, string> = {
-  recommend: 'linear-gradient(135deg,#16A34A,#22C55E)',
-  caution: 'linear-gradient(135deg,#D97706,#F59E0B)',
-  avoid: 'linear-gradient(135deg,#B91C1C,#EF4444)',
-}
-const TIER_LABEL: Record<string, string> = { recommend: '很适合', caution: '可尝试', avoid: '少点' }
 
 interface Turn {
   q: string
@@ -45,7 +45,6 @@ export default function ConsultPage() {
 
   const [pool, setPool] = useState<Product[]>([])
   const [bought, setBought] = useState<Product[]>([])
-  const [base, setBase] = useState<ConsultResult | null>(null)
   const [turns, setTurns] = useState<Turn[]>([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
@@ -86,14 +85,6 @@ export default function ConsultPage() {
       }
       const boughtRes = ids.length ? await getProductsByIds(ids).catch(() => [] as Product[]) : []
       setBought(boughtRes)
-      const baseRes = await recommendForConsult({
-        products: poolRes,
-        boughtProducts: boughtRes,
-        profile,
-        queryText: '',
-        boostTags,
-      })
-      setBase(baseRes)
     } finally {
       setLoading(false)
     }
@@ -157,38 +148,6 @@ export default function ConsultPage() {
         className="consult-scroll"
         ref={scrollRef}
         scrollWithAnimation>
-        {/* 用户画像卡：体质 + 六维雷达 */}
-        <View className="consult-profile-card">
-          <View className="consult-profile-head">
-            {base?.constitution ? (
-              <View className="consult-constitution" style={{ background: base.constitution.colorLight }}>
-                <Text className="consult-constitution-emoji">{base.constitution.emoji}</Text>
-                <View>
-                  <Text className="consult-constitution-name">{base.constitution.name}</Text>
-                  <Text className="consult-constitution-desc">{base.constitution.description}</Text>
-                </View>
-              </View>
-            ) : (
-              <View
-                className="consult-constitution consult-constitution-empty"
-                onClick={() => Taro.navigateTo({ url: '/pages/food/constitution-test/index' })}>
-                <Text className="consult-constitution-emoji">🧪</Text>
-                <View>
-                  <Text className="consult-constitution-name">还没测体质</Text>
-                  <Text className="consult-constitution-desc">测一测，推荐更精准 →</Text>
-                </View>
-              </View>
-            )}
-          </View>
-
-          {base && (
-            <View className="consult-radar-wrap">
-              <RadarChart dims={base.radar.dims} size={240} />
-              <Text className="consult-radar-summary">{base.radar.summary}</Text>
-            </View>
-          )}
-        </View>
-
         {/* 快捷问法 */}
         <View className="consult-chips">
           {QUICK_PROMPTS.map((p) => (
@@ -202,7 +161,7 @@ export default function ConsultPage() {
         {turns.length === 0 && (
           <View className="consult-empty">
             <Text className="consult-empty-text">
-              例如：「我嗓子干痒怕冷，适合吃什么？」{'\n'}我会结合你的体质与购买喜好，挑出最合拍的几款。
+              例如：「我嗓子干痒怕冷，适合吃什么？」{'\n'}说说你的状态，我帮你挑几款合适的～
             </Text>
           </View>
         )}
@@ -255,10 +214,6 @@ function RecCard({ rec, onAdd }: { rec: ConsultRecommendation; onAdd: () => void
           <Text className="rec-name" numberOfLines={1}>
             {p.name}
           </Text>
-          <View className="rec-score" style={{ background: TIER_COLOR[rec.tier] }}>
-            <Text className="rec-score-num">{rec.total}</Text>
-            <Text className="rec-score-label">{TIER_LABEL[rec.tier]}</Text>
-          </View>
         </View>
 
         <View className="rec-meta">
@@ -268,18 +223,6 @@ function RecCard({ rec, onAdd }: { rec: ConsultRecommendation; onAdd: () => void
             <Text key={t} className="rec-tag">
               {t}
             </Text>
-          ))}
-        </View>
-
-        {/* 六维契合明细 */}
-        <View className="rec-sixdim">
-          {rec.sixDim.map((d) => (
-            <View className="sixdim-row" key={d.key}>
-              <Text className="sixdim-label">{d.label}</Text>
-              <View className="sixdim-track">
-                <View className="sixdim-fill" style={{ width: `${Math.round(d.value * 100)}%` }} />
-              </View>
-            </View>
           ))}
         </View>
 
