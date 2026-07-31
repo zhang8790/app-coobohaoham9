@@ -156,13 +156,13 @@ export default function ProductGridCard({
         {/* 关怀层：食养一句话 + 关怀度 + 食疗标签 + 性味/搭配智能提示 */}
         {care && (
           <View className="flex flex-col gap-1">
-            {care.shiyang && (
-              <Text className="text-xs text-secondary leading-snug line-clamp-2">{care.shiyang}</Text>
-            )}
+            {care.shiyang ? (
+              <Text className="text-xs text-secondary leading-snug line-clamp-2">{sanitizeCardCopy(care.shiyang)}</Text>
+            ) : null}
             <CareBar score={care.careScore} />
-            {/* 食疗标签(赭红)：前台只展示食养维度 */}
+            {/* 食疗标签(赭红)：前台只展示食养维度（过滤含负向词的标签） */}
             <View className="flex items-center gap-1 flex-wrap overflow-hidden" style={{ maxHeight: '44px' }}>
-              {care.healthTags.slice(0, 2).map((t) => (
+              {care.healthTags.filter((t) => !hasNegativeTag(t)).slice(0, 2).map((t) => (
                 <Text key={t} className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/15">{t}</Text>
               ))}
             </View>
@@ -210,6 +210,36 @@ function formatSales(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return '0'
   if (n >= 10000) return `${(Math.floor(n / 1000) / 10).toFixed(1)}万`
   return `${n}`
+}
+
+/**
+ * 商品卡片文案清洗：商品库里的商家运营文案可能含「过敏/慎/禁忌/不宜/风险/警告/高胆固醇/甲壳」
+ * 等负向词，按"只展示正向"原则，截断到首个负向触发词之前，或整句过滤。
+ * 保留所有正向食养/搭配/功效描述。
+ */
+function sanitizeCardCopy(text: string): string {
+  if (!text) return ''
+  // 负向触发词：截断点（保留前半段正向描述）
+  const cutTokens = ['过敏', '慎食', '慎用', '慎搭', '忌口', '禁忌', '不宜', '警告', '风险', '高胆固醇', '甲壳', '海鲜过敏', '痛风', '婴幼儿', '三高', '限量', '少吃']
+  for (const tok of cutTokens) {
+    const idx = text.indexOf(tok)
+    if (idx > 0) {
+      const cut = text.slice(0, idx).trim().replace(/[,，。.;；、\s]+$/, '')
+      if (cut.length >= 4) return cut + '…'
+      // 截断后太短，整句过滤（不渲染）
+      return ''
+    }
+  }
+  // 若整句以负向词开头，整句过滤
+  if (cutTokens.some((tok) => text.startsWith(tok))) return ''
+  return text
+}
+
+/** 标签文本是否含负向词（用于过滤 healthTags / 其它 chip） */
+const NEGATIVE_TAG_TOKENS = ['过敏', '慎', '忌', '不宜', '禁忌', '风险', '警告', '限量', '少吃', '不可', '请勿']
+function hasNegativeTag(t: string): boolean {
+  if (!t) return false
+  return NEGATIVE_TAG_TOKENS.some((tok) => t.includes(tok))
 }
 
 // 关怀度进度条（游戏化：分数越高越被「悉心照看」）
