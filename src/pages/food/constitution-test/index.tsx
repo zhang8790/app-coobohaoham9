@@ -46,8 +46,6 @@ export default function ConstitutionTestPage() {
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  // 安全偏好：过敏成分（选填，用于扫码时个性化强预警；覆盖原「我的体质档案」的过敏原采集）
-  const [allergies, setAllergies] = useState<string[]>([])
 
   const total = TEST_QUESTIONS.length
   const q = TEST_QUESTIONS[currentQ]
@@ -114,10 +112,6 @@ export default function ConstitutionTestPage() {
     try {
       const tags = constitutionToCrowds(result.primary)
       await updateProfile({ constitution_tags: tags })
-      // 覆盖原「我的体质档案」：若用户选了过敏原，写入结构化画像，保留扫码个性化强预警
-      if (allergies.length > 0) {
-        await upsertUserHealthProfile({ user_id: profile.id, allergies })
-      }
       setSaved(true)
       Taro.showToast({ title: '已保存到我的偏好', icon: 'success' })
     } catch (e) {
@@ -390,43 +384,6 @@ export default function ConstitutionTestPage() {
             <Text className="text-[11px] text-[#9CA3AF] leading-relaxed block">
               {FOOD_THERAPY_DISCLAIMER}
             </Text>
-          </View>
-
-          {/* 安全偏好：过敏成分（选填，覆盖原「我的体质档案」的过敏原采集，保留扫码强预警） */}
-          <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-            <Text className="text-sm font-bold text-[#1A1A1A]">安全偏好 · 过敏成分</Text>
-            <Text className="text-xs text-[#6B7280] mt-1 block" style={{ lineHeight: 1.6 }}>
-              选填。设置后扫配料表时，命中你过敏的成分会强提醒，帮你避开风险。
-            </Text>
-            <View className="mt-3 flex flex-row flex-wrap" style={{ gap: 8 }}>
-              {ALLERGY_OPTIONS.map((a) => {
-                const active = allergies.includes(a.key)
-                const high = a.severity === 'high'
-                return (
-                  <View
-                    key={a.key}
-                    onClick={() =>
-                      setAllergies((prev) =>
-                        prev.includes(a.key) ? prev.filter((x) => x !== a.key) : [...prev, a.key],
-                      )
-                    }
-                    className="px-3 py-1.5 rounded-full"
-                    style={{
-                      background: active ? (high ? '#FEE2E2' : '#DB2777') : '#F3F4F6',
-                      borderWidth: 1,
-                      borderColor: active ? (high ? '#DC2626' : '#DB2777') : '#E5E7EB',
-                    }}
-                  >
-                    <Text
-                      className="text-xs"
-                      style={{ color: active ? (high ? '#DC2626' : '#fff') : '#374151' }}
-                    >
-                      {a.name}
-                    </Text>
-                  </View>
-                )
-              })}
-            </View>
           </View>
 
           {/* 操作 */}

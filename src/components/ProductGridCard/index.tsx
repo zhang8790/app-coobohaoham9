@@ -65,17 +65,13 @@ export default function ProductGridCard({
   const effRatio = compact && imageRatio === '1:1' ? '4:3' : imageRatio
   const ratioPad = effRatio === '4:3' ? '75%' : '100%'
 
-  // 「适合我」三态标签配色（绿=适合 / 橙=慎吃 / 红=忌口）
+  // 卡片只展示正向「适合我」信号；负向「慎吃/忌口」不在列表卡呈现（不展示不适合人群）
   const suitBadge = suitability === 'recommend'
     ? { text: '适合我', bg: '#16A34A', fg: '#FFFFFF' }
-    : suitability === 'caution'
-      ? { text: '慎吃', bg: '#C77B47', fg: '#FFFFFF' }
-      : suitability === 'avoid'
-        ? { text: '忌口', bg: '#DC2626', fg: '#FFFFFF' }
-        : null
-  // 食疗引擎「适宜参考」首条：卡片正向信号，与预警成对呈现，避免只给风险让人划走
+    : null
+  // 卡片正向信号：展示「需要/适合的人群」，不展示不适合人群
   const fitChip = therapyReport?.fit_people
-    ? therapyReport.fit_people.split(/[、，,]/)[0].slice(0, 6)
+    ? therapyReport.fit_people.split(/[、，,]/).slice(0, 2).join('、')
     : ''
   return (
     <View
@@ -136,10 +132,10 @@ export default function ProductGridCard({
             ) : null}
             {fitChip ? (
               <Text className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: '#DCFCE7', color: '#16A34A', whiteSpace: 'nowrap' }} numberOfLines={1}>
-                ✅{fitChip}
+                ✅适合{fitChip}
               </Text>
             ) : null}
-            {/* 列表卡片保持纯净：过敏提示仅在详情页「配料说明」折叠区展示，避免列表页吓退用户、影响转化 */}
+            {/* 列表卡片不含过敏原提示，避免信息过载 */}
           </View>
         )}
 
@@ -170,20 +166,17 @@ export default function ProductGridCard({
                 <Text key={t} className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary border border-primary/15">{t}</Text>
               ))}
             </View>
-            {/* 性味(寒热有色) + 宜搭/慎搭智能提示：商品更懂用户、更科学搭配 */}
+            {/* 性味(寒热有色) + 宜搭正向智能提示：商品更懂用户、更科学搭配 */}
             <View className="flex items-center justify-between">
               <Text className="text-xs leading-tight" style={{ color: NATURE_COLOR[care.nature ?? ''] ?? '#8C7E6E' }}>
                 {care.nature ? `· ${care.nature}` : '· 性味待补'}
               </Text>
-              {(care.matchCount > 0 || care.conflictCount > 0) && (
+              {care.matchCount > 0 && (
                 <Text className="flex-shrink-0 text-xs text-muted-foreground leading-tight">
-                  {care.matchCount > 0 ? `宜搭${care.matchCount} ` : ''}{care.conflictCount > 0 ? `· 慎搭${care.conflictCount}` : ''}
+                  宜搭{care.matchCount}
                 </Text>
               )}
             </View>
-            {care.auxRemind && (
-              <Text className="text-xs leading-snug line-clamp-1" style={{ color: '#B45309' }}>⚠ {care.auxRemind}</Text>
-            )}
           </View>
         )}
 

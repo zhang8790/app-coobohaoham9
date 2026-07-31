@@ -76,7 +76,7 @@ function writeConsumeCache(uid: string, data: { profile: ConsumptionProfile; bou
 export default function IndexPage() {
   const { profile } = useAuth()
   const { currentCity, currentLocation, currentStore, nearbyStores, loading: locationLoading, detectLocation } = useLocation()
-  const { selectedCrowds, toggleCrowd, clearFilters, getSuitability, userAllergens, hasHealthProfile } = useFoodTherapy()
+  const { selectedCrowds, toggleCrowd, clearFilters, getSuitability, hasHealthProfile } = useFoodTherapy()
   // 定位自动触发：用 ref 持有 detectLocation（函数已稳定化，不放入 effect 依赖以免触发重跑），
   // 并用 locatingRef 在首批定位完成前锁住后续触发，根治「定位一直在闪烁」的回流循环
   const detectLocationRef = useRef(detectLocation)
@@ -102,9 +102,8 @@ export default function IndexPage() {
   const [mood, setMood] = useState('')
   // 首页分类金刚区：本地筛选主商品流（不影响画像/即时匹配区块）
   const [catFilter, setCatFilter] = useState<string | null>(null)
-  // 「适合我」个性化筛选：仅看适合我的好物 / 仅看无我过敏源的好物
+  // 「适合我」个性化筛选：仅看适合我的好物
   const [fitOnly, setFitOnly] = useState(false)
-  const [noAllergen, setNoAllergen] = useState(false)
   // 状态卡「你关注的食养偏好」默认折叠，降低首屏高度
   const [showBodyStates, setShowBodyStates] = useState(false)
   // 状态卡默认收起为「一行胶囊」，点击才展开输入（去头重脚轻）
@@ -386,22 +385,17 @@ export default function IndexPage() {
       return matchItems.map(m => ({
         product: m.product,
         matchScore: m.tier === 'recommend' ? 9 : m.tier === 'caution' ? 4 : 1,
-        matchLabel: m.tier === 'recommend' ? '五星推荐' : m.tier === 'caution' ? '谨慎食用' : null,
+        matchLabel: m.tier === 'recommend' ? '五星推荐' : null,
       }))
     }
     const hideIds = new Set(personalizedItems.map((p) => p.id))
-    const allergenSet = new Set(userAllergens)
     return feedItems.filter((f) => {
       if (hideIds.has(f.product.id)) return false
       if (catFilter && (f.product.food_category || '') !== catFilter) return false
       if (fitOnly && getSuitability(f.product) !== 'recommend') return false
-      if (noAllergen && allergenSet.size > 0) {
-        const pa = (f.product as any).allergens as string[] | undefined
-        if (pa && pa.some((a) => allergenSet.has(a))) return false
-      }
       return true
     })
-  }, [hasQuery, matchItems, feedItems, personalizedItems, catFilter, fitOnly, noAllergen, getSuitability, userAllergens])
+  }, [hasQuery, matchItems, feedItems, personalizedItems, catFilter, fitOnly, getSuitability])
 
   // 食疗引擎报告映射（与详情页/门店卡同源）：首页商品池一次性算好，卡片直接取用
   const therapyMap = useMemo<Record<string, ProductTherapyReport | null>>(() => {
@@ -998,21 +992,6 @@ export default function IndexPage() {
                 >
                   <Text>✅ 适合我</Text>
                 </View>
-                {/* 无我过敏源：排除含我过敏原的好物 */}
-                <View
-                  hoverClass="none"
-                  onClick={() => setNoAllergen((v) => !v)}
-                  className="px-3 py-1.5 rounded-full text-sm flex-shrink-0 flex items-center gap-1"
-                  style={{
-                    background: noAllergen ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--card))',
-                    color: noAllergen ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-                    borderWidth: 1,
-                    borderColor: noAllergen ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border))',
-                    fontWeight: noAllergen ? 'bold' : 'normal',
-                  }}
-                >
-                  <Text>🚫 无我过敏源</Text>
-                </View>
               </>
             )}
           </View>
@@ -1211,14 +1190,13 @@ function FitCard({ product, onTap, tier, onAddCart }: { product: Product; onTap:
   const care = useMemo(() => {
     try { return getProductCareInfo(product) } catch { return null }
   }, [product])
+  // 适合我专区：卡片只展示正向「五星推荐」，负向「谨慎食用」不呈现（不展示不适合人群）
   const tierBadge = tier === 'recommend'
     ? { text: '五星推荐', bg: '#16A34A', fg: '#FFFFFF' }
-    : tier === 'caution'
-      ? { text: '谨慎食用', bg: '#C77B47', fg: '#FFFFFF' }
-      : null
+    : null
   const dot = natureDotColor(care?.nature)
   const healthTag = care?.healthTags?.[0]
-  const hasCare = !!dot || !!healthTag || (care?.conflictCount ?? 0) > 0
+  const hasCare = !!dot || !!healthTag
   return (
     <View onClick={onTap}
       className="pg-card flex-shrink-0 w-40 relative overflow-hidden"
@@ -1256,9 +1234,6 @@ function FitCard({ product, onTap, tier, onAddCart }: { product: Product; onTap:
             )}
             {healthTag && (
               <Text style={{ fontSize: 10, lineHeight: '14px', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 9999, background: 'rgba(194,65,12,0.12)', color: '#C2410C' }}>{healthTag}</Text>
-            )}
-            {care && care.conflictCount > 0 && (
-              <Text style={{ fontSize: 10, lineHeight: '14px', fontWeight: 'bold', color: '#C77B47' }}>⚠{care.conflictCount}</Text>
             )}
           </View>
         )}

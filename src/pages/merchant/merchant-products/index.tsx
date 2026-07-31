@@ -206,7 +206,7 @@ function MerchantProductsPage() {
     setForm(f => ({
       ...f,
       overall_nature: therapyReport.overall_nature_code,
-      allergens: therapyReport.allergens.map(a => a.name),
+      allergens: ingredientItems.flatMap((it) => (it.allergens as string[] | undefined) || []).filter(Boolean),
       safety_summary: [therapyReport.caution_people, ...therapyReport.chronic_tags].filter(Boolean).join('；'),
       aux_remind: therapyReport.caution_people,
     }))

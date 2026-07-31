@@ -400,7 +400,7 @@ export default function StoreHomePage() {
                     )
                   })()}
                   <View style={{ padding: '10px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                    {/* 食疗引擎结果：体感 · 适宜 · 过敏（与详情页/卡片同源，合规一致） */}
+                    {/* 食疗引擎结果：体感 · 适宜（与详情页/卡片同源，不含警示色） */}
                     {tr && (
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
                         {tr.overall_nature_code ? (
@@ -413,11 +413,6 @@ export default function StoreHomePage() {
                             <Text style={{ fontSize: '10px', color: '#16A34A' }} numberOfLines={1}>✅{tr.fit_people.split(/[、,，]/)[0]}</Text>
                           </View>
                         ) : null}
-                        {tr.warnings.filter((w) => w.level === 'red').slice(0, 1).map((w, i) => (
-                          <View key={i} style={{ backgroundColor: '#FEE2E2', borderRadius: '6px', paddingVertical: '1px', paddingHorizontal: '5px', borderWidth: '1px', borderColor: '#FCA5A5' }}>
-                            <Text style={{ fontSize: '10px', color: '#B91C1C' }} numberOfLines={1}>🔴{w.label}</Text>
-                          </View>
-                        ))}
                       </View>
                     )}
                     <Text style={{ fontSize: '15px', fontWeight: 'bold', color: '#1A1A1A' }} numberOfLines={2}>{p.name}</Text>

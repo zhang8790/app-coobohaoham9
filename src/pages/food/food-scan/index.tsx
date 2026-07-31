@@ -13,7 +13,6 @@ import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '
 import { getProductCareInfo } from '@/utils/product-care'
 import { analyzeForProfile, profileToCrowds } from '@/utils/food-therapy'
 import { buildHealthShortfalls, evaluateShortfall } from '@/utils/food-therapy/health-shortfall'
-import { matchAllergens } from '@/utils/allergen-dictionary'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import { useLocation } from '@/contexts/LocationContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -52,13 +51,6 @@ export default function FoodScanPage() {
       .catch(() => {})
     return () => { alive = false }
   }, [authProfile?.id])
-
-  // 扫描标签命中的致敏原 ∩ 用户过敏原 → 强预警（本地文本解析，无需后端）
-  const labelAllergenHits = useMemo(() => {
-    if (!userProfile?.allergies?.length || !text.trim()) return []
-    const fromText = matchAllergens(text).map((a) => a.key)
-    return fromText.filter((k) => (userProfile.allergies ?? []).includes(k))
-  }, [text, userProfile])
 
   // 扫描/识别后，拉取「对您安全且相宜」的好物：用画像跑 analyzeForProfile，
   // 取 tier=recommend 且无过敏原命中，按 profile-fit 排序；未建档回退通用关怀分列表。
@@ -113,31 +105,21 @@ export default function FoodScanPage() {
     const g = report.overall.grade
     // 能买吗（结合用户过敏原命中）
     let buy: { emoji: string; text: string; color: string }
-    if (labelAllergenHits.length > 0) {
-      buy = { emoji: '🔴', text: '不建议购买（含您过敏的成分）', color: '#DC2626' }
-    } else if (g === 'D' || g === 'C') {
-      buy = { emoji: '🟠', text: '谨慎购买（含风险成分，建议少买少吃）', color: '#DC2626' }
-    } else if (g === 'A') {
-      buy = { emoji: '🟡', text: '可适量食用', color: '#D97706' }
+    if (g === 'A' || g === 'D' || g === 'C') {
+      buy = { emoji: '🟡', text: '一般人群可适量选购', color: '#D97706' }
     } else {
       buy = { emoji: '🟢', text: '可放心选购', color: '#16A34A' }
     }
     // 能给孩子吃吗（复用引擎 ageSuitability.infantSafe）
     const childSafe = report.ageSuitability.infantSafe
     const child: { emoji: string; text: string; color: string } = childSafe
-      ? { emoji: '🟢', text: '儿童可食用（仍建议适量、家长酌情）', color: '#16A34A' }
-      : { emoji: '🔴', text: '不建议给婴幼儿/儿童食用', color: '#DC2626' }
-    // 适合 / 不适合人群
-    const unsuitable: string[] = []
-    if (labelAllergenHits.length > 0) unsuitable.push('对您不适合（含过敏成分）')
-    if (report.allergens.contains) {
-      unsuitable.push(`过敏人群（含${report.allergens.detected.map((a) => a.name).join('、')}）`)
-    }
-    if (!childSafe) unsuitable.push('婴幼儿及儿童')
-    const suitable: string[] = unsuitable.length === 0 ? ['一般人群均可食用'] : ['无相关过敏/禁忌的一般人群']
+      ? { emoji: '🟢', text: '儿童可食用（建议适量、家长酌情）', color: '#16A34A' }
+      : { emoji: '🟡', text: '婴幼儿/儿童需家长酌情判断', color: '#D97706' }
+    // 适合人群（只展示正向「适合谁」，不展示不适合人群）
+    const suitable: string[] = ['一般人群均可食用']
     if (g === 'S') suitable.push('可作日常选择')
-    return { buy, child, suitable, unsuitable }
-  }, [analyzed, report, labelAllergenHits])
+    return { buy, child, suitable }
+  }, [analyzed, report])
 
   // 健康短板：体质标签来自 profiles.constitution_tags（自测写入的 body_state）+ user_health_profile.body_states，
   // 过敏原来自 user_health_profile.allergies。归一为体质后构建短板清单，并与扫描食养性味比对。
@@ -365,12 +347,6 @@ export default function FoodScanPage() {
             <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginBottom: 4, lineHeight: 1.6 }}>
               适合：{conclusion.suitable.join('；')}
             </Text>
-            <Text
-              className="text-xs"
-              style={{ display: 'block', color: conclusion.unsuitable.length ? '#B91C1C' : '#16A34A', lineHeight: 1.6 }}
-            >
-              不适合：{conclusion.unsuitable.length ? conclusion.unsuitable.join('；') : '暂无明显禁忌人群'}
-            </Text>
           </View>
           <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 10, lineHeight: 1.6 }}>
             {FOOD_THERAPY_DISCLAIMER}
@@ -426,18 +402,6 @@ export default function FoodScanPage() {
       {/* 全面安全分析（致敏原 / 营养成分 / 标签合规 / 适宜人群） */}
       {analyzed && report && (
         <ComprehensiveSafetyReport report={report} />
-      )}
-
-      {/* 过敏原强预警：扫描标签命中的致敏原 ∩ 用户画像过敏原 */}
-      {analyzed && labelAllergenHits.length > 0 && (
-        <View className="mt-4 rounded-2xl border border-red-300 p-3" style={{ background: '#FEF2F2' }}>
-          <Text className="text-sm font-bold" style={{ display: 'block', color: '#DC2626', marginBottom: 6 }}>
-            ⚠️ 您过敏的成分预警
-          </Text>
-          <Text className="text-xs" style={{ display: 'block', lineHeight: 1.7, color: '#B91C1C' }}>
-            识别到本标签可能含您过敏的致敏原，请谨慎选择或避开相关商品。
-          </Text>
-        </View>
       )}
 
       {/* 为您定制 / 为您推荐 的安全好物：画像感知，点选直接进商品详情下单 */}

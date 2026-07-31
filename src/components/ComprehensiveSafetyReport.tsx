@@ -3,9 +3,8 @@
  * ------------------------------------------------------------------
  * 在 FoodSafetyPanel（添加剂安全 + 食养成分）之外，补齐「全面安全分析」维度：
  *   🛡 总评级（S/A/C/D + 0~100 分）
- *   🚨 致敏原（GB 7718 八大类 + 芝麻，儿童重点）
  *   🥗 营养成分（高糖/高钠/高脂/反式脂肪评估）
- *   👶 适宜人群 / 警示（婴幼儿、过敏人群）
+ *   👶 适宜人群 / 警示
  *   🏷 标签合规（完整标签语境下展示缺失项）
  * 无内容时不渲染。
  */
@@ -28,7 +27,7 @@ export default function ComprehensiveSafetyReport({
 }) {
   if (!report?.hasContent) return null
 
-  const { overall, allergens, nutrition, label, ageSuitability, warnings } = report
+  const { overall, nutrition, label, ageSuitability, warnings } = report
 
   return (
     <View className="mx-4 mt-4 rounded-2xl border border-black/5 p-4" style={{ background: '#fff' }}>
@@ -54,45 +53,6 @@ export default function ComprehensiveSafetyReport({
           </Text>
           <Text style={{ fontSize: 16, fontWeight: 'bold', color: overall.color }}>{overall.score}</Text>
         </View>
-      </View>
-
-      {/* 致敏原 */}
-      <View style={{ marginTop: 12 }}>
-        <Text className="text-sm font-semibold text-foreground" style={{ display: 'block', marginBottom: 6 }}>
-          🚨 致敏原
-        </Text>
-        {allergens.contains ? (
-          allergens.detected.map((a) => {
-            const c = a.severity === 'high' ? '#DC2626' : '#D97706'
-            return (
-              <View
-                key={a.key}
-                style={{
-                  marginBottom: 8,
-                  padding: 8,
-                  borderRadius: 12,
-                  backgroundColor: c + '0F',
-                  borderWidth: 1,
-                  borderColor: c + '33',
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 13, fontWeight: 'bold', color: c }}>{a.name}</Text>
-                  <Text style={{ fontSize: 10, color: c, backgroundColor: '#fff', padding: '1px 6px', borderRadius: 999, overflow: 'hidden' }}>
-                    {a.category}
-                  </Text>
-                </View>
-                <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 3, lineHeight: 1.6 }}>
-                  {a.note}
-                </Text>
-              </View>
-            )
-          })
-        ) : (
-          <Text className="text-xs text-muted-foreground" style={{ display: 'block', lineHeight: 1.6, color: '#16A34A' }}>
-            ✅ 未识别到常见致敏原（GB 7718 八大类 + 芝麻）
-          </Text>
-        )}
       </View>
 
       {/* 营养成分 */}

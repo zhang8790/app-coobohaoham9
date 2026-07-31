@@ -29,11 +29,6 @@ export interface ProductIngredientInput {
   aux?: string[] // 辅料：盐 / 糖 / 食用油 ...
 }
 
-export interface TherapyAllergen {
-  name: string
-  severity: 'high' | 'mid' // high=重度提醒（红），mid=中度（红·轻）
-}
-
 export interface TherapyWarning {
   level: 'red' | 'orange' | 'blue' // 红=过敏风险 / 橙=体质慎食 / 蓝=慢病适配
   code: string
@@ -45,7 +40,6 @@ export interface ProductTherapyReport {
   overall_nature_code: string // 微凉 / 平性 ...（计算所得主导性味）
   overall_nature: string // 描述语：微凉性平组合
   combined_effect: string // 综合功效
-  allergens: TherapyAllergen[] // 合并过敏原（占比高→重度，置顶）
   fit_people: string // 适宜人群
   caution_people: string // 慎食人群
   chronic_tags: string[] // 慢病适配标签（去重）
@@ -171,30 +165,7 @@ export function mergeEffect(items: ProductIngredientInput[]): string {
   return sanitizeTherapyCopy(merged.join('、'))
 }
 
-// ---------- 3. 过敏原合并（占比高→重度，置顶） ----------
-export function mergeAllergens(items: ProductIngredientInput[]): TherapyAllergen[] {
-  const totalRatio = items.reduce((s, it) => s + (it.ratio || 0), 0)
-  const useRatio = totalRatio > 0
-  const map = new Map<string, number>()
-  for (const it of items) {
-    const als = it.ingredient.allergens || []
-    for (const a of als) {
-      const w = useRatio ? (it.ratio || 0) : 1
-      map.set(a, (map.get(a) || 0) + w)
-    }
-  }
-  const result: TherapyAllergen[] = []
-  for (const [name, w] of map.entries()) {
-    // 重度门槛：该过敏原食材占比(或权重) ≥ 40% 视为重度提醒（蛋类在蛋类菜品天然触发）
-    const severity: 'high' | 'mid' = w >= 40 ? 'high' : 'mid'
-    result.push({ name, severity })
-  }
-  // 重度置顶
-  result.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'high' ? -1 : 1))
-  return result
-}
-
-// ---------- 4. 慎食人群 + 慢病标签 ----------
+// ---------- 3. 慎食人群 + 慢病标签 ----------
 function splitCrowds(s?: string | null): string[] {
   return (s || '')
     .split(/[、，,]/)
@@ -243,20 +214,9 @@ export function buildTherapyReport(
 ): ProductTherapyReport {
   const nature = mergeNature(items)
   const combined_effect = mergeEffect(items)
-  const allergens = mergeAllergens(items)
   const { caution, chronic, careCategories } = mergeCrowds(items)
 
   const warnings: TherapyWarning[] = []
-
-  // 红：过敏风险（最优先）
-  for (const a of allergens) {
-    warnings.push({
-      level: 'red',
-      code: `allergen_${a.name}`,
-      label: '过敏风险',
-      text: `${a.name}${a.severity === 'high' ? '（重度提醒）' : ''}，过敏者请勿食用。`,
-    })
-  }
 
   // 橙：体质慎食
   for (const cat of careCategories) {
@@ -310,7 +270,6 @@ export function buildTherapyReport(
   // 商家寄语模板（80 字内，合规过滤）
   const merchant_note = sanitizeTherapyCopy(
     `${productName}为${nature.desc}食养，${combined_effect}；日常温和适口。` +
-      (allergens.length ? `${allergens.map((a) => a.name + '过敏者请勿下单').join('，')}；` : '') +
       (chronic.some((t) => /高血压/.test(t)) ? '高血压食客建议清淡做法食用。' : ''),
   ).slice(0, 80)
 
@@ -318,7 +277,6 @@ export function buildTherapyReport(
     overall_nature_code: nature.code,
     overall_nature: nature.desc,
     combined_effect,
-    allergens,
     fit_people,
     caution_people: caution.join('；'),
     chronic_tags: chronic,
@@ -329,22 +287,14 @@ export function buildTherapyReport(
 }
 
 // 首屏一句话抓心结论：基于真实配料计算，给确定性体感，非功效断言。
-// 过敏存在时主句硬提示（合规不可弱化），否则给正向体感结论。
+// 始终给正向体感结论，不渲染风险警示。
 export interface TherapyHeadline {
   main: string // 抓心主句（首屏最大字号）
   sub: string // 补充副句
 }
 
 export function buildTherapyHeadline(r: ProductTherapyReport): TherapyHeadline {
-  const red = r.warnings.find((w) => w.level === 'red')
   const feeling = NATURE_FEELING[r.overall_nature_code] || ''
-  if (red) {
-    const name = r.allergens[0]?.name || '过敏成分'
-    return {
-      main: `含${name} · 过敏请务必留意`,
-      sub: feeling ? `${feeling} · 其余朋友可安心享用` : '其余朋友可安心享用',
-    }
-  }
   const main = feeling ? `${feeling} · 多数人都能安心吃` : '食养参考 · 适量为宜'
   const sub = r.fit_people
     ? `适合${r.fit_people.split('、')[0].replace(/等$/, '')}等`

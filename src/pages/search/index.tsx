@@ -16,8 +16,7 @@ export default function SearchPage() {
   const [searched, setSearched] = useState(false)
   // 「适合我」个性化筛选（仅对已完成健康画像的用户生效）
   const [fitOnly, setFitOnly] = useState(false)
-  const [noAllergen, setNoAllergen] = useState(false)
-  const { getSuitability, userAllergens, hasHealthProfile } = useFoodTherapy()
+  const { getSuitability, hasHealthProfile } = useFoodTherapy()
   const [history, setHistory] = useState<string[]>(() => {
     try { return JSON.parse(Taro.getStorageSync('search_history') || '[]') } catch { return [] }
   })
@@ -52,19 +51,14 @@ export default function SearchPage() {
     setResults([])
   }
 
-  // 「适合我」筛选：基于画像分档 + 过敏原排除，零网络，纯前端过滤
+  // 「适合我」筛选：基于画像分档，零网络，纯前端过滤
   const filteredResults = useMemo(() => {
     if (!hasHealthProfile) return results
-    const allergenSet = new Set(userAllergens)
     return results.filter((p) => {
       if (fitOnly && getSuitability(p) !== 'recommend') return false
-      if (noAllergen && allergenSet.size > 0) {
-        const pa = (p as any).allergens as string[] | undefined
-        if (pa && pa.some((a) => allergenSet.has(a))) return false
-      }
       return true
     })
-  }, [results, fitOnly, noAllergen, getSuitability, userAllergens, hasHealthProfile])
+  }, [results, fitOnly, getSuitability, hasHealthProfile])
 
   // 支持从情绪检测页(?keyword=关键词) / 自营页(?mood=标签) 带参跳转自动搜索
   useEffect(() => {
@@ -181,21 +175,7 @@ export default function SearchPage() {
                   >
                     <Text>✅ 适合我</Text>
                   </View>
-                  <View
-                    hoverClass="none"
-                    onClick={() => setNoAllergen((v) => !v)}
-                    className="px-3 py-1.5 rounded-full text-sm flex-shrink-0"
-                    style={{
-                      background: noAllergen ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--card))',
-                      color: noAllergen ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-                      borderWidth: 1,
-                      borderColor: noAllergen ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border))',
-                      fontWeight: noAllergen ? 'bold' : 'normal',
-                    }}
-                  >
-                    <Text>🚫 无我过敏源</Text>
-                  </View>
-                  {(fitOnly || noAllergen) && (
+                  {fitOnly && (
                     <Text className="text-sm text-muted-foreground">已筛出 <Text className="text-primary font-bold">{filteredResults.length}</Text> 件</Text>
                   )}
                 </View>

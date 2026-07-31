@@ -54,9 +54,7 @@ export default function ProductPage() {
   const [product, setProduct] = useState<Product | null>(null)
   const [foodAdditives, setFoodAdditives] = useState<FoodAdditive[]>([])
   const [loading, setLoading] = useState(true)
-  const [expandCautions, setExpandCautions] = useState(false)
-  const [expandAllergens, setExpandAllergens] = useState(false)
-  const [adding, setAdding] = useState(false)
+const [adding, setAdding] = useState(false)
   const cartCount = useCartCount()
   const [myCode, setMyCode] = useState('')
   const [isFav, setIsFav] = useState(false)
@@ -149,9 +147,9 @@ export default function ProductPage() {
     return buildTherapyReport(product.name, inputs)
   }, [product, ingredientDict])
 
-  // 特殊人群自动弹窗：只推正向能量（有适宜人群或含提示即弹），每个商品仅弹一次
+  // 特殊人群自动弹窗：有适宜人群(益处)才弹，仅展示益处，每个商品仅弹一次
   useEffect(() => {
-    if (therapyReport && (therapyReport.fit_people || therapyReport.warnings.length > 0) && crowdPopupShownForRef.current !== id) {
+    if (therapyReport && therapyReport.fit_people && crowdPopupShownForRef.current !== id) {
       crowdPopupShownForRef.current = id
       setShowCrowdPopup(true)
     }
@@ -474,59 +472,6 @@ export default function ProductPage() {
                 <Text style={{ fontSize: '13px', color: '#14532D', display: 'block', lineHeight: '1.6' }}>{therapyReport.fit_people.split('、').slice(0, 3).join('、')}{therapyReport.fit_people.split('、').length > 3 ? ' 等' : ''}</Text>
               </View>
             ) : null}
-            {/* 过敏原提示：法律强制披露（GB7718/消法第18条），但不在首屏用红框压迫——改为中性「配料说明」折叠，用户主动点开才见，信息始终可获取不隐瞒 */}
-            {(() => {
-              const reds = therapyReport.warnings.filter((w) => w.level === 'red')
-              if (reds.length === 0) return null
-              return (
-                <View style={{ marginTop: 8 }}>
-                  <View onClick={() => setExpandAllergens((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                    <Text style={{ fontSize: '13px', color: '#475569', fontWeight: '600' }}>配料说明 ⚠️</Text>
-                    <Text style={{ fontSize: '12px', color: '#94A3B8' }}>{expandAllergens ? '收起 ▲' : '查看 ›'}</Text>
-                  </View>
-                  {expandAllergens && (
-                    <View style={{ marginTop: 6 }}>
-                      {reds.map((w, i) => (
-                        <View key={w.code + i} style={{ flexDirection: 'row', alignItems: 'flex-start', background: '#FEF2F2', borderRadius: '10px', padding: '8px 10px', marginTop: i === 0 ? 0 : 6, border: '1px solid #F1B0B0' }}>
-                          <Text style={{ fontSize: '13px', marginRight: 4, lineHeight: '1.5' }}>⚠️</Text>
-                          <Text style={{ fontSize: '13px', color: '#C0392B', flex: 1, lineHeight: '1.5' }}>
-                            <Text style={{ fontWeight: '700' }}>{w.label}：</Text>{w.text}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              )
-            })()}
-            {/* 食用注意（慎食/慢病）：建议性质，默认折叠，用户主动展开——信息可获取不隐藏，亦不靠排版误导 */}
-            {(() => {
-              const cautions = therapyReport.warnings.filter((w) => w.level !== 'red')
-              if (cautions.length === 0) return null
-              return (
-                <View style={{ marginTop: 8 }}>
-                  <View onClick={() => setExpandCautions((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                    <Text style={{ fontSize: '13px', color: '#475569', fontWeight: '600' }}>小提醒（{cautions.length}）</Text>
-                    <Text style={{ fontSize: '12px', color: '#94A3B8' }}>{expandCautions ? '收起 ▲' : '查看详情 ›'}</Text>
-                  </View>
-                  {expandCautions && (
-                    <View style={{ marginTop: 6 }}>
-                      {cautions.map((w, i) => {
-                        const c = w.level === 'orange' ? { bg: '#FEF3C7', fg: '#A8552E', icon: '🟠' } : { bg: '#DBEAFE', fg: '#2563EB', icon: '🔵' }
-                        return (
-                          <View key={w.code + i} style={{ flexDirection: 'row', alignItems: 'flex-start', background: c.bg, borderRadius: '10px', padding: '6px 8px', marginTop: i === 0 ? 0 : 6 }}>
-                            <Text style={{ fontSize: '13px', marginRight: 4, lineHeight: '1.5' }}>{c.icon}</Text>
-                            <Text style={{ fontSize: '13px', color: c.fg, flex: 1, lineHeight: '1.5' }}>
-                              <Text style={{ fontWeight: '700' }}>{w.label}：</Text>{w.text}
-                            </Text>
-                          </View>
-                        )
-                      })}
-                    </View>
-                  )}
-                </View>
-              )
-            })()}
             {therapyReport.merchant_note ? (
               <View style={{ marginTop: 8, padding: '8px 10px', borderRadius: '10px', background: '#FFFDF7', border: '1px solid #F0E6CF' }}>
                 <Text style={{ fontSize: '12px', color: '#C2410C', fontWeight: '700', display: 'block', marginBottom: 2 }}>📣 商家食养寄语（系统生成）</Text>
@@ -552,13 +497,11 @@ export default function ProductPage() {
           const eatAmount = stageMod.stage === '补'
             ? '建议每日 1–2 份，作为日常营养补充，不宜过量。'
             : stageMod.stage === '清' || stageMod.stage === '通'
-            ? '建议每日 1–2 份，适量为宜；肠胃敏感者可从小量开始。'
+            ? '建议每日 1–2 份，肠胃敏感者可从小量开始。'
             : '建议每日 1–2 份，随餐或两餐之间食用，细嚼慢咽更舒服。'
 
-          // 人群决策标签（推荐 / 适量 / 不推荐）
+          // 人群标签栏：只展示推荐人群
           const crowdRec = Array.from(new Set([...(foodBenefit?.suitableFor || []), ...(input.rec_crowds || [])])).slice(0, 4)
-          const crowdCautious = Array.from(new Set(input.cautious_crowds || [])).slice(0, 4)
-          const crowdForbidden = Array.from(new Set(input.forbidden_crowds || [])).slice(0, 4)
           return (
             <View className="mt-3" style={{ padding: '12px 14px', borderRadius: '16px', background: '#F6FBF7', border: '1px solid #D6EFD8' }}>
               <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>🍵 日常食养参考</Text>
@@ -571,22 +514,16 @@ export default function ProductPage() {
                 <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6', marginTop: 2 }}>{stageMod.oneLiner}</Text>
                 {input.food_category && (
                   <Text style={{ fontSize: '12px', color: '#16A34A', display: 'block', marginTop: 2 }}>
-                    分类：{input.food_category}{input.overall_nature ? ` · 整体食性偏${input.overall_nature}（温和食养，适量为宜）` : ''}
+                    分类：{input.food_category}{input.overall_nature ? ` · 食性${input.overall_nature}` : ''}
                   </Text>
                 )}
               </View>
 
               {/* 人群标签栏：3 秒决策 */}
-              {(crowdRec.length > 0 || crowdCautious.length > 0 || crowdForbidden.length > 0) && (
+              {crowdRec.length > 0 && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                   {crowdRec.map((c, i) => (
                     <Text key={'r' + i} style={{ fontSize: '12px', color: '#16A34A', background: '#DCFCE7', paddingVertical: '3px', paddingHorizontal: '8px', borderRadius: '999px', marginRight: 6, marginBottom: 6 }}>✅ {c}</Text>
-                  ))}
-                  {crowdCautious.map((c, i) => (
-                    <Text key={'c' + i} style={{ fontSize: '12px', color: '#A8552E', background: '#FEF3C7', paddingVertical: '3px', paddingHorizontal: '8px', borderRadius: '999px', marginRight: 6, marginBottom: 6 }}>⚠️ 适量 {c}</Text>
-                  ))}
-                  {crowdForbidden.map((c, i) => (
-                    <Text key={'f' + i} style={{ fontSize: '12px', color: '#DC2626', background: '#FEE2E2', paddingVertical: '3px', paddingHorizontal: '8px', borderRadius: '999px', marginRight: 6, marginBottom: 6 }}>❌ 不推荐 {c}</Text>
                   ))}
                 </View>
               )}
@@ -641,9 +578,6 @@ export default function ProductPage() {
                 ) : (
                   <Text style={{ fontSize: '12px', color: '#9CA3AF', display: 'block' }}>暂无说明</Text>
                 )}
-                {!foodBenefit && input.risk_warning && (
-                  <Text style={{ fontSize: '13px', color: '#A8552E', display: 'block', lineHeight: '1.6', marginTop: 4 }}>⚠️ 风险提示：{input.risk_warning}</Text>
-                )}
               </CollapsibleSection>
 
               {/* 模块3：人群适配提示（折叠，默认收起） */}
@@ -654,13 +588,7 @@ export default function ProductPage() {
                 {input.rec_crowds && input.rec_crowds.length > 0 && (
                   <Text style={{ fontSize: '13px', color: '#16A34A', display: 'block', lineHeight: '1.6' }}>🌟 适配人群：{input.rec_crowds.join('、')}{input.guide_sentence ? `（${input.guide_sentence}）` : ''}</Text>
                 )}
-                {input.cautious_crowds && input.cautious_crowds.length > 0 && (
-                  <Text style={{ fontSize: '13px', color: '#A8552E', display: 'block', lineHeight: '1.6', marginTop: 2 }}>🟡 慎食人群：{input.cautious_crowds.join('、')}{input.cautious_notes ? `（${input.cautious_notes}）` : ''}</Text>
-                )}
-                {input.forbidden_crowds && input.forbidden_crowds.length > 0 && (
-                  <Text style={{ fontSize: '13px', color: '#DC2626', display: 'block', lineHeight: '1.6', marginTop: 2 }}>🔴 不建议人群：{input.forbidden_crowds.join('、')}{input.forbidden_reasons ? `（${input.forbidden_reasons}）` : ''}</Text>
-                )}
-                {(!foodBenefit?.suitableFor?.length && !input.rec_crowds?.length && !input.cautious_crowds?.length && !input.forbidden_crowds?.length) && (
+                {(!foodBenefit?.suitableFor?.length && !input.rec_crowds?.length) && (
                   <Text style={{ fontSize: '12px', color: '#9CA3AF', display: 'block' }}>暂无特定人群标注</Text>
                 )}
               </CollapsibleSection>
@@ -715,10 +643,7 @@ export default function ProductPage() {
                 {tipAudiences.length > 0 && (
                   <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>🌿 更适合这些日常状态：{tipAudiences.join('、')}</Text>
                 )}
-                <Text style={{ fontSize: '13px', color: '#A8552E', display: 'block', lineHeight: '1.6' }}>
-                  ⚠️ 注意事项：如对坚果、乳制品、蛋类等过敏，请先查看配料表；3 岁以下幼儿及咀嚼能力较弱者，请在家长看护下食用。
-                </Text>
-              </View>
+                </View>
 
               {/* 当前勾选状态的分档提示（可选，基于首页筛选器） */}
               {tier && (
@@ -732,13 +657,6 @@ export default function ProductPage() {
                 </View>
               )}
 
-              {/* 模块5：底部忌口警示 */}
-              {input.taboo_warning && (
-                <View className="mt-1 px-2 py-2 rounded-xl" style={{ background: '#FEE2E2', border: '1px solid #FCA5A5' }}>
-                  <Text className="text-base font-bold" style={{ color: '#B91C1C', display: 'block' }}>⚠️ 忌口警示</Text>
-                  <Text style={{ fontSize: '12px', color: '#7F1D1D', display: 'block', marginTop: 2, lineHeight: '1.5' }}>{input.taboo_warning}</Text>
-                </View>
-              )}
 
               <Text style={{ fontSize: '10px', color: '#9CA3AF', display: 'block', lineHeight: '1.5', marginTop: 6 }}>
                 {stageMod.disclaimer}
@@ -857,25 +775,19 @@ export default function ProductPage() {
         </Button>
       </View>
 
-      {/* 特殊人群自动弹窗：只给正向能量（适宜参考+体感），不堆谨慎/不能吃；过敏与食用注意仍在本页下方可见（合规不弱化） */}
+      {/* 特殊人群自动弹窗：只展示益处（适宜参考），其余提醒全部不显示 */}
       {showCrowdPopup && therapyReport && (
         <View style={{ position: 'fixed', left: 0, right: 0, top: 0, bottom: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
           <View style={{ width: '100%', maxWidth: '320px', background: '#fff', borderRadius: '16px', padding: '18px 16px' }}>
             <Text style={{ fontSize: '17px', fontWeight: '700', color: '#16A34A', display: 'block', marginBottom: 4 }}>🍃 这道很合你口味</Text>
             <Text style={{ fontSize: '12px', color: '#6B7280', display: 'block', marginBottom: 10, lineHeight: '1.5' }}>{product?.name} · 先看看它适合谁</Text>
-            {therapyReport.overall_nature_code ? (
-              <Text style={{ fontSize: '13px', color: '#475569', display: 'block', marginBottom: 8, lineHeight: '1.5' }}>整体{NATURE_FEELING[therapyReport.overall_nature_code] || therapyReport.overall_nature_code}，适量享用，吃出好状态～</Text>
-            ) : null}
             {therapyReport.fit_people ? (
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', background: '#ECFDF3', borderRadius: '10px', padding: '7px 9px', marginBottom: 8 }}>
                 <Text style={{ fontSize: '13px', marginRight: 5, lineHeight: '1.5' }}>✅</Text>
                 <Text style={{ fontSize: '13px', color: '#14532D', flex: 1, lineHeight: '1.5' }}>{therapyReport.fit_people}</Text>
               </View>
             ) : null}
-            {therapyReport.warnings.length > 0 ? (
-              <Text style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginTop: 2, lineHeight: '1.5' }}>含过敏原或食用注意，下滑本页即可查看 ›</Text>
-            ) : null}
-            <View
+<View
               onClick={() => setShowCrowdPopup(false)}
               style={{ marginTop: 14, paddingVertical: 10, borderRadius: 12, background: 'hsl(var(--primary))', alignItems: 'center' }}
             >
