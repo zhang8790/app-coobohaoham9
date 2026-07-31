@@ -93,8 +93,6 @@ const [adding, setAdding] = useState(false)
 
   // 统一食疗引擎：拉取食材字典 + 实时计算三色预警（C 端详情页复用商家端同一套算法）
   const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
-  const [showCrowdPopup, setShowCrowdPopup] = useState(false)
-  const crowdPopupShownForRef = useRef<string | null>(null)
   useEffect(() => {
     getFoodIngredients().then(setIngredientDict).catch(() => setIngredientDict([]))
   }, [])
@@ -147,13 +145,6 @@ const [adding, setAdding] = useState(false)
     return buildTherapyReport(product.name, inputs)
   }, [product, ingredientDict])
 
-  // 特殊人群自动弹窗：有适宜人群(益处)才弹，仅展示益处，每个商品仅弹一次
-  useEffect(() => {
-    if (therapyReport && therapyReport.fit_people && crowdPopupShownForRef.current !== id) {
-      crowdPopupShownForRef.current = id
-      setShowCrowdPopup(true)
-    }
-  }, [therapyReport, id])
 
   const load = useCallback(async () => {
     if (!id) {
@@ -775,27 +766,6 @@ const [adding, setAdding] = useState(false)
         </Button>
       </View>
 
-      {/* 特殊人群自动弹窗：只展示益处（适宜参考），其余提醒全部不显示 */}
-      {showCrowdPopup && therapyReport && (
-        <View style={{ position: 'fixed', left: 0, right: 0, top: 0, bottom: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          <View style={{ width: '100%', maxWidth: '320px', background: '#fff', borderRadius: '16px', padding: '18px 16px' }}>
-            <Text style={{ fontSize: '17px', fontWeight: '700', color: '#16A34A', display: 'block', marginBottom: 4 }}>🍃 这道很合你口味</Text>
-            <Text style={{ fontSize: '12px', color: '#6B7280', display: 'block', marginBottom: 10, lineHeight: '1.5' }}>{product?.name} · 先看看它适合谁</Text>
-            {therapyReport.fit_people ? (
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', background: '#ECFDF3', borderRadius: '10px', padding: '7px 9px', marginBottom: 8 }}>
-                <Text style={{ fontSize: '13px', marginRight: 5, lineHeight: '1.5' }}>✅</Text>
-                <Text style={{ fontSize: '13px', color: '#14532D', flex: 1, lineHeight: '1.5' }}>{therapyReport.fit_people}</Text>
-              </View>
-            ) : null}
-<View
-              onClick={() => setShowCrowdPopup(false)}
-              style={{ marginTop: 14, paddingVertical: 10, borderRadius: 12, background: 'hsl(var(--primary))', alignItems: 'center' }}
-            >
-              <Text style={{ color: '#fff', fontSize: '15px', fontWeight: '700' }}>我知道了</Text>
-            </View>
-          </View>
-        </View>
-      )}
 
     </View>
   )
