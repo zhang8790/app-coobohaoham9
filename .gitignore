@@ -96,3 +96,6 @@ dist.bak.*
 .icon-migrate-backup/
 .gstack/
 lib/
+
+# 静态托管构建副本（make-static-cloud.mjs 产物）
+admin-web/dist-cloud/
