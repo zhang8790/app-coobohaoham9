@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
       .update({ status: 'pending_ship', wechat_transaction_id: transactionId, paid_at: new Date().toISOString() })
       .eq('order_no', outTradeNo)
       .eq('status', 'pending_pay')
-      .select('id, order_no, user_id, total_amount, referrer_id, tb_used, store_id')
+      .select('id, order_no, user_id, total_amount, referrer_id, tb_used, store_id, payment_method')
 
     if (error) {
       console.error('[wechat-payment-callback] DB error:', error.message)
@@ -153,8 +153,8 @@ Deno.serve(async (req: Request) => {
       if (totalAmt > 0) effectiveRate = weightedSum / totalAmt
     } catch (e) { console.warn('[wechat-payment-callback] 读取商品让利点失败，回退店铺让利率', e) }
 
-    // P0 修复：混合支付情绪豆抵扣——纯情绪豆已在下单时当场扣除；混合支付(payment_method=wxpay 但
-    // tb_used>0)的情绪豆推迟到此处（微信支付成功）扣除，避免支付失败却锁豆。此前此处漏扣 → 用户白嫖抵扣。
+    // P0 修复：混合支付健康豆抵扣——纯健康豆已在下单时当场扣除；混合支付(payment_method=wxpay 但
+    // tb_used>0)的健康豆推迟到此处（微信支付成功）扣除，避免支付失败却锁健康豆。此前此处漏扣 → 用户白嫖抵扣。
     const goldBeansUsed = order.tb_used ?? 0
     if (goldBeansUsed > 0 && order.payment_method === 'wxpay') {
       try {
@@ -165,17 +165,17 @@ Deno.serve(async (req: Request) => {
           supabase.from('tongbao_logs').insert({
             user_id: order.user_id, order_id: order.id, type: 'purchase_spend',
             delta: -goldBeansUsed, balance_after: cur - goldBeansUsed,
-            remark: `订单${order.order_no}混合支付金豆抵扣`,
-          }).then(() => {}).catch(() => {})
+            remark: `订单${order.order_no}混合支付健康豆抵扣`,
+          }).then(() => {}) // fire-and-forget audit log
         } else {
-          console.warn('[wechat-payment-callback] 情绪豆不足，跳过扣减', { uid: order.user_id, cur, need: goldBeansUsed })
+          console.warn('[wechat-payment-callback] 健康豆不足，跳过扣减', { uid: order.user_id, cur, need: goldBeansUsed })
         }
-      } catch (e) { console.error('[wechat-payment-callback] 混合情绪豆扣减异常', e) }
+      } catch (e) { console.error('[wechat-payment-callback] 混合健康豆扣减异常', e) }
     }
 
     // 异步触发分润（不阻塞回调响应）
-    // total_amount = 订单全额（含情绪豆），作为分佣/让利池基数（2026-07-19 起全额参与分佣）
-    // net_amount = 实际微信现金支付额（扣除情绪豆抵扣后），仅用于计提微信收单通道费
+    // total_amount = 订单全额（含健康豆），作为分佣/让利池基数（2026-07-19 起全额参与分佣）
+    // net_amount = 实际微信现金支付额（扣除健康豆抵扣后），仅用于计提微信收单通道费
     const netCashAmount = Math.max(0, (order.total_amount ?? 0) - goldBeansUsed)
     // 落库整单加权率（便于展示/追溯）
     try { await supabase.from('orders').update({ effective_rate: effectiveRate }).eq('id', order.id) } catch {}

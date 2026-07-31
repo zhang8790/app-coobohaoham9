@@ -1,8 +1,12 @@
-// @title 我的文章
-import { useState, useCallback, useEffect } from 'react'
-import Taro, { useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
+// @title 我的创作
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import Taro, { useShareAppMessage, useShareTimeline, useRouter, useDidShow } from '@tarojs/taro'
 import { View, Button, Text } from '@tarojs/components'
-import { getMyArticles, deleteArticle, getMyProfile } from '@/db/api'
+import {
+  getMyArticles, deleteArticle, getMyProfile,
+  getMyArticleStats, getMyContentSummary, setArticlePublished,
+} from '@/db/api'
+import type { ArticleStat, ContentSummary } from '@/db/api'
 import type { Article } from '@/db/types'
 import Icon from '@/components/Icon'
 
@@ -24,21 +28,23 @@ export default function MyArticlesPage() {
   const [loading, setLoading] = useState(false)
   const [myCode, setMyCode] = useState('')
   const [shareArticle, setShareArticle] = useState<Article | null>(null)
+  const [stats, setStats] = useState<ArticleStat[]>([])
+  const [summary, setSummary] = useState<ContentSummary | null>(null)
 
   // 分享：跳到文章详情页（带推广码归属推荐关系 + 封面缩略图），原生面板含好友/群/朋友圈
   useShareAppMessage(() => ({
     title: shareArticle
       ? `【来电有喜】${shareArticle.title}`
       : '我在来电有喜发现了好内容，快来看看！',
-    path: `/pages/content/article-detail/index${shareArticle ? `?id=${shareArticle.id}${myCode ? `&from=${myCode}` : ''}` : ''}`,
+    path: `/pages/content/article-detail/index${shareArticle ? `?id=${shareArticle.id}${myCode ? `&ref=${myCode}` : ''}` : ''}`,
     imageUrl: shareArticle?.cover_image || undefined,
   }))
-  // 朋友圈分享（query 拼 id + from）
+  // 朋友圈分享（query 拼 id + ref，参数名与 useShareWithReferral / article-detail 落地解析保持一致）
   useShareTimeline(() => ({
     title: shareArticle
       ? `【来电有喜】${shareArticle.title}`
       : '来电有喜',
-    query: shareArticle ? `id=${shareArticle.id}${myCode ? `&from=${myCode}` : ''}` : '',
+    query: shareArticle ? `id=${shareArticle.id}${myCode ? `&ref=${myCode}` : ''}` : '',
     imageUrl: shareArticle?.cover_image || undefined,
   }))
 
@@ -53,7 +59,23 @@ export default function MyArticlesPage() {
     setLoading(false)
   }, [activeTab])
 
+  // 战绩数据（锁客是本功能唯一 KPI：成交在线下）
+  const loadStats = useCallback(async () => {
+    const [s, sum] = await Promise.all([getMyArticleStats(), getMyContentSummary()])
+    setStats(s)
+    setSummary(sum)
+  }, [])
+
   useEffect(() => { loadArticles() }, [loadArticles])
+  useEffect(() => { loadStats() }, [loadStats])
+  // 从详情页返回时刷新战绩
+  useDidShow(() => { loadStats() })
+
+  const statMap = useMemo(() => {
+    const m: Record<string, ArticleStat> = {}
+    stats.forEach(s => { m[s.article_id] = s })
+    return m
+  }, [stats])
 
   const handleDelete = (article: Article) => {
     Taro.showModal({ title: '确认删除', content: `删除《${article.title}》？此操作不可恢复。`, confirmText: '删除', confirmColor: '#EF4444' }).then(async res => {
@@ -61,11 +83,31 @@ export default function MyArticlesPage() {
       await deleteArticle(article.id)
       Taro.showToast({ title: '已删除', icon: 'success' })
       setArticles(prev => prev.filter(a => a.id !== article.id))
+      loadStats()
     })
   }
 
+  // 下架 / 重新发布：下架后他人打开分享链接会看到「该内容已下架」
+  const handleTogglePublish = async (article: Article) => {
+    const toPublished = article.status !== 'published'
+    if (!toPublished) {
+      const res = await Taro.showModal({
+        title: '确认下架',
+        content: '下架后，已分享出去的链接将无法访问，转为草稿保存。',
+        confirmText: '下架',
+      })
+      if (!res.confirm) return
+    }
+    await setArticlePublished(article.id, toPublished)
+    Taro.showToast({ title: toPublished ? '已重新发布' : '已下架', icon: 'success' })
+    setArticles(prev => prev.map(a =>
+      a.id === article.id ? { ...a, status: toPublished ? 'published' : 'draft', is_published: toPublished } as Article : a
+    ))
+    loadStats()
+  }
+
   const handleEdit = (article: Article) => {
-    Taro.navigateTo({ url: `/pages/content/content-center/make/index?articleId=${article.id}` })
+    Taro.navigateTo({ url: `/pages/content/content-center/make-rich/index?articleId=${article.id}` })
   }
 
   const handlePreview = (e: any, article: Article) => {
@@ -76,8 +118,42 @@ export default function MyArticlesPage() {
 
   return (
     <View className="min-h-screen bg-background pb-10">
+      {/* ── 锁客战绩总览：图文的唯一 KPI ── */}
+      {summary && (
+        <View className="mx-4 mt-3 p-4 rounded-2xl"
+          style={{ background: 'linear-gradient(135deg,#8B5E3C 0%,#A6714B 100%)' }}>
+          <View className="flex items-center justify-between">
+            <Text className="text-lg font-bold text-white">我的内容锁客战绩</Text>
+            <Text className="text-xs text-white/70">成交在线下 · 图文负责锁人</Text>
+          </View>
+          <View className="flex mt-3">
+            <View className="flex-1 flex flex-col items-center">
+              <Text className="text-3xl font-bold text-white">{summary.locks}</Text>
+              <Text className="text-xs text-white/80 mt-0.5">锁客</Text>
+            </View>
+            <View className="flex-1 flex flex-col items-center">
+              <Text className="text-3xl font-bold text-white">{summary.new_customers}</Text>
+              <Text className="text-xs text-white/80 mt-0.5">新客</Text>
+            </View>
+            <View className="flex-1 flex flex-col items-center">
+              <Text className="text-3xl font-bold text-white">{summary.views}</Text>
+              <Text className="text-xs text-white/80 mt-0.5">阅读</Text>
+            </View>
+            <View className="flex-1 flex flex-col items-center">
+              <Text className="text-3xl font-bold text-white">{summary.shares}</Text>
+              <Text className="text-xs text-white/80 mt-0.5">分享</Text>
+            </View>
+          </View>
+          {summary.locks === 0 && (
+            <Text className="block mt-3 text-xs text-white/85 leading-relaxed">
+              把图文分享到微信群和朋友圈，好友打开阅读即自动锁定为你的客户，后续线下成交都算你的。
+            </Text>
+          )}
+        </View>
+      )}
+
       {/* Tab栏 */}
-      <View className="flex border-b border-border">
+      <View className="flex border-b border-border mt-3">
           {TABS.map(tab => (
             <View key={tab.key}
               onClick={() => setActiveTab(tab.key)}
@@ -110,7 +186,7 @@ export default function MyArticlesPage() {
             </Text>
             <Button type="button"
               className="px-6 flex items-center justify-center leading-none rounded-xl bg-primary"
-              onClick={() => Taro.navigateTo({ url: '/pages/content/content-center/make/index' })}>
+              onClick={() => Taro.navigateTo({ url: '/pages/content/content-center/make-rich/index' })}>
               <View className="py-3 text-xl text-white font-bold">开始创作</View>
             </Button>
           </View>
@@ -118,7 +194,9 @@ export default function MyArticlesPage() {
 
         {!loading && articles.length > 0 && (
           <View className="flex flex-col gap-3">
-            {articles.map(article => (
+            {articles.map(article => {
+              const st = statMap[article.id]
+              return (
               <View key={article.id} className="p-4 rounded-2xl bg-card border border-border active:scale-[0.98] transition-transform"
                 style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
                 onClick={(e) => handlePreview(e, article)}>
@@ -139,7 +217,17 @@ export default function MyArticlesPage() {
                       <Text className="text-base text-muted-foreground">
                         {new Date(article.created_at).toLocaleDateString('zh-CN')}
                       </Text>
-                    </View>
+                      </View>
+
+                    {/* 单篇战绩 */}
+                    {st && (
+                      <View className="flex items-center gap-4 mt-3 pt-3 border-t border-border">
+                        <Text className="text-base text-foreground font-bold">🔒 锁客 {st.lock_count}</Text>
+                        <Text className="text-base text-muted-foreground">👁 {st.view_count}</Text>
+                        <Text className="text-base text-muted-foreground">↗ {st.share_count}</Text>
+                        <Text className="text-base text-muted-foreground">♡ {st.like_count}</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
 
@@ -152,7 +240,7 @@ export default function MyArticlesPage() {
                     <Icon name="eye-outline" size={20} className="text-blue-600" />
                     <Text className="text-xl text-blue-600">预览</Text>
                   </Button>
-                  {/* 分享按钮 — 已发布走原生分享面板（好友/群/朋友圈），草稿引导先发布 */}
+                  {/* 已发布：走原生分享面板；草稿：一键发布 */}
                   {article.status === 'published' ? (
                     <Button
                       openType="share"
@@ -167,29 +255,41 @@ export default function MyArticlesPage() {
                   ) : (
                     <Button
                       type="button"
-                      className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-gray-300 bg-gray-50"
-                      style={{ lineHeight: 'normal', padding: '8px 0', fontSize: '20px', color: '#6B7280', fontWeight: 'bold' }}
-                      onClick={(e) => { e.stopPropagation(); Taro.showToast({ title: '草稿暂不支持分享，请先发布', icon: 'none' }) }}
+                      className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-green-300 bg-green-50"
+                      style={{ lineHeight: 'normal', padding: '8px 0', fontSize: '20px', color: '#16A34A', fontWeight: 'bold' }}
+                      onClick={(e) => { e.stopPropagation(); handleTogglePublish(article) }}
                     >
-                      <Icon name="share-variant" size={20} className="text-gray-500" />
-                      分享
+                      <Icon name="upload" size={20} className="text-green-600" />
+                      发布
                     </Button>
                   )}
                   <Button type="button"
-                    className={`flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-primary/30 bg-primary/5 ${article.status === 'published' ? 'flex-1' : 'flex-1'}`}
+                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-primary/30 bg-primary/5"
                     onClick={(e) => { e.stopPropagation(); handleEdit(article) }}>
                     <Icon name="pencil" size={20} className="text-primary" />
                     <Text className="text-xl text-primary">编辑</Text>
                   </Button>
-                  <Button type="button"
-                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-destructive/30 bg-destructive/5"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(article) }}>
-                    <Icon name="delete-outline" size={20} className="text-destructive" />
-                    <Text className="text-xl text-destructive">删除</Text>
-                  </Button>
+                  {/* 已发布：下架；草稿：删除 */}
+                  {article.status === 'published' ? (
+                    <Button type="button"
+                      className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-amber-300 bg-amber-50"
+                      style={{ lineHeight: 'normal', padding: '8px 0', fontSize: '20px', color: '#D97706', fontWeight: 'bold' }}
+                      onClick={(e) => { e.stopPropagation(); handleTogglePublish(article) }}>
+                      <Icon name="archive-arrow-down-outline" size={20} className="text-amber-600" />
+                      下架
+                    </Button>
+                  ) : (
+                    <Button type="button"
+                      className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border-2 border-destructive/30 bg-destructive/5"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(article) }}>
+                      <Icon name="delete-outline" size={20} className="text-destructive" />
+                      <Text className="text-xl text-destructive">删除</Text>
+                    </Button>
+                  )}
                 </View>
               </View>
-            ))}
+              )
+            })}
           </View>
         )}
       </View>

@@ -15,6 +15,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { getLlmConfig, type LlmConfig } from '../_shared/llmConfig.ts'
+import { logLlmCall } from '../_shared/logLlmCall.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,6 +36,7 @@ async function callLLM(system: string, user: string, cfg: LlmConfig): Promise<an
   const key = cfg.key
   const base = cfg.base || 'https://api.openai.com/v1'
   const model = cfg.model || 'gpt-4o-mini'
+  const start = Date.now()
   try {
     const resp = await fetch(`${base}/chat/completions`, {
       method: 'POST',
@@ -50,14 +52,29 @@ async function callLLM(system: string, user: string, cfg: LlmConfig): Promise<an
       }),
     })
     if (!resp.ok) {
-      console.error('[food-therapy-ai] LLM http', resp.status, await resp.text())
+      const httpMsg = `[food-therapy-ai] LLM http ${resp.status} ${await resp.text()}`
+      console.error(httpMsg)
+      await logLlmCall({
+        functionName: 'food-therapy-ai', module: '食疗导购', model,
+        latencyMs: Date.now() - start, success: false, errorMessage: `http ${resp.status}`,
+      })
       return null
     }
     const j = await resp.json()
+    await logLlmCall({
+      functionName: 'food-therapy-ai', module: '食疗导购', model,
+      usage: j?.usage ?? null, latencyMs: Date.now() - start,
+      success: !!j?.choices?.[0], errorMessage: null,
+    })
     const content = j?.choices?.[0]?.message?.content || '{}'
     return JSON.parse(content)
   } catch (e) {
     console.error('[food-therapy-ai] LLM error', e)
+    await logLlmCall({
+      functionName: 'food-therapy-ai', module: '食疗导购', model,
+      latencyMs: Date.now() - start, success: false,
+      errorMessage: e instanceof Error ? e.message : String(e),
+    })
     return null
   }
 }

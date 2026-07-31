@@ -147,7 +147,7 @@ export async function getFinanceOverview(): Promise<FinanceOverview> {
     countOf('profiles', { eq: ['is_banned', true] }),
   ])
 
-  // 金豆流水闭环：从 tongbao_logs 累计发放 / 消耗（00076 未建时 sumOf 降级为 0，不阻塞）
+  // 健康豆流水闭环：从 tongbao_logs 累计发放 / 消耗（00076 未建时 sumOf 降级为 0，不阻塞）
   const [gbRefund, gbRecharge, gbGrant, gbSpend, gbDeduct, gbEarn, gbRefundDeduct] = await Promise.all([
     sumOf('tongbao_logs', 'delta', { eq: ['type', 'refund_return'] }),
     sumOf('tongbao_logs', 'delta', { eq: ['type', 'recharge'] }),
@@ -282,7 +282,7 @@ export async function getMembers(
   }
 }
 
-// ── 会员详情（金豆明细）────────────────────────────────────────────────
+// ── 会员详情（健康豆明细）────────────────────────────────────────────────
 export async function getMemberDetail(userId: string): Promise<MemberDetail> {
   try {
     const [{ data: p }, { data: claims }, { count }, { data: downlineRows }] = await Promise.all([
@@ -358,7 +358,7 @@ export interface OrderRow {
   commission_l1: number
   commission_l2: number
   platform_share: number
-  buyer_points: number // 购买者确权金豆（从平台让利中分出）
+  buyer_points: number // 购买者确权健康豆（从平台让利中分出）
   store_revenue: number // 门店收益（商家实际到账货款，取自 merchant_settlements.settle_amount）
   referrer_id: string | null
   created_at: string
@@ -399,7 +399,7 @@ export async function getOrders(
     const refIds = Array.from(new Set(rows.map(r => r.referrer_id).filter(Boolean))) as string[]
 
     const orderIds = rows.map(r => r.id as string)
-    const [pmap, smap, rmap, commMap, itemsRaw, msRaw] = await Promise.all([
+    const [pmap, smap, rmap, commMap, itemsRaw, msRaw, oicRaw] = await Promise.all([
       userIds.length
         ? supabase.from('profiles').select('id, nickname, phone').in('id', userIds)
         : Promise.resolve({ data: [] as any[] }),
@@ -422,11 +422,21 @@ export async function getOrders(
       orderIds.length
         ? supabase.from('merchant_settlements').select('order_id, settle_amount, discount_pool').in('order_id', orderIds)
         : Promise.resolve({ data: [] as any[] }),
+      // 商品级分佣明细：真实已发让利金额（由 distribute-commission 按实际费率算），优先作为让利真值，
+      // 避免「商品/门店率后续被改」导致前端重算与实发错位（如门店 3% 却被按 9% 发佣，重算 0.84 vs 实发 2.52）
+      orderIds.length
+        ? supabase.from('order_item_commissions').select('order_id, discount_amount').in('order_id', orderIds)
+        : Promise.resolve({ data: [] as any[] }),
     ])
     const pMap = new Map((pmap.data as any[] ?? []).map(p => [p.id, p]))
     const sMap = new Map((smap.data as any[] ?? []).map(s => [s.id, s]))
     const rMap = new Map((rmap.data as any[] ?? []).map(r => [r.id, r]))
     const msMap = new Map((msRaw.data as any[] ?? []).map(m => [m.order_id as string, m]))
+    const oicSumMap = new Map<string, number>()
+    for (const r of (oicRaw.data as any[] ?? [])) {
+      const oid = r.order_id as string
+      oicSumMap.set(oid, (oicSumMap.get(oid) ?? 0) + Math.round(Number(r.discount_amount || 0) * 100) / 100)
+    }
     const cMap = new Map<string, { total: number; l1: number; l2: number }>()
     for (const c of (commMap.data as any[] ?? [])) {
       const oid = c.order_id as string
@@ -473,10 +483,14 @@ export async function getOrders(
       const comm = cMap.get(r.id) ?? { total: 0, l1: 0, l2: 0 }
       const effRate = orderRateMap.get(r.id) ?? storeRate
       const ms = msMap.get(r.id)
-      // 让利金额优先取结算台账 discount_pool（后端 fn_settle_order 真值），避免与 create-order 仅用门店让利率口径偏差
-      const concession = ms?.discount_pool != null
-        ? Math.round(Number(ms.discount_pool) * 100) / 100
-        : Math.round(r.total_amount * effRate * 100) / 100
+      const oicSum = oicSumMap.get(r.id)
+      // 让利金额真值优先级：①商品级分佣明细实际已发(oicSum) ②结算台账 discount_pool ③按门店/商品率重算
+      // 优先用实际已发让利，避免「商品/门店率后续变更」造成前端重算与实发错位
+      const concession = oicSum != null
+        ? oicSum
+        : (ms?.discount_pool != null
+            ? Math.round(Number(ms.discount_pool) * 100) / 100
+            : Math.round(r.total_amount * effRate * 100) / 100)
       const buyerPoints = Math.round(Number(r.buyer_points || 0) * 100) / 100
       // 门店收益：优先取结算台账 settle_amount（商家实际到账货款 = 成交额 − 让利池 − 通道费）；
       // 无台账时（如未结算订单）回退 成交额 − 让利金额
@@ -495,8 +509,8 @@ export async function getOrders(
         commission_total: comm.total,
         commission_l1: comm.l1,
         commission_l2: comm.l2,
-        // 平台佣金 = 让利金额 − 一级佣金 − 二级佣金 − 购买者确权金豆
-        platform_share: Math.max(0, Math.round((concession - comm.total - buyerPoints) * 100) / 100),
+      // 平台佣金 = 让利金额 × 10%（平台保底），与 order_item_commissions.platform_income 口径一致
+      platform_share: Math.max(0, Math.round(concession * 0.10 * 100) / 100),
         buyer_points: buyerPoints,
         store_revenue: storeRevenue,
         referrer_id: r.referrer_id ?? null,
@@ -530,7 +544,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
     const { data } = await supabase.from('orders').select(ORDER_FIELDS).eq('id', orderId).maybeSingle()
     const r = data as any
     if (!r) return null
-    const [storeRes, buyerRes, refRes, settleRes] = await Promise.all([
+    const [storeRes, buyerRes, refRes, settleRes, oicRes] = await Promise.all([
       r.store_id
         ? supabase.from('stores').select('name, referral_rate, referral_rate_enabled').eq('id', r.store_id).maybeSingle()
         : Promise.resolve({ data: null }),
@@ -542,6 +556,8 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
         : Promise.resolve({ data: null }),
       // 结算台账：门店收益/让利金额唯一真值
       supabase.from('merchant_settlements').select('settle_amount, discount_pool').eq('order_id', r.id).maybeSingle(),
+      // 商品级分佣明细：真实已发让利金额（优先真值）
+      supabase.from('order_item_commissions').select('discount_amount').eq('order_id', r.id),
     ])
     const total = Number(r.total_amount || 0)
     const buyerPoints = Math.round(Number(r.buyer_points || 0) * 100) / 100
@@ -580,10 +596,17 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
     } catch { /* 降级门店率 */ }
 
     const ms = settleRes.data as any
-    // 让利金额优先取结算台账 discount_pool（后端真值）
-    const concession = ms?.discount_pool != null
-      ? Math.round(Number(ms.discount_pool) * 100) / 100
-      : Math.round(total * effectiveRate * 100) / 100
+    // 真实已发让利：商品级分佣明细求和（优先）；无则结算台账 discount_pool；再无则按门店/商品率重算
+    let oicSum: number | null = null
+    const oicRows = (oicRes.data as any[] | null) ?? []
+    if (oicRows.length) {
+      oicSum = oicRows.reduce((s, x) => s + Math.round(Number(x.discount_amount || 0) * 100) / 100, 0)
+    }
+    const concession = oicSum != null
+      ? oicSum
+      : (ms?.discount_pool != null
+          ? Math.round(Number(ms.discount_pool) * 100) / 100
+          : Math.round(total * effectiveRate * 100) / 100)
     // 门店收益优先取结算台账 settle_amount（商家实际到账货款）
     const storeRevenue = ms?.settle_amount != null
       ? Math.round(Number(ms.settle_amount) * 100) / 100
@@ -601,8 +624,8 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
       commission_total: commissionTotal,
       commission_l1: commBreak.l1,
       commission_l2: commBreak.l2,
-      // 平台佣金 = 让利金额 − 一级佣金 − 二级佣金 − 购买者确权金豆
-      platform_share: Math.max(0, Math.round((concession - commissionTotal - buyerPoints) * 100) / 100),
+      // 平台佣金 = 让利金额 × 10%（平台保底），与 order_item_commissions.platform_income 口径一致
+      platform_share: Math.max(0, Math.round(concession * 0.10 * 100) / 100),
       buyer_points: buyerPoints,
       store_revenue: storeRevenue,
       referrer_id: r.referrer_id ?? null,
@@ -666,7 +689,7 @@ export async function getOrderCommissionBreakdown(orderId: string): Promise<Comm
 }
 
 // ── 商品级分佣明细（order_item_commissions，按 order_id 查）──────────────────
-// 用于「综合结算 - 订单详情」展开每商品各自让利点 / L1 / L2 / 购买者确权金豆 / 平台佣金
+// 用于「综合结算 - 订单详情」展开每商品各自让利点 / L1 / L2 / 购买者确权健康豆 / 平台佣金
 // 两级受益人昵称用两步直读解析（profiles 无 FK，沿用已修通范式）
 export interface ProductCommissionRow {
   id: string
@@ -754,8 +777,8 @@ export async function getOrderItemCommissions(orderId: string): Promise<ProductC
 
 // =====================================================
 // 资产流水中心（三张逐笔明细表）
-//  - 买家金豆流水 points_logs（历史金豆流水表）
-//  - 金豆流水 emotion_tongbao_logs
+//  - 买家健康豆流水 points_logs（历史健康豆流水表）
+//  - 健康豆流水 emotion_tongbao_logs
 //  - 佣金流水 commissions
 // 均用两步直读解析用户昵称/手机（profiles 无 FK，沿用已修通范式）
 // =====================================================
@@ -823,7 +846,7 @@ export interface GoldBeanLedgerRow {
   phone: string | null
 }
 
-// ── 买家金豆流水 ──────────────────────────────────────────────
+// ── 买家健康豆流水 ──────────────────────────────────────────────
 // points_logs 实际列：id, user_id, type, amount, source, related_order_id, created_at
 // （与 00003 迁移定义不一致；distribute-commission v5 EF 写入用 amount/related_order_id/source，
 //  详见 00137_part2:30 注释 + refund-order:232 注释）
@@ -867,7 +890,7 @@ export async function getPointsLedger(
   }
 }
 
-// ── 金豆流水 ──────────────────────────────────────────────
+// ── 健康豆流水 ──────────────────────────────────────────────
 export async function getEmotionLedger(
   page: number,
   pageSize: number,
@@ -956,7 +979,7 @@ export async function getCommissionLedger(
   }
 }
 
-// ── 金豆流水 ────────────────────────────────────────────────
+// ── 健康豆流水 ────────────────────────────────────────────────
 export async function getGoldBeanLedger(
   page: number,
   pageSize: number,
@@ -996,9 +1019,9 @@ export async function getGoldBeanLedger(
   }
 }
 
-// ── 金豆后台发放 / 扣减（admin 运营动作）──────────────────────────────
-// 写 tongbao_logs（admin_grant/admin_deduct）+ 同步更新 profiles.tb_balance（金豆消费余额）
-// 与「用户管理-充值」共用同一 balance 字段，确保两页口径一致（金豆 = 消费抵扣余额，1:1）
+// ── 健康豆后台发放 / 扣减（admin 运营动作）──────────────────────────────
+// 写 tongbao_logs（admin_grant/admin_deduct）+ 同步更新 profiles.tb_balance（健康豆消费余额）
+// 与「用户管理-充值」共用同一 balance 字段，确保两页口径一致（健康豆 = 消费抵扣余额，1:1）
 // 调用方可 .then().catch() 不阻塞主流程；单步失败返回结构化错误
 export interface GoldBeanAdjustResult {
   ok: boolean
@@ -1037,9 +1060,9 @@ export async function adminAdjustGoldBean(
   }
 }
 
-// ── 金豆充值（admin 给用户充值，余额增加）──────────────────────────────
-// 写 tongbao_logs（type='recharge'）+ 同步更新 profiles.tb_balance（金豆消费余额）
-// 注意：仅动 tb_balance（金豆消费账户，人民币1:1锚定），不动 commission_balance（可提现佣金，按 00058 设计隔离）
+// ── 健康豆充值（admin 给用户充值，余额增加）──────────────────────────────
+// 写 tongbao_logs（type='recharge'）+ 同步更新 profiles.tb_balance（健康豆消费余额）
+// 注意：仅动 tb_balance（健康豆消费账户，人民币1:1锚定），不动 commission_balance（可提现佣金，按 00058 设计隔离）
 // 调用方可 .then().catch() 不阻塞主流程；单步失败返回结构化错误
 export interface GoldBeanRechargeResult {
   ok: boolean

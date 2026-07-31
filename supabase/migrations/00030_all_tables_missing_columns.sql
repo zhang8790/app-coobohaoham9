@@ -30,7 +30,7 @@ ALTER TABLE refunds ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE refunds ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 ALTER TABLE refunds ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 
--- ==================== profiles 表（金豆相关）====================
+-- ==================== profiles 表（健康豆相关）====================
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gold_beans INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS balance NUMERIC(10,2) NOT NULL DEFAULT 0;
 

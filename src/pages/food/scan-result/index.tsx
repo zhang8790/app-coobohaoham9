@@ -9,11 +9,12 @@ import {
   addToCart,
   trackFoodTherapyEvent,
 } from '@/db/api'
+import { showCartToast } from '@/utils/cartToast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
 import { setPendingCheckout } from '@/utils/checkoutCache'
 import type { Product } from '@/db/types'
-import { scanToProduct } from '@/utils/scan'
+import { scanAndRoute } from '@/utils/scan'
 
 export default function ScanResultPage() {
   const { user } = useAuth()
@@ -63,7 +64,7 @@ export default function ScanResultPage() {
     await refreshCartCount()
     trackFoodTherapyEvent({ productId: product.id, eventType: 'add_cart', healthTag: (product as any).health_tag ?? [], emotionTag: (product as any).emotion_tag ?? [] }).catch(() => {})
     setAdding(false)
-    Taro.showToast({ title: '已加入购物车', icon: 'success' })
+    showCartToast()
   }
 
   const handleBuyNow = async () => {
@@ -76,7 +77,7 @@ export default function ScanResultPage() {
     Taro.navigateTo({ url: `/pages/payment/index?productId=${encodeURIComponent(product.id)}&total=${product.price}&quantity=1` })
   }
 
-  const rescan = () => { scanToProduct({ redirect: true }) }
+  const rescan = () => { scanAndRoute({ redirect: true }) }
 
   // 加载中
   if (loading) return (

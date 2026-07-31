@@ -8,13 +8,13 @@
 
 ## 一、问题背景（真实缺口）
 
-原模型中，用户用「情绪豆」支付购买商家商品时：
+原模型中，用户用「健康豆」支付购买商家商品时：
 
 - 豆只从买家 `tb_balance` 扣减后**焚毁**；
 - 商家端仅有 GMV **展示数字**，**没有任何货款入账**（无 `merchant_balance`、无结算逻辑、无分账）；
 - 资金链实际是「用户充 RMB → 平台收款 → 商家 0 入账」，构成资产缺口。
 
-用户提问确认后，选定 **方案 A：完整商家货款以 RMB 结算、可提现**，且**不走情绪豆转让红线**，合规走**微信支付服务商分账**。
+用户提问确认后，选定 **方案 A：完整商家货款以 RMB 结算、可提现**，且**不走健康豆转让红线**，合规走**微信支付服务商分账**。
 
 ---
 
@@ -24,15 +24,15 @@
 
 | 账户 | 字段 | 性质 | 是否可提现 | 备注 |
 |---|---|---|---|---|
-| 情绪豆 | `profiles.tb_balance` | 平台内部消费币 | ❌ 不可 | 1:1 锚定 RMB，不可二级转让（既有规则不变） |
+| 健康豆 | `profiles.tb_balance` | 平台内部消费币 | ❌ 不可 | 1:1 锚定 RMB，不可二级转让（既有规则不变） |
 | 推广佣金 | `profiles.commission_balance` | 拉新获客成本 | ✅ 可 | 与货款严格隔离（既有规则不变） |
-| **商家货款** | `stores.merchant_balance` | **本次新增** | ✅ 可 | 销售回款，与情绪豆/佣金三账隔离 |
+| **商家货款** | `stores.merchant_balance` | **本次新增** | ✅ 可 | 销售回款，与健康豆/佣金三账隔离 |
 
-> 合规姿态：情绪豆与佣金/货款**永不直接互转**；货款是真实的销售回款，渠道是微信分账，**平台不池化商家销售资金（规避二清）**。
+> 合规姿态：健康豆与佣金/货款**永不直接互转**；货款是真实的销售回款，渠道是微信分账，**平台不池化商家销售资金（规避二清）**。
 
 ### 2.2 结算公式（净额结算，豆付等值计入）
 
-订单 `status → 'completed'` 时，由 `fn_settle_order` 自包含算出商家应收（**不依赖** distribute-commission 是否已跑，纯情绪豆订单也能结算）：
+订单 `status → 'completed'` 时，由 `fn_settle_order` 自包含算出商家应收（**不依赖** distribute-commission 是否已跑，纯健康豆订单也能结算）：
 
 ```
 现金部分  cash    = max(0, total_amount − tb_used)
@@ -44,7 +44,7 @@
 
 要点：
 
-- **情绪豆支付部分「等值计入」结算额**，由平台以自有资金垫付（用户充值时平台已收 RMB，垫付无额外成本），**不要求商家持有/接收情绪豆**；
+- **健康豆支付部分「等值计入」结算额**，由平台以自有资金垫付（用户充值时平台已收 RMB，垫付无额外成本），**不要求商家持有/接收健康豆**；
 - **微信通道费仅对真实现金部分（total − tb_used）计提**，纯豆订单通道费 = 0；
 - 让利池按订单**全额**计提（覆盖推广/L1/L2/买家积分/平台），与 distribute-commission 的口径独立、互不干扰。
 
@@ -52,7 +52,7 @@
 
 - **触发器 `trg_orders_settle`**：`orders.status` 由非 `completed` 变为 `completed` 时自动 `PERFORM fn_settle_order(NEW.id)`；
 - 触发器**吞掉内部异常**，结算失败**绝不阻断**订单完成；
-- 覆盖多条完成路径，**纯情绪豆订单也能在此触发结算**：
+- 覆盖多条完成路径，**纯健康豆订单也能在此触发结算**：
   - 买家提交评价（`submitReviews` → `status='completed'`）；
   - **商家确认完成**（`merchantCompleteOrder` / 后台 `handleComplete`，从 `pending_receive`/`pending_pickup`/`pending_review` 直接置 `completed`）——已按用户决策「商家确认即完成」实现，不依赖买家评价，契合水果店到店/自提场景；
   - **超时自动完成（兜底）**：`auto-complete-orders` Edge Function 定时扫描 `status='pending_review'` 且 `verified_at` 早于 `AUTO_COMPLETE_DAYS`（默认 7 天，环境变量可覆盖）的订单，自动置 `completed`；覆盖「买家不评价 + 商家不点确认完成」导致货款永久挂账的场景；与商家确认完成**并存、互不冲突**（已 completed 的订单不再被匹配）；
@@ -92,7 +92,7 @@
 ### Edge Function（接入点，需部署）
 - `supabase/functions/merchant-payout/index.ts`
   - `ledger` 台账查询 · `backfill` 历史补结算 · `payout` 微信服务商分账
-  - `payout` 逻辑：读取提现单关联的 `merchant_settlement_ids` → 按订单读取 `orders.wechat_transaction_id` → 每笔订单的**微信现金实付部分**调微信 v3 分账；**情绪豆垫付部分**走 `MANUAL_PAYOUT` 自有资金通道
+  - `payout` 逻辑：读取提现单关联的 `merchant_settlement_ids` → 按订单读取 `orders.wechat_transaction_id` → 每笔订单的**微信现金实付部分**调微信 v3 分账；**健康豆垫付部分**走 `MANUAL_PAYOUT` 自有资金通道
 - `supabase/functions/auto-complete-orders/index.ts`（**超时自动完成兜底**）
   - 定时（建议每日 02:00）扫描 `status='pending_review'` 且 `verified_at` 早于阈值（默认 `AUTO_COMPLETE_DAYS=7`，环境变量可覆盖）的订单，批量置 `completed`；
   - 由 `trg_orders_settle` 触发器自动结算货款；无需额外 Secrets（仅 service_role key 直改库）；
@@ -182,7 +182,7 @@ WECHAT_PAY_PUBLIC_KEY
 4. 点「执行分账打款」→ `triggerSettlementPayout` → `merchant-payout` `payout`：
    - 读取提现单关联的结算台账，按订单获取 `orders.wechat_transaction_id`；
    - 每笔订单的**微信现金实付部分**调微信 v3 分账，`PROFITSHARING_SENT` → 本地置 `paid`；
-   - 每笔订单的**情绪豆垫付部分**走 `MANUAL_PAYOUT`，需平台自有资金经银行转账/企业付款完成；
+   - 每笔订单的**健康豆垫付部分**走 `MANUAL_PAYOUT`，需平台自有资金经银行转账/企业付款完成；
    - 缺配置 → `NEED_CONFIG` / `NEED_SUB_MCH`，提示线下处理；
 5. 驳回 → `rejectSettlementWithdrawal` 退回货款到 `merchant_balance`，**清除结算台账的 `withdrawal_id` 占用**，再置 `rejected`。
 
@@ -202,8 +202,8 @@ WECHAT_PAY_PUBLIC_KEY
 
 ## 八、已知限制（本期留接入点，非 bug）
 
-1. 微信分账须先有 `wechat_transaction_id`（订单支付回调 `wechat-payment-callback` 已落库）；纯情绪豆订单无交易号，其货款部分走 `MANUAL_PAYOUT` 自有资金通道。
-2. 每笔订单的微信现金实付部分（`cash_portion`）才允许走微信分账；情绪豆垫付部分（`tb_portion`）由平台自有资金支付。
+1. 微信分账须先有 `wechat_transaction_id`（订单支付回调 `wechat-payment-callback` 已落库）；纯健康豆订单无交易号，其货款部分走 `MANUAL_PAYOUT` 自有资金通道。
+2. 每笔订单的微信现金实付部分（`cash_portion`）才允许走微信分账；健康豆垫付部分（`tb_portion`）由平台自有资金支付。
 3. 分账状态为异步（`PROCESSING`→`FINISHED`），本期在成功发起后即乐观置 `paid`（与既有佣金打款乐观策略一致）；如需严格对账可后续加 webhook 终态回调。
 4. `fn_merchant_withdraw` 已按 FIFO 分配未提现的结算台账行，并写入 `withdrawals.merchant_settlement_ids`；若后续调整分配策略（如允许按订单选择），需同步修改 `merchant-payout` 的查询逻辑。
 5. **超时自动完成**（`auto-complete-orders`）默认 7 天阈值、以 `orders.verified_at`（进入待评价的时间戳）为起算点；仅覆盖已「确认收货/核销」但无人收尾的订单。一直处于 `pending_receive`（用户从未确认收货）的订单不被本任务处理，需商家主动点「确认完成」兜底。

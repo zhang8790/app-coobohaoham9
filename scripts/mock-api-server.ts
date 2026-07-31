@@ -34,7 +34,7 @@ const MOCK_DATA = {
   ],
   announcements: [
     { id: 'ann_001', content: '欢迎来到来店有喜！', is_active: true, sort_order: 1, created_at: '2026-06-01T10:00:00Z' },
-    { id: 'ann_002', content: '新用户注册送100金豆', is_active: true, sort_order: 2, created_at: '2026-06-15T10:00:00Z' },
+    { id: 'ann_002', content: '新用户注册送100健康豆', is_active: true, sort_order: 2, created_at: '2026-06-15T10:00:00Z' },
   ],
   refunds: [
     { id: 'ref_001', order_id: 'order_001', user_id: 'usr_001', amount: 36.00, status: 'pending', reason: '商品质量问题', created_at: '2026-06-29T10:00:00Z' },

@@ -16,9 +16,9 @@ export interface Profile {
   openid: string | null
   member_rank: MemberRank
   points: number
-  balance: number          // 【已合并/废弃】原金豆消费币，值已并入 tb_balance 且列已清零；严禁新业务读写，统一使用 tb_balance
+  balance: number          // 【已合并/废弃】原健康豆消费币，值已并入 tb_balance 且列已清零；严禁新业务读写，统一使用 tb_balance
   commission_balance: number // 推广佣金账户余额（推广佣金，由推广佣金流水驱动，可提现并代扣个税）
-  tb_balance: number       // 金豆余额（统一平台货币：消费抵扣 + 会员成长，人民币1:1锚定，仅平台内消费，不可提现/兑现金）
+  tb_balance: number       // 健康豆余额（统一平台货币：消费抵扣 + 会员成长，人民币1:1锚定，仅平台内消费，不可提现/兑现金）
   cv_total: number         // 会员贡献值累计（会员权益计算依据，V2）
   privacy_consented_at: string | null // 隐私政策同意时间（PIPL 审计留痕；未同意为 null）
   allow_behavior_analysis: boolean // 个性化行为分析总闸（true=允许，false=已退出；分析引擎排除）
@@ -26,6 +26,7 @@ export interface Profile {
   merchant_status: MerchantStatus
   invite_code: string | null
   referrer_id: string | null
+  referral_code: string | null
   total_consumption: number | null  // 个人累计消费金额（用于计算段位）
   // V4佣金算法字段
   monthly_consumption: number | null      // 当月个人消费金额
@@ -135,6 +136,7 @@ export interface Product {
   ingredients?: string[] | null
   // 食材食疗智能导购字段（迁移 00100；raw_material 复用 ingredients 列）
   overall_nature?: string | null          // 商品整体性味：大寒/寒凉/平性/微温/温热/大热
+  food_stage?: string | null              // 食养阶段（清/通/调/补/固）；空时由 ingredients 主导功效派生，商家可人工微调
   health_tag?: string[] | null            // 固定食疗标签库 9 项
   emotion_tag?: string[] | null           // 固定情绪标签库 8 项
   match_goods?: string[] | null           // 推荐搭配商品 id 列表
@@ -145,7 +147,10 @@ export interface Product {
   nutrition?: { energy_kj?: number | null; protein_g?: number | null; fat_g?: number | null; carb_g?: number | null; sugar_g?: number | null; sodium_mg?: number | null } | null
   label_info?: { score?: number; present?: Record<string, boolean>; missing?: string[] } | null
   safety_grade?: 'S' | 'A' | 'C' | 'D' | null   // 全面安全评级
-  safety_summary?: Record<string, unknown> | null  // 分析报告缓存（ComprehensiveSafetyReport JSON）
+  safety_summary?: Record<string, unknown> | null
+  food_category?: string | null
+  store_name?: string | null  // 分析报告缓存（ComprehensiveSafetyReport JSON）
+  sales_count?: number        // 累计销量（件），见迁移 00221
 
 }
 
@@ -290,22 +295,22 @@ export interface EmotionClaim {
   store_id: string | null
   selected_emotion: string[] | null
   badge_text: string | null
-  tongbao_amount: number | null   // 历史兼容（旧版存金豆/通宝）；V2 起用 tb_amount
-  tb_amount: number | null        // 本次确权发放 金豆
+  tongbao_amount: number | null   // 历史兼容（旧版存健康豆/健康豆）；V2 起用 tb_amount
+  tb_amount: number | null        // 本次确权发放 健康豆
   cv_amount: number | null        // 本次确权发放 会员贡献值
   badge_code: string | null       // 情绪徽章 code
   created_at: string
 }
 
 // =====================
-// 金豆 + 徽章（V5 P2-1，00053 独立化）
+// 健康豆 + 徽章（V5 P2-1，00053 独立化）
 // =====================
 
-// 金豆账户
+// 健康豆账户
 export interface EmotionAsset {
   id: string
   user_id: string
-  balance: number        // 可用金豆
+  balance: number        // 可用健康豆
   frozen: number         // 冻结中
   total_earned: number   // 累计获得
   total_spent: number    // 累计消耗
@@ -313,11 +318,11 @@ export interface EmotionAsset {
   updated_at: string
 }
 
-// 金豆流水
+// 健康豆流水
 export type EmotionTongbaoReason =
   | 'emotion_claim'      // 消费即确权奖励
   | 'emotion_feed'       // 情绪喂养消耗
-  | 'emotion_exchange'   // 金豆兑换（未来）
+  | 'emotion_exchange'   // 健康豆兑换（未来）
   | 'admin_adjust'       // 平台调账
   | 'share_invite'       // 分享归属奖励
 export interface EmotionTongbaoLog {
@@ -388,6 +393,7 @@ export interface CartItem {
   quantity: number
   selected: boolean
   created_at: string
+  batch_id?: string | null   // 临期批次：关联 cart_items.batch_id，驱动购物车/支付页临期特惠价
   // joined
   products?: Product
   stores?: Store
@@ -493,7 +499,7 @@ export interface PointsLog {
   created_at: string
 }
 
-/** 金豆流水（tongbao_logs）- 平台统一货币账户 */
+/** 健康豆流水（tongbao_logs）- 平台统一货币账户 */
 export interface TongbaoLog {
   id: string
   user_id: string

@@ -96,7 +96,7 @@ export default function AdminExpiryPage() {
                   </View>
                   {p.decided_by === 'ai' && (
                     <Text className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/15">
-                      AI
+                      自动
                     </Text>
                   )}
                 </View>

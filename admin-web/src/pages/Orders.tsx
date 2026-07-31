@@ -78,11 +78,11 @@ export default function Orders() {
         { key: 'buyer_phone', label: '手机号' },
         { key: 'store_name', label: '门店' },
         { key: 'total_amount', label: '成交额' },
-        { key: 'tb_used', label: '金豆抵扣' },
+        { key: 'tb_used', label: '健康豆抵扣' },
         { key: 'commission_total', label: '佣金' },
         { key: 'commission_l1', label: '一级佣金' },
         { key: 'commission_l2', label: '二级佣金' },
-        { key: 'buyer_points', label: '买家金豆' },
+        { key: 'buyer_points', label: '买家健康豆' },
         { key: 'platform_share', label: '平台佣金' },
         { key: 'platformNet', label: '门店收益' },
         { key: 'commission_distributed', label: '佣金状态' },
@@ -129,11 +129,11 @@ export default function Orders() {
   const commissionL2Sum = rows.reduce((s, r) => s + r.commission_l2, 0)
   const buyerPointsSum = rows.reduce((s, r) => s + r.buyer_points, 0)
   // 财务拆解汇总：让利 = total × effective_rate；
-  // 平台佣金(平台自有部分) = 让利 − 佣金(已分) − 买家金豆
-  // 现金实收 = 成交额 − 金豆抵扣；门店收益 = 成交额 − 已发佣金(l1+l2)
-  // 买家金豆从让利中分出，与佣金同源
+  // 平台佣金(平台自有部分) = 让利 × 10%（平台保底）
+  // 现金实收 = 成交额 − 健康豆抵扣；门店收益 = 成交额 − 已发佣金(l1+l2)
+  // 买家健康豆从让利中分出，与佣金同源
   const letAmtSum = rows.reduce((s, r) => s + Math.round(r.total_amount * (r.effective_rate ?? 0.09) * 100) / 100, 0)
-  const platShareSum = Math.max(0, Math.round((letAmtSum - commissionSum - buyerPointsSum) * 100) / 100)
+  const platShareSum = Math.max(0, Math.round(letAmtSum * 0.10 * 100) / 100)
   const platNetSum = rows.reduce((s, r) => s + r.store_revenue, 0)
 
   return (
@@ -142,7 +142,7 @@ export default function Orders() {
         <div>
           <h1 style={{ color: C.text, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>成交订单</h1>
           <p style={{ color: C.dim, fontSize: 14 }}>
-            让利金额按让利率计提，在一级佣金 / 二级佣金 / 买家金豆 / 平台佣金间分配；门店收益为商家实际到账货款（取自结算台账）
+            让利金额按让利率计提，在一级佣金 / 二级佣金 / 买家健康豆 / 平台佣金间分配；门店收益为商家实际到账货款（取自结算台账）
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -178,12 +178,12 @@ export default function Orders() {
       {/* 本页汇总 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12 }}>
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页成交额合计</p><p style={{ color: C.green, fontSize: 22, fontWeight: 700 }}>{fmtMoney(gmvSum)}</p></div>
-        <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页金豆抵扣合计</p><p style={{ color: C.gold, fontSize: 22, fontWeight: 700 }}>{fmtMoney(concessionSum)}</p></div>
+        <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页健康豆抵扣合计</p><p style={{ color: C.gold, fontSize: 22, fontWeight: 700 }}>{fmtMoney(concessionSum)}</p></div>
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页让利金额合计</p><p style={{ color: C.gold, fontSize: 22, fontWeight: 700 }}>{fmtMoney(letAmtSum)}</p></div>
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页佣金合计（已分上线）</p><p style={{ color: C.purple, fontSize: 22, fontWeight: 700 }}>{fmtMoney(commissionSum)}</p></div>
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页一级佣金合计</p><p style={{ color: C.purple, fontSize: 22, fontWeight: 700 }}>{fmtMoney(commissionL1Sum)}</p></div>
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页二级佣金合计</p><p style={{ color: C.purple, fontSize: 22, fontWeight: 700 }}>{fmtMoney(commissionL2Sum)}</p></div>
-        <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页买家金豆合计</p><p style={{ color: 'var(--accent)', fontSize: 22, fontWeight: 700 }}>{fmtMoney(buyerPointsSum)}</p></div>
+        <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页买家健康豆合计</p><p style={{ color: 'var(--accent)', fontSize: 22, fontWeight: 700 }}>{fmtMoney(buyerPointsSum)}</p></div>
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页平台佣金合计</p><p style={{ color: C.accent, fontSize: 22, fontWeight: 700 }}>{fmtMoney(platShareSum)}</p></div>
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页平台现金实收合计</p><p style={{ color: C.blue, fontSize: 22, fontWeight: 700 }}>{fmtMoney(cashSum)}</p></div>
         <div style={cardStyle}><p style={{ color: C.sub, fontSize: 12, marginBottom: 6 }}>本页门店收益合计</p><p style={{ color: C.green, fontSize: 22, fontWeight: 700 }}>{fmtMoney(platNetSum)}</p></div>
@@ -193,7 +193,7 @@ export default function Orders() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--surface)', borderBottom: `1px solid ${C.border}` }}>
-              {['订单号', '买家', '门店', '成交额', '金豆抵扣', '平台现金实收', '让利率', '让利金额', '一级佣金', '二级佣金', '买家金豆', '平台佣金', '门店收益', '佣金状态', '状态', '退款', '时间'].map(h => (
+              {['订单号', '买家', '门店', '成交额', '健康豆抵扣', '平台现金实收', '让利率', '让利金额', '一级佣金', '二级佣金', '买家健康豆', '平台佣金', '门店收益', '佣金状态', '状态', '退款', '时间'].map(h => (
                 <th key={h} style={{ color: C.dim, fontWeight: 500, padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -219,7 +219,7 @@ export default function Orders() {
                   </td>
                   {(() => {
                     // 财务拆解：让利 = total × effective_rate；
-                    // 平台佣金 = 让利 − 一级佣金 − 二级佣金 − 买家金豆
+                    // 平台佣金 = 让利 − 一级佣金 − 二级佣金 − 买家健康豆
                     // 门店收益 = 成交额 − 已发佣金(l1+l2)
                     const rate = r.effective_rate ?? 0.09
                     const concession = Math.round(r.total_amount * rate * 100) / 100
@@ -292,10 +292,10 @@ function OrderBlock({ d, items = [] }: { d: OrderDetail; items?: ProductCommissi
     ['买家手机', maskPhone(d.buyer_phone)],
     ['推荐人(上线)', d.referrer_nickname ?? '无'],
     ['成交额', fmtMoney(d.total_amount), 'money'],
-    ['让利(金豆抵扣)', fmtMoney(d.tb_used), 'money'],
+    ['让利(健康豆抵扣)', fmtMoney(d.tb_used), 'money'],
     ['一级佣金', fmtMoney(d.commission_l1), 'money'],
     ['二级佣金', fmtMoney(d.commission_l2), 'money'],
-    ['买家金豆', fmtMoney(d.buyer_points), 'money'],
+    ['买家健康豆', fmtMoney(d.buyer_points), 'money'],
     ['平台佣金', fmtMoney(d.platform_share), 'money'],
     ['佣金扣减', fmtMoney(d.commissionTotal), 'money'],
     ['门店收益', fmtMoney(d.platformNet), 'money'],
@@ -331,7 +331,7 @@ function OrderBlock({ d, items = [] }: { d: OrderDetail; items?: ProductCommissi
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ background: 'var(--surface)', borderBottom: `1px solid ${C.border}` }}>
-                  {['商品', '小计', '让利率', '让利池', '一级佣金', '二级佣金', '买家金豆', '平台佣金'].map(h => (
+                  {['商品', '小计', '让利率', '让利池', '一级佣金', '二级佣金', '买家健康豆', '平台佣金'].map(h => (
                     <th key={h} style={{ color: C.dim, fontWeight: 500, padding: '8px 10px', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -376,7 +376,7 @@ function OrderBlock({ d, items = [] }: { d: OrderDetail; items?: ProductCommissi
             </table>
           </div>
           <p style={{ color: C.dim, fontSize: 11, marginTop: 8, lineHeight: 1.6 }}>
-            说明：每商品按自身 <b>让利率</b> 计算让利池；一级/二级佣金与买家金豆在整单层面统一封顶缩放后按商品占比分摊，Σ 与订单「一级佣金/二级佣金/买家金豆」汇总一致（零资损）。
+            说明：每商品按自身 <b>让利率</b> 计算让利池；一级/二级佣金与买家健康豆在整单层面统一封顶缩放后按商品占比分摊，Σ 与订单「一级佣金/二级佣金/买家健康豆」汇总一致（零资损）。
           </p>
         </div>
       )}

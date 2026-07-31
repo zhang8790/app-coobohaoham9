@@ -54,10 +54,10 @@ Deno.serve(async (req: Request) => {
     if (order.user_id !== user.id) return Response.json({ error: '无权操作此订单' }, { status: 403, headers: corsHeaders })
     if (order.status !== 'pending_pay') return Response.json({ error: `订单状态异常(${order.status})，无法发起支付` }, { status: 400, headers: corsHeaders })
 
-    // 实际微信支付金额 = 总金额 - 情绪豆抵扣
-    // 注意：00096 后 tb_used 已统一为「元」口径（1 豆 = 1 元，与 tb_balance 一致），直接相减即可，勿再 ×0.01
+    // 实际微信支付金额 = 总金额 - 健康豆抵扣
+    // 注意：00096 后 tb_used 已统一为「元」口径（1 健康豆 = 1 元，与 tb_balance 一致），直接相减即可，勿再 ×0.01
     const wxAmount = Math.round((order.total_amount - (order.tb_used ?? 0)) * 100) // 分
-    if (wxAmount <= 0) return Response.json({ error: '微信支付金额为0，请使用纯金豆支付' }, { status: 400, headers: corsHeaders })
+    if (wxAmount <= 0) return Response.json({ error: '微信支付金额为0，请使用纯健康豆支付' }, { status: 400, headers: corsHeaders })
 
     const notifyUrl = `${SUPABASE_URL}/functions/v1/wechat-payment-callback`
 

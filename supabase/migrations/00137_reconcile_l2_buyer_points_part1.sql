@@ -6,7 +6,7 @@
 
 BEGIN;
 
--- 1) 清理这两单的佣金/金豆流水（保留 00136 的 commission_revoke 审计行）
+-- 1) 清理这两单的佣金/健康豆流水（保留 00136 的 commission_revoke 审计行）
 DELETE FROM public.commissions WHERE order_id IN (
   '322d436a-a1c7-4919-8e08-1f5424e95043',
   '2eefcdee-919b-4eb0-95ce-1a4cf72dc141'

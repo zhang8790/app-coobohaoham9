@@ -351,7 +351,7 @@ function MerchantSettingsPage() {
       {/* ===== 5.5 让利（推广）配置 ===== */}
       <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
         <Text className="text-base font-bold text-foreground mb-1 block">让利（推广）配置</Text>
-        <Text className="text-xs text-gray-400 mb-3 block">设置订单金额中让利给平台的比例，用于推广员佣金和金豆返还</Text>
+        <Text className="text-xs text-gray-400 mb-3 block">设置订单金额中让利给平台的比例，用于推广员佣金和健康豆返还</Text>
 
         <View className="flex items-center justify-between">
           <Text className="text-sm text-gray-600">让利率</Text>
@@ -372,7 +372,7 @@ function MerchantSettingsPage() {
         </View>
         <View className="mt-2 p-2 rounded-lg bg-orange-50">
           <Text className="text-xs text-orange-600">
-            示例：让利率 10%，订单 100 元 → 平台让利 10 元，用于推广员佣金 + 金豆返还 + 平台收入
+            示例：让利率 10%，订单 100 元 → 平台让利 10 元，用于推广员佣金 + 健康豆返还 + 平台收入
           </Text>
         </View>
         {/* 店铺整体让利开关 */}

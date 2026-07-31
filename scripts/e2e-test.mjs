@@ -3,7 +3,7 @@
 // 跑通 5 大链路：
 //   1) 云函数探针（5 个函数上线状态）
 //   2) 数据库表结构（10 张关键表字段）
-//   3) 金豆下单模拟（mock auth → 扣豆 → 写订单 → 触发分佣）
+//   3) 健康豆下单模拟（mock auth → 扣豆 → 写订单 → 触发分佣）
 //   4) 分佣到账链路（commission_balance 累加 + notifications 写入）
 //   5) 通知中心（notifications 表可读可写）
 //
@@ -147,9 +147,9 @@ async function testDbSchema() {
   }
 }
 
-// ============ 3. 金豆下单模拟 ============
+// ============ 3. 健康豆下单模拟 ============
 async function testGoldBeanOrder() {
-  section('③ 金豆下单模拟（dry-run，检查权限/字段）')
+  section('③ 健康豆下单模拟（dry-run，检查权限/字段）')
 
   // 找一个已有 user 用于查询
   const { json: profiles } = await probe('find-user', `${URL}/rest/v1/profiles?select=id,nickname,tb_balance&limit=3`, {
@@ -157,12 +157,12 @@ async function testGoldBeanOrder() {
   })
 
   if (!Array.isArray(profiles) || profiles.length === 0) {
-    warn('测试用户', 'profiles 表无数据，跳过金豆下单模拟')
+    warn('测试用户', 'profiles 表无数据，跳过健康豆下单模拟')
     return
   }
 
   const testUser = profiles[0]
-  log(`  测试用户：${testUser.nickname || testUser.id.slice(0, 8)}... 情绪豆余额：${testUser.tb_balance}`)
+  log(`  测试用户：${testUser.nickname || testUser.id.slice(0, 8)}... 健康豆余额：${testUser.tb_balance}`)
 
   // 找一个商品
   const { json: products } = await probe('find-product', `${URL}/rest/v1/products?select=id,name,price,store_id&limit=3`, {
@@ -196,7 +196,7 @@ async function testGoldBeanOrder() {
 
   if (r.status === 201 && r.json?.[0]?.id) {
     const orderId = r.json[0].id
-    pass('金豆下单 RLS 通过', `order_id=${orderId.slice(0, 8)}...`)
+    pass('健康豆下单 RLS 通过', `order_id=${orderId.slice(0, 8)}...`)
 
     // 清理测试数据
     await probe('cleanup', `${URL}/rest/v1/orders?id=eq.${orderId}`, {
@@ -204,11 +204,11 @@ async function testGoldBeanOrder() {
       headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
     })
   } else if (r.status === 401 || r.status === 403) {
-    fail('金豆下单 RLS 拒绝', '需给 anon 加 orders insert 策略（生产前收口时）')
+    fail('健康豆下单 RLS 拒绝', '需给 anon 加 orders insert 策略（生产前收口时）')
   } else if (r.status === 400) {
-    fail('金豆下单 400', `text=${r.text?.slice(0, 200)}`)
+    fail('健康豆下单 400', `text=${r.text?.slice(0, 200)}`)
   } else {
-    warn('金豆下单 异常', `status=${r.status} text=${r.text?.slice(0, 200)}`)
+    warn('健康豆下单 异常', `status=${r.status} text=${r.text?.slice(0, 200)}`)
   }
 }
 

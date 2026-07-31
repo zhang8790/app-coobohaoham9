@@ -2,12 +2,9 @@
 import { useState, useEffect } from 'react'
 
 import { View, Text } from '@tarojs/components'
-import { getMerchantStore, getMerchantProducts, getMerchantOrders } from '@/db/api'
+import { getMerchantStore, getMerchantProducts, getMerchantOrderStats } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import { RouteGuard } from '@/components/RouteGuard'
-
-// 仅已付款/完成订单计入营收（排除未付款、取消、售后退款）；含待核销(pending_pickup)
-const REVENUE_STATUSES = ['pending_ship', 'pending_receive', 'pending_pickup', 'pending_review', 'completed']
 
 function MerchantAnalyticsPage() {
   const [store, setStore] = useState<any>(null)
@@ -19,33 +16,19 @@ function MerchantAnalyticsPage() {
     getMerchantStore().then(async (s) => {
       setStore(s)
       if (s) {
-        const [prods, ords, membersRes] = await Promise.all([
+        const [prods, stats, membersRes] = await Promise.all([
           getMerchantProducts(s.id),
-          getMerchantOrders(s.id),
+          getMerchantOrderStats(s.id),        // count 查询 + 近7日，准确且不被 limit=20 截断
           supabase.rpc('get_store_locked_members', { p_store_id: s.id })
             .then((r: any) => (r.data ?? []) as any[]).catch(() => [] as any[]),
         ])
-        // getMerchantOrders 返回 order_items（一行一商品），先按 order_no 去重为独立订单，
-        // 否则一笔多商品订单会被重复计数、营收也会按商品行数翻倍。
-        const orderMap = new Map<string, any>()
-        for (const it of (ords || [])) {
-          const no = it.orders?.order_no
-          if (no && !orderMap.has(no)) orderMap.set(no, it.orders)
-        }
-        const distinctOrders = Array.from(orderMap.values())
-        // 仅已付款/完成订单计入营收，与网页版商家后台口径一致（排除未付款、取消、售后退款）
-        const paid = distinctOrders.filter(o => REVENUE_STATUSES.includes(o.status))
-        const today = new Date().toISOString().slice(0, 10)
-        const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)
-        const todayOrders = paid.filter(o => (o.created_at || '').startsWith(today))
-        const weekOrders = paid.filter(o => (o.created_at || '') >= weekAgo)
         const memberList = Array.isArray(membersRes) ? membersRes : []
         const crossStore = memberList.filter((m: any) => m.referrer_store_id && m.referrer_store_id !== s.id).length
         setStats({
-          todayOrders: todayOrders.length,
-          todayRevenue: todayOrders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0),
-          weekOrders: weekOrders.length,
-          weekRevenue: weekOrders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0),
+          todayOrders: stats.todayOrders,
+          todayRevenue: stats.todayRevenue,
+          weekOrders: stats.weekOrders,
+          weekRevenue: stats.weekRevenue,
           totalProducts: prods.length,
           onlineProducts: prods.filter(p => p.is_active).length,
           totalMembers: memberList.length,

@@ -1,9 +1,9 @@
 -- =============================================================
--- 00136 推广佣金 50/50 拆分（一半可提现佣金 + 一半金豆）+ 现金账户流水 ledger
+-- 00136 推广佣金 50/50 拆分（一半可提现佣金 + 一半健康豆）+ 现金账户流水 ledger
 -- =============================================================
--- 背景（2026-07-29 业务决策「一半佣金，一半金豆」）：
+-- 背景（2026-07-29 业务决策「一半佣金，一半健康豆」）：
 --   推广收益净额 50% 发放至【可提现佣金账户 commission_balance】（推广服务费，依法代扣个税），
---   50% 发放至【金豆账户 tb_balance】（仅本平台消费抵扣、不可提现）。
+--   50% 发放至【健康豆账户 tb_balance】（仅本平台消费抵扣、不可提现）。
 --   此前 2026-07-19 决策为 100% 进 tb_balance，现回拨一半为可提现现金。
 --
 -- 必要性：
@@ -17,13 +17,13 @@
 
 BEGIN;
 
--- 1. commissions 记录每笔佣金的现金/金豆拆分
+-- 1. commissions 记录每笔佣金的现金/健康豆拆分
 ALTER TABLE public.commissions
   ADD COLUMN IF NOT EXISTS cash_portion numeric(12,4) NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS bean_portion numeric(12,4) NOT NULL DEFAULT 0;
 
 COMMENT ON COLUMN public.commissions.cash_portion IS '本笔佣金净额中发放至可提现佣金账户(commission_balance)的部分';
-COMMENT ON COLUMN public.commissions.bean_portion IS '本笔佣金净额中发放至金豆账户(tb_balance)的部分';
+COMMENT ON COLUMN public.commissions.bean_portion IS '本笔佣金净额中发放至健康豆账户(tb_balance)的部分';
 
 -- 2. 可提现佣金账户流水（现金账户必须有账，合规/防资损）
 CREATE TABLE IF NOT EXISTS public.commission_balance_logs (

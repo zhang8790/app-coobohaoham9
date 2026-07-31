@@ -51,7 +51,7 @@ export const EMOTION_DIMENSION_TAGS: Record<string, DimensionTag[]> = {
     { zh: '解压', icon: '🔥', color: '#A8552E' },
     { zh: '放空', icon: '🌌', color: '#6D28D9' },
     { zh: '回血', icon: '⚡', color: '#CA8A04' },
-    { zh: '治愈', icon: '🩹', color: '#0D9488' },
+    { zh: '舒心', icon: '🩹', color: '#0D9488' },
     { zh: '小确幸', icon: '✨', color: '#DB2777' },
     { zh: '仪式感', icon: '🕯️', color: '#9A8070' },
   ],
@@ -90,7 +90,6 @@ export const SHIYANG_DIMENSION_LABEL = '食养成分'
 export const SHIYANG_DIMENSION_MAX = 5  // 每商品最多选 5 个食材
 
 export { SHIYANG_CATEGORIES } from './shiyang-dictionary'
-import { resolveProductEmotionLexicon } from './product-emotion-lexicon'
 
 export const EMOTION_DIMENSION_LABELS: Record<string, string> = {
   function: '功能属性',
@@ -113,7 +112,7 @@ const RECOMMEND_RULES: { keywords: string[]; dim: string; tags: string[] }[] = [
   // 茶饮
   { keywords: ['茶', '奶茶', '果茶', '乌龙', '绿茶', '普洱'], dim: 'function', tags: ['茶饮', '热饮'] },
   { keywords: ['茶', '奶茶'], dim: 'scene', tags: ['朋友小聚', '周末一人食'] },
-  { keywords: ['茶'], dim: 'emotion', tags: ['治愈', '松弛'] },
+  { keywords: ['茶'], dim: 'emotion', tags: ['舒心', '松弛'] },
   { keywords: ['茶'], dim: 'sensory', tags: ['清甜', '清爽'] },
   // 甜品 / 烘焙
   { keywords: ['蛋糕', '甜品', '面包', '烘焙', '可颂', '甜点', '酥'], dim: 'function', tags: ['烘焙甜品', '甜品'] },
@@ -139,12 +138,12 @@ const RECOMMEND_RULES: { keywords: string[]; dim: string; tags: string[] }[] = [
   // 水果 / 生鲜
   { keywords: ['猕猴桃', '苹果', '香蕉', '橙子', '柠檬', '西瓜', '葡萄', '草莓', '樱桃', '芒果', '火龙果', '梨', '柚子', '橘子', '李子', '杏'], dim: 'function', tags: ['水果'] },
   { keywords: ['水果', '鲜果', '生鲜', '果蔬'], dim: 'scene', tags: ['独处时光', '下午茶', '周末一人食'] },
-  { keywords: ['水果', '鲜果', '果汁'], dim: 'emotion', tags: ['小确幸', '治愈', '清爽'] },
+  { keywords: ['水果', '鲜果', '果汁'], dim: 'emotion', tags: ['小确幸', '舒心', '清爽'] },
   { keywords: ['水果', '果肉'], dim: 'sensory', tags: ['清甜', '多汁', '清爽'] },
   // 零售 / 日用
   { keywords: ['零食', '坚果', '干果', '饼干', '糖果', '巧克力', '薯片'], dim: 'function', tags: ['甜品', '烘焙甜品'] },
   { keywords: ['零食', '薯片', '坚果'], dim: 'scene', tags: ['独处时光', '午后摸鱼', '追剧'] },
-  { keywords: ['零食', '巧克力', '糖果'], dim: 'emotion', tags: ['小确幸', '自我取悦', '治愈'] },
+  { keywords: ['零食', '巧克力', '糖果'], dim: 'emotion', tags: ['小确幸', '自我取悦', '舒心'] },
   // 娱乐
   { keywords: ['电影', 'KTV', '唱歌', '密室', '剧本杀', '游戏', '电竞', '网咖', '桌游', '抓娃娃'], dim: 'function', tags: ['娱乐'] },
   { keywords: ['KTV', '唱歌', '电影', '聚会', '派对'], dim: 'scene', tags: ['朋友小聚', '节日庆祝', '约会'] },
@@ -176,10 +175,9 @@ export function recommendDimensions(text: string): Partial<Record<string, string
     }
   }
   // =====================
-  // 商品级情绪词库：补全更贴合具体商品的标签推荐
-  // 仅采纳命中标准维度库的标签，避免引入未知 key 破坏渲染。
+  // 商品级情绪词库已移除（product-emotion-lexicon），仅走标准维度推荐。
   // =====================
-  const px = resolveProductEmotionLexicon(text, '')
+  const px: any = undefined
   if (px) {
     const inLib = (dim: string, tag: string) =>
       (EMOTION_DIMENSION_TAGS[dim] || []).some(t => t.zh === tag)

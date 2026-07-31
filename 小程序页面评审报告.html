@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>「来电有喜」小程序页面评审</title>
+<style>
+  :root{
+    --paper:#FFFBF7; --ink:#1A1A1A; --muted:#9A8070;
+    --primary:#C77B47; --primary-d:#A8552E; --gold:#C77B47;
+    --jade:#16A34A; --navy:#3B82F6; --rose:#EF4444; --line:#E7DCCB;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;line-height:1.7;padding:28px 18px 60px}
+  .wrap{max-width:860px;margin:0 auto}
+  header{text-align:center;margin-bottom:8px}
+  header h1{font-family:"Songti SC","Noto Serif SC",serif;font-size:26px;letter-spacing:2px;color:var(--ink)}
+  header .sub{color:var(--muted);font-size:13px;margin-top:6px}
+  .seal{display:inline-block;border:1.5px solid var(--primary);color:var(--primary);border-radius:999px;padding:2px 12px;font-size:12px;margin-top:10px}
+  .radar-card{display:flex;flex-direction:column;align-items:center;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin:22px 0;box-shadow:0 6px 22px rgba(20,15,11,.06)}
+  .scores{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;width:100%}
+  .score{min-width:0;text-align:center}
+  .score .n{font-size:22px;font-weight:800;color:var(--primary)}
+  .score .l{font-size:11px;color:var(--muted);margin-top:2px}
+  section{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px 18px 8px;margin:16px 0;box-shadow:0 4px 16px rgba(20,15,11,.04)}
+  section h2{font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  section h2 .tag{font-size:11px;font-weight:700;color:#fff;background:var(--primary);border-radius:999px;padding:1px 9px}
+  section .verdict{font-size:13px;color:var(--muted);margin-bottom:12px}
+  .row{display:flex;gap:10px;padding:10px 0;border-top:1px dashed var(--line);font-size:13.5px}
+  .row:first-of-type{border-top:0}
+  .sev{flex-shrink:0;width:42px;font-size:11px;font-weight:700;text-align:center;border-radius:8px;padding:2px 0;height:fit-content;margin-top:2px}
+  .hi{background:#FDE2E2;color:#C0392B}
+  .mid{background:#FFF3E0;color:#B26A3C}
+  .ok{background:#E6F6EC;color:#16A34A}
+  .row .body{flex:1}
+  .row .body b{color:var(--ink)}
+  .row .body code{background:#F4EEE3;color:var(--primary-d);padding:1px 5px;border-radius:5px;font-size:12px}
+  .row .body .ev{color:var(--muted);font-size:12px;display:block;margin-top:2px}
+  .philo{font-size:14px;line-height:1.85;color:#33291f}
+  .philo .lead{font-family:"Songti SC",serif;font-size:16px;color:var(--primary-d);font-weight:700;display:block;margin-bottom:8px}
+  .action{background:linear-gradient(135deg,#FFF7ED,#FFEDD5);border:1px solid #F6C99B;border-radius:18px;padding:18px;margin:18px 0}
+  .action h2{color:var(--primary-d)}
+  .action ol{margin:8px 0 4px 18px;font-size:13.5px}
+  .action li{margin:6px 0}
+  .action .p{font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;margin-right:6px}
+  footer{text-align:center;color:var(--muted);font-size:11px;margin-top:24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>来电有喜 · 小程序页面评审</h1>
+    <div class="sub">武侠国潮 · 食养驱动的情绪电商 ｜ 95 页面全量审计 ｜ 2026-07-29</div>
+    <div class="seal">墨韵 · 懂身体的好物</div>
+  </header>
+
+  <div class="radar-card">
+    <svg width="300" height="300" viewBox="0 0 300 300">
+      <!-- 网格 -->
+      <polygon points="150,40 260,150 150,260 40,150" fill="none" stroke="#E7DCCB"/>
+      <polygon points="150,73 213,150 150,227 87,150" fill="none" stroke="#EFE6D6"/>
+      <polygon points="150,106 166,150 150,194 134,150" fill="none" stroke="#EFE6D6"/>
+      <line x1="150" y1="40" x2="150" y2="260" stroke="#EFE6D6"/>
+      <line x1="40" y1="150" x2="260" y2="150" stroke="#EFE6D6"/>
+      <!-- 数据多边形: 合理性8.5 视觉7 层次9 哲学8 -->
+      <polygon points="150,56.5 227,150 150,249 62,150" fill="rgba(199,123,71,.18)" stroke="#C77B47" stroke-width="2"/>
+      <circle cx="150" cy="56.5" r="3.5" fill="#C77B47"/>
+      <circle cx="227" cy="150" r="3.5" fill="#C77B47"/>
+      <circle cx="150" cy="249" r="3.5" fill="#C77B47"/>
+      <circle cx="62" cy="150" r="3.5" fill="#C77B47"/>
+      <text x="150" y="32" text-anchor="middle" font-size="11" fill="#9A8070">合理性 8.5</text>
+      <text x="266" y="154" text-anchor="start" font-size="11" fill="#9A8070">视觉 7.0</text>
+      <text x="150" y="278" text-anchor="middle" font-size="11" fill="#9A8070">层次 9.0</text>
+      <text x="34" y="154" text-anchor="end" font-size="11" fill="#9A8070">哲学 8.0</text>
+    </svg>
+    <div class="scores">
+      <div class="score"><div class="n">8.5</div><div class="l">架构合理性</div></div>
+      <div class="score"><div class="n">7.0</div><div class="l">视觉一致性</div></div>
+      <div class="score"><div class="n">9.0</div><div class="l">信息层次</div></div>
+      <div class="score"><div class="n">8.0</div><div class="l">哲学一致性</div></div>
+    </div>
+  </div>
+
+  <!-- 合理性 -->
+  <section>
+    <h2><span class="tag">架构</span>页面合理性</h2>
+    <div class="verdict">分包按业务域划分清晰，tabBar 四页（首页/自营/购物车/我的）定位准确；端/角色分流（C 端 / 商家 / 平台）合理，无明显功能冗余。</div>
+    <div class="row"><span class="sev hi">⚠️ 高</span><div class="body"><b>超大页面需拆分</b>
+      <span class="ev">merchant-products 1505 行、首页 index 1133 行、payment 942 行、content/make 802 行 —— 单文件过重，维护与真机渲染有风险。<code>src/pages/merchant/merchant-products/index.tsx</code> <code>src/pages/index/index.tsx</code></span></div></div>
+    <div class="row"><span class="sev hi">⚠️ 高</span><div class="body"><b>空壳页占位</b>
+      <span class="ev">mine/my-badges 仅 18 行，内容为空（仅 console.log），但 user 页第 39 行有入口跳转 —— 用户点进去是白屏。<code>src/pages/mine/my-badges/index.tsx</code></span></div></div>
+    <div class="row"><span class="sev hi">⚠️ 高</span><div class="body"><b>死页：admin-expiry 无入口</b>
+      <span class="ev">已注册于 app.config.ts:67，含角色守卫，但 admin 菜单（admin/index.tsx:47-58）无任何卡片指向它，永不触达。<code>src/pages/admin/admin-expiry/index.tsx</code></span></div></div>
+    <div class="row"><span class="sev mid">🟡 中</span><div class="body"><b>路由名残留「健康豆」旧品牌</b>
+      <span class="ev">tongbao-ledger 仍用旧品牌词（非用户可见，但代码层不统一）。应改名 jindou-ledger / gold_bean_logs。<code>src/pages/trade/tongbao-ledger/index.tsx</code></span></div></div>
+  </section>
+
+  <!-- 视觉 -->
+  <section>
+    <h2><span class="tag">视觉</span>视觉一致性</h2>
+    <div class="verdict">C 端主体（首页/我的/购物车/支付/食养中心/商家中心）严格遵循「bg-card + rounded-2xl + border-border」卡片语言与墨韵色板，统一度高、质感高级。</div>
+    <div class="row"><span class="sev hi">⚠️ 高</span><div class="body"><b>article-detail 整页脱离主题</b>
+      <span class="ev">灰底 + 微信绿 #07c160 + 全套 #333/#999 灰，无 bg-card，是违和最重的一页。<code>src/pages/content/article-detail/index.scss</code></span></div></div>
+    <div class="row"><span class="sev hi">⚠️ 高</span><div class="body"><b>store-home 用野色体系</b>
+      <span class="ev">灰底 #F5F5F5 配玫红渐变 #E11D48→#F43F5E，与墨韵赭红基调冲突。<code>src/pages/store-home/index.scss:20</code> <code>src/pages/store-home/index.tsx:162,266,289,339</code></span></div></div>
+    <div class="row"><span class="sev mid">🟡 中</span><div class="body"><b>admin 用 Tailwind 默认色板</b>
+      <span class="ev">text-orange-700 / bg-violet-50 / text-blue-700 / bg-cyan-50 等默认色，形状合规但色相偏「通用后台」，未用品牌 token。<code>src/pages/admin/admin/index.tsx:48-57</code></span></div></div>
+    <div class="row"><span class="sev mid">🟡 中</span><div class="body"><b>explore / ext·employee 走自定义色</b>
+      <span class="ev">explore 用 #FFF8F0 自定义（可接受）；employee 用 #2E7D5B/#3B5B7A 野色，边缘页建议收口。</span></div></div>
+    <div class="row"><span class="sev ok">✅ 无</span><div class="body"><b>合理保留的暖橙</b>
+      <span class="ev">首页临期 #FFF4E6/#FFE3CC/#9A3324、food-scan #16A34A/#DC2626 属刻意营销/语义色，不是野色。</span></div></div>
+  </section>
+
+  <!-- 层次 -->
+  <section>
+    <h2><span class="tag">层次</span>信息层次</h2>
+    <div class="verdict">层次是本项目最强维度。首页用 L0 主视觉→L1 个性食养→L2 工具/附近→L3 运营→L4 发现流五级分层；我的页用分组菜单 + 资产卡 + 雷达画像；食养入口收敛到 food/index 单一 hub，杜绝重复。</div>
+    <div class="row"><span class="sev ok">✅</span><div class="body"><b>目录式 SectionHeader 语言</b>
+      <span class="ev">emoji 圆标 + 主副标题 + 操作，全站复用，层级分明、可扫读。</span></div></div>
+    <div class="row"><span class="sev ok">✅</span><div class="body"><b>唯一主角设计</b>
+      <span class="ev">首页「扫码查安全」为唯一渐变实心块，其余退为米纸卡，视觉重心清晰（注释见 index.tsx:522）。</span></div></div>
+    <div class="row"><span class="sev mid">🟡 中</span><div class="body"><b>死页破坏后台层次</b>
+      <span class="ev">admin-expiry 注册却无菜单入口，平台侧「临期」链路断裂（见合理性 §3）。</span></div></div>
+  </section>
+
+  <!-- 哲学 -->
+  <section>
+    <h2><span class="tag">哲学</span>设计哲学</h2>
+    <div class="philo">
+      <span class="lead">「不来虚的，只懂你身体需要什么。」</span>
+      项目的内核是一套自洽的<b>东方生活美学哲学</b>：以墨韵国潮（低饱和护眼米纸、手绘线稿、印章、松绿黛蓝古铜辅色）替代刺眼促销风；以「食养关怀层」把用户当「人」而非「流量」——商品不仅标价，还标注性味、适宜人群、过敏原冲突。首页「唯一主角 = 扫码查安全」是老子式留白：克制地只推一件最有用的事。<b>去 AI 化、去来电有喜品牌化</b>则追求「本土的、有温度的、不像机器」的陪伴感。整体哲学高级且自洽。
+      <br><br>
+      <b>但哲学纯度有三点张力：</b>
+      <br>① <b>「情绪」前台残留</b> —— 项目已把情绪转后台算法维度，但 payment 页「情绪确权」(payment/index.tsx:98)、review「情绪标签」(review/index.tsx:164)、merchant-campaigns「情绪标签」(205) 仍前台露出，与设定矛盾，哲学不纯。
+      <br>② <b>沉浸感断裂</b> —— article-detail / store-home 脱离墨韵体系，用户滑入时「出戏」，破坏整体东方美学沉浸。
+      <br>③ <b>营销色的微妙张力</b> —— 临期特惠用暖橙活泼色，与「沉稳墨韵」基调有张力（属合理取舍，但需有意识收口，勿蔓延）。
+    </div>
+  </section>
+
+  <!-- 行动 -->
+  <div class="action">
+    <h2>🛠 优先级收口清单</h2>
+    <ol>
+      <li><span class="p hi">⚠️</span>重写 article-detail / store-home 视觉，统一 bg-card + 墨韵 token</li>
+      <li><span class="p hi">⚠️</span>下线或接入 admin-expiry 死页（补菜单入口 or 移除注册）</li>
+      <li><span class="p hi">⚠️</span>补全 my-badges 壳页内容 或 撤掉入口</li>
+      <li><span class="p mid">🟡</span>拆分 merchant-products(1505) / index(1133) 为子组件</li>
+      <li><span class="p mid">🟡</span>清前台「情绪」词 → 改「食养/健康豆」表述（payment/review/merchant-campaigns）</li>
+      <li><span class="p mid">🟡</span>tongbao-ledger 路由与变量重命名为健康豆体系</li>
+      <li><span class="p mid">🟡</span>admin 菜单色块改用品牌 token 替代 Tailwind 默认色</li>
+    </ol>
+  </div>
+
+  <footer>评审范围：src/pages 全量 95 页 ｜ 视觉基准：src/app.scss 墨韵色板 ｜ 术语基准：健康豆/推广佣金/贡献值/侠客推广中心</footer>
+</div>
+</body>
+</html>

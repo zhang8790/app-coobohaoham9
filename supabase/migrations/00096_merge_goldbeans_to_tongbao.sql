@@ -1,17 +1,17 @@
 -- =====================================================
--- 00096: 金豆(balance) 合并为情绪豆(tb_balance)，统一为平台唯一内部货币
+-- 00096: 健康豆(balance) 合并为健康豆(tb_balance)，统一为平台唯一内部货币
 -- -----------------------------------------------------
 -- 决策（用户确认）：
---   1. 合并为单一货币：删除金豆账户，tb_balance(情绪豆) 成为唯一可充值/可支付货币
---   2. 存量金豆并入情绪豆（balance -> tb_balance，用户资产不丢失）
---   3. 确权发豆保留为忠诚度返利（花情绪豆买 -> 确权又得情绪豆）
+--   1. 合并为单一货币：删除健康豆账户，tb_balance(健康豆) 成为唯一可充值/可支付货币
+--   2. 存量健康豆并入健康豆（balance -> tb_balance，用户资产不丢失）
+--   3. 确权发豆保留为忠诚度返利（花健康豆买 -> 确权又得健康豆）
 -- 注意：
 --   - gold_beans 列是历史遗留(已并入佣金_balance)，不在此迁移范围
---   - balance 才是「当前金豆消费币」，本次并入 tb_balance 后弃用
+--   - balance 才是「当前健康豆消费币」，本次并入 tb_balance 后弃用
 --   - 本迁移幂等，可重复执行；沙箱无 SQL 权限，需本机 Supabase SQL Editor 执行
 -- =====================================================
 
--- 1) 存量金豆并入情绪豆（幂等：仅对 balance>0 的用户累加）
+-- 1) 存量健康豆并入健康豆（幂等：仅对 balance>0 的用户累加）
 UPDATE public.profiles
 SET tb_balance = COALESCE(tb_balance, 0) + COALESCE(balance, 0)
 WHERE COALESCE(balance, 0) > 0;
@@ -20,7 +20,7 @@ WHERE COALESCE(balance, 0) > 0;
 --    （保留列不删，避免破坏尚未部署的代码；确认所有代码改为 tb_balance 后可 DROP）
 UPDATE public.profiles SET balance = 0 WHERE COALESCE(balance, 0) <> 0;
 
--- 3) orders: 新增 tb_used 列承接金豆抵扣额（gold_beans_used 弃用）
+-- 3) orders: 新增 tb_used 列承接健康豆抵扣额（gold_beans_used 弃用）
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS tb_used numeric(12,2) NOT NULL DEFAULT 0;
 UPDATE public.orders
 SET tb_used = COALESCE(gold_beans_used, 0)
@@ -57,7 +57,7 @@ BEGIN
   EXECUTE 'ALTER TABLE public.orders ADD CONSTRAINT orders_payment_method_check CHECK (payment_method IN (''wxpay'',''emotion_beans''))';
 END $$;
 
--- 7) gold_bean_logs 改名 tongbao_logs（语义统一为情绪豆流水）
+-- 7) gold_bean_logs 改名 tongbao_logs（语义统一为健康豆流水）
 --    仅当表存在且未重命名时执行
 DO $$
 BEGIN

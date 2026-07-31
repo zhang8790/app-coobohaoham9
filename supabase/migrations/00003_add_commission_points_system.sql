@@ -1,5 +1,5 @@
 
--- 1. 补充 orders 表字段（支持金豆混合支付和分销关联）
+-- 1. 补充 orders 表字段（支持健康豆混合支付和分销关联）
 ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS gold_beans_used numeric(12,4) NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS referrer_id uuid REFERENCES auth.users(id),

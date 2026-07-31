@@ -65,7 +65,7 @@ export const STAGE2_SCENE_TO_EMOTION: Stage2Rule[] = [
   { scene: '周末一人食', emotionAnchor: '松弛 + 独处 + 自我取悦', template: '就想安安静静待着，不用说话不用社交？', example: '就想安安静静待着，不用说话不用社交？' },
   { scene: '下班放松', emotionAnchor: '解压 + 放空 + 回血', template: '不想带脑子，就想发会儿呆？', example: '不想带脑子，就想发会儿呆？' },
   // 水果 / 生鲜
-  { scene: '午后小憩', emotionAnchor: '清爽 + 小确幸 + 治愈', template: '不是饿，就是嘴里想有点清爽的？', example: '不是饿，就是嘴里想有点清爽的？' },
+  { scene: '午后小憩', emotionAnchor: '清爽 + 小确幸 + 舒心', template: '不是饿，就是嘴里想有点清爽的？', example: '不是饿，就是嘴里想有点清爽的？' },
   // 独处
   { scene: '独处追剧', emotionAnchor: '自我取悦 + 松弛 + 小确幸', template: '这种时候，只想对自己好一点？', example: '这种时候，只想对自己好一点？' },
   // 社交
@@ -78,7 +78,7 @@ export const STAGE3_EMOTION_TO_IDENTITY: Stage3Rule[] = [
   { emotionSatisfaction: '认真吃饭', identityTag: '爱自己、不将就', template: '你是再忙也会好好照顾自己的人', example: '你是再忙也会好好照顾自己的人' },
   { emotionSatisfaction: '尝试新鲜事物', identityTag: '有品味、懂生活', template: '你是愿意为美好体验买单的人', example: '你是愿意为美好体验买单的人' },
   // 水果 / 生鲜
-  { emotionSatisfaction: '清爽治愈', identityTag: '爱自然、懂滋养', template: '你是知道身体想要什么的人', example: '你是知道身体想要什么的人' },
+  { emotionSatisfaction: '清爽舒心', identityTag: '爱自然、懂滋养', template: '你是知道身体想要什么的人', example: '你是知道身体想要什么的人' },
   // 自我取悦
   { emotionSatisfaction: '自我取悦', identityTag: '爱自己、值得', template: '你是对自己挺好的那种人', example: '你是对自己挺好的那种人' },
   // 社交

@@ -24,15 +24,15 @@ const FAQ_GROUPS = [
     ]},
   {
     title: '推广佣金',
-    icon: 'i-mdi-share-variant-outline',
+    icon: '💰',
     items: [
       { q: '如何获得推广佣金？', a: '在"推广中心"获取您的专属推广码，将商品或门店码分享给好友，好友通过您的链接购买后即可获得佣金。' },
-      { q: '佣金什么时候结算？', a: '订单完成后7天，佣金状态从"待结算"变为"已结算"，推广佣金以金豆发放至金豆余额，可在平台内消费支付。' },
-      { q: '推广佣金怎么使用？', a: '推广佣金以金豆形式发放至金豆余额，可在平台内消费支付抵扣，不可提现；金豆仅用于订单抵扣，不兑现金。' },
+      { q: '佣金什么时候结算？', a: '订单完成后7天，佣金状态从"待结算"变为"已结算"，推广佣金以健康豆发放至健康豆余额，可在平台内消费支付。' },
+      { q: '推广佣金怎么使用？', a: '推广佣金以健康豆形式发放至健康豆余额，可在平台内消费支付抵扣，不可提现；健康豆仅用于订单抵扣，不兑现金。' },
     ]},
   {
     title: '账号相关',
-    icon: 'i-mdi-account-circle-outline',
+    icon: '👤',
     items: [
       { q: '如何修改个人信息？', a: '进入"我的" → "设置"页面，即可修改昵称和头像。' },
       { q: '忘记密码怎么办？', a: '本小程序支持手机验证码登录，无需密码，直接输入手机号获取验证码即可登录。' },
@@ -55,9 +55,10 @@ function HelpPage() {
           <Text className="text-xl font-bold text-foreground">遇到问题？</Text>
           <Text className="text-base text-muted-foreground">查看常见问题或联系客服</Text>
         </View>
-        <Button type="button"
-          className="flex items-center justify-center leading-none rounded-xl bg-primary"
-          onClick={() => Taro.makePhoneCall({ phoneNumber: '400-000-0000' }).catch(() => {})}>
+        <Button
+          openType="contact"
+          className="flex items-center justify-center leading-none rounded-xl bg-primary wx-contact-btn"
+          hoverClass="none">
           <View className="px-3 py-2 text-xl font-bold text-white">联系客服</View>
         </Button>
       </View>
@@ -66,9 +67,7 @@ function HelpPage() {
       {FAQ_GROUPS.map(group => (
         <View key={group.title} className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
           <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-            {group.icon.startsWith('i-mdi-')
-              ? <Icon name={group.icon.replace('i-mdi-', '')} size={24} className="text-primary" />
-              : <View className={`${group.icon} text-2xl text-primary`} />}
+            <View className={`${group.icon} text-2xl text-primary`} />
             <Text className="text-xl font-bold text-foreground">{group.title}</Text>
           </View>
           {group.items.map((item, idx) => {
@@ -98,7 +97,8 @@ function HelpPage() {
       <View className="mx-4 mt-4 p-4 rounded-2xl bg-card border border-border">
         <Text className="text-xl font-bold text-foreground mb-3">联系我们</Text>
         <View className="flex flex-col gap-3">
-          <View className="flex items-center gap-3">
+          <View className="flex items-center gap-3" hoverClass="none"
+            onClick={() => Taro.makePhoneCall({ phoneNumber: '400-000-0000' }).catch(() => {})}>
             <Icon name="phone" size={24} className="text-primary" />
             <Text className="text-xl text-foreground">客服电话：400-000-0000</Text>
           </View>

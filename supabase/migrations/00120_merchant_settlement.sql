@@ -2,21 +2,21 @@
 -- 00120：商家货款结算体系（方案 A 落地 · 核心迁移）
 -- =====================================================================
 -- 背景：
---   原模型中，用户用「情绪豆」支付时，豆仅从买家 tb_balance 扣减后焚毁，
+--   原模型中，用户用「健康豆」支付时，豆仅从买家 tb_balance 扣减后焚毁，
 --   商家只看到 GMV 展示数字，没有任何货款入账（无 merchant_balance、无结算逻辑）。
---   即「用户情绪豆 → 平台收 RMB（充值时已收）→ 商家 0 入账」，构成资产缺口。
+--   即「用户健康豆 → 平台收 RMB（充值时已收）→ 商家 0 入账」，构成资产缺口。
 --
 -- 本迁移建立「商家货款以 RMB 结算、可提现」的完整闭环，并严守三条合规红线：
---   1) 情绪豆(tb_balance) = 平台内部消费币，不可提现、不可二级转让（既有规则不变）；
+--   1) 健康豆(tb_balance) = 平台内部消费币，不可提现、不可二级转让（既有规则不变）；
 --   2) 推广佣金(commission_balance) = 可提现、与货款严格隔离（既有规则不变）；
---   3) 商家货款(merchant_balance) = 本次新增，可提现，与情绪豆/佣金三账隔离；
+--   3) 商家货款(merchant_balance) = 本次新增，可提现，与健康豆/佣金三账隔离；
 --      真实资金下发走「微信支付服务商分账直达」模式（资金直达商家子商户号，
 --      平台不池化 → 规避二清）。本期代码包将真实分账 API 留作接入点（见 EF）。
 --
 -- 结算口径（用户已确认决策）：
 --   - 净额结算：订单 completed 时，商家应收 = 订单全额 − 让利池 − 微信通道费；
---   - 情绪豆支付部分「等值计入」：豆付部分按 1:1 计入结算额，由平台以自有资金垫付
---     （平台在用户充值时已收 RMB，故垫付无额外成本），不要求商家持有/接收情绪豆；
+--   - 健康豆支付部分「等值计入」：豆付部分按 1:1 计入结算额，由平台以自有资金垫付
+--     （平台在用户充值时已收 RMB，故垫付无额外成本），不要求商家持有/接收健康豆；
 --   - 微信通道费(0.6%)仅对真实现金部分(total_amount − tb_used)计提。
 --
 -- 让利率单位归一：stores.referral_rate 实际存的是「百分比」(10.00=10%)，
@@ -32,7 +32,7 @@ ALTER TABLE public.stores
   ADD COLUMN IF NOT EXISTS settlement_frozen  numeric(12,4) NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS wx_sub_mch_id       text;
 
-COMMENT ON COLUMN public.stores.merchant_balance IS '商家可结算货款余额（人民币元，可提现，与情绪豆/佣金三账隔离）';
+COMMENT ON COLUMN public.stores.merchant_balance IS '商家可结算货款余额（人民币元，可提现，与健康豆/佣金三账隔离）';
 COMMENT ON COLUMN public.stores.settlement_frozen IS '冻结中货款（如退款/争议处理期间，不计入可提现）';
 COMMENT ON COLUMN public.stores.wx_sub_mch_id IS '微信支付服务商模式下的子商户号，用于分账直达（资金不池化，规避二清）';
 
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS public.merchant_settlements (
   order_id        uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   order_no        text,
   total_amount    numeric(12,4) NOT NULL DEFAULT 0,   -- 订单全额（豆付等值计入）
-  tb_portion      numeric(12,4) NOT NULL DEFAULT 0,   -- 情绪豆抵扣部分（平台垫付）
+  tb_portion      numeric(12,4) NOT NULL DEFAULT 0,   -- 健康豆抵扣部分（平台垫付）
   cash_portion    numeric(12,4) NOT NULL DEFAULT 0,   -- 微信现金实付部分
   referral_rate   numeric(6,4)  NOT NULL DEFAULT 0,   -- 让利率快照（小数口径，审计用）
   discount_pool   numeric(12,4) NOT NULL DEFAULT 0,   -- 让利池（已分给推广/L1/L2/买家积分/平台）
@@ -81,7 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_withdrawals_kind ON public.withdrawals(kind);
 -- ---------------------------------------------------------------------
 -- 4) RPC：fn_settle_order —— 自包含、幂等、不阻断订单完成
 --    从 orders + stores 独立算出商家应收，不依赖 distribute-commission 是否已跑
---    （纯情绪豆订单当前根本不触发 distribute-commission，故必须自包含）。
+--    （纯健康豆订单当前根本不触发 distribute-commission，故必须自包含）。
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.fn_settle_order(p_order_id uuid)
 RETURNS jsonb
@@ -133,7 +133,7 @@ BEGIN
               ELSE COALESCE(v_store.referral_rate, 0)
             END;
 
-  -- 现金部分（微信实付）= 总额 − 情绪豆抵扣
+  -- 现金部分（微信实付）= 总额 − 健康豆抵扣
   v_cash := GREATEST(0, COALESCE(v_order.total_amount, 0) - COALESCE(v_order.tb_used, 0));
 
   -- 让利池：按订单全额（豆付等值计入）计提
@@ -305,7 +305,7 @@ $$;
 -- ---------------------------------------------------------------------
 -- 8) 触发器：订单 status → 'completed' 自动结算商家货款
 --    （覆盖 api.ts: updateOrderStatus / 评论完成 / 退款完成 等多条路径，
---      纯情绪豆订单也能在此触发，无需依赖 distribute-commission）
+--      纯健康豆订单也能在此触发，无需依赖 distribute-commission）
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.trg_settle_on_completed()
 RETURNS trigger

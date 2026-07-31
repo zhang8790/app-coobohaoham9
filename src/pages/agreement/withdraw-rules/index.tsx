@@ -10,7 +10,7 @@ function WithdrawRules() {
         <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月20日\n生效日期：2026年7月20日'}</Text>
 
         <View className="mb-3 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
-          <Text className="block text-amber-800 text-xs leading-relaxed">提示：推广佣金已以金豆形式发放至金豆余额，可在平台内消费支付抵扣，不可提现或兑现金。以下提现规则仅适用于商家货款。</Text>
+          <Text className="block text-amber-800 text-xs leading-relaxed">提示：推广佣金已以健康豆形式发放至健康豆余额，可在平台内消费支付抵扣，不可提现或兑现金。以下提现规则仅适用于商家货款。</Text>
         </View>
 
         <View className="mb-4">

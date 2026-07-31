@@ -30,7 +30,7 @@ export default function AddToCartButton({
         width: size,
         height: size,
         borderRadius: 9999,
-        backgroundColor: disabled ? 'hsl(var(--muted-foreground) / 0.35)' : 'hsl(var(--brand-ochre))',
+        backgroundColor: disabled ? 'rgba(114,99,90,0.35)' : 'hsl(38,30%,45%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

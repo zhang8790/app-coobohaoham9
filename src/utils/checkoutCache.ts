@@ -8,6 +8,8 @@ export interface PendingCheckout {
   productId?: string
   total?: number
   quantity?: number
+  effectivePrice?: number
+  batchId?: string
 }
 
 const KEY = 'pendingCheckout'

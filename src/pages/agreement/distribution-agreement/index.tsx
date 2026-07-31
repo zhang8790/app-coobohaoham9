@@ -12,7 +12,7 @@ function DistributionAgreement() {
           风险提示
         </Text>
         <Text className="block text-foreground text-xs mt-1 leading-relaxed">
-          本平台仅从事实物商品零售经营，推广佣金依托真实商品交易产生，以金豆形式发放、可在平台内消费。
+          本平台仅从事实物商品零售经营，推广佣金依托真实商品交易产生，以健康豆形式发放、可在平台内消费。
         </Text>
       </View>
 
@@ -29,7 +29,7 @@ function DistributionAgreement() {
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">二、奖励规则</Text>
-          <Text className="block">1. 推广佣金仅来源于商品正常销售利润，由真实交易流水驱动，以金豆形式发放至金豆余额，可在平台内消费支付，不可提现。</Text>
+          <Text className="block">1. 推广佣金仅来源于商品正常销售利润，由真实交易流水驱动，以健康豆形式发放至健康豆余额，可在平台内消费支付，不可提现。</Text>
           <Text className="block">2. 奖励仅针对您直接推荐的我的好友、以及您推荐的我的好友再邀请的我的粉丝在平台产生的有效消费订单结算，仅限两级。</Text>
           <Text className="block">3. 奖励结算唯一依据为用户真实支付、完成履约的有效订单；单纯注册、未付款订单不计入奖励基数，无零订单返利。</Text>
           <Text className="block">4. 本平台仅设二级推广（我的好友+我的粉丝），不发展第三级；段位比例由个人累计消费决定。</Text>

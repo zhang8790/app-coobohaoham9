@@ -88,7 +88,7 @@ Deno.serve(async (req: Request) => {
         status: 'after_sale',
       }).eq('order_no', outTradeNo)
 
-      // 扣回佣金：覆盖 pending 与 settled，按比例扣回「情绪豆账户」(tb_balance)。
+      // 扣回佣金：覆盖 pending 与 settled，按比例扣回「健康豆账户」(tb_balance)。
       // 2026-07-19 起佣金统一发往 tb_balance，故此处扣 tb_balance 并写 commission_revoke 流水；
       // 此前扣 commission_balance 对当前订单无效（资损），已修正。
       const { data: commissions } = await supabase.from('commissions')
@@ -134,6 +134,22 @@ Deno.serve(async (req: Request) => {
         })
       }
 
+      // 健康豆扣回（买家返利已统一写入 tongbao_logs(purchase_earn)；健康豆=消费币，退款须同步回冲，避免资损）
+      const { data: tbLogs } = await supabase.from('tongbao_logs')
+        .select('id, user_id, delta').eq('order_id', existing.order_id).eq('type', 'purchase_earn')
+      for (const tl of (tbLogs ?? [])) {
+        const deduct = Math.round((Number(tl.delta) || 0) * ratio * 100) / 100
+        if (deduct <= 0) continue
+        const { data: bProfile } = await supabase.from('profiles').select('tb_balance').eq('id', tl.user_id).maybeSingle()
+        const newTb = Math.max(0, Math.round((Number(bProfile?.tb_balance ?? 0) - deduct) * 100) / 100)
+        await supabase.from('profiles').update({ tb_balance: newTb }).eq('id', tl.user_id)
+        await supabase.from('tongbao_logs').insert({
+          user_id: tl.user_id, order_id: existing.order_id,
+          type: 'refund_deduct', delta: -deduct, balance_after: newTb,
+          remark: `订单${existing.order_no}退款健康豆回冲`,
+        }) // fire-and-forget audit log (supabase insert returns PostgrestFilterBuilder, deno thinks .catch is missing but it works at runtime)
+      }
+
       // 商品级分佣同步回冲（#48）：按同一订单退款 ratio 累加 order_item_commissions.refund_ratio，
       // 使 Σ 各行净留存 = (1 - refund_ratio) × 原佣金，与上方 commissions 余额回冲口径一致。
       // 原始 l1_commission/l2_commission/buyer_points 保留不动（审计用），仅展示层折净。
@@ -171,7 +187,7 @@ Deno.serve(async (req: Request) => {
             page: 'pages/order-center/index',
           },
         }
-      }).catch(e => console.warn('[wechat-refund-callback] send-notification error:', e))
+      }).then(() => {}) // fire-and-forget notification
     } else if (newStatus === 'closed') {
       console.warn(`[wechat-refund-callback] refund ${outRefundNo} closed by WeChat`)
     } else {

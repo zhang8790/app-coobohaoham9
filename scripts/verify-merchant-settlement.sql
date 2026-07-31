@@ -61,7 +61,7 @@ SELECT '触发器 trg_orders_settle',
 WITH cases AS (
   SELECT '现金100/让利10%'      AS name, 100.00 AS total, 0.00  AS tb, 10.00 AS rate UNION ALL
   SELECT '豆付5+现金95/让利10%', 100.00,       5.00,        10.00        UNION ALL
-  SELECT '纯情绪豆50/让利10%',   50.00,        50.00,       10.00        UNION ALL
+  SELECT '纯健康豆50/让利10%',   50.00,        50.00,       10.00        UNION ALL
   SELECT '让利口径=小数0.09',    100.00,       0.00,        0.09
 )
 SELECT
@@ -78,7 +78,7 @@ FROM cases;
 -- 预期：
 --   现金100/让利10%       → pool=10,   channel=0.60, settle=89.40
 --   豆付5+现金95/让利10%   → pool=10,   channel=0.57, settle=89.43   （豆付等值计入，平台垫付）
---   纯情绪豆50/让利10%     → pool=5,    channel=0.00, settle=45.00   （无现金，通道费=0）
+--   纯健康豆50/让利10%     → pool=5,    channel=0.00, settle=45.00   （无现金，通道费=0）
 --   让利口径=小数0.09      → pool=9,    channel=0.60, settle=90.40   （rate≤1 当小数，归一正确）
 
 

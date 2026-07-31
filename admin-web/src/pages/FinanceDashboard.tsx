@@ -77,12 +77,12 @@ function Kpi({ label, value, color, sub, to }: {
 function FinanceTable({ o }: { o: FinanceOverview }) {
   const rows: { name: string; val: number; kind: string }[] = [
     { name: '成交额 累计消费额', val: o.gmv, kind: 'money' },
-    { name: '金豆抵扣总额', val: o.concession, kind: 'money' },
+    { name: '健康豆抵扣总额', val: o.concession, kind: 'money' },
     { name: '推广佣金支出', val: o.commissionPaid, kind: 'money' },
     { name: '平台净收益', val: o.platformNet, kind: 'money' },
-    { name: '金豆流通量', val: o.goldBeans, kind: 'num' },
-    { name: '买家金豆流通量', val: o.points, kind: 'num' },
-    { name: '金豆发放总量', val: o.tbTotal, kind: 'num' },
+    { name: '健康豆流通量', val: o.goldBeans, kind: 'num' },
+    { name: '买家健康豆流通量', val: o.points, kind: 'num' },
+    { name: '健康豆发放总量', val: o.tbTotal, kind: 'num' },
     { name: '贡献值 CV 总量', val: o.cvTotal, kind: 'num' },
   ]
   const gmv = Math.max(1, o.gmv)
@@ -223,17 +223,17 @@ export default function FinanceDashboard() {
       <Section title="成交与收益" icon="📈">
         <Kpi label="成交订单数" value={fmt(o.ordersPaid)} color={C.accent} to="/orders" sub={dChg(momOrders)} />
         <Kpi label="成交额 累计消费额" value={fmtMoney(o.gmv)} color={C.green} sub={dChg(mom)} />
-        <Kpi label="金豆抵扣" value={fmtMoney(o.concession)} color={C.gold} sub={`占累计消费额 ${((o.concession / Math.max(1, o.gmv)) * 100).toFixed(2)}%`} />
-        <Kpi label="平台净收益" value={fmtMoney(o.platformNet)} color={C.blue} sub="累计消费额−金豆抵扣−佣金" />
+        <Kpi label="健康豆抵扣" value={fmtMoney(o.concession)} color={C.gold} sub={`占累计消费额 ${((o.concession / Math.max(1, o.gmv)) * 100).toFixed(2)}%`} />
+        <Kpi label="平台净收益" value={fmtMoney(o.platformNet)} color={C.blue} sub="累计消费额−健康豆抵扣−佣金" />
       </Section>
 
       {/* 资产流通 */}
       <Section title="资产流通（数字化）" icon="💎">
-        <Kpi label="金豆余额" value={fmt(o.goldBeans)} color={C.gold} sub="1金豆=1元" to="/ledgers" />
-        <Kpi label="金豆累计发放" value={fmt(o.goldBeanIssued)} color={C.green} sub="tongbao_logs +" />
-        <Kpi label="金豆累计消耗" value={fmt(o.goldBeanConsumed)} color={C.accent} sub="tongbao_logs −" />
-        <Kpi label="买家金豆流通量" value={fmt(o.points)} color={C.blue} />
-        <Kpi label="金豆发放总量" value={fmt(o.tbTotal)} color={C.purple} to="/emotion-claims" />
+        <Kpi label="健康豆余额" value={fmt(o.goldBeans)} color={C.gold} sub="1健康豆=1元" to="/ledgers" />
+        <Kpi label="健康豆累计发放" value={fmt(o.goldBeanIssued)} color={C.green} sub="tongbao_logs +" />
+        <Kpi label="健康豆累计消耗" value={fmt(o.goldBeanConsumed)} color={C.accent} sub="tongbao_logs −" />
+        <Kpi label="买家健康豆流通量" value={fmt(o.points)} color={C.blue} />
+        <Kpi label="健康豆发放总量" value={fmt(o.tbTotal)} color={C.purple} />
         <Kpi label="贡献值 CV 总量" value={fmt(o.cvTotal)} color={C.green} />
       </Section>
 
@@ -302,12 +302,12 @@ export default function FinanceDashboard() {
           <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>收益结构（累计消费额 去向）</h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
             <DonutChart data={[
-              { label: '金豆抵扣', value: o.concession, color: C.gold },
+              { label: '健康豆抵扣', value: o.concession, color: C.gold },
               { label: '推广佣金', value: o.commissionPaid, color: C.purple },
               { label: '平台净收益', value: Math.max(0, o.platformNet), color: C.blue },
             ]} centerLabel={`累计消费额\n${fmtMoney(o.gmv)}`} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-              <Legend color={C.gold} label="金豆抵扣" value={fmtMoney(o.concession)} />
+              <Legend color={C.gold} label="健康豆抵扣" value={fmtMoney(o.concession)} />
               <Legend color={C.purple} label="推广佣金" value={fmtMoney(o.commissionPaid)} />
               <Legend color={C.blue} label="平台净收益" value={fmtMoney(o.platformNet)} />
               <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, marginTop: 2 }}>
@@ -320,15 +320,15 @@ export default function FinanceDashboard() {
           <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>数字资产发行结构</h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
             <DonutChart data={[
-              { label: '金豆', value: o.goldBeans, color: C.gold },
-              { label: '买家金豆', value: o.points, color: C.blue },
-              { label: '金豆', value: o.tbTotal, color: C.purple },
+              { label: '健康豆', value: o.goldBeans, color: C.gold },
+              { label: '买家健康豆', value: o.points, color: C.blue },
+              { label: '健康豆', value: o.tbTotal, color: C.purple },
               { label: '贡献值CV', value: o.cvTotal, color: C.green },
             ]} centerLabel="资产\n总览" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-              <Legend color={C.gold} label="金豆 (1=1元)" value={fmt(o.goldBeans)} />
-              <Legend color={C.blue} label="买家金豆" value={fmt(o.points)} />
-              <Legend color={C.purple} label="金豆" value={fmt(o.tbTotal)} />
+              <Legend color={C.gold} label="健康豆 (1=1元)" value={fmt(o.goldBeans)} />
+              <Legend color={C.blue} label="买家健康豆" value={fmt(o.points)} />
+              <Legend color={C.purple} label="健康豆" value={fmt(o.tbTotal)} />
               <Legend color={C.green} label="贡献值 CV" value={fmt(o.cvTotal)} />
             </div>
           </div>
@@ -413,12 +413,12 @@ function exportFinanceTable(o: FinanceOverview) {
   const gmv = Math.max(1, o.gmv)
   const rows = [
     { 指标: '成交额 累计消费额', 数值: o.gmv, 占累计消费额比: '—' },
-    { 指标: '金豆抵扣', 数值: o.concession, 占累计消费额比: ((o.concession / gmv) * 100).toFixed(2) + '%' },
+    { 指标: '健康豆抵扣', 数值: o.concession, 占累计消费额比: ((o.concession / gmv) * 100).toFixed(2) + '%' },
     { 指标: '推广佣金支出', 数值: o.commissionPaid, 占累计消费额比: ((o.commissionPaid / gmv) * 100).toFixed(2) + '%' },
     { 指标: '平台净收益', 数值: o.platformNet, 占累计消费额比: ((o.platformNet / gmv) * 100).toFixed(2) + '%' },
-    { 指标: '金豆流通量', 数值: o.goldBeans, 占累计消费额比: '—' },
-    { 指标: '买家金豆流通量', 数值: o.points, 占累计消费额比: '—' },
-    { 指标: '金豆发放总量', 数值: o.tbTotal, 占累计消费额比: '—' },
+    { 指标: '健康豆流通量', 数值: o.goldBeans, 占累计消费额比: '—' },
+    { 指标: '买家健康豆流通量', 数值: o.points, 占累计消费额比: '—' },
+    { 指标: '健康豆发放总量', 数值: o.tbTotal, 占累计消费额比: '—' },
     { 指标: '贡献值 CV 总量', 数值: o.cvTotal, 占累计消费额比: '—' },
   ]
   const cols: CsvColumn[] = [

@@ -33,7 +33,7 @@ export const MOOD_TAGS: Record<string, MoodTag[]> = {
     { zh: '浪漫', en: 'Romantic', icon: '🌹', color: '#FF1493' },
     { zh: '甜蜜', en: 'Sweet', icon: '🍯', color: '#FFA07A' },
     { zh: '感动', en: 'Touching', icon: '😭', color: '#87CEEB' },
-    { zh: '治愈', en: 'Healing', icon: '🩹', color: '#98FB98' },
+    { zh: '舒心', en: 'Healing', icon: '🩹', color: '#98FB98' },
   ],
   
   fresh: [

@@ -139,7 +139,7 @@ function OrderCenterPage() {
                 {order.status === 'pending_pay' && (
                   <View
                     className="flex items-center justify-center leading-none rounded-xl bg-primary"
-                    onClick={() => Taro.navigateTo({ url: `/pages/payment/index?total=${order.total_amount}` })}>
+                    onClick={() => Taro.navigateTo({ url: `/pages/payment/index?orderId=${encodeURIComponent(order.id)}` })}>
                     <View className="py-2 px-4 text-base text-white font-bold">去付款</View>
                   </View>
                 )}

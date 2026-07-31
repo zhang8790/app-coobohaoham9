@@ -18,14 +18,24 @@ import RadarChart from '@/components/food/RadarChart'
 
 const NEUTRAL_NICKNAMES = ['小确幸', '慢生活', '元气满满', '暖洋洋', '甜豆豆', '乐悠悠', '小欢喜', '轻飘飘', '棉花糖', '微醺猫']
 
-const MENU_GROUPS = [
+type MenuItem = { name: string; icon: string; iconName?: string; page?: string }
+const MENU_GROUPS: { title: string; icon: string; items: MenuItem[] }[] = [
   {
-    title: '喜号',
-    icon: '⚔',
+    title: '我的账户',
+    icon: '👤',
     items: [
-      { name: '全部订单', icon: '📋', page: '/pages/order-center/index' },
+      { name: '我的段位', icon: 'medal', page: '/pages/mine/my-promotion/index' },
+      { name: '我的好友', icon: 'account-group', page: '/pages/mine/my-referrals/index' },
       { name: '地址管理', icon: '🗺', page: '/pages/mine/address/index' },
-      { name: '优惠券', icon: '🎫', page: '/pages/mine/coupon/index' },
+    ]
+  },
+  {
+    title: '我的创作',
+    icon: '✏',
+    items: [
+      { name: '创作文章', icon: '📖', page: '/pages/content/content-center/make-rich/index' },
+      { name: '发布视频', icon: '🎬', page: '/pages/content/content-center/make-video/index' },
+      { name: '我的作品', icon: '📑', page: '/pages/content/content-center/my-articles/index' },
     ]
   },
   {
@@ -40,24 +50,14 @@ const MENU_GROUPS = [
     ]
   },
   {
-    title: '动态',
-    icon: '👥',
+    title: '设置',
+    icon: '⚙',
     items: [
-      { name: '消息中心', icon: '🔔', page: '/pages/mine/messages/index', badge: 'unread' },
-      { name: '帮助中心', icon: '?', page: '/pages/agreement/help/index' },
+      { name: '食疗咨询', icon: '', iconName: 'leaf', page: '/pages/food/consult/index' },
+      { name: '联系客服', icon: '', iconName: 'headset', page: '/pages/agreement/help/index' },
       { name: '设置', icon: '⚙', page: '/pages/mine/settings/index' },
     ]
   },
-  {
-    title: '食养健康',
-    icon: '🌿',
-    items: [
-      { name: '食养中心', icon: '🌿', page: '/pages/food/index' },
-      { name: '今日食养推荐', icon: '🌟', page: '/pages/food/today-food-therapy/index' },
-      { name: '食品配料安全', icon: '🕵️', page: '/pages/food/food-scan/index' },
-      { name: '食养偏好自测', icon: '🧪', page: '/pages/food/constitution-test/index' },
-    ]
-  }
 ]
 
 const ORDER_STATUS_TABS = [
@@ -299,15 +299,27 @@ function UserPage() {
           </View>
         )}
 
-        {/* 资产行 */}
+        {/* 资产行（统一入口：点击进入对应明细；消息中心流水已并入健康豆，未读角标移至此处） */}
         {user && profile && (
           <View className="grid grid-cols-3 gap-3 mt-4">
             {[
-              { label: '金豆', value: profile.tb_balance || 0, icon: '👛' },
-              { label: '佣金', value: `¥${(profile.commission_balance || 0).toFixed(2)}`, icon: '💰' },
-              { label: '优惠券', value: `${profile.coupons_count || 0}张`, icon: '🎫' },
+              { label: '健康豆', value: profile.tb_balance || 0, icon: '👛', page: '/pages/trade/goldbean-ledger/index', badge: unreadCount },
+              { label: '佣金', value: `¥${(profile.commission_balance || 0).toFixed(2)}`, icon: '💰', page: '/pages/trade/commission-detail/index' },
+              { label: '优惠券', value: `${profile.coupons_count || 0}张`, icon: '🎫', page: '/pages/mine/coupon/index' },
             ].map(item => (
-              <View key={item.label} className="bg-card rounded-2xl flex flex-col items-center py-4 border border-border">
+              <View key={item.label}
+                className="relative bg-card rounded-2xl flex flex-col items-center py-4 border border-border"
+                hoverClass="none"
+                onClick={() => Taro.navigateTo({ url: item.page })}>
+                {item.badge > 0 && (
+                  <View style={{
+                    position: 'absolute', top: 8, right: 14, minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9,
+                    background: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: 'white', fontSize: 11, fontWeight: 600, lineHeight: '18px' }}>
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </Text>
+                  </View>
+                )}
                 <Text className="text-xl font-bold text-foreground">{item.value}</Text>
                 <Text className="text-base text-muted-foreground mt-1">{item.label}</Text>
               </View>
@@ -338,7 +350,7 @@ function UserPage() {
               <Text style={{ fontSize: '20px', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>
                 {equity ? (equity.dividendEstimate || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '0'}
               </Text>
-              <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>年度消费回馈·馈赠金豆</Text>
+              <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>年度消费回馈·馈赠健康豆</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: '20px', fontWeight: 'bold' }}>{profile.cv_total || 0}</Text>
@@ -365,17 +377,11 @@ function UserPage() {
             <View className="px-4 py-6 flex flex-col items-center">
               <Text className="text-4xl mb-2">🥗</Text>
               <Text className="text-base text-muted-foreground text-center mb-3">
-                做完体质测试、多买几单，雷达图就越圆满
+                多买几单，你的食养画像就越圆满
               </Text>
-              <View className="flex gap-2">
-                <View className="px-4 py-2 rounded-full border border-primary"
-                  onClick={() => Taro.navigateTo({ url: '/pages/food/constitution-test/index' })}>
-                  <Text className="text-primary text-base">去做体质测试</Text>
-                </View>
-                <View className="px-4 py-2 rounded-full bg-primary"
-                  onClick={() => Taro.navigateTo({ url: '/pages/index/index' })}>
-                  <Text className="text-white text-base">去逛逛</Text>
-                </View>
+              <View className="px-4 py-2 rounded-full bg-primary"
+                onClick={() => Taro.navigateTo({ url: '/pages/index/index' })}>
+                <Text className="text-white text-base">去逛逛</Text>
               </View>
             </View>
           ) : (
@@ -384,11 +390,6 @@ function UserPage() {
               <Text className="text-base text-muted-foreground text-center px-4 mt-2 block">
                 {radarSummary}
               </Text>
-              <View className="flex items-center justify-center gap-1 mt-1"
-                onClick={() => Taro.navigateTo({ url: '/pages/food/today-food-therapy/index' })}>
-                <Text className="text-primary text-base">越买越圆满，看看今日推荐</Text>
-                <Icon name="chevron-right" size={18} className="text-primary" />
-              </View>
             </View>
           )}
         </View>
@@ -422,39 +423,6 @@ function UserPage() {
         </View>
       )}
 
-      {/* 个人中心 */}
-      {user && (
-        <View className="mx-4 mt-4 bg-card rounded-2xl border border-border">
-          <View className="flex items-center px-4 py-3 border-b border-border gap-2">
-            <Icon name="user" size={24} className="text-primary" />
-            <Text className="text-xl font-bold text-foreground">个人中心</Text>
-          </View>
-          <View className="grid grid-cols-3 py-3">
-            {[
-              { name: '我的段位', icon: 'medal', page: '/pages/mine/my-promotion/index', desc: '查看推广码' },
-              { name: '我的金豆', icon: 'coin', page: '/pages/trade/tongbao-ledger/index', desc: '金豆明细' },
-              { name: '我的好友', icon: 'account-group', page: '/pages/mine/my-referrals/index', desc: '查看推荐' },
-            ].map(item => (
-              <View key={item.name}
-                hoverClass="none"
-                onClick={() => {
-                  Taro.navigateTo({ url: item.page })
-                }}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  padding: '12px 0',
-                  gap: '8px'}}>
-                <Icon name={item.icon} size={28} className="text-primary" />
-                <Text style={{ fontSize: '14px', color: '#333', fontWeight: 'bold' }}>{item.name}</Text>
-                <Text style={{ fontSize: '12px', color: '#999' }}>{item.desc}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
       {/* 自营门店申请入口 */}
       {user && (
         <View className="mx-4 mt-4">
@@ -466,25 +434,16 @@ function UserPage() {
       {MENU_GROUPS.map(group => (
         <View key={group.title} className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
           <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-            {group.icon.startsWith('i-mdi-')
-              ? <Icon name={group.icon.replace('i-mdi-', '')} size={24} className="text-primary" />
-              : <View className={`${group.icon} text-2xl text-primary`} />}
+            <View className={`${group.icon} text-2xl text-primary`} />
             <Text className="text-xl font-bold text-foreground">{group.title}</Text>
           </View>
           {group.items.map(item => (
             <View key={item.name} className="flex items-center gap-3 px-4 py-4 border-b border-border last:border-0"
               onClick={() => item.page ? Taro.navigateTo({ url: item.page }) : Taro.showToast({ title: '功能开发中', icon: 'none' })}>
-              <View className={`${item.icon} text-2xl text-foreground`} />
+              {item.iconName
+                ? <Icon name={item.iconName} size={22} className="text-foreground" />
+                : <View className={`${item.icon} text-2xl text-foreground`} />}
               <Text className="flex-1 text-xl text-foreground">{item.name}</Text>
-              {item.badge === 'unread' && unreadCount > 0 && (
-                <View style={{
-                  minWidth: 20, height: 20, padding: '0 6px', borderRadius: 10,
-                  background: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                  <Text style={{ color: 'white', fontSize: 11, fontWeight: 600, lineHeight: '20px' }}>
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </Text>
-                </View>
-              )}
               <Icon name="chevron-right" size={20} className="text-muted-foreground" />
             </View>
           ))}

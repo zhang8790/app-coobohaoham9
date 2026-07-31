@@ -117,7 +117,7 @@ export function getProductEmotionWord(product: Product | null): string {
 /**
  * 构建「商品卡」分享配置：
  * - 一定是产品：分享图取商品主图、路径指向商品详情页 /pages/product/index?id=...
- * - 加情绪表达词：标题前缀注入商品的情绪词（如「治愈」云南小粒咖啡）
+ * - 加情绪表达词：标题前缀注入商品的情绪词（如「舒心」云南小粒咖啡）
  * @param product 商品对象（必传，且为真实商品）
  * @param referralCode 当前用户推广码（好友扫码归属为推荐关系）
  */
@@ -202,5 +202,43 @@ export function buildArticleShareTitle(article: any): string {
   const excerpt = extractArticleExcerpt(article, 22)
   if (tag) return `「${tag}」${excerpt}`
   return excerpt || '来电有喜 - 好文推荐'
+}
+
+/**
+ * 处理小程序码扫码进入（朋友圈海报锁客闭环）
+ * scene 是短码，反查 article_share_codes → 跳转到对应图文。
+ * 跳转带 ref=分享人推广码，使 article-detail 的锁客双保险能正确绑定归属。
+ * 返回 true 表示已处理（已跳转），false 表示无 scene 或非本场景。
+ */
+export async function handleScanScene(scene: string): Promise<boolean> {
+  if (!scene) return false
+  try {
+    const { supabase } = await import('@/client/supabase')
+    const { data, error } = await supabase
+      .from('article_share_codes')
+      .select('article_id, referrer_id')
+      .eq('scene', scene)
+      .maybeSingle()
+    if (error || !data?.article_id) return false
+
+    let ref = ''
+    if (data.referrer_id) {
+      const { data: p } = await supabase
+        .from('profiles')
+        .select('referral_code, invite_code')
+        .eq('id', data.referrer_id)
+        .maybeSingle()
+      ref = p?.referral_code || p?.invite_code || ''
+    }
+
+    const url =
+      `/pages/content/article-detail/index?id=${data.article_id}` +
+      `${ref ? `&ref=${ref}` : ''}&from=share`
+    // 跳转前先回首页栈再进详情，避免扫码时在任意页面被盖住
+    Taro.navigateTo({ url })
+    return true
+  } catch {
+    return false
+  }
 }
 

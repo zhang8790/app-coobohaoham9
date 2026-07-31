@@ -1,17 +1,17 @@
 -- =====================================================
--- V5 P2-1: 情绪通宝/徽章独立化
--- 之前的情绪通宝复用 profiles.points + points_logs(类型=emotion_claim)，
+-- V5 P2-1: 情绪健康豆/徽章独立化
+-- 之前的情绪健康豆复用 profiles.points + points_logs(类型=emotion_claim)，
 -- 现在抽出独立表与流水，避免和普通积分混淆。
--- 包含：emotion_assets(通宝余额/冻结) + emotion_tongbao_logs(通宝流水) +
+-- 包含：emotion_assets(健康豆余额/冻结) + emotion_tongbao_logs(健康豆流水) +
 --       emotion_badge_defs(徽章定义，前端只读) + emotion_badge_grants(徽章发放)
 -- 全部 DISABLE RLS（测试期）；正式上线需按 user_id 收紧。
 -- =====================================================
 
--- 1) 情绪通宝账户（一行一用户）
+-- 1) 情绪健康豆账户（一行一用户）
 CREATE TABLE IF NOT EXISTS public.emotion_assets (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       UUID NOT NULL UNIQUE,
-  balance       INTEGER NOT NULL DEFAULT 0,    -- 当前可用通宝
+  balance       INTEGER NOT NULL DEFAULT 0,    -- 当前可用健康豆
   frozen        INTEGER NOT NULL DEFAULT 0,    -- 冻结中（例如情绪喂养/兑换时扣的）
   total_earned  INTEGER NOT NULL DEFAULT 0,    -- 累计获得
   total_spent   INTEGER NOT NULL DEFAULT 0,    -- 累计消耗
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS public.emotion_assets (
 );
 CREATE INDEX IF NOT EXISTS idx_emotion_assets_user ON public.emotion_assets(user_id);
 
--- 2) 通宝流水（增/减都记）
+-- 2) 健康豆流水（增/减都记）
 CREATE TABLE IF NOT EXISTS public.emotion_tongbao_logs (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID NOT NULL,
@@ -52,7 +52,7 @@ INSERT INTO public.emotion_badge_defs (code, name, description, icon, rarity, un
   ('first_claim',   '初识情绪',     '完成首次情绪确权',         '🌱', 'common', '在情绪确权页确认 1 次商品情绪',  10),
   ('five_emotions', '五味杂陈',     '确权商品的情绪标签覆盖 5 个不同维度', '🎨', 'rare',   '在多次确权中累计 5 个不同情绪维度',  20),
   ('empath',        '共情者',       '累计确权商品达到 10 件',   '💝', 'rare',   '确权 10 件不同的商品',            30),
-  ('tongbao_100',   '通宝藏家',     '通宝余额达到 100',         '🏆', 'epic',   '攒到 100 枚情绪通宝',            40),
+  ('tongbao_100',   '健康豆藏家',     '健康豆余额达到 100',         '🏆', 'epic',   '攒到 100 枚情绪健康豆',            40),
   ('share_claim',   '情绪布道者',   '分享确权卡给好友并完成一次有效锁客', '📣', 'legend', '分享确权卡并成功锁客 1 人',     50)
 ON CONFLICT (code) DO NOTHING;
 
@@ -89,7 +89,7 @@ ALTER TABLE public.emotion_badge_defs    DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.emotion_badge_grants  DISABLE ROW LEVEL SECURITY;
 
 -- 给 PostgREST 暴露（虽然 anon key 也能读，但加个备注）
-COMMENT ON TABLE public.emotion_assets        IS 'V5 P2: 用户情绪通宝账户（独立于 profiles.points）';
-COMMENT ON TABLE public.emotion_tongbao_logs  IS 'V5 P2: 情绪通宝流水（增/减/来源）';
+COMMENT ON TABLE public.emotion_assets        IS 'V5 P2: 用户情绪健康豆账户（独立于 profiles.points）';
+COMMENT ON TABLE public.emotion_tongbao_logs  IS 'V5 P2: 情绪健康豆流水（增/减/来源）';
 COMMENT ON TABLE public.emotion_badge_defs    IS 'V5 P2: 情绪徽章定义字典（运营可改）';
 COMMENT ON TABLE public.emotion_badge_grants  IS 'V5 P2: 情绪徽章发放记录';

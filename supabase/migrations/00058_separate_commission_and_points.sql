@@ -10,7 +10,7 @@
 --   => 代码把「消费积分」当「可提现平台代币」提现，观感上等同「平台发币可提现」（合规红线）。
 --
 -- 目标模型
---   gold_beans       = 【消费积分（金豆）】仅用于本平台订单 1:1 抵扣，不可提现、不可兑现金
+--   gold_beans       = 【消费积分（健康豆）】仅用于本平台订单 1:1 抵扣，不可提现、不可兑现金
 --   commission_balance= 【推广佣金账户】由分销佣金流水驱动，可提现（代扣个税），与 gold_beans 完全隔离
 --   withdrawals       = 仅可动 commission_balance，并通过 commission_ids 关联具体佣金明细
 --
@@ -27,7 +27,7 @@ COMMENT ON COLUMN public.profiles.commission_balance
   IS '推广佣金账户余额（即推广服务费，可提现并代扣个税）；由分销佣金流水驱动，与消费积分(gold_beans)完全隔离';
 
 COMMENT ON COLUMN public.profiles.gold_beans
-  IS '消费积分（金豆）：仅用于本平台订单 1:1 抵扣，不可提现、不可兑现金；与推广佣金账户(commission_balance)隔离';
+  IS '消费积分（健康豆）：仅用于本平台订单 1:1 抵扣，不可提现、不可兑现金；与推广佣金账户(commission_balance)隔离';
 
 -- 2. 存量数据回填（过渡口径，执行前请确认）
 --    现状：历史上 withdraw / admin-withdrawals 从 gold_beans 提现；而佣金发放只写

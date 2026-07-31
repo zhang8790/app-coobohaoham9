@@ -5,6 +5,7 @@
  */
 
 import type { Product } from '@/db/types'
+import { deriveProductStage, type ShiyangStage } from '@/utils/food-therapy/shiyang-stage'
 
 // ── 体质定义 ──────────────────────────────────────────────────────────────
 
@@ -22,6 +23,7 @@ export interface ConstitutionType {
   avoidFoods: string[]      // 慎用食材 key
   healthGoals: string[]     // 对应健康目标
   bodyStates: string[]      // 对应 BODY_CROWD_OPTIONS
+  recommendStage: ShiyangStage // 对应「清通调补固」调理阶段，用于「按调理路径」精准配对
 }
 
 export const CONSTITUTION_TYPES: Record<string, ConstitutionType> = {
@@ -39,6 +41,7 @@ export const CONSTITUTION_TYPES: Record<string, ConstitutionType> = {
     avoidFoods: ['lvdou', 'yinmi', 'kugua', 'xiangjiao'],
     healthGoals: ['补气养血', '温中散寒'],
     bodyStates: ['体虚怕冷'],
+    recommendStage: '补',
   },
   yinxu: {
     key: 'yinxu',
@@ -54,6 +57,7 @@ export const CONSTITUTION_TYPES: Record<string, ConstitutionType> = {
     avoidFoods: ['yangrou', 'jiang', 'dasuan', 'hetao', 'cong'],
     healthGoals: ['滋阴润燥', '清热降火'],
     bodyStates: ['易上火'],
+    recommendStage: '清',
   },
   qixu: {
     key: 'qixu',
@@ -69,6 +73,7 @@ export const CONSTITUTION_TYPES: Record<string, ConstitutionType> = {
     avoidFoods: ['kugua', 'lvdou'],
     healthGoals: ['补气养血', '健脾养胃'],
     bodyStates: ['体虚怕冷'],
+    recommendStage: '补',
   },
   tanshi: {
     key: 'tanshi',
@@ -84,6 +89,7 @@ export const CONSTITUTION_TYPES: Record<string, ConstitutionType> = {
     avoidFoods: ['yangrou', 'jirou', 'hetao', 'dasuan'],
     healthGoals: ['利水消肿', '清热降火'],
     bodyStates: [],
+    recommendStage: '通',
   },
  shire: {
     key: 'shire',
@@ -99,6 +105,7 @@ export const CONSTITUTION_TYPES: Record<string, ConstitutionType> = {
     avoidFoods: ['yangrou', 'jirou', 'jiang', 'hetao', 'cong', 'dasuan'],
     healthGoals: ['清热降火', '利水消肿'],
     bodyStates: ['易上火'],
+    recommendStage: '清',
   },
   xueyu: {
     key: 'xueyu',
@@ -114,6 +121,7 @@ export const CONSTITUTION_TYPES: Record<string, ConstitutionType> = {
     avoidFoods: [],
     healthGoals: [],
     bodyStates: [],
+    recommendStage: '固',
   },
   qiyu: {
     key: 'qiyu',
@@ -129,6 +137,7 @@ export const CONSTITUTION_TYPES: Record<string, ConstitutionType> = {
     avoidFoods: [],
     healthGoals: ['舒缓安适', '补气养血'],
     bodyStates: [],
+    recommendStage: '调',
   },
   pinghe: {
     key: 'pinghe',
@@ -144,6 +153,7 @@ export const CONSTITUTION_TYPES: Record<string, ConstitutionType> = {
     avoidFoods: [],
     healthGoals: ['健脾养胃'],
     bodyStates: [],
+    recommendStage: '固',
   },
 }
 
@@ -161,7 +171,7 @@ type ConstitutionKey = keyof typeof CONSTITUTION_TYPES
 
 const Q_EFFECTS = {
   // A=完全不， B=偶尔， C=有时， D=经常
-  A: ({ yangxu, qixu }: Record<string, number>) => { yangxu += 0; qixu += 0; return arguments[0] },
+  A: (effects: Record<string, number>) => { return effects },
 } as const
 
 export const TEST_QUESTIONS: TestQuestion[] = [
@@ -244,7 +254,7 @@ export function calculateResult(answers: number[]): TestResult {
     const option = q.options[answerIdx]
     for (const [ctype, pts] of Object.entries(option.effect)) {
       if (ctype in CONSTITUTION_TYPES) {
-        scores[ctype] = (scores[ctype] || 0) + pts
+        scores[ctype] = (scores[ctype] || 0) + (pts ?? 0)
       }
     }
   }
@@ -299,4 +309,28 @@ export function constitutionToCrowds(constitution: ConstitutionType): string[] {
 /** 体质 → 健康目标映射 */
 export function constitutionToGoals(constitution: ConstitutionType): string[] {
   return constitution.healthGoals
+}
+
+// ── 按「清通调补固」阶段配对 ──────────────────────────────────────────────
+
+/**
+ * 按体质对应的「清通调补固」调理阶段，精准配对商品。
+ * 复用详情页已建好的阶段引擎：
+ *   · 商品阶段优先取商家人工标注 food_stage，否则由核心食材主导功效确定性派生；
+ *   · 与 filterProductsByConstitution（按性味广筛）互补，是「调理路径」这一叙事层的深一层配对。
+ * @param excludeIds 需排除的商品 id（通常传性味适配好物，避免与上层推荐撞车）
+ */
+export function recommendStageProducts(
+  products: Product[],
+  stage: ShiyangStage,
+  limit = 6,
+  excludeIds?: Set<string>,
+): Product[] {
+  const matched: Product[] = []
+  for (const p of products) {
+    if (excludeIds && p.id && excludeIds.has(p.id)) continue
+    const s = deriveProductStage(p.ingredients, p.food_stage)
+    if (s === stage) matched.push(p)
+  }
+  return matched.slice(0, limit)
 }

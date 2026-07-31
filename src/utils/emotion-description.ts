@@ -12,14 +12,13 @@
 //      开头的雷同问题），改为从句或后置点缀。
 //   5. 【确定性生成】同一组输入永远产出相同结果（variant 参数控制变体）。
 //
-// 禁用医疗宣称与绝对化用语（治疗/治愈/降血压/最/第一/根治/100%/保证 等）；
+// 禁用医疗宣称与绝对化用语（治疗/舒心/降血压/最/第一/根治/100%/保证 等）；
 // 食养类功效措辞=传统食养参考，必附"不替代医嘱"。
 //
 // 复用项目已有的 v1 情绪标签 API：Product.mood_tags / Product.scene_tags / Store.category。
 
 import type { Product } from '@/db/types'
 import { resolveCategoryProfile } from './category-emotion'
-import { resolveProductEmotionLexicon } from './product-emotion-lexicon'
 
 // =====================
 // 1. 情绪标签 → 意境（保留作为氛围调味，不再是主体）
@@ -34,7 +33,7 @@ const MOOD_REALM: Record<string, { realm: string; metaphor: string }> = {
   浪漫: { realm: '柔情缱绻', metaphor: '帘外一钩月' },
   甜蜜: { realm: '缱绻甜意', metaphor: '唇边化开的蜜' },
   感动: { realm: '心头一热', metaphor: '故人寄来的一封信' },
-  治愈: { realm: '被轻轻抚平', metaphor: '雨后晒暖的棉被' },
+  舒心: { realm: '被轻轻抚平', metaphor: '雨后晒暖的棉被' },
   清爽: { realm: '清欢', metaphor: '山涧凉风' },
   清新: { realm: '如沐春风', metaphor: '晨雾里的青草' },
   自然: { realm: '本真', metaphor: '未施粉黛的容颜' },
@@ -64,7 +63,7 @@ const MOOD_REALM: Record<string, { realm: string; metaphor: string }> = {
   实用: { realm: '妥帖', metaphor: '称手的旧物' },
   仪式感: { realm: '郑重', metaphor: '净手焚香的一刻' },
   用餐时光: { realm: '烟火', metaphor: '灶上咕嘟的汤' },
-  // —— 商品级情绪词（来自 product-emotion-lexicon，使 {realm}/{metaphor} 产品化）——
+  // —— 商品级情绪词（已内联于本文件，词汇表文件已移除）——
   温润: { realm: '温润妥帖', metaphor: '炉上慢煮的一壶暖' },
   回甘: { realm: '悠长回韵', metaphor: '咽下后浮起的甜' },
   安神: { realm: '安宁沉静', metaphor: '夜读旁的那盏灯' },
@@ -117,7 +116,7 @@ const REALM_METAPHOR_EXTRA: Record<string, string[]> = {
   浪漫: ['灯下并坐的影', '风中交叠的袖'],
   甜蜜: ['唇边化开的糖', '眉眼弯起的弧'],
   感动: ['旧友捎来的信', '久别重逢的眼'],
-  治愈: ['雨后晒暖的被', '夜里有灯的路'],
+  舒心: ['雨后晒暖的被', '夜里有灯的路'],
   清爽: ['山涧漱过的风', '晨露醒着的草'],
   清新: ['破晓的第一口氧', '林梢漫下的光'],
   自然: ['未施粉黛的颜', '本来的样子'],
@@ -351,10 +350,8 @@ function buildOne(
   // 1) 解析类目策略
   const profile = resolveCategoryProfile(category)
 
-  // 1.5) 解析商品级情绪词库（具体品类优先于品类泛化）
-  //      命中时：情绪词并入有效集（且不被品类白名单裁剪，商品词已校验贴合），
-  //      比喻/角度/主体模板/收束优先采用商品级条目。
-  const px = resolveProductEmotionLexicon(name, product.description || '')
+  // 1.5) 商品级情绪词库已移除（product-emotion-lexicon），统一走类目策略。
+  const px: any = undefined
 
   // 2) 有效情绪标签
   let eff = moodTags || []
@@ -406,7 +403,7 @@ function buildOne(
   let bodies = catBodies && catBodies.length > 0 ? catBodies : genericBodies
 
   // 替换所有占位符（{attr} 始终以完整句子 + 句号注入，避免与后续文本粘连成病句）
-  bodies = bodies.map(b =>
+  bodies = bodies.map((b: string) =>
     b
       .replace(/\{name\}/g, name)
       .replace(/\{metaphor\}/g, metaphor)
@@ -417,10 +414,10 @@ function buildOne(
       .replace(/\s*[，,]\s*[。]/g, '。') // 清理残留标点
   )
 
-  const body = pick(bodies.filter(b => b.trim()), variant)
+  const body = pick<string>(bodies.filter((b: string) => b.trim()), variant) ?? ''
   const closers = (px?.closers && px.closers.length ? px.closers
     : (profile.closers && profile.closers.length ? profile.closers : CLOSERS))
-  const closer = pick(closers, variant)
+  const closer = pick<string>(closers, variant) ?? ''
 
   // 最终拼接：[主体描述] + [可选场景点缀] + [收束]
   const parts = [body]
@@ -474,9 +471,9 @@ function fallbackLine(product: Partial<Product>): string {
     `${name}，食材老实、火候到位，每一口都对得起等待。`,
     `${name}，不是那种花哨的，但就是让人惦记。`,
     `${name}，冷了好吃热了对味，就是这么随和。`,
-    `${name}，专治各种"不知道吃什么"——选它不会错。`,
+    `${name}，专为"不知道吃什么"的时刻准备——挑它更省心。`,
   ]
-  return pick(genericLines, Math.abs(product.name?.charCodeAt(0) ?? 0))
+  return pick(genericLines, Math.abs(product.name?.charCodeAt(0) ?? 0)) ?? ''
 }
 
 // =====================
@@ -624,7 +621,7 @@ function deriveTitle(
   if (moodTags.length) return `${moodTags[0]}之旅`
   // 按类目给不同标题
   const catTitles: Record<string, string> = {
-    餐饮: '味觉之旅', 饮品: '一杯子的治愈', 烘焙: '甜暖时光',
+    餐饮: '味觉之旅', 饮品: '一杯子的舒心', 烘焙: '甜暖时光',
     '水果生鲜': '自然的馈赠', 零售: '生活小确幸', 美业: '宠爱自己',
     娱乐: '放空时刻', 运动健身: '活力重启', 亲子: '童真时光',
     生活服务: '舒适圈', 酒店民宿: '栖息之地',
@@ -681,7 +678,7 @@ export function generateEmotionDescriptions(
 
 const MOOD_HEADLINE_EMOJI: Record<string, string> = {
   快乐: '😊', 兴奋: '🎉', 满足: '🍽️', 惊喜: '✨', 幸福: '💛', 温馨: '🏠',
-  浪漫: '🌹', 甜蜜: '🍯', 感动: '🥹', 治愈: '🩹', 清爽: '🍃', 清新: '🌿',
+  浪漫: '🌹', 甜蜜: '🍯', 感动: '🥹', 舒心: '🩹', 清爽: '🍃', 清新: '🌿',
   自然: '🌾', 纯净: '❄️', 解暑: '🧊', 奢华: '👑', 高端: '🏛️', 精致: '💎',
   典雅: '🏺', 尊贵: '💠', 有趣: '🎈', 可爱: '🐾', 活力: '⚡', 潮流: '🔥',
   个性: '🎯', 平静: '🧘', 放松: '🛁', 舒适: '☁️', 安逸: '🍵', 慢生活: '📖',
@@ -699,7 +696,7 @@ const MOOD_HEADLINE_EMOJI: Record<string, string> = {
 
 // 高频情绪：语义定制短标题池（2-3 条，确定性轮换）
 const HEADLINE_CUSTOM: Record<string, string[]> = {
-  治愈: ['被温柔接住的时刻', '一身倦意，慢慢化开', '给疲惫一个软着陆'],
+  舒心: ['被温柔接住的时刻', '一身倦意，慢慢化开', '给疲惫一个软着陆'],
   满足: ['一口就松下来的满足', '踏实，是它给的', '刚刚好，不多不少'],
   温馨: ['像家一样的妥帖', '灶上的暖，心里的安', '有人等你回家的感觉'],
   甜蜜: ['甜得很有分寸', '心尖上化开的一点甜', '甜而不腻的欢喜'],
@@ -737,7 +734,7 @@ export function generateEmotionHeadline(
   variant: number = 0,
 ): string {
   const profile = resolveCategoryProfile(category ?? undefined)
-  const px = resolveProductEmotionLexicon(product.name || '', product.description || '')
+  const px: any = undefined
   let eff = moodTags || []
   if (px && px.moodTags && px.moodTags.length) {
     // 商品级情绪词优先，不被品类白名单裁剪

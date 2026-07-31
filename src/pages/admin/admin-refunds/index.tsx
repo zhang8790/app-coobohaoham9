@@ -25,7 +25,7 @@ const STATUS_LABELS: Record<string, string> = {
   pending_review: '待审核', processing: '处理中', completed: '已完成', closed: '已关闭', abnormal: '异常',
 }
 const STATUS_COLORS: Record<string, string> = {
-  pending_review: 'text-orange-500', processing: 'text-blue-500',
+  pending_review: 'text-red-500', processing: 'text-blue-500',
   completed: 'text-green-600', closed: 'text-gray-500', abnormal: 'text-red-500',
 }
 const TABS: { value: string; label: string }[] = [

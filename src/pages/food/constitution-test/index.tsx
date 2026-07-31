@@ -14,10 +14,12 @@ import {
   calculateResult,
   filterProductsByConstitution,
   constitutionToCrowds,
+  recommendStageProducts,
   type TestResult,
   type ConstitutionType,
 } from '@/utils/constitution-test'
 import { buildHealthShortfalls } from '@/utils/food-therapy/health-shortfall'
+import { STAGE_META, type ShiyangStage } from '@/utils/food-therapy/shiyang-stage'
 import { getProducts, updateProfile } from '@/db/api'
 import { upsertUserHealthProfile } from '@/db/food-api'
 import { ALLERGY_OPTIONS } from '@/utils/food-therapy/profile-map'
@@ -38,6 +40,8 @@ export default function ConstitutionTestPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [good, setGood] = useState<Product[]>([])
   const [caution, setCaution] = useState<Product[]>([])
+  const [stageRecs, setStageRecs] = useState<Product[]>([])
+  const [stage, setStage] = useState<ShiyangStage | null>(null)
   const [loadingRecs, setLoadingRecs] = useState(false)
 
   const [saving, setSaving] = useState(false)
@@ -68,9 +72,15 @@ export default function ConstitutionTestPage() {
     try {
       const all = await getProducts({ limit: 40 })
       const { good: g, caution: c } = filterProductsByConstitution(all, res.primary)
+      const st = res.primary.recommendStage
+      const goodIds = new Set(g.map((p) => p.id))
+      // 按「清通调补固」调理路径深一层配对，排除已入选性味适配的，避免撞车
+      const stageR = recommendStageProducts(all, st, 6, goodIds)
       setProducts(all)
       setGood(g.slice(0, 6))
       setCaution(c.slice(0, 3))
+      setStage(st)
+      setStageRecs(stageR)
     } catch (e) {
       console.error('[constitution-test] 商品匹配失败', e)
     } finally {
@@ -88,6 +98,8 @@ export default function ConstitutionTestPage() {
     setResult(null)
     setGood([])
     setCaution([])
+    setStageRecs([])
+    setStage(null)
     setSaved(false)
     setStep('intro')
   }
@@ -319,6 +331,44 @@ export default function ConstitutionTestPage() {
               </ScrollView>
             )}
           </View>
+
+          {/* 按调理路径：清通调补固阶段配对（复用详情页阶段引擎，与性味适配互补） */}
+          {stage && stageRecs.length > 0 && (
+            <View className="mt-5">
+              <Text className="text-base font-bold text-[#1A1A1A]">
+                按调理路径 · 你的「{STAGE_META[stage].label}」好物
+              </Text>
+              <Text className="text-xs text-[#6B7280] mt-1 block" style={{ lineHeight: 1.6 }}>
+                你的食养偏好偏「{primary.name}」，适合从「{STAGE_META[stage].label}·{STAGE_META[stage].coreTag}」入手调理。以下为契合该路径的专属好物。
+              </Text>
+              <ScrollView scrollX className="mt-3 whitespace-nowrap">
+                <View className="flex flex-row gap-3">
+                  {stageRecs.map((p) => (
+                    <View
+                      key={p.id}
+                      className="inline-flex w-32 flex-col rounded-2xl bg-white p-2.5 shadow-sm"
+                      onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}
+                    >
+                      {p.image_url ? (
+                        <Image src={p.image_url} className="h-20 w-full rounded-xl" mode="aspectFill" />
+                      ) : (
+                        <View className="h-20 w-full rounded-xl bg-[#F3F4F6]" />
+                      )}
+                      <Text className="text-xs text-[#1A1A1A] mt-1.5 line-clamp-1" numberOfLines={1}>
+                        {p.name}
+                      </Text>
+                      <View className="mt-1 flex items-center justify-between">
+                        <Text className="text-sm font-bold text-[#DB2777]">¥{p.price}</Text>
+                        {p.food_stage ? (
+                          <Text className="text-[10px] text-[#9CA3AF]">{p.food_stage}阶</Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          )}
 
           {/* 谨慎提示 */}
           {caution.length > 0 && (

@@ -140,7 +140,7 @@ export default function MyReferrals() {
               <View className="flex-1">
                 <Text className="text-base font-bold text-foreground">{p.nickname || '用户'}</Text>
                 <Text className="text-xs text-muted-foreground mt-0.5">
-                  {p.member_rank || '凡心'} · 金豆 {p.tb_balance || 0}
+                  {p.member_rank || '凡心'}
                 </Text>
               </View>
               <Text className="text-xs text-muted-foreground">

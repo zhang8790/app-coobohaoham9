@@ -22,7 +22,7 @@ export const mockProfile: any = {
   openid: 'mock-openid-001',
   member_rank: '初心',
   points: 500,
-  tb_balance: 100.00,       // 金豆余额（统一货币，本地 mock 支付用）
+  tb_balance: 100.00,       // 健康豆余额（统一货币，本地 mock 支付用）
   balance: 100.00,          // 历史遗留字段，保留以满足 Profile 类型；实际以 tb_balance 为准
   coupons_count: 3,
   merchant_status: 'approved',
@@ -400,7 +400,7 @@ export const mockProducts: Product[] = [
 export let mockAnnouncements: Announcement[] = [
   { id: 'ann-001', content: '🎉 欢迎来到来电有喜！首单享九折优惠~', is_active: true, sort_order: 1, created_at: new Date().toISOString() },
   { id: 'ann-002', content: '【新自营门店】茶语轩精品茶饮正式上线，满50减10！', is_active: true, sort_order: 2, created_at: new Date().toISOString() },
-  { id: 'ann-003', content: '本周末双倍金豆活动，消费即送金豆！', is_active: true, sort_order: 3, created_at: new Date().toISOString() },
+  { id: 'ann-003', content: '本周末双倍健康豆活动，消费即送健康豆！', is_active: true, sort_order: 3, created_at: new Date().toISOString() },
 ]
 
 // =====================
@@ -514,7 +514,7 @@ export let mockCommissions: Commission[] = [
 ]
 
 // =====================
-// 金豆日志（用于金豆明细）
+// 健康豆日志（用于健康豆明细）
 // =====================
 export let mockPointsLogs: PointsLog[] = [
   {
@@ -524,7 +524,7 @@ export let mockPointsLogs: PointsLog[] = [
     type: 'purchase_earn',
     delta: 50,
     balance_after: 550,
-    remark: '购物奖励金豆',
+    remark: '购物奖励健康豆',
     created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
   },
   {
@@ -534,7 +534,7 @@ export let mockPointsLogs: PointsLog[] = [
     type: 'purchase_earn',
     delta: 30,
     balance_after: 580,
-    remark: '购物奖励金豆',
+    remark: '购物奖励健康豆',
     created_at: new Date(Date.now() - 3 * 86400000).toISOString(),
   },
   {

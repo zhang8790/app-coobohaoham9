@@ -80,28 +80,11 @@ export default function MerchantDashboard() {
     }
     const load = async () => {
       setLoading(true)
-      const today = new Date().toISOString().slice(0, 10)
-      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
-
       try {
-        // 今日订单
-        const { data: todayOrdersData } = await supabase
-          .from('orders')
-          .select('total_amount, status, created_at')
-          .eq('store_id', storeId)
-          .gte('created_at', today)
-
-        const todayOrders = todayOrdersData?.length ?? 0
-        const todayRevenue = todayOrdersData?.reduce((s, o) => s + (o.total_amount ?? 0), 0) ?? 0
-
-        // 本月订单
-        const { data: monthOrdersData } = await supabase
-          .from('orders')
-          .select('total_amount')
-          .eq('store_id', storeId)
-          .gte('created_at', monthStart)
-
-        const monthRevenue = monthOrdersData?.reduce((s, o) => s + (o.total_amount ?? 0), 0) ?? 0
+        // 数据分析聚合（服务端 RPC 一次返回，替代多次全量拉取）
+        const { data: ana, error: anaErr } = await supabase.rpc('fn_merchant_analytics', { p_store_id: storeId })
+        if (anaErr) throw anaErr
+        const a = (ana as any) || {}
 
         // 待发货订单数
         const { count: pendingCount } = await supabase
@@ -110,28 +93,20 @@ export default function MerchantDashboard() {
           .eq('store_id', storeId)
           .eq('status', 'pending_ship')
 
-        // 可提现佣金（已审核通过的提现申请总额，或从 commissions 表汇总）
+        // 可提现佣金（已审核通过的提现申请总额）
         const { data: withdrawData } = await supabase
           .from('withdrawals')
           .select('amount')
           .eq('store_id', storeId)
           .eq('status', 'approved')
 
-        const pendingWithdraw = withdrawData?.reduce((s, w) => s + (w.amount ?? 0), 0) ?? 0
-
-        // 累积客户数（有过订单的去重用户数）
-        const { data: custData } = await supabase
-          .from('orders')
-          .select('user_id')
-          .eq('store_id', storeId)
-
-        const totalCustomers = new Set(custData?.map(o => o.user_id)).size
+        const pendingWithdraw = withdrawData?.reduce((s: number, w: any) => s + (w.amount ?? 0), 0) ?? 0
 
         setStats({
-          todayRevenue,
-          monthRevenue,
-          todayOrders,
-          totalCustomers,
+          todayRevenue: Number(a.revenueToday ?? 0),
+          monthRevenue: Number(a.revenueMonth ?? 0),
+          todayOrders: Number(a.ordersToday ?? 0),
+          totalCustomers: Number(a.totalCustomers ?? 0),
           pendingOrders: pendingCount ?? 0,
           pendingWithdraw,
         })
@@ -144,10 +119,10 @@ export default function MerchantDashboard() {
           .order('created_at', { ascending: false })
           .limit(5)
 
-        setRecentOrders((recent ?? []).map(o => ({
+        setRecentOrders((recent ?? []).map((o: any) => ({
           id: o.id,
-          product_name: (o as any).order_items?.[0]?.product_name ?? '多商品订单',
-          quantity: (o as any).order_items?.[0]?.quantity ?? 1,
+          product_name: o.order_items?.[0]?.product_name ?? '多商品订单',
+          quantity: o.order_items?.[0]?.quantity ?? 1,
           price: o.total_amount ?? 0,
           status: o.status,
           created_at: (o.created_at ?? '').replace('T', ' ').slice(0, 16),

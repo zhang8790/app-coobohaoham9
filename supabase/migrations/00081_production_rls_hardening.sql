@@ -178,7 +178,7 @@ BEGIN
                       USING (public.is_admin()) WITH CHECK (public.is_admin());$f$,
                    'rls81_'||t||'_admin', t);
 
-    -- 修正：买家本人可写自己的订单 / 金豆流水（小程序前端直写架构，无 Edge Function 代理）
+    -- 修正：买家本人可写自己的订单 / 健康豆流水（小程序前端直写架构，无 Edge Function 代理）
     --       否则 00081 会把 orders/order_items/gold_bean_logs 收成 admin-only，导致下单失败
     IF has_uid AND t IN ('orders','gold_bean_logs') THEN
       EXECUTE format($f$CREATE POLICY %I ON public.%I FOR ALL TO authenticated

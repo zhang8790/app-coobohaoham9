@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getLlmConfig, saveLlmConfig, testLlmConfig, type LlmConfigValue } from '@/api/admin'
+import { getLlmConfig, saveLlmConfig, testLlmConfig, getLlmUsageStats, getLlmRecentLogs, type LlmConfigValue, type LlmUsageStats, type LlmRecentLog } from '@/api/admin'
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -25,6 +25,11 @@ export default function Settings() {
   const [testing, setTesting] = useState(false)
   const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
 
+  // ---- token 用量统计 ----
+  const [stats, setStats] = useState<LlmUsageStats | null>(null)
+  const [logs, setLogs] = useState<LlmRecentLog[]>([])
+  const [statsLoading, setStatsLoading] = useState(true)
+
   useEffect(() => {
     (async () => {
       try {
@@ -39,6 +44,21 @@ export default function Settings() {
         setMsg({ type: 'error', text: `读取配置失败：${e?.message || e}` })
       } finally {
         setLoading(false)
+      }
+    })()
+  }, [])
+
+  // 加载用量统计 + 最近明细
+  useEffect(() => {
+    (async () => {
+      try {
+        const [s, l] = await Promise.all([getLlmUsageStats(30), getLlmRecentLogs(50)])
+        setStats(s)
+        setLogs(l || [])
+      } catch {
+        // 统计失败不阻断配置页
+      } finally {
+        setStatsLoading(false)
       }
     })()
   }, [])
@@ -74,7 +94,7 @@ export default function Settings() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <h2 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>AI 模型配置</h2>
+      <h2 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>智能模型配置</h2>
       <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 20px' }}>
         填写模型网址与 Key 后，全项目（小程序智能识别 / 食疗导购 / 情绪编译）统一调用，无需改代码、无需重启。
       </p>
@@ -130,7 +150,7 @@ export default function Settings() {
             type="checkbox" id="llm-enabled" checked={enabled}
             onChange={e => setEnabled(e.target.checked)} style={{ width: 16, height: 16 }}
           />
-          <label htmlFor="llm-enabled" style={{ fontSize: 14, color: 'var(--text)' }}>启用 AI 识别（关闭则全项目走本地规则兜底）</label>
+          <label htmlFor="llm-enabled" style={{ fontSize: 14, color: 'var(--text)' }}>启用智能识图（关闭则全项目走本地规则兜底）</label>
         </div>
 
         {/* Actions */}
@@ -160,8 +180,138 @@ export default function Settings() {
         background: 'var(--bg)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.7,
       }}>
         说明：未填写 Key 时，小程序「智能识别」自动回退本地规则引擎，系统照常可用；
-        填写后全项目 AI 能力即时升级。配置变更后 Edge Function 最多 5 分钟生效（内存缓存）。
+        填写后全项目智能能力即时升级。配置变更后 Edge Function 最多 5 分钟生效（内存缓存）。
+      </div>
+
+      {/* ================= 智能模型调用统计 ================= */}
+      <div style={{ marginTop: 32 }}>
+        <h3 style={{ color: 'var(--text)', fontSize: 17, fontWeight: 700, margin: '0 0 4px' }}>智能模型调用统计</h3>
+        <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '0 0 16px' }}>
+          统计近 30 天各 Edge Function 调用大模型消耗的 token（含成功/失败明细）。
+        </p>
+
+        {statsLoading ? (
+          <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>统计加载中…</div>
+        ) : (
+          <>
+            {/* KPI 卡 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+              {[
+                { label: '今日调用', value: stats?.today.today_calls ?? 0, sub: `${stats?.today.today_tokens ?? 0} tokens` },
+                { label: '累计调用', value: stats?.totals.total_calls ?? 0, sub: `${stats?.totals.total_tokens ?? 0} tokens` },
+                { label: '累计输入', value: stats?.totals.total_prompt ?? 0, sub: 'prompt tokens' },
+                { label: '累计输出', value: stats?.totals.total_completion ?? 0, sub: 'completion tokens' },
+                { label: '失败次数', value: stats?.totals.failed_calls ?? 0, sub: '自动降级规则' },
+              ].map((k) => (
+                <div key={k.label} style={{
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 12, padding: '16px 18px',
+                }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 6 }}>{k.label}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', lineHeight: 1.1 }}>{k.value.toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{k.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* 模块占比 + 趋势 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) minmax(280px, 1.4fr)', gap: 16, marginTop: 16 }}>
+              {/* 模块占比 */}
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 18 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 14 }}>模块占比（按 token）</div>
+                {(stats?.by_module?.length ?? 0) === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>暂无调用记录</div>
+                ) : (
+                  (() => {
+                    const max = Math.max(...(stats?.by_module ?? []).map((m) => m.tokens), 1)
+                    return (stats?.by_module ?? []).map((m) => (
+                      <div key={m.module} style={{ marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>
+                          <span>{m.module}</span>
+                          <span style={{ color: 'var(--text-dim)' }}>{m.tokens.toLocaleString()} · {m.calls}次</span>
+                        </div>
+                        <div style={{ height: 8, background: 'var(--bg)', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${Math.max(4, (m.tokens / max) * 100)}%`, background: 'var(--primary)', borderRadius: 4 }} />
+                        </div>
+                      </div>
+                    ))
+                  })()
+                )}
+              </div>
+
+              {/* 最近 30 天趋势 */}
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 18 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 14 }}>每日 token 趋势（近 30 天）</div>
+                {(stats?.by_day?.length ?? 0) === 0 ? (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>暂无数据</div>
+                ) : (
+                  (() => {
+                    const days = stats?.by_day ?? []
+                    const max = Math.max(...days.map((d) => d.tokens), 1)
+                    const w = 520, h = 120, pad = 6
+                    const stepX = (w - pad * 2) / Math.max(days.length - 1, 1)
+                    const pts = days.map((d, i) => {
+                      const x = pad + i * stepX
+                      const y = h - pad - (d.tokens / max) * (h - pad * 2)
+                      return `${x.toFixed(1)},${y.toFixed(1)}`
+                    }).join(' ')
+                    return (
+                      <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: 'auto' }} preserveAspectRatio="none">
+                        <polyline points={pts} fill="none" stroke="var(--primary)" strokeWidth="2" />
+                        {days.map((d, i) => d.tokens > 0 ? (
+                          <circle key={i} cx={pad + i * stepX} cy={h - pad - (d.tokens / max) * (h - pad * 2)} r="2.5" fill="var(--primary)" />
+                        ) : null)}
+                      </svg>
+                    )
+                  })()
+                )}
+              </div>
+            </div>
+
+            {/* 最近明细 */}
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 18, marginTop: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>最近调用明细</div>
+              {logs.length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>暂无记录</div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ color: 'var(--text-dim)', textAlign: 'left' }}>
+                        <th style={thStyle}>时间</th>
+                        <th style={thStyle}>模块</th>
+                        <th style={thStyle}>函数</th>
+                        <th style={thStyle}>模型</th>
+                        <th style={thStyle}>tokens</th>
+                        <th style={thStyle}>耗时</th>
+                        <th style={thStyle}>状态</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logs.slice(0, 20).map((l) => (
+                        <tr key={l.id} style={{ borderTop: '1px solid var(--border)' }}>
+                          <td style={tdStyle}>{new Date(l.created_at).toLocaleString('zh-CN', { hour12: false })}</td>
+                          <td style={tdStyle}>{l.module ?? '-'}</td>
+                          <td style={tdStyle}>{l.function_name}</td>
+                          <td style={tdStyle}>{l.model}</td>
+                          <td style={tdStyle}>{l.total_tokens.toLocaleString()}</td>
+                          <td style={tdStyle}>{l.latency_ms != null ? `${l.latency_ms}ms` : '-'}</td>
+                          <td style={tdStyle}>
+                            <span style={{ color: l.success ? 'var(--success)' : 'var(--warning)' }}>{l.success ? '成功' : '失败'}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
 }
+
+const thStyle: React.CSSProperties = { padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap' }
+const tdStyle: React.CSSProperties = { padding: '8px 10px', color: 'var(--text)', whiteSpace: 'nowrap' }

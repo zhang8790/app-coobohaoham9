@@ -19,13 +19,14 @@ import { useLocation } from '@/contexts/LocationContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { uploadToStorage } from '@/utils/upload'
 import type { FoodAdditive, Product, UserHealthProfile } from '@/db/types'
-import { scanToProduct } from '@/utils/scan'
+import { scanAndRoute } from '@/utils/scan'
 import { useFoodKnowledgeStore } from '@/store/foodKnowledgeStore'
 import { getCurrentTerm } from '@/utils/seasonal-box'
 
 export default function FoodScanPage() {
   const { currentStore } = useLocation()
   const { profile: authProfile } = useAuth()
+  const discoverFragment = useFoodKnowledgeStore((s) => s.discoverFragment)
   const [userProfile, setUserProfile] = useState<UserHealthProfile | null>(null)
   const [text, setText] = useState('')
   const [additives, setAdditives] = useState<FoodAdditive[]>([])
@@ -257,7 +258,7 @@ export default function FoodScanPage() {
     <View className="min-h-screen bg-[#FFFBF7] px-4 pt-4 pb-12">
       <Text className="text-xl font-bold text-foreground">🍱 食品配料安全</Text>
       <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 4, lineHeight: 1.6 }}>
-        粘贴配料表文字或输入商品名即可在本地即时分析（无需拍照、不依赖云端）。拍照可提交服务端 AI 识别（需联网，识别失败时用上方文本同样可用）。
+        粘贴配料表文字或输入商品名即可在本地即时分析（无需拍照、不依赖云端）。拍照可提交服务端智能识图（需联网，识别失败时用上方文本同样可用）。
       </Text>
 
       {/* 文本输入解析（主控，即时可用） */}
@@ -277,6 +278,21 @@ export default function FoodScanPage() {
         >
           解析配料
         </Button>
+        <Button
+          onClick={() => {
+            if (!text.trim()) {
+              Taro.showToast({ title: '请先输入或粘贴配料文字', icon: 'none' })
+              return
+            }
+            Taro.navigateTo({
+              url: `/pages/food/analysis-result/index?text=${encodeURIComponent(text.trim())}`,
+            })
+          }}
+          className="mt-2 rounded-full"
+          style={{ background: '#0f172a', color: '#fff', fontSize: 14 }}
+        >
+          查看标准安全报告
+        </Button>
       </View>
 
       {/* 拍照识别 + 扫条码购买（两条下单链路） */}
@@ -290,7 +306,7 @@ export default function FoodScanPage() {
           📷 拍照识别
         </Button>
         <Button
-          onClick={() => scanToProduct()}
+          onClick={() => scanAndRoute()}
           className="rounded-full"
           style={{ background: '#EAF2FF', color: 'hsl(var(--foreground))', fontSize: 14 }}
         >

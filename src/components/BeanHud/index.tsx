@@ -4,8 +4,8 @@ import Icon from '@/components/Icon'
 
 /**
  * 会员资产条（纯展示，读取现有 tb_balance / commission_balance，不新增任何字段/功能）
- * - 传入 commission 时渲染「金豆 / 佣金」两列资产卡（积分已并入金豆，统一货币为金豆）
- * - 仅传入 beans 时退化为内联单值（金豆），保留历史 +N 微动效
+ * - 传入 commission 时渲染「健康豆 / 佣金」两列资产卡（积分已并入健康豆，统一货币为健康豆）
+ * - 仅传入 beans 时退化为内联单值（健康豆），保留历史 +N 微动效
  */
 export interface BeanHudProps {
   beans?: number
@@ -27,7 +27,7 @@ export default function BeanHud({ beans = 0, commission, size = 'md' }: BeanHudP
     prev.current = beans
   }, [beans])
 
-  // 两列资产卡模式（金豆 + 佣金，统一货币为金豆）
+  // 两列资产卡模式（健康豆 + 佣金，统一货币为健康豆）
   if (commission !== undefined) {
     return (
       <View className="bean-hud">
@@ -37,7 +37,7 @@ export default function BeanHud({ beans = 0, commission, size = 'md' }: BeanHudP
               <View className="bean-icon"><Text className="text-white font-bold text-xs">豆</Text></View>
               <Text className="bean-val gold-text">{beans.toLocaleString()}</Text>
             </View>
-            <Text className="bean-label">金豆</Text>
+            <Text className="bean-label">健康豆</Text>
           </View>
           <View className="bean-divider" />
           <View className="bean-hud-col">
@@ -49,14 +49,14 @@ export default function BeanHud({ beans = 0, commission, size = 'md' }: BeanHudP
     )
   }
 
-  // 内联单值模式（仅金豆）
+  // 内联单值模式（仅健康豆）
   const dim = size === 'sm' ? 14 : size === 'lg' ? 22 : 18
   const textCls = size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-2xl' : 'text-base'
   return (
     <View className="relative inline-flex items-center gap-1">
       <Icon name="coin" size={dim} color="hsl(var(--brand-gold))" />
       <Text className={`gold-text font-bold ${textCls}`}>{beans}</Text>
-      <Text className="text-muted-foreground text-xs">金豆</Text>
+      <Text className="text-muted-foreground text-xs">健康豆</Text>
       {burst != null && (
         <View className="bean-burst" style={{ position: 'absolute', left: '50%', top: '-6px' }}>
           <Text className="gold-text text-xs font-bold">+{burst}</Text>

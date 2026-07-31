@@ -28,7 +28,7 @@ function FlowSvg() {
       </defs>
       <rect x="30" y="150" width="150" height="60" rx="10" fill="var(--surface-2)" stroke="var(--warning)" strokeWidth={1.5} />
       <text x="105" y="178" textAnchor="middle" fill="var(--text)" fontSize={13} fontWeight={600}>订单全额</text>
-      <text x="105" y="196" textAnchor="middle" fill="var(--text-muted)" fontSize={11}>含金豆抵扣</text>
+      <text x="105" y="196" textAnchor="middle" fill="var(--text-muted)" fontSize={11}>含健康豆抵扣</text>
       <text x="215" y="185" textAnchor="middle" fill="var(--warning)" fontSize={22} fontWeight={800}>× 让利率</text>
       <circle cx="330" cy="180" r="56" fill="url(#poolGrad)" stroke="var(--warning)" strokeWidth={2} />
       <text x="330" y="174" textAnchor="middle" fill="#1a1205" fontSize={14} fontWeight={800}>平台让利</text>
@@ -44,8 +44,8 @@ function FlowSvg() {
       <text x="665" y="184" textAnchor="middle" fill="var(--text-muted)" fontSize={11}>二级（L1 的上级）</text>
       <path d="M386,200 C480,220 540,220 590,230" fill="none" stroke="var(--warning)" strokeWidth={1.5} markerEnd="url(#ah2)" strokeDasharray="6 5" />
       <rect x="590" y="200" width="150" height="60" rx="10" fill="var(--card)" stroke="var(--accent-text)" strokeWidth={1.5} />
-      <text x="665" y="224" textAnchor="middle" fill="var(--accent-text)" fontSize={12} fontWeight={700}>买家金豆</text>
-      <text x="665" y="244" textAnchor="middle" fill="var(--text-muted)" fontSize={11}>返下单人金豆</text>
+      <text x="665" y="224" textAnchor="middle" fill="var(--accent-text)" fontSize={12} fontWeight={700}>买家健康豆</text>
+      <text x="665" y="244" textAnchor="middle" fill="var(--text-muted)" fontSize={11}>返下单人健康豆</text>
       <path d="M386,215 C460,275 520,275 590,290" fill="none" stroke="var(--warning)" strokeWidth={1.5} markerEnd="url(#ah2)" strokeDasharray="6 5" />
       <rect x="590" y="260" width="150" height="60" rx="10" fill="var(--card)" stroke="var(--warning)" strokeWidth={1.5} />
       <text x="665" y="284" textAnchor="middle" fill="var(--warning)" fontSize={12} fontWeight={700}>平台佣金</text>
@@ -75,7 +75,7 @@ export default function CommissionGuide() {
           background: 'linear-gradient(135deg, rgba(194,65,12,0.12), rgba(212,175,55,0.08))',
           border: '1px dashed rgba(212,175,55,0.4)',
         }}>
-          <span style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', fontSize: 13 }}>订单全额（含金豆）</span>
+          <span style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', fontSize: 13 }}>订单全额（含健康豆）</span>
           <span>×</span>
           <span style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', fontSize: 13 }}>让利率 <b style={{ color: 'var(--warning)' }}>（门店 referral_rate，或商品 discount_rate 金额加权）</b></span>
           <span>=</span>
@@ -119,7 +119,7 @@ export default function CommissionGuide() {
       <div style={card}>
         <h2 style={h2}>④ 运营必知的两个坑</h2>
         <div style={note}>
-          <b style={{ color: 'var(--warning)' }}>⚠️ 纯金豆订单不发佣：</b>distribute-commission 只在「微信支付成功回调」里触发。纯豆支付不经微信回调  不发佣金。混合支付（豆+微信）正常发。
+          <b style={{ color: 'var(--warning)' }}>⚠️ 纯健康豆订单不发佣：</b>distribute-commission 只在「微信支付成功回调」里触发。纯豆支付不经微信回调  不发佣金。混合支付（豆+微信）正常发。
         </div>
         <div style={note}>
           <b style={{ color: 'var(--warning)' }}>💡 门店想从让利里分到钱：</b>平台让利虽由门店让利撑大，但门店锁客不拿佣。门店须让客户通过<b>门店自己的推广码（referral_code）</b>下单，才能以「推广员」身份走 referrer_id 拿到佣金。

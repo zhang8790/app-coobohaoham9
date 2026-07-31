@@ -671,7 +671,7 @@ export interface SelfStoreOrder {
   total_amount: number
   tb_used: number
   settle_amount: number | null   // 让利后商家实收（merchant_settlements，未完成订单为 null）
-  discount_pool: number | null   // 平台让利（已分出去的推广/金豆/平台部分）
+  discount_pool: number | null   // 平台让利（已分出去的推广/健康豆/平台部分）
   status: string
   refund_status: string | null
   created_at: string
@@ -772,6 +772,45 @@ export async function saveLlmConfig(value: LlmConfigValue): Promise<boolean> {
     if (error) throw error
     return true
   }, true)
+}
+
+export interface LlmUsageStats {
+  totals: { total_calls: number; total_tokens: number; total_prompt: number; total_completion: number; failed_calls: number }
+  today: { today_calls: number; today_tokens: number }
+  by_day: { day: string; calls: number; tokens: number }[]
+  by_module: { module: string; calls: number; tokens: number }[]
+}
+
+export interface LlmRecentLog {
+  id: string
+  created_at: string
+  function_name: string
+  module: string | null
+  model: string
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  latency_ms: number | null
+  success: boolean
+  error_message: string | null
+}
+
+/** 读取 LLM 调用统计（聚合）。仅 admin 可调用（RPC SECURITY DEFINER）。 */
+export async function getLlmUsageStats(pDays = 30): Promise<LlmUsageStats | null> {
+  return safeQuery(async () => {
+    const { data, error } = await supabase.rpc('fn_llm_usage_stats', { p_days: pDays })
+    if (error) throw error
+    return (data as unknown as LlmUsageStats) ?? null
+  }, null)
+}
+
+/** 读取最近 LLM 调用明细。仅 admin 可调用（RPC SECURITY DEFINER）。 */
+export async function getLlmRecentLogs(pLimit = 50): Promise<LlmRecentLog[]> {
+  return safeQuery(async () => {
+    const { data, error } = await supabase.rpc('fn_llm_recent_logs', { p_limit: pLimit })
+    if (error) throw error
+    return (data as unknown as LlmRecentLog[]) ?? []
+  }, [])
 }
 
 /** 测试 LLM 连通性：通过 product-analyze 的 test 模式验证当前配置可用（不跑完整识别）。 */

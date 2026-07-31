@@ -75,12 +75,12 @@ Deno.serve(async (req: Request) => {
     }
 
     // 4. 发起微信退款（如有微信支付部分）
-    // 注意：00096 后 tb_used 已统一为「元」口径（1 豆 = 1 元），直接按比例扣减，勿再 ×0.01
+    // 注意：00096 后 tb_used 已统一为「元」口径（1 健康豆 = 1 元），直接按比例扣减，勿再 ×0.01
     const wxRefundAmount = Math.max(
       0,
       Math.round((refund_amount - (Number(order.tb_used ?? 0) * (refund_amount / Number(order.total_amount)))) * 100)
     )
-    // 退款占比 & 应返还金豆（金豆抵扣部分，所有退款路径通用，下面统一退还）
+    // 退款占比 & 应返还健康豆（健康豆抵扣部分，所有退款路径通用，下面统一退还）
     const ratio = Number(order.total_amount) > 0 ? refund_amount / Number(order.total_amount) : 1
     const beanPortion = Math.max(0, Math.round(Number(order.tb_used ?? 0) * ratio * 100) / 100)
 
@@ -122,21 +122,21 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 5. 金豆部分退还（始终执行：纯金豆订单=全额，混合订单=金豆抵扣占比部分）
-    // 00096 后 tb_used 为「元」口径（1 豆 = 1 元），按退款占比计算应返还金豆，切勿 ×0.01。
+    // 5. 健康豆部分退还（始终执行：纯健康豆订单=全额，混合订单=健康豆抵扣占比部分）
+    // 00096 后 tb_used 为「元」口径（1 健康豆 = 1 元），按退款占比计算应返还健康豆，切勿 ×0.01。
     if (beanPortion > 0) {
       const { data: profile } = await supabase.from('profiles').select('tb_balance').eq('id', user.id).maybeSingle()
       const newTb = Math.round((Number(profile?.tb_balance ?? 0) + beanPortion) * 100) / 100
       await supabase.from('profiles').update({ tb_balance: newTb }).eq('id', user.id)
-      // 金豆返还流水（tb_balance 变动必须留账，便于对账防资损）
+      // 健康豆返还流水（tb_balance 变动必须留账，便于对账防资损）
       await supabase.from('tongbao_logs').insert({
         user_id: user.id, order_id, type: 'refund_return',
         delta: beanPortion, balance_after: newTb,
-        remark: `订单${order.order_no}退款返还金豆`,
+        remark: `订单${order.order_no}退款返还健康豆`,
       })
     }
 
-    // 6. 无微信支付（纯情绪豆订单）→ 直接完成退款
+    // 6. 无微信支付（纯健康豆订单）→ 直接完成退款
     if (wxRefundAmount === 0) {
       // 直接完成退款
       await supabase.from('refunds').update({ status: 'completed', wechat_refund_id: null, completed_at: new Date().toISOString() }).eq('id', refundRecord.id)
@@ -158,7 +158,7 @@ Deno.serve(async (req: Request) => {
           user_id: user.id,
           type: 'refund_result',
           title: '退款成功',
-          body: `订单 ${order.order_no} 的退款 ¥${refund_amount.toFixed(2)} 已成功（以金豆形式到账）`,
+          body: `订单 ${order.order_no} 的退款 ¥${refund_amount.toFixed(2)} 已成功（以健康豆形式到账）`,
           order_id: order_id,
           payload: {
             order_no: order.order_no,
@@ -200,10 +200,10 @@ async function triggerClawback(
 ) {
   const ratio = totalAmount > 0 ? refundAmount / totalAmount : 1
 
-  // 佣金扣回：按比例标记，并同步回滚受益人「金豆账户」(tb_balance) 与「可提现佣金账户」(commission_balance)。
-  // 2026-07-29 起推广收益按「50% 可提现佣金 + 50% 金豆」拆分发放，故此处须按 commissions 表的
+  // 佣金扣回：按比例标记，并同步回滚受益人「健康豆账户」(tb_balance) 与「可提现佣金账户」(commission_balance)。
+  // 2026-07-29 起推广收益按「50% 可提现佣金 + 50% 健康豆」拆分发放，故此处须按 commissions 表的
   // cash_portion/bean_portion 双账户回滚，否则已退款订单的佣金仍留在账户可被消费/提现 = 资损。
-  // 历史遗留（pre-07-29 无拆分列的行）自动按整笔 commission_amount 视为金豆，兼容回滚。
+  // 历史遗留（pre-07-29 无拆分列的行）自动按整笔 commission_amount 视为健康豆，兼容回滚。
   const { data: commissions } = await supabase.from('commissions')
     .select('id, beneficiary_id, commission_amount, cash_portion, bean_portion, status')
     .eq('order_id', orderId)
@@ -212,8 +212,8 @@ async function triggerClawback(
   for (const c of (commissions ?? [])) {
     await supabase.from('commissions').update({ status: 'refunded' }).eq('id', c.id)
     if (!c.beneficiary_id) continue
-    // 拆分回滚：金豆一半回 tb_balance，现金一半回 commission_balance。
-    // 兼容历史行（pre-07-29 无拆分列，整笔均为金豆）：cash+bean 均为 0 时按整笔 commission_amount 视为金豆。
+    // 拆分回滚：健康豆一半回 tb_balance，现金一半回 commission_balance。
+    // 兼容历史行（pre-07-29 无拆分列，整笔均为健康豆）：cash+bean 均为 0 时按整笔 commission_amount 视为健康豆。
     const cashPortion = Number(c.cash_portion || 0)
     const beanPortion = Number(c.bean_portion || 0)
     const legacy = (cashPortion + beanPortion) === 0
@@ -230,7 +230,7 @@ async function triggerClawback(
         await supabase.from('tongbao_logs').insert({
           user_id: c.beneficiary_id, order_id: orderId,
           type: 'commission_revoke', delta: -beanClawback, balance_after: newTb,
-          remark: `订单${orderNo}退款佣金回冲(金豆)`,
+          remark: `订单${orderNo}退款佣金回冲(健康豆)`,
         })
       }
     }
@@ -266,6 +266,22 @@ async function triggerClawback(
       amount: -deduct,
       source: 'order_refund',
     })
+  }
+
+  // 健康豆扣回（买家返利已统一写入 tongbao_logs(purchase_earn)；健康豆=消费币，退款须同步回冲，避免资损）
+  const { data: tbLogs } = await supabase.from('tongbao_logs')
+    .select('id, user_id, delta').eq('order_id', orderId).eq('type', 'purchase_earn')
+  for (const tl of (tbLogs ?? [])) {
+    const deduct = Math.round((Number(tl.delta) || 0) * ratio * 100) / 100
+    if (deduct <= 0) continue
+    const { data: bProfile } = await supabase.from('profiles').select('tb_balance').eq('id', tl.user_id).maybeSingle()
+    const newTb = Math.max(0, Math.round((Number(bProfile?.tb_balance ?? 0) - deduct) * 100) / 100)
+    await supabase.from('profiles').update({ tb_balance: newTb }).eq('id', tl.user_id)
+    await supabase.from('tongbao_logs').insert({
+      user_id: tl.user_id, order_id: orderId,
+      type: 'refund_deduct', delta: -deduct, balance_after: newTb,
+      remark: `订单${orderNo}退款健康豆回冲`,
+    }).catch((e: any) => console.warn('[tongbao_logs] 健康豆回冲流水失败:', (e as any)?.message))
   }
 
   // 商品级分佣同步回冲（#48）：按同一订单退款 ratio 累加 order_item_commissions.refund_ratio，

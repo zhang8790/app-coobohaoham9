@@ -164,7 +164,7 @@ export default function Risk() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
         {[
           { label: '可疑佣金总数', value: stats.total, color: '#dc2626' },
-          { label: '冻结金额(金豆)', value: fmt(stats.frozenAmt), color: '#dc2626' },
+          { label: '冻结金额(健康豆)', value: fmt(stats.frozenAmt), color: '#dc2626' },
           { label: '自推自嫌疑', value: stats.selfRef, color: '#d97706' },
           { label: '新号养号嫌疑', value: stats.newAcc, color: '#d97706' },
         ].map(c => (

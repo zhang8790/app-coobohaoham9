@@ -4,7 +4,7 @@
  * 2026-07-18 优化（针对「段位逻辑不对 / 躺平收益高」）：
  * 1. 段位口径改为【近 6 个月滚动消费】决定（原终身累计消费只增不减 → 躺平者永久高段位）。
  *    窗口外消费自动过期，停止消费即自动降级，从源头消除「躺平高收益」。
- * 2. 金豆(人民币 1:1 锚定)仍计入滚动消费口径（维持现状），但被 6 月窗口锁死，不会变成永久杠杆。
+ * 2. 健康豆(人民币 1:1 锚定)仍计入滚动消费口径（维持现状），但被 6 月窗口锁死，不会变成永久杠杆。
  * 3. 佣金比例收敛微调：L1 上限 0.60 → 0.50，L2 上限 0.25 → 0.18（保留梯度）。
  * 4. 叠加两层真实门槛（原 checkCommissionEligibility 写死 true 从未生效）：
  *    - 活跃系数 activeMult：近 30 天有推荐成交 = 1.0；30~60 天有 = 0.5（宽限）；连续 60 天无 = 0（暂停）。
@@ -20,7 +20,7 @@ export interface RankConfigV5 {
   minDynamicScore: number;
   l1CommissionRate: number;   // 流动一级比例（上限 0.50）
   l2CommissionRate: number;   // 静态二级比例（上限 0.18）
-  goldBeanRate: number;         // 金豆比例
+  goldBeanRate: number;         // 健康豆比例
   icon: string;
   color: string;
 }
@@ -67,7 +67,7 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     minDynamicScore: 2000,
     l1CommissionRate: 0.46,
     l2CommissionRate: 0.18,
-    goldBeanRate: 0.37,
+    goldBeanRate: 0.34,
     icon: '⚔️',
     color: RANK_COLOR_MAP['静心']
   },
@@ -75,8 +75,8 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     rank: '悟心',
     minDynamicScore: 6000,
     l1CommissionRate: 0.48,
-    l2CommissionRate: 0.18,
-    goldBeanRate: 0.40,
+    l2CommissionRate: 0.19,
+    goldBeanRate: 0.32,
     icon: '🏯',
     color: RANK_COLOR_MAP['悟心']
   },
@@ -84,8 +84,8 @@ export const RANK_CONFIG_TABLE_V5: RankConfigV5[] = [
     rank: '无心境',
     minDynamicScore: 20000,
     l1CommissionRate: 0.50,
-    l2CommissionRate: 0.18,
-    goldBeanRate: 0.40,
+    l2CommissionRate: 0.20,
+    goldBeanRate: 0.30,
     icon: '👑',
     color: RANK_COLOR_MAP['无心境']
   },
@@ -138,7 +138,7 @@ export interface CommissionResultV5 {
 
   l1Commission: number;          // 流动一级佣金
   l2Commission: number;          // 静态二级佣金
-  buyerGoldBeans: number;           // 买家金豆
+  buyerGoldBeans: number;           // 买家健康豆
   platformExtraIncome: number;   // 平台额外收入
   platformTotalIncome: number;   // 平台总收入（仅平台让利内抽成，不承受通道费/税费）
 
@@ -148,9 +148,9 @@ export interface CommissionResultV5 {
   taxWithheld: number;           // 代扣个税（**用户承担**，从佣金扣除）
   userNetCommission: number;     // 用户净到手 = 名义佣金 − 通道费 − 代扣税
 
-  // 2026-07-29 决策「一半佣金，一半金豆」：净额按 50/50 拆分为可提现佣金与金豆
+  // 2026-07-29 决策「一半佣金，一半健康豆」：净额按 50/50 拆分为可提现佣金与健康豆
   userCashCommission: number;    // 净额中可提现佣金部分（→ commission_balance）
-  userBeanCommission: number;    // 净额中金豆部分（→ tb_balance，仅消费抵扣）
+  userBeanCommission: number;    // 净额中健康豆部分（→ tb_balance，仅消费抵扣）
 
   // 比例（基于剩余池）
   l1Rate: number;
@@ -236,31 +236,31 @@ export function calculateCommissionV5(input: CommissionInputV5): CommissionResul
     l2Commission = toPrecision(remainingPool * referrerRank.l2CommissionRate * active * recruit)
   }
 
-  // 5. 计算金豆
+  // 5. 计算健康豆（买家份额 = 剩余池 × 买家段位比例，4 位小数，与 EF 一致）
   const rawBuyerGoldBeans = toPrecision(remainingPool * buyerRank.goldBeanRate)
-  // 确权金豆下限：只要有让利分配，至少确权 1 豆（与 EF 一致；避免小额定单舍入为 0，"购买者确权金豆"列失效）
-  const buyerGoldBeans = rawBuyerGoldBeans > 0 ? Math.max(1, Math.round(rawBuyerGoldBeans)) : 0
 
-  // 6. 平台保底封顶：段位系数×活跃×拓新可能使 一级+二级佣金 超过 剩余池(让利×90%)，
-  //    挤出平台保底。故将 L1+L2 上限封顶为 (剩余池 − 买家确权金豆)，超出按比例缩放，
-  //    保证平台留成恒等于让利×10%（与 distribute-commission EF 完全一致）。
-  const commTotalRaw = l1Commission + l2Commission
-  const capForComm = Math.max(0, toPrecision(remainingPool - buyerGoldBeans))
-  if (commTotalRaw > capForComm && commTotalRaw > 0) {
-    const scale = capForComm / commTotalRaw
-    l1Commission = toPrecision(l1Commission * scale)
-    l2Commission = toPrecision(l2Commission * scale)
-  }
+  // 6. 归一化分配（与 distribute-commission EF 完全一致）：
+  //    平台恰好抽 10%（platformMinIncome），剩余 90% 由 购买者/L1/L2 按段位比例全额分配。
+  //    三项 raw 比例之和可能 ≠ 1，按各自 raw 占比归一化，保证 平台恒 = 10%、三方拿满 90%、无亏损。
+  const rawL1 = l1Commission
+  const rawL2 = l2Commission
+  const sumRaw = toPrecision(rawBuyerGoldBeans + rawL1 + rawL2)
+  const fracBuyer = sumRaw > 0 ? rawBuyerGoldBeans / sumRaw : 0
+  const fracL1 = sumRaw > 0 ? rawL1 / sumRaw : 0
+  const fracL2 = sumRaw > 0 ? rawL2 / sumRaw : 0
+  const buyerGoldBeans = toPrecision(fracBuyer * remainingPool)
+  l1Commission = toPrecision(fracL1 * remainingPool)
+  l2Commission = toPrecision(fracL2 * remainingPool)
 
-  // 7. 平台额外收入
+  // 7. 平台额外收入（归一化后恒 ≈ 0）
   const platformExtraIncome = toPrecision(
     remainingPool - l1Commission - l2Commission - buyerGoldBeans
   )
 
-  // 8. 平台总收入
+  // 8. 平台总收入（恒 = 让利 × 10%）
   const platformTotalIncome = toPrecision(platformMinIncome + platformExtraIncome)
 
-  // 7.1 用户名义现金佣金（L1+L2，可提现部分；买家金豆是虚拟币，不在此列）
+  // 7.1 用户名义现金佣金（L1+L2，可提现部分；买家健康豆是虚拟币，不在此列）
   const userGrossCommission = toPrecision(l1Commission + l2Commission)
 
   // 7.2 支付通道费（微信约0.6%）：**由用户承担**，从佣金扣除（商家/平台不承担）

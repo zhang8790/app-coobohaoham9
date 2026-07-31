@@ -161,8 +161,8 @@ function ReviewPage() {
 
             {/* 情绪标签 */}
             <View className="mt-4">
-              <Text className="text-xl text-foreground mb-2">情绪标签（可选）</Text>
-              <Text className="text-sm text-muted-foreground mb-3">选择你使用商品后的情绪感受</Text>
+              <Text className="text-xl text-foreground mb-2">食养标签（可选）</Text>
+              <Text className="text-sm text-muted-foreground mb-3">选择你使用商品后的真实感受</Text>
               
               {/* 情绪分类切换 */}
               <View className="flex gap-2 mb-3 flex-wrap">

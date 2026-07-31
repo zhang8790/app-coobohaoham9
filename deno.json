@@ -1,0 +1,7 @@
+{
+  "nodeModulesDir": "none",
+  "imports": {
+    "npm:short-unique-id": "npm:short-unique-id",
+    "npm:wechatpay-axios-plugin@0.9.4": "npm:wechatpay-axios-plugin@0.9.4"
+  }
+}

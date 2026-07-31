@@ -1,5 +1,5 @@
--- 修复历史订单「情绪豆抵扣 > 成交额」导致的平台现金实收 / 佣金显示为负
--- 根因：create-order Edge Function 曾用 Math.ceil(totalAmount/GOLD_BEAN_RATE) 计算纯金豆所需豆数，
+-- 修复历史订单「健康豆抵扣 > 成交额」导致的平台现金实收 / 佣金显示为负
+-- 根因：create-order Edge Function 曾用 Math.ceil(totalAmount/GOLD_BEAN_RATE) 计算纯健康豆所需豆数，
 --       当订单金额非整数（如 ¥17.8）时，会扣 18 豆，但成交额仅 17.8，显示时按 1 豆=1 元折算，抵扣额 > 成交额。
 -- 操作：
 --   1. 先查询所有异常订单（供核对）
@@ -26,7 +26,7 @@ WITH bad_orders AS (
       SELECT 1 FROM public.tongbao_logs tl
       WHERE tl.order_id = o.id
         AND tl.type = 'admin_grant'
-        AND tl.remark LIKE '修正情绪豆抵扣超额%'
+        AND tl.remark LIKE '修正健康豆抵扣超额%'
     )
 ),
 -- 汇总每个用户应退豆数
@@ -51,7 +51,7 @@ SELECT
   'admin_grant',
   (o.tb_used - o.total_amount) AS delta,
   p.tb_balance,
-  '修正情绪豆抵扣超额：原抵扣 ' || o.tb_used || ' 豆，订单金额 ' || o.total_amount || ' 元',
+  '修正健康豆抵扣超额：原抵扣 ' || o.tb_used || ' 豆，订单金额 ' || o.total_amount || ' 元',
   NOW()
 FROM public.orders o
 JOIN public.profiles p ON p.id = o.user_id
@@ -61,7 +61,7 @@ WHERE o.tb_used > o.total_amount
     SELECT 1 FROM public.tongbao_logs tl
     WHERE tl.order_id = o.id
       AND tl.type = 'admin_grant'
-      AND tl.remark LIKE '修正情绪豆抵扣超额%'
+      AND tl.remark LIKE '修正健康豆抵扣超额%'
   );
 
 -- 步骤 5：修正订单 tb_used（必须在退豆/流水之后，避免丢失差额）
@@ -89,4 +89,4 @@ ADD COLUMN tb_used_capped numeric(12,2) GENERATED ALWAYS AS (
   COALESCE(LEAST(COALESCE(tb_used, 0), COALESCE(total_amount, 0)), 0)
 ) STORED;
 
-SELECT '✅ 情绪豆抵扣超额修正完成：异常订单已修复、多扣豆已退回、CHECK 约束已添加、tb_used_capped 计算列已创建' AS result;
+SELECT '✅ 健康豆抵扣超额修正完成：异常订单已修复、多扣豆已退回、CHECK 约束已添加、tb_used_capped 计算列已创建' AS result;

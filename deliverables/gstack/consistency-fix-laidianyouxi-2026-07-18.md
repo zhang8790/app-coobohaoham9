@@ -1,7 +1,7 @@
 # 来店有喜 · 三端（前端/后端/管理端）货币模型一致性修复报告
 
 **日期**：2026-07-18
-**场景**：三端数据模型一致性修复（金豆→情绪豆单货币合并收尾）
+**场景**：三端数据模型一致性修复（健康豆→健康豆单货币合并收尾）
 **执行**：软件工坊主理人沽思航（gstack-lead）；审查 agent 子系统故障，主理人亲自核查+改代码
 
 ---
@@ -29,19 +29,19 @@
 | # | 严重度 | 文件 | 改动 |
 |---|--------|------|------|
 | 1 | 🔴 | `mobile-app/src/types/db.ts` | PaymentMethod `'gold_beans'`→`'emotion_beans'`；`Profile.gold_beans`→`tb_balance`；`Order.gold_beans_used`→`tb_used` |
-| 2 | 🔴 | `mobile-app/src/screens/ProfileScreen.tsx:24-25` | `profile?.gold_beans`→`tb_balance`；标签"金豆"→"情绪豆" |
-| 3 | 🔴 | `mobile-app/src/screens/OrdersScreen.tsx:70` | `item.gold_beans_used`→`tb_used`；"金豆"→"情绪豆" |
+| 2 | 🔴 | `mobile-app/src/screens/ProfileScreen.tsx:24-25` | `profile?.gold_beans`→`tb_balance`；标签"健康豆"→"健康豆" |
+| 3 | 🔴 | `mobile-app/src/screens/OrdersScreen.tsx:70` | `item.gold_beans_used`→`tb_used`；"健康豆"→"健康豆" |
 | 4 | 🟡 | `src/db/types.ts` | PaymentMethod 枚举去 `'gold_beans'`；删 `Profile.gold_beans` 废弃字段 |
 | 5 | 🟡 | `src/db/api.ts` getMyBalance | 去掉对 `gold_beans` 列的读取（恒为 0 的死读），返回类型与 select 收敛到 `points/tb_balance/commission_balance` |
 | 6 | 🟡 | `src/db/api.ts` + `src/pages/payment/index.tsx` | `createOrderV2` 参数 `gold_beans_to_use`→`tb_used`（与订单列 `tb_used` 对齐） |
-| 7 | 🟡 | `admin-web/src/pages/Ledgers.tsx` | 区分 `emotion_tongbao_logs`(情绪通宝流水) 与 `tongbao_logs`(情绪豆流水) 标签；副标题同步 |
+| 7 | 🟡 | `admin-web/src/pages/Ledgers.tsx` | 区分 `emotion_tongbao_logs`(情绪健康豆流水) 与 `tongbao_logs`(健康豆流水) 标签；副标题同步 |
 | 8 | 🟡 | `admin-web/src/api/finance.ts:712` | 注释 `balance`→`tb_balance` |
 | 9 | 🟡 | `scripts/e2e-test.mjs` | profiles 列/`gold_bean_logs` 表名/select/标签/`gold_beans_used` → `tb_balance`/`tongbao_logs`/`tb_used` |
 | 10 | 🟡 | `scripts/mock-api-server.ts` + `.js` | `gold_beans_used`→`tb_used` |
 | 11 | 🟡 | `supabase/functions/create-order/index.ts` + `src/client/supabase.mock.ts` | 入参 `gold_beans_to_use`→`tb_used`（函数内部原已正确写 `tb_used`/扣 `tb_balance`，仅入参名旧） |
 | 12 | 🟡 | `supabase/functions/force-login/index.ts` | 去掉对废弃 `balance`/`gold_beans` 列的恢复 |
 | 13 | 🟡 | `scripts/auto-finalize.mjs` | 迁移标签 `gold_bean_logs`→`tongbao_logs` |
-| 14 | 🟡 | `src/pages/my-promotion/index.tsx:377-378` | `RankProgress.balance` 实为 `commission_balance`（推广佣金）；UI 读 `tb_balance` 致类型错 + 标签"情绪豆余额"语义错 → 改读 `balance`、标签"佣金余额" |
+| 14 | 🟡 | `src/pages/my-promotion/index.tsx:377-378` | `RankProgress.balance` 实为 `commission_balance`（推广佣金）；UI 读 `tb_balance` 致类型错 + 标签"健康豆余额"语义错 → 改读 `balance`、标签"佣金余额" |
 | 15 | 🟡 | `src/db/api.ts:2349,2748` | 保留为历史注释（说明 gold_beans 已合并），无功能影响 |
 
 ---

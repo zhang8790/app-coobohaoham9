@@ -5,7 +5,7 @@
  */
 import type { KnowledgeFragment } from '@/store/foodKnowledgeStore'
 
-export const KNOWLEDGE_FRAGMENTS: Record<string, Omit<KnowledgeFragment, 'discoveredAt' | 'viewed'>> = {
+export const KNOWLEDGE_FRAGMENTS: Record<string, Omit<KnowledgeFragment, 'discoveredAt' | 'viewed' | 'additiveKey'>> = {
   // ==================== 防腐剂 ====================
   '山梨酸钾': {
     name: '山梨酸钾',
@@ -44,7 +44,7 @@ export const KNOWLEDGE_FRAGMENTS: Record<string, Omit<KnowledgeFragment, 'discov
     category: '防腐剂',
     riskLevel: 'white',
     title: '面包和糕点的天然防腐搭档',
-    description: '丙酸钙是酸性防腐剂，在面包烤制过程中会转化为丙酸和钙离子，两者均是人体正常代谢产物。它对面包保鲜有特效，还能同时补钙，是为数不多"有好处"的防腐剂。',
+    description: '丙酸钙是酸性防腐剂，在面包烤制过程中会转化为丙酸和钙离子，两者均是人体正常代谢产物。它对面包保鲜有良好效果，还能同时补钙，是为数不多"有好处"的防腐剂。',
     funFact: '丙酸是人和动物肠道中天然产生的物质，肠道里的益生菌也会分泌它。某种意义上，你每次吃面包都在补充益生菌口粮。',
     safeLimit: 'GB 2760 限用于面包/糕点，最大使用量 2.5 g/kg（以丙酸计）',
     foundIn: ['面包', '糕点', '天然奶酪'],

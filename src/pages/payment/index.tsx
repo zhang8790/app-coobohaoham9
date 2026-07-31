@@ -2,13 +2,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { View, Text, Input } from '@tarojs/components'
-import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile, getMyAddresses, grantEmotionClaim, trackFoodTherapyEvent, removeCartItem } from '@/db/api'
+import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile, getMyAddresses, grantEmotionClaim, trackFoodTherapyEvent, removeCartItem, getOrderById } from '@/db/api'
 import Icon from '@/components/Icon'
 import { supabase } from '@/client/supabase'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { toFoodTherapyInput, checkCartConflicts, type CartConflict } from '@/utils/food-therapy'
 import { RouteGuard } from '@/components/RouteGuard'
 import { getPendingCheckout, clearPendingCheckout } from '@/utils/checkoutCache'
+import { refreshCartCount } from '@/utils/cartStore'
 import type { PayMode } from '@/db/types'
 import { calculateCommissionV5 } from '@/utils/commission-calculator-v5'
 
@@ -34,13 +35,27 @@ async function runV5Commission(orderId: string, storeId: string, totalAmount: nu
     // 让利点合并规则（按商品自身，金额加权）：每商品用自身 discount_rate（整数%÷100），未设则回退门店率（受开关控制）；
     // 按商品金额(price×qty)加权得到整单混合率，高利润品主导平台让利、低利润品少分，绝不二次叠加。与云端真发款一致（展示=实发）。
     try {
+      // 修复：order_items.product_id 为 text 且无外键指向 products.id，
+      //       嵌入 products(discount_rate) 会触发 PGRST200 (HTTP 400)。
+      //       改为先取 order_items，再按 product_id 批量查 products.discount_rate 在 JS 内关联
+      //       （与 src/db/api.ts 中 createOrder 的修正口径一致）。
       const { data: itemRows } = await supabase
-        .from('order_items').select('price, quantity, products(discount_rate)').eq('order_id', orderId)
-      const items = (itemRows || []) as Array<{ price?: any; quantity?: any; products?: { discount_rate?: any } | null }>
+        .from('order_items').select('price, quantity, product_id').eq('order_id', orderId)
+      const items = (itemRows || []) as Array<{ price?: any; quantity?: any; product_id?: string | null }>
+      const productIds = Array.from(new Set((items || []).map(it => it?.product_id).filter(Boolean))) as string[]
+      let rateMap: Record<string, number> = {}
+      if (productIds.length) {
+        const { data: prods } = await supabase
+          .from('products').select('id, discount_rate').in('id', productIds)
+        for (const p of (prods || []) as Array<{ id?: string; discount_rate?: any }>) {
+          if (p?.id) rateMap[p.id] = Number(p.discount_rate ?? 0)
+        }
+      }
       let totalAmt = 0, weightedSum = 0
       for (const it of items) {
         const amt = (Number(it.price) || 0) * (Number(it.quantity) || 0)
-        const pct = it?.products?.discount_rate
+        const pid = String(it?.product_id)
+        const pct = rateMap[pid]
         const pRate = (typeof pct === 'number' && pct > 0) ? pct / 100 : discountRate
         totalAmt += amt
         weightedSum += amt * pRate
@@ -79,7 +94,7 @@ async function runV5Commission(orderId: string, storeId: string, totalAmount: nu
     await supabase.from('orders').update({
       l1_commission: commissionResult.l1Commission,
       l2_commission: commissionResult.l2Commission,
-      buyer_points: Math.round(commissionResult.buyerGoldBeans),
+      buyer_points: commissionResult.buyerGoldBeans,
       platform_income: commissionResult.platformTotalIncome,
       commission_calculated: true}).eq('id', orderId)
   } catch (err) {
@@ -95,7 +110,7 @@ async function grantOneClaim(orderNo: string, item: any) {
       productId: item.product_id || '',
       storeId: item.store_id || '',
       selectedEmotion: [],
-      badgeText: '情绪确权'})
+      badgeText: '食养确权'})
     if (res.ok) {
       // 支付后自动确权成功
     }
@@ -128,18 +143,21 @@ async function autoClaimAfterPay(ctx: {
     console.warn('[确权] 自动确权批量异常(不影响订单)', e)
   }
 }
-// 金豆抵扣比例：1 金豆 = 1 元（金豆与人民币 1:1 锚定，余额即抵扣额，与数据库 profiles.tb_balance 单位一致）
+// 健康豆抵扣比例：1 健康豆 = 1 元（健康豆与人民币 1:1 锚定，余额即抵扣额，与数据库 profiles.tb_balance 单位一致）
 const GOLD_BEAN_RATE = 1
 
 // 支付成功后的订单状态：配送走「待发货」；到店消费（堂食）当场使用，支付即「待评价+已使用」，跳过待核销
-function paidOrderUpdate(serviceType?: 'dine_in' | 'delivery'): {
-  status: 'pending_ship' | 'pending_review'
+function paidOrderUpdate(serviceType?: 'dine_in' | 'delivery' | 'self_pickup'): {
+  status: 'pending_ship' | 'pending_review' | 'pending_pickup'
   paid_at: string
   verified_at?: string
 } {
   const now = new Date().toISOString()
   if (serviceType === 'delivery') {
     return { status: 'pending_ship', paid_at: now }
+  }
+  if (serviceType === 'self_pickup') {
+    return { status: 'pending_pickup', paid_at: now }
   }
   // 堂食到店消费，无需核销，支付成功即视为已使用（用 verified_at 标记）
   return { status: 'pending_review', verified_at: now, paid_at: now }
@@ -164,7 +182,7 @@ function computeCheckoutRisks(items: any[], classifyProduct: (p: any) => any): {
 
 // 支付成功落地页：标准确认点，用户主动选择下一步（查看订单 / 继续逛），
 // 评价改为可选项而非被强制推送。堂食订单支付即 pending_review，故 reviewable。
-function buildResultUrl(orderNo: string, total: number, serviceType: 'dine_in' | 'delivery'): string {
+function buildResultUrl(orderNo: string, total: number, serviceType: 'dine_in' | 'delivery' | 'self_pickup'): string {
   const reviewable = serviceType === 'dine_in' ? '1' : '0'
   return `/pages/payment-result/index?orderNo=${encodeURIComponent(orderNo)}&total=${total}&serviceType=${serviceType}&reviewable=${reviewable}`
 }
@@ -195,6 +213,21 @@ function PaymentPage() {
     const cache = getPendingCheckout()
     return cache?.productId || ''
   }, [params])
+  // 临期特惠：立即购买带入的折扣价/批次（URL 优先，缓存兜底；实际套用由 createOrderV2 按 batch_id 服务端完成）
+  const effectivePriceParam = useMemo(() => {
+    const raw = (params as any).ep ?? getPendingCheckout()?.effectivePrice
+    const v = raw != null ? Number(raw) : NaN
+    return Number.isFinite(v) && v > 0 ? v : 0
+  }, [params])
+  const batchIdParam = useMemo(() => {
+    const raw = (params as any).batch ?? getPendingCheckout()?.batchId
+    return raw ? String(raw) : ''
+  }, [params])
+  // 重付模式：订单中心「去付款」带入已存在订单 id，拉取订单项重发预支付（不重复建单）
+  const orderIdParam = useMemo(() => {
+    const raw = (params as any).orderId
+    return raw ? String(raw) : ''
+  }, [params])
 
   const [payMode, setPayMode] = useState<PayMode>('wxpay')
   const [goldBeansToUse, setGoldBeansToUse] = useState(0)
@@ -221,10 +254,19 @@ function PaymentPage() {
 
   // 防重复支付双重锁
   const _payLock = useRef(false)
+  // loadData 防重入锁：mount 与 useDidShow 会同时触发，避免重复拉取（结算慢的根因之一）
+  const loadLockRef = useRef(false)
   const _pendingOrderNo = useRef('')
   // 用户推荐人（上级）ID：loadData 时缓存，下单时透传给订单，
   // 供服务端 distribute-commission 真正发放佣金（修复之前 orders.referrer_id 恒为 NULL 的发佣断点）
   const referrerIdRef = useRef<string | null>(null)
+
+  // 重付模式：订单中心「去付款」进入，订单已存在，仅重发预支付（不重复建单）
+  const [repayMode, setRepayMode] = useState(false)
+  const repayOrderIdRef = useRef<string | null>(null)
+  const repayServiceTypeRef = useRef<'dine_in' | 'delivery' | 'self_pickup'>('dine_in')
+  const [repayIsMultiStore, setRepayIsMultiStore] = useState(false)
+  const [repayParentOrderNo, setRepayParentOrderNo] = useState<string | null>(null)
 
   // 下单前预校验：回查 products 真实状态，拦截失效商品（已下架 / 无价）
   // 与 createOrderV2 的价格防伪完全同源（同样受 products RLS `is_active=true` 约束），
@@ -262,15 +304,18 @@ function PaymentPage() {
     }
   }
 
-  // 加载购物车商品 + 金豆余额 + 用户消费数据 + 收货地址
+  // 加载购物车商品 + 健康豆余额 + 用户消费数据 + 收货地址
   const loadData = useCallback(async () => {
+    if (loadLockRef.current) return
+    loadLockRef.current = true
+    try {
     const [bal, profile, addrList] = await Promise.all([
       getMyBalance(),
       getMyProfile().catch(() => null), // 获取用户资料（含累计消费）
       getMyAddresses().catch(() => []),  // 获取收货地址列表
     ])
 
-    // 余额优先取已验证正确的 getMyProfile.tb_balance（金豆），getMyBalance 作兜底（双保险防 RLS 偏差导致读成 0）
+    // 余额优先取已验证正确的 getMyProfile.tb_balance（健康豆），getMyBalance 作兜底（双保险防 RLS 偏差导致读成 0）
     const finalBalance = profile?.tb_balance ?? bal.tb_balance ?? 0
     setBalance(finalBalance)
     setAddresses(addrList)
@@ -286,15 +331,70 @@ function PaymentPage() {
     // 缓存推荐人（上级）ID，下单时透传订单
     referrerIdRef.current = profile?.referrer_id || null
 
+    // 重付模式：订单已存在，直接拉取订单项重发预支付（跳过购物车/立即购买查询与失效校验）
+    if (orderIdParam) {
+      const order = await getOrderById(orderIdParam)
+      if (!order) {
+        setProductCheck({ loading: false, invalid: [{ product_id: '', name: '订单', reason: '订单不存在或已失效' }] })
+        return
+      }
+      if (order.status !== 'pending_pay') {
+        setProductCheck({ loading: false, invalid: [{ product_id: '', name: '订单', reason: `订单状态为「${order.status}」，无需支付` }] })
+        return
+      }
+      const mapped = (order.order_items || []).map((it: any) => ({
+        product_id: it.product_id, store_id: it.store_id,
+        store_name: it.store_name || '', product_name: it.product_name || '',
+        product_image: it.product_image || null,
+        price: Number(it.price) || 0, quantity: Number(it.quantity) || 1,
+        batch_id: it.batch_id || undefined }))
+      if (mapped.length === 0) {
+        setProductCheck({ loading: false, invalid: [{ product_id: '', name: '订单', reason: '订单无商品明细' }] })
+        return
+      }
+      // 锁定健康豆抵扣额 = 订单创建时记录的 tb_used（服务端重付金额 = total - tb_used，必须一致否则资损）
+      const tbUsed = Number(order.tb_used) || 0
+      setGoldBeansToUse(tbUsed)
+      setPayMode(tbUsed > 0 ? 'hybrid' : 'wxpay')
+      // 履约方式锁定为订单原始值（重付不可改）
+      repayServiceTypeRef.current = (order.service_type as any) || 'dine_in'
+      setServiceType(repayServiceTypeRef.current === 'self_pickup' ? 'delivery' : (repayServiceTypeRef.current as 'dine_in' | 'delivery'))
+      setRepayMode(true)
+      repayOrderIdRef.current = order.id
+      setOrderNo(order.order_no)
+      _pendingOrderNo.current = order.order_no
+      setRepayIsMultiStore(!!order.parent_order_no)
+      setRepayParentOrderNo(order.parent_order_no || null)
+      setItems(mapped)
+      setTotalAmount(toFixed4(order.total_amount || 0))
+      // 订单项已是创建时快照，无需再次失效校验（避免误拦「中途放弃支付」的待付单）
+      setProductCheck({ loading: false, invalid: [] })
+      return
+    }
+
     let loadedItems: any[] = []
     if (cartIds.length > 0) {
       const cartItems = await getCartItems()
       const selected = cartItems.filter(i => cartIds.includes(i.id))
-      const mapped = selected.map(i => ({
-        product_id: i.product_id, store_id: i.store_id,
-        store_name: i.stores?.name || '', product_name: i.products?.name || '',
-        product_image: i.products?.image_url || null,
-        price: i.products?.price || 0, quantity: i.quantity}))
+      // 临期特惠：按购物车项的 batch_id 查真实 effective_price，让展示价与实付价一致（防价格落差/客诉）
+      const batchIds = selected.map(i => i.batch_id).filter(Boolean) as string[]
+      let effMap: Record<string, number> = {}
+      if (batchIds.length) {
+        const { data: effRows } = await supabase
+          .from('v_near_expiry_products')
+          .select('batch_id, effective_price')
+          .in('batch_id', batchIds)
+        ;(effRows || []).forEach((r: any) => { if (r.batch_id != null) effMap[r.batch_id] = r.effective_price })
+      }
+      const mapped = selected.map(i => {
+        const effPrice = i.batch_id && effMap[i.batch_id] != null ? effMap[i.batch_id] : (i.products?.price || 0)
+        return {
+          product_id: i.product_id, store_id: i.store_id,
+          store_name: i.stores?.name || '', product_name: i.products?.name || '',
+          product_image: i.products?.image_url || null,
+          price: effPrice, quantity: i.quantity,
+          batch_id: i.batch_id || undefined }
+      })
       loadedItems = mapped
       setItems(mapped)
       setTotalAmount(toFixed4(mapped.reduce((s, i) => s + toFixed4(i.price * i.quantity), 0)))
@@ -304,19 +404,25 @@ function PaymentPage() {
       if (prod) {
         // 优先从 URL 参数/缓存读取购买数量，默认 1
         const qty = quantityParam > 0 ? quantityParam : 1
+        // 临期特惠：客户端带入折扣价仅作展示/预估；服务端 createOrderV2 会按 batch_id 重新校验并套用 effective_price
+        const finalPrice = effectivePriceParam > 0 && effectivePriceParam < Number(prod.price || 0) ? effectivePriceParam : Number(prod.price || 0)
         const mapped = [{
           product_id: prod.id, store_id: prod.store_id,
           store_name: '', product_name: prod.name,
           product_image: prod.image_url || null,
-          price: prod.price, quantity: qty }]
+          price: finalPrice, quantity: qty,
+          batch_id: batchIdParam || undefined }]
         loadedItems = mapped
         setItems(mapped)
-        setTotalAmount(toFixed4(prod.price * qty))
+        setTotalAmount(toFixed4(finalPrice * qty))
       }
     }
     // 下单前预校验商品状态（拦截已下架 / 无价 / 售罄），避免点到 createOrderV2 才报 INVALID_PRODUCT
     await verifyProducts(loadedItems)
-  }, [cartIds, productIdParam, quantityParam])
+    } finally {
+      loadLockRef.current = false
+    }
+  }, [cartIds, productIdParam, quantityParam, effectivePriceParam, batchIdParam, orderIdParam])
 
   // 挂载即拉一次（余额/地址等首屏数据）。
   // 注意：依赖必须是 [] 而非 [loadData]——loadData 依赖 cartIds/productIdParam/quantityParam，
@@ -352,7 +458,7 @@ function PaymentPage() {
             supabase.from('orders')
               .update({ status: 'cancelled' })
               .eq('order_no', orderNo)
-              .eq('status', 'pending_pay')  // ⬅ 守卫：已支付/已金豆支付/已取消的订单不被覆盖
+              .eq('status', 'pending_pay')  // ⬅ 守卫：已支付/已健康豆支付/已取消的订单不被覆盖
               .then(({ data }: { data: any }) => {
                 if (data && (data as any[]).length > 0) {
                 } else {
@@ -376,9 +482,9 @@ function PaymentPage() {
 
   const [serviceType, setServiceType] = useState<'dine_in' | 'delivery'>('dine_in')
 
-  // 实时计算：金豆最大可用 & 实付金额
-  // 按「正常价格」精确扣豆：金豆余额支持小数(numeric(12,2))，1 豆=1 元，0.1 元订单即扣 0.1 豆，绝不上取整到 1 豆；
-  // 纯金豆用精确额度(totalAmount/RATE，含小数)覆盖订单——不足则禁用纯豆，零头不强行多扣；
+  // 实时计算：健康豆最大可用 & 实付金额
+  // 按「正常价格」精确扣豆：健康豆余额支持小数(numeric(12,2))，1 健康豆=1 元，0.1 元订单即扣 0.1 健康豆，绝不上取整到 1 健康豆；
+  // 纯健康豆用精确额度(totalAmount/RATE，含小数)覆盖订单——不足则禁用纯豆，零头不强行多扣；
   // 混合/微信仍按「向下取整」——零头留给微信支付，避免微信端出现 <0.01 元的不可支付金额。
   const maxGoldBeans = useMemo(() => {
     if (payMode === 'pure_gold') return Math.min(balance, totalAmount / GOLD_BEAN_RATE)
@@ -390,12 +496,12 @@ function PaymentPage() {
   const fullGoldNeeded = useMemo(() => totalAmount / GOLD_BEAN_RATE, [totalAmount])
   const pureGoldShort = useMemo(() => Math.max(0, fullGoldNeeded - balance), [fullGoldNeeded, balance])
 
-  // 切换支付方式时同步金豆使用量
+  // 切换支付方式时同步健康豆使用量
   const handleModeChange = (mode: PayMode) => {
     setPayMode(mode)
-    // 纯金豆：默认用满「精确覆盖所需豆数」(fullGoldNeeded=订单金额/RATE，含小数)，按正常价格足额付清不留缺口
+    // 纯健康豆：默认用满「精确覆盖所需健康豆数」(fullGoldNeeded=订单金额/RATE，含小数)，按正常价格足额付清不留缺口
     if (mode === 'pure_gold') setGoldBeansToUse(Math.min(balance, fullGoldNeeded))
-    // 混合：默认用满可用金豆（向下取整，零头走微信）
+    // 混合：默认用满可用健康豆（向下取整，零头走微信）
     else if (mode === 'hybrid') setGoldBeansToUse(maxGoldBeans)
     else if (mode === 'wxpay') setGoldBeansToUse(0)
   }
@@ -414,7 +520,7 @@ function PaymentPage() {
   }
 
   // 跨门店订单：支付成功后确认所有子订单（按履约方式分流状态）
-  const confirmMultiStoreOrders = async (parentOrderNo: string, serviceType: 'dine_in' | 'delivery') => {
+  const confirmMultiStoreOrders = async (parentOrderNo: string, serviceType: 'dine_in' | 'delivery' | 'self_pickup') => {
     try {
       const { error } = await supabase
         .from('orders')
@@ -436,6 +542,8 @@ function PaymentPage() {
     if (!ids || ids.length === 0) return
     try {
       await Promise.all(ids.map(id => removeCartItem(id).catch(() => null)))
+      // 同步购物车角标（removeCartItem 只删库、不刷新 TabBar/页面角标，会导致"付完款购物车数字不归零"）
+      await refreshCartCount().catch(() => null)
     } catch (e) {
       console.warn('[payment] 清理购物车失败(不影响)', e)
     }
@@ -484,6 +592,90 @@ function PaymentPage() {
       _riskAck.current = false // 用户已确认风险，本次跳过校验
     }
 
+    // ===== 重付支线：订单已存在（订单中心「去付款」进入），仅重发预支付、不重复建单 =====
+    if (repayMode && repayOrderIdRef.current) {
+      _payLock.current = true
+      setPaying(true)
+      try {
+        const isWeapp = Taro.getEnv() === 'WEAPP'
+        if (!isWeapp) {
+          Taro.showToast({ title: '非微信小程序环境无法发起支付，请在正式版微信小程序中使用', icon: 'none' })
+          return
+        }
+        const openid = await fetchOpenidWithRetry()
+        if (!openid) throw new Error('获取用户信息失败，请确认在微信小程序中打开')
+
+        // 直接对已有订单重发预支付（create-wechat-payment 以 order_no 为 out_trade_no 重生成 prepay_id）
+        const payParams = await getWechatPayParams(repayOrderIdRef.current, openid)
+        if (!payParams) throw new Error('微信支付参数获取失败，请检查商户配置')
+
+        await Taro.requestPayment({
+          timeStamp: payParams.timeStamp,
+          nonceStr: payParams.nonceStr,
+          package: payParams.package,
+          signType: payParams.signType as 'RSA',
+          paySign: payParams.paySign })
+
+        Taro.showToast({ title: '支付成功！', icon: 'success' })
+        clearPendingCheckout()
+
+        // 状态流转（履约方式锁定为订单原始值）
+        const st = repayServiceTypeRef.current
+        try {
+          if (repayIsMultiStore && repayParentOrderNo) {
+            await supabase.from('orders').update(paidOrderUpdate(st)).eq('parent_order_no', repayParentOrderNo)
+          } else if (orderNo) {
+            await supabase.from('orders').update(paidOrderUpdate(st)).eq('order_no', orderNo)
+          }
+        } catch (e) { console.warn('[重付] 状态更新失败(不影响)', e) }
+
+        // 混合支付：微信支付成功后再扣健康豆（健康豆抵扣额已锁定 = 订单 tb_used，与 EF 重付金额一致）
+        if (payMode === 'hybrid' && actualGoldBeansUsed > 0) {
+          try {
+            const prof = await getMyProfile()
+            if (prof?.id) {
+              const { data: p2 } = await supabase.from('profiles').select('tb_balance').eq('id', prof.id).single()
+              if (p2 && p2.tb_balance >= actualGoldBeansUsed) {
+                const { error: derr } = await supabase.from('profiles').update({ tb_balance: p2.tb_balance - actualGoldBeansUsed }).eq('id', prof.id)
+                if (derr) console.warn('[重付混合] 健康豆扣减失败(不影响订单)', derr)
+                else {
+                  supabase.from('tongbao_logs').insert({
+                    user_id: prof.id, order_id: null, type: 'purchase_spend',
+                    delta: -actualGoldBeansUsed, balance_after: (p2.tb_balance ?? 0) - actualGoldBeansUsed,
+                    remark: '混合支付消费抵扣健康豆' }).then(() => {}).catch((e: any) => {
+                    if ((e as any)?.code === '42P01' || (e as any)?.status === 404) console.warn('[tongbao_logs] 表不存在(00096未执行)')
+                  })
+                }
+              } else console.warn('[重付混合] 健康豆余额不足，跳过扣减')
+            }
+          } catch (e) { console.warn('[重付混合] 健康豆扣减异常(不影响订单)', e) }
+        }
+
+        // 跨门店结算：确认所有子订单
+        if (repayIsMultiStore && repayParentOrderNo) {
+          await confirmMultiStoreOrders(repayParentOrderNo, st)
+        }
+
+        // V5 佣金计算 + 自动确权（仅在支付成功后执行，重付补齐首次放弃时未跑的部分）
+        try { await runV5Commission(repayOrderIdRef.current, items[0]?.store_id || '', totalAmount) } catch (err) { console.error('[V5] 重付佣金计算失败', err) }
+        autoClaimAfterPay({ orderNo: orderNo || '', isMultiStore: repayIsMultiStore, parentOrderNo: repayParentOrderNo, items })
+
+        setTimeout(() => { Taro.navigateTo({ url: buildResultUrl(orderNo || '', totalAmount, st) }) }, 1500)
+        return
+      } catch (err: any) {
+        const msg = err?.message || ''
+        if (msg.includes('cancel') || msg.includes('用户取消')) {
+          Taro.showToast({ title: '已取消支付', icon: 'none' })
+        } else {
+          Taro.showToast({ title: msg || '支付失败，请重试', icon: 'none' })
+        }
+      } finally {
+        setPaying(false)
+        _payLock.current = false
+      }
+      return
+    }
+
     _payLock.current = true
     setPaying(true)
 
@@ -527,33 +719,33 @@ function PaymentPage() {
         setParentOrderNo(orderResult.order.parent_order_no)
       }
 
-      // 2. 纯金豆：已在服务端完成，直接跳转
+      // 2. 纯健康豆：已在服务端完成，直接跳转
       if (payMode === 'pure_gold') {
-      Taro.showToast({ title: '金豆支付成功！', icon: 'success' })
+      Taro.showToast({ title: '健康豆支付成功！', icon: 'success' })
 
       // 清理购物车里已结算的条目（避免下次进入仍看到「未支付」的已购商品）
       clearPaidCartItems(cartIds)
 
-      // 跨门店结算：确认所有子订单（纯金豆已在服务端完成，这里只是保险）
+      // 跨门店结算：确认所有子订单（纯健康豆已在服务端完成，这里只是保险）
       if (isMultiStore && parentOrderNo) {
         await confirmMultiStoreOrders(parentOrderNo, serviceType)
       } else if (orderResult?.order?.order_no) {
-        // 单店金豆：补写订单支付后状态（配送=待发货，到店=待评价+已使用）
+        // 单店健康豆：补写订单支付后状态（配送=待发货，到店=待评价+已使用）
         try {
           await supabase
             .from('orders')
             .update(paidOrderUpdate(serviceType))
             .eq('order_no', orderResult.order.order_no)
         } catch (e) {
-          console.warn('[金豆支付] 单店状态更新失败', e)
+          console.warn('[健康豆支付] 单店状态更新失败', e)
         }
       }
       
-      // V5算法：金豆支付成功后计算佣金并写入订单（含真实推荐人段位）
+      // V5算法：健康豆支付成功后计算佣金并写入订单（含真实推荐人段位）
       try {
         await runV5Commission(orderResult?.order?.id || '', items[0]?.store_id || '', totalAmount)
       } catch (err) {
-        console.error('[V5] 金豆支付佣金计算失败', err)
+        console.error('[V5] 健康豆支付佣金计算失败', err)
       }
 
       // 支付成功即自动确权（下单默认确权，无需跳转）
@@ -610,7 +802,7 @@ function PaymentPage() {
         }
       } catch (e) { console.warn('[支付成功] 更新状态失败(不影响)', e) }
 
-      // 混合支付：微信支付成功后再扣金豆（订单已记录 tb_used，此处执行实际扣减）
+      // 混合支付：微信支付成功后再扣健康豆（订单已记录 tb_used，此处执行实际扣减）
       if (payMode === 'hybrid' && actualGoldBeansUsed > 0) {
         try {
           const prof = await getMyProfile()
@@ -618,26 +810,26 @@ function PaymentPage() {
             const { data: p2 } = await supabase.from('profiles').select('tb_balance').eq('id', prof.id).single()
             if (p2 && p2.tb_balance >= actualGoldBeansUsed) {
               const { error: derr } = await supabase.from('profiles').update({ tb_balance: p2.tb_balance - actualGoldBeansUsed }).eq('id', prof.id)
-              if (derr) console.warn('[混合支付] 金豆扣减失败(不影响订单)', derr)
+              if (derr) console.warn('[混合支付] 健康豆扣减失败(不影响订单)', derr)
               else {
-                // 非阻塞写金豆流水（混合支付消费抵扣）；表缺失(404)也不影响订单
+                // 非阻塞写健康豆流水（混合支付消费抵扣）；表缺失(404)也不影响订单
                 supabase.from('tongbao_logs').insert({
                   user_id: prof.id,
                   order_id: null,
                   type: 'purchase_spend',
                   delta: -actualGoldBeansUsed,
                   balance_after: (p2.tb_balance ?? 0) - actualGoldBeansUsed,
-                  remark: '混合支付消费抵扣金豆'}).then(() => {}).catch((e: any) => {
+                  remark: '混合支付消费抵扣健康豆'}).then(() => {}).catch((e: any) => {
                   if ((e as any)?.code === '42P01' || (e as any)?.status === 404) {
                     console.warn('[tongbao_logs] 表不存在(00096未执行)，流水暂不记录')
                   }
                 })
               }
             } else {
-              console.warn('[混合支付] 金豆余额不足，跳过扣减')
+              console.warn('[混合支付] 健康豆余额不足，跳过扣减')
             }
           }
-        } catch (e) { console.warn('[混合支付] 金豆扣减异常(不影响订单)', e) }
+        } catch (e) { console.warn('[混合支付] 健康豆扣减异常(不影响订单)', e) }
       }
 
       // 跨门店结算：确认所有子订单
@@ -686,19 +878,26 @@ function PaymentPage() {
     if (productCheck.loading) return '商品校验中...'
     if (paying) return '支付中...'
     if (productCheck.invalid.length > 0) return '含失效商品，无法支付'
-    if (payMode === 'pure_gold') return `确认支付 ${actualGoldBeansUsed} 金豆`
-    if (payMode === 'hybrid') return `确认支付 ¥${wxpayAmount.toFixed(2)} + ${actualGoldBeansUsed}金豆`
+    if (payMode === 'pure_gold') return `确认支付 ${actualGoldBeansUsed} 健康豆`
+    if (payMode === 'hybrid') return `确认支付 ¥${wxpayAmount.toFixed(2)} + ${actualGoldBeansUsed}健康豆`
     return `确认支付 ¥${totalAmount.toFixed(2)}`
   }, [paying, payMode, actualGoldBeansUsed, wxpayAmount, totalAmount, productCheck.loading, productCheck.invalid.length])
 
   const payModes: Array<{ key: PayMode; icon: string; label: string; color: string; desc: string; disabled?: boolean }> = [
     { key: 'wxpay', icon: '💬', label: '微信支付', color: '#07C160', desc: `¥${totalAmount.toFixed(2)}` },
-    { key: 'hybrid', icon: '⚡', label: '金豆+微信混合', color: 'hsl(var(--primary))', desc: `金豆抵 ¥${deductYuan.toFixed(2)}，余付 ¥${wxpayAmount.toFixed(2)}`, disabled: balance <= 0 },
-    { key: 'pure_gold', icon: '★', label: '纯金豆支付', color: '#C77B47', desc: balance >= fullGoldNeeded ? `金豆 ${balance}` : `金豆不足，还需 ${pureGoldShort} 豆`, disabled: balance < fullGoldNeeded },
+    { key: 'hybrid', icon: '⚡', label: '健康豆+微信混合', color: 'hsl(var(--primary))', desc: `健康豆抵 ¥${deductYuan.toFixed(2)}，余付 ¥${wxpayAmount.toFixed(2)}`, disabled: balance <= 0 },
+    { key: 'pure_gold', icon: '★', label: '纯健康豆支付', color: '#C77B47', desc: balance >= fullGoldNeeded ? `健康豆 ${balance}` : `健康豆不足，还需 ${pureGoldShort} 健康豆`, disabled: balance < fullGoldNeeded },
   ]
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
+
+      {repayMode && (
+        <View className="mx-4 mt-4 p-3 rounded-2xl bg-primary/10 border border-primary/30">
+          <Text className="text-base text-primary font-bold">重新支付该订单</Text>
+          <Text className="text-base text-muted-foreground">（商品与健康豆抵扣以原订单为准，不可更改）</Text>
+        </View>
+      )}
 
       {/* 订单摘要卡 */}
       <View className="mx-4 mt-4 p-4 bg-card rounded-2xl">
@@ -721,7 +920,7 @@ function PaymentPage() {
         </View>
         {deductYuan > 0 && (
           <View className="flex items-center justify-between mt-2">
-            <Text className="text-xl text-muted-foreground">金豆抵扣（{actualGoldBeansUsed}豆）</Text>
+            <Text className="text-xl text-muted-foreground">健康豆抵扣（{actualGoldBeansUsed}健康豆）</Text>
             <Text className="text-xl font-bold text-primary">-¥{deductYuan.toFixed(2)}</Text>
           </View>
         )}
@@ -729,13 +928,13 @@ function PaymentPage() {
         <View className="flex items-center justify-between">
           <Text className="text-xl font-bold text-foreground">实付金额</Text>
           <Text className="text-3xl font-bold text-primary">
-            {payMode === 'pure_gold' ? `${actualGoldBeansUsed} 金豆` : `¥${wxpayAmount.toFixed(2)}`}
+            {payMode === 'pure_gold' ? `${actualGoldBeansUsed} 健康豆` : `¥${wxpayAmount.toFixed(2)}`}
           </Text>
         </View>
         {balance > 0 && (
           <View className="flex items-center gap-2 mt-2">
             <Icon name="star-circle" size={20} />
-            <Text className="text-xl text-muted-foreground">金豆余额：<Text className="font-bold text-foreground">{balance} 豆</Text></Text>
+            <Text className="text-xl text-muted-foreground">健康豆余额：<Text className="font-bold text-foreground">{balance} 健康豆</Text></Text>
           </View>
         )}
       </View>
@@ -770,7 +969,7 @@ function PaymentPage() {
           ] as const).map((m, i, arr) => (
             <View key={m.key}
               className={`flex-1 flex flex-col items-center gap-1 py-4 ${i < arr.length - 1 ? 'border-r border-border' : ''} ${serviceType === m.key ? 'bg-primary/5' : ''}`}
-              onClick={() => setServiceType(m.key)}>
+              onClick={() => { if (repayMode) return; setServiceType(m.key) }}>
               <View className={`${m.icon} text-3xl ${serviceType === m.key ? 'text-primary' : 'text-muted-foreground'}`} />
               <Text className={`text-xl font-bold ${serviceType === m.key ? 'text-primary' : 'text-muted-foreground'}`}>{m.label}</Text>
               {serviceType === m.key && <View className="w-5 h-1 rounded-full bg-primary" />}
@@ -820,8 +1019,9 @@ function PaymentPage() {
           <View key={m.key}
             className={`flex items-center gap-4 px-4 py-4 border-b border-border last:border-0 ${m.disabled ? 'opacity-40' : ''} ${payMode === m.key ? 'bg-primary/5' : ''}`}
             onClick={() => {
+              if (repayMode) return // 重付模式：支付方式为订单锁定，不可切换
               if (m.disabled) {
-                if (m.key === 'pure_gold') Taro.showToast({ title: `金豆余额不足，还需 ${pureGoldShort} 豆`, icon: 'none' })
+                if (m.key === 'pure_gold') Taro.showToast({ title: `健康豆余额不足，还需 ${pureGoldShort} 健康豆`, icon: 'none' })
                 return
               }
               handleModeChange(m.key)
@@ -838,12 +1038,12 @@ function PaymentPage() {
         ))}
       </View>
 
-      {/* 混合支付：金豆抵扣输入 */}
-      {payMode === 'hybrid' && balance > 0 && (
+      {/* 混合支付：健康豆抵扣输入 */}
+      {payMode === 'hybrid' && balance > 0 && !repayMode && (
         <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
           <View className="flex items-center justify-between mb-3">
-            <Text className="text-xl font-bold text-foreground">金豆抵扣数量</Text>
-            <Text className="text-xl text-muted-foreground">可用 {maxGoldBeans} 豆</Text>
+            <Text className="text-xl font-bold text-foreground">健康豆抵扣数量</Text>
+            <Text className="text-xl text-muted-foreground">可用 {maxGoldBeans} 健康豆</Text>
           </View>
           <View className="flex items-center gap-3">
             <View

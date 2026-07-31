@@ -6,10 +6,13 @@
 
 import Taro from '@tarojs/taro'
 import { supabase } from '@/client/supabase'
+import { TENCENT_MAP_KEY, TENCENT_MAP_API_BASE } from '@/config/map'
 
 // 城市信息接口
+// 注意：线上 cities.id 实际是自增 integer（不是 uuid），这里放宽为 string | number，
+// 避免把 'HZ' 这类假 id 传给 campaigns.city_id（integer）查询导致 PostgREST 报错。
 export interface CityInfo {
-  id: string
+  id: string | number
   city_code: string
   city_name: string
   province: string
@@ -18,6 +21,11 @@ export interface CityInfo {
   geo_hash: string
   status: string
   config_json: any
+  /** 以下为 00226 迁移新增字段，用于城市选择页拼音搜索 / 字母索引 / 热门宫格 */
+  pinyin?: string | null
+  initial?: string | null
+  is_hot?: boolean | null
+  sort_order?: number | null
 }
 
 // 门店信息接口
@@ -127,8 +135,35 @@ function toRad(deg: number): number {
 
 /**
  * 获取所有城市列表
+ *
+ * 城市库补全到 250 条后（迁移 00226），每次定位都全表拉取代价明显，
+ * 故加两级缓存：进程内存（本次会话）+ Taro Storage（跨会话 24h）。
+ * 城市数据是极低频变更的字典数据，缓存收益远大于实时性损失。
+ *
+ * 注意：排序仍按 city_name 走 DB，不依赖 sort_order 列——这样即使
+ * 00226 迁移尚未执行，本函数也不会因缺列报 42703，前端自行按
+ * sort_order/initial 做二次排序（缺字段时自动降级）。
  */
-export async function getCityList(): Promise<CityInfo[]> {
+const CITY_CACHE_KEY = 'lbs_city_list_v1'
+const CITY_CACHE_TTL = 24 * 60 * 60 * 1000
+let cityMemoryCache: { t: number; list: CityInfo[] } | null = null
+
+export async function getCityList(forceRefresh = false): Promise<CityInfo[]> {
+  const now = Date.now()
+
+  if (!forceRefresh) {
+    if (cityMemoryCache && now - cityMemoryCache.t < CITY_CACHE_TTL) return cityMemoryCache.list
+    try {
+      const cached = Taro.getStorageSync(CITY_CACHE_KEY)
+      if (cached?.list?.length && now - cached.t < CITY_CACHE_TTL) {
+        cityMemoryCache = cached
+        return cached.list
+      }
+    } catch {
+      /* storage 读取失败忽略，走网络 */
+    }
+  }
+
   try {
     const { data, error } = await supabase
       .from('cities')
@@ -138,18 +173,74 @@ export async function getCityList(): Promise<CityInfo[]> {
 
     if (error) {
       console.error('[LBS] 获取城市列表失败', error)
-      return []
+      return cityMemoryCache?.list || []
     }
 
-    return data || []
+    const list = data || []
+    if (list.length) {
+      cityMemoryCache = { t: now, list }
+      try { Taro.setStorageSync(CITY_CACHE_KEY, cityMemoryCache) } catch { /* 忽略写入失败 */ }
+    }
+    return list
   } catch (err) {
     console.error('[LBS] 获取城市列表异常', err)
-    return []
+    return cityMemoryCache?.list || []
   }
 }
 
 /**
+ * 按城市名取真实城市行（用于把硬编码的兜底城市换成库内真实记录，
+ * 保证 currentCity.id 是真实 integer，避免污染 campaigns.city_id 查询）
+ */
+export async function getCityByName(name: string): Promise<CityInfo | null> {
+  if (!name) return null
+  const cities = await getCityList()
+  return cities.find((c) => c.city_name === name) || null
+}
+
+/**
+ * 腾讯位置服务逆地址解析（经纬度 → 城市名/地址）。
+ * 失败时回退 null，调用方需自行兜底（本项目回退到本地城市表/DEFAULT_CITY）。
+ * 注意：真机需在微信后台配置 request 合法域名 https://apis.map.qq.com
+ * （开发者工具可临时勾选「不校验合法域名」调试）。
+ */
+export async function reverseGeocode(lat: number, lng: number): Promise<{ city?: string; address?: string } | null> {
+  try {
+    const url = `${TENCENT_MAP_API_BASE}/ws/geocoder/v1/?location=${lat},${lng}&key=${TENCENT_MAP_KEY}`
+    const res = await Taro.request({ url, method: 'GET' })
+    const result = res.data as any
+    if (result?.status === 0) {
+      const c = result.result?.address_component
+      return { city: c?.city, address: result.result?.address }
+    }
+    return null
+  } catch (err) {
+    console.warn('[LBS] 逆地址解析失败（已回退）', err)
+    return null
+  }
+}
+
+/** 距城市中心 ≤ 该距离，直接采信坐标匹配结果（省一次逆地址解析网络请求） */
+const CITY_TRUST_KM = 40
+/** 坐标匹配的最大可信半径：超出则认为该城市未被城市库覆盖，交由上层兜底 */
+const CITY_MAX_KM = 150
+
+/** 去掉行政区划后缀，让「杭州市」能匹配库里的「杭州」 */
+function normalizeCityName(name: string): string {
+  return (name || '').replace(/(市辖区|特别行政区|自治州|自治县|地区|盟|市|县)$/g, '').trim()
+}
+
+/**
  * 根据坐标匹配城市
+ *
+ * 【修复背景】原实现是「全表取最近城市」且**没有距离阈值**，在城市库只有
+ * 5 条（上海/北京/广州/成都/深圳）时，杭州的 GPS(30.27,120.15) 会被硬匹配到
+ * 160km 外的上海——用户看到的定位城市完全错误，且无任何报错提示。
+ *
+ * 【新策略】三级判定，兼顾准确性与网络开销：
+ *   1. 坐标最近且 ≤40km  → 直接采信（城市中心 40km 内基本可确定就是该市）
+ *   2. 否则调腾讯逆地址解析拿真实城市名做精确匹配（跨省误配的唯一可靠解法）
+ *   3. 逆地址不可用 → 回退坐标最近，但必须 ≤150km，否则返回 null 让上层兜底
  */
 export async function matchCityByLocation(lat: number, lng: number): Promise<CityInfo | null> {
   try {
@@ -161,14 +252,37 @@ export async function matchCityByLocation(lat: number, lng: number): Promise<Cit
 
     for (const city of cities) {
       if (!city.lng || !city.lat) continue
-      const dist = calculateDistance(lat, lng, city.lat, city.lng)
+      const dist = calculateDistance(lat, lng, Number(city.lat), Number(city.lng))
       if (dist < minDistance) {
         minDistance = dist
         nearestCity = city
       }
     }
 
-    return nearestCity
+    // 1) 足够近，直接采信
+    if (nearestCity && minDistance <= CITY_TRUST_KM) return nearestCity
+
+    // 2) 距离偏远：可能是城市库未覆盖，也可能是跨省误配。用真实城市名兜底校正
+    try {
+      const geo = await reverseGeocode(lat, lng)
+      const gc = normalizeCityName(geo?.city || '')
+      if (gc) {
+        const exact = cities.find((c) => normalizeCityName(c.city_name) === gc)
+        if (exact) return exact
+        const fuzzy = cities.find(
+          (c) => c.city_name?.includes(gc) || (c.city_name && gc.includes(c.city_name)),
+        )
+        if (fuzzy) return fuzzy
+      }
+    } catch {
+      /* 逆地址解析失败（未配域名白名单/网络异常）→ 继续走坐标回退 */
+    }
+
+    // 3) 坐标回退，但拒绝离谱的跨城误配
+    if (nearestCity && minDistance <= CITY_MAX_KM) return nearestCity
+
+    console.warn(`[LBS] 当前位置未被城市库覆盖（最近城市 ${nearestCity?.city_name} 距 ${minDistance.toFixed(0)}km）`)
+    return null
   } catch (err) {
     console.error('[LBS] 匹配城市异常', err)
     return null

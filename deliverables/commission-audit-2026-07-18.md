@@ -10,7 +10,7 @@
 
 | 端 | 角色 | 畅通性 | 说明 |
 |----|------|--------|------|
-| 后端 distribute-commission | 分佣发放 | ✅ 畅通 | 纯情绪豆 / 微信双路径都触发，V5 算法完整，写 commissions + 累加 commission_balance + 发通知 |
+| 后端 distribute-commission | 分佣发放 | ✅ 畅通 | 纯健康豆 / 微信双路径都触发，V5 算法完整，写 commissions + 累加 commission_balance + 发通知 |
 | 前端小程序 | 分佣显示 | ✅ 畅通 | my-promotion / commission-detail 直读 commissions 表（RLS 本人可读）+ get_rank_progress RPC（SECURITY DEFINER） |
 | 管理后台 admin-web | 分佣显示 | ✅ 畅通（依赖配置） | 用 service_role 客户端绕过 RLS 读全量 commissions |
 
@@ -22,7 +22,7 @@
 
 ```
 订单支付
-  ├─ 纯情绪豆(pure_gold) ── createOrderV2(api.ts:1174) ──► invoke distribute-commission
+  ├─ 纯健康豆(pure_gold) ── createOrderV2(api.ts:1174) ──► invoke distribute-commission
   └─ 微信/混合(wxpay) ────── wechat-payment-callback(:139) ──► invoke distribute-commission
                                                         │
                                                         ▼
@@ -48,10 +48,10 @@
 - V5 算法完整：RANK_TABLE 已收敛（无心境/悟心/静心/明心/初心/凡心），ACTIVE_ORDER_STATUSES 已修正（去除 22P02 枚举越界值 `paid`/`used`）。
 - 幂等守卫 `commission_distributed` 防重复分佣 ✅
 - 写入：`commissions` 表 + 累加 `profiles.commission_balance`（净额，已扣通道费+个税）+ 推送 `commission_arrived` 通知 ✅
-- 纯情绪豆支持：`net_amount=0` 且 `total_amount>0` 时走 `isGoldOrder` 分支，以 `total_amount` 作分佣基数、`channelFee=0` ✅
+- 纯健康豆支持：`net_amount=0` 且 `total_amount>0` 时走 `isGoldOrder` 分支，以 `total_amount` 作分佣基数、`channelFee=0` ✅
 
 **触发路径（双保险）**
-- 纯情绪豆：`src/db/api.ts:1174` 在 `createOrderV2` 内 `invoke('distribute-commission', { net_amount: 0, ... })` ✅
+- 纯健康豆：`src/db/api.ts:1174` 在 `createOrderV2` 内 `invoke('distribute-commission', { net_amount: 0, ... })` ✅
 - 微信/混合：`supabase/functions/wechat-payment-callback/index.ts:139` 在回调成功后 `invoke('distribute-commission')` ✅
 
 ### B. 前端小程序
@@ -90,13 +90,13 @@
   ALTER TABLE public.orders
     ADD COLUMN IF NOT EXISTS net_amount numeric(12,2) NOT NULL DEFAULT 0;
   COMMENT ON COLUMN public.orders.net_amount
-    IS '实际现金支付净额（扣除情绪豆抵扣），分佣基数参考';
+    IS '实际现金支付净额（扣除健康豆抵扣），分佣基数参考';
   ```
 
 ### ⚠️ P2 — `wechat-payment-callback` 混合支付基数少乘 100 倍（需重部署）
 - `index.ts:138`：`const netCashAmount = Math.max(0, total - goldBeansUsed * 0.01)`
-- 应为 `* 1`（项目约定 1 情绪豆 = 1 元，见 `payment/index.tsx` 的 `GOLD_BEAN_RATE = 1`）。
-- 后果：微信**混合支付**订单的分佣基数偏大（`*0.01` 导致扣太少豆），平台让利偏多。纯情绪豆（`net_amount` 硬编码 0）与纯微信订单不受影响。
+- 应为 `* 1`（项目约定 1 健康豆 = 1 元，见 `payment/index.tsx` 的 `GOLD_BEAN_RATE = 1`）。
+- 后果：微信**混合支付**订单的分佣基数偏大（`*0.01` 导致扣太少豆），平台让利偏多。纯健康豆（`net_amount` 硬编码 0）与纯微信订单不受影响。
 - 修复：改 `* 0.01` → `* 1`，然后 `supabase functions deploy wechat-payment-callback`。
 
 ### ⚠️ P3 — 段位名称前后端不一致（仅显示，不影响金额）

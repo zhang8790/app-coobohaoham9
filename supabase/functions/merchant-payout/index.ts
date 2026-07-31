@@ -9,7 +9,7 @@
  * 要点：
  *  - 真实资金下发走「微信支付服务商分账」模式：资金直接从微信清分至商家子商户号，
  *    平台不池化商家销售款。
- *  - 情绪豆支付部分由平台以自有资金垫付（充值时平台已收 RMB），不分账、不要求商家持豆。
+ *  - 健康豆支付部分由平台以自有资金垫付（充值时平台已收 RMB），不分账、不要求商家持豆。
  *
  * 接入前提（用户本机配置）：
  *  - Supabase Secrets：MERCHANT_ID / MERCHANT_APP_ID / MCH_CERT_SERIAL_NO /
@@ -130,7 +130,10 @@ Deno.serve(async (req: Request) => {
         }, { status: 200, headers: corsHeaders })
       }
 
-      const wxpay = new Wechatpay({
+      // deno 类型检查把该 CJS 包默认导入误解析为「模块命名空间类型」（typeof import），
+      // 但运行时（Supabase 用 esbuild 打包）默认导入即 class，已用探针验证可构造。
+      // 此处仅做类型断言消除误报，Wechatpay 的运行时值完全不变。
+      const wxpay = new (Wechatpay as unknown as new (opts: Record<string, unknown>) => any)({
         mchid: MERCHANT_ID,
         serial: MCH_CERT_SERIAL_NO,
         privateKey: MCH_PRIVATE_KEY,
@@ -174,7 +177,7 @@ Deno.serve(async (req: Request) => {
         const txId = row.orders?.wechat_transaction_id as string | undefined
         const orderNo = row.orders?.order_no || '-'
 
-        // 现金实付部分走微信服务商分账；情绪豆垫付部分 + 差额由平台自有资金支付
+        // 现金实付部分走微信服务商分账；健康豆垫付部分 + 差额由平台自有资金支付
         const cashPayout = Math.min(settleAmount, cashPortion)
         const manualPayout = Math.max(0, settleAmount - cashPayout)
 
@@ -197,7 +200,7 @@ Deno.serve(async (req: Request) => {
             })
             if (ps?.status === 'PROCESSING' || ps?.status === 'FINISHED') {
               wechatTotal += cashPayout
-              manualTotal += manualPayout  // 情绪豆垫付部分仍需平台自有资金支付
+              manualTotal += manualPayout  // 健康豆垫付部分仍需平台自有资金支付
               sentCount++
               details.push({ row_id: row.id, order_no: orderNo, type: 'wechat', amount: cashPayout, manual: manualPayout, status: ps.status })
             } else {
@@ -224,7 +227,7 @@ Deno.serve(async (req: Request) => {
         return Response.json({
           ok: true,
           status: 'PROFITSHARING_SENT',
-          message: `已发起 ${sentCount} 笔微信服务商分账，资金将直达商家子商户号；另有 ¥${manualTotal.toFixed(2)} 为金豆垫付部分，需平台自有资金支付。`,
+          message: `已发起 ${sentCount} 笔微信服务商分账，资金将直达商家子商户号；另有 ¥${manualTotal.toFixed(2)} 为健康豆垫付部分，需平台自有资金支付。`,
           wechat_total: Math.round(wechatTotal * 100) / 100,
           manual_total: Math.round(manualTotal * 100) / 100,
           details,
@@ -234,7 +237,7 @@ Deno.serve(async (req: Request) => {
       return Response.json({
         ok: true,
         status: 'MANUAL_PAYOUT',
-        message: '该笔货款无微信分账交易号或全部为金豆支付部分，需平台以自有资金经银行转账/企业付款完成。',
+        message: '该笔货款无微信分账交易号或全部为健康豆支付部分，需平台以自有资金经银行转账/企业付款完成。',
         manual_total: Math.round(manualTotal * 100) / 100,
         details,
       }, { headers: corsHeaders })

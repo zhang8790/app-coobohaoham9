@@ -8,9 +8,9 @@
  * - 真实落地两层门槛：活跃系数(activeMult) + 拓新衰减(recruitMult)，前后端算法统一。
  * - 上级链统一用 profiles.referrer_id（uuid 上级），修复原 L2 段位记录用 calculateDynamicScore(0) 写死"凡心"的 bug。
  *
- * 段位判定：动态分数 = 近6月滚动消费（含情绪豆，1:1；被 6 月窗口锁死不会变永久杠杆）。
- * 分佣基数：自 2026-07-19 起统一为订单全额 total_amount（含情绪豆抵扣），情绪豆全额参与分佣；
- * 推广收益自 2026-07-29 起按「一半可提现佣金(commission_balance) + 一半金豆(tb_balance)」发放。
+ * 段位判定：动态分数 = 近6月滚动消费（含健康豆，1:1；被 6 月窗口锁死不会变永久杠杆）。
+ * 分佣基数：自 2026-07-19 起统一为订单全额 total_amount（含健康豆抵扣），健康豆全额参与分佣；
+ * 推广收益自 2026-07-29 起按「一半可提现佣金(commission_balance) + 一半健康豆(tb_balance)」发放。
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
@@ -23,9 +23,9 @@ const corsHeaders = {
 
 /** V5 段位配置（与前端 commission-calculator-v5.ts 完全一致，保证前后端分佣比例统一；已收敛上限） */
 const RANK_TABLE = [
-  { rank: '无心境',     minScore: 20000, l1: 0.50, l2: 0.18, points: 0.40 },
-  { rank: '悟心',       minScore: 6000,  l1: 0.48, l2: 0.18, points: 0.40 },
-  { rank: '静心',       minScore: 2000,  l1: 0.46, l2: 0.18, points: 0.37 },
+  { rank: '无心境',     minScore: 20000, l1: 0.50, l2: 0.20, points: 0.30 },
+  { rank: '悟心',       minScore: 6000,  l1: 0.48, l2: 0.19, points: 0.32 },
+  { rank: '静心',       minScore: 2000,  l1: 0.46, l2: 0.18, points: 0.34 },
   { rank: '明心',       minScore: 800,   l1: 0.44, l2: 0.17, points: 0.34 },
   { rank: '初心',       minScore: 200,   l1: 0.42, l2: 0.16, points: 0.32 },
   { rank: '凡心',       minScore: 0,     l1: 0.40, l2: 0.15, points: 0.30 },
@@ -41,7 +41,7 @@ const CHANNEL_FEE_RATE = Number(Deno.env.get('CHANNEL_FEE_RATE') ?? '0.006')
 const TAX_RATE = Number(Deno.env.get('COMMISSION_TAX_RATE') ?? '0.20')
 const TAX_THRESHOLD = Number(Deno.env.get('COMMISSION_TAX_THRESHOLD') ?? '800')
 
-/** 推广收益净额拆分比例：50% 进可提现佣金账户(commission_balance)，50% 进金豆账户(tb_balance)。可由环境变量 COMMISSION_CASH_RATIO 覆盖。 */
+/** 推广收益净额拆分比例：50% 进可提现佣金账户(commission_balance)，50% 进健康豆账户(tb_balance)。可由环境变量 COMMISSION_CASH_RATIO 覆盖。 */
 const COMMISSION_CASH_RATIO = Number(Deno.env.get('COMMISSION_CASH_RATIO') ?? '0.5')
 
 /** 视为「有效成交」的订单状态
@@ -114,7 +114,7 @@ function isoDaysAgo(days: number): string {
 
 /**
  * 无状态计算某受益人的近6月滚动指标（与前端 fetchCommissionMetrics 完全一致）：
- * - rollingConsumption：本人近 6 月有效成交订单的现金基数（统一取 total_amount，含情绪豆抵扣，1:1 锚定）之和
+ * - rollingConsumption：本人近 6 月有效成交订单的现金基数（统一取 total_amount，含健康豆抵扣，1:1 锚定）之和
  * - activeMult：基于「本人作为 referrer_id 的推荐成交」近 30/30~60 天分布
  * - recruitMult：基于「下级 profiles.referrer_id = 本人」距上次注册天数
  * 失败降级：读 profiles.total_consumption（终身）作为滚动近似、系数不设衰减（保证不出错、不崩付）。
@@ -134,7 +134,7 @@ async function fetchBeneficiaryMetrics(
 
     let rolling = 0
     for (const o of (cons as any[]) ?? []) {
-      // 滚动消费统一按订单全额 total_amount 计入（含情绪豆抵扣，1:1 锚定人民币），与分佣基数口径一致
+      // 滚动消费统一按订单全额 total_amount 计入（含健康豆抵扣，1:1 锚定人民币），与分佣基数口径一致
       const tot = Number(o.total_amount) || 0
       rolling += tot
     }
@@ -202,6 +202,7 @@ Deno.serve(async (req: Request) => {
       total_amount,
       net_amount,
       discount_rate,
+      store_id,
       referrer_id
     } = await req.json() as {
       order_id: string
@@ -210,6 +211,7 @@ Deno.serve(async (req: Request) => {
       total_amount: number
       net_amount?: number
       discount_rate?: number  // 商家让利率（小数口径，与前端 stores.referral_rate 一致，如 0.09 表示 9%）
+      store_id?: string | null
       referrer_id: string | null
     }
 
@@ -225,16 +227,16 @@ Deno.serve(async (req: Request) => {
       return Response.json({ success: true, skipped: true }, { headers: corsHeaders })
     }
 
-    // 分佣基数 = 订单全额（含情绪豆抵扣）。情绪豆与人民币 1:1 锚定，全额参与分佣（含推广员可提现佣金）。
-    // 业务决策（2026-07-19）：混合支付与纯豆订单统一以 total_amount 作分佣基数，确保情绪豆消费也产生佣金与平台让利。
+    // 分佣基数 = 订单全额（含健康豆抵扣）。健康豆与人民币 1:1 锚定，全额参与分佣（含推广员可提现佣金）。
+    // 业务决策（2026-07-19）：混合支付与纯健康豆订单统一以 total_amount 作分佣基数，确保健康豆消费也产生佣金与平台让利。
     let cashBase = toFixed4(total_amount ?? 0)
     // 支付通道费（微信约0.6%）：仅对微信实付部分(net_amount)计提——微信收单成本只对真钱发生；
-    // 纯情绪豆订单 net_amount=0 → 通道费=0。通道费由用户(受益人)承担，从佣金扣除。
+    // 纯健康豆订单 net_amount=0 → 通道费=0。通道费由用户(受益人)承担，从佣金扣除。
     let channelFee = toFixed4((net_amount ?? 0) * CHANNEL_FEE_RATE)
-    // isGoldOrder 仅用于日志标记（纯情绪豆订单无微信现金交易）
+    // isGoldOrder 仅用于日志标记（纯健康豆订单无微信现金交易）
     let isGoldOrder = toFixed4(net_amount ?? 0) <= 0 && cashBase > 0
     if (isGoldOrder) {
-      console.log('[V5] 纯情绪豆/无现金订单，以 total_amount 为分佣基数:', order_no, cashBase, '通道费=0')
+      console.log('[V5] 纯健康豆/无现金订单，以 total_amount 为分佣基数:', order_no, cashBase, '通道费=0')
     }
     // 真·零金额订单（total_amount 也为 0）直接标记已处理并跳过
     if (cashBase <= 0) {
@@ -242,7 +244,26 @@ Deno.serve(async (req: Request) => {
       return Response.json({ success: true, skipped: true, reason: 'zero_amount' }, { headers: corsHeaders })
     }
 
-    const discountRate = discount_rate ?? 0.09  // 默认9%，与前端一致
+    // 让利率：优先用调用方显式传入（create-order / wechat-payment-callback 已按门店+商品金额加权算好）；
+    // 未传时（触发器路径只传了 store_id）从门店 referral_rate 自取，避免回落到硬编码 0.09 默认，
+    // 否则低让利率门店（如 3%）的订单会被按 9% 多发 3 倍佣金，平台真赔钱。
+    let discountRate: number
+    if (typeof discount_rate === 'number' && discount_rate > 0) {
+      discountRate = discount_rate
+    } else {
+      try {
+        const { data: sd } = await supabase
+          .from('stores')
+          .select('referral_rate, referral_rate_enabled')
+          .eq('id', store_id as string)
+          .maybeSingle()
+        const enabled = (sd as any)?.referral_rate_enabled !== false
+        const sr = Number((sd as any)?.referral_rate ?? 0)
+        discountRate = enabled ? (sr > 0 ? sr : 0.09) : 0
+      } catch {
+        discountRate = 0.09
+      }
+    }
 
     // ===== 商品级明细：逐商品用自身 discount_rate 算让利池（追溯/展示用，绕开 order_items→products 缺外键）=====
     let itemDetails: Array<{
@@ -309,8 +330,9 @@ Deno.serve(async (req: Request) => {
     let taxWithheld = 0
     let userGrossCommission = 0
     let platformIncome = 0
-    // 买家确权积分（函数级作用域，供下方 orders 回写使用；下限 0.01 避免全舍入为 0；
-    // 上限 commissionPool 保证 platform_income 恒 ≥ 0）。任何购买（含无上线直购）均发放，故在 l1UserId 判断之外计算。
+    let commissionPool = toFixed4(discountPool * (1 - MIN_PLATFORM_RATE_V5))  // 剩余池 = 让利 × 0.90（函数级，平台恰好抽 10%）
+    let buyerRankPoints = 0.30  // 买家段位 points 比例（函数级）
+    // 买家确权积分（函数级作用域，供下方 orders 回写使用）。任何购买（含无上线直购）均发放，故在 l1UserId 判断之外计算。
     let bfFinal = 0
     // 段位/系数变量提升至函数级，使无上线分支也能在商品级明细行中正确引用
     let l1Rank = getRankByScore(0)
@@ -325,9 +347,7 @@ Deno.serve(async (req: Request) => {
       const buyerMetrics = await fetchBeneficiaryMetrics(supabase, payer_id)
       const buyerDynamicScore = calculateDynamicScore(buyerMetrics.rollingConsumption)
       const buyerRank = getRankByScore(buyerDynamicScore)
-      const buyerCommissionPool = toFixed4(discountPool * (1 - MIN_PLATFORM_RATE_V5))
-      const rawBuyerPoints = toFixed4(buyerCommissionPool * buyerRank.points)
-      bfFinal = rawBuyerPoints > 0 ? Math.min(buyerCommissionPool, Math.max(0.01, rawBuyerPoints)) : 0
+      buyerRankPoints = buyerRank.points  // 记录买家段位比例，供末尾归一化分配
     }
 
     if (l1UserId) {
@@ -391,7 +411,7 @@ Deno.serve(async (req: Request) => {
       }
 
       // 3) L1 佣金（剩余池 × 段位比例 × 活跃 × 拓新）
-      const commissionPool = toFixed4(discountPool * (1 - MIN_PLATFORM_RATE_V5))  // V5：平台最低抽成10%，剩余池再分配
+      // 剩余池已在函数级 commissionPool 计算（= 让利 × 0.90，平台恰好抽 10%）
       l1Active = l1Metrics.activeMult
       l1Recruit = l1Metrics.recruitMult
       let l1Commission = 0
@@ -400,25 +420,24 @@ Deno.serve(async (req: Request) => {
         l1Commission = toFixed4(commissionPool * l1Rank.l1 * l1Active * l1Recruit)
       }
 
-      // 平台收入（让利池内保底抽成）+ 防资损封顶缩放（与买家积分共享 commissionPool）
-      // 用户需求口径（2026-07-19）：平台从「让利池」保底抽 10%（MIN_PLATFORM_RATE_V5），
-      // 剩余 90%（commissionPool = 让利×0.90）再分给 L1/L2 佣金 + 买家确权积分。
-      // 封顶：段位系数×活跃×拓新可能使佣金总额超过 commissionPool → 平台留成被挤到 <10%；
-      // 故将 一级+二级佣金 上限封顶为 (commissionPool − 买家确权积分)，超出按比例缩放，
-      // 平台留成 = 让利池 − L1 − L2 − 买家积分，恒 ≥ 让利×10%（保底=下限，非恰好）。
-      const commTotalRaw = l1Commission + l2Commission
-      const capForComm = Math.max(0, toFixed4(commissionPool - bfFinal))
-      let commissionScale = 1
-      if (commTotalRaw > capForComm && commTotalRaw > 0) {
-        commissionScale = capForComm / commTotalRaw
-        l1Commission = toFixed4(l1Commission * commissionScale)
-        l2Commission = toFixed4(l2Commission * commissionScale)
-      }
-      platformIncome = Math.max(0, toFixed4(discountPool - l1Commission - l2Commission - bfFinal))
-      // 同一缩放因子应用到商品行，保证 Σ 商品行佣金 = 订单汇总（自洽）
+      // 归一化分配（平台恰好抽 10%，剩余 90% 由 购买者/L1/L2 按段位比例全额分配，无亏损）：
+      // 三项 raw 比例之和可能 ≠ 1（如 无心境 1.08 / 凡心 0.85），按各自 raw 占比归一化，
+      // 保证 平台留成恒 = 让利×10%、三方拿满 90%、任何段位都不可能亏损。
+      const rawBuyer = toFixed4(commissionPool * buyerRankPoints)
+      const rawL1 = l1Commission
+      const rawL2 = l2Commission
+      const sumRaw = toFixed4(rawBuyer + rawL1 + rawL2)
+      const fracBuyer = sumRaw > 0 ? rawBuyer / sumRaw : 0
+      const fracL1 = sumRaw > 0 ? rawL1 / sumRaw : 0
+      const fracL2 = sumRaw > 0 ? rawL2 / sumRaw : 0
+      bfFinal = toFixed4(fracBuyer * commissionPool)
+      l1Commission = toFixed4(fracL1 * commissionPool)
+      l2Commission = toFixed4(fracL2 * commissionPool)
+      platformIncome = toFixed4(discountPool - commissionPool)  // 恒 = 让利 × 10%
+      // 同一归一化比例应用到商品行，保证 Σ 商品行 = 订单汇总（自洽）
       for (const it of itemDetails) {
-        it.l1_gross = toFixed4(it.l1_gross * commissionScale)
-        it.l2_gross = toFixed4(it.l2_gross * commissionScale)
+        it.l1_gross = toFixed4(fracL1 * it.commission_pool)
+        it.l2_gross = toFixed4(fracL2 * it.commission_pool)
       }
 
       // 用户侧：支付通道费 + 代扣个税均从佣金扣除（**由用户承担**，商家/平台不承担）
@@ -489,33 +508,36 @@ Deno.serve(async (req: Request) => {
           status: 'pending',
         })
       }
-    } else {
-      // 无上线直购：买家确权积分照发（上方已算），平台收全部未分配让利（= 让利池 − 买家积分）
-      const commissionPool = toFixed4(discountPool * (1 - MIN_PLATFORM_RATE_V5))
-      platformIncome = Math.max(0, toFixed4(discountPool - bfFinal))
-      console.log('[V5] 无上线直购：买家积分 + 平台管理费', { bfFinal, platformIncome, discountPool })
-    }
+      } else {
+        // 无上线直购：买家拿全额 90%（归一化后 fracBuyer=1），平台恰好 10%
+        bfFinal = toFixed4(commissionPool)  // 买家全额剩余池
+        platformIncome = toFixed4(discountPool - commissionPool)  // 恒 = 让利 × 10%
+        console.log('[V5] 无上线直购：买家拿全额90% + 平台10%', { bfFinal, platformIncome, discountPool })
+      }
 
-    // ===== 买家确权积分落库（任何购买都写，含无上线）=====
+    // ===== 买家返健康豆落库（任何购买都写，含无上线）=====
+    // 统一口径：买家返利 = 健康豆(tb_balance)，写入 tongbao_logs(purchase_earn)；
+    // 不再写 profiles.points / points_logs（与「贡献值」解耦，健康豆明细页读 tongbao_logs）。
     if (bfFinal > 0) {
       const { data: payerProfile } = await supabase
         .from('profiles')
-        .select('points')
+        .select('tb_balance')
         .eq('id', payer_id)
         .maybeSingle()
 
-      const currentPoints = payerProfile?.points ?? 0
-      const newPoints = bfFinal
-      const balanceAfter = toFixed4(currentPoints + newPoints)
+      const currentTb = Number(payerProfile?.tb_balance ?? 0)
+      const newTb = toFixed4(currentTb + bfFinal)
 
-      await supabase.from('profiles').update({ points: balanceAfter }).eq('id', payer_id)
-
-      pointsRows.push({
+      await supabase.from('profiles').update({ tb_balance: newTb }).eq('id', payer_id)
+      supabase.from('tongbao_logs').insert({
         user_id: payer_id,
-        related_order_id: order_id,
+        order_id: order_id,
         type: 'purchase_earn',
-        amount: newPoints,
-        source: 'order_commission',
+        delta: bfFinal,
+        balance_after: newTb,
+        remark: `订单${order_no}购物返健康豆`,
+      }).then(() => {}, (e: any) => {
+        if ((e as any)?.code === '42P01' || (e as any)?.status === 404) console.warn('[tongbao_logs] 表不存在')
       })
     }
 
@@ -598,8 +620,8 @@ Deno.serve(async (req: Request) => {
       await supabase.from('points_logs').insert(pointsRows)
     }
 
-    // 2026-07-29 决策「一半佣金，一半金豆」：推广收益净额 50% 发放至可提现佣金账户
-    // (commission_balance，推广服务费，依法代扣个税)，50% 发放至金豆账户(tb_balance，仅消费抵扣、不可提现)。
+    // 2026-07-29 决策「一半佣金，一半健康豆」：推广收益净额 50% 发放至可提现佣金账户
+    // (commission_balance，推广服务费，依法代扣个税)，50% 发放至健康豆账户(tb_balance，仅消费抵扣、不可提现)。
     // 两账户严格隔离、各自留账。冻结(frozen)佣金不结算、待人工审核。
     const beneficiaryTotals = new Map<string, { cash: number; bean: number }>()
     for (const c of commissionRows) {
@@ -618,7 +640,7 @@ Deno.serve(async (req: Request) => {
     }
 
     for (const [uid, { cash, bean }] of beneficiaryTotals.entries()) {
-      // 金豆一半 → tb_balance（含流水）
+      // 健康豆一半 → tb_balance（含流水）
       if (bean > 0) {
         const { data: bal } = await supabase.from('profiles').select('tb_balance').eq('id', uid).maybeSingle()
         if (bal) {
@@ -627,8 +649,8 @@ Deno.serve(async (req: Request) => {
           supabase.from('tongbao_logs').insert({
             user_id: uid, order_id: order_id, type: 'commission_earn',
             delta: bean, balance_after: newTb,
-            remark: `订单${order_no}推广佣金（金豆50%）`,
-          }).then(() => {}).catch((e: any) => {
+            remark: `订单${order_no}推广佣金（健康豆50%）`,
+          }).then(() => {}, (e: any) => {
             if ((e as any)?.code === '42P01' || (e as any)?.status === 404) console.warn('[tongbao_logs] 表不存在')
           })
         }
@@ -643,7 +665,7 @@ Deno.serve(async (req: Request) => {
             user_id: uid, order_id: order_id, type: 'commission_earn',
             delta: cash, balance_after: newBal,
             remark: `订单${order_no}推广佣金（可提现50%）`,
-          }).then(() => {}).catch((e: any) => console.warn('[commission_balance_logs] 写入失败:', (e as any)?.message))
+          }).then(() => {}, (e: any) => console.warn('[commission_balance_logs] 写入失败:', (e as any)?.message))
         }
       }
       // 推送「分佣到账」通知（每个受益人 1 条，async 不阻塞分佣）
@@ -652,8 +674,8 @@ Deno.serve(async (req: Request) => {
         body: {
           user_id: uid,
           type: 'commission_arrived',
-          title: '佣金到账（一半可提现+一半金豆）',
-          body: `订单 ${order_no} 的佣金 ${total.toFixed(2)} 元已到账：可提现 ¥${cash.toFixed(2)} + 金豆 ¥${bean.toFixed(2)}`,
+          title: '佣金到账（一半可提现+一半健康豆）',
+          body: `订单 ${order_no} 的佣金 ${total.toFixed(2)} 元已到账：可提现 ¥${cash.toFixed(2)} + 健康豆 ¥${bean.toFixed(2)}`,
           order_id: order_id,
           payload: {
             order_no: order_no,
@@ -661,7 +683,7 @@ Deno.serve(async (req: Request) => {
             bean_amount: bean.toFixed(2),
             net_amount: total.toFixed(2),
             arrived_at: new Date().toLocaleString('zh-CN'),
-            remark: '佣金到账(一半可提现+一半金豆)',
+            remark: '佣金到账(一半可提现+一半健康豆)',
             page: 'pages/my-promotion/index',
           },
         },
@@ -698,7 +720,7 @@ Deno.serve(async (req: Request) => {
       discount_pool: discountPool,
       l1_commission: commissionRows.find((c: any) => c.level === 1)?.commission_amount ?? 0,
       l2_commission: commissionRows.find((c: any) => c.level === 2)?.commission_amount ?? 0,
-      buyer_points: pointsRows[0]?.amount ?? 0,
+      buyer_points: bfFinal,
       channel_fee: channelFee,
       channel_fee_rate: CHANNEL_FEE_RATE,
       tax_withheld: taxWithheld,

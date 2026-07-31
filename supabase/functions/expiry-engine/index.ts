@@ -15,6 +15,7 @@
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { getLlmConfig } from '../_shared/llmConfig.ts'
+import { logLlmCall } from '../_shared/logLlmCall.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -127,6 +128,7 @@ async function llmDiscount(
   if (!cfg.llm_enabled || !llm.enabled) {
     return { discount: rulePct, reason: 'LLM未启用，采用规则值', used: false }
   }
+  const start = Date.now()
   try {
     const basePct = (cfg.base_discount as any)[stage] ?? 0
     const prompt = [
@@ -152,6 +154,11 @@ async function llmDiscount(
       }),
     })
     const json = await resp.json()
+    await logLlmCall({
+      functionName: 'expiry-engine', module: '保质期预警', model: llm.model,
+      usage: json?.usage ?? null, latencyMs: Date.now() - start,
+      success: !!json?.choices?.[0], errorMessage: resp.ok ? null : `http ${resp.status}`,
+    })
     const content: string = json?.choices?.[0]?.message?.content ?? ''
     const m = content.match(/\{[\s\S]*\}/)
     if (!m) return { discount: rulePct, reason: 'LLM返回无法解析，降级规则', used: false }
@@ -166,6 +173,11 @@ async function llmDiscount(
       used: true,
     }
   } catch (e) {
+    await logLlmCall({
+      functionName: 'expiry-engine', module: '保质期预警', model: llm.model,
+      latencyMs: Date.now() - start, success: false,
+      errorMessage: e instanceof Error ? e.message : String(e),
+    })
     return { discount: rulePct, reason: `LLM调用异常，降级规则：${(e as Error).message}`, used: false }
   }
 }

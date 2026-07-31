@@ -1,5 +1,6 @@
 // @title 商家后台数据 API
 import { supabase, supabaseAuth } from '@/lib/supabase'
+import requestCache from '@/utils/requestCache'
 import type {
   Product, MerchantCoupon, MarketingCampaign, MerchantMessage, MerchantAnalytics, WithdrawalRecord,
 } from '@/types'
@@ -130,66 +131,45 @@ export async function updateCampaignStatus(id: number, status: string): Promise<
 }
 
 // ── 数据分析 ───────────────────────────────────────────────────────────
-export async function getMerchantAnalytics(storeId: string): Promise<MerchantAnalytics> {
-  const { data: orders } = await supabase
-    .from('orders')
-    .select('id, user_id, total_amount, status, created_at')
-    .eq('store_id', storeId)
-
-  const { data: items } = await supabase
-    .from('order_items')
-    .select('product_name, price, quantity')
-    .eq('store_id', storeId)
-
-  // order_status 枚举无 'paid'（合法值见 00001：pending_pay/pending_ship/pending_receive/pending_review/completed/after_sale/cancelled）
-  // 已付款（含履约中、已完成）计入商家营收；未付款/取消/售后退款不计入
-  const REVENUE_STATUSES = ['pending_ship', 'pending_receive', 'pending_review', 'completed']
-  const paid = (orders || []).filter(o => REVENUE_STATUSES.includes(o.status || ''))
-  const today = new Date().toISOString().slice(0, 10)
-  const thisMonth = today.slice(0, 7)
-
-  const revenueToday = paid
-    .filter(o => (o.created_at || '').startsWith(today))
-    .reduce((s, o) => s + Number(o.total_amount || 0), 0)
-  const revenueMonth = paid
-    .filter(o => (o.created_at || '').slice(0, 7) === thisMonth)
-    .reduce((s, o) => s + Number(o.total_amount || 0), 0)
-  const ordersToday = (orders || []).filter(o => (o.created_at || '').startsWith(today)).length
-
-  // 商品销售排行
-  const map: Record<string, { name: string; sales: number }> = {}
-  ;(items || []).forEach((it: any) => {
-    const name = it.product_name || '未知商品'
-    if (!map[name]) map[name] = { name, sales: 0 }
-    map[name].sales += Number(it.price || 0) * Number(it.quantity || 0)
+// 商家商品收益聚合（服务端 RPC，替代前端万级 order_items 拉取）
+// 返回：{ [product_id]: { sales(销量=数量合计), revenue(营收=price*数量合计) } }
+export async function getMerchantProductSales(storeId: string): Promise<Record<string, { sales: number; revenue: number }>> {
+  const ck = `amps:${storeId}`
+  const cached = requestCache.get<Record<string, { sales: number; revenue: number }>>(ck)
+  if (cached) return cached
+  const { data, error } = await supabase.rpc('fn_merchant_product_sales', { p_store_id: storeId })
+  if (error) throw error
+  const m: Record<string, { sales: number; revenue: number }> = {}
+  ;(data || []).forEach((r: any) => {
+    m[r.product_id] = { sales: Number(r.sales || 0), revenue: Number(r.revenue || 0) }
   })
-  const topProducts = Object.values(map)
-    .sort((a, b) => b.sales - a.sales)
-    .slice(0, 5)
-    .map(p => ({ name: p.name, sales: Math.round(p.sales), trend: 'up' as const }))
+  requestCache.set(ck, m, 20_000)
+  return m
+}
 
-  // 近 7 日销售趋势
-  const salesTrend: { date: string; amount: number }[] = []
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
-    const ds = d.toISOString().slice(0, 10)
-    const amt = paid
-      .filter(o => (o.created_at || '').startsWith(ds))
-      .reduce((s, o) => s + Number(o.total_amount || 0), 0)
-    salesTrend.push({ date: `${d.getMonth() + 1}/${d.getDate()}`, amount: Math.round(amt) })
-  }
+// 商家数据分析聚合（服务端 RPC 一次返回，替代前端全量 orders/order_items 拉取）
+export async function getMerchantAnalytics(storeId: string): Promise<MerchantAnalytics> {
+  const ck = `ama:${storeId}`
+  const cached = requestCache.get<MerchantAnalytics>(ck)
+  if (cached) return cached
 
-  const totalCustomers = new Set((orders || []).map((o: any) => o.user_id).filter(Boolean)).size
+  const { data, error } = await supabase.rpc('fn_merchant_analytics', { p_store_id: storeId })
+  if (error) throw error
+  const d = (data as any) || {}
 
-  return {
-    revenueToday: Math.round(revenueToday),
-    revenueMonth: Math.round(revenueMonth),
-    ordersToday,
-    totalCustomers,
-    salesTrend,
-    topProducts,
-    trafficToday: ordersToday,
+  const result: MerchantAnalytics = {
+    revenueToday: Number(d.revenueToday ?? 0),
+    revenueMonth: Number(d.revenueMonth ?? 0),
+    ordersToday: Number(d.ordersToday ?? 0),
+    totalCustomers: Number(d.totalCustomers ?? 0),
+    salesTrend: Array.isArray(d.salesTrend)
+      ? d.salesTrend.map((s: any) => ({ date: String(s.date ?? ''), amount: Number(s.amount ?? 0) }))
+      : [],
+    topProducts: Array.isArray(d.topProducts)
+      ? d.topProducts.map((p: any) => ({ name: String(p.name || ''), sales: Number(p.sales || 0), trend: 'up' as const }))
+      : [],
+    // 以下为页面装饰字段（与原实现一致，静态占位）
+    trafficToday: Number(d.ordersToday ?? 0),
     trafficYesterday: 0,
     weekRatio: 0,
     peakHour: '12:00-13:00',
@@ -200,6 +180,8 @@ export async function getMerchantAnalytics(storeId: string): Promise<MerchantAna
       { name: '其他', value: 9 },
     ],
   }
+  requestCache.set(ck, result, 20_000)
+  return result
 }
 
 // ── 消息通知 ───────────────────────────────────────────────────────────
@@ -259,6 +241,7 @@ export async function getMerchantWithdrawals(userId: string): Promise<Withdrawal
     status: w.status,
     created_at: fmtTime(w.created_at),
     transferred_at: w.status === 'paid' ? fmtTime(w.updated_at) : null,
+    kind: w.kind || 'settlement',
     real_name: w.real_name || w.bank_holder || null,
     id_card: w.id_card || null,
     bank_name: w.bank_name || null,
@@ -308,6 +291,10 @@ export async function createWithdrawal(payload: {
   const { error } = await supabase.from('withdrawals').insert({
     user_id: userId,
     store_id: payload.storeId,
+    // ⚠️ 双通道隔离硬约束：门店中心提现 = 商家货款结算通道（kind='settlement'）。
+    // 严禁省略 kind —— withdrawals.kind 默认值是 'commission'，省略会把门店货款
+    // 误写进「用户佣金」通道，破坏后台按 kind 审核/计税/对账的隔离。
+    kind: 'settlement',
     amount: payload.amount,
     withdraw_method: payload.method,
     alipay_account: payload.method === 'alipay' ? payload.account : null,
@@ -320,6 +307,57 @@ export async function createWithdrawal(payload: {
   })
   if (error) throw error
   return true
+}
+
+/**
+ * 读取门店货款结算概览（可结算余额 / 冻结 / 累计已结算 / 子商户号）。
+ * 走 SECURITY DEFINER RPC fn_get_store_settlement（与小程序 getMerchantSettlement 同源），anon 可读。
+ * 这是「货款提现」通道的余额来源，与用户侧「健康豆（推广佣金）」完全隔离。
+ */
+export async function getMerchantSettlementBalance(storeId: string): Promise<{
+  ok: boolean; merchant_balance: number; settlement_frozen: number; total_settled: number; settlement_count: number; wx_sub_mch_id: string | null
+} | null> {
+  if (!storeId) return null
+  const { data, error } = await supabase.rpc('fn_get_store_settlement', { p_store_id: storeId })
+  if (error) { console.error('[getMerchantSettlementBalance]', error); return null }
+  const d = (data as any) || {}
+  return {
+    ok: !!d.ok,
+    merchant_balance: Number(d.merchant_balance ?? 0),
+    settlement_frozen: Number(d.settlement_frozen ?? 0),
+    total_settled: Number(d.total_settled ?? 0),
+    settlement_count: Number(d.settlement_count ?? 0),
+    wx_sub_mch_id: d.wx_sub_mch_id ?? null,
+  }
+}
+
+/**
+ * 商家货款提现申请（原子 RPC：校验余额 + 扣减 merchant_balance + 写 withdrawals(kind='settlement') + 关联结算单）。
+ * 与小程序 applyMerchantWithdrawal 同源（fn_merchant_withdraw）。
+ * 这是「货款提现」通道的唯一正确提交入口，确保余额预扣、幂等、通道隔离。
+ */
+export async function applyMerchantSettlementWithdrawal(params: {
+  store_id: string
+  amount: number
+  method: 'wechat' | 'alipay' | 'bank'
+  account_info?: Record<string, unknown>
+}): Promise<{ ok: boolean; withdrawal_id?: string; amount?: number; error?: string }> {
+  const { data: { user } } = await supabaseAuth.auth.getUser()
+  if (!user) return { ok: false, error: '未登录' }
+  const amt = Number(params.amount) || 0
+  if (!amt || amt <= 0) return { ok: false, error: '提现金额无效' }
+  if (!params.store_id) return { ok: false, error: '缺少门店' }
+  const { data, error } = await supabase.rpc('fn_merchant_withdraw', {
+    p_store_id: params.store_id,
+    p_user_id: user.id,
+    p_amount: amt,
+    p_method: params.method,
+    p_account: params.account_info ?? null,
+  })
+  if (error) { console.error('[applyMerchantSettlementWithdrawal]', error); return { ok: false, error: error.message } }
+  const d = (data as any) || {}
+  if (!d.ok) return { ok: false, error: d.error || '提现失败' }
+  return { ok: true, withdrawal_id: d.withdrawal_id, amount: d.amount }
 }
 
 // ── 情绪系统：门店商品 + 转化漏斗 ─────────────────────────────────────

@@ -145,7 +145,7 @@ export interface MerchantSettlement {
   order_id: string
   order_no: string | null
   total_amount: number
-  tb_portion: number        // 金豆抵扣部分（平台垫付）
+  tb_portion: number        // 健康豆抵扣部分（平台垫付）
   cash_portion: number      // 微信现金部分
   referral_rate: number     // 让利率快照（小数）
   discount_pool: number     // 平台让利
@@ -332,6 +332,8 @@ export interface WithdrawalRecord {
   status: string
   created_at: string
   transferred_at: string | null
+  /** 双通道隔离：commission=用户推广佣金(健康豆,不可提现)；settlement=商家货款结算(可提现)。门店中心只展示 settlement。 */
+  kind?: string
   real_name?: string | null
   id_card?: string | null
   bank_name?: string | null

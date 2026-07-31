@@ -2,7 +2,7 @@ import { View, Button, Input, Text } from '@tarojs/components'
 // @title 提现管理
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { getMyWithdrawals, getMyBalance, getMerchantStore, getMerchantSettlement, applyMerchantWithdrawal, getWithdrawalAccounts, saveWithdrawalAccount, deleteWithdrawalAccount } from '@/db/api'
+import { getMyWithdrawals, getMyBalance, getMerchantStore, getMerchantSettlement, applyMerchantWithdrawal, applyWithdraw, getWithdrawalAccounts, saveWithdrawalAccount, deleteWithdrawalAccount } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import type { Withdrawal, WithdrawMethod, SavedWithdrawalAccount } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
@@ -91,7 +91,7 @@ function WithdrawPage() {
       const [bal, store, recs] = await Promise.all([
         getMyBalance(), getMerchantStore(), getMyWithdrawals(),
       ])
-      setBalance(bal.tb_balance)
+      setBalance(bal.commission_balance)
       setStoreId(store?.id)
       setRecords(recs)
       ownerId = user?.id
@@ -160,6 +160,21 @@ function WithdrawPage() {
       })
       result = r.ok ? {} : null
       if (!r.ok) Taro.showToast({ title: r.error || '提交失败', icon: 'none' })
+    } else if (mode === 'commission') {
+      // 用户推广佣金提现：走 applyWithdraw（已读 commission_balance 校验，写 withdrawals(kind 默认 'commission')）
+      const r = await applyWithdraw({
+        amount: amt,
+        withdraw_method: method,
+        bank_name: bankName,
+        bank_account: bankAccount,
+        bank_holder: bankHolder,
+        alipay_account: alipayAccount,
+        remark,
+        real_name: realName,
+        id_card: idCard,
+      })
+      result = r ? {} : null
+      if (!r) Taro.showToast({ title: '提交失败，请稍后重试', icon: 'none' })
     }
     setSubmitting(false)
     if (result) {
@@ -217,13 +232,13 @@ function WithdrawPage() {
         <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}>
           <Text className="text-xl text-white/80 mb-1">可结算货款（元）</Text>
           <Text className="text-4xl font-bold text-white">{merchantBalance.toLocaleString()}<Text className="text-xl ml-1">元</Text></Text>
-          <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}（含金豆支付等值部分，由平台垫付）</Text>
+          <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}（含健康豆支付等值部分，由平台垫付）</Text>
         </View>
       ) : (
         <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)))' }}>
-          <Text className="text-xl text-white/80 mb-1">我的金豆（推广佣金发放至此）</Text>
-          <Text className="text-4xl font-bold text-white">{balance.toLocaleString()}<Text className="text-xl ml-1">豆</Text></Text>
-          <Text className="text-xl text-white/70 mt-2">可直接在平台内消费支付 · 不可提现</Text>
+          <Text className="text-xl text-white/80 mb-1">我的可提现佣金（推广佣金）</Text>
+          <Text className="text-4xl font-bold text-white">{balance.toLocaleString()}<Text className="text-xl ml-1">元</Text></Text>
+          <Text className="text-xl text-white/70 mt-2">可提现至银行卡 / 支付宝 / 微信 · 推广佣金为劳务报酬，请依法申报个税</Text>
         </View>
       )}
 
@@ -238,23 +253,8 @@ function WithdrawPage() {
         ))}
       </View>
 
-      {/* 申请表单（仅货款模式可提现；佣金已转为金豆，不可提现） */}
-      {tab === 'apply' && mode === 'commission' && (
-        <View className="px-4 mt-4">
-          <View className="bg-card rounded-2xl border border-border p-5 flex flex-col gap-2">
-            <View className="flex items-center gap-2">
-              <Icon name="emoticon-happy" size={30} className="text-primary" />
-              <Text className="text-xl font-bold text-foreground">推广佣金已升级为「金豆」</Text>
-            </View>
-            <Text className="text-base text-muted-foreground">你的推广佣金（含好友/粉丝佣金）已直接发放至「金豆」钱包，可在平台内消费支付、兑换专属体验，形成消费回流边花边赚。</Text>
-            <Text className="text-base text-muted-foreground">金豆为平台内部货币，按规则不可提现/兑现金，故佣金提现通道已关闭。</Text>
-            <View className="mt-2 p-3 rounded-xl bg-primary/5">
-              <Text className="text-base text-primary">👉 前往「我的推广」可查看累计佣金（金豆）与我的金豆余额</Text>
-            </View>
-          </View>
-        </View>
-      )}
-      {tab === 'apply' && mode === 'settlement' && (
+      {/* 申请表单（货款 / 佣金均走此表单；佣金=可提现推广佣金 commission_balance，货款=门店结算） */}
+      {tab === 'apply' && (
         <View className="px-4 mt-4">
           {/* 金额 */}
           <View className="bg-card rounded-2xl border border-border p-4 mb-4">
@@ -452,7 +452,7 @@ function WithdrawPage() {
           </Button>
           <Text className="text-base text-muted-foreground text-center mt-3">
             {mode === 'settlement'
-              ? '货款提现为商家销售货款结算，审核通过后由微信直接打款到您的账户；如含金豆垫付部分，由平台自有资金打款。'
+              ? '货款提现为商家销售货款结算，审核通过后由微信直接打款到您的账户；如含健康豆垫付部分，由平台自有资金打款。'
               : '提现按申请金额发放，审核 1-3 个工作日到账；推广佣金为劳务报酬所得，请依法履行纳税申报义务'}
           </Text>
           <View className="mt-2 text-center" onClick={() => Taro.navigateTo({ url: '/pages/agreement/withdraw-rules/index' })}>

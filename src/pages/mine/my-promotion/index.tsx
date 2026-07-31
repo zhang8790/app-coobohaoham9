@@ -237,10 +237,6 @@ function MyPromotionPage() {
               </View>
               <Text className="text-xl text-white/80">我的好友: {rankData?.direct_count || 0}人  |  累计累计消费额: ¥{Number(rankData?.total_gmv || 0).toFixed(0)}</Text>
             </View>
-            <View className="flex flex-col items-center">
-              <View className="text-4xl font-bold text-white">{rankData?.l1_ratio || 40}%</View>
-              <View className="text-base text-white/70">推广佣金比</View>
-            </View>
           </View>
 
           {/* 段位进度条 */}
@@ -262,9 +258,6 @@ function MyPromotionPage() {
                   </View>
                 ))}
               </View>
-                <Text className="text-base text-white/80 mt-2 text-center">
-                  继续推广与消费，晋升 {rankData?.next_rank} 后我的好友佣金比例提升至 {userRankInfo?.l1Ratio || 40}%
-                </Text>
             </View>
           )}
           {rankData?.next_rank === '已是最高段位' && (
@@ -350,64 +343,23 @@ function MyPromotionPage() {
             </View>
           ))}
         </View>
-        <View className="flex items-center gap-4 px-4 pb-4">
-          <View className="flex-1 p-3 bg-muted rounded-xl flex flex-col items-center gap-1">
-            <Text className="text-xl font-bold text-foreground">{commSummary?.l1_count || 0}</Text>
-            <Text className="text-base text-muted-foreground">我的好友佣金 ({userRankInfo?.l1Ratio || 40}%)</Text>
-          </View>
-          <View className="flex-1 p-3 bg-muted rounded-xl flex flex-col items-center gap-1">
-            <Text className="text-xl font-bold text-foreground">{commSummary?.l2_count || 0}</Text>
-            <Text className="text-base text-muted-foreground">我的粉丝佣金 ({userRankInfo?.l2Ratio || 15}%)</Text>
-          </View>
-        </View>
       </View>
 
-        {/* 余额与佣金（佣金已改为金豆发放，可在平台内直接消费支付） */}
-        <View className="mx-4 mt-4 grid grid-cols-3 gap-3">
+        {/* 余额与佣金（佣金已改为健康豆发放，可在平台内直接消费支付） */}
+        <View className="mx-4 mt-4 grid grid-cols-2 gap-3">
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
-            onClick={() => Taro.navigateTo({ url: '/pages/trade/tongbao-ledger/index' })}>
-            <Icon name="star-circle" size={30} className="text-primary" />
-            <Text className="text-2xl font-bold text-foreground">{rankData?.points || 0}</Text>
-            <Text className="text-base text-muted-foreground">我的贡献值</Text>
-          </View>
-          <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
-            onClick={() => Taro.navigateTo({ url: '/pages/trade/tongbao-ledger/index' })}>
+            onClick={() => Taro.navigateTo({ url: '/pages/trade/goldbean-ledger/index' })}>
             <Icon name="wallet" size={30} className="text-primary" />
             <Text className="text-2xl font-bold text-foreground">{Number(rankData?.balance || 0).toFixed(2)}</Text>
-            <Text className="text-base text-muted-foreground">我的金豆</Text>
+            <Text className="text-base text-muted-foreground">我的健康豆</Text>
           </View>
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
             onClick={() => Taro.navigateTo({ url: '/pages/trade/commission-detail/index' })}>
             <View className="text-primary"><Icon name="coin" size={28} /></View>
             <Text className="text-2xl font-bold text-foreground">{Number(commSummary?.total_earned || 0).toFixed(2)}</Text>
-            <Text className="text-base text-muted-foreground">累计佣金(金豆)</Text>
+            <Text className="text-base text-muted-foreground">累计佣金(健康豆)</Text>
           </View>
         </View>
-
-      {/* 推广说明 */}
-      <View className="mx-4 mt-4 p-4 bg-muted rounded-2xl">
-        <View className="flex items-start gap-2 mb-3">
-          <Icon name="information" size={24} className="text-primary flex-shrink-0 mt-0.5" />
-          <Text className="text-xl font-bold text-foreground">推广佣金说明</Text>
-        </View>
-        <View className="flex flex-col gap-2">
-          {[
-            { icon: '👤', text: `好友通过你的推广码注册并消费，你可获得 ${userRankInfo?.l1Ratio || 40}% 我的好友佣金` },
-            { icon: '👤', text: `你推荐的我的好友再邀好友消费，你可获得 ${userRankInfo?.l2Ratio || 15}% 我的粉丝佣金` },
-            { icon: '☺', text: '推广佣金以「金豆」发放，可直接在平台内消费支付，形成消费回流边花边赚' },
-            { icon: '🛡', text: '本平台仅二级推广（我的好友+我的粉丝），不发展第三级' },
-          ].map((item, i) => (
-            <View key={i} className="flex items-start gap-2">
-              <View className={`${item.icon} text-xl text-primary flex-shrink-0 mt-0.5`} />
-              <Text className="text-base text-muted-foreground leading-relaxed">{item.text}</Text>
-            </View>
-          ))}
-        </View>
-        <View className="mt-3 pt-3 border-t border-border text-center"
-          onClick={() => Taro.navigateTo({ url: '/pages/agreement/commission-rules/index' })}>
-          <Text className="text-base text-primary">查看完整《推广规则》</Text>
-        </View>
-      </View>
 
       {/* 我的好友团队 */}
       {directTeam.length > 0 && (

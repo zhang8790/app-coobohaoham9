@@ -115,11 +115,11 @@
     </div>
 
     <div class="callout fixed">
-      <h3>✅ 已修复 #2 · 情绪豆余额 KPI 静默归零</h3>
+      <h3>✅ 已修复 #2 · 健康豆余额 KPI 静默归零</h3>
       <div class="note">
         文件 <code>src/api/finance.ts</code> · <code>getFinanceOverview()</code> 第 128 行<br/>
         原代码 <code>sumOf('profiles','balance')</code><br/>
-        <code>balance</code> 列在 00096「金豆→情绪豆」合并后已<b>废弃清零</b>，真实内部货币余额存在 <code>tb_balance</code> 列 → 旧读取恒为 0，「情绪豆余额」卡片静默归零。<br/>
+        <code>balance</code> 列在 00096「健康豆→健康豆」合并后已<b>废弃清零</b>，真实内部货币余额存在 <code>tb_balance</code> 列 → 旧读取恒为 0，「健康豆余额」卡片静默归零。<br/>
         ✅ 改为 <code>sumOf('profiles','tb_balance')</code>
       </div>
     </div>
@@ -292,8 +292,8 @@
     <div class="glass todo">
       <ul>
         <li><b>重跑分佣诊断</b>：在 Supabase Dashboard SQL Editor 重新执行 <code style="font-family:var(--mono)">supabase/migrations/00119_diagnose_orders_commission.sql</code>（已把 <code style="font-family:var(--mono)">max(uuid)</code> 改为 <code style="font-family:var(--mono)">array_agg(...) FILTER (WHERE ...) [1]</code>），确认 1870 订单的 1856 分佣已发放。</li>
-        <li><b>刷新总后台</b>：admin-web 已重编译（<code style="font-family:var(--mono)">tsc -b && vite build</code> ⟶ EXIT=0），重启/硬刷新后台，查看运营总览的「<b>推广佣金支出</b>」与「<b>情绪豆余额</b>」两个 KPI 是否已恢复真实数值（此前恒为 0）。</li>
-        <li><b>核对财务看板</b>：/finance 与 /orders 的「佣金」列应正常显示金额；/ledgers 四类流水账本（积分 / 情绪确权 / 佣金 / 情绪豆）应各有数据回落。</li>
+        <li><b>刷新总后台</b>：admin-web 已重编译（<code style="font-family:var(--mono)">tsc -b && vite build</code> ⟶ EXIT=0），重启/硬刷新后台，查看运营总览的「<b>推广佣金支出</b>」与「<b>健康豆余额</b>」两个 KPI 是否已恢复真实数值（此前恒为 0）。</li>
+        <li><b>核对财务看板</b>：/finance 与 /orders 的「佣金」列应正常显示金额；/ledgers 四类流水账本（积分 / 情绪确权 / 佣金 / 健康豆）应各有数据回落。</li>
         <li><b>回归验证</b>：重点点一遍提现审核（payWithdrawal 余额校验）、情绪确权回滚（void/ban RPC）、用户封禁，确认无报错与资损风险。</li>
       </ul>
     </div>

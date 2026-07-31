@@ -50,7 +50,7 @@ export async function requestSubscribeMessage(tmplIds: string[]): Promise<{ acce
     const accepted: string[] = []
     const rejected: string[] = []
     for (const id of tmplIds) {
-      if (res[id] === 'accept') accepted.push(id)
+      if ((res as Record<string, string>)[id] === 'accept') accepted.push(id)
       else rejected.push(id)
     }
     if (accepted.length > 0) {

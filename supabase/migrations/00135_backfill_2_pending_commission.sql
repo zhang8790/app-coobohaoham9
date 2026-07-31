@@ -1,10 +1,10 @@
 -- 00135: 兜底补发 + 修 tongbao_logs.delta 列类型
 -- 背景：
---   2026-07-19 23:23~23:24，123 在张林水果店连下两单纯金豆订单（¥32 + ¥50），
+--   2026-07-19 23:23~23:24，123 在张林水果店连下两单纯健康豆订单（¥32 + ¥50），
 --   createOrderV2 端 commission_calculated=true 已写入 l1_commission=0.35 / 0.54，
 --   但 distribute-commission EF 在 commissions.insert 之前静默崩了，commission_distributed 一直 false，
---   commissions 表 0 行，张林金豆未到账。
--- 顺手修：tongbao_logs.delta 是 integer，0.35 金豆会被强转 0，导致全库历史佣金流水 delta 全部为 0，
+--   commissions 表 0 行，张林健康豆未到账。
+-- 顺手修：tongbao_logs.delta 是 integer，0.35 健康豆会被强转 0，导致全库历史佣金流水 delta 全部为 0，
 --   改 numeric 保留小数（一次性 ALTER，无数据丢失）。
 
 BEGIN;
@@ -51,7 +51,7 @@ INSERT INTO public.commissions (
   '2026-07-19 23:23:52+00'
 );
 
--- 4) 张林金豆到账 +0.89（一次性加总额，原子）
+-- 4) 张林健康豆到账 +0.89（一次性加总额，原子）
 UPDATE public.profiles
 SET tb_balance = tb_balance + 0.89
 WHERE id = 'd6b38349-dded-4879-9eac-3165a646436a';
@@ -61,10 +61,10 @@ INSERT INTO public.tongbao_logs (user_id, order_id, type, delta, balance_after, 
 VALUES
   ('d6b38349-dded-4879-9eac-3165a646436a', '322d436a-a1c7-4919-8e08-1f5424e95043',
    'commission_earn', 0.35, 29288.96 + 0.35,
-   '订单LDYX1784503450195bort推广佣金（金豆）[00135 兜底补发]', '2026-07-19 23:24:11+00'),
+   '订单LDYX1784503450195bort推广佣金（健康豆）[00135 兜底补发]', '2026-07-19 23:24:11+00'),
   ('d6b38349-dded-4879-9eac-3165a646436a', '2eefcdee-919b-4eb0-95ce-1a4cf72dc141',
    'commission_earn', 0.54, 29288.96 + 0.89,
-   '订单LDYX1784503431430r9gq推广佣金（金豆）[00135 兜底补发]', '2026-07-19 23:23:52+00');
+   '订单LDYX1784503431430r9gq推广佣金（健康豆）[00135 兜底补发]', '2026-07-19 23:23:52+00');
 
 -- 6) 把两单标记 commission_distributed=true + 写回 EF 应写的字段
 UPDATE public.orders

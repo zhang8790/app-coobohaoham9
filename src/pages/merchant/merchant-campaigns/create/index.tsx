@@ -202,8 +202,8 @@ export default function CreateCampaignPage() {
 
         {/* 情绪标签 */}
         <View className="mb-4">
-          <Text className="text-base font-bold text-foreground mb-2">情绪标签（可选）</Text>
-          <Text className="text-sm text-muted-foreground mb-3">选择活动传达的情绪，帮助用户更好理解活动氛围</Text>
+          <Text className="text-base font-bold text-foreground mb-2">活动氛围标签（可选）</Text>
+          <Text className="text-sm text-muted-foreground mb-3">选择活动传达的氛围，帮助用户更好理解活动调性</Text>
           
           {/* 情绪分类切换（MOOD_CATEGORIES 的值是中文显示名字符串） */}
           <View className="flex gap-2 mb-3 flex-wrap">

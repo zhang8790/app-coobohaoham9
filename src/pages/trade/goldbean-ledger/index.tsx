@@ -1,10 +1,10 @@
-// @title 金豆明细
+// @title 健康豆明细
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
 import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
-import { getMyTongbaoLogs, getMyProfile } from '@/db/api'
+import { getMyTongbaoLogs, getMyPointsLogs, getMyProfile } from '@/db/api'
 import type { TongbaoLog } from '@/db/types'
 import Icon from '@/components/Icon'
 import { formatDateTime } from '@/utils/format'
@@ -17,7 +17,7 @@ const TYPE_LABEL: Record<string, string> = {
   recharge: '充值',
   admin_grant: '平台发放',
   admin_deduct: '平台扣除',
-  purchase_earn: '购物返豆',
+  purchase_earn: '购物返健康豆',
   refund_deduct: '退款扣回',
   commission_earn: '佣金收益',
 }
@@ -38,9 +38,12 @@ const PAGE_SIZE = 20
 
 type Tab = 'all' | 'income' | 'expense'
 
+// points_logs 来源的健康豆流水无 balance_after 字段，需允许可选
+type LedgerRow = Omit<TongbaoLog, 'balance_after'> & { balance_after?: number }
+
 function TongbaoLedgerPage() {
   const { user } = useAuth()
-  const [items, setItems] = useState<TongbaoLog[]>([])
+  const [items, setItems] = useState<LedgerRow[]>([])
   const [balance, setBalance] = useState(0)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
@@ -53,18 +56,24 @@ function TongbaoLedgerPage() {
     const p = reset ? 0 : page
     setLoading(true)
     try {
-      const [logs, profile] = await Promise.all([
+      const [logs, pointLogs, profile] = await Promise.all([
         getMyTongbaoLogs(p, PAGE_SIZE),
+        getMyPointsLogs(p, PAGE_SIZE),
         getMyProfile().catch(() => null),
       ])
       setBalance((profile as any)?.tb_balance ?? 0)
+      // 合并 tongbao_logs 与 points_logs(purchase_earn=买家订单返健康豆)，按时间倒序
+      const merged = [...logs, ...pointLogs].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )
       if (reset) {
-        setItems(logs)
+        setItems(merged)
       } else {
-        setItems(prev => [...prev, ...logs])
+        setItems(prev => [...prev, ...merged])
       }
-      setHasMore(logs.length === PAGE_SIZE)
-      if (logs.length === PAGE_SIZE) setPage(p + 1)
+      const more = logs.length === PAGE_SIZE || pointLogs.length === PAGE_SIZE
+      setHasMore(more)
+      if (more) setPage(p + 1)
     } catch (e) {
       console.error('[TongbaoLedger] load', e)
     } finally {
@@ -97,7 +106,7 @@ function TongbaoLedgerPage() {
         {/* 顶部汇总 */}
         <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)))' }}>
           <View className="px-4 pt-5 pb-3">
-            <Text className="text-white/80 text-base">当前金豆余额</Text>
+            <Text className="text-white/80 text-base">当前健康豆余额</Text>
             <Text className="text-white text-4xl font-black mt-1">{balance.toFixed(2)}</Text>
           </View>
           <View className="grid grid-cols-2 py-4 border-t border-white/20">
@@ -130,7 +139,7 @@ function TongbaoLedgerPage() {
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={<Icon name="cash-remove" size={60} className="text-muted-foreground/30" />}
-              title="暂无金豆明细"
+              title="暂无健康豆明细"
               description="佣金、充值、消费都会在这里记录"
             />
           ) : (
@@ -152,7 +161,9 @@ function TongbaoLedgerPage() {
                       </View>
                       <View className="text-right">
                         <Text className="text-xl font-black" style={{ color: isIncome ? '#10B981' : '#EF4444' }}>{sign}{it.delta.toFixed(2)}</Text>
-                        <Text className="text-xs text-muted-foreground mt-0.5">余额 {it.balance_after.toFixed(2)}</Text>
+                        {it.balance_after != null && (
+                          <Text className="text-xs text-muted-foreground mt-0.5">余额 {it.balance_after.toFixed(2)}</Text>
+                        )}
                       </View>
                     </View>
                     {it.remark && (

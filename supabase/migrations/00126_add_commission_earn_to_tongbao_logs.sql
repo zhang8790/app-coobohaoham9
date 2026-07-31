@@ -1,5 +1,5 @@
 -- 00126_add_commission_earn_to_tongbao_logs.sql
--- 背景：2026-07-19 业务决策将推广佣金改发情绪豆(tb_balance)，
+-- 背景：2026-07-19 业务决策将推广佣金改发健康豆(tb_balance)，
 --       distribute-commission Edge Function 写入 tongbao_logs(type='commission_earn')。
 --       但 00096 迁移的 type CHECK 约束未包含 commission_earn，会导致分佣流水插入失败。
 -- 作用：在 tongbao_logs 的 type CHECK 约束中追加 'commission_earn'，幂等安全。

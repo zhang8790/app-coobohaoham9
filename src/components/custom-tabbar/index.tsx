@@ -124,31 +124,29 @@ export default function CustomTabBar() {
               </View>
             </View>
 
-            {/* 主行动：写文章 / 发笔记 */}
+            {/* 主行动：创作文章 */}
             <View className="ctb-hub-primary" hoverClass="none"
-              onClick={() => { setShowHub(false); Taro.navigateTo({ url: '/pages/content/content-center/make/index' }) }}>
+              onClick={() => { setShowHub(false); Taro.navigateTo({ url: '/pages/content/content-center/make-rich/index' }) }}>
               <View className="ctb-hub-primary-ic">
                 <Image className="ctb-hub-primary-img" src={ICON_WHITE['pencil']} mode="aspectFit" />
               </View>
               <View className="ctb-hub-primary-body">
-                <Text className="ctb-hub-primary-t">写文章 / 发笔记</Text>
-                <Text className="ctb-hub-primary-s">图文混排 · 插入好物卡 · 一键分享</Text>
+                <Text className="ctb-hub-primary-t">创作文章</Text>
+                <Text className="ctb-hub-primary-s">写图文 · 套模板 · 插好物 · 发布得豆</Text>
               </View>
               <Text className="ctb-hub-arrow">›</Text>
             </View>
 
-            {/* 模板快选 */}
-            <Text className="ctb-hub-sub">选个模板，更快上手</Text>
-            <View className="ctb-hub-chips">
-              {HUB_TEMPLATES.map(t => (
-                <View key={t} className="ctb-hub-chip" hoverClass="none"
-                  onClick={() => { setShowHub(false); Taro.navigateTo({ url: `/pages/content/content-center/make/index?template=${encodeURIComponent(t)}` }) }}>
-                  <Text className="ctb-hub-chip-t">{t}</Text>
-                </View>
-              ))}
+            {/* 发布视频 */}
+            <View className="ctb-hub-row" hoverClass="none"
+              onClick={() => { setShowHub(false); Taro.navigateTo({ url: '/pages/content/content-center/make-video/index' }) }}>
+              <Text className="ctb-hub-row-emoji" style={{ fontSize: '20px', marginRight: '10px' }}>🎬</Text>
+              <Text className="ctb-hub-row-t">发布视频</Text>
+              <Text className="ctb-hub-row-s">选视频 · 上传 · 一键发布</Text>
+              <Text className="ctb-hub-row-arrow">›</Text>
             </View>
 
-            {/* 我的创作：原散落在「我的」页个人中心，现统一收编进创作中枢 */}
+            {/* 我的创作：管理已发布 / 草稿 */}
             <View className="ctb-hub-row" hoverClass="none"
               onClick={() => { setShowHub(false); Taro.navigateTo({ url: '/pages/content/content-center/my-articles/index' }) }}>
               <Image className="ctb-hub-row-ic" src={ICON_PRIMARY['file-document']} mode="aspectFit" />

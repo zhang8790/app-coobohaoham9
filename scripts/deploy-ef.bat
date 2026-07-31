@@ -33,7 +33,7 @@ if errorlevel 1 (
     if errorlevel 1 goto :fail
 )
 
-echo [1/3] 部署 distribute-commission（分佣核心，发情绪豆）...
+echo [1/3] 部署 distribute-commission（分佣核心，发健康豆）...
 %SUPABASE_BIN% functions deploy distribute-commission
 if errorlevel 1 goto :fail
 

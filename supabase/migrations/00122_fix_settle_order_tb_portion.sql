@@ -59,7 +59,7 @@ BEGIN
               ELSE COALESCE(v_store.referral_rate, 0)
             END;
 
-  -- 现金部分（微信实付）= 总额 − 情绪豆抵扣
+  -- 现金部分（微信实付）= 总额 − 健康豆抵扣
   v_cash := GREATEST(0, COALESCE(v_order.total_amount, 0) - COALESCE(v_order.tb_used, 0));
 
   -- 让利池：按订单全额（豆付等值计入）计提

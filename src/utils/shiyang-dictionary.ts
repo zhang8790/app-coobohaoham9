@@ -37,14 +37,14 @@ export const INGREDIENT_DICT: Record<string, IngredientEntry> = {
   zhurou:       { zh: '猪肉',   nature: '平', icon: '🥓', color: '#9A3412', benefits: ['补虚','滋阴润燥'],             audiences: ['日常','体弱'],                scenarios: ['日常'], aliases: ['猪','豚肉'] },
   xia:          { zh: '虾',     nature: '温', icon: '🦐', color: '#DC2626', benefits: ['温养','补充蛋白'],             audiences: ['日常'],                       scenarios: ['日常'], aliases: ['虾仁','大虾'] },
   paigu:        { zh: '排骨',   nature: '平', icon: '🍖', color: '#B91C1C', benefits: ['补钙','补益'],                 audiences: ['体弱','生长期'],              scenarios: ['调养期'], aliases: ['肋排','腔骨'] },
-  yangrou:      { zh: '羊肉',   nature: '温', icon: '🍲', color: '#9A8070', benefits: ['温补','暖身'],                 audiences: ['畏寒','体弱'],                scenarios: ['换季温差','冬季'], aliases: ['羊'] },
+  yangrou:      { zh: '羊肉',   nature: '温', icon: '🍲', color: '#9A8070', benefits: ['温润暖身'],                 audiences: ['畏寒','体弱'],                scenarios: ['换季温差','冬季'], aliases: ['羊'] },
 
   // ── 凉/寒 · 清热润燥类 ──
   li:           { zh: '梨',     nature: '凉', icon: '🍐', color: '#A8D672', benefits: ['生津润燥'],                   audiences: ['秋燥人群','用嗓较多者'],      scenarios: ['干燥时节','用嗓过度'], aliases: ['雪梨','鸭梨','秋梨','梨子'] },
   jinyinhua:    { zh: '金银花', nature: '寒', icon: '🌼', color: '#F9E076', benefits: ['清热舒缓'],                   audiences: ['咽喉不适','易上火'],          scenarios: ['咽喉干痒时'], aliases: ['银花','忍冬'] },
   lvdou:        { zh: '绿豆',   nature: '寒', icon: '🟢', color: '#22C55E', benefits: ['清热解暑'],                   audiences: ['暑热','易上火'],              scenarios: ['夏季'], aliases: ['青小豆'] },
   kugua:        { zh: '苦瓜',   nature: '寒', icon: '🥒', color: '#4ADE80', benefits: ['清热'],                       audiences: ['饮食油腻','易上火'],          scenarios: ['油腻饮食后'], aliases: ['凉瓜'] },
-  bailuobo:     { zh: '白萝卜', nature: '凉', icon: '🥕', color: '#F0F4F8', benefits: ['理气化痰'],                   audiences: ['痰多','食积'],              scenarios: ['吃多不消化'], aliases: ['萝卜','莱菔'] },
+  bailuobo:     { zh: '白萝卜', nature: '凉', icon: '🥕', color: '#F0F4F8', benefits: ['理气清爽'],                   audiences: ['痰多','食积'],              scenarios: ['吃多不消化'], aliases: ['萝卜','莱菔'] },
   xiangjiao:    { zh: '香蕉',   nature: '寒', icon: '🍌', color: '#F7DC6F', benefits: ['润肠'],                       audiences: ['肠燥'],                       scenarios: ['日常'], aliases: ['蕉'] },
   bocai:        { zh: '菠菜',   nature: '凉', icon: '🥬', color: '#16A34A', benefits: ['养血润燥'],                   audiences: ['贫血','干燥'],                scenarios: ['日常'], aliases: ['菠柃菜','红根菜'] },
   yinmi:        { zh: '薏米',   nature: '凉', icon: '🌾', color: '#D4C5A9', benefits: ['清热利湿'],                   audiences: ['湿热'],                       scenarios: ['夏季'], aliases: ['薏仁','苡米','薏苡仁'] },
@@ -52,8 +52,8 @@ export const INGREDIENT_DICT: Record<string, IngredientEntry> = {
   huanggua:     { zh: '黄瓜',   nature: '凉', icon: '🥒', color: '#84CC16', benefits: ['清热解暑','补水'],             audiences: ['暑热','易上火'],              scenarios: ['夏季'], aliases: ['青瓜'] },
   donggua:      { zh: '冬瓜',   nature: '凉', icon: '🥒', color: '#A3E635', benefits: ['清热利水','消肿'],             audiences: ['暑热','湿热'],                scenarios: ['夏季'], aliases: ['白瓜','枕瓜'] },
   lianou:       { zh: '莲藕',   nature: '凉', icon: '🪷', color: '#FCA5A5', benefits: ['健脾开胃','凉血'],             audiences: ['日常','体热'],                scenarios: ['日常'], aliases: ['藕'] },
-  haidai:       { zh: '海带',   nature: '寒', icon: '🟢', color: '#0E7490', benefits: ['润爽化痰','补充碘'],           audiences: ['日常','痰多'],                scenarios: ['日常'], aliases: ['昆布','江白菜'] },
-  doufu:        { zh: '豆腐',   nature: '凉', icon: '🧊', color: '#E5E7EB', benefits: ['清热润燥','补充蛋白'],         audiences: ['日常','素食'],                scenarios: ['日常'], aliases: ['嫩豆腐','水豆腐'] },
+  haidai:       { zh: '海带',   nature: '寒', icon: '🟢', color: '#0E7490', benefits: ['常作清润搭配','补充碘'],           audiences: ['日常','痰多'],                scenarios: ['日常'], aliases: ['昆布','江白菜'] },
+  doufu:        { zh: '豆腐',   nature: '凉', icon: '🧊', color: '#E5E7EB', benefits: ['清润类常见食材','补充蛋白'],         audiences: ['日常','素食'],                scenarios: ['日常'], aliases: ['嫩豆腐','水豆腐'] },
   baicai:       { zh: '白菜',   nature: '微寒', icon: '🥬', color: '#BEF264', benefits: ['清热','润肠'],               audiences: ['日常','燥热'],                scenarios: ['日常'], aliases: ['大白菜','黄芽菜'] },
   qiezi:        { zh: '茄子',   nature: '凉', icon: '🍆', color: '#7C3AED', benefits: ['清热','清爽'],                 audiences: ['日常','易上火'],              scenarios: ['日常','夏季'], aliases: ['茄','落苏'] },
 
@@ -76,7 +76,7 @@ export const INGREDIENT_DICT: Record<string, IngredientEntry> = {
   mihoutao:     { zh: '猕猴桃', nature: '寒', icon: '🥝', color: '#65A30D', benefits: ['补充维C'],                   audiences: ['日常'],                       scenarios: ['日常'], aliases: ['奇异果','猕猴梨'] },
   xingren:      { zh: '杏仁',   nature: '温', icon: '🥜', color: '#D2B48C', benefits: ['润肠','滋养'],               audiences: ['肠燥'],                       scenarios: ['日常'], aliases: ['杏核','杏子'] },
   papaya:       { zh: '木瓜',   nature: '温', icon: '🟠', color: '#C77B47', benefits: ['助消化'],                     audiences: ['积食'],                       scenarios: ['油腻饮食后'], aliases: ['木梨','万寿果'] },
-  zhizi:        { zh: '紫菜',   nature: '寒', icon: '🟣', color: '#8B5CF6', benefits: ['润爽化痰'],                   audiences: ['痰多'],                       scenarios: ['日常'], aliases: ['海苔','索菜'] },
+  zhizi:        { zh: '紫菜',   nature: '寒', icon: '🟣', color: '#8B5CF6', benefits: ['常作清润搭配'],                   audiences: ['痰多'],                       scenarios: ['日常'], aliases: ['海苔','索菜'] },
   bingtang:     { zh: '冰糖',   nature: '平', icon: '🍬', color: '#BFDBFE', benefits: ['润肺','调和滋味'],               audiences: ['干燥','咽喉干'],              scenarios: ['秋冬炖煮','甜品汤羹'], aliases: ['老冰糖'] },
   tudou:        { zh: '土豆',   nature: '平', icon: '🥔', color: '#A16207', benefits: ['补充能量','健脾','饱腹'],       audiences: ['日常','体弱'],                scenarios: ['日常'], aliases: ['马铃薯','洋芋'] },
   dami:         { zh: '大米',   nature: '平', icon: '🍚', color: '#F5F5F4', benefits: ['养胃','补充能量'],             audiences: ['全人群'],                     scenarios: ['日常'], aliases: ['稻米','白米'] },
@@ -87,18 +87,18 @@ export const INGREDIENT_DICT: Record<string, IngredientEntry> = {
   // ── 搭配常客 · 高频配对食材（食材配对探索器补充）──
   hongtang:     { zh: '红糖',   nature: '温', icon: '🟤', color: '#8B4513', benefits: ['温中暖身','补中'],               audiences: ['手脚冰凉','经期后','畏寒'],    scenarios: ['日常温补','经期调理'], aliases: ['红糖','黑糖'] },
   huangqi:      { zh: '黄芪',   nature: '微温', icon: '🌿', color: '#9CAF88', benefits: ['补气固表','健脾'],             audiences: ['体虚','易疲劳'],              scenarios: ['煲汤','换季调养'], aliases: ['北芪','黄耆'] },
-  danggui:      { zh: '当归',   nature: '温', icon: '🌿', color: '#8F9779', benefits: ['补血活血','润燥'],               audiences: ['气血偏弱','经期后'],          scenarios: ['煲汤','冬季进补'], aliases: ['秦归','云归'] },
+  danggui:      { zh: '当归',   nature: '温', icon: '🌿', color: '#8F9779', benefits: ['养血润燥'],               audiences: ['气血偏弱','经期后'],          scenarios: ['煲汤','冬季进补'], aliases: ['秦归','云归'] },
   songzi:       { zh: '松子',   nature: '温', icon: '🌰', color: '#A0522D', benefits: ['润肠','健脑'],                   audiences: ['用脑多','肠燥'],              scenarios: ['日常','零食'], aliases: ['松仁','海松子'] },
   lizhi:        { zh: '荔枝',   nature: '温', icon: '🔴', color: '#B91C1C', benefits: ['补气血','温中'],                 audiences: ['气血偏弱','经期后'],          scenarios: ['夏季','日常'], aliases: ['荔支','丹荔'] },
   huasheng:     { zh: '花生',   nature: '平', icon: '🥜', color: '#C19A6B', benefits: ['养血健脾','补充蛋白'],           audiences: ['气血偏弱','日常'],            scenarios: ['日常','加餐'], aliases: ['花生米','落花生'] },
   hongdou:      { zh: '红豆',   nature: '平', icon: '🫘', color: '#A0522D', benefits: ['利水消肿','补血'],               audiences: ['湿热','水肿'],                scenarios: ['夏季','日常'], aliases: ['赤豆','赤小豆','红小豆'] },
-  heidou:       { zh: '黑豆',   nature: '平', icon: '⚫', color: '#1F2937', benefits: ['补肾养血','补充蛋白'],           audiences: ['发质干','日常滋养'],          scenarios: ['日常'], aliases: ['乌豆','黑大豆'] },
+  heidou:       { zh: '黑豆',   nature: '平', icon: '⚫', color: '#1F2937', benefits: ['温养养血','补充蛋白'],           audiences: ['发质干','日常滋养'],          scenarios: ['日常'], aliases: ['乌豆','黑大豆'] },
   hongshu:      { zh: '红薯',   nature: '平', icon: '🍠', color: '#C1440E', benefits: ['补中和胃','补充能量'],           audiences: ['胃弱','日常'],                scenarios: ['日常','主食'], aliases: ['地瓜','番薯','甘薯'] },
   putaogan:     { zh: '葡萄干', nature: '平', icon: '🍇', color: '#6B21A8', benefits: ['补气血','补充能量'],             audiences: ['气血偏弱','日常'],            scenarios: ['日常','加餐'], aliases: ['葡萄乾'] },
   yumi:         { zh: '玉米',   nature: '平', icon: '🌽', color: '#FCD34D', benefits: ['健脾','补充膳食纤维'],           audiences: ['日常','肠胃偏弱'],            scenarios: ['日常','主食'], aliases: ['苞米','玉蜀黍'] },
   baibian:      { zh: '白扁豆', nature: '平', icon: '🫘', color: '#E5E7EB', benefits: ['健脾化湿','和中'],               audiences: ['湿热','脾胃偏弱'],            scenarios: ['夏季','煲汤'], aliases: ['扁豆','峨眉豆'] },
   yanmai:       { zh: '燕麦',   nature: '平', icon: '🥣', color: '#D6C7A1', benefits: ['饱腹','补充膳食纤维'],           audiences: ['日常','肠胃偏弱'],            scenarios: ['早餐','日常'], aliases: ['雀麦','皮燕麦'] },
-  heimi:        { zh: '黑米',   nature: '平', icon: '🍚', color: '#1F2937', benefits: ['补血','补肾'],                   audiences: ['气血偏弱','发质干'],          scenarios: ['日常','主食'], aliases: ['黑稻','药米'] },
+  heimi:        { zh: '黑米',   nature: '平', icon: '🍚', color: '#1F2937', benefits: ['养血','温养'],                   audiences: ['气血偏弱','发质干'],          scenarios: ['日常','主食'], aliases: ['黑稻','药米'] },
 };
 
 // 编译 UI 标签（按分类整理，供商家在打标页选用）

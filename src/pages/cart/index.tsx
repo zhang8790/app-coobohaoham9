@@ -4,6 +4,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
 import { getCartItems, updateCartQty, removeCartItem, updateCartSelected } from '@/db/api'
 import Icon from '@/components/Icon'
+import { supabase } from '@/client/supabase'
 import { subscribeCartCount, bumpCartCount } from '@/utils/cartStore'
 import { setPendingCheckout } from '@/utils/checkoutCache'
 import CustomTabBar from '@/components/custom-tabbar'
@@ -16,6 +17,8 @@ function CartPage() {
   const { user } = useAuth()
   const [items, setItems] = useState<CartItem[]>([])
   const [conflictModal, setConflictModal] = useState<CartConflict[] | null>(null)
+  // 临期特惠：购物车项的批次 → 真实 effective_price 映射，用于列表/合计展示（与支付页实付价一致）
+  const [effMap, setEffMap] = useState<Record<string, number>>({})
 
   // 防重入：同一时间只跑一次 loadCart；并发的回调直接复用 in-flight promise
   // （避免 useDidShow + subscribeCartCount 立即回调 + AuthContext 重发导致的多次 fetch 闪烁）
@@ -30,7 +33,20 @@ function CartPage() {
     inflightRef.current = (async () => {
       try {
         const data = await getCartItems()
-        setItems(data)
+        // 临期特惠：按 batch_id 查真实 effective_price，让购物车展示价与支付页实付价一致
+        const batchIds = data.map(i => i.batch_id).filter(Boolean) as string[]
+        const nextEff: Record<string, number> = {}
+        if (batchIds.length) {
+          const { data: effRows } = await supabase
+            .from('v_near_expiry_products')
+            .select('batch_id, effective_price')
+            .in('batch_id', batchIds)
+          ;(effRows || []).forEach((r: any) => { if (r.batch_id != null) nextEff[r.batch_id] = r.effective_price })
+        }
+        setEffMap(nextEff)
+        // 默认全选：历史购物车项可能 selected=false（在 addToCart 加 selected:true 之前入车），
+        // 导致点「去结算」因无选中项而进不去结算页。进入购物车即统一置为选中，确保结算入口可达。
+        setItems(data.map(i => ({ ...i, selected: true })))
       } finally {
         inflightRef.current = null
       }
@@ -49,6 +65,10 @@ function CartPage() {
     }
     loadCart()
   }), [loadCart])
+
+  // 临期特惠：取展示价（批次特惠价优先，否则目录价）
+  const getDisplayPrice = (i: CartItem) =>
+    i.batch_id && effMap[i.batch_id] != null ? effMap[i.batch_id] : (i.products?.price || 0)
 
   // 按门店分组
   const grouped = items.reduce((acc: Record<string, { storeName: string; storeId: string; items: CartItem[] }>, item) => {
@@ -106,7 +126,7 @@ function CartPage() {
 
   // 结算前：食疗冲突校验（有冲突弹窗提示，否则直接结算）
   const proceedCheckout = (selectedItems: CartItem[]) => {
-    const total = selectedItems.reduce((s, i) => s + (i.products?.price || 0) * i.quantity, 0)
+    const total = selectedItems.reduce((s, i) => s + getDisplayPrice(i) * i.quantity, 0)
     const ids = selectedItems.map(i => i.id).join(',')
     // 写入待结算缓存：覆盖冷启动/热重载停在支付页时 router.params 为空的情况
     setPendingCheckout({ cartIds: ids ? ids.split(',') : [], total })
@@ -114,9 +134,11 @@ function CartPage() {
   }
 
   const goCheckoutAll = () => {
-    const selectedItems = items.filter(i => i.selected)
+    // 默认全选后通常都有选中项；若用户手动全部取消，兜底用全部商品，确保结算入口永远可达
+    let selectedItems = items.filter(i => i.selected)
+    if (selectedItems.length === 0 && items.length > 0) selectedItems = items
     if (selectedItems.length === 0) {
-      Taro.showToast({ title: '请先勾选商品', icon: 'none' }); return
+      Taro.showToast({ title: '购物车为空', icon: 'none' }); return
     }
     const valid = selectedItems.filter(i => i.products) as CartItem[]
     const conflicts = checkCartConflicts(valid.map(i => toFoodTherapyInput(i.products as Product)))
@@ -129,7 +151,7 @@ function CartPage() {
 
   // 计算已选商品的总金额和数量
   const selectedItems = items.filter(i => i.selected)
-  const selectedTotal = selectedItems.reduce((s, i) => s + (i.products?.price || 0) * i.quantity, 0)
+  const selectedTotal = selectedItems.reduce((s, i) => s + getDisplayPrice(i) * i.quantity, 0)
   const selectedCount = selectedItems.reduce((s, i) => s + i.quantity, 0)
 
   if (items.length === 0 && !user) return null // 未登录且无购物车：RouteGuard 已跳转登录（兜底防闪烁）
@@ -168,7 +190,7 @@ function CartPage() {
             {Object.entries(grouped).map(([storeId, group]) => {
               const allStoreSelected = group.items.every(i => i.selected)
               const selectedStoreItems = group.items.filter(i => i.selected)
-              const storeTotal = selectedStoreItems.reduce((s, i) => s + (i.products?.price || 0) * i.quantity, 0)
+              const storeTotal = selectedStoreItems.reduce((s, i) => s + getDisplayPrice(i) * i.quantity, 0)
               const storeTotalQty = group.items.reduce((s, i) => s + i.quantity, 0)
               return (
                 <View key={storeId} className="bg-card rounded-2xl mb-4 border border-border overflow-hidden">
@@ -195,7 +217,7 @@ function CartPage() {
                         onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${item.product_id}` })} />
                       <View className="flex-1">
                         <Text className="text-xl text-foreground font-bold line-clamp-2">{item.products?.name}</Text>
-                        <Text className="text-xl font-bold text-primary mt-1">¥{item.products?.price}</Text>
+                        <Text className="text-xl font-bold text-primary mt-1">¥{getDisplayPrice(item)}</Text>
                         <View className="flex items-center justify-between mt-2">
                           <View className="flex items-center gap-3">
                             <View

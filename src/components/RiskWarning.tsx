@@ -10,7 +10,7 @@ export default function RiskWarning() {
         风险提示
       </Text>
       <Text style={{ color: '#E5E7EB', fontSize: 12, lineHeight: 1.8, marginTop: 4 }}>
-        本平台仅从事实物商品零售经营，推广佣金依托真实商品交易产生，以金豆形式发放、可在平台内消费。
+        本平台仅从事实物商品零售经营，推广佣金依托真实商品交易产生，以健康豆形式发放、可在平台内消费。
       </Text>
     </View>
   )

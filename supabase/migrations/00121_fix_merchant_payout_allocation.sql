@@ -4,7 +4,7 @@
 -- 修复两个会阻断真实微信分账的硬伤：
 --   1) merchant-payout EF 读取的是 `orders.transaction_id`，但真实列是
 --      `orders.wechat_transaction_id`（wechat-payment-callback 落库），导致
---      永远读不到交易号，现金订单全部误判为「纯情绪豆垫付」。
+--      永远读不到交易号，现金订单全部误判为「纯健康豆垫付」。
 --   2) fn_merchant_withdraw 未填充 withdrawals.merchant_settlement_ids，payout
 --      只能按门店随机取一条结算记录，既可能取错订单，也无法做按订单分账。
 --

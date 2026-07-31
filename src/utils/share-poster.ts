@@ -194,3 +194,158 @@ function extractPlainExcerpt(article: any, maxLength = 80): string {
   }
   return (article.title || '发现一篇好文，快来看看~').slice(0, maxLength)
 }
+
+/**
+ * 朋友圈海报（带小程序码）：扫码打开即���定访客为作者客户。
+ * 尺寸 500x680（竖版，适合朋友圈长图）。
+ * codeImageBase64: wxacode 返回的 "data:image/png;base64,..." 小程序码。
+ */
+export const CODE_POSTER_WIDTH = 500
+export const CODE_POSTER_HEIGHT = 680
+
+export async function generateArticleCodePoster(
+  article: any,
+  canvasId = 'articleCodePosterCanvas',
+  codeImageBase64?: string
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const query = Taro.createSelectorQuery()
+    query
+      .select(`#${canvasId}`)
+      .fields({ node: true, size: true })
+      .exec((res) => {
+        const canvas = res?.[0]?.node as any
+        if (!canvas) {
+          reject(new Error('Canvas 节点未找到'))
+          return
+        }
+
+        canvas.width = CODE_POSTER_WIDTH
+        canvas.height = CODE_POSTER_HEIGHT
+        const ctx = canvas.getContext('2d') as any
+        const W = CODE_POSTER_WIDTH
+        const H = CODE_POSTER_HEIGHT
+
+        // 背景：暖米黄渐变（贴合品牌）
+        const bg = ctx.createLinearGradient(0, 0, 0, H)
+        bg.addColorStop(0, '#FFF7F0')
+        bg.addColorStop(1, '#F6E7D6')
+        ctx.fillStyle = bg
+        ctx.fillRect(0, 0, W, H)
+
+        // 标题
+        const title = (article?.title || '发现一篇好文')
+          .replace(/[\s]*预览时标签不可点[\s]*$/gi, '')
+          .replace(/[\s]*测试[\s]*$/gi, '')
+        ctx.fillStyle = '#3A2A1E'
+        ctx.font = 'bold 34px sans-serif'
+        const titleLines = wrapText(ctx, title, W - 80, 3)
+        let y = 72
+        for (const line of titleLines) {
+          ctx.fillText(line, 40, y)
+          y += 48
+        }
+
+        // 摘要
+        const excerpt = extractPlainExcerpt(article, 56)
+        ctx.fillStyle = '#7A6A5C'
+        ctx.font = '22px sans-serif'
+        const excerptLines = wrapText(ctx, excerpt, W - 80, 3)
+        y += 14
+        for (const line of excerptLines) {
+          ctx.fillText(line, 40, y)
+          y += 34
+        }
+
+        // 封面图（中部方块），无封面则留白
+        const coverY = 250
+        const coverSize = 300
+        const coverX = (W - coverSize) / 2
+        if (article?.cover_image) {
+          const img = canvas.createImage()
+          img.src = article.cover_image
+          img.onload = () => {
+            roundRect(ctx, coverX, coverY, coverSize, coverSize, 18)
+            ctx.save()
+            ctx.clip()
+            ctx.drawImage(img, coverX, coverY, coverSize, coverSize)
+            ctx.restore()
+            drawFooterAndCode()
+          }
+          img.onerror = drawFooterAndCode
+        } else {
+          // 无封面：画占位
+          roundRect(ctx, coverX, coverY, coverSize, coverSize, 18)
+          ctx.fillStyle = '#EFE0D0'
+          ctx.fill()
+          ctx.fillStyle = '#B9A48F'
+          ctx.font = '26px sans-serif'
+          ctx.fillText('🍲 好文分享', coverX + 80, coverY + coverSize / 2)
+          drawFooterAndCode()
+        }
+
+        function drawFooterAndCode() {
+          // 底部品牌
+          ctx.fillStyle = '#C77B30'
+          ctx.font = 'bold 24px sans-serif'
+          ctx.fillText('来电有喜', 40, H - 220)
+          ctx.fillStyle = '#9A8070'
+          ctx.font = '18px sans-serif'
+          ctx.fillText('好物推荐 · 日常膳食搭配参考', 40, H - 192)
+
+          // 小程序码（右下）
+          const codeSize = 150
+          const codeX = W - codeSize - 40
+          const codeY = H - codeSize - 60
+          if (codeImageBase64) {
+            const codeImg = canvas.createImage()
+            codeImg.src = codeImageBase64
+            codeImg.onload = () => {
+              roundRect(ctx, codeX - 8, codeY - 8, codeSize + 16, codeSize + 16, 12)
+              ctx.fillStyle = '#ffffff'
+              ctx.fill()
+              ctx.drawImage(codeImg, codeX, codeY, codeSize, codeSize)
+              finish()
+            }
+            codeImg.onerror = finish
+          } else {
+            finish()
+          }
+
+          function finish() {
+            // 提示语（码左侧）
+            ctx.fillStyle = '#5A4A3C'
+            ctx.font = 'bold 22px sans-serif'
+            const tip = '长按识别小程序码'
+            ctx.fillText(tip, 40, H - 120)
+            ctx.fillStyle = '#9A8070'
+            ctx.font = '18px sans-serif'
+            ctx.fillText('好友打开即锁定为你的客户', 40, H - 92)
+
+            Taro.canvasToTempFilePath({
+              canvas,
+              width: W,
+              height: H,
+              destWidth: W,
+              destHeight: H,
+              fileType: 'jpg',
+              quality: 0.92,
+              success: (r: any) => resolve(r.tempFilePath),
+              fail: (err: any) => reject(err),
+            })
+          }
+        }
+      })
+  })
+}
+
+/** 圆角矩形路径 */
+function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+}

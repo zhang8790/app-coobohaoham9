@@ -85,7 +85,7 @@ DO $$
 DECLARE
   -- 测试场景
   v_total numeric := 100.00;       -- 成交额
-  v_tb numeric := 5.00;            -- 情绪豆抵扣
+  v_tb numeric := 5.00;            -- 健康豆抵扣
   v_cash numeric := v_total - v_tb; -- 现金实收 = 95
   v_rate numeric := 0.09;          -- 让利率
   v_wx_fee numeric := round(v_cash * 0.006, 2); -- 微信手续费
@@ -98,7 +98,7 @@ DECLARE
 BEGIN
   RAISE NOTICE '================ PART B: 公式推演（total=100, 豆=5, rate=9%%）================';
   RAISE NOTICE '  成交额        = %', v_total;
-  RAISE NOTICE '  情绪豆抵扣    = %', v_tb;
+  RAISE NOTICE '  健康豆抵扣    = %', v_tb;
   RAISE NOTICE '  现金实收      = %', v_cash;
   RAISE NOTICE '  让利金额      = total × 0.09 = %', v_concession;
   RAISE NOTICE '  一级佣金      = 让利 × 0.5 = %', v_commission_l1;
@@ -167,7 +167,7 @@ BEGIN
   v_actual_merchant_settle := v_cash - v_expected_platform_share;
 
   RAISE NOTICE '  订单号: %', v_order.id;
-  RAISE NOTICE '  成交额: % / 情绪豆: % / 现金实收: %', v_total, v_tb, v_cash;
+  RAISE NOTICE '  成交额: % / 健康豆: % / 现金实收: %', v_total, v_tb, v_cash;
   RAISE NOTICE '  让利率: % / 让利金额: %', v_rate, v_concession;
   RAISE NOTICE '  实际佣金合计: % (来自 commissions 表)', v_actual_commission;
   RAISE NOTICE '  平台分佣(推算): %', v_expected_platform_share;

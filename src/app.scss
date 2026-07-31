@@ -36,7 +36,7 @@
     --brand-bronze: 32 22% 50%;    /* 古铜 */
     --brand-ochre: 38 30% 45%;     /* 赭石 */
     --brand-ink: 20 12% 17%;       /* 墨 */
-    --brand-gold: 40 42% 52%;      /* 古金（段位/金豆高光） */
+    --brand-gold: 40 42% 52%;      /* 古金（段位/健康豆高光） */
     --brand-gold-soft: 42 38% 62%; /* 古金浅 */
     /* 状态语义色：国潮调 */
     --success: 152 28% 40%;        /* 成功·松绿 */
@@ -149,7 +149,7 @@
     background: hsl(var(--primary) / 0.08);
     font-weight: 600;
   }
-  /* 金豆高光字 */
+  /* 健康豆高光字 */
   .gold-text {
     color: hsl(var(--brand-gold));
   }
@@ -197,7 +197,7 @@
     transform: translateY(-3px);
     box-shadow: 0 10px 24px rgba(20, 15, 11, 0.12);
   }
-  /* 会员资产条：金豆 / 佣金 两列（积分已并入金豆）*/
+  /* 会员资产条：健康豆 / 佣金 两列（积分已并入健康豆）*/
   .bean-hud {
     margin: 10px 16px 0;
     background: hsl(var(--card));
@@ -327,3 +327,14 @@
 .tabbar-pad {
   padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }
+
+/* 微信原生客服按钮（open-type="contact"）：去掉默认 ::after 描边 */
+.wx-contact-btn::after { border: none !important; }
+
+/* 首页右下角悬浮客服按钮 */
+.kefu-fab {
+  line-height: normal;
+  transition: transform .15s ease;
+}
+.kefu-fab:active { transform: scale(0.9); }
+.kefu-fab::after { border: none !important; }

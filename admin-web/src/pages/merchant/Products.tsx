@@ -3,6 +3,7 @@ import type { Product, StoreCategory } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { getCategories, createStoreCategory, updateStoreCategory, deleteStoreCategory } from '@/api/categories'
+import { getMerchantProductSales } from '@/api/merchant'
 import { localCompileEmotion, recommendDimensions } from '@/utils/emotion'
 import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/utils/shiyang'
 import { NATURE_SCALE, CROWD_OPTIONS, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
@@ -15,8 +16,7 @@ interface ProductWithExt extends Product {
   revenue?: number
 }
 
-// 仅已付款/完成订单计入商品收益（与数据分析页 merchant.ts 的 REVENUE_STATUSES 对齐）
-const REVENUE_STATUSES = ['pending_ship', 'pending_receive', 'pending_review', 'completed']
+// 商品销量/营收从 order_items 聚合（服务端 RPC fn_merchant_product_sales，已支付口径）
 
 function calcMargin(price: number, cost?: number): string {
   if (!cost || cost <= 0 || price <= 0) return '-'
@@ -148,6 +148,7 @@ export default function MerchantProducts() {
     moments_copy: '',
     taboo_warning: '',
     category_id: '',
+    food_stage: '',
   })
   const mainImgRef   = useRef<HTMLInputElement>(null)
   const subImgRef    = useRef<HTMLInputElement>(null)
@@ -212,27 +213,14 @@ export default function MerchantProducts() {
         .order('created_at', { ascending: false })
       if (error) throw error
 
-      // 从真实订单明细聚合每个商品的销量与营收（products 表无 sales 列，须从 order_items 推导）
-      let items: any[] = []
+      // 从真实订单明细聚合每个商品的销量与营收（服务端 RPC，避免前端万级拉取）
+      let agg: Record<string, { sales: number; revenue: number }> = {}
       try {
-        const { data: itemData } = await supabase
-          .from('order_items')
-          .select('product_id, price, quantity, orders!inner(store_id, status)')
-          .eq('orders.store_id', storeId || '')
-          .in('orders.status', REVENUE_STATUSES)
-        items = itemData || []
+        agg = await getMerchantProductSales(storeId || '')
       } catch (ie) {
         console.warn('[Products] 订单明细聚合失败，销量/营收置 0:', ie)
+        agg = {}
       }
-      const agg: Record<string, { sales: number; revenue: number }> = {}
-      ;(items || []).forEach((it: any) => {
-        const pid = it.product_id
-        if (!pid) return
-        if (!agg[pid]) agg[pid] = { sales: 0, revenue: 0 }
-        const qty = Number(it.quantity || 0)
-        agg[pid].sales += qty
-        agg[pid].revenue += Number(it.price || 0) * qty
-      })
 
       setList((data ?? []).map(p => ({
         ...p,
@@ -272,7 +260,8 @@ export default function MerchantProducts() {
       overall_nature: '', health_tag: [], emotion_tag: [], match_goods: [], conflict_goods: [], aux_remind: '',
       food_category: '', positive_effect: '', risk_warning: '', emotion_copy: '', scenes: [],
       rec_crowds: [], cautious_crowds: [], cautious_notes: '', forbidden_crowds: [], forbidden_reasons: '',
-      combo_product_ids: [], guide_sentence: '', moments_copy: '', taboo_warning: '', category_id: '' })
+      combo_product_ids: [], guide_sentence: '', moments_copy: '', taboo_warning: '', category_id: '',
+      food_stage: '' })
     setShowModal(true)
   }
 
@@ -312,6 +301,7 @@ export default function MerchantProducts() {
       moments_copy: (p as any).moments_copy ?? '',
       taboo_warning: (p as any).taboo_warning ?? '',
       category_id: (p as any).category_id ?? '',
+      food_stage: (p as any).food_stage ?? '',
     })
     setShowModal(true)
   }
@@ -489,6 +479,7 @@ export default function MerchantProducts() {
       guide_sentence: form.guide_sentence || null,
       moments_copy: form.moments_copy || null,
       taboo_warning: form.taboo_warning || null,
+      food_stage: form.food_stage || null,
     }
     // 真实模式：写库，保证网页版与小程序自营门店中心同步
     if (!useMock) {
@@ -763,7 +754,7 @@ export default function MerchantProducts() {
                 {p.discount_rate != null && p.discount_rate > 0 ? p.discount_rate + '%' : '-'}
               </div>
               {/* sales */}
-              <div style={{ textAlign: 'center' }}>{p.sales}</div>
+              <div style={{ textAlign: 'center' }}>{(p as any).sales_count ?? p.sales}</div>
               {/* status */}
               <div style={{ textAlign: 'center' }}>
                 <span style={{
@@ -1068,6 +1059,21 @@ export default function MerchantProducts() {
                   {NATURE_SCALE.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
                 <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>由凉到热：大寒 / 寒凉 / 平性 / 微温 / 温热 / 大热（系统据此绑定场景/人群）</span>
+              </div>
+
+              {/* 食养阶段（清通调补固，系统自动派生，支持人工微调覆盖） */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食养阶段（清通调补固）</span>
+                <select value={form.food_stage} onChange={e => setForm(f => ({ ...f, food_stage: e.target.value }))}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
+                  <option value="">未设置（按核心食材主导功效自动判定）</option>
+                  <option value="清">清阶 · 清火润燥</option>
+                  <option value="通">通阶 · 通肠益菌</option>
+                  <option value="调">调阶 · 健脾养胃</option>
+                  <option value="补">补阶 · 补钙增营</option>
+                  <option value="固">固阶 · 固本均衡</option>
+                </select>
+                <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>留空则由小程序端按核心食材自动判定；在此手动选择可覆盖自动结果</span>
               </div>
 
               {/* 食疗滋养效果：正向 + 风险 分离 */}

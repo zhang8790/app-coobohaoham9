@@ -17,7 +17,7 @@
 --   • 目录表(articles/announcements/emotion_* 等)：公开只读，仅管理员可写。
 --   • products：公开只读；管理员 或 门店 owner（stores.owner_id = auth.uid()）可写自己门店。
 --   • stores：公开只读；管理员 或 owner_id = auth.uid() 可写。
---   • orders / gold_bean_logs：本人(user_id)全权 CRUD + 管理员全权（买家可下单/查单/记金豆）。
+--   • orders / gold_bean_logs：本人(user_id)全权 CRUD + 管理员全权（买家可下单/查单/记健康豆）。
 --   • order_items：经 order_id 关联 orders.user_id 判定归属，本人或管理员可写。
 --   • 其余流水表(commissions/withdrawals/...)：本人只读，仅管理员/ service_role 可写。
 --   • cart_items/favorites/.../coupons：本人(user_id)全权 CRUD。
@@ -152,7 +152,7 @@ BEGIN
 
     IF has_uid THEN
       IF t IN ('orders','gold_bean_logs') THEN
-        -- 买家本人可全权 CRUD（下单 / 查单 / 记金豆），管理员全权
+        -- 买家本人可全权 CRUD（下单 / 查单 / 记健康豆），管理员全权
         EXECUTE format($f$CREATE POLICY %I ON public.%I FOR ALL TO authenticated
                           USING (user_id = auth.uid() OR public.is_admin())
                           WITH CHECK (user_id = auth.uid() OR public.is_admin());$f$,

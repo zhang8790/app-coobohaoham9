@@ -410,12 +410,12 @@ export const mockSupabase = {
           const goldBeanYuan = goldBeansToUse * 1
           const wxpayAmount = Math.max(0, total - goldBeanYuan)
 
-          // 纯金豆支付：扣除金豆余额，订单状态直接为 pending_receive
+          // 纯健康豆支付：扣除健康豆余额，订单状态直接为 pending_receive
           if (payMode === 'pure_gold') {
             mockProfile.tb_balance = Math.max(0, (mockProfile.tb_balance || 0) - goldBeansToUse)
             mockProfile.points = Math.max(0, (mockProfile.points || 0) - goldBeansToUse)
           } else if (payMode === 'hybrid') {
-            // 混合支付：扣除部分金豆
+            // 混合支付：扣除部分健康豆
             mockProfile.tb_balance = Math.max(0, (mockProfile.tb_balance || 0) - goldBeansToUse)
             mockProfile.points = Math.max(0, (mockProfile.points || 0) - goldBeansToUse)
           }
@@ -436,7 +436,7 @@ export const mockSupabase = {
             const discountPool = total * 0.20  // 平台让利 = 订单金额 × 20%
             const l1Rate = 0.15  // 凡心L1比例
             const l2Rate = 0.06  // 凡心L2比例
-            const goldBeanRate = 0.10  // 凡心金豆比例
+            const goldBeanRate = 0.10  // 凡心健康豆比例
             
             const l1Amount = Math.round(discountPool * l1Rate * 100) / 100
             const l2Amount = Math.round(discountPool * l2Rate * 100) / 100
@@ -468,7 +468,7 @@ export const mockSupabase = {
                 created_at: new Date().toISOString()} as any)
             }
             
-            // 写入金豆
+            // 写入健康豆
             mockProfile.points = (mockProfile.points || 0) + Math.round(goldBeanAmount * 100)
             
             // 写入L1佣金
@@ -497,13 +497,13 @@ export const mockSupabase = {
                 created_at: new Date().toISOString()} as any)
             }
             
-            // 写入金豆
+            // 写入健康豆
             if (v4Result.buyerPoints > 0) {
               mockProfile.points = (mockProfile.points || 0) + Math.round(v4Result.buyerPoints * 100)
             }
           }
 
-          // 模拟金豆发放（消费金额的 1%，最低 1 金豆；纯金豆支付也发金豆）
+          // 模拟健康豆发放（消费金额的 1%，最低 1 健康豆；纯健康豆支付也发健康豆）
           const goldBeansEarned = Math.max(1, Math.floor(total * 0.01))
           const oldGoldBeans = mockProfile.points || 0
           mockProfile.points = oldGoldBeans + goldBeansEarned
@@ -512,10 +512,10 @@ export const mockSupabase = {
             user_id: mockUser.id, order_id: orderId,
             type: 'purchase_earn', delta: pointsEarned,
             balance_after: mockProfile.points,
-            remark: `购物奖励金豆（订单 ${orderNo}）`,
+            remark: `购物奖励健康豆（订单 ${orderNo}）`,
             created_at: new Date().toISOString()} as any)
 
-          console.log(`[Mock] create-order: 模式=${payMode}, 金豆扣=${goldBeansToUse}, 微信付=${wxpayAmount}, 金豆+${goldBeansEarned}`)
+          console.log(`[Mock] create-order: 模式=${payMode}, 健康豆扣=${goldBeansToUse}, 微信付=${wxpayAmount}, 健康豆+${goldBeansEarned}`)
           return {
             data: {
               success: true, order: newOrder,

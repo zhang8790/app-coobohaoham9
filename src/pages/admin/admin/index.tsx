@@ -45,16 +45,17 @@ function AdminPage() {
   useEffect(() => { load() }, [load])
 
   const cards = [
-    { label: '门店审核', sub: '自营门店审核', count: stats.merchants, icon: '🏪', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', url: '/pages/admin/admin/admin-merchants/index' },
+    { label: '门店审核', sub: '自营门店审核', count: stats.merchants, icon: '🏪', color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20', url: '/pages/admin/admin/admin-merchants/index' },
     { label: '宝贝审阅', sub: '商品上架审核', count: stats.products, icon: '📦', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', url: '/pages/admin/admin/admin-products/index' },
-    { label: '佣金兑付', sub: '提现申请审核', count: stats.withdrawals, icon: '💰', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', url: '/pages/admin/admin/admin-withdrawals/index' },
-    { label: '内容管理', sub: 'UGC内容管理', count: stats.ugc, icon: '📰', color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200', url: '/pages/admin/admin/admin-ugc/index' },
+    { label: '佣金兑付', sub: '提现申请审核', count: stats.withdrawals, icon: '💰', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200', url: '/pages/admin/admin/admin-withdrawals/index' },
+    { label: '内容管理', sub: 'UGC内容管理', count: stats.ugc, icon: '📰', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', url: '/pages/admin/admin/admin-ugc/index' },
   ]
 
   const platformCards = [
     { label: '用户管理', sub: '用户/管理员权限', icon: '👤', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', url: '/pages/admin/admin/admin-users/index' },
-    { label: '退款管理', sub: '处理退款申请', icon: '💰', color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200', url: '/pages/admin/admin/admin-refunds/index' },
-    { label: '公告管理', sub: '发布/管理公告', icon: '📢', color: 'text-cyan-700', bg: 'bg-cyan-50', border: 'border-cyan-200', url: '/pages/admin/admin/admin-announcements/index' },
+    { label: '退款管理', sub: '处理退款申请', icon: '💰', color: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', url: '/pages/admin/admin/admin-refunds/index' },
+    { label: '公告管理', sub: '发布/管理公告', icon: '📢', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', url: '/pages/admin/admin/admin-announcements/index' },
+    { label: '临期特惠', sub: '临期折扣管理', icon: '🥫', color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20', url: '/pages/admin/admin/admin-expiry/index' },
   ]
 
   return (<RouteGuard>
@@ -74,7 +75,7 @@ function AdminPage() {
           <Icon name="shield-crown" size={36} className="text-white" />
           <View>
             <Text className="text-3xl font-black text-white">管理后台</Text>
-            <Text className="text-xl text-orange-200">超级管理后台</Text>
+            <Text className="text-xl text-white/80">超级管理后台</Text>
           </View>
         </View>
       </View>

@@ -143,6 +143,21 @@ function extractVideosFromHtml(html: string, base: string): string[] {
   return Array.from(new Set(found))
 }
 
+// readability-lite：当页面没有标准正文容器时，聚合所有较长的 <p> 段落作为正文。
+// 覆盖大量普通博客/新闻站（无 rich_media_content / article-content 这类 class）。
+function extractByParagraphs(html: string): string | null {
+  const ps: string[] = []
+  const re = /<p[\s>][\s\S]*?<\/p>/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(html))) {
+    const text = htmlToTextPreserve(m[0]).trim()
+    if (text.length >= 40) ps.push(text)
+  }
+  // 至少 3 段、总字数足够，才视为正文
+  if (ps.length < 3 || ps.join('').length < 120) return null
+  return ps.join('\n\n')
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -177,7 +192,14 @@ Deno.serve(async (req: Request) => {
 
     const title = extractTitle(html) || '未知标题'
     const bodyHtml = extractBodyHtml(html)
-    let content = bodyHtml ? htmlToTextPreserve(bodyHtml) : htmlToTextPreserve(html)
+    let content = bodyHtml ? htmlToTextPreserve(bodyHtml) : ''
+    // 容器法失败 → 段落聚合法兜底（覆盖无标准 class 的普通网页）
+    if (!content) {
+      const para = extractByParagraphs(html)
+      if (para) content = para
+    }
+    // 仍为空 → 全页文本兜底（反爬站可能为空/含导航噪声，前端会再做阈值判断）
+    if (!content) content = htmlToTextPreserve(html)
 
     // 内容上限（与前端编辑框上限对齐）
     if (content.length > 8000) content = content.slice(0, 8000) + '\n…（原文较长，已截取，可在编辑器中补全）'

@@ -203,7 +203,7 @@ export default function Withdrawals() {
             ? [
                 { label: '筛选条数', val: total, color: 'var(--warning)' },
                 { label: '货款提现总额', val: `¥${totalAmount.toFixed(2)}`, color: 'var(--success-strong)' },
-                { label: '说明', val: '含金豆垫付', color: 'var(--accent-text)' },
+                { label: '说明', val: '含健康豆垫付', color: 'var(--accent-text)' },
               ]
             : [
                 { label: '筛选条数', val: total, color: 'var(--warning)' },
@@ -325,7 +325,7 @@ export default function Withdrawals() {
               <Field label="提现金额" value={`¥${Number(selected.amount).toFixed(2)}`} strong />
               {selected.kind === 'settlement' ? (
                 <>
-                  <Field label="类型" value="商家货款结算（含金豆垫付等值部分）" />
+                  <Field label="类型" value="商家货款结算（含健康豆垫付等值部分）" />
                   <Field label="税务说明" value="货款结算属商家销售回款，不涉及推广佣金个税" />
                 </>
               ) : (

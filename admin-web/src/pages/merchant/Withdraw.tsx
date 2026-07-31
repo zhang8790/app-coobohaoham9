@@ -1,7 +1,10 @@
-// @title 自营门店中心 - 佣金提现（真实数据）
+// @title 自营门店中心 - 货款提现（真实数据）
+// 双通道隔离：本页 = 商家货款结算通道（kind='settlement'），与用户侧「健康豆（推广佣金）」完全独立。
+// 余额来自门店 merchant_settlement，提交走原子 RPC fn_merchant_withdraw（预扣余额 + 写单 + 关联结算单）。
+// 严禁在此页接入任何「用户佣金/健康豆」口径。
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { getMyMerchantStore, getMerchantWithdrawals, getCommissionBalance, createWithdrawal } from '@/api/merchant'
+import { getMyMerchantStore, getMerchantWithdrawals, getMerchantSettlementBalance, applyMerchantSettlementWithdrawal } from '@/api/merchant'
 import { supabase } from '@/lib/supabase'
 import type { WithdrawalRecord, SavedWithdrawalAccount } from '@/types'
 
@@ -19,17 +22,18 @@ export default function MerchantWithdraw() {
   const [bankName, setBankName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [records, setRecords] = useState<WithdrawalRecord[]>([])
-  const [balance, setBalance] = useState<{ available: number; totalEarned: number; withdrawn: number } | null>(null)
+  // 货款结算余额概览（替代原「佣金余额」）：可结算货款 / 冻结中 / 累计已结算
+  const [balance, setBalance] = useState<{ merchant_balance: number; settlement_frozen: number; total_settled: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [storeId, setStoreId] = useState<string | null>(null)
-  // 已保存收款账户（迁移 00123）：绑定一次后免二次填写
+  // 已保存收款账户（双通道隔离：门店货款通道用 owner_type='store'，与用户健康豆通道 owner_type='user' 互不串）
   const [savedAccounts, setSavedAccounts] = useState<SavedWithdrawalAccount[]>([])
   const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null)
 
-  const loadSavedAccounts = async (uid: string) => {
+  const loadSavedAccounts = async (sid: string) => {
     try {
       const { data, error } = await supabase.rpc('fn_get_withdrawal_accounts', {
-        p_owner_id: uid, p_owner_type: 'user',
+        p_owner_id: sid, p_owner_type: 'store',
       })
       if (error) return
       const d = (data as any) || {}
@@ -57,41 +61,65 @@ export default function MerchantWithdraw() {
       if (cancelled) return
       setStoreId(store?.id || null)
       const [wds, bal] = await Promise.all([
-        getMerchantWithdrawals(profile.id).catch(() => []),
-        getCommissionBalance(profile.id).catch(() => null),
+        getMerchantWithdrawals(profile.id).catch(() => [] as WithdrawalRecord[]),
+        store?.id ? getMerchantSettlementBalance(store.id).catch(() => null) : Promise.resolve(null),
       ])
-      if (!cancelled) { setRecords(wds); setBalance(bal); setLoading(false) }
-      await loadSavedAccounts(profile.id)
+      // 仅展示本店货款结算提现（kind='settlement'），与用户佣金通道隔离
+      const settleRecords = (wds || []).filter(r => (r.kind || 'settlement') === 'settlement')
+      if (!cancelled) {
+        setRecords(settleRecords)
+        setBalance(bal ? {
+          merchant_balance: bal.merchant_balance,
+          settlement_frozen: bal.settlement_frozen,
+          total_settled: bal.total_settled,
+        } : null)
+        setLoading(false)
+      }
+      if (store?.id) await loadSavedAccounts(store.id)
     })()
     return () => { cancelled = true }
   }, [profile])
 
+  const available = balance?.merchant_balance ?? 0
+  // 已提现（货款通道：已通过/已打款）
+  const withdrawn = records
+    .filter(r => ['paid', 'approved'].includes(r.status))
+    .reduce((s, r) => s + Number(r.amount || 0), 0)
+
   const reload = async () => {
-    if (!profile) return
+    if (!profile || !storeId) return
     const [wds, bal] = await Promise.all([
-      getMerchantWithdrawals(profile.id).catch(() => []),
-      getCommissionBalance(profile.id).catch(() => null),
+      getMerchantWithdrawals(profile.id).catch(() => [] as WithdrawalRecord[]),
+      getMerchantSettlementBalance(storeId).catch(() => null),
     ])
-    setRecords(wds); setBalance(bal)
+    setRecords((wds || []).filter(r => (r.kind || 'settlement') === 'settlement'))
+    if (bal) setBalance({ merchant_balance: bal.merchant_balance, settlement_frozen: bal.settlement_frozen, total_settled: bal.total_settled })
   }
 
   const handleSubmit = async () => {
-    if (!profile) return
+    if (!profile || !storeId) return
     const amt = parseFloat(amount)
-    if (!amt || amt < 100) { alert('提现金额不得低于¥100'); return }
-    if (balance && amt > balance.available) { alert('提现金额不得超过可提现佣金'); return }
+    if (!amt || amt < 1) { alert('提现金额不得低于¥1'); return }
+    if (amt > available) { alert('提现金额不得超过可结算货款'); return }
     if (!account.trim()) { alert('请输入到账账号'); return }
     if (!name.trim()) { alert('请输入真实姓名'); return }
     if (method === 'bank' && !bankName.trim()) { alert('请输入开户银行'); return }
     if (!idCard.trim()) { alert('请输入身份证号（打款核对）'); return }
+    // 组装账户信息（与小程序货款提现通道一致）
+    const account_info: Record<string, unknown> = method === 'bank'
+      ? { bank_name: bankName.trim(), bank_account: account.trim(), bank_holder: name.trim(), id_card: idCard.trim() }
+      : method === 'alipay'
+        ? { alipay_account: account.trim(), id_card: idCard.trim() }
+        : { id_card: idCard.trim() }
     setSubmitting(true)
     try {
-      await createWithdrawal({ userId: profile.id, storeId, amount: amt, method, account: account.trim(), name: name.trim(), idCard: idCard.trim(), bankName: method === 'bank' ? bankName.trim() : undefined })
-      // 提交成功后异步保存为「已保存账户」（不阻塞主流程）
+      const r = await applyMerchantSettlementWithdrawal({ store_id: storeId, amount: amt, method, account_info })
+      if (!r.ok) { alert('提交失败：' + (r.error || '未知错误')); return }
+      // 提交成功后异步保存为「已保存账户」（不阻塞主流程），按门店维度隔离
       ;(async () => {
         try {
           await supabase.rpc('fn_save_withdrawal_account', {
-            p_owner_id: profile.id, p_owner_type: 'user',
+            p_owner_id: storeId, p_owner_type: 'store',
             p_method: method,
             p_real_name: name.trim(), p_id_card: idCard.trim(),
             p_bank_name: method === 'bank' ? bankName.trim() : null,
@@ -100,21 +128,20 @@ export default function MerchantWithdraw() {
             p_alipay_account: method === 'alipay' ? account.trim() : null,
             p_make_default: true,
           })
-          // 刷新一下列表，让"已保存账户"下拉显示新卡
-          await loadSavedAccounts(profile.id)
+          await loadSavedAccounts(storeId)
         } catch (e) { console.warn('[merchant/Withdraw] 保存收款账户失败', e) }
       })()
       await reload()
       setAmount(''); setAccount(''); setName(''); setIdCard(''); setBankName('')
       setSelectedSavedId(null)
-      alert('提现申请已提交，预计1-2个工作日到账')
+      alert('货款提现申请已提交，平台审核后由微信分账直达您的子商户号')
     } catch (e: any) { alert('提交失败：' + (e?.message || e)) }
     finally { setSubmitting(false) }
   }
 
   return (
     <div>
-      <h2 style={{ color: 'var(--text)', fontSize: 24, fontWeight: 700, marginBottom: 24 }}> 佣金提现</h2>
+      <h2 style={{ color: 'var(--text)', fontSize: 24, fontWeight: 700, marginBottom: 24 }}> 货款提现</h2>
 
       {loading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)' }}>加载中…</div>}
 
@@ -144,25 +171,29 @@ export default function MerchantWithdraw() {
                   <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>账户总览</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>可提现佣金</span>
-                      <span style={{ color: 'var(--success-strong)', fontSize: 24, fontWeight: 800 }}>¥{balance ? balance.available.toFixed(2) : '0.00'}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>可结算货款</span>
+                      <span style={{ color: 'var(--success-strong)', fontSize: 24, fontWeight: 800 }}>¥{balance ? balance.merchant_balance.toFixed(2) : '0.00'}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>累计收益</span>
-                      <span style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600 }}>¥{balance ? balance.totalEarned.toFixed(2) : '0.00'}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>冻结中货款</span>
+                      <span style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600 }}>¥{balance ? balance.settlement_frozen.toFixed(2) : '0.00'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>累计已结算</span>
+                      <span style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600 }}>¥{balance ? balance.total_settled.toFixed(2) : '0.00'}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>已提现</span>
-                      <span style={{ color: 'var(--text-dim)', fontSize: 15 }}>¥{balance ? balance.withdrawn.toFixed(2) : '0.00'}</span>
+                      <span style={{ color: 'var(--text-dim)', fontSize: 15 }}>¥{withdrawn.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
                 <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
                   <h4 style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}> 提现须知</h4>
                   <ul style={{ color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.8, paddingLeft: 16 }}>
-                    <li>最低提现金额：¥100</li>
-                    <li>到账时间：1-2个工作日</li>
-                    <li>提现由平台审核后打款</li>
+                    <li>最低提现金额：¥1</li>
+                    <li>到账方式：微信服务商分账直达门店子商户号（含健康豆垫付部分由平台自有资金打款）</li>
+                    <li>提现由平台审核后打款，审核 1-3 个工作日</li>
                   </ul>
                 </div>
               </div>
@@ -174,11 +205,11 @@ export default function MerchantWithdraw() {
                     <label style={{ color: 'var(--text-muted)', fontSize: 13, display: 'block', marginBottom: 8 }}>提现金额（元）*</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="请输入提现金额" style={{ flex: 1, padding: '12px 16px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 16, outline: 'none' }} />
-                      <button onClick={() => balance && setAmount(String(balance.available))} style={{ padding: '12px 16px', background: 'transparent', border: '1px solid var(--success-strong)', borderRadius: 8, color: 'var(--success-strong)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>全部</button>
+                      <button onClick={() => setAmount(String(available))} style={{ padding: '12px 16px', background: 'transparent', border: '1px solid var(--success-strong)', borderRadius: 8, color: 'var(--success-strong)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>全部</button>
                     </div>
-                    <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 6 }}>可提现佣金：{balance ? balance.available : '0'}</p>
+                    <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 6 }}>可结算货款：{available.toFixed(2)}</p>
                   </div>
-                  {/* 已保存收款账户（迁移 00123）—— 快速选择 */}
+                  {/* 已保存收款账户（双通道隔离：owner_type='store'）—— 快速选择 */}
                   {savedAccounts.length > 0 && (
                     <div>
                       <label style={{ color: 'var(--text-muted)', fontSize: 13, display: 'block', marginBottom: 8 }}>
@@ -261,20 +292,20 @@ export default function MerchantWithdraw() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {records.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)', fontSize: 14 }}>暂无提现记录</div>
+                <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)', fontSize: 14 }}>暂无货款提现记录</div>
               ) : records.map(record => (
                 <div key={record.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                         <span style={{ color: STATUS_COLOR[record.status] || 'var(--text-dim)', fontSize: 12, fontWeight: 600, padding: '2px 8px', background: `${(STATUS_COLOR[record.status] || 'var(--text-dim)')}20`, borderRadius: 4 }}>{STATUS_LABEL[record.status] || record.status}</span>
-                        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{record.method} · {record.account}</span>
+                        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>货款结算</span>
                       </div>
                       <p style={{ color: 'var(--text)', fontSize: 14 }}>申请时间：{record.created_at}</p>
                       {record.transferred_at && <p style={{ color: 'var(--success-strong)', fontSize: 13, marginTop: 4 }}>到账时间：{record.transferred_at}</p>}
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <p style={{ color: 'var(--primary)', fontSize: 24, fontWeight: 800 }}>¥{record.amount.toFixed(2)}</p>
+                      <p style={{ color: 'var(--primary)', fontSize: 24, fontWeight: 800 }}>¥{Number(record.amount || 0).toFixed(2)}</p>
                     </div>
                   </div>
                 </div>

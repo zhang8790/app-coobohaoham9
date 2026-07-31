@@ -59,6 +59,16 @@ function MerchantExpiryPage() {
 
   const filtered = filter === 'all' ? list : list.filter(e => e.discount_stage === filter)
 
+  // 视图 v_near_expiry_products 按 discount_stage 过滤；手动覆盖必须同步写 stage，
+  // 否则即便设了折扣率，批次仍因 stage='normal' 不被视图收录 → 前台看不到。
+  // 阈值与引擎默认一致（red≤3 / orange≤7 / 其余 amber）。
+  const stageFromDays = (days: number, rate: number): string => {
+    if (rate <= 0) return 'normal'
+    if (days <= 3) return 'red'
+    if (days <= 7) return 'orange'
+    return 'amber'
+  }
+
   const handleSave = async (batchId: string) => {
     const rate = editRates[batchId]
     if (rate === undefined) return
@@ -66,16 +76,18 @@ function MerchantExpiryPage() {
       Taro.showToast({ title: '折扣需在 0-90 之间', icon: 'none' })
       return
     }
+    const target = list.find(e => e.batch_id === batchId)
+    const stage = stageFromDays(target?.days_left ?? 999, rate)
     setSavingId(batchId)
     try {
       const { error } = await supabase
         .from('stock_batches')
-        .update({ auto_discount_rate: rate, decided_by: 'merchant_manual' })
+        .update({ auto_discount_rate: rate, decided_by: 'merchant_manual', discount_stage: stage })
         .eq('id', batchId)
       if (error) throw error
       Taro.showToast({ title: '已保存', icon: 'success' })
       // 本地同步
-      setList(prev => prev.map(e => e.batch_id === batchId ? { ...e, auto_discount_rate: rate, decided_by: 'merchant_manual' } : e))
+      setList(prev => prev.map(e => e.batch_id === batchId ? { ...e, auto_discount_rate: rate, decided_by: 'merchant_manual', discount_stage: stage } : e))
     } catch (err) {
       console.error('[MerchantExpiry] 保存失败:', err)
       Taro.showToast({ title: '保存失败', icon: 'none' })
@@ -202,7 +214,7 @@ function MerchantExpiryPage() {
                       {/* 保存按钮 + 决策来源 */}
                       <View className="flex items-center justify-between mt-2">
                         <Text className="text-xs text-muted-foreground">
-                          {e.decided_by === 'merchant_manual' ? '商家手动' : e.decided_by === 'ai' ? 'AI 决策' : e.ai_reason ? '引擎规则' : '未决策'}
+                          {e.decided_by === 'ai' ? '自动决策' : e.decided_by === 'rule' ? '引擎规则' : '未决策'}
                         </Text>
                         <Button
                           className="!m-0 !p-0 !bg-primary !border-none !rounded-xl !leading-none"

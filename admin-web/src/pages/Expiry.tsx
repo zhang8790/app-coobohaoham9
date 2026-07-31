@@ -108,23 +108,29 @@ export default function Expiry() {
     amber: rows.filter((r) => r.discount_stage === 'amber').length,
   }
 
-  const saveDiscount = async (batchId: string) => {
+  const saveDiscount = async (batchId: string, daysLeft: number) => {
     const rate = Number(overrides[batchId])
     if (Number.isNaN(rate) || rate < 0 || rate > 90) {
       setMsg('折扣需在 0~90 之间')
       return
     }
+    // 视图 v_near_expiry_products 按 discount_stage 过滤；手动覆盖必须同步写 stage，
+    // 否则即便设了折扣率，批次仍因 stage='normal' 不被视图收录 → 前台看不到。
+    const stage = rate <= 0 ? 'normal'
+      : daysLeft <= cfg.red_days ? 'red'
+      : daysLeft <= cfg.orange_days ? 'orange'
+      : 'amber'
     const { error } = await supabase
       .from('stock_batches')
-      .update({ auto_discount_rate: rate, decided_by: 'merchant_manual' })
+      .update({ auto_discount_rate: rate, decided_by: 'merchant_manual', discount_stage: stage })
       .eq('id', batchId)
     if (error) {
       setMsg('保存失败：' + error.message)
       return
     }
-    setMsg('已保存折扣覆盖')
+    setMsg(rate > 0 ? `已保存折扣覆盖（分级：${STAGE_LABEL[stage] || stage}）` : '已恢复原价')
     setRows((rs) => rs.map((r) => (r.batch_id === batchId
-      ? { ...r, auto_discount_rate: rate, effective_price: Math.round(r.price * (1 - rate / 100) * 100) / 100 }
+      ? { ...r, auto_discount_rate: rate, discount_stage: stage, effective_price: Math.round(r.price * (1 - rate / 100) * 100) / 100 }
       : r)))
   }
 
@@ -230,7 +236,7 @@ export default function Expiry() {
                             {STAGE_LABEL[r.discount_stage] || r.discount_stage}
                           </span>
                         </td>
-                        <td style={td}>{r.decided_by === 'ai' ? 'AI' : r.decided_by === 'merchant_manual' ? '手动' : '规则'}</td>
+                        <td style={td}>{r.decided_by === 'ai' ? '智能' : r.decided_by === 'merchant_manual' ? '手动' : '规则'}</td>
                         <td style={{ ...td, color: 'var(--text-dim)', maxWidth: 220 }}>{r.ai_reason || '-'}</td>
                         <td style={td}>
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -243,7 +249,7 @@ export default function Expiry() {
                               style={{ width: 56, padding: '4px 6px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 13 }}
                             />
                             <button
-                              onClick={() => saveDiscount(r.batch_id)}
+                              onClick={() => saveDiscount(r.batch_id, r.days_left)}
                               style={{ padding: '4px 10px', background: 'var(--primary)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12 }}
                             >
                               保存
@@ -289,7 +295,7 @@ export default function Expiry() {
                             {STAGE_LABEL[a.stage || 'normal'] || a.stage}
                           </span>
                         </td>
-                        <td style={td}>{a.decided_by === 'ai' ? 'AI' : a.decided_by === 'merchant_manual' ? '手动' : '规则'}</td>
+                        <td style={td}>{a.decided_by === 'ai' ? '智能' : a.decided_by === 'merchant_manual' ? '手动' : '规则'}</td>
                         <td style={{ ...td, color: 'var(--text-dim)', maxWidth: 280 }}>{a.reason || '-'}</td>
                       </tr>
                     ))

@@ -51,9 +51,13 @@ function CommissionDetailPage() {
         <View className="px-4 pb-4">
           <Button type="button"
             className="w-full flex items-center justify-center leading-none rounded-xl border border-white/40 bg-white/10"
-            onClick={() => Taro.navigateTo({ url: '/pages/trade/withdraw/index' })}>
-            <View className="py-2 text-xl text-white font-bold">申请提现 →</View>
+            onClick={() => Taro.navigateTo({ url: '/pages/trade/withdraw' })}>
+            <View className="py-2 text-xl text-white font-bold">去提现佣金 →</View>
           </Button>
+          <View className="mt-3 p-3 rounded-xl bg-white/5">
+            <Text className="text-base text-white/80">推广佣金按「50% 可提现佣金 + 50% 健康豆」发放：可提现部分可在「提现」页申请到账（银行卡 / 支付宝 / 微信）；健康豆在平台内消费抵扣。</Text>
+            <Text className="text-base text-white/70 mt-1">推广佣金为劳务报酬，提现后请依法履行纳税申报义务。</Text>
+          </View>
         </View>
       </View>
 

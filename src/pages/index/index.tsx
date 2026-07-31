@@ -1,7 +1,7 @@
 // @title 首页
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
-import { Image, Input, View, Text, ScrollView, Map as MapView } from '@tarojs/components'
+import { Image, Input, View, Text, ScrollView, Button } from '@tarojs/components'
 import { getProducts, getAnnouncements, getOrderFeed, getOrders, getProductsByIds, addToCart } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
 import { getUserHealthProfile } from '@/db/food-api'
@@ -75,7 +75,7 @@ function writeConsumeCache(uid: string, data: { profile: ConsumptionProfile; bou
 
 export default function IndexPage() {
   const { profile } = useAuth()
-  const { currentCity, currentLocation, currentStore, nearbyStores, setStore, loading: locationLoading, detectLocation } = useLocation()
+  const { currentCity, currentLocation, currentStore, nearbyStores, loading: locationLoading, detectLocation } = useLocation()
   const { selectedCrowds, toggleCrowd, clearFilters, getSuitability, userAllergens, hasHealthProfile } = useFoodTherapy()
   // 定位自动触发：用 ref 持有 detectLocation（函数已稳定化，不放入 effect 依赖以免触发重跑），
   // 并用 locatingRef 在首批定位完成前锁住后续触发，根治「定位一直在闪烁」的回流循环
@@ -425,46 +425,6 @@ export default function IndexPage() {
     displayFeed.forEach((f) => { map[f.product.id] = calc(f.product) })
     return map
   }, [personalizedItems, displayFeed, ingredientDict])
-
-  // ===== 定位地图：地图中心 + 附近门店标记 + 点击切换当前门店 =====
-  // 中心优先级：用户定位 → 当前门店 → 杭州兜底
-  const mapCenter = useMemo(() => {
-    if (currentLocation) return { lat: currentLocation.lat, lng: currentLocation.lng }
-    if (currentStore) return { lat: currentStore.lat, lng: currentStore.lng }
-    return { lat: 30.2741, lng: 120.1551 } // 杭州兜底
-  }, [currentLocation, currentStore])
-
-  // 附近门店标记（前 6 家，callout 显示店名 + 距离）
-  const storeMarkers = useMemo(
-    () =>
-      nearbyStores.slice(0, 6).map((s, i) => ({
-        id: i,
-        latitude: s.lat,
-        longitude: s.lng,
-        width: 28,
-        height: 28,
-        callout: {
-          content: `${s.store_name}\n${s.distance_km}km`,
-          color: '#1A1A1A',
-          fontSize: 12,
-          borderRadius: 8,
-          bgColor: '#FFFBF7',
-          padding: 8,
-          display: 'ALWAYS' as const,
-        },
-      })),
-    [nearbyStores],
-  )
-
-  // 点击地图门店标记 → 切换当前门店
-  const handleStoreMarkerTap = (e: any) => {
-    const id = e?.detail?.markerId
-    const s = nearbyStores[id]
-    if (s) {
-      setStore(s)
-      Taro.showToast({ title: `已切换到${s.store_name}`, icon: 'none' })
-    }
-  }
 
   // 安全取商品关怀层（食养注解），避免单条异常影响整页渲染
   const careOf = (p: Product) => {
@@ -932,59 +892,6 @@ export default function IndexPage() {
         </View>
       </View>
 
-      {/* 附近的门店 + 定位地图：基于定位显示地图与最近自营门店，可点击切换 */}
-      {nearbyStores.length > 0 && (
-        <View className="mx-4 mt-5 pg-card overflow-hidden rounded-2xl">
-          <SectionHeader className="mx-4 mt-4" emoji="🗺️" title="附近的门店" subtitle={`${currentCity?.city_name || '杭州'} · 自动定位`} />
-          <MapView
-            style={{ width: '100%', height: 180 }}
-            latitude={mapCenter.lat}
-            longitude={mapCenter.lng}
-            scale={14}
-            showLocation
-            markers={storeMarkers}
-            onMarkertap={handleStoreMarkerTap}
-            enableZoom={false}
-          />
-          <ScrollView scrollX showScrollbar={false} className="px-4 pb-4 pt-3">
-            <View className="flex flex-row gap-2 pr-3" style={{ display: 'flex', flexDirection: 'row' }}>
-              {nearbyStores.slice(0, 6).map((s) => {
-                const active = currentStore?.id === s.id
-                return (
-                  <View
-                    key={s.id}
-                    hoverClass="none"
-                    onClick={() => {
-                      setStore(s)
-                      Taro.showToast({ title: `已切换到${s.store_name}`, icon: 'none' })
-                    }}
-                    style={{
-                      width: 140,
-                      flexShrink: 0,
-                      borderRadius: 16,
-                      padding: 12,
-                      background: active ? 'hsl(var(--primary) / 0.10)' : 'hsl(var(--card))',
-                      borderWidth: 1,
-                      borderColor: active ? 'hsl(var(--primary) / 0.4)' : 'hsl(var(--border))',
-                    }}
-                  >
-                    <View className="flex items-center justify-between">
-                      <Text className="text-base font-bold text-foreground" style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden', maxWidth: 92 }}>{s.store_name}</Text>
-                      {active && (
-                        <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 9999, background: 'hsl(var(--primary))', flexShrink: 0 }}>
-                          <Text className="text-xs text-white font-bold">当前</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text className="text-xs text-muted-foreground mt-1 block">{s.distance_km} km · {s.is_open === false ? '休息中' : '营业中'}</Text>
-                  </View>
-                )
-              })}
-            </View>
-          </ScrollView>
-        </View>
-      )}
-
       {/* ===================== L3 运营惠专区：福利 + 临期双列并排 ===================== */}
       <View className="mx-4 mt-5 grid grid-cols-2 gap-3">
         {/* 限时福利：常驻可见，用户主动点击才展开，不再进首页强弹打断 */}
@@ -1199,6 +1106,56 @@ export default function IndexPage() {
       )}
 
       {/* 悬浮扫码按钮已合并至首屏「扫码查安全」唯一入口，避免首页扫码重复 */}
+
+      {/* 悬浮食疗咨询按钮：右下角常驻，点击进入「我适合吃什么」自动推荐页 */}
+      <View
+        hoverClass="none"
+        onClick={() => Taro.navigateTo({ url: '/pages/food/consult/index' })}
+        style={{
+          position: 'fixed',
+          right: '24px',
+          bottom: 'calc(env(safe-area-inset-bottom) + 160px)',
+          width: '52px',
+          height: '52px',
+          padding: 0,
+          margin: 0,
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #16A34A 0%, #22C55E 100%)',
+          boxShadow: '0 8px 22px rgba(22, 163, 74, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 60,
+        }}
+      >
+        <Icon name="leaf" size={28} className="text-white" />
+      </View>
+
+      {/* 悬浮客服按钮：右下角常驻，点击拉起微信原生客服（open-type="contact"） */}
+      <Button
+        openType="contact"
+        className="kefu-fab wx-contact-btn"
+        hoverClass="none"
+        style={{
+          position: 'fixed',
+          right: '24px',
+          bottom: 'calc(env(safe-area-inset-bottom) + 96px)',
+          width: '52px',
+          height: '52px',
+          padding: 0,
+          margin: 0,
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+          boxShadow: '0 8px 22px rgba(217, 119, 6, 0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 60,
+        }}
+      >
+        <Icon name="headset" size={28} className="text-white" />
+      </Button>
+
       {/* 自定义底部导航：独立渲染（贴底全宽），不可嵌套在 FAB 容器内，否则购物车徽标在真机渲染异常 */}
       <CustomTabBar />
     </View>

@@ -15,7 +15,7 @@
 --    （同时修复 grantEmotionClaim 长期存在的列名 bug：原代码写 tb_amount/
 --      cv_amount/badge_code，但表只有 tongbao_amount 且无后两者 → 正常确权静默失败）
 -- ---------------------------------------------------------------------
-ALTER TABLE emotion_claims ADD COLUMN IF NOT EXISTS tb_amount       numeric(12,2) NOT NULL DEFAULT 0; -- 本次发放的通宝
+ALTER TABLE emotion_claims ADD COLUMN IF NOT EXISTS tb_amount       numeric(12,2) NOT NULL DEFAULT 0; -- 本次发放的健康豆
 ALTER TABLE emotion_claims ADD COLUMN IF NOT EXISTS cv_amount       numeric(12,4) NOT NULL DEFAULT 0; -- 本次新增【个人贡献值 CV】——回滚的唯一依据
 ALTER TABLE emotion_claims ADD COLUMN IF NOT EXISTS badge_code      text;                            -- 关联徽章定义(emotion_badge_defs.code)
 ALTER TABLE emotion_claims ADD COLUMN IF NOT EXISTS upline_l1       uuid;                            -- 直接推荐人(L1)用户ID
@@ -135,7 +135,7 @@ BEGIN
   v_l2_back := ROUND((v.upline_l2_cv * v_factor)::numeric, 4);
   v_tb_back := ROUND((v.tb_amount   * v_factor)::numeric, 2);
 
-  -- 回滚本人：贡献值 + 通宝（不低于 0）
+  -- 回滚本人：贡献值 + 健康豆（不低于 0）
   UPDATE profiles
      SET cv_total   = GREATEST(0, ROUND((COALESCE(cv_total,0)   - v_cv_back)::numeric, 4)),
          tb_balance = GREATEST(0, ROUND((COALESCE(tb_balance,0) - v_tb_back)::numeric, 2))
@@ -188,7 +188,7 @@ DECLARE
   tot_l1   numeric := 0;
   tot_l2   numeric := 0;
 BEGIN
-  -- 标记封禁 + 本人贡献值/通宝清零（清零即“不计入全平台总贡献值”）
+  -- 标记封禁 + 本人贡献值/健康豆清零（清零即“不计入全平台总贡献值”）
   UPDATE profiles
      SET is_banned  = true,
          banned_at  = now(),

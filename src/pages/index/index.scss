@@ -56,3 +56,16 @@
   box-shadow: 0 4px 12px rgba(168, 85, 46, 0.28);
   flex-shrink: 0;
 }
+
+/* 首页统一区块标题：emoji 圆标（与墨韵辅色同源，建立目录式标题语言） */
+.section-emoji {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: hsl(var(--primary) / 0.10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}

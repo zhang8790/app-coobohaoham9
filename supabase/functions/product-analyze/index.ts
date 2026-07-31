@@ -18,6 +18,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { getLlmConfig, type LlmConfig } from '../_shared/llmConfig.ts'
+import { logLlmCall } from '../_shared/logLlmCall.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,6 +67,7 @@ async function callLLMJson(system: string, user: string, cfg: LlmConfig, imageUr
   const key = cfg.key
   const base = cfg.base || 'https://api.openai.com/v1'
   const model = cfg.model || 'gpt-4o-mini'
+  const start = Date.now()
   try {
     const userContent: any[] = [{ type: 'text', text: user }]
     if (imageUrl) userContent.push({ type: 'image_url', image_url: { url: imageUrl } })
@@ -84,14 +86,29 @@ async function callLLMJson(system: string, user: string, cfg: LlmConfig, imageUr
       }),
     })
     if (!resp.ok) {
-      console.error('[product-analyze] LLM http', resp.status, await resp.text())
+      const httpMsg = `[product-analyze] LLM http ${resp.status} ${await resp.text()}`
+      console.error(httpMsg)
+      await logLlmCall({
+        functionName: 'product-analyze', module: '商品识别', model,
+        latencyMs: Date.now() - start, success: false, errorMessage: `http ${resp.status}`,
+      })
       return null
     }
     const j = await resp.json()
+    await logLlmCall({
+      functionName: 'product-analyze', module: '商品识别', model,
+      usage: j?.usage ?? null, latencyMs: Date.now() - start,
+      success: !!j?.choices?.[0], errorMessage: null,
+    })
     const content = j?.choices?.[0]?.message?.content || '{}'
     return JSON.parse(content)
   } catch (e) {
     console.error('[product-analyze] LLM error', e)
+    await logLlmCall({
+      functionName: 'product-analyze', module: '商品识别', model,
+      latencyMs: Date.now() - start, success: false,
+      errorMessage: e instanceof Error ? e.message : String(e),
+    })
     return null
   }
 }

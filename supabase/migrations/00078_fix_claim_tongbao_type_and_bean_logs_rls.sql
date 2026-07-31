@@ -9,7 +9,7 @@
 
 -- ---------------------------------------------------------------------
 -- ① emotion_claims.tongbao_amount：smallint → numeric(12,2)
---   原 00052 把该列定义为 smallint（只能装整数），但业务计算的 tb(通宝/情绪豆)
+--   原 00052 把该列定义为 smallint（只能装整数），但业务计算的 tb(健康豆/健康豆)
 --   是小数（如 0.02，货币型）。safeInsertClaim 同时写 tb_amount(numeric) 与
 --   tongbao_amount(Math.max(tb,0))，小数塞进 smallint 直接抛
 --   「invalid input syntax for type smallint: "0.02"」(22P02)，

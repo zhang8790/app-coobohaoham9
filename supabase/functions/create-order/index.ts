@@ -1,7 +1,7 @@
 /**
  * create-order Edge Function (V2 - 支持跨门店拆单)
- * 三种支付模式：pure_gold（纯情绪豆）| hybrid（混合）| wxpay（纯微信）
- * 情绪豆优先扣减，防重复提交（order_no 幂等）
+ * 三种支付模式：pure_gold（纯健康豆）| hybrid（混合）| wxpay（纯微信）
+ * 健康豆优先扣减，防重复提交（order_no 幂等）
  * 跨门店结算：自动按 store_id 拆分成多个子订单，共享同一 parent_order_no
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2'
@@ -16,7 +16,7 @@ function toFixed4(n: number): number {
   return Math.round(n * 10000) / 10000
 }
 
-// 情绪豆换算比例：与前端 api.ts / payment 页保持一致，1 情绪豆 = 1 元（人民币 1:1 锚定，tb_balance 单位即元）
+// 健康豆换算比例：与前端 api.ts / payment 页保持一致，1 健康豆 = 1 元（人民币 1:1 锚定，tb_balance 单位即元）
 const GOLD_BEAN_RATE = 1
 
 type PayMode = 'pure_gold' | 'hybrid' | 'wxpay'
@@ -80,11 +80,11 @@ Deno.serve(async (req: Request) => {
 
     const isMultiStore = storeGroups.size > 1
 
-    // 查用户情绪豆余额
+    // 查用户健康豆余额
     const { data: profile } = await supabase.from('profiles').select('tb_balance, points').eq('id', user.id).maybeSingle()
     const goldBeanBalance = profile?.tb_balance ?? 0
 
-    // 计算情绪豆抵扣（按总金额计算）
+    // 计算健康豆抵扣（按总金额计算）
     let goldBeansUsed = 0
     let wxpayAmount = toFixed4(totalAmount)
 
@@ -95,7 +95,7 @@ Deno.serve(async (req: Request) => {
       if (pay_mode === 'pure_gold') {
         const needed = toFixed4(totalAmount / GOLD_BEAN_RATE)
         if (goldBeanBalance < needed) {
-          return Response.json({ error: `金豆不足，需要${needed}金豆，当前${goldBeanBalance}金豆`, code: 'INSUFFICIENT_GOLD_BEANS' }, { status: 400, headers: corsHeaders })
+          return Response.json({ error: `健康豆不足，需要${needed}健康豆，当前${goldBeanBalance}健康豆`, code: 'INSUFFICIENT_GOLD_BEANS' }, { status: 400, headers: corsHeaders })
         }
         goldBeansUsed = Math.min(needed, toFixed4(totalAmount / GOLD_BEAN_RATE))
         wxpayAmount = 0
@@ -124,13 +124,13 @@ Deno.serve(async (req: Request) => {
     // 生成父订单号（跨门店结算时共享）
     const parentOrderNo = isMultiStore ? `PARENT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}` : null
 
-    // 扣情绪豆（如有）— 先扣，失败则回滚
+    // 扣健康豆（如有）— 先扣，失败则回滚
     if (goldBeansUsed > 0) {
       const { error: balErr } = await supabase.from('profiles')
         .update({ tb_balance: goldBeanBalance - goldBeansUsed })
         .eq('id', user.id)
         .gte('tb_balance', goldBeansUsed)
-      if (balErr) return Response.json({ error: '金豆扣减失败，请重试', code: 'GOLD_DEDUCT_FAIL' }, { status: 500, headers: corsHeaders })
+      if (balErr) return Response.json({ error: '健康豆扣减失败，请重试', code: 'GOLD_DEDUCT_FAIL' }, { status: 500, headers: corsHeaders })
     }
 
     // 创建订单（单门店或跨门店）
@@ -143,7 +143,7 @@ Deno.serve(async (req: Request) => {
         
         // 生成订单号
         const orderNo = isMultiStore 
-          ? `${parentOrderNo}-${storeGroups.keys().indexOf(storeId) + 1}`
+          ? `${parentOrderNo}-${Array.from(storeGroups.keys()).indexOf(storeId) + 1}`
           : `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
 
         // 创建订单
@@ -153,7 +153,7 @@ Deno.serve(async (req: Request) => {
           store_id: storeId,
           total_amount: storeAmount,
           payment_method: pay_mode === 'wxpay' ? 'wxpay' : pay_mode === 'pure_gold' ? 'emotion_beans' : 'wxpay',
-          tb_used: isMultiStore ? 0 : goldBeansUsed, // 情绪豆只扣一次，记在第一个订单
+          tb_used: isMultiStore ? 0 : goldBeansUsed, // 健康豆只扣一次，记在第一个订单
           status: pay_mode === 'pure_gold' ? 'pending_ship' : 'pending_pay',
           referrer_id: referrer_id ?? null,
           parent_order_no: parentOrderNo,
@@ -177,11 +177,11 @@ Deno.serve(async (req: Request) => {
         })
       }
 
-      // 纯情绪豆支付 → 触发分佣（fix: 此前干标 commission_distributed=true 却零发放，导致「假分佣」且补跑被跳过）
-      // 与小程序 createOrderV2 对齐：调用 distribute-commission 把佣金以情绪豆(tb_balance)发给上线，纯豆全部分佣。
-      // 纯情绪豆支付 → 触发分佣。统一口径：商品加权让利率（与 wechat-payment-callback 同算法），
-      // 不再用门店单值率，消除「纯豆 vs 微信同单算不同」的口径分裂。
-      // 修复：hybrid 订单若金豆全覆盖（wxpayAmount=0）也需触发，否则这类订单永远不分佣
+      // 纯健康豆支付 → 触发分佣（fix: 此前干标 commission_distributed=true 却零发放，导致「假分佣」且补跑被跳过）
+      // 与小程序 createOrderV2 对齐：调用 distribute-commission 把佣金以健康豆(tb_balance)发给上线，纯健康豆全部分佣。
+      // 纯健康豆支付 → 触发分佣。统一口径：商品加权让利率（与 wechat-payment-callback 同算法），
+      // 不再用门店单值率，消除「纯健康豆 vs 微信同单算不同」的口径分裂。
+      // 修复：hybrid 订单若健康豆全覆盖（wxpayAmount=0）也需触发，否则这类订单永远不分佣
       // （微信回调不会触发因为没有微信流水，create-order 又跳过了 pure_gold 块）。
       if (pay_mode === 'pure_gold' || (pay_mode === 'hybrid' && wxpayAmount <= 0)) {
         for (const order of createdOrders) {
@@ -248,14 +248,14 @@ Deno.serve(async (req: Request) => {
                 payer_id: user.id,
                 total_amount: orderTotal,
                 net_amount: 0,
-                referrer_id: order.referrer_id ?? null,
+                referrer_id: (order as any).referrer_id ?? null,
                 discount_rate: effectiveRate,
               },
             })
           } catch (e: any) {
             const msg = (e as any)?.message || String(e)
-            console.error('[create-order] 纯情绪豆分佣触发失败:', msg)
-            await supabase.from('orders').update({ commission_error: msg }).eq('id', order.id).then(() => {}).catch(() => {})
+            console.error('[create-order] 纯健康豆分佣触发失败:', msg)
+            await supabase.from('orders').update({ commission_error: msg }).eq('id', order.id) // fire-and-forget
           }
         }
       }
@@ -280,7 +280,7 @@ Deno.serve(async (req: Request) => {
       }, { headers: corsHeaders })
 
     } catch (err) {
-      // 创建订单失败，回滚情绪豆
+      // 创建订单失败，回滚健康豆
       if (goldBeansUsed > 0) {
         await supabase.from('profiles').update({ tb_balance: goldBeanBalance }).eq('id', user.id)
       }

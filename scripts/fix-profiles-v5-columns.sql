@@ -1,7 +1,7 @@
 -- ============================================================
 -- 修复：profiles 表缺失 V4/V5 分佣算法字段
 -- 症状：distribute-commission 报 "column profiles.monthly_consumption does not exist"
---       导致 L1 profile 查询报错 → 所有订单（现金/金豆）静默不分佣
+--       导致 L1 profile 查询报错 → 所有订单（现金/健康豆）静默不分佣
 -- 来源：supabase/migrations/00012_v4_commission_fields.sql（生产库未部署）
 -- 幂等：全部 IF NOT EXISTS，可重复执行
 -- ============================================================

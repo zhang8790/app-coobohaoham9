@@ -1,0 +1,358 @@
+// 食疗咨询页 · 国潮暖金风（与全站 pg-card / 古金 一致）
+.consult-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #FFF9EF 0%, #FFFBF7 240px, #FFFBF7 100%);
+}
+
+/* 顶部渐变标题 */
+.consult-hero {
+  padding: 28px 20px 22px;
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.18);
+}
+.consult-hero-emoji {
+  display: block;
+  font-size: 34px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.consult-hero-title {
+  display: block;
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 1px;
+}
+.consult-hero-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.consult-scroll {
+  flex: 1;
+  padding: 14px 14px 0;
+}
+
+/* 用户画像卡 */
+.consult-profile-card {
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid rgba(200, 164, 92, 0.25);
+  padding: 14px;
+  box-shadow: 0 6px 18px rgba(120, 53, 15, 0.06);
+}
+.consult-profile-head {
+  margin-bottom: 6px;
+}
+.consult-constitution {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(200, 164, 92, 0.3);
+}
+.consult-constitution-empty {
+  background: #FFFBF2;
+}
+.consult-constitution-emoji {
+  font-size: 30px;
+  line-height: 1;
+}
+.consult-constitution-name {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  color: #2A2118;
+}
+.consult-constitution-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #9A8070;
+}
+.consult-radar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 4px;
+}
+.consult-radar-summary {
+  margin-top: 6px;
+  padding: 0 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #6B5847;
+  text-align: center;
+}
+
+/* 快捷问法 */
+.consult-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.consult-chip {
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgba(200, 164, 92, 0.35);
+}
+.consult-chip-text {
+  font-size: 13px;
+  color: #9A6B1E;
+}
+
+/* 空态 */
+.consult-empty {
+  margin-top: 18px;
+  padding: 18px 16px;
+  background: rgba(255, 251, 242, 0.7);
+  border-radius: 16px;
+  border: 1px dashed rgba(200, 164, 92, 0.4);
+}
+.consult-empty-text {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #9A8070;
+}
+
+/* 对话流 */
+.consult-turn {
+  margin-top: 16px;
+}
+.consult-bubble-user {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.consult-bubble-user-text {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 16px 16px 4px 16px;
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.consult-bubble-bot {
+  margin-bottom: 10px;
+}
+.consult-bubble-bot-text {
+  display: block;
+  padding: 10px 14px;
+  border-radius: 16px 16px 16px 4px;
+  background: #fff;
+  border: 1px solid rgba(200, 164, 92, 0.25);
+  color: #4A3B2C;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 推荐卡片 */
+.consult-rec-card {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(200, 164, 92, 0.22);
+  box-shadow: 0 4px 14px rgba(120, 53, 15, 0.05);
+}
+.rec-img {
+  width: 84px;
+  height: 84px;
+  border-radius: 14px;
+  background: #F3EDE4;
+  flex-shrink: 0;
+}
+.rec-body {
+  flex: 1;
+  min-width: 0;
+}
+.rec-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rec-name {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: #2A2118;
+}
+.rec-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+.rec-score-num {
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+.rec-score-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.92);
+  margin-top: 1px;
+}
+.rec-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.rec-price {
+  font-size: 15px;
+  font-weight: 700;
+  color: #D97706;
+}
+.rec-nature {
+  font-size: 11px;
+  color: #6B5847;
+  background: #F3EDE4;
+  padding: 1px 7px;
+  border-radius: 6px;
+}
+.rec-tag {
+  font-size: 11px;
+  color: #9A6B1E;
+  background: #FFF4E2;
+  padding: 1px 7px;
+  border-radius: 6px;
+}
+
+/* 六维契合条 */
+.rec-sixdim {
+  margin-top: 9px;
+}
+.sixdim-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.sixdim-label {
+  width: 68px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #9A8070;
+}
+.sixdim-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #F0E9DF;
+  overflow: hidden;
+}
+.sixdim-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #E8B85C, #C8A45C);
+  transition: width 0.4s ease;
+}
+
+.rec-reasons {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rec-reason {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #6B5847;
+}
+.rec-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.rec-btn-cart {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+}
+.rec-btn-cart-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+.rec-btn-detail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(200, 164, 92, 0.4);
+}
+.rec-btn-detail-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #9A6B1E;
+}
+
+/* 底部输入区 */
+.consult-input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1px solid rgba(200, 164, 92, 0.2);
+  box-shadow: 0 -4px 16px rgba(120, 53, 15, 0.05);
+}
+.consult-input {
+  flex: 1;
+  min-height: 40px;
+  max-height: 96px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: #F7F2EA;
+  font-size: 14px;
+  color: #2A2118;
+  line-height: 1.4;
+}
+.consult-input-ph {
+  color: #B6A48F;
+}
+.consult-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 40px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  flex-shrink: 0;
+}
+.consult-send.is-loading {
+  opacity: 0.7;
+}
+.consult-send-text,
+.consult-send-loading {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}

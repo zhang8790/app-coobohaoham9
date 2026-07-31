@@ -18,12 +18,12 @@ const RANK_TIERS = [
   {
     rank: '悟心', score: '≥ 6,000', color: RANK_COLOR_MAP['悟心'],
     identity: '高阶 · 共创',
-    benefits: ['食养·情绪 共创权（命名 / 配方投票）', '私享品鉴'],
+    benefits: ['食养共创权（命名 / 配方投票）', '私享品鉴'],
     gate: '徽章收集度 ≥ 4'},
   {
     rank: '静心', score: '≥ 2,000', color: RANK_COLOR_MAP['静心'],
     identity: '中坚 · 专属',
-    benefits: ['1v1 情绪管家（季度）× 1', '线下主题沙龙邀约'],
+    benefits: ['1v1 食养管家（季度）× 1', '线下主题沙龙邀约'],
     gate: '累计确权 ≥ N'},
   {
     rank: '明心', score: '≥ 800', color: RANK_COLOR_MAP['明心'],
@@ -33,12 +33,12 @@ const RANK_TIERS = [
   {
     rank: '初心', score: '≥ 200', color: RANK_COLOR_MAP['初心'],
     identity: '入门 + · 关怀',
-    benefits: ['月度「情绪顾问」轻咨询 × 1', '生日情绪礼'],
+    benefits: ['月度「食养顾问」轻咨询 × 1', '生日食养礼'],
     gate: '—'},
   {
     rank: '凡心', score: '≥ 0', color: RANK_COLOR_MAP['凡心'],
     identity: '入门',
-    benefits: ['情绪确权基础礼包'],
+    benefits: ['食养确权基础礼包'],
     gate: '—'},
 ]
 
@@ -110,16 +110,16 @@ function RankRules() {
       <View className="mx-4 mt-2 bg-card rounded-2xl border border-border p-4">
         <Text className="block text-foreground text-base font-bold mb-2" style={{ display: 'block' }}>机制说明</Text>
         <Text className="block text-muted-foreground text-xs leading-loose" style={{ display: 'block' }}>
-          1. 团队 / 邀请新用户仅作推广佣金（真实服务费）的系数，不进入段位，避免「等级靠拉人」观感；推广佣金以金豆发放，不可提现。
+          1. 团队 / 邀请新用户仅作推广佣金（真实服务费）的系数，不进入段位，避免「等级靠拉人」观感；推广佣金以健康豆发放，不可提现。
         </Text>
         <Text className="block text-muted-foreground text-xs leading-loose" style={{ display: 'block' }}>
           2. 高段位（悟心 / 无心境）晋升参考「徽章收集度」作为软门槛（悟心 ≥ 4 枚，无心境 ≥ 8 枚且含史诗 / 传说），不硬卡升级。
         </Text>
         <Text className="block text-muted-foreground text-xs leading-loose" style={{ display: 'block' }}>
-          3. 徽章来自每次情绪确权，按稀有度（普通→稀有→史诗→传说）收藏，详见「徽章图鉴」。
+          3. 徽章来自每次食养确权，按稀有度（普通→稀有→史诗→传说）收藏，详见「徽章图鉴」。
         </Text>
         <Text className="block text-muted-foreground text-xs leading-loose mt-1" style={{ display: 'block' }}>
-          金豆为平台唯一内部资产，由人民币充值获得，仅限平台内消费，不可提现、不可兑现金、不可二级转让；推广佣金已以金豆发放，与之同源。
+          健康豆为平台唯一内部资产，由人民币充值获得，仅限平台内消费，不可提现、不可兑现金、不可二级转让；推广佣金已以健康豆发放，与之同源。
         </Text>
       </View>
     </View>

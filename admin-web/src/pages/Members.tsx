@@ -55,7 +55,7 @@ export default function Members() {
     const res = await adminAdjustGoldBean(detail.row.id, amt, adjDir, adjReason)
     setAdjBusy(false)
     if (res.ok) {
-      setAdjMsg({ ok: true, text: `已${adjDir === 'grant' ? '发放' : '扣减'} ${amt} 金豆，余额 ${res.balanceAfter ?? ''}` })
+      setAdjMsg({ ok: true, text: `已${adjDir === 'grant' ? '发放' : '扣减'} ${amt} 健康豆，余额 ${res.balanceAfter ?? ''}` })
       setAdjAmt(''); setAdjReason('')
       const data = await getMemberDetail(detail.row.id)
       setDetail({ row: data.profile ?? detail.row, data })
@@ -116,7 +116,7 @@ export default function Members() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--surface)', borderBottom: `1px solid ${C.border}` }}>
-              {['会员ID', '昵称/手机号', '上线', '下线', '段位', '注册时间', '地址', '买家金豆', '金豆', '状态'].map(h => (
+              {['会员ID', '昵称/手机号', '上线', '下线', '段位', '注册时间', '地址', '买家健康豆', '健康豆', '状态'].map(h => (
                 <th key={h} style={{ color: C.dim, fontWeight: 500, padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -165,7 +165,7 @@ export default function Members() {
         </div>
       </div>
 
-      {/* 金豆明细抽屉 */}
+      {/* 健康豆明细抽屉 */}
       {detail && (
         <div onClick={() => setDetail(null)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' }}>
@@ -242,11 +242,11 @@ export default function Members() {
               </div>
             )}
 
-            {/* 金豆后台发放 / 扣减 */}
+            {/* 健康豆后台发放 / 扣减 */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
-              <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600 }}>金豆管理</h3>
+              <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600 }}>健康豆管理</h3>
               <button onClick={() => { setShowAdjust(v => !v); setAdjMsg(null) }} style={btnStyle(false)}>
-                {showAdjust ? '收起' : '调整金豆'}
+                {showAdjust ? '收起' : '调整健康豆'}
               </button>
             </div>
             {showAdjust && (
@@ -262,7 +262,7 @@ export default function Members() {
                     </button>
                   ))}
                 </div>
-                <input value={adjAmt} onChange={e => setAdjAmt(e.target.value)} inputMode="decimal" placeholder="金豆数量（1 金豆 = 1 元）"
+                <input value={adjAmt} onChange={e => setAdjAmt(e.target.value)} inputMode="decimal" placeholder="健康豆数量（1 健康豆 = 1 元）"
                   style={{ background: 'var(--surface)', border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, padding: '10px 12px', fontSize: 13 }} />
                 <input value={adjReason} onChange={e => setAdjReason(e.target.value)} placeholder="原因（如：活动奖励 / 客服补偿）"
                   style={{ background: 'var(--surface)', border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, padding: '10px 12px', fontSize: 13 }} />
@@ -277,14 +277,14 @@ export default function Members() {
               </div>
             )}
 
-            <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600, margin: '20px 0 12px' }}>金豆明细（emotion_claims）</h3>
+            <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600, margin: '20px 0 12px' }}>健康豆明细（emotion_claims）</h3>
             {detail.data.emotionClaims.length === 0 ? (
               <p style={{ color: C.dim, fontSize: 13 }}>该会员暂无会员确权记录</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                    {['订单号', '金豆', '贡献值', '状态', '时间'].map(h => (
+                    {['订单号', '健康豆', '贡献值', '状态', '时间'].map(h => (
                       <th key={h} style={{ color: C.dim, fontWeight: 500, padding: '8px 6px', textAlign: 'left' }}>{h}</th>
                     ))}
                   </tr>
@@ -320,10 +320,10 @@ function ProfileBlock({ d }: { d: { row: MemberRow; data: MemberDetail } }) {
     ['段位', r.member_rank],
     ['注册时间', fmtDate(r.created_at)],
     ['地址', maskAddress(r.address)],
-    ['买家金豆', fmt(r.points)],
-    ['金豆余额', fmt(r.tb_balance)],
+    ['买家健康豆', fmt(r.points)],
+    ['健康豆余额', fmt(r.tb_balance)],
     ['下单次数', fmt(d.data.orderCount)],
-    ['金豆发放笔数', fmt(d.data.emotionClaims.length)],
+    ['健康豆发放笔数', fmt(d.data.emotionClaims.length)],
   ]
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

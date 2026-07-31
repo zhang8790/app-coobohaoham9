@@ -4,7 +4,7 @@
  * 1. 自己买自己的店（员工=买家）
  * 2. 闭环刷单（A→B→C→A）
  * 3. 高频小额订单
- * 4. 金豆套利（下单拿金豆→退款）
+ * 4. 健康豆套利（下单拿健康豆→退款）
  */
 
 // ============ 风控配置 ============
@@ -30,7 +30,7 @@ export type RiskType =
   | 'self_dealing'        // 自己买自己的店
   | 'loop_referral'       // 闭环推荐
   | 'high_frequency'      // 高频订单
-  | 'gold_bean_arbitrage'    // 金豆套利
+  | 'gold_bean_arbitrage'    // 健康豆套利
   | 'fake_order'          // 虚假订单
   | 'multi_account';      // 多账号
 
@@ -176,8 +176,8 @@ export function checkMinOrderAmount(orderAmount: number): RiskCheckResult {
 }
 
 /**
- * 检测5：金豆套利检测
- * 规则：下单后短时间内退款，且已使用金豆
+ * 检测5：健康豆套利检测
+ * 规则：下单后短时间内退款，且已使用健康豆
  */
 export async function checkGoldBeanArbitrage(
   supabase: any,
@@ -207,9 +207,9 @@ export async function checkGoldBeanArbitrage(
         passed: false,
         riskType: 'gold_bean_arbitrage',
         riskLevel: 'medium',
-        description: '订单退款且已获赠金豆，疑似金豆套利',
-        shouldFreeze: false,  // 不冻结，但需追回金豆
-        freezeReason: '金豆套利检测：退款订单获赠金豆',
+        description: '订单退款且已获赠健康豆，疑似健康豆套利',
+        shouldFreeze: false,  // 不冻结，但需追回健康豆
+        freezeReason: '健康豆套利检测：退款订单获赠健康豆',
       };
     }
   }
@@ -357,7 +357,7 @@ export async function recoverCommission(
 }
 
 /**
- * 追回金豆（退款时）
+ * 追回健康豆（退款时）
  */
 export async function recoverGoldBeans(
   supabase: any,
@@ -371,7 +371,7 @@ export async function recoverGoldBeans(
   
   if (!order || !order.buyer_points || order.buyer_points <= 0) return;
   
-  // 扣回买家获赠金豆（buyer_points 已并入 tb_balance 统一钱包）
+  // 扣回买家获赠健康豆（buyer_points 已并入 tb_balance 统一钱包）
   const { data: prof } = await supabase
     .from('profiles')
     .select('tb_balance')

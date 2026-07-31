@@ -5,11 +5,13 @@ import { View, Text, Image, ScrollView, RichText, Button, Canvas, Video } from '
 import './index.scss'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { getArticleById, incrementArticleView, getArticles, getProductById, toggleArticleFavorite, isArticleFavorited, toggleAuthorFollow, isFollowingAuthor } from '@/db/api'
-import { handleInviterFromQuery, buildArticleShareTitle } from '@/utils/share'
-import { generateArticleSharePoster, POSTER_WIDTH, POSTER_HEIGHT } from '@/utils/share-poster'
+import { getArticleById, incrementArticleView, getArticles, getProductById, toggleArticleFavorite, isArticleFavorited, toggleAuthorFollow, isFollowingAuthor, toggleArticleLike, isArticleLiked, getArticleLikeCount, incrementArticleShare, addEmotionTongbao, grantEmotionBadge, getArticleShareCode } from '@/db/api'
+import { handleInviterFromQuery, buildArticleShareTitle, getMyReferralCode } from '@/utils/share'
+import { generateArticleSharePoster, POSTER_WIDTH, POSTER_HEIGHT, generateArticleCodePoster, CODE_POSTER_WIDTH, CODE_POSTER_HEIGHT } from '@/utils/share-poster'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import Icon from '@/components/Icon'
+
+const SHARE_REWARD = 1 // 分享得金豆（健康豆，1:1 元）
 
 export default function ArticleDetailPage() {
   const { user } = useAuth()
@@ -19,6 +21,8 @@ export default function ArticleDetailPage() {
   const [error, setError] = useState('')
   const [isFavorited, setIsFavorited] = useState(false)
   const [isFollowing, setIsFollowing] = useState(false)
+  const [isLiked, setIsLiked] = useState(false)
+  const [likeCount, setLikeCount] = useState(0)
   const viewedRef = useRef(false)
 
   const instance = Taro.getCurrentInstance()
@@ -27,6 +31,7 @@ export default function ArticleDetailPage() {
   // 分享钩子
   const shareTitle = buildArticleShareTitle(article)
   const [sharePosterUrl, setSharePosterUrl] = useState<string>('')
+  const [savingPoster, setSavingPoster] = useState(false)
 
   // 文章加载成功后，异步生成分享海报
   useEffect(() => {
@@ -74,17 +79,29 @@ export default function ArticleDetailPage() {
     loadArticle()
   }, [articleId])
 
-  // 预览时归属
+  // ── 锁客（本产品图文的唯一目的：成交在线下，图文只负责把人锁住）──
+  // 双保险：① 分享链接带推广码 → 绑推广链；② 无论有无码，只要读到这篇图文就把作者锁为上级
+  const lockedRef = useRef(false)
   useEffect(() => {
-    if (article && user) {
-      const query = instance.router?.params || {}
-      const inviterCode = (query as any).ref || (query as any).inviter
-      if (inviterCode && article.store_id) {
-        import('@/db/api').then(({ lockCustomerByArticle }) => {
-          lockCustomerByArticle(article.store_id, inviterCode).catch(() => {})
-        })
+    if (!article || !user || lockedRef.current) return
+    lockedRef.current = true
+
+    const query = instance.router?.params || {}
+    // 兼容历史已分享出去的 from= 链接（早期「我的创作」用的是 from）
+    const inviterCode = (query as any).ref || (query as any).inviter || (query as any).from
+
+    import('@/db/api').then(({ lockCustomerByArticle, lockCustomerByArticleId }) => {
+      // ① 带码：优先按推广码绑定（谁分享算谁的）
+      if (inviterCode) {
+        lockCustomerByArticle((article as any).store_id, inviterCode).catch(() => {})
       }
-    }
+      // ② 图文锁客：记录本篇锁到的客，访客若还没上级则认作者为上级
+      lockCustomerByArticleId(article.id).then(res => {
+        if (res.is_new_customer && res.first_visit) {
+          console.log('[锁客] 本篇图文锁定新客成功')
+        }
+      }).catch(() => {})
+    })
   }, [article, user])
 
   const loadArticle = async () => {
@@ -93,12 +110,17 @@ export default function ArticleDetailPage() {
       const data = await getArticleById(articleId!)
       if (!data) {
         setError('文章不存在或已下架')
+      } else if ((data as any).is_published === false && data.user_id !== user?.id) {
+        // 下架即分享链接失效：非作者访问已下架内容 → 占位页（作者自己仍可预览草稿）
+        setError('该内容已下架')
       } else {
         setArticle(data)
 
         // 拉取当前用户对该文章的收藏/关注作者状态（报告 P3 内容闭环）
         isArticleFavorited(articleId!).then(setIsFavorited).catch(() => {})
         if (data.user_id) isFollowingAuthor(data.user_id).then(setIsFollowing).catch(() => {})
+        isArticleLiked(articleId!).then(setIsLiked).catch(() => {})
+        getArticleLikeCount(articleId!).then(setLikeCount).catch(() => {})
 
         if (!viewedRef.current) {
           viewedRef.current = true
@@ -156,10 +178,69 @@ export default function ArticleDetailPage() {
       icon: 'success'})
   }
 
+  const handleLike = async () => {
+    if (!user) {
+      Taro.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+    if (!articleId) return
+    const { isLiked: liked } = await toggleArticleLike(articleId)
+    setIsLiked(liked)
+    setLikeCount(c => (liked ? c + 1 : Math.max(0, c - 1)))
+    Taro.showToast({ title: liked ? '点赞了' : '已取消', icon: 'none' })
+  }
+
   const handleShare = () => {
-    // 真正触发分享由 openType='share' 的 Button 完成
-    // 保留此函数，方便以后做「生成海报」等二次入口
+    // 分享时发奖励：分享自增 + 分享者得金豆 + 首次分享徽章
+    if (articleId) {
+      incrementArticleShare(articleId).catch(() => {})
+      if (user?.id) {
+        addEmotionTongbao(user.id, SHARE_REWARD, 'share_invite', articleId, '分享文章').catch(() => {})
+        grantEmotionBadge(user.id, 'first_share').catch(() => {})
+      }
+    }
     Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
+  }
+
+  // 朋友圈锁客海报：生成带小程序码的海报并保存到相册
+  const handleSavePoster = async () => {
+    if (!user) {
+      Taro.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+    if (!articleId || savingPoster) return
+    setSavingPoster(true)
+    try {
+      Taro.showLoading({ title: '生成海报…' })
+      const myCode = await getMyReferralCode().catch(() => '')
+      const { code } = await getArticleShareCode(articleId, myCode)
+      const filePath = await generateArticleCodePoster(article, 'articleCodePosterCanvas', code)
+      Taro.hideLoading()
+      await savePosterToAlbum(filePath)
+    } catch (e: any) {
+      Taro.hideLoading()
+      Taro.showToast({ title: e?.message || '生成失败', icon: 'none' })
+    } finally {
+      setSavingPoster(false)
+    }
+  }
+
+  const savePosterToAlbum = async (filePath: string) => {
+    try {
+      await Taro.saveImageToPhotosAlbum({ filePath })
+      Taro.showToast({ title: '海报已保存到相册', icon: 'success' })
+    } catch (e: any) {
+      const msg: string = e?.errMsg || ''
+      if (msg.includes('auth') || msg.includes('deny')) {
+        const r = await Taro.showModal({
+          title: '需要相册权限',
+          content: '保存海报需要授权相册，是否去设置开启？',
+          confirmText: '去设置' })
+        if (r.confirm) Taro.openSetting({})
+      } else {
+        Taro.showToast({ title: '保存失败，请重试', icon: 'none' })
+      }
+    }
   }
 
   if (loading) {
@@ -277,8 +358,22 @@ export default function ArticleDetailPage() {
           </View>
         )}
 
+        {/* ===== 情绪食养配方卡标识 ===== */}
+        {(article as any).mood_tag && (
+          <View className="mx-4 mt-3 p-3 rounded-2xl bg-primary/10 border border-primary/20 flex items-center gap-3">
+            <Text className="text-2xl">💭</Text>
+            <View className="flex-1">
+              <Text className="text-lg font-bold text-foreground">情绪食养配方 · {(article as any).mood_tag}</Text>
+              <Text className="text-sm text-muted-foreground">这一刻的心情，值得被好好对待</Text>
+            </View>
+          </View>
+        )}
+
         {/* ===== 正文内容（公众号风格排版） ===== */}
         <View className="content-body">
+          {/* 视频：有 video_url 直接内联播放器（发布视频入口产出） */}
+          {article.video_url && <InlineVideo url={article.video_url} />}
+
           {/* 图片列表（仅当正文未内联图片时展示，避免与 [[img:]] 重复） */}
           {article.images && article.images.length > 0 && !/\[\[img:/.test(article.content || '') && (
             <View className="content-images">
@@ -301,27 +396,17 @@ export default function ArticleDetailPage() {
           {article.content && (
             <ArticleContentWithProducts content={article.content} articleId={articleId} />
           )}
-
-          {/* 视频提示 */}
-          {article.video_url && (
-            <View className="video-tip-bar">
-              <Text className="video-tip-icon">🎬</Text>
-              <Text className="video-tip-text">本文包含视频内容</Text>
-              <View
-                className="video-copy-btn"
-                onClick={() => {
-                  Taro.setClipboardData({ data: article.video_url })
-                  Taro.showToast({ title: '链接已复制', icon: 'success' })
-                }}
-              >
-                <Text className="video-copy-text">复制链接</Text>
-              </View>
-            </View>
-          )}
         </View>
 
         {/* ===== 底部操作栏 ===== */}
         <View className="bottom-actions">
+          <View
+            className={`action-item ${isLiked ? 'action-active' : ''}`}
+            onClick={handleLike}
+          >
+            <Text className="action-icon">{isLiked ? '❤' : '♡'}</Text>
+            <Text className="action-label">{likeCount > 0 ? likeCount : '点赞'}</Text>
+          </View>
           <Button openType="share" className="action-item action-share-btn" onClick={handleShare}>
             <Text className="action-icon">↗</Text>
             <Text className="action-label">分享</Text>
@@ -334,6 +419,13 @@ export default function ArticleDetailPage() {
             <Text className="action-label">
               {isFavorited ? '已收藏' : '收藏'}
             </Text>
+          </View>
+          <View
+            className="action-item"
+            onClick={handleSavePoster}
+          >
+            <Text className="action-icon">{savingPoster ? '⏳' : '🖼'}</Text>
+            <Text className="action-label">{savingPoster ? '生成中' : '海报'}</Text>
           </View>
           <View
             className="action-item"
@@ -400,6 +492,12 @@ export default function ArticleDetailPage() {
         id="articleShareCanvas"
         className="share-canvas-hidden"
         style={{ width: `${POSTER_WIDTH}px`, height: `${POSTER_HEIGHT}px` }} />
+      {/* 隐藏 Canvas：用于绘制带小程序码的朋友圈海报 */}
+      <Canvas
+        type="2d"
+        id="articleCodePosterCanvas"
+        className="share-canvas-hidden"
+        style={{ width: `${CODE_POSTER_WIDTH}px`, height: `${CODE_POSTER_HEIGHT}px` }} />
     </View>
   )
 }
@@ -411,11 +509,20 @@ type ContentPart =
   | { type: 'product'; id: string }
   | { type: 'img'; url: string }
   | { type: 'video'; url: string }
+  | { type: 'h1'; value: string }
+  | { type: 'h2'; value: string }
+  | { type: 'quote'; value: string }
+  | { type: 'tip'; value: string }
+  | { type: 'hr' }
   | { type: 'text'; value: string }
+
+// 块编辑器 token：[[h1:]] [[h2:]] [[quote:]] [[tip:]] [[hr]] 与既有 [[img:]] [[video:]] [[product:]] 并存
+const TOKEN_SPLIT_RE =
+  /(\[\[img:[^\]]+\]\]|\[\[video:[^\]]+\]\]|\[\[product:[\w-]+\]\]|\[\[h1:[^\]]+\]\]|\[\[h2:[^\]]+\]\]|\[\[quote:[^\]]+\]\]|\[\[tip:[^\]]+\]\]|\[\[hr\]\])/g
 
 function parseContent(content: string): ContentPart[] {
   if (!content) return []
-  const raw = content.split(/(\[\[img:[^\]]+\]\]|\[\[video:[^\]]+\]\]|\[\[product:[\w-]+\]\])/g)
+  const raw = content.split(TOKEN_SPLIT_RE)
   const parts: ContentPart[] = []
   for (const seg of raw) {
     if (!seg) continue
@@ -425,6 +532,15 @@ function parseContent(content: string): ContentPart[] {
     if (m) { parts.push({ type: 'video', url: m[1] }); continue }
     m = seg.match(/^\[\[product:([\w-]+)\]\]$/)
     if (m) { parts.push({ type: 'product', id: m[1] }); continue }
+    m = seg.match(/^\[\[h1:([^\]]+)\]\]$/)
+    if (m) { parts.push({ type: 'h1', value: m[1] }); continue }
+    m = seg.match(/^\[\[h2:([^\]]+)\]\]$/)
+    if (m) { parts.push({ type: 'h2', value: m[1] }); continue }
+    m = seg.match(/^\[\[quote:([^\]]+)\]\]$/)
+    if (m) { parts.push({ type: 'quote', value: m[1] }); continue }
+    m = seg.match(/^\[\[tip:([^\]]+)\]\]$/)
+    if (m) { parts.push({ type: 'tip', value: m[1] }); continue }
+    if (/^\[\[hr\]\]$/.test(seg)) { parts.push({ type: 'hr' }); continue }
     if (seg.trim() !== '') parts.push({ type: 'text', value: seg })
   }
   return parts
@@ -522,6 +638,16 @@ function ArticleContentWithProducts({ content, articleId }: { content: string; a
             onClick={() => Taro.previewImage({ urls: [part.url], current: part.url })} />
         ) : part.type === 'video' ? (
           <InlineVideo key={idx} url={part.url} />
+        ) : part.type === 'h1' ? (
+          <Text key={idx} className="blk-h1">{part.value}</Text>
+        ) : part.type === 'h2' ? (
+          <Text key={idx} className="blk-h2">{part.value}</Text>
+        ) : part.type === 'quote' ? (
+          <View key={idx} className="blk-quote"><Text className="blk-quote-t">{part.value}</Text></View>
+        ) : part.type === 'tip' ? (
+          <View key={idx} className="blk-tip"><Text className="blk-tip-t">{part.value}</Text></View>
+        ) : part.type === 'hr' ? (
+          <View key={idx} className="blk-hr" />
         ) : (
           <RichText key={idx} nodes={part.value} className="rich-content" />
         )

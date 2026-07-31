@@ -398,7 +398,7 @@ function OrdersTab({ storeId }: { storeId: string }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: C.bg }}>
-              {['订单号', '买家', '成交额', '让利后收益', '金豆抵扣', '状态', '时间'].map(h => (
+              {['订单号', '买家', '成交额', '让利后收益', '健康豆抵扣', '状态', '时间'].map(h => (
                 <th key={h} style={thStyle}>{h}</th>
               ))}
             </tr>

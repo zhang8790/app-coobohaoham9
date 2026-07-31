@@ -96,12 +96,12 @@ export default function ExpiryPage() {
                   </View>
                   {p.decided_by === 'ai' && (
                     <Text className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/15">
-                      AI
+                      自动
                     </Text>
                   )}
                 </View>
               }
-              onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.product_id}` })}
+              onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.product_id}&ep=${encodeURIComponent(String(p.effective_price))}&batch=${encodeURIComponent(String(p.batch_id))}` })}
             />
           ))
         )}
