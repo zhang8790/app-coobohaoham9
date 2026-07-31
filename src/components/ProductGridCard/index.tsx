@@ -139,15 +139,7 @@ export default function ProductGridCard({
                 ✅{fitChip}
               </Text>
             ) : null}
-            {/* 卡片仅常驻「过敏」强制警示（合规硬提示），慎食/慢病进详情页主动展开，避免列表靠色差字号误导 */}
-            {therapyReport.warnings.filter((w) => w.level === 'red').slice(0, 1).map((w) => {
-              const an = therapyReport.allergens?.[0]?.name || '过敏原'
-              return (
-                <Text key={w.code} className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: '#FEF2F2', color: '#C0392B', whiteSpace: 'nowrap', borderWidth: '1px', borderColor: '#F1B0B0' }} numberOfLines={1}>
-                  含{an}·敏者留意
-                </Text>
-              )
-            })}
+            {/* 列表卡片保持纯净：过敏提示仅在详情页「配料说明」折叠区展示，避免列表页吓退用户、影响转化 */}
           </View>
         )}
 

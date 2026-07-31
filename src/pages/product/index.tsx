@@ -55,6 +55,7 @@ export default function ProductPage() {
   const [foodAdditives, setFoodAdditives] = useState<FoodAdditive[]>([])
   const [loading, setLoading] = useState(true)
   const [expandCautions, setExpandCautions] = useState(false)
+  const [expandAllergens, setExpandAllergens] = useState(false)
   const [adding, setAdding] = useState(false)
   const cartCount = useCartCount()
   const [myCode, setMyCode] = useState('')
@@ -473,19 +474,31 @@ export default function ProductPage() {
                 <Text style={{ fontSize: '13px', color: '#14532D', display: 'block', lineHeight: '1.6' }}>{therapyReport.fit_people.split('、').slice(0, 3).join('、')}{therapyReport.fit_people.split('、').length > 3 ? ' 等' : ''}</Text>
               </View>
             ) : null}
-            {/* 过敏原警示：强制常驻显著（满足消法第18条警示义务 + GB7718 过敏原标示 + 微信平台要求，不得隐藏/弱化） */}
-            {therapyReport.warnings.filter((w) => w.level === 'red').length > 0 && (
-              <View style={{ marginTop: 8 }}>
-                {therapyReport.warnings.filter((w) => w.level === 'red').map((w, i) => (
-                  <View key={w.code + i} style={{ flexDirection: 'row', alignItems: 'flex-start', background: '#FEF2F2', borderRadius: '10px', padding: '8px 10px', marginTop: i === 0 ? 0 : 6, border: '1px solid #F1B0B0' }}>
-                    <Text style={{ fontSize: '13px', marginRight: 4, lineHeight: '1.5' }}>⚠️</Text>
-                    <Text style={{ fontSize: '13px', color: '#C0392B', flex: 1, lineHeight: '1.5' }}>
-                      <Text style={{ fontWeight: '700' }}>{w.label}：</Text>{w.text}
-                    </Text>
+            {/* 过敏原提示：法律强制披露（GB7718/消法第18条），但不在首屏用红框压迫——改为中性「配料说明」折叠，用户主动点开才见，信息始终可获取不隐瞒 */}
+            {(() => {
+              const reds = therapyReport.warnings.filter((w) => w.level === 'red')
+              if (reds.length === 0) return null
+              return (
+                <View style={{ marginTop: 8 }}>
+                  <View onClick={() => setExpandAllergens((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <Text style={{ fontSize: '13px', color: '#475569', fontWeight: '600' }}>配料说明 ⚠️</Text>
+                    <Text style={{ fontSize: '12px', color: '#94A3B8' }}>{expandAllergens ? '收起 ▲' : '查看 ›'}</Text>
                   </View>
-                ))}
-              </View>
-            )}
+                  {expandAllergens && (
+                    <View style={{ marginTop: 6 }}>
+                      {reds.map((w, i) => (
+                        <View key={w.code + i} style={{ flexDirection: 'row', alignItems: 'flex-start', background: '#FEF2F2', borderRadius: '10px', padding: '8px 10px', marginTop: i === 0 ? 0 : 6, border: '1px solid #F1B0B0' }}>
+                          <Text style={{ fontSize: '13px', marginRight: 4, lineHeight: '1.5' }}>⚠️</Text>
+                          <Text style={{ fontSize: '13px', color: '#C0392B', flex: 1, lineHeight: '1.5' }}>
+                            <Text style={{ fontWeight: '700' }}>{w.label}：</Text>{w.text}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )
+            })()}
             {/* 食用注意（慎食/慢病）：建议性质，默认折叠，用户主动展开——信息可获取不隐藏，亦不靠排版误导 */}
             {(() => {
               const cautions = therapyReport.warnings.filter((w) => w.level !== 'red')
