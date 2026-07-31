@@ -303,9 +303,9 @@ export function buildTherapyReport(
   )
   const chronicFit = chronic.filter((t) => /友好|适宜|营养|补充/.test(t))
   const fitParts = [...fitScenes, ...chronicFit]
-  const fit_people = sanitizeTherapyCopy(
-    (fitParts.length ? fitParts.join('、') + '、' : '') + '日常佐餐、上班族、青少年营养补给',
-  )
+  // 兜底通用项去重（避免与食材适用场景重复，如「日常佐餐」）
+  const fallback = ['日常佐餐', '上班族', '青少年营养补给'].filter((x) => !fitParts.includes(x))
+  const fit_people = sanitizeTherapyCopy([...fitParts, ...fallback].join('、'))
 
   // 商家寄语模板（80 字内，合规过滤）
   const merchant_note = sanitizeTherapyCopy(
@@ -339,8 +339,7 @@ export function buildTherapyHeadline(r: ProductTherapyReport): TherapyHeadline {
   const red = r.warnings.find((w) => w.level === 'red')
   const feeling = NATURE_FEELING[r.overall_nature_code] || ''
   if (red) {
-    const m = red.text.match(/含([^，。、\s]+)/)
-    const name = m ? m[1] : '过敏成分'
+    const name = r.allergens[0]?.name || '过敏成分'
     return {
       main: `含${name} · 过敏请务必留意`,
       sub: feeling ? `${feeling} · 其余朋友可安心享用` : '其余朋友可安心享用',
