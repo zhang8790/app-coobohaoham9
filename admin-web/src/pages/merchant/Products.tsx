@@ -1083,10 +1083,10 @@ export default function MerchantProducts() {
                   style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食用风险提示</span>
-                <textarea value={form.risk_warning} onChange={e => setForm(f => ({ ...f, risk_warning: e.target.value }))} placeholder="如：上火、经期量大人群会加重不适" rows={2}
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食用参考（特定人群注意点）</span>
+                <textarea value={form.risk_warning} onChange={e => setForm(f => ({ ...f, risk_warning: e.target.value }))} placeholder="如：经期量大人群建议少量品尝" rows={2}
                   style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
-                <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>与正向作用分开填写，详情页分别展示</span>
+                <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>仅供参考，详情页以正向展示为主</span>
               </div>
 
               {/* 情绪价值文案（固定三段式模板填空） */}
@@ -1137,7 +1137,7 @@ export default function MerchantProducts() {
                 </div>
               </div>
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>② 谨慎食用人群（多选）+ 限制说明</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>② 少量品鉴人群（多选）+ 温馨提醒</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                   {CROWD_OPTIONS.map(c => {
                     const active = form.cautious_crowds.includes(c)
@@ -1153,7 +1153,7 @@ export default function MerchantProducts() {
                   style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>③ 禁止食用人群（多选）+ 风险原因</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>③ 建议回避人群（多选）+ 参考原因</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                   {CROWD_OPTIONS.map(c => {
                     const active = form.forbidden_crowds.includes(c)
@@ -1165,7 +1165,7 @@ export default function MerchantProducts() {
                     )
                   })}
                 </div>
-                <textarea value={form.forbidden_reasons} onChange={e => setForm(f => ({ ...f, forbidden_reasons: e.target.value }))} placeholder="如：加重不适、诱发痛风" rows={2}
+                <textarea value={form.forbidden_reasons} onChange={e => setForm(f => ({ ...f, forbidden_reasons: e.target.value }))} placeholder="如：特殊体质建议回避、建议少量尝试" rows={2}
                   style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
               </div>
 

@@ -140,15 +140,15 @@ function FragmentDetail({ fragment, onClose }: { fragment: KnowledgeFragment; on
           </View>
         </View>
 
-        {/* 风险提示 */}
+        {/* 食用参考：了解食材特性，吃得更安心 */}
         {fragment.dangerTip && (
           <View className="mb-4">
-            <Text className="text-sm font-bold text-[#DC2626] mb-2">⚠️ 风险提示</Text>
+            <Text className="text-sm font-bold text-[#78350F] mb-2">📌 食用参考</Text>
             <View
               className="rounded-xl p-4"
-              style={{ background: '#FEF2F2', boxShadow: '0 2px 8px rgba(220,38,38,0.08)' }}
+              style={{ background: '#FEF3C7', boxShadow: '0 2px 8px rgba(120,53,15,0.06)' }}
             >
-              <Text className="text-sm text-[#DC2626] leading-relaxed">{fragment.dangerTip}</Text>
+              <Text className="text-sm text-[#78350F] leading-relaxed">{fragment.dangerTip}</Text>
             </View>
           </View>
         )}
