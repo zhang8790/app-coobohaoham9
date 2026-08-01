@@ -90,7 +90,7 @@ scripts/pl-*
 _tmp_img*.sql
 diag-*.sql
 *.bak
-dist.bak.*
+dist.bak*
 _dist_*
 dist_old_build
 .color-sweep*

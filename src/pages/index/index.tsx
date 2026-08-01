@@ -1122,33 +1122,8 @@ export default function IndexPage() {
 
       {/* 悬浮扫码按钮已合并至首屏「扫码查安全」唯一入口，避免首页扫码重复 */}
 
-      {/* 全局悬浮操作栏：可拖拽 · 吸附边缘 · 双按钮（食疗咨询/去结算） */}
+      {/* 全局悬浮操作栏：点击展开 · 三按钮（去结算/客服/食疗咨询） */}
       <FloatingActionBar />
-
-      {/* 悬浮客服按钮：微信原生（open-type="contact"），不可放入 FloatingActionBar */}
-      <Button
-        openType="contact"
-        className="kefu-fab wx-contact-btn"
-        hoverClass="none"
-        style={{
-          position: 'fixed',
-          right: '24px',
-          bottom: 'calc(env(safe-area-inset-bottom) + 96px)',
-          width: '52px',
-          height: '52px',
-          padding: 0,
-          margin: 0,
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-          boxShadow: '0 8px 22px rgba(217, 119, 6, 0.45)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 60,
-        }}
-      >
-        <Icon name="headset" size={28} className="text-white" />
-      </Button>
 
       {/* 自定义底部导航：独立渲染（贴底全宽），不可嵌套在 FAB 容器内，否则购物车徽标在真机渲染异常 */}
       <CustomTabBar />

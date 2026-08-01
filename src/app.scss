@@ -330,11 +330,3 @@
 
 /* 微信原生客服按钮（open-type="contact"）：去掉默认 ::after 描边 */
 .wx-contact-btn::after { border: none !important; }
-
-/* 首页右下角悬浮客服按钮 */
-.kefu-fab {
-  line-height: normal;
-  transition: transform .15s ease;
-}
-.kefu-fab:active { transform: scale(0.9); }
-.kefu-fab::after { border: none !important; }

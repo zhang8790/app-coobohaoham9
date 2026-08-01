@@ -115,3 +115,17 @@
 .fab-sub--consult .fab-sub-inner {
   border: 1px solid rgba(22, 163, 74, 0.2);
 }
+.fab-sub--kefu .fab-sub-inner {
+  border: 1px solid rgba(37, 99, 235, 0.25);
+}
+// 客服子按钮：微信 Button 默认带边框/背景，重置为透明，仅保留内部药丸
+.fab-sub--kefu {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: normal;
+  &::after {
+    border: none !important;
+  }
+}

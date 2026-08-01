@@ -7,13 +7,16 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { View, Text, ScrollView, Image, Textarea } from '@tarojs/components'
+import { View, Text, ScrollView, Image, Textarea, Button } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
 import { getProducts, getOrders, getProductsByIds, addToCart, createOrder, getCartItems } from '@/db/api'
+import { supabase } from '@/client/supabase'
 import { recommendForConsult, type ConsultResult, type ConsultRecommendation } from '@/utils/food-therapy/consult-recommend'
+import { checkCartConflicts, toFoodTherapyInput, type CartConflict } from '@/utils/food-therapy'
 import { resolveConstitution } from '@/utils/today-food-therapy'
-import type { Product } from '@/db/types'
+import { setPendingCheckout } from '@/utils/checkoutCache'
+import type { Product, CartItem } from '@/db/types'
 import './index.scss'
 
 const HISTORY_KEY = 'consult_history_v1'
@@ -41,6 +44,28 @@ interface Turn {
   result: ConsultResult
 }
 
+// 展示价：临期批次特惠价优先，否则目录价（与购物车/支付页实付价一致）
+function computePrice(i: CartItem, effMap: Record<string, number>): number {
+  if (i.batch_id != null && effMap[i.batch_id] != null) return effMap[i.batch_id]!
+  return i.products?.price || 0
+}
+
+// 拉取购物车 + 临期特惠价映射（结算面板与购物车条共用）
+async function fetchCartWithEff(): Promise<{ items: CartItem[]; effMap: Record<string, number>; total: number }> {
+  const data = (await getCartItems()) as CartItem[]
+  const effMap: Record<string, number> = {}
+  const batchIds = data.map((i) => i.batch_id).filter(Boolean) as string[]
+  if (batchIds.length) {
+    const { data: effRows } = await supabase
+      .from('v_near_expiry_products')
+      .select('batch_id, effective_price')
+      .in('batch_id', batchIds)
+    ;(effRows || []).forEach((r: any) => { if (r.batch_id != null) effMap[r.batch_id] = r.effective_price })
+  }
+  const total = data.reduce((s, i) => s + computePrice(i, effMap) * i.quantity, 0)
+  return { items: data, effMap, total }
+}
+
 export default function ConsultPage() {
   const { user, profile } = useAuth()
   const { currentStore } = useLocation()
@@ -52,7 +77,12 @@ export default function ConsultPage() {
   const [loading, setLoading] = useState(false)
   const [boostTags, setBoostTags] = useState<string[]>([])
   const [cartIds, setCartIds] = useState<Set<string>>(new Set())
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [cartEff, setCartEff] = useState<Record<string, number>>({})
   const [cartCount, setCartCount] = useState(0)
+  const [cartTotal, setCartTotal] = useState(0)
+  const [showCheckout, setShowCheckout] = useState(false)
+  const [checkoutConflict, setCheckoutConflict] = useState<CartConflict[] | null>(null)
   const scrollRef = useRef<any>(null)
 
   // 读取本地查询历史（自适应加权，自动优化）
@@ -110,15 +140,21 @@ export default function ConsultPage() {
   const loadBase = async () => {
     setLoading(true)
     try {
-      const [poolRes, ordersRes, cartRes] = await Promise.all([
+      const [poolRes, ordersRes] = await Promise.all([
         getProducts({ storeId: currentStore?.id, limit: 40, platformFilter: 'only' }).catch(() => [] as Product[]),
         user?.id ? getOrders().catch(() => [] as any[]) : Promise.resolve([] as any[]),
-        user?.id ? getCartItems().catch(() => []) : Promise.resolve([] as any[]),
       ])
       setPool(poolRes)
-      const cids = new Set((cartRes || []).map((c: any) => c.product_id).filter(Boolean))
-      setCartIds(cids)
-      setCartCount(cids.size)
+      // 购物车：用户登录后拉取商品/合计，供底部结算条与页内结算面板使用
+      if (user?.id) {
+        const { items, effMap, total } = await fetchCartWithEff()
+        const cids = new Set(items.map((c) => c.product_id).filter(Boolean))
+        setCartIds(cids)
+        setCartItems(items)
+        setCartEff(effMap)
+        setCartCount(items.length)
+        setCartTotal(total)
+      }
       const ids: string[] = []
       for (const o of ordersRes || []) {
         for (const it of (o as any).order_items || []) if (it?.product_id) ids.push(it.product_id)
@@ -221,12 +257,55 @@ export default function ConsultPage() {
     }
   }
 
+  // 打开页内结算面板：先刷新最新购物车（含临期特惠价），确保面板数据与实付一致
+  const openCheckout = async () => {
+    if (!user?.id) { Taro.showToast({ title: '请先登录', icon: 'none' }); return }
+    Taro.showLoading({ title: '加载中…' })
+    try {
+      const { items, effMap, total } = await fetchCartWithEff()
+      setCartItems(items)
+      setCartEff(effMap)
+      setCartCount(items.length)
+      setCartTotal(total)
+      if (items.length === 0) { Taro.showToast({ title: '购物车为空', icon: 'none' }); return }
+      setShowCheckout(true)
+    } catch (e) {
+      console.warn('[consult] 拉取购物车失败', e)
+      Taro.showToast({ title: '加载失败，请重试', icon: 'none' })
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
+  // 结算面板「去支付」：食疗冲突校验 → 写入待结算缓存 → 跳支付页（与购物车页结算一致）
+  const confirmPay = () => {
+    const valid = cartItems.filter((i) => i.products) as CartItem[]
+    if (valid.length === 0) { Taro.showToast({ title: '购物车为空', icon: 'none' }); return }
+    const conflicts = checkCartConflicts(valid.map((i) => toFoodTherapyInput(i.products as Product)))
+    if (conflicts.length > 0) { setShowCheckout(false); setCheckoutConflict(conflicts); return }
+    proceedToPayment()
+  }
+
+  const proceedToPayment = () => {
+    const ids = cartItems.map((i) => i.id)
+    setPendingCheckout({ cartIds: ids, total: cartTotal })
+    setShowCheckout(false)
+    Taro.navigateTo({ url: `/pages/payment/index?cartIds=${encodeURIComponent(ids.join(','))}&total=${cartTotal.toFixed(2)}` })
+  }
+
   return (
     <View className="consult-page">
       {/* 顶部渐变标题 */}
       <View className="consult-hero">
-        <Text className="consult-hero-emoji">🥣</Text>
-        <Text className="consult-hero-title">食疗咨询</Text>
+        <View className="consult-hero-top">
+          <View className="consult-hero-left">
+            <Text className="consult-hero-emoji">🥣</Text>
+            <Text className="consult-hero-title">食疗咨询</Text>
+          </View>
+          <Button openType="contact" className="consult-kefu wx-contact-btn" hoverClass="none">
+            <Text className="consult-kefu-text">🎧 客服</Text>
+          </Button>
+        </View>
         <Text className="consult-hero-sub">告诉我你想调养什么，我帮你挑</Text>
       </View>
 
@@ -344,15 +423,81 @@ export default function ConsultPage() {
         <View style={{ height: 24 }} />
       </ScrollView>
 
-      {/* 购物车状态条（有商品时显示，一键去结算） */}
+      {/* 购物车状态条（有商品时显示，点击展开页内结算面板） */}
       {cartCount > 0 && (
-        <View className="consult-cart-bar" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
+        <View className="consult-cart-bar" onClick={openCheckout}>
           <View style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Text style={{ fontSize: 18 }}>🛒</Text>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: '#334155' }}>购物车 {cartCount} 件</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: '#334155' }}>购物车 {cartCount} 件 · ¥{cartTotal.toFixed(2)}</Text>
           </View>
           <View style={{ background: '#16a34a', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 20 }}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>去结算</Text>
+          </View>
+        </View>
+      )}
+
+      {/* 页内结算面板（把结算页嵌入咨询页，不跳出） */}
+      {showCheckout && (
+        <View className="checkout-mask" onClick={() => setShowCheckout(false)}>
+          <View className="checkout-sheet" onClick={(e: any) => e.stopPropagation()}>
+            <View className="checkout-sheet-head">
+              <Text className="checkout-sheet-title">确认订单</Text>
+              <View className="checkout-sheet-close" hoverClass="none" onClick={() => setShowCheckout(false)}>
+                <Text className="checkout-sheet-close-text">✕</Text>
+              </View>
+            </View>
+            <ScrollView scrollY className="checkout-sheet-body">
+              {cartItems.map((i) => (
+                <View key={i.id} className="checkout-item">
+                  <Image src={i.products?.main_image || i.products?.image_url || ''} mode="aspectFill" className="checkout-item-img" />
+                  <View className="checkout-item-info">
+                    <Text className="checkout-item-name" numberOfLines={1}>{i.products?.name}</Text>
+                    <Text className="checkout-item-meta">¥{computePrice(i, cartEff).toFixed(2)} × {i.quantity}</Text>
+                  </View>
+                  <Text className="checkout-item-sub">¥{(computePrice(i, cartEff) * i.quantity).toFixed(2)}</Text>
+                </View>
+              ))}
+            </ScrollView>
+            <View className="checkout-sheet-foot">
+              <View className="checkout-total">
+                <Text className="checkout-total-label">合计</Text>
+                <Text className="checkout-total-val">¥{cartTotal.toFixed(2)}</Text>
+              </View>
+              <View className="checkout-pay-btn" hoverClass="none" onClick={confirmPay}>
+                <Text className="checkout-pay-text">去支付</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 食疗冲突校验弹窗（结算前拦截，与购物车页一致） */}
+      {checkoutConflict && (
+        <View className="conflict-mask">
+          <View className="conflict-modal">
+            <Text className="conflict-title">🍲 搭配小贴士</Text>
+            <Text className="conflict-sub">结算前为你做了食疗冲突检测</Text>
+            <ScrollView scrollY className="conflict-list">
+              {checkoutConflict.map((c, idx) => (
+                <View key={idx} className="conflict-card" style={{ background: c.level === 'danger' ? '#FEE2E2' : '#FEF3C7' }}>
+                  <View className="conflict-card-head">
+                    <Text className="conflict-card-icon">{c.level === 'danger' ? '⚠️' : '🟡'}</Text>
+                    <Text className="conflict-card-type" style={{ color: c.level === 'danger' ? '#B91C1C' : '#9A8070' }}>
+                      {c.type === 'warm_overlap' ? '温补叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
+                    </Text>
+                  </View>
+                  <Text className="conflict-card-msg">{c.message}</Text>
+                </View>
+              ))}
+            </ScrollView>
+            <View className="conflict-actions">
+              <View className="conflict-btn conflict-btn--adjust" hoverClass="none" onClick={() => { setCheckoutConflict(null); setShowCheckout(true) }}>
+                <Text className="conflict-btn-text">去调整</Text>
+              </View>
+              <View className="conflict-btn conflict-btn--pay" hoverClass="none" onClick={() => { setCheckoutConflict(null); proceedToPayment() }}>
+                <Text className="conflict-btn-text">仍要结算</Text>
+              </View>
+            </View>
           </View>
         </View>
       )}

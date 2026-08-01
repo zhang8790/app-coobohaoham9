@@ -2,7 +2,7 @@
 // 入口：四个 Tab 页右下角常驻。点击展开双按钮，再点收起。
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Button } from '@tarojs/components'
 import { subscribeCartCount, getCartCountState } from '@/utils/cartStore'
 import './index.scss'
 
@@ -22,6 +22,7 @@ export default function FloatingActionBar({ cartCount: externalCount }: Props) {
 
   const goCart = () => { close(); Taro.switchTab({ url: '/pages/cart/index' }) }
   const goConsult = () => { close(); Taro.navigateTo({ url: '/pages/food/consult/index' }) }
+  const goKefu = () => { close() }
 
   return (
     <View className="fab-container">
@@ -40,6 +41,18 @@ export default function FloatingActionBar({ cartCount: externalCount }: Props) {
           )}
         </View>
       </View>
+
+      {/* 子按钮 - 客服（微信原生会话，openType=contact） */}
+      <Button
+        openType="contact"
+        className={`fab-sub fab-sub--kefu wx-contact-btn ${expanded ? 'fab-sub--show' : ''}`}
+        hoverClass="none"
+        onClick={goKefu}>
+        <View className="fab-sub-inner">
+          <Text className="fab-sub-icon">🎧</Text>
+          <Text className="fab-sub-label">客服</Text>
+        </View>
+      </Button>
 
       {/* 子按钮 - 咨询 */}
       <View className={`fab-sub fab-sub--consult ${expanded ? 'fab-sub--show' : ''}`} onClick={goConsult}>
