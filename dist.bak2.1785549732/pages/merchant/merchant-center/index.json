@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "自营门店管理中心",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

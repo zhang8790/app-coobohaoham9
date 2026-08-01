@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "佣金兑付",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "门店审核",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

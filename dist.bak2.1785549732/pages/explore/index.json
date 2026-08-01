@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "来电有喜",
+  "usingComponents": {
+    "comp": "../../comp"
+  }
+}

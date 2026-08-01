@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "食安侦探局",
+  "navigationBarBackgroundColor": "#FFFBF7",
+  "navigationBarTextStyle": "black",
+  "usingComponents": {
+    "comp": "../../comp"
+  }
+}

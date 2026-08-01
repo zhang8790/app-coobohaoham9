@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "食养偏好自测",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

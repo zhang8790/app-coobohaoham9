@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "我的徽章",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

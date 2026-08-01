@@ -1,0 +1,1 @@
+@charset "UTF-8";.banner-overlay{position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(to bottom,#0000 30%,#000000b3)}.brand-gradient-bg{background:linear-gradient(135deg,hsl(var(--primary)),#7c2d12,#431407)}.store-redpacket-banner{background:linear-gradient(135deg,#dc2626,#b91c1c);box-shadow:0 8rpx 24rpx #dc262640}

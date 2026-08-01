@@ -1,39 +1,117 @@
-// 全局悬浮操作栏 —— 双按钮垂直排列
-.fab-btn {
-  width: 48px;
-  height: 48px;
+// 全局悬浮操作栏 —— 点击展开菜单
+.fab-container {
+  position: fixed;
+  right: 20px;
+  bottom: 120px;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+// 蒙层
+.fab-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 69;
+}
+
+// 主按钮
+.fab-main {
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
+  background: linear-gradient(135deg, #d4a537 0%, #b8860b 100%);
+  box-shadow: 0 6px 24px rgba(184, 134, 11, 0.40);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-}
-.fab-btn--cart {
-  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.35);
-}
-.fab-btn--consult {
-  background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%);
-  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.35);
-}
+  position: relative;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 
-// 角标
-.fab-badge {
+  &--active {
+    transform: rotate(45deg);
+    box-shadow: 0 4px 12px rgba(184, 134, 11, 0.25);
+  }
+}
+.fab-main-icon {
+  font-size: 28px;
+  color: #fff;
+  font-weight: 300;
+  line-height: 1;
+}
+.fab-main-badge {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 9px;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
   background: #EF4444;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 5px;
-}
-.fab-badge-text {
   font-size: 10px;
   font-weight: 700;
   color: #fff;
-  line-height: 1;
+}
+
+// 子按钮
+.fab-sub {
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transform: scale(0.5);
+  pointer-events: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &--show {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+}
+.fab-sub-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border-radius: 24px;
+  padding: 10px 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  position: relative;
+}
+.fab-sub-icon {
+  font-size: 20px;
+}
+.fab-sub-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+.fab-sub-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: #EF4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+}
+
+// 颜色微调
+.fab-sub--cart .fab-sub-inner {
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+.fab-sub--consult .fab-sub-inner {
+  border: 1px solid rgba(22, 163, 74, 0.2);
 }

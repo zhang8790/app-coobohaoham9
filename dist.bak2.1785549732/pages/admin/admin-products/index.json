@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "宝贝审阅",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

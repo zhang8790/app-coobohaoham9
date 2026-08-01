@@ -1,0 +1,175 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/explore/index",
+    "pages/cart/index",
+    "pages/user/index",
+    "pages/login/index",
+    "pages/product/index",
+    "pages/store-home/index",
+    "pages/payment/index",
+    "pages/payment-result/index",
+    "pages/order-center/index",
+    "pages/search/index",
+    "pages/food-detective/index"
+  ],
+  "subPackages": [
+    {
+      "root": "pages/merchant",
+      "pages": [
+        "merchant-apply/index",
+        "merchant-center/index",
+        "merchant-products/index",
+        "merchant-orders/index",
+        "merchant-members/index",
+        "merchant-coupons/index",
+        "merchant-analytics/index",
+        "merchant-settings/index",
+        "merchant-campaigns/index",
+        "merchant-campaigns/create/index",
+        "merchant-expiry/index",
+        "merchant-batch/index",
+        "food-therapy-copy/index"
+      ]
+    },
+    {
+      "root": "pages/mine",
+      "pages": [
+        "my-badges/index",
+        "my-promotion/index",
+        "address/index",
+        "favorites/index",
+        "footprint/index",
+        "coupon/index",
+        "settings/index",
+        "review/index",
+        "my-referrals/index",
+        "city-select/index",
+        "messages/index",
+        "article-favorites/index",
+        "followed-authors/index"
+      ]
+    },
+    {
+      "root": "pages/trade",
+      "pages": [
+        "withdraw/index",
+        "refund-apply/index",
+        "commission-detail/index",
+        "goldbean-ledger/index"
+      ]
+    },
+    {
+      "root": "pages/admin",
+      "pages": [
+        "admin/index",
+        "admin-merchants/index",
+        "admin-products/index",
+        "admin-withdrawals/index",
+        "admin-ugc/index",
+        "admin-users/index",
+        "admin-refunds/index",
+        "admin-announcements/index",
+        "admin-expiry/index"
+      ]
+    },
+    {
+      "root": "pages/agreement",
+      "pages": [
+        "help/index",
+        "privacy-policy/index",
+        "user-agreement/index",
+        "trade-rules/index",
+        "withdraw-rules/index",
+        "commission-rules/index",
+        "rank-rules/index",
+        "points-rules/index",
+        "merchant-agreement/index",
+        "distribution-agreement/index"
+      ]
+    },
+    {
+      "root": "pages/content",
+      "pages": [
+        "content-center/make/index",
+        "content-center/make-rich/index",
+        "content-center/make-video/index",
+        "content-center/my-articles/index",
+        "article-detail/index"
+      ]
+    },
+    {
+      "root": "pages/marketing",
+      "pages": [
+        "campaign-claim/index"
+      ]
+    },
+    {
+      "root": "pages/food",
+      "pages": [
+        "index",
+        "scan-result/index",
+        "food-scan/index",
+        "analysis-result/index",
+        "knowledge-atlas/index",
+        "seasonal-box/index",
+        "constitution-test/index",
+        "today-food-therapy/index",
+        "ingredient-pairing/index",
+        "consult/index"
+      ]
+    },
+    {
+      "root": "pages/ext",
+      "pages": [
+        "employee/index"
+      ]
+    },
+    {
+      "root": "pages/expiry",
+      "pages": [
+        "index"
+      ]
+    }
+  ],
+  "tabBar": {
+    "custom": true,
+    "color": "#9A8070",
+    "selectedColor": "#1A1A1A",
+    "backgroundColor": "#FFFBF7",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/explore/index",
+        "text": "自营"
+      },
+      {
+        "pagePath": "pages/cart/index",
+        "text": "购物车"
+      },
+      {
+        "pagePath": "pages/user/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#FFFBF7",
+    "navigationBarTitleText": "来电有喜",
+    "navigationBarTextStyle": "black"
+  },
+  "lazyCodeLoading": "requiredComponents",
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于匹配就近门店，展示本地化商品"
+    }
+  }
+}
