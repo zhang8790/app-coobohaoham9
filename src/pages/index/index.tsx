@@ -23,7 +23,6 @@ import ProductGridCard from '@/components/ProductGridCard'
 import AddToCartButton from '@/components/AddToCartButton'
 import { getProductCareInfo } from '@/utils/product-care'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
-import { useFoodKnowledgeStore } from '@/store/foodKnowledgeStore'
 import { getCurrentTerm } from '@/utils/seasonal-box'
 
 // 纯函数：把商品列表按"身体人群"分三档（直接吃 Product，零网络）
@@ -116,13 +115,11 @@ export default function IndexPage() {
   const [loading, setLoading] = useState(false)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // 首页食养工具入口：知识图谱已收录成分数 + 当前节气名
-  const knowledgeCount = useFoodKnowledgeStore((s) => Object.keys(s.collected).length)
+  // 当前节气名（驱动首页「节气食盒」入口与今日食养副标题）
   const seasonalTerm = getCurrentTerm()
   const termName = seasonalTerm?.name || '当季'
 
   // 自然语言 → 身体状态人群：自动识别后高亮对应 chip（与手动选择并存）
-  const [detectedCrowds, setDetectedCrowds] = useState<Crowd[]>([])
   const autoCrowdsRef = useRef<Crowd[]>([])
 
   // 消费偏好画像：登录后回溯历史订单 → 聚合食养偏好 → 推荐相似好物
@@ -139,12 +136,9 @@ export default function IndexPage() {
   // V1 体质档案：登录后读取，驱动首页个性化（呈现"你关注的食养偏好"，非"今日"）
   const [userProfile, setUserProfile] = useState<UserHealthProfile | null>(null)
 
-  // 新增：首页弹窗状态
+  // 首页「限时福利」弹窗状态（仅在有可领取活动、且用户主动点击入口卡片时才展开）
   const [showCampaignPopup, setShowCampaignPopup] = useState(false)
   const [campaignList, setCampaignList] = useState<any[]>([])
-  // 同会话仅弹一次，避免反复打扰；结合下面「可发放库存」过滤，无福利绝不弹出
-  const campaignPopupShownRef = useRef(false)
-  const [loadingCampaign, setLoadingCampaign] = useState(false)
   // 门店红包对应的门店名（用于在首页弹窗标注「XX店专享」）
   const [storeNameMap, setStoreNameMap] = useState<Record<string, string>>({})
   const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
@@ -429,7 +423,6 @@ export default function IndexPage() {
   const checkCampaign = useCallback(async () => {
     if (!currentCity?.id) return
 
-    setLoadingCampaign(true)
     try {
       const { supabase } = await import('@/client/supabase')
       const now = new Date().toISOString().split('T')[0]  // YYYY-MM-DD
@@ -443,7 +436,6 @@ export default function IndexPage() {
 
       if (error) {
         console.error('[Index] 查询活动失败', error)
-        setLoadingCampaign(false)
         return
       }
 
@@ -471,12 +463,11 @@ export default function IndexPage() {
           ;(stores || []).forEach((s: any) => { map[s.id] = s.name })
           setStoreNameMap(map)
         }
-        // 红包不再进首页自动强弹：改为内容流常驻入口卡片，用户主动点击才展开（campaignPopupShownRef 保留无害）
+        // 红包不再进首页自动强弹：改为内容流常驻入口卡片，用户主动点击才展开
       }
     } catch (err) {
       console.error('[Index] 检查活动失败', err)
     }
-    setLoadingCampaign(false)
   }, [currentCity])
 
   // 首页「消息公告」合并流：官方公告 + 全站实时下单动态（脱敏）
@@ -513,7 +504,6 @@ export default function IndexPage() {
       if (!prevSet.has(c) && !selectedCrowds.includes(c)) toggleCrowd(c)
     }
     autoCrowdsRef.current = detected
-    setDetectedCrowds(detected)
   }, [selectedCrowds, toggleCrowd])
 
   // 即时匹配：输入身体状态词（或点快捷标签）→ 直接配对商品，全程零额外操作
@@ -1107,7 +1097,7 @@ export default function IndexPage() {
 
       {/* 悬浮扫码按钮已合并至首屏「扫码查安全」唯一入口，避免首页扫码重复 */}
 
-      {/* 全局悬浮操作栏：点击展开 · 三按钮（去结算/客服/食疗咨询） */}
+      {/* 全局悬浮操作栏：客服 / 食疗咨询 两个独立常驻按钮（去结算已内嵌咨询页，不再出现在悬浮栏） */}
       <FloatingActionBar />
 
       {/* 自定义底部导航：独立渲染（贴底全宽），不可嵌套在 FAB 容器内，否则购物车徽标在真机渲染异常 */}
