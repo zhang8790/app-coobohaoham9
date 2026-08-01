@@ -19,8 +19,6 @@ export default function Login() {
   const [countdown, setCountdown] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pwdRef = useRef<HTMLInputElement>(null)
-  // 管理员登录邮箱（非敏感，仅用于一键预填；密码仍需管理员在下方表单输入）
-  const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string || 'admin@laidianyouxi.com'
 
   useEffect(() => {
     if (!profile) return
@@ -286,25 +284,9 @@ export default function Login() {
           </form>
         )}
 
-        {/* 管理员后台快捷入口：仅预填管理员邮箱并聚焦密码框，密码仍需本人输入，杜绝一键后门 */}
-        <button type="button" onClick={() => {
-            setMethod('email')
-            setEmail(ADMIN_EMAIL)
-            setErr('')
-            setTimeout(() => pwdRef.current?.focus(), 0)
-          }}
-          style={{
-            width: '100%', marginTop: 18, padding: '12px',
-            background: 'var(--primary-soft)', border: '1px solid var(--primary)',
-            borderRadius: 10, color: 'var(--primary)', fontSize: 14, fontWeight: 600,
-            cursor: 'pointer', transition: 'all 0.2s',
-          }}>
-          进入总后台（管理员）
-        </button>
-
-        {/* 底部 */}
+        {/* 底部提示 */}
         <p style={{ color: 'var(--border-soft)', fontSize: 11, textAlign: 'center', marginTop: 16 }}>
-          {method === 'email' ? '请使用管理员账号登录（role=admin）' : '测试账号：18701410500 / 123456'}
+          {method === 'email' ? '请使用管理员账号登录（role=admin）' : '请联系管理员获取账号权限'}
         </p>
       </div>
     </div>

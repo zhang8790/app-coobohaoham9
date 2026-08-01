@@ -24,13 +24,7 @@ const Ctx = createContext<AuthCtx>({
   signOut: async () => {},
 })
 
-// ============ Mock 身份 ============
-const MOCK_ADMIN: Profile = {
-  id: 'mock-admin-001', username: 'admin', nickname: '超级管理员',
-  role: 'admin', points: 9999, balance: 0, avatar_url: '', phone: '13800138000',
-  member_rank: '盟主', merchant_status: 'none',
-  created_at: new Date().toISOString(),
-}
+// ============ Mock 身份（仅商户演示保留） ============
 const MOCK_MERCHANT: Profile = {
   id: 'mock-merchant-001', username: 'merchant', nickname: '自营门店商家',
   role: 'merchant', points: 1000, balance: 0, avatar_url: '', phone: '13900139000',
@@ -55,16 +49,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           loadProfile(session.user.id).finally(() => setLoading(false))
         } else {
-          console.log('[Auth] 未登录，启用演示模式')
-          setProfile(MOCK_ADMIN)   // 默认演示用 admin
-          setUseMock(true)
+          // 未登录：停留在登录页，不自动回退演示模式
+          console.log('[Auth] 未登录，等待用户登录')
           setLoading(false)
         }
       })
       .catch(() => {
-        console.log('[Auth] Supabase 连接失败，启用演示模式')
-        setProfile(MOCK_ADMIN)
-        setUseMock(true)
+        // 连接失败：停留在登录页，提示检查网络
+        console.warn('[Auth] Supabase 连接失败，请检查网络')
         setLoading(false)
       })
   }, [])
@@ -77,9 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUseMock(false)
       return data as any as Profile
     } else {
-      console.log('[Auth] Profile 未找到，启用演示模式')
-      setProfile(MOCK_ADMIN)
-      setUseMock(true)
+      console.warn('[Auth] Profile 未找到，账号未激活')
       return null
     }
   }
@@ -88,15 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 始终尝试真实登录
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: _password })
     if (error) {
-      console.warn('[Auth] signInWithEmail 真实登录失败:', error.message)
-      // 真实登录失败时，回退到数据库查询 profile
-      try {
-        const { data: profData } = await supabase
-          .from('profiles').select('*').eq('phone', '13800138000').maybeSingle()
-        if (profData) {
-          setProfile(profData as any); setUseMock(false); return null
-        }
-      } catch (e2) { /* ignore */ }
       return error.message
     }
     if (!data.user) return '登录失败'
@@ -113,33 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 手机号 + 密码登录
   const signInWithPhonePassword = async (phone: string, password: string): Promise<string | null> => {
-    // 测试模式快捷通道
-    if (String(phone).replace(/\D/g, '') === '18701410500' && password === '123456') {
-      console.log('[Auth] 测试账号密码登录:', phone)
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: 'test18701410500@test.com',
-          password: '12345678',
-        })
-        if (!error && data.user) {
-          await loadProfile(data.user.id)
-          setUseMock(false)
-          return null
-        }
-        console.warn('[Auth] 真实登录失败:', error?.message)
-      } catch (e) {
-        console.warn('[Auth] 测试账号密码登录异常:', e)
-      }
-      // 回退：直接从数据库加载 profile（演示模式关闭，用真实数据）
-      try {
-        const { data: profData } = await supabase
-          .from('profiles').select('*').eq('phone', '18701410500').maybeSingle()
-        if (profData) {
-          setProfile(profData as any); setUseMock(false); return null
-        }
-      } catch (e2) { /* ignore */ }
-      setProfile(MOCK_MERCHANT); setUseMock(true); return null
-    }
     // 真实流程
     try {
       const { data: prof } = await supabase.from('profiles').select('id').eq('phone', phone).maybeSingle()
@@ -204,55 +158,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return error?.message ?? null
     } catch (e: unknown) {
       console.warn('[Auth] sendOtpCode 失败:', e)
-      // 测试模式：不发送短信，直接返回成功
-      if (phone === '18701410500') return null
       return '短信发送失败，请检查手机号'
     }
   }
 
   const signInWithPhone = async (phone: string, code: string): Promise<string | null> => {
-    // 统一测试账号通道：密码和验证码都用同一套逻辑
-    const isTestAccount = String(phone).replace(/\D/g, '') === '18701410500' && code === '123456'
-
-    if (isTestAccount) {
-      console.log('[Auth] 测试账号登录:', phone)
-      try {
-        // 方案1：真实邮箱密码登录（Supabase Auth 用户）
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: 'test18701410500@test.com',
-          password: '12345678',
-        })
-        if (!error && data.user) {
-          console.log('[Auth] 真实登录成功，user:', data.user.id)
-          await loadProfile(data.user.id)
-          setUseMock(false)
-          return null
-        }
-        console.warn('[Auth] 真实登录失败:', error?.message)
-      } catch (e) {
-        console.warn('[Auth] 测试账号登录异常:', e)
-      }
-      // 方案2：直接从数据库加载 profile（绕过 Auth）
-      console.log('[Auth] 回退：用数据库 profile 直接登录')
-      try {
-        const { data: profData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('phone', '18701410500')
-          .maybeSingle()
-        if (profData) {
-          setProfile(profData as any)
-          setUseMock(true)
-          return null
-        }
-      } catch (e2) {
-        console.warn('[Auth] DB profile 加载也失败:', e2)
-      }
-      // 最终兜底：mock 自营门店身份
-      setProfile(MOCK_MERCHANT)
-      setUseMock(true)
-      return null
-    }
     // 真实 OTP 验证
     try {
       const { data, error } = await supabase.auth.verifyOtp({ phone, token: code, type: 'sms' })
