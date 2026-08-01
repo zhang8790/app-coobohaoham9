@@ -346,17 +346,31 @@ const HZ_CENTER = { lat: 30.2741, lng: 120.1551 }
  * 根据经纬度返回最近的直营门店列表（升序）。
  * 直营判定：is_platform=true（品牌馆已归并，partner_brand 恒 NULL）。
  */
+// 候选门店缓存（位置无关，可跨调用共享）：TTL 5 分钟 → 扛高并发，
+// 避免每次定位/每次切 tab 都直击 stores 全表。距离排序仍在客户端做。
+const STORE_CANDIDATE_TTL = 5 * 60 * 1000
+const STORE_CANDIDATE_KEY = 'nearest:candidates'
+
+async function getCandidateStores(): Promise<any[]> {
+  const cached = cacheGet<any[]>(STORE_CANDIDATE_KEY)
+  if (cached) return cached
+  const { data, error } = await supabase
+    .from('stores')
+    .select('id, name, address, lat, lng, is_open, is_platform')
+    .not('is_active', 'eq', false)
+  if (error) {
+    console.error('[getCandidateStores] 查询失败:', error.message)
+    return []
+  }
+  const list = data || []
+  cacheSet(STORE_CANDIDATE_KEY, list, STORE_CANDIDATE_TTL)
+  return list
+}
+
 export async function getNearestStores(lat: number, lng: number, limit = 20): Promise<NearestStore[]> {
   try {
-    const { data, error } = await supabase
-      .from('stores')
-      .select('id, name, address, lat, lng, is_open, is_platform')
-      .not('is_active', 'eq', false)
-    if (error) {
-      console.error('[getNearestStores] 查询失败:', error.message)
-      return []
-    }
-    const list = (data || [])
+    const raw = await getCandidateStores()
+    const list = (raw || [])
       .filter((s: any) => {
         // ① 活跃门店且有坐标（不再限制 is_platform——物理店如张林水果店也需参与"最近门店"判定）
         if (s.lat == null || s.lng == null) return false
@@ -538,6 +552,56 @@ export async function getProducts(opts: {
 
   cacheSet(cacheKey, result, 30_000) // 30s TTL：切 tab 回看秒出；createProduct/updateProduct 会主动 clearRequestCache
   return result
+}
+
+// ============================================
+// 商品推荐排序（均衡热度榜 v1）
+// 服务端 fn_product_feed_rank 计算综合热度分（近期销量+上升势头+新鲜度+历史基线+商家置顶），
+// 这里二次拉取完整商品行并按分排序，复用 Product 类型与 requestCache。
+// 信号均来自既有 order_items / products.sales_count，无需新增埋点。
+// ============================================
+export async function getRankedFeed(opts: {
+  storeId?: string
+  limit?: number
+  page?: number
+} = {}): Promise<Product[]> {
+  const cacheKey = `rf:${cacheMakeKey(opts)}`
+  const cached = cacheGet<Product[]>(cacheKey)
+  if (cached) return cached
+
+  const { storeId, limit = 20, page = 0 } = opts
+  // 多拉一页，保证客户端切片分页正确
+  const fetchLimit = (page + 1) * limit
+  const { data, error } = await supabase.rpc('fn_product_feed_rank', {
+    p_store_id: storeId ?? null,
+    p_limit: fetchLimit,
+    p_recent_days: 30,
+  })
+  if (error) {
+    console.error('[getRankedFeed] RPC 失败:', error.message)
+    return []
+  }
+  const ids: string[] = (data || []).map((r: any) => r.product_id)
+  if (ids.length === 0) return []
+
+  const { data: prods, error: e2 } = await supabase
+    .from('products')
+    .select('*, stores(id,name,image_url,is_platform)')
+    .in('id', ids)
+  if (e2) {
+    console.error('[getRankedFeed] 拉取商品失败:', e2.message)
+    return []
+  }
+  const rows: Product[] = Array.isArray(prods) ? prods : []
+  // 按热度分顺序还原（RPC 已排好序）
+  const map = new Map(rows.map((p) => [p.id, p]))
+  const ordered = ids.map((id) => map.get(id)).filter((p): p is Product => Boolean(p))
+
+  const start = page * limit
+  const sliced = ordered.slice(start, start + limit)
+
+  cacheSet(cacheKey, sliced, 30_000) // 30s TTL，与 getProducts 一致
+  return sliced
 }
 
 // ============================================

@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
 import { Image, Input, View, Text, ScrollView, Button } from '@tarojs/components'
-import { getProducts, getAnnouncements, getOrderFeed, getOrders, getProductsByIds, addToCart } from '@/db/api'
+import { getProducts, getRankedFeed, getAnnouncements, getOrderFeed, getOrders, getProductsByIds, addToCart } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
 import { getUserHealthProfile } from '@/db/food-api'
 import type { Product, Announcement, OrderFeedItem, UserHealthProfile } from '@/db/types'
@@ -102,6 +102,7 @@ export default function IndexPage() {
   const [mood, setMood] = useState('')
   // 首页分类金刚区：本地筛选主商品流（不影响画像/即时匹配区块）
   const [catFilter, setCatFilter] = useState<string | null>(null)
+  const [feedSort, setFeedSort] = useState<'latest' | 'hot'>('latest')
   // 「适合我」个性化筛选：仅看适合我的好物
   const [fitOnly, setFitOnly] = useState(false)
   // 状态卡「你关注的食养偏好」默认折叠，降低首屏高度
@@ -263,7 +264,10 @@ export default function IndexPage() {
         // 门店隔离：只拉「当前选中门店」的商品，别的店不混进（可按距离切换附近门店）。
         // 重要：选中门店后不降级到全平台——每个门店只看自己的商品，空的就显示空状态
         const storeId = selectedStoreId
-        if (storeId) {
+        if (feedSort === 'hot') {
+          // 推荐模式：服务端综合热度分排序（近期销量+势头+新鲜度+历史基线+置顶）
+          raw = await getRankedFeed({ storeId: storeId ?? undefined, limit: 40 })
+        } else if (storeId) {
           raw = await getProducts({ storeId, limit: 40 })
         } else {
           // 未选中任何门店时才降级到全平台自营商品（保证首页有内容）
@@ -278,7 +282,7 @@ export default function IndexPage() {
       }
     })()
     return feedInflightRef.current
-  }, [currentLocation, nearbyStores, selectedStoreId])
+  }, [currentLocation, nearbyStores, selectedStoreId, feedSort])
 
   // 定位到最近门店 / 切城市重算后，自动把首页 feed 锁定到该门店（门店隔离默认态）
   // 守卫：用户一旦手动切换过门店，自动定位不再覆盖（否则定位异步完成会把选择弹回最近门店）
@@ -301,6 +305,8 @@ export default function IndexPage() {
 
   useEffect(() => { loadAnnouncements(); loadOrderFeed(); loadFeed() }, [loadAnnouncements, loadOrderFeed, loadFeed])
   useDidShow(() => { loadFeed() })
+  // 推荐/最新切换时重拉 feed
+  useEffect(() => { loadFeed() }, [feedSort])
 
   // 消费偏好画像：登录后回溯历史订单 → 聚合食养偏好（health_tag 频次 / nature 众数）
   const loadConsumptionProfile = useCallback(async () => {
@@ -1042,6 +1048,31 @@ export default function IndexPage() {
                 </View>
               )
             })}
+
+            {/* 推荐/最新 排序切换：推荐=均衡热度榜（服务端综合分），最新=上架时间倒序 */}
+            <View
+              className="flex items-center rounded-full flex-shrink-0 overflow-hidden"
+              style={{ borderWidth: 1, borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
+            >
+              {(['latest', 'hot'] as const).map((s) => {
+                const active = feedSort === s
+                return (
+                  <View
+                    key={s}
+                    hoverClass="none"
+                    onClick={() => setFeedSort(s)}
+                    className="px-3 py-1.5 text-sm"
+                    style={{
+                      background: active ? 'hsl(var(--primary))' : 'transparent',
+                      color: active ? '#fff' : 'hsl(var(--muted-foreground))',
+                      fontWeight: active ? 'bold' : 'normal',
+                    }}
+                  >
+                    <Text>{s === 'hot' ? '🔥 推荐' : '🆕 最新'}</Text>
+                  </View>
+                )
+              })}
+            </View>
 
             {/* 「适合我」个性化筛选：仅对已完成健康画像的用户展示，无画像时免打扰 */}
             {hasHealthProfile && (

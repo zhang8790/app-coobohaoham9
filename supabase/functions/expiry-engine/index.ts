@@ -16,6 +16,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { getLlmConfig } from '../_shared/llmConfig.ts'
 import { logLlmCall } from '../_shared/logLlmCall.ts'
+import { guardedChat } from '../_shared/llmGuard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -143,22 +144,18 @@ async function llmDiscount(
       `只输出 JSON：{"discount": 数字, "reason": "简短中文理由", "bundle": false}`,
     ].join('\n')
 
-    const resp = await fetch(`${llm.base}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${llm.key}` },
-      body: JSON.stringify({
-        model: llm.model,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
-        max_tokens: 200,
-      }),
+    const r = await guardedChat({
+      base: llm.base,
+      key: llm.key,
+      model: llm.model,
+      functionName: 'expiry-engine',
+      module: '保质期预警',
+      user: prompt,
+      temperature: 0.3,
+      maxTokens: 200,
     })
-    const json = await resp.json()
-    await logLlmCall({
-      functionName: 'expiry-engine', module: '保质期预警', model: llm.model,
-      usage: json?.usage ?? null, latencyMs: Date.now() - start,
-      success: !!json?.choices?.[0], errorMessage: resp.ok ? null : `http ${resp.status}`,
-    })
+    if (!r.ok || !r.data) return { discount: rulePct, reason: 'LLM调用失败，降级规则', used: false }
+    const json = r.data
     const content: string = json?.choices?.[0]?.message?.content ?? ''
     const m = content.match(/\{[\s\S]*\}/)
     if (!m) return { discount: rulePct, reason: 'LLM返回无法解析，降级规则', used: false }
@@ -173,11 +170,6 @@ async function llmDiscount(
       used: true,
     }
   } catch (e) {
-    await logLlmCall({
-      functionName: 'expiry-engine', module: '保质期预警', model: llm.model,
-      latencyMs: Date.now() - start, success: false,
-      errorMessage: e instanceof Error ? e.message : String(e),
-    })
     return { discount: rulePct, reason: `LLM调用异常，降级规则：${(e as Error).message}`, used: false }
   }
 }
