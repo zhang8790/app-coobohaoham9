@@ -402,55 +402,63 @@ export default function ConsultPage() {
         <View style={{ height: 24 }} />
       </ScrollView>
 
-      {/* 页内结算面板（常驻内联，不弹窗；结算页嵌入咨询页） */}
-      {cartCount > 0 && (
-        <View className="consult-checkout">
-          {/* 食疗冲突提示（内联，不弹窗） */}
-          {checkoutConflict && (
-            <View className="consult-conflict">
-              <Text className="consult-conflict-title">🍲 搭配小贴士</Text>
-              {checkoutConflict.map((c, idx) => (
-                <Text key={idx} className="consult-conflict-msg">· {c.message}</Text>
-              ))}
-              <View className="consult-conflict-actions">
-                <View className="consult-conflict-btn consult-conflict-btn--pay" hoverClass="none" onClick={() => { setCheckoutConflict(null); proceedToPayment() }}>
-                  <Text className="consult-conflict-btn-text">仍要结算</Text>
-                </View>
-                <View className="consult-conflict-btn consult-conflict-btn--close" hoverClass="none" onClick={() => setCheckoutConflict(null)}>
-                  <Text className="consult-conflict-btn-text">知道了</Text>
-                </View>
+      {/* 结算面板（始终常驻在输入区上方 · 结算页嵌入咨询页） */}
+      <View className="consult-checkout">
+        {/* 食疗冲突提示（内联，不弹窗） */}
+        {checkoutConflict && (
+          <View className="consult-conflict">
+            <Text className="consult-conflict-title">🍲 搭配小贴士</Text>
+            {checkoutConflict.map((c, idx) => (
+              <Text key={idx} className="consult-conflict-msg">· {c.message}</Text>
+            ))}
+            <View className="consult-conflict-actions">
+              <View className="consult-conflict-btn consult-conflict-btn--pay" hoverClass="none" onClick={() => { setCheckoutConflict(null); proceedToPayment() }}>
+                <Text className="consult-conflict-btn-text">仍要结算</Text>
+              </View>
+              <View className="consult-conflict-btn consult-conflict-btn--close" hoverClass="none" onClick={() => setCheckoutConflict(null)}>
+                <Text className="consult-conflict-btn-text">知道了</Text>
               </View>
             </View>
-          )}
-
-          {/* 商品明细（可展开，内联非浮层） */}
-          {checkoutExpanded && (
-            <ScrollView scrollY className="consult-checkout-items">
-              {cartItems.map((i) => (
-                <View key={i.id} className="consult-checkout-item">
-                  <Image src={i.products?.main_image || i.products?.image_url || ''} mode="aspectFill" className="consult-checkout-item-img" />
-                  <View className="consult-checkout-item-info">
-                    <Text className="consult-checkout-item-name" numberOfLines={1}>{i.products?.name}</Text>
-                    <Text className="consult-checkout-item-meta">¥{computePrice(i, cartEff).toFixed(2)} × {i.quantity}</Text>
-                  </View>
-                  <Text className="consult-checkout-item-sub">¥{(computePrice(i, cartEff) * i.quantity).toFixed(2)}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-
-          {/* 结算主条 */}
-          <View className="consult-checkout-bar">
-            <View className="consult-checkout-summary" hoverClass="none" onClick={() => setCheckoutExpanded(v => !v)}>
-              <Text className="consult-checkout-cart">🛒 购物车 {cartCount} 件</Text>
-              <Text className="consult-checkout-toggle">{checkoutExpanded ? '收起 ▴' : '明细 ▾'}</Text>
-            </View>
-            <View className="consult-checkout-pay" hoverClass="none" onClick={confirmPay}>
-              <Text className="consult-checkout-pay-text">去支付 ¥{cartTotal.toFixed(2)}</Text>
-            </View>
           </View>
-        </View>
-      )}
+        )}
+
+        {/* 有商品：完整结算栏（明细可展开 + 去支付） */}
+        {cartCount > 0 ? (
+          <>
+            {/* 商品明细（可展开内联） */}
+            {checkoutExpanded && (
+              <ScrollView scrollY className="consult-checkout-items">
+                {cartItems.map((i) => (
+                  <View key={i.id} className="consult-checkout-item">
+                    <Image src={i.products?.main_image || i.products?.image_url || ''} mode="aspectFill" className="consult-checkout-item-img" />
+                    <View className="consult-checkout-item-info">
+                      <Text className="consult-checkout-item-name" numberOfLines={1}>{i.products?.name}</Text>
+                      <Text className="consult-checkout-item-meta">¥{computePrice(i, cartEff).toFixed(2)} × {i.quantity}</Text>
+                    </View>
+                    <Text className="consult-checkout-item-sub">¥{(computePrice(i, cartEff) * i.quantity).toFixed(2)}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* 结算主条 */}
+            <View className="consult-checkout-bar">
+              <View className="consult-checkout-summary" hoverClass="none" onClick={() => setCheckoutExpanded(v => !v)}>
+                <Text className="consult-checkout-cart">🛒 购物车 {cartCount} 件</Text>
+                <Text className="consult-checkout-toggle">{checkoutExpanded ? '收起 ▴' : '明细 ▾'}</Text>
+              </View>
+              <View className="consult-checkout-pay" hoverClass="none" onClick={confirmPay}>
+                <Text className="consult-checkout-pay-text">去支付 ¥{cartTotal.toFixed(2)}</Text>
+              </View>
+            </View>
+          </>
+        ) : (
+          /* 空购物车：轻量提示条 */
+          <View className="consult-checkout-empty" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
+            <Text className="consult-checkout-empty-text">🛒 购物车还是空的 · 去逛逛 ›</Text>
+          </View>
+        )}
+      </View>
 
       {/* 底部输入区 */}
       <View className="consult-input-bar">

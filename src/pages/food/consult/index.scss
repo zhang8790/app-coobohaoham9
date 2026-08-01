@@ -291,14 +291,23 @@
   color: #fff;
 }
 
-/* 页内结算面板（常驻内联，不弹窗） */
+/* 页内结算面板（常驻内联，始终可见 · 结算页嵌入咨询页） */
 .consult-checkout {
   margin: 0 12px 8px;
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(34, 197, 94, 0.25);
   overflow: hidden;
+}
+/* 空购物车提示条（轻量，点击跳转购物车页逛逛） */
+.consult-checkout-empty {
+  padding: 14px;
+  text-align: center;
+}
+.consult-checkout-empty-text {
+  font-size: 13px;
+  color: #B6A48F;
+  font-weight: 600;
 }
 /* 结算主条 */
 .consult-checkout-bar {
