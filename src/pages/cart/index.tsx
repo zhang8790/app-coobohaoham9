@@ -8,6 +8,7 @@ import { supabase } from '@/client/supabase'
 import { subscribeCartCount, bumpCartCount } from '@/utils/cartStore'
 import { setPendingCheckout } from '@/utils/checkoutCache'
 import CustomTabBar from '@/components/custom-tabbar'
+import FloatingActionBar from '@/components/FloatingActionBar'
 import type { CartItem, Product } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
@@ -308,6 +309,7 @@ function CartPage() {
         </View>
       )}
     </View>
+    <FloatingActionBar />
     <CustomTabBar />
   </RouteGuard>)
 }

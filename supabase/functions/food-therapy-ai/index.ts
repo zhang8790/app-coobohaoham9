@@ -278,6 +278,8 @@ async function handleRecommend(supabase: any, body: any, headers: any) {
   const profile = body.profile || {}
   const termName = body.termName || ''
   const isMedical = !!body.isMedical || MEDICAL_HINT_EF.some((w) => query.includes(w))
+  const previousContext = (body.previousContext || '').trim()
+  const cartIds: string[] = Array.isArray(body.cartIds) ? body.cartIds : []
 
   if (!query || !products.length) {
     return json({ success: true, source: 'rule', recommendations: [], summary: '' }, 200, headers)
@@ -288,13 +290,16 @@ async function handleRecommend(supabase: any, body: any, headers: any) {
 1. 仅做饮食文化/食养层面的推荐，绝不输出任何医疗诊断、治疗、疗效、药方、处方、治愈建议。
 2. 若用户提到手术/病后/孕期/慢病等健康场景，在 summary 末尾追加「（以上为日常食养参考，具体请遵医嘱）」。
 3. 尊重用户画像约束：已知过敏原则避开含相关过敏原的商品；体质忌某性味则避开该性味的商品。
-4. 理由要具体、贴着商品属性与用户诉求，不要空话套话。
-5. 只从给定候选商品中选择，严禁编造商品。
-6. 输出 JSON：{"recommendations":[{"product_id":"...","score":0.0~1.0,"reasons":["...","..."]}],"summary":"一句话总结"}`
+4. 理由要具体，贴合商品属性与用户诉求（每条 ≤25 字）：优先覆盖食养角度（性味功效如何匹配）+ 营养角度（核心成分的益处），如"性平甘润，维C助修复，术后温和补给"。
+5. 若提供了前一轮对话摘要，须基于该语境延续推荐——例如用户上一轮在咨询术后饮食，本轮问"那坚果呢"应理解为"术后适合吃什么坚果"，避免脱离语境。
+6. 只从给定候选商品中选择，严禁编造商品。
+7. 输出 JSON：{"recommendations":[{"product_id":"...","score":0.0~1.0,"reasons":["...","..."]}],"summary":"一句话总结"}`
 
   const user = `用户提问：${query}
 用户画像：体质=${profile.constitutionName || '未知'}，忌性味=${(profile.avoidNature || []).join('/') || '无'}，关注功效=${(profile.topTags || []).join('/') || '无'}，过敏原=${(profile.allergies || []).join('/') || '无'}
 时令：${termName || '无'}
+${previousContext ? `对话上文：${previousContext}` : ''}
+${cartIds.length ? `用户购物车已有以下商品 ID：${cartIds.join(',')}。若候选中有同样的商品，优先推荐其搭配品而非重复推荐；若没有搭配可选，可以保留但注明"你购物车已有"。` : ''}
 
 候选商品（JSON 数组）：
 ${JSON.stringify(

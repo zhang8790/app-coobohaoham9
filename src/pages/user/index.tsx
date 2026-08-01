@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { RouteGuard } from '@/components/RouteGuard'
 import { supabase } from '@/client/supabase'
 import CustomTabBar from '@/components/custom-tabbar'
+import FloatingActionBar from '@/components/FloatingActionBar'
 import Icon from '@/components/Icon'
 import RankProgress from '@/components/RankProgress'
 import { RANK_COLOR_MAP } from '@/constants/ranks'
@@ -26,6 +27,9 @@ const MENU_GROUPS: { title: string; icon: string; items: MenuItem[] }[] = [
     items: [
       { name: '我的段位', icon: 'medal', page: '/pages/mine/my-promotion/index' },
       { name: '我的好友', icon: 'account-group', page: '/pages/mine/my-referrals/index' },
+      { name: '食品管家', icon: '⏰', page: '/pages/food/tracker/index' },
+      { name: '健康豆兑换', icon: '🔄', page: '/pages/trade/bean-exchange/index' },
+      { name: '分享官中心', icon: '💰', page: '/pages/trade/partner-center/index' },
       { name: '地址管理', icon: '🗺', page: '/pages/mine/address/index' },
     ]
   },
@@ -330,7 +334,19 @@ function UserPage() {
 
       {/* 段位成长（读取现有 member_rank / cv_total，纯展示，零新增功能） */}
       {user && profile && (
-        <RankProgress cvTotal={profile.cv_total ?? 0} memberRank={profile.member_rank} />
+        <View>
+          <RankProgress cvTotal={profile.cv_total ?? 0} memberRank={profile.member_rank} />
+          <View
+            style={{ textAlign: 'center', marginTop: 8 }}
+            onClick={() => {
+              Taro.setClipboardData({ data: `我在「来电有喜」已是「${profile.member_rank || '凡心'}」段位！来一起挑选健康好物吧～` })
+              Taro.showToast({ title: '已复制段位卡', icon: 'success' })
+            }}>
+            <Text style={{ fontSize: 12, color: '#d4a537', fontWeight: '600', borderBottomWidth: 1, borderBottomColor: '#d4a537' }}>
+              📋 复制段位卡，晒给好友
+            </Text>
+          </View>
+        </View>
       )}
 
       {/* 会员权益区块 */}
@@ -461,6 +477,7 @@ function UserPage() {
         </View>
       )}
     </View>
+    <FloatingActionBar />
     <CustomTabBar />
   </RouteGuard>)
 }

@@ -609,24 +609,6 @@ const [adding, setAdding] = useState(false)
                 )}
               </CollapsibleSection>
 
-              {/* P2 闭环联动：体质自测入口 + 会员引导 */}
-              <View style={{ marginTop: 10, gap: 8 }}>
-                <View
-                  className="flex items-center justify-center"
-                  style={{ paddingVertical: 10, borderRadius: 12, background: 'hsl(var(--primary))' }}
-                  onClick={() => Taro.navigateTo({ url: '/pages/food/constitution-test/index' })}
-                >
-                  <Text style={{ color: '#fff', fontSize: '14px', fontWeight: '700' }}>🧪 测一测是否适合我的体质</Text>
-                </View>
-                <View
-                  className="flex items-center justify-center"
-                  style={{ paddingVertical: 8, borderRadius: 12, background: '#FFF7ED', border: '1px solid #FED7AA' }}
-                  onClick={() => Taro.navigateTo({ url: '/pages/user/index' })}
-                >
-                  <Text style={{ color: '#C2410C', fontSize: '13px' }}>👑 会员可查看专属个人食养方案</Text>
-                </View>
-              </View>
-
               {/* 食用小贴士（建议食用量 + 适宜状态 + 注意事项） */}
               <View className="mb-2" style={{ padding: '8px 10px', borderRadius: '12px', background: '#FFFDF7', border: '1px solid #F0E6CF' }}>
                 <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>⑤ 食用小贴士</Text>
@@ -708,6 +690,37 @@ const [adding, setAdding] = useState(false)
                 className="w-full rounded-2xl"
                 style={{ display: 'block' }} />
             ))}
+          </View>
+        </View>
+      )}
+
+      {/* 安全保障模块（对标秋田满满信任区） */}
+      {product && (
+        <View className="mx-4 mt-3 mb-2 px-4 py-4 rounded-2xl" style={{ background: 'linear-gradient(135deg,#f0fdf4,#fef9e7)', border: '1px solid rgba(34,197,94,0.2)' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <Text style={{ fontSize: 18 }}>🛡️</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#166534' }}>安全保障</Text>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ background: 'rgba(34,197,94,0.08)', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10 }}>
+              <Text style={{ fontSize: 13, color: '#16a34a' }}>✓ 智能配料分析</Text>
+            </View>
+            <View style={{ background: 'rgba(34,197,94,0.08)', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10 }}>
+              <Text style={{ fontSize: 13, color: '#16a34a' }}>✓ 无添加认证</Text>
+            </View>
+            <View style={{ background: 'rgba(34,197,94,0.08)', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10 }}>
+              <Text style={{ fontSize: 13, color: '#16a34a' }}>✓ 过敏原筛查</Text>
+            </View>
+            <View style={{ background: 'rgba(34,197,94,0.08)', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10 }}>
+              <Text style={{ fontSize: 13, color: '#16a34a' }}>✓ 食养适配</Text>
+            </View>
+          </View>
+          <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 12, color: '#64748b' }}>已通过配料安全引擎分析，可查看完整检测报告</Text>
+            <Text style={{ fontSize: 12, color: '#16a34a', fontWeight: '600', borderBottomWidth: 1, borderBottomColor: '#16a34a' }}
+              onClick={() => Taro.navigateTo({ url: `/pages/food/analysis-result/index?product_id=${encodeURIComponent(product.id)}` })}>
+              查看检测报告 ›
+            </Text>
           </View>
         </View>
       )}

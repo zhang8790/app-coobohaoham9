@@ -1,7 +1,7 @@
-// 食疗商品 · 视频文案 + AI 提示词生成器（纯模板，零外部依赖）
+// 食疗商品 · 视频文案 + 视频提示词生成器（纯模板，零外部依赖）
 // 复用统一食疗引擎 ProductTherapyReport 的输出，生成：
 //   ① 短视频口播脚本（商家可直接照读）
-//   ② 可复制的 AI 视频提示词（文生视频 / 图生视频通用，中文描述 + 英文关键词）
+//   ② 可复制的视频提示词（文生视频 / 图生视频通用，中文描述 + 英文关键词）
 //   ③ 分镜建议
 // 全部经 sanitizeTherapyCopy 合规硬替换 + THERAPY_DISCLAIMER 兜底。
 
@@ -14,7 +14,7 @@ import {
 export interface VideoCopyResult {
   /** 短视频口播脚本（分段，每段一行） */
   script: string
-  /** 可一键复制的 AI 视频生成提示词 */
+  /** 可一键复制的视频生成提示词 */
   prompt: string
   /** 分镜建议（3-5 个） */
   shots: string[]
@@ -42,7 +42,7 @@ function toneOf(natureCode: string) {
 }
 
 /**
- * 生成食疗商品的视频文案 + AI 提示词。
+ * 生成食疗商品的视频文案 + 视频提示词。
  * @param name 商品名
  * @param report 统一引擎报告；为 null 时返回占位提示
  * @param ingredientNames 食材名列表（用于画面元素描述）
@@ -88,7 +88,7 @@ export function buildVideoCopy(
   }
   scriptLines.push(THERAPY_DISCLAIMER)
 
-  // ---------- ② AI 视频提示词 ----------
+  // ---------- ② 视频提示词 ----------
   const elements = ingredientNames.length
     ? ingredientNames.join('、')
     : name

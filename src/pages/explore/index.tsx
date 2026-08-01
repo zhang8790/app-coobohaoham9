@@ -12,6 +12,7 @@ import { scanAndRoute } from '@/utils/scan'
 import LazyImage from '@/components/LazyImage'
 import ProductGridCard from '@/components/ProductGridCard'
 import CustomTabBar from '@/components/custom-tabbar'
+import FloatingActionBar from '@/components/FloatingActionBar'
 import { getProductCareInfo } from '@/utils/product-care'
 import { buildTherapyReport, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
@@ -299,6 +300,7 @@ export default function ExplorePage() {
         </View>
       </View>
 
+      <FloatingActionBar />
       <CustomTabBar />
     </View>
   )

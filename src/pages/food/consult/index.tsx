@@ -10,13 +10,15 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, ScrollView, Image, Textarea } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
-import { getProducts, getOrders, getProductsByIds, addToCart } from '@/db/api'
+import { getProducts, getOrders, getProductsByIds, addToCart, createOrder, getCartItems } from '@/db/api'
 import { recommendForConsult, type ConsultResult, type ConsultRecommendation } from '@/utils/food-therapy/consult-recommend'
-import { bumpCartCount } from '@/utils/cartStore'
+import { resolveConstitution } from '@/utils/today-food-therapy'
 import type { Product } from '@/db/types'
 import './index.scss'
 
 const HISTORY_KEY = 'consult_history_v1'
+const TURNS_KEY = 'consult_turns_v2'
+const TURNS_MAX = 20
 
 const QUICK_PROMPTS = [
   '最近嗓子干痒还怕冷',
@@ -49,6 +51,7 @@ export default function ConsultPage() {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [boostTags, setBoostTags] = useState<string[]>([])
+  const [cartIds, setCartIds] = useState<Set<string>>(new Set())
   const scrollRef = useRef<any>(null)
 
   // 读取本地查询历史（自适应加权，自动优化）
@@ -70,15 +73,49 @@ export default function ConsultPage() {
     setBoostTags(Array.from(new Set(next)))
   }
 
+  // 对话记忆：存/取上次咨询历史（同门店持续、换门店清空）
+  const restoreTurns = (storeId?: string): Turn[] => {
+    try {
+      const raw = Taro.getStorageSync(TURNS_KEY)
+      if (!raw?.length || !Array.isArray(raw)) return []
+      // 门店变了就清掉旧记录（不同店的商品池不一样）
+      if (storeId && raw[0]?.storeId && raw[0]?.storeId !== storeId) return []
+      return raw as Turn[]
+    } catch {
+      return []
+    }
+  }
+  const saveTurns = (t: Turn[]) => {
+    const trimmed = t.slice(-TURNS_MAX)
+    // 精简存储：去掉六维明细等冗余字段，缩小体积
+    const slimmed = trimmed.map(({ q, result }) => ({
+      q,
+      storeId: currentStore?.id || '',
+      result: {
+        summary: result.summary,
+        recommendations: result.recommendations.map((r) => ({
+          product: { id: r.product.id, name: r.product.name, price: r.product.price, main_image: r.product.main_image, image_url: r.product.image_url, store_id: r.product.store_id, store_name: r.product.store_name },
+          nature: r.nature,
+          healthTags: r.healthTags,
+          reasons: r.reasons,
+        })),
+        nlu: result.nlu ? { food_type: result.nlu.food_type } : null,
+      },
+    }))
+    try { Taro.setStorageSync(TURNS_KEY, slimmed) } catch { /* ignore */ }
+  }
+
   // 基础数据：商品池 + 已购 → 用户六维画像（无问询，快）
   const loadBase = async () => {
     setLoading(true)
     try {
-      const [poolRes, ordersRes] = await Promise.all([
+      const [poolRes, ordersRes, cartRes] = await Promise.all([
         getProducts({ storeId: currentStore?.id, limit: 40, platformFilter: 'only' }).catch(() => [] as Product[]),
         user?.id ? getOrders().catch(() => [] as any[]) : Promise.resolve([] as any[]),
+        user?.id ? getCartItems().catch(() => []) : Promise.resolve([] as any[]),
       ])
       setPool(poolRes)
+      setCartIds(new Set((cartRes || []).map((c: any) => c.product_id).filter(Boolean)))
       const ids: string[] = []
       for (const o of ordersRes || []) {
         for (const it of (o as any).order_items || []) if (it?.product_id) ids.push(it.product_id)
@@ -92,6 +129,9 @@ export default function ConsultPage() {
 
   useEffect(() => {
     loadBase()
+    // 恢复上次对话历史（门店不一致时 restoreTurns 自动清空）
+    const prev = restoreTurns(currentStore?.id)
+    if (prev.length) setTurns(prev)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStore?.id, user?.id])
 
@@ -106,15 +146,24 @@ export default function ConsultPage() {
     setQuery('')
     setLoading(true)
     try {
+      // 构建上一轮上下文摘要：让 Qwen 知道"刚才在聊什么"，延续对话语境
+      const last = turns[turns.length - 1]
+      const prevCtx = last
+        ? `上一轮：用户问「${last.q}」→ 推荐方向：${last.result.recommendations.slice(0, 3).map((r) => r.healthTags?.join('/') || r.nature).filter(Boolean).join('、') || '无'}`
+        : ''
       const res = await recommendForConsult({
         products: pool,
         boughtProducts: bought,
         profile,
         queryText: text,
         boostTags,
+        previousContext: prevCtx || undefined,
+        cartIds: [...cartIds],
       })
       if (res.nlu?.health_tags?.length) pushHistory(res.nlu.health_tags)
-      setTurns((prev) => [...prev, { q: text, result: res }])
+      const next = [...turns, { q: text, result: res }]
+      setTurns(next)
+      saveTurns(next)
       setTimeout(() => scrollRef.current?.scrollTo?.({ top: 99999, behavior: 'smooth' } as any), 120)
     } finally {
       setLoading(false)
@@ -122,16 +171,51 @@ export default function ConsultPage() {
   }
 
   const handleAdd = (p: Product) => {
+    // addToCart 内部已处理登录校验、错误 toast、bumpCartCount，这里只补成功提示
     addToCart(p.id, p.store_id, 1, null)
       .then((ok) => {
-        if (ok) {
-          bumpCartCount(1)
-          Taro.showToast({ title: '已加入购物车', icon: 'success' })
-        } else {
-          Taro.showToast({ title: '加入失败，请重试', icon: 'none' })
-        }
+        if (ok) Taro.showToast({ title: '已加入购物车', icon: 'success' })
       })
-      .catch(() => Taro.showToast({ title: '加入失败，请重试', icon: 'none' }))
+      .catch((e) => {
+        console.warn('[consult] 加购失败', p.id, p.store_id, e)
+        Taro.showToast({ title: '加入失败，请重试', icon: 'none' })
+      })
+  }
+
+  // 立即购买：直创建订单 → 跳到支付页，绕过购物车（咨询场景核心转化闭环）
+  const handleBuyNow = async (p: Product) => {
+    if (!user?.id) {
+      Taro.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+    Taro.showLoading({ title: '正在创建订单…' })
+    try {
+      const order = await createOrder(
+        [
+          {
+            product_id: p.id,
+            store_id: p.store_id || '',
+            store_name: p.store_name || (currentStore?.name ?? ''),
+            product_name: p.name,
+            product_image: p.main_image || p.image_url || null,
+            price: p.price ?? 0,
+            quantity: 1,
+          },
+        ],
+        p.price ?? 0,
+        'wxpay',
+      )
+      Taro.hideLoading()
+      if (order?.id) {
+        Taro.navigateTo({ url: `/pages/payment/index?orderId=${order.id}` })
+      } else {
+        Taro.showToast({ title: '创建订单失败，请重试', icon: 'none' })
+      }
+    } catch (e) {
+      Taro.hideLoading()
+      console.warn('[consult] 立即购买失败', p.id, p.store_id, e)
+      Taro.showToast({ title: '创建订单失败，请重试', icon: 'none' })
+    }
   }
 
   return (
@@ -157,12 +241,62 @@ export default function ConsultPage() {
           ))}
         </View>
 
-        {/* 对话流 */}
+        {/* 清空对话记录 */}
+        {turns.length > 0 && (
+          <View className="consult-clear" onClick={() => { setTurns([]); try { Taro.removeStorageSync(TURNS_KEY) } catch { /* */ } }}>
+            <Text className="consult-clear-text">清空对话</Text>
+          </View>
+        )}
+
+        {/* 空态：基于体质给出开机推荐（本地打分，不调 Qwen，毫秒出） */}
         {turns.length === 0 && (
           <View className="consult-empty">
-            <Text className="consult-empty-text">
-              例如：「我嗓子干痒怕冷，适合吃什么？」{'\n'}说说你的状态，我帮你挑几款合适的～
-            </Text>
+            {profile?.constitution_tags?.length ? (
+              (() => {
+                // 体质 → 规避性味/推荐性味 → pool 内打分取 Top 3
+                const con = resolveConstitution(profile)
+                const avoidSet = new Set(con?.avoidNature || [])
+                const recSet = new Set(con?.recommendNature || [])
+                const scored = pool
+                  .filter((p) => !avoidSet.has(p.overall_nature || '平性'))
+                  .map((p) => {
+                    let score = 50
+                    if (recSet.has(p.overall_nature || '平性')) score += 30
+                    const tags = (p.health_tag || []).filter(Boolean)
+                    if (tags.length) score += 10
+                    return { product: p, score }
+                  })
+                  .sort((a, b) => b.score - a.score)
+                  .slice(0, 3)
+                if (!scored.length) return null
+                const top = scored.map(({ product, score }) => ({
+                  product,
+                  sixDim: [] as any[],
+                  constitutionFit: 1,
+                  queryFit: 0,
+                  total: score,
+                  tier: 'recommend' as const,
+                  reasons: [`适合${con?.name || '你'}的体质`],
+                  nature: product.overall_nature || '平性',
+                  healthTags: (product.health_tag || []).filter(Boolean),
+                }))
+                return (
+                  <View>
+                    <Text className="consult-greet-title">基于你的{con?.name || ''}体质，试试这些～</Text>
+                    {top.map((rec) => (
+                      <RecCard key={rec.product.id} rec={rec} inCart={cartIds.has(rec.product.id)} onAdd={() => handleAdd(rec.product)} onBuyNow={() => handleBuyNow(rec.product)} />
+                    ))}
+                    <Text className="consult-empty-text" style={{ marginTop: 10 }}>
+                      也可以直接说说你的状态，我帮你挑更合适的～
+                    </Text>
+                  </View>
+                )
+              })()
+            ) : (
+              <Text className="consult-empty-text">
+                例如：「我嗓子干痒怕冷，适合吃什么？」{'\n'}说说你的状态，我帮你挑几款合适的～
+              </Text>
+            )}
           </View>
         )}
 
@@ -175,8 +309,32 @@ export default function ConsultPage() {
               <Text className="consult-bubble-bot-text">{t.result.summary}</Text>
             </View>
             {t.result.recommendations.map((rec) => (
-              <RecCard key={rec.product.id} rec={rec} onAdd={() => handleAdd(rec.product)} />
+              <RecCard key={rec.product.id} rec={rec} inCart={cartIds.has(rec.product.id)} onAdd={() => handleAdd(rec.product)} onBuyNow={() => handleBuyNow(rec.product)} />
             ))}
+            {/* 追问引导：仅最后一轮 */}
+            {i === turns.length - 1 && (() => {
+              const ft = t.result.nlu?.food_type
+              const ADJACENT: Record<string, string[]> = {
+                水果: ['那煲什么汤？', '有合适的水果茶吗？', '还有什么蔬菜推荐？'],
+                汤羹: ['配什么主食好？', '有合适的茶吗？', '还想看坚果类？'],
+                茶: ['有什么汤也合适？', '搭配什么零食好？', '坚果类推荐一下？'],
+                坚果: ['煲什么汤搭配好？', '还想看蔬菜？', '有合适的茶吗？'],
+                蔬菜: ['配什么主食好？', '煲什么汤搭配？', '水果类也推荐下？'],
+                主食: ['喝什么汤搭配？', '有什么蔬菜推荐？', '想看看坚果？'],
+                零食: ['想看看茶饮？', '主食有什么推荐？', '还有什么汤？'],
+                饮: ['有什么零食搭配？', '还想看看水果？', '坚果类也有吗？'],
+              }
+              const prompts = ft ? (ADJACENT[ft] || ['还想再看看？', '换种类型试试？']) : ['还有什么想调养的？', '换个食类看看？']
+              return (
+                <View className="consult-chips consult-chips--follow" style={{ marginTop: 6 }}>
+                  {prompts.map((p) => (
+                    <View key={p} className="consult-chip" hoverClass="none" onClick={() => submit(p)}>
+                      <Text className="consult-chip-text">{p}</Text>
+                    </View>
+                  ))}
+                </View>
+              )
+            })()}
           </View>
         ))}
 
@@ -203,7 +361,7 @@ export default function ConsultPage() {
   )
 }
 
-function RecCard({ rec, onAdd }: { rec: ConsultRecommendation; onAdd: () => void }) {
+function RecCard({ rec, onAdd, onBuyNow, inCart }: { rec: ConsultRecommendation; onAdd: () => void; onBuyNow: () => void; inCart?: boolean }) {
   const p = rec.product
   const price = (p.price ?? 0).toFixed(2)
   return (
@@ -235,14 +393,19 @@ function RecCard({ rec, onAdd }: { rec: ConsultRecommendation; onAdd: () => void
         </View>
 
         <View className="rec-actions">
-          <View className="rec-btn-cart" hoverClass="none" onClick={onAdd}>
-            <Text className="rec-btn-cart-text">加入购物车</Text>
+          <View className="rec-btn-buy" hoverClass="none" onClick={onBuyNow}>
+            <Text className="rec-btn-buy-text">{inCart ? '去结算' : '立即购买'}</Text>
           </View>
-          <View
-            className="rec-btn-detail"
-            hoverClass="none"
-            onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}>
-            <Text className="rec-btn-detail-text">查看</Text>
+          <View className="rec-actions-row">
+            <View className="rec-btn-cart" hoverClass="none" onClick={inCart ? () => Taro.switchTab({ url: '/pages/cart/index' }) : onAdd}>
+              <Text className="rec-btn-cart-text">{inCart ? '购物车' : '加购'}</Text>
+            </View>
+            <View
+              className="rec-btn-detail"
+              hoverClass="none"
+              onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}>
+              <Text className="rec-btn-detail-text">查看</Text>
+            </View>
           </View>
         </View>
       </View>

@@ -1,4 +1,4 @@
-// 食疗短视频文案助手（方案⑨）：复用商品食疗引擎，一键生成口播脚本 + AI 视频提示词 + 分镜
+// 食疗短视频文案助手（方案⑨）：复用商品食疗引擎，一键生成口播脚本 + 视频提示词 + 分镜
 import { useState, useEffect, useMemo } from 'react'
 import { View, Text, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
@@ -90,7 +90,7 @@ export default function FoodTherapyCopyPage() {
       <View className="min-h-screen bg-bg px-4 pt-4 pb-10" style={{ background: '#FFFBF7' }}>
         <Text className="text-xl font-bold" style={{ display: 'block' }}>食疗短视频文案助手</Text>
         <Text className="text-xs text-muted-foreground mt-1" style={{ display: 'block', color: '#8C7E6E' }}>
-          复用商品食疗引擎，一键生成口播脚本 + AI 视频提示词 + 分镜建议
+          复用商品食疗引擎，一键生成口播脚本 + 视频提示词 + 分镜建议
         </Text>
 
         {/* 选择商品 */}
@@ -128,7 +128,7 @@ export default function FoodTherapyCopyPage() {
             )}
 
             <CopyCard title="🎬 口播脚本" text={video?.script || ''} copied={copied === 'script'} onCopy={() => copy('script', video?.script || '')} />
-            <CopyCard title="🤖 AI 视频提示词" text={video?.prompt || ''} copied={copied === 'prompt'} onCopy={() => copy('prompt', video?.prompt || '')} />
+            <CopyCard title="🎬 视频提示词" text={video?.prompt || ''} copied={copied === 'prompt'} onCopy={() => copy('prompt', video?.prompt || '')} />
             <CopyCard title="🎞 分镜建议" text={(video?.shots || []).join('\n')} copied={copied === 'shots'} onCopy={() => copy('shots', (video?.shots || []).join('\n'))} />
             <CopyCard title="✨ 海报金句" text={video?.poster || ''} copied={copied === 'poster'} onCopy={() => copy('poster', video?.poster || '')} />
 

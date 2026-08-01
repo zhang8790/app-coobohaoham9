@@ -264,6 +264,30 @@ export default function StoreHomePage() {
         </View>
       </View>
 
+      {/* ========== 门店详情信息卡 ========== */}
+      <View style={{ margin: '0 16px', marginTop: 12, background: '#FFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#1e293b' }}>🏪 门店信息</Text>
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {store.description && (
+            <Text style={{ fontSize: 13, color: '#475569', lineHeight: '20px', width: '100%', display: 'block' }}>{store.description}</Text>
+          )}
+          <View style={storeInfoTag}>
+            <Text style={{ fontSize: 12 }}>📍</Text>
+            <Text style={{ fontSize: 12, color: '#475569' }}>{store.address || '查看地图'}</Text>
+          </View>
+          <View style={storeInfoTag}>
+            <Text style={{ fontSize: 12 }}>🕐</Text>
+            <Text style={{ fontSize: 12, color: '#475569' }}>{store.open_time ? `${store.open_time}-${store.close_time || ''}` : '营业时间待更新'}</Text>
+          </View>
+          <View style={storeInfoTag}>
+            <Text style={{ fontSize: 12 }}>📞</Text>
+            <Text style={{ fontSize: 12, color: '#475569' }}>{store.phone || '联系方式待更新'}</Text>
+          </View>
+        </View>
+      </View>
+
       {/* ========== 门店专属红包横幅（进店领→归属） ========== */}
       {storeCampaign && (
         <View
@@ -434,3 +458,9 @@ export default function StoreHomePage() {
     </View>
   )
 }
+
+const storeInfoTag: React.CSSProperties = {
+  flexDirection: 'row', alignItems: 'center', gap: 4,
+  background: '#f8fafc', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10,
+  flexShrink: 0,
+} as any

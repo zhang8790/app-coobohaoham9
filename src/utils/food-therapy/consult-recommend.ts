@@ -17,7 +17,7 @@ import { analyzeConsumption, type ConsumptionProfile } from '../consumption-prof
 import { resolveConstitution } from '../today-food-therapy'
 import { type ConstitutionType } from '@/utils/constitution-test'
 import { getCurrentTerm, getTermNatureTags, type SeasonalTerm } from '../seasonal-box'
-import { nluParseSymptoms, recommendProductsLLM, type NluResult } from './llm'
+import { recommendProductsLLM, resolveFoodType, type NluResult } from './llm'
 
 // 商品整体性味 6 档（与 NATURE_SCALE 一致）：大寒/寒凉/平性/微温/温热/大热
 const WARM = new Set(['微温', '温热', '大热'])
@@ -186,6 +186,10 @@ export interface RecommendForConsultInput {
   boostTags?: string[]
   term?: SeasonalTerm | null
   limit?: number
+  /** 前一轮对话摘要（health_tags + food_type + summary），让 LLM 延续上下文 */
+  previousContext?: string
+  /** 购物车已有商品 ID 列表，让 LLM 避开重复推荐 */
+  cartIds?: string[]
 }
 
 // 食类 → 商品侧匹配词（与 llm.ts FOOD_TYPE_RULES 对齐；命中 category/food_category/name 任一处即算）
@@ -229,8 +233,12 @@ export async function recommendForConsult(input: RecommendForConsultInput): Prom
   const constitution = resolveConstitution(input.profile ?? null)
 
   let nlu: NluResult | null = null
+  // 速度优化：LLM 推荐大脑不需要前置 NLU Edge Function 调用。
+  // 食类收窄用本地 resolveFoodType（零网络、<1ms），省掉一次 ~2s 往返。
+  // 仅保留 food_type 供候选池收窄 + summary 展示。
   if (input.queryText && input.queryText.trim()) {
-    nlu = await nluParseSymptoms(input.queryText)
+    const ft = resolveFoodType(input.queryText)
+    if (ft) nlu = { matched_rule_id: null, health_tags: [], emotion_tags: [], nature_hint: '', food_type: ft, source: 'rule' }
   }
 
   const ctx: ConsultContext = {
@@ -264,6 +272,8 @@ export async function recommendForConsult(input: RecommendForConsultInput): Prom
       profile: buildLlmProfile(constitution, consumption, input.profile ?? null),
       termName: term?.name,
       isMedical: isMedicalQuery(input.queryText || ''),
+      previousContext: input.previousContext,
+      cartIds: input.cartIds,
     })
     if (llm.source === 'llm' && llm.items.length) {
       const byId = new Map(candidates.map((p) => [p.id, p]))

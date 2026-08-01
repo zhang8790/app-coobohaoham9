@@ -40,6 +40,10 @@ export interface ProductGridCardProps {
   compact?: boolean
   /** 食疗引擎报告（与详情页/门店卡同源）：传入即渲染整体性味 + 三色预警 */
   therapyReport?: ProductTherapyReport | null
+  /** 安全评级码（来自 ingredient-analyze EF）：传入即渲染安全色标徽章 */
+  safeLevelCode?: string | null
+  /** 0添加数量（无人工色素/香精/防腐剂等）：传入即渲染绿色 ✅0添加 */
+  cleanAdditiveCount?: number | null
 }
 
 const GRID_MATCH_STYLE: Record<string, string> = {
@@ -58,7 +62,7 @@ const NATURE_COLOR: Record<string, string> = {
 export default function ProductGridCard({
   id, name, price, imageUrl, originalPrice, storeName, subtitle,
   matchLabel, care, imageSlot, footerExtra, width = '48%', imageRatio = '1:1',
-  suitability, onTap, onAddCart, adding, onShare, disabled, sales, compact, therapyReport,
+  suitability, onTap, onAddCart, adding, onShare, disabled, sales, compact, therapyReport, safeLevelCode, cleanAdditiveCount,
 }: ProductGridCardProps) {
   const [imgFailed, setImgFailed] = useState(false)
   // 紧凑模式：首页默认 4:3 短图（除非显式传 1:1）
@@ -125,6 +129,21 @@ export default function ProductGridCard({
         {/* 食疗引擎三色预警（与详情页/门店卡同源）：整体性味 + 红/橙/蓝预警 */}
         {therapyReport && (
           <View className="flex items-center gap-1 flex-wrap" style={{ marginTop: 2 }}>
+            {/* 安全评级色标徽章（来自配料安全分析） */}
+            {safeLevelCode && (
+              <Text className="px-1.5 py-0.5 rounded-full text-xs font-bold" style={{
+                background: SAFE_COLORS[safeLevelCode]?.bg || '#F3F4F6',
+                color: SAFE_COLORS[safeLevelCode]?.fg || '#8C7E6E',
+                borderWidth: 1,
+                borderColor: SAFE_COLORS[safeLevelCode]?.border || 'transparent',
+              }}>{SAFE_COLORS[safeLevelCode]?.label || safeLevelCode}</Text>
+            )}
+            {/* 0添加数量标签 */}
+            {cleanAdditiveCount != null && cleanAdditiveCount > 0 && (
+              <Text className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: '#DCFCE7', color: '#16A34A' }}>
+                ✅{cleanAdditiveCount}项0添加
+              </Text>
+            )}
             {therapyReport.overall_nature_code ? (
               <Text className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: '#F3F4F6', color: NATURE_COLOR[therapyReport.overall_nature_code] ?? '#8C7E6E' }}>
                 {NATURE_FEELING[therapyReport.overall_nature_code] || therapyReport.overall_nature_code}
@@ -240,6 +259,14 @@ const NEGATIVE_TAG_TOKENS = ['过敏', '慎', '忌', '不宜', '禁忌', '风险
 function hasNegativeTag(t: string): boolean {
   if (!t) return false
   return NEGATIVE_TAG_TOKENS.some((tok) => t.includes(tok))
+}
+
+// 安全评级色标（与 analysis-result 页同源，小字徽章渲染）
+const SAFE_COLORS: Record<string, { label: string; bg: string; fg: string; border: string }> = {
+  A_preferred: { label: 'A优选', bg: 'rgba(34,197,94,0.10)', fg: '#16a34a', border: 'rgba(34,197,94,0.35)' },
+  A_limit: { label: 'A限量', bg: 'rgba(132,204,22,0.10)', fg: '#65a30d', border: 'rgba(132,204,22,0.35)' },
+  B_caution: { label: 'B慎选', bg: 'rgba(249,115,22,0.10)', fg: '#ea580c', border: 'rgba(249,115,22,0.35)' },
+  C_avoid: { label: 'C不推荐', bg: 'rgba(239,68,68,0.10)', fg: '#dc2626', border: 'rgba(239,68,68,0.35)' },
 }
 
 // 关怀度进度条（游戏化：分数越高越被「悉心照看」）

@@ -53,7 +53,7 @@ const subPackages = [
   },
   {
     root: 'pages/trade',
-    pages: ['withdraw/index', 'refund-apply/index', 'commission-detail/index', 'goldbean-ledger/index'],
+    pages: ['withdraw/index', 'refund-apply/index', 'commission-detail/index', 'goldbean-ledger/index', 'partner-center/index', 'bean-exchange/index'],
   },
   {
     root: 'pages/admin',
@@ -66,7 +66,6 @@ const subPackages = [
       'admin-users/index',
       'admin-refunds/index',
       'admin-announcements/index',
-      'admin-expiry/index',
     ],
   },
   {
@@ -94,7 +93,7 @@ const subPackages = [
   },
   {
     root: 'pages/food',
-    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index', 'ingredient-pairing/index', 'consult/index'],
+    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index', 'ingredient-pairing/index', 'consult/index', 'tracker/index', 'bmi/index'],
   },
   {
     root: 'pages/ext',

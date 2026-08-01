@@ -162,6 +162,10 @@ export interface LlmRecommendPayload {
   profile: LlmRecommendProfile
   termName?: string
   isMedical?: boolean
+  /** 前一轮对话摘要：让 Qwen 延续上下文，解决"那坚果呢"丢失"术后"语境 */
+  previousContext?: string
+  /** 购物车已有商品 ID 列表：让 Qwen 避开重复推荐，优先推搭配品 */
+  cartIds?: string[]
 }
 
 export async function recommendProductsLLM(

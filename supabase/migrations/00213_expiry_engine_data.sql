@@ -1,5 +1,5 @@
 -- ============================================================
--- 00213: 食品保质期预警 + AI 动态折扣 · 通用数据层
+-- 00213: 食品保质期预警 + 智能动态折扣 · 通用数据层
 -- ------------------------------------------------------------
 -- 设计目标：所有数据保持「通用」——
 --   1) 引擎扫描全店铺，不写死任何 store_id / 商品 / 类目
@@ -21,7 +21,7 @@ ALTER TABLE public.stock_batches
   ADD COLUMN IF NOT EXISTS alerted_stages       text[] DEFAULT '{}',      -- 已推送过的阶段（防同阶段重复骚扰）
   ADD COLUMN IF NOT EXISTS last_alert_at        timestamptz,              -- 最近一次预警时间
   ADD COLUMN IF NOT EXISTS ai_reason            text,                    -- 折扣决策理由（可解释）
-  ADD COLUMN IF NOT EXISTS ai_decided_at        timestamptz,              -- AI/规则决策时间
+  ADD COLUMN IF NOT EXISTS ai_decided_at        timestamptz,              -- 智能/规则决策时间
   ADD COLUMN IF NOT EXISTS decided_by           text DEFAULT 'rule'       -- rule | ai（本次折扣由谁决定）
         CHECK (decided_by IN ('rule','ai'));
 

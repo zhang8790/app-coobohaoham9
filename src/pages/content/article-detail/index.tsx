@@ -5,7 +5,7 @@ import { View, Text, Image, ScrollView, RichText, Button, Canvas, Video } from '
 import './index.scss'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { getArticleById, incrementArticleView, getArticles, getProductById, toggleArticleFavorite, isArticleFavorited, toggleAuthorFollow, isFollowingAuthor, toggleArticleLike, isArticleLiked, getArticleLikeCount, incrementArticleShare, addEmotionTongbao, grantEmotionBadge, getArticleShareCode } from '@/db/api'
+import { getArticleById, incrementArticleView, getArticles, getProductById, getProducts, toggleArticleFavorite, isArticleFavorited, toggleAuthorFollow, isFollowingAuthor, toggleArticleLike, isArticleLiked, getArticleLikeCount, incrementArticleShare, addEmotionTongbao, grantEmotionBadge, getArticleShareCode } from '@/db/api'
 import { handleInviterFromQuery, buildArticleShareTitle, getMyReferralCode } from '@/utils/share'
 import { generateArticleSharePoster, POSTER_WIDTH, POSTER_HEIGHT, generateArticleCodePoster, CODE_POSTER_WIDTH, CODE_POSTER_HEIGHT } from '@/utils/share-poster'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
@@ -17,6 +17,8 @@ export default function ArticleDetailPage() {
   const { user } = useAuth()
   const [article, setArticle] = useState<any>(null)
   const [relatedArticles, setRelatedArticles] = useState<any[]>([])
+  const [recProducts, setRecProducts] = useState<any[]>([])
+  const [recProdLoading, setRecProdLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isFavorited, setIsFavorited] = useState(false)
@@ -128,12 +130,26 @@ export default function ArticleDetailPage() {
         }
 
         loadRelatedArticles(data)
+        // 异步加载推荐商品（基于文章标签）
+        loadRecProducts(data)
       }
     } catch (err: any) {
       setError(err.message || '加载失败')
     } finally {
       setLoading(false)
     }
+  }
+
+  // 基于文章标签推荐商品
+  const loadRecProducts = async (currentArticle: any) => {
+    setRecProdLoading(true)
+    try {
+      const tags = currentArticle.tags || []
+      const kw = tags.length > 0 ? tags[0] : (currentArticle.title || '').slice(0, 8)
+      const products = await getProducts({ search: kw, limit: 4 })
+      setRecProducts(products.filter(p => p.is_active).slice(0, 3))
+    } catch {}
+    setRecProdLoading(false)
   }
 
   const loadRelatedArticles = async (currentArticle: any) => {
@@ -468,6 +484,39 @@ export default function ArticleDetailPage() {
                       {item.profiles?.nickname || '匿名'}
                       {' · '}
                       {item.view_count || 0} 阅读
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ===== 好物推荐（内容→商品闭环） ===== */}
+        {recProducts.length > 0 && (
+          <View className="related-section">
+            <View className="related-header">
+              <View className="related-header-line" />
+              <Text className="related-header-text">🛍️ 好物推荐</Text>
+              <View className="related-header-line" />
+            </View>
+            <View className="related-list">
+              {recProducts.map((item: any) => (
+                <View
+                  key={item.id}
+                  className="related-card"
+                  onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${encodeURIComponent(item.id)}` })}
+                >
+                  {(item.image_url || item.main_image) && (
+                    <Image
+                      src={item.image_url || item.main_image}
+                      mode="aspectFill"
+                      className="related-card-img" />
+                  )}
+                  <View className="related-card-body">
+                    <Text className="related-card-title">{item.name}</Text>
+                    <Text className="related-card-meta" style={{ color: '#dc2626', fontWeight: '700' }}>
+                      ¥{(item.price || 0).toFixed(2)}
                     </Text>
                   </View>
                 </View>

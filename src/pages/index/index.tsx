@@ -17,6 +17,7 @@ import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 import { getTodayFoodTherapy, resolveConstitution, type TodayFoodTherapyResult } from '@/utils/today-food-therapy'
 import { analyzeConsumption, recommendByConsumption, type ConsumptionProfile } from '@/utils/consumption-profile'
 import CustomTabBar from '@/components/custom-tabbar'
+import FloatingActionBar from '@/components/FloatingActionBar'
 import Icon from '@/components/Icon'
 import ProductGridCard from '@/components/ProductGridCard'
 import AddToCartButton from '@/components/AddToCartButton'
@@ -729,6 +730,20 @@ export default function IndexPage() {
 
       {/* 状态卡：默认收起为一行胶囊，点开才展开输入（去头重脚轻）；情绪不进前台 */}
       <View id="state-card" className="pg-card mx-4 mt-4 p-4">
+        {/* 每日签到彩蛋 */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 16 }}>📅</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>每日签到</Text>
+            <Text style={{ fontSize: 12, color: '#d4a537' }}>+5健康豆</Text>
+          </View>
+          <View
+            style={{ background: 'linear-gradient(135deg,#d4a537,#b8860b)', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 14 }}
+            onClick={() => Taro.showToast({ title: '签到成功! +5健康豆', icon: 'success' })}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>签到</Text>
+          </View>
+        </View>
         {!inputExpanded ? (
           <View className="flex items-center justify-between" hoverClass="none" onClick={() => setInputExpanded(true)}>
             <Text className="text-base font-bold text-foreground">今天身体怎样？</Text>
@@ -856,34 +871,52 @@ export default function IndexPage() {
       )}
 
       {/* ===================== L2 工具与附近：效率型轻量模块 ===================== */}
-      <SectionHeader className="mx-4 mt-6" emoji="🧰" title="食养工具" subtitle="扫码自动收录 · 顺时而食" />
-      <View className="mx-4 mt-2 grid grid-cols-2 gap-3">
-        {/* 知识图谱 */}
-        <View
-          className="pg-card rounded-2xl p-3 active:scale-[0.98] transition-transform"
-          style={{ background: 'linear-gradient(135deg, hsl(var(--brand-jade) / 0.10) 0%, hsl(var(--brand-jade) / 0.03) 100%)' }}
-          hoverClass="none"
-          onClick={() => Taro.navigateTo({ url: '/pages/food/knowledge-atlas/index' })}
-        >
-          <Text className="text-lg">🧭</Text>
-          <Text className="text-sm font-bold block mt-1" style={{ color: 'hsl(var(--brand-jade))' }}>食安知识图谱</Text>
-          <Text className="text-[11px] mt-1 opacity-70" style={{ color: 'hsl(var(--brand-jade))', lineHeight: 1.4 }}>
-            {knowledgeCount === 0 ? '扫配料发现新成分' : `已收录 ${knowledgeCount} 种`}
-          </Text>
-        </View>
-        {/* 节气食盒 */}
-        <View
-          className="pg-card rounded-2xl p-3 active:scale-[0.98] transition-transform"
-          style={{ background: 'linear-gradient(135deg, hsl(var(--brand-gold) / 0.14) 0%, hsl(var(--brand-gold) / 0.05) 100%)' }}
-          hoverClass="none"
-          onClick={() => Taro.navigateTo({ url: '/pages/food/seasonal-box/index' })}
-        >
-          <Text className="text-lg">🌾</Text>
-          <Text className="text-sm font-bold block mt-1" style={{ color: 'hsl(var(--brand-ochre))' }}>节气食盒</Text>
-          <Text className="text-[11px] mt-1 opacity-70" style={{ color: 'hsl(var(--brand-ochre))', lineHeight: 1.4 }}>
-            当前{termName} · 顺时而食
-          </Text>
-        </View>
+      <SectionHeader className="mx-4 mt-6" emoji="🧰" title="食养工具" subtitle="扫码自动收录 · 健康管理" />
+      <View className="mx-4 mt-2 grid grid-cols-4 gap-2">
+        {[
+          { label: '知识图谱', icon: '🧭', url: '/pages/food/knowledge-atlas/index', bg: 'hsl(var(--brand-jade) / 0.10)' },
+          { label: '节气食盒', icon: '🌾', url: '/pages/food/seasonal-box/index', bg: 'hsl(var(--brand-gold) / 0.14)' },
+          { label: 'BMI计算', icon: '⚖️', url: '/pages/food/bmi/index', bg: 'rgba(99,102,241,0.10)' },
+          { label: '体质测试', icon: '🧪', url: '/pages/food/constitution-test/index', bg: 'rgba(14,165,233,0.10)' },
+          { label: '视频好物', icon: '🎬', url: '/pages/content/content-center/make-video/index', bg: 'rgba(239,68,68,0.08)' },
+        ].map((item) => (
+          <View
+            key={item.label}
+            className="pg-card rounded-xl py-2.5 flex flex-col items-center gap-1 active:scale-[0.97]"
+            style={{ background: item.bg }}
+            hoverClass="none"
+            onClick={() => Taro.navigateTo({ url: item.url })}
+          >
+            <Text style={{ fontSize: 22 }}>{item.icon}</Text>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: '#475569' }}>{item.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* ===================== L2.5 按需求找：场景化食养导航 ===================== */}
+      <SectionHeader className="mx-4 mt-5" emoji="🎯" title="按需求找" subtitle="无论什么体质，都能找到适合的好物" />
+      <View className="mx-4 mt-2" style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        {[
+          { label: '过敏体质', icon: '🛡️', url: '/pages/food/consult/index?scene=allergy' },
+          { label: '增强免疫', icon: '💪', url: '/pages/food/consult/index?scene=immunity' },
+          { label: '儿童成长', icon: '👶', url: '/pages/food/consult/index?scene=children' },
+          { label: '控糖饮食', icon: '🍬', url: '/pages/food/consult/index?scene=sugar' },
+          { label: '孕产营养', icon: '🤰', url: '/pages/food/consult/index?scene=pregnant' },
+          { label: '助眠安神', icon: '😴', url: '/pages/food/consult/index?scene=sleep' },
+          { label: '消化调理', icon: '🫗', url: '/pages/food/consult/index?scene=digestion' },
+          { label: '老年养生', icon: '🧓', url: '/pages/food/consult/index?scene=elderly' },
+        ].map((item) => (
+          <View
+            key={item.label}
+            className="pg-card rounded-xl py-2 px-3 flex items-center gap-1.5 active:scale-[0.97]"
+            style={{ minWidth: '30%', flex: 1 }}
+            hoverClass="none"
+            onClick={() => Taro.navigateTo({ url: item.url })}
+          >
+            <Text style={{ fontSize: 16 }}>{item.icon}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: 'hsl(var(--foreground))' }}>{item.label}</Text>
+          </View>
+        ))}
       </View>
 
       {/* ===================== L3 运营惠专区：福利 + 临期双列并排 ===================== */}
@@ -953,6 +986,9 @@ export default function IndexPage() {
               { key: '炖汤', label: '炖汤', emoji: '🍲' },
               { key: '热饮', label: '热饮', emoji: '🍵' },
               { key: '小菜', label: '小菜', emoji: '🥗' },
+              { key: 'children', label: '👶儿童', emoji: '' },
+              { key: 'sugar', label: '🍬控糖', emoji: '' },
+              { key: 'pregnant', label: '🤰孕妈', emoji: '' },
             ].map((cat) => {
               const active = catFilter === (cat.key === 'all' ? null : cat.key)
               return (
@@ -1086,31 +1122,10 @@ export default function IndexPage() {
 
       {/* 悬浮扫码按钮已合并至首屏「扫码查安全」唯一入口，避免首页扫码重复 */}
 
-      {/* 悬浮食疗咨询按钮：右下角常驻，点击进入「我适合吃什么」自动推荐页 */}
-      <View
-        hoverClass="none"
-        onClick={() => Taro.navigateTo({ url: '/pages/food/consult/index' })}
-        style={{
-          position: 'fixed',
-          right: '24px',
-          bottom: 'calc(env(safe-area-inset-bottom) + 160px)',
-          width: '52px',
-          height: '52px',
-          padding: 0,
-          margin: 0,
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #16A34A 0%, #22C55E 100%)',
-          boxShadow: '0 8px 22px rgba(22, 163, 74, 0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 60,
-        }}
-      >
-        <Icon name="leaf" size={28} className="text-white" />
-      </View>
+      {/* 全局悬浮操作栏：可拖拽 · 吸附边缘 · 双按钮（食疗咨询/去结算） */}
+      <FloatingActionBar />
 
-      {/* 悬浮客服按钮：右下角常驻，点击拉起微信原生客服（open-type="contact"） */}
+      {/* 悬浮客服按钮：微信原生（open-type="contact"），不可放入 FloatingActionBar */}
       <Button
         openType="contact"
         className="kefu-fab wx-contact-btn"

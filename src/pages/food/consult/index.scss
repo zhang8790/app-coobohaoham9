@@ -57,6 +57,17 @@
   color: #9A6B1E;
 }
 
+/* 清空对话 */
+.consult-clear {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 4px 0;
+}
+.consult-clear-text {
+  font-size: 12px;
+  color: #B6A48F;
+}
+
 /* 空态 */
 .consult-empty {
   margin-top: 18px;
@@ -69,6 +80,13 @@
   font-size: 13px;
   line-height: 1.7;
   color: #9A8070;
+}
+.consult-greet-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #6B4C1E;
+  margin-bottom: 12px;
 }
 
 /* 对话流 */
@@ -177,8 +195,22 @@
 }
 .rec-actions {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   margin-top: 10px;
+}
+.rec-btn-buy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+}
+.rec-btn-buy-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
 }
 .rec-btn-cart {
   flex: 1;
@@ -187,18 +219,20 @@
   justify-content: center;
   padding: 9px 0;
   border-radius: 12px;
-  background: linear-gradient(135deg, #F59E0B, #D97706);
+  background: #FFF4E2;
+  border: 1px solid rgba(200, 164, 92, 0.35);
 }
 .rec-btn-cart-text {
   font-size: 13px;
-  font-weight: 700;
-  color: #fff;
+  font-weight: 600;
+  color: #9A6B1E;
 }
 .rec-btn-detail {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 9px 16px;
+  padding: 9px 0;
   border-radius: 12px;
   background: #fff;
   border: 1px solid rgba(200, 164, 92, 0.4);
@@ -207,6 +241,10 @@
   font-size: 13px;
   font-weight: 600;
   color: #9A6B1E;
+}
+.rec-actions-row {
+  display: flex;
+  gap: 8px;
 }
 
 /* 底部输入区 */
