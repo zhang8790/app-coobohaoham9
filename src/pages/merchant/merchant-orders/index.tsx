@@ -1,8 +1,8 @@
 // @title 订单管理（商家端）
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
-import { getMerchantStore, getMerchantOrders, merchantShipOrder, merchantCompleteOrder } from '@/db/api'
+import { getMerchantStore, getMerchantOrders, getMerchantOrderSummary, merchantShipOrder, merchantCompleteOrder } from '@/db/api'
 import { RouteGuard } from '@/components/RouteGuard'
 import Icon from '@/components/Icon'
 
@@ -22,14 +22,23 @@ function MerchantOrdersPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'all' | 'pending_ship' | 'completed'>('all')
+  const [summary, setSummary] = useState<any>(null)
+
+  // 列表(getMerchantOrders, order_items粒度, 用于明细展示) + 汇总(getMerchantOrderSummary RPC, 真实全量)
+  const loadAll = async (s: any) => {
+    if (!s) return
+    const [ords, sum] = await Promise.all([
+      getMerchantOrders(s.id),
+      getMerchantOrderSummary(s.id),
+    ])
+    setOrders(ords)
+    setSummary(sum)
+  }
 
   useEffect(() => {
     getMerchantStore().then(async (s) => {
       setStore(s)
-      if (s) {
-        const ords = await getMerchantOrders(s.id)
-        setOrders(ords)
-      }
+      await loadAll(s)
       setLoading(false)
     })
   }, [])
@@ -37,24 +46,6 @@ function MerchantOrdersPage() {
   const filtered = tab === 'all' ? orders
     : tab === 'pending_ship' ? orders.filter(o => o.orders?.status === 'pending_ship')
     : orders.filter(o => o.orders?.status === 'completed')
-
-  // 订单汇总：销售总额 / 让利总额 / 实收总额（让利后价格）
-  const summary = useMemo(() => {
-    let sales = 0, discount = 0, settle = 0
-    for (const item of filtered) {
-      const o = item.orders
-      if (!o) continue
-      sales += Number(o.total_amount || 0)
-      const ms = Array.isArray(o.merchant_settlements)
-        ? (o.merchant_settlements[0] ?? null)
-        : (o.merchant_settlements ?? null)
-      if (ms) {
-        discount += Number(ms.discount_pool || 0)
-        settle += Number(ms.settle_amount || 0)
-      }
-    }
-    return { count: filtered.length, sales, discount, settle }
-  }, [filtered])
 
   const handleShip = async (order: any) => {
     Taro.showModal({
@@ -86,7 +77,7 @@ function MerchantOrdersPage() {
   const load = () => {
     getMerchantStore().then(async (s) => {
       setStore(s)
-      if (s) setOrders(await getMerchantOrders(s.id))
+      await loadAll(s)
     })
   }
 
@@ -102,26 +93,26 @@ function MerchantOrdersPage() {
         ))}
       </View>
 
-      {/* 订单汇总（让利后价格统计） */}
-      {!loading && filtered.length > 0 && (
+      {/* 订单汇总（让利后价格统计，真实全量） */}
+      {!loading && summary && (
         <View className="mx-4 mt-3 rounded-2xl bg-card border border-border p-3">
           <Text className="text-sm font-bold text-foreground block mb-2">订单汇总（让利后）</Text>
           <View className="flex flex-wrap">
             <View className="w-1/2 flex flex-col mb-2">
               <Text className="text-xs text-muted-foreground">订单数</Text>
-              <Text className="text-base font-bold text-foreground">{summary.count}</Text>
+              <Text className="text-base font-bold text-foreground">{summary.totalOrders}</Text>
             </View>
             <View className="w-1/2 flex flex-col mb-2">
               <Text className="text-xs text-muted-foreground">销售总额</Text>
-              <Text className="text-base font-bold text-foreground">¥{summary.sales.toFixed(2)}</Text>
+              <Text className="text-base font-bold text-foreground">¥{summary.totalSales.toFixed(2)}</Text>
             </View>
             <View className="w-1/2 flex flex-col">
               <Text className="text-xs text-muted-foreground">让利总额</Text>
-              <Text className="text-base font-bold text-orange-500">¥{summary.discount.toFixed(2)}</Text>
+              <Text className="text-base font-bold text-orange-500">¥{summary.totalDiscount.toFixed(2)}</Text>
             </View>
             <View className="w-1/2 flex flex-col">
               <Text className="text-xs text-muted-foreground">实收总额（让利后）</Text>
-              <Text className="text-base font-bold text-emerald-600">¥{summary.settle.toFixed(2)}</Text>
+              <Text className="text-base font-bold text-emerald-600">¥{summary.totalSettle.toFixed(2)}</Text>
             </View>
           </View>
         </View>

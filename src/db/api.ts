@@ -3358,6 +3358,34 @@ export async function getMerchantOrderStats(storeId: string): Promise<MerchantOr
   }
 }
 
+// 商家订单汇总（真实全量）：订单数 / 销售总额 / 让利总额 / 实收
+// 取代 merchant-orders 页原本用 getMerchantOrders(limit=20, order_items粒度) 前端聚合导致的
+// 「订单数=商品行数(截断20) + 销售/让利/实收 重复累加」双重失真。
+// 底层 RPC 为 SECURITY DEFINER + owner 校验（见迁移 00133），卖家身份可直接读自己门店。
+export interface MerchantOrderSummary {
+  totalOrders: number
+  totalSales: number
+  totalDiscount: number
+  totalSettle: number
+}
+export async function getMerchantOrderSummary(storeId: string): Promise<MerchantOrderSummary> {
+  const empty: MerchantOrderSummary = { totalOrders: 0, totalSales: 0, totalDiscount: 0, totalSettle: 0 }
+  try {
+    const { data, error } = await supabase.rpc('fn_get_store_order_summary', { p_store_id: storeId })
+    if (error) { console.error('[getMerchantOrderSummary] RPC 失败', error); return empty }
+    const d = (data ?? {}) as any
+    if (d.ok === false) { console.warn('[getMerchantOrderSummary] 无权限或门店不存在', d.error); return empty }
+    return {
+      totalOrders: Number(d.total_orders || 0),
+      totalSales: Math.round(Number(d.total_sales || 0)),
+      totalDiscount: Math.round(Number(d.total_discount || 0)),
+      totalSettle: Math.round(Number(d.total_settle || 0)),
+    }
+  } catch {
+    return empty
+  }
+}
+
 // 商家发货（配送）：订单进入「待收货」
 export async function merchantShipOrder(orderId: string, shipCompany?: string, shipNo?: string): Promise<boolean> {
   const { error } = await supabase.from('orders').update({
