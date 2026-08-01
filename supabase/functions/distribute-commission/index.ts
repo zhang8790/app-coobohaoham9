@@ -612,9 +612,13 @@ Deno.serve(async (req: Request) => {
       } catch (e: any) { console.warn('[V5] 写入 order_item_commissions 异常:', e?.message) }
     }
 
-    // 批量写入数据库
+    // 批量写入数据库（幂等：upsert onConflict 唯一约束，杜绝微信回调重试/函数超时重试导致的双发佣金=资损）
+    // 配合 00134 迁移的 uq_commissions_order_level_beneficiary 唯一约束，与入口 commission_distributed 标记形成双保险。
     if (commissionRows.length > 0) {
-      await supabase.from('commissions').insert(commissionRows)
+      await supabase.from('commissions').upsert(commissionRows, {
+        onConflict: 'order_id,level,beneficiary_id',
+        ignoreDuplicates: true,
+      })
     }
     if (pointsRows.length > 0) {
       await supabase.from('points_logs').insert(pointsRows)
