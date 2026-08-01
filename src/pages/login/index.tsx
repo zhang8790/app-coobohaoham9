@@ -286,11 +286,18 @@ export default function LoginPage() {
             </View>
 
             {/* 提示 */}
-            <Text className="text-xl text-muted-foreground mt-4 text-center">
-              没有账号？<Text className="text-primary" onClick={() => {
-                Taro.showToast({ title: '请联系管理员创建账号', icon: 'none' })
-              }}>请联系管理员</Text>
-            </Text>
+            <View className="mt-4 flex flex-col items-center gap-3">
+              <Text
+                className="text-xl text-primary"
+                onClick={() => Taro.navigateTo({ url: '/pages/reset-password/index?mode=forgot' })}>
+                忘记密码？
+              </Text>
+              <Text className="text-xl text-muted-foreground">
+                没有账号？<Text className="text-primary" onClick={() => {
+                  Taro.showToast({ title: '请联系管理员创建账号', icon: 'none' })
+                }}>请联系管理员</Text>
+              </Text>
+            </View>
           </>
         )}
       </View>

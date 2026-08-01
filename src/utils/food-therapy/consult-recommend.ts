@@ -78,6 +78,14 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v))
 }
 
+// LLM 调用超时保护：避免弱网/网关抖动时咨询页一直转圈（最坏 8s 降级到本地规则引擎）
+function withTimeout<T>(p: Promise<T>, ms: number, tag: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(tag)), ms)
+    p.then((v) => { clearTimeout(t); resolve(v) }).catch((e) => { clearTimeout(t); reject(e) })
+  })
+}
+
 // 连续性维度：商品命中所求 → 用户越看重越高；未命中 → 用户越看重越扣分
 function dimValue(userDim: number, isMatch: boolean): number {
   return isMatch ? 0.55 + 0.45 * clamp01(userDim) : 0.4 - 0.25 * clamp01(userDim)
@@ -266,15 +274,19 @@ export async function recommendForConsult(input: RecommendForConsultInput): Prom
   // 把收窄后的候选商品 + 用户画像 + 提问一起发给 Qwen，由它直接排序并给出人话理由。
   // 这彻底解决了"提问只占 ≤14% 权重、按历史购买乱推"的问题——现在提问才是主导信号。
   try {
-    const llm = await recommendProductsLLM({
-      queryText: input.queryText || '',
-      products: candidates.slice(0, 40).map(toLlmProduct),
-      profile: buildLlmProfile(constitution, consumption, input.profile ?? null),
-      termName: term?.name,
-      isMedical: isMedicalQuery(input.queryText || ''),
-      previousContext: input.previousContext,
-      cartIds: input.cartIds,
-    })
+    const llm = await withTimeout(
+      recommendProductsLLM({
+        queryText: input.queryText || '',
+        products: candidates.slice(0, 40).map(toLlmProduct),
+        profile: buildLlmProfile(constitution, consumption, input.profile ?? null),
+        termName: term?.name,
+        isMedical: isMedicalQuery(input.queryText || ''),
+        previousContext: input.previousContext,
+        cartIds: input.cartIds,
+      }),
+      8000,
+      'llm-timeout',
+    )
     if (llm.source === 'llm' && llm.items.length) {
       const byId = new Map(candidates.map((p) => [p.id, p]))
       const recs = llm.items

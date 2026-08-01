@@ -239,6 +239,11 @@ function SettingsPage() {
           <Text className="text-xl font-bold text-foreground">账号安全</Text>
         </View>
         <View className="flex items-center justify-between px-4 py-4 border-b border-border"
+          onClick={() => Taro.navigateTo({ url: '/pages/reset-password/index?mode=change' })}>
+          <Text className="text-xl text-foreground">修改密码</Text>
+          <Icon name="chevron-right" size={24} className="text-muted-foreground" />
+        </View>
+        <View className="flex items-center justify-between px-4 py-4 border-b border-border"
           onClick={() => Taro.showToast({ title: '请通过微信修改绑定手机号', icon: 'none' })}>
           <Text className="text-xl text-foreground">修改手机号</Text>
           <Icon name="chevron-right" size={24} className="text-muted-foreground" />

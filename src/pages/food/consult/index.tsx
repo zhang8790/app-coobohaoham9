@@ -136,6 +136,22 @@ export default function ConsultPage() {
     try { Taro.setStorageSync(TURNS_KEY, slimmed) } catch { /* ignore */ }
   }
 
+  // 购物车刷新（首屏与跨页切回共用）：静默更新购物车徽标/结算条，不触发整页 loading
+  const refreshCart = async () => {
+    if (!user?.id) return
+    try {
+      const { items, effMap, total } = await fetchCartWithEff()
+      const cids = new Set(items.map((c) => c.product_id).filter(Boolean))
+      setCartIds(cids)
+      setCartItems(items)
+      setCartEff(effMap)
+      setCartCount(items.length)
+      setCartTotal(total)
+    } catch (e) {
+      console.warn('[consult] 刷新购物车失败', e)
+    }
+  }
+
   // 基础数据：商品池 + 已购 → 用户六维画像（无问询，快）
   const loadBase = async () => {
     setLoading(true)
@@ -145,16 +161,8 @@ export default function ConsultPage() {
         user?.id ? getOrders().catch(() => [] as any[]) : Promise.resolve([] as any[]),
       ])
       setPool(poolRes)
-      // 购物车：用户登录后拉取商品/合计，供底部结算条与页内结算面板使用
-      if (user?.id) {
-        const { items, effMap, total } = await fetchCartWithEff()
-        const cids = new Set(items.map((c) => c.product_id).filter(Boolean))
-        setCartIds(cids)
-        setCartItems(items)
-        setCartEff(effMap)
-        setCartCount(items.length)
-        setCartTotal(total)
-      }
+      // 购物车：复用 refreshCart（首屏/切回共用）
+      if (user?.id) await refreshCart()
       const ids: string[] = []
       for (const o of ordersRes || []) {
         for (const it of (o as any).order_items || []) if (it?.product_id) ids.push(it.product_id)
@@ -175,8 +183,8 @@ export default function ConsultPage() {
   }, [currentStore?.id, user?.id])
 
   useDidShow(() => {
-    // 跨页（如去测体质）回来后刷新画像
-    if (user?.id) loadBase()
+    // 跨页（如去测体质/加购）回来后只静默刷新购物车徽标，避免整页重载闪圈
+    refreshCart()
   })
 
   const submit = async (q: string) => {
@@ -485,7 +493,7 @@ function RecCard({ rec, onAdd, onBuyNow, inCart }: { rec: ConsultRecommendation;
   const price = (p.price ?? 0).toFixed(2)
   return (
     <View className="consult-rec-card">
-      <Image src={p.main_image || p.image_url || ''} className="rec-img" mode="aspectFill" />
+      <Image src={p.main_image || p.image_url || ''} className="rec-img" mode="aspectFill" lazyLoad />
       <View className="rec-body">
         <View className="rec-title-row">
           <Text className="rec-name" numberOfLines={1}>

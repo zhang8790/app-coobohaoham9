@@ -4,6 +4,7 @@ const pages = [
   'pages/cart/index',
   'pages/user/index',
   'pages/login/index',
+  'pages/reset-password/index',
   'pages/product/index',
   'pages/store-home/index',
   'pages/payment/index',
