@@ -93,6 +93,7 @@ diag-*.sql
 dist.bak*
 _dist_*
 dist_old_build
+deliverables/
 .color-sweep*
 .icon-fix-backup/
 .icon-migrate-backup/
