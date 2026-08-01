@@ -118,7 +118,9 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       await resolveNearestStore(loc.latitude, loc.longitude)
     } catch (err: any) {
       console.error('[Location] detectLocation error:', err)
-      setError(err?.message || '定位失败')
+      // 定位失败（拒授权/开发者工具未配/真机未开定位）：明确告知用户距离为城市中心估算，
+      // 避免把「杭州中心兜底」伪装成真实定位，误导用户以为定位成功。
+      setError('定位未开启，已显示默认城市门店（距离为城市中心估算，仅供参考）')
       // 兜底：定位失败（用户拒绝授权/无法获取 GPS）时，仍要用默认城市（杭州）坐标解析最近门店，
       // 保证首页始终有「最近门店商品」可展示，而非降级到全平台。cityRef 为空才设城市，避免重复。
       if (!cityRef.current) {

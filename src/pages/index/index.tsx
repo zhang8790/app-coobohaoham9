@@ -75,7 +75,7 @@ function writeConsumeCache(uid: string, data: { profile: ConsumptionProfile; bou
 
 export default function IndexPage() {
   const { profile } = useAuth()
-  const { currentCity, currentLocation, currentStore, nearbyStores, loading: locationLoading, detectLocation } = useLocation()
+  const { currentCity, currentLocation, currentStore, nearbyStores, loading: locationLoading, error: locationError, detectLocation } = useLocation()
   const { selectedCrowds, toggleCrowd, clearFilters, getSuitability, hasHealthProfile } = useFoodTherapy()
   // 定位自动触发：用 ref 持有 detectLocation（函数已稳定化，不放入 effect 依赖以免触发重跑），
   // 并用 locatingRef 在首批定位完成前锁住后续触发，根治「定位一直在闪烁」的回流循环
@@ -627,7 +627,9 @@ export default function IndexPage() {
             {!locationLoading && (
               <Text className="text-[10px] text-muted-foreground truncate" style={{ maxWidth: 110 }}>
                 {currentStore && typeof currentStore.distance_km === 'number'
-                  ? `${currentCity?.city_name || '杭州'} · 约${currentStore.distance_km}km`
+                  ? (locationError
+                      ? `${currentStore.store_name} · 定位未开启`
+                      : `${currentCity?.city_name || '杭州'} · 约${currentStore.distance_km}km`)
                   : (currentCity?.city_name || '')}
               </Text>
             )}

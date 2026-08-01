@@ -337,6 +337,11 @@ export interface NearestStore {
  */
 const STORE_COORD_SYSTEM: CoordSystem = 'gcj02'
 
+// 杭州中心点（= LocationContext 的 DEFAULT_CITY 兜底坐标）。坐标恰好等于此值的门店视为测试占位
+// （如「横笼铺」），不参与最近门店计算——否则定位失败兜底到杭州中心时，它会被算成「0km 最近门店」误导用户。
+const HZ_CENTER = { lat: 30.2741, lng: 120.1551 }
+
+
 /**
  * 根据经纬度返回最近的直营门店列表（升序）。
  * 直营判定：is_platform=true（品牌馆已归并，partner_brand 恒 NULL）。
@@ -352,7 +357,12 @@ export async function getNearestStores(lat: number, lng: number, limit = 20): Pr
       return []
     }
     const list = (data || [])
-      .filter((s: any) => s.is_platform === true && s.lat != null && s.lng != null)
+      .filter((s: any) => {
+        // ① 仅直营且在售且有坐标；② 排除坐标恰好=杭州中心的测试占位点（如横笼铺），双保险即使未停用 is_active
+        if (s.is_platform !== true || s.lat == null || s.lng == null) return false
+        if (Math.abs(Number(s.lat) - HZ_CENTER.lat) < 1e-4 && Math.abs(Number(s.lng) - HZ_CENTER.lng) < 1e-4) return false
+        return true
+      })
       .map((s: any) => {
         // 把门店坐标统一转到 GCJ-02（与用户微信定位同系），再算距离，避免“几公里”系统偏差
         const g = toGcj02(Number(s.lat), Number(s.lng), STORE_COORD_SYSTEM)
