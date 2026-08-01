@@ -730,20 +730,6 @@ export default function IndexPage() {
 
       {/* 状态卡：默认收起为一行胶囊，点开才展开输入（去头重脚轻）；情绪不进前台 */}
       <View id="state-card" className="pg-card mx-4 mt-4 p-4">
-        {/* 每日签到彩蛋 */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 16 }}>📅</Text>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>每日签到</Text>
-            <Text style={{ fontSize: 12, color: '#d4a537' }}>+5健康豆</Text>
-          </View>
-          <View
-            style={{ background: 'linear-gradient(135deg,#d4a537,#b8860b)', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 14 }}
-            onClick={() => Taro.showToast({ title: '签到成功! +5健康豆', icon: 'success' })}
-          >
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>签到</Text>
-          </View>
-        </View>
         {!inputExpanded ? (
           <View className="flex items-center justify-between" hoverClass="none" onClick={() => setInputExpanded(true)}>
             <Text className="text-base font-bold text-foreground">今天身体怎样？</Text>
@@ -878,7 +864,6 @@ export default function IndexPage() {
           { label: '节气食盒', icon: '🌾', url: '/pages/food/seasonal-box/index', bg: 'hsl(var(--brand-gold) / 0.14)' },
           { label: 'BMI计算', icon: '⚖️', url: '/pages/food/bmi/index', bg: 'rgba(99,102,241,0.10)' },
           { label: '体质测试', icon: '🧪', url: '/pages/food/constitution-test/index', bg: 'rgba(14,165,233,0.10)' },
-          { label: '视频好物', icon: '🎬', url: '/pages/content/content-center/make-video/index', bg: 'rgba(239,68,68,0.08)' },
         ].map((item) => (
           <View
             key={item.label}
