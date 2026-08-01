@@ -301,6 +301,7 @@ export default function ConsultPage() {
         className="consult-scroll"
         ref={scrollRef}
         scrollWithAnimation>
+        <View className="consult-scroll-inner">
         {/* 快捷问法 */}
         <View className="consult-chips">
           {QUICK_PROMPTS.map((p) => (
@@ -408,6 +409,7 @@ export default function ConsultPage() {
         ))}
 
         <View style={{ height: 24 }} />
+        </View>
       </ScrollView>
 
       {/* 结算面板（始终常驻在输入区上方 · 结算页嵌入咨询页） */}

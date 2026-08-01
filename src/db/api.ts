@@ -474,7 +474,16 @@ export async function getProducts(opts: {
     .order('created_at', { ascending: false }).range(page * limit, (page + 1) * limit - 1)
   if (storeId) q = q.eq('store_id', storeId)
   if (categoryId) q = q.eq('category_id', categoryId)
-  if (categoryName) q = q.eq('category', categoryName)  // 自营页按类目名精确匹配 products.category 文本
+  // products 表无 category 文本列，只有 category_id(uuid)→store_categories(id)。
+  // 按类目「名」筛选：先查 store_categories 拿 id，再 eq(category_id,...)。查不到则降级不添加过滤，避免 400 整页报错。
+  if (categoryName) {
+    const { data: catRows } = await supabase
+      .from('store_categories')
+      .select('id')
+      .eq('name', categoryName)
+    const catId = (catRows as { id: string }[] | null)?.[0]?.id
+    if (catId) q = q.eq('category_id', catId)
+  }
   if (search) q = q.ilike('name', `%${search}%`)
   // 单标签精确匹配（contains = 数组包含该值）
   if (moodTag) q = q.contains('mood_tags', [moodTag])
@@ -2435,14 +2444,16 @@ export async function grantEmotionBadge(
       { onConflict: 'user_id,badge_code', ignoreDuplicates: true },
     )
     .select('*')
-    .maybeSingle()
   if (error) {
     // 仅 FK/种子缺失(23503)等真异常才告警；唯一冲突已被 upsert 吸收
     console.warn('[grantEmotionBadge] 失败', error)
     return { granted: false, code: null }
   }
-  // 已拥有 → upsert DO NOTHING 返回 null（granted:false）；新获得 → 返回行（granted:true）
-  return { granted: !!data, code: (data as EmotionBadgeGrant) || null }
+  // 已拥有 → upsert DO NOTHING 返回 []（granted:false，不再触发 406/PGRST116）；新获得 → 返回 [行]（granted:true）
+  // 注意：upsert 命中 DO NOTHING 时 select 返回 0 行，.maybeSingle() 在部分 PostgREST 版本会抛 PGRST116，
+  // 故直接取数组首元素，从根上消除控制台报错噪音与多余告警。
+  const rows = (data as any[]) || []
+  return { granted: rows.length > 0, code: (rows[0] as EmotionBadgeGrant) || null }
 }
 
 /** 一次性同步检查并补发徽章（在确权/账单/详情页调用） */

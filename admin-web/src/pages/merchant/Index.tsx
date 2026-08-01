@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { getMerchantSettlementBalance, getStoreProducts } from '@/api/merchant'
 
 // Mock 数据（演示模式 fallback）
 const MOCK_STATS = {
@@ -51,6 +52,8 @@ export default function MerchantDashboard() {
   const [stats, setStats] = useState({ todayRevenue: 0, monthRevenue: 0, todayOrders: 0, totalCustomers: 0, pendingOrders: 0, pendingWithdraw: 0 })
   const [recentOrders, setRecentOrders] = useState<typeof MOCK_RECENT_ORDERS>([])
   const [storeId, setStoreId] = useState<string | null>(null)
+  const [settlement, setSettlement] = useState<{ merchant_balance: number; settlement_frozen: number; total_settled: number; settlement_count: number } | null>(null)
+  const [productStats, setProductStats] = useState<{ total: number; online: number }>({ total: 0, online: 0 })
   const [, setLoading] = useState(true)
 
   // 获取当前商家的 store_id
@@ -93,14 +96,18 @@ export default function MerchantDashboard() {
           .eq('store_id', storeId)
           .eq('status', 'pending_ship')
 
-        // 可提现佣金（已审核通过的提现申请总额）
-        const { data: withdrawData } = await supabase
-          .from('withdrawals')
-          .select('amount')
-          .eq('store_id', storeId)
-          .eq('status', 'approved')
+        // 商品在售（与小程序 getMerchantProducts 同源：is_active 计数）
+        const products = await getStoreProducts(storeId)
+        setProductStats({
+          total: products.length,
+          online: products.filter((p) => p.is_active).length,
+        })
 
-        const pendingWithdraw = withdrawData?.reduce((s: number, w: any) => s + (w.amount ?? 0), 0) ?? 0
+        // 商家货款结算概览（与小程序 getMerchantSettlement 同源 RPC fn_get_store_settlement）
+        // ⚠️ 严禁再用 withdrawals 混合查询：withdrawals.kind 含 'settlement' 与 'commission' 两类，
+        // 门货款结算余额应直接读 stores.merchant_balance（本 RPC），否则与小程序「可结算货款」口径不一致。
+        const sett = await getMerchantSettlementBalance(storeId)
+        setSettlement(sett)
 
         setStats({
           todayRevenue: Number(a.revenueToday ?? 0),
@@ -108,7 +115,7 @@ export default function MerchantDashboard() {
           todayOrders: Number(a.ordersToday ?? 0),
           totalCustomers: Number(a.totalCustomers ?? 0),
           pendingOrders: pendingCount ?? 0,
-          pendingWithdraw,
+          pendingWithdraw: sett?.merchant_balance ?? 0,
         })
 
         // 最新5条订单
@@ -143,6 +150,8 @@ export default function MerchantDashboard() {
     { label: '本月营收', value: `¥${(stats.monthRevenue / 10000).toFixed(2)}万`, icon: '📈', color: 'var(--info)' },
     { label: '今日订单', value: stats.todayOrders, icon: '📦', color: 'var(--primary)' },
     { label: '累积客户', value: stats.totalCustomers, icon: '👥', color: 'var(--accent)' },
+    { label: '商品在售', value: productStats.online, sub: `共${productStats.total}件`, icon: '🛍️', color: 'var(--warning)' },
+    { label: '可结算货款', value: `¥${settlement?.merchant_balance.toFixed(2) ?? '0.00'}`, icon: '🏦', color: 'var(--success-strong)' },
   ]
 
   return (
@@ -159,6 +168,7 @@ export default function MerchantDashboard() {
               <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>{c.label}</span>
             </div>
             <p style={{ color: c.color, fontSize: 28, fontWeight: 800 }}>{c.value}</p>
+            {c.sub && <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 4 }}>{c.sub}</p>}
           </div>
         ))}
       </div>
@@ -166,12 +176,13 @@ export default function MerchantDashboard() {
       {/* 快捷操作 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 32 }}>
         {[
-          { label: '商品管理', icon: '📦', to: '/merchant/settings' },
+          { label: '商品管理', icon: '📦', to: '/merchant/products' },
           { label: '订单管理', icon: '📋', to: '/merchant/orders' },
           { label: '优惠券', icon: '🎟️', to: '/merchant/coupons' },
           { label: '数据分析', icon: '📊', to: '/merchant/analytics' },
           { label: '广告投放', icon: '📢', to: '/merchant/ads' },
-          { label: '佣金提现', icon: '💰', to: '/merchant/withdraw' },
+          { label: '货款提现', icon: '💰', to: '/merchant/withdraw' },
+          { label: '店铺设置', icon: '⚙️', to: '/merchant/settings' },
         ].map((btn, i) => (
           <div key={i}
             onClick={() => nav(btn.to)}
@@ -195,26 +206,22 @@ export default function MerchantDashboard() {
               <span style={{ color: 'var(--primary)', fontSize: 20, fontWeight: 800 }}>{stats.pendingOrders}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>可提现佣金</span>
-              <span style={{ color: 'var(--success-strong)', fontSize: 20, fontWeight: 800 }}>¥{stats.pendingWithdraw.toFixed(2)}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>已结算货款</span>
+              <span style={{ color: 'var(--success-strong)', fontSize: 20, fontWeight: 800 }}>¥{(settlement?.total_settled ?? 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
 
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-          <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>今日数据</h3>
+          <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>货款账户</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>访客数</span>
-              <span style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>128</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>当前可结算</span>
+              <span style={{ color: 'var(--success-strong)', fontSize: 20, fontWeight: 800 }}>¥{(settlement?.merchant_balance ?? 0).toFixed(2)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>浏览量</span>
-              <span style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>456</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>转化率</span>
-              <span style={{ color: 'var(--success-strong)', fontSize: 18, fontWeight: 700 }}>17.9%</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>冻结中</span>
+              <span style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>¥{(settlement?.settlement_frozen ?? 0).toFixed(2)}</span>
             </div>
           </div>
         </div>

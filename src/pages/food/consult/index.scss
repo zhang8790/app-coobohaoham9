@@ -36,6 +36,10 @@
 
 .consult-scroll {
   flex: 1;
+}
+
+/* 内层容器承载 padding：scroll-view 在 webview 渲染模式不支持 padding，故移到内层 View */
+.consult-scroll-inner {
   padding: 14px 14px 0;
 }
 

@@ -37,6 +37,7 @@ import MerchantAds from '@/pages/merchant/Ads'
 import MerchantMessages from '@/pages/merchant/Messages'
 import MerchantWithdraw from '@/pages/merchant/Withdraw'
 import MerchantMembers from '@/pages/merchant/Members'
+import MerchantSettings from '@/pages/merchant/Settings'
 
 // ============ 路由守卫 ============
 
@@ -150,6 +151,7 @@ export default function App() {
             <Route path="messages" element={<MerchantMessages />} />
             <Route path="withdraw" element={<MerchantWithdraw />} />
             <Route path="members" element={<MerchantMembers />} />
+            <Route path="settings" element={<MerchantSettings />} />
           </Route>
 
           {/* 兜底：未匹配路由 → 按角色跳转 */}

@@ -11,7 +11,8 @@ const MERCHANT_NAV = [
   { to: '/merchant/analytics', icon: '📊', label: '数据分析' },
   { to: '/merchant/ads', icon: '📢', label: '广告管理' },
   { to: '/merchant/messages', icon: '🔔', label: '消息通知' },
-  { to: '/merchant/withdraw', icon: '💰', label: '佣金提现' },
+  { to: '/merchant/withdraw', icon: '💰', label: '货款提现' },
+  { to: '/merchant/settings', icon: '⚙️', label: '店铺设置' },
 ]
 
 export default function MerchantLayout() {
