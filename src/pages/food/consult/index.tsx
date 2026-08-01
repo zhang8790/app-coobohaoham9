@@ -52,6 +52,7 @@ export default function ConsultPage() {
   const [loading, setLoading] = useState(false)
   const [boostTags, setBoostTags] = useState<string[]>([])
   const [cartIds, setCartIds] = useState<Set<string>>(new Set())
+  const [cartCount, setCartCount] = useState(0)
   const scrollRef = useRef<any>(null)
 
   // 读取本地查询历史（自适应加权，自动优化）
@@ -115,7 +116,9 @@ export default function ConsultPage() {
         user?.id ? getCartItems().catch(() => []) : Promise.resolve([] as any[]),
       ])
       setPool(poolRes)
-      setCartIds(new Set((cartRes || []).map((c: any) => c.product_id).filter(Boolean)))
+      const cids = new Set((cartRes || []).map((c: any) => c.product_id).filter(Boolean))
+      setCartIds(cids)
+      setCartCount(cids.size)
       const ids: string[] = []
       for (const o of ordersRes || []) {
         for (const it of (o as any).order_items || []) if (it?.product_id) ids.push(it.product_id)
@@ -340,6 +343,19 @@ export default function ConsultPage() {
 
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      {/* 购物车状态条（有商品时显示，一键去结算） */}
+      {cartCount > 0 && (
+        <View className="consult-cart-bar" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
+          <View style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Text style={{ fontSize: 18 }}>🛒</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: '#334155' }}>购物车 {cartCount} 件</Text>
+          </View>
+          <View style={{ background: '#16a34a', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 20 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>去结算</Text>
+          </View>
+        </View>
+      )}
 
       {/* 底部输入区 */}
       <View className="consult-input-bar">

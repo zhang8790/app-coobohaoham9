@@ -290,3 +290,16 @@
   font-weight: 700;
   color: #fff;
 }
+
+/* 购物车状态条（有商品时显示在输入框上方） */
+.consult-cart-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  margin: 0 12px 8px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 -2px 16px rgba(0,0,0,0.06);
+  border: 1px solid rgba(34,197,94,0.2);
+}
