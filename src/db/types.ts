@@ -151,6 +151,10 @@ export interface Product {
   food_category?: string | null
   store_name?: string | null  // 分析报告缓存（ComprehensiveSafetyReport JSON）
   sales_count?: number        // 累计销量（件），见迁移 00221
+  // 食养系统化（迁移 20260801）：therapy_json 单一数据源 + 冗余加速列
+  therapy_json?: Record<string, unknown> | null
+  fit_people?: string | null
+  therapy_pending?: boolean | null
 
 }
 

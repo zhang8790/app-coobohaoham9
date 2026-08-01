@@ -94,7 +94,7 @@ export default function MakePage() {
             </View>
             <View className="flex-1 min-w-0">
               <Text className="block text-2xl font-bold text-foreground">发布视频</Text>
-              <Text className="block text-sm text-muted-foreground mt-0.5">选视频 · 上传 · 发布得金豆</Text>
+              <Text className="block text-sm text-muted-foreground mt-0.5">选视频 · 上传 · 一键发布</Text>
             </View>
             <Text className="text-muted-foreground text-xl">›</Text>
           </View>

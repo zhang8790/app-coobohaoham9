@@ -3,11 +3,12 @@
 // 既有锁客链路（article_locks / 分享带 ref），发布后直接落到 article-detail 播放。
 import { useState, useEffect, useRef, Component, type MutableRefObject, type ReactNode } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
-import { View, Text, Input, Image, Video } from '@tarojs/components'
+import { View, Text, Input, Image, Video, Canvas } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { createArticle, addEmotionTongbao, grantEmotionBadge } from '@/db/api'
 import { uploadToStorage, uploadVideo } from '@/utils/upload'
 import { checkIllegalWords } from '@/utils/compliance-words'
+import { generateVideoSharePoster, POSTER_WIDTH, POSTER_HEIGHT } from '@/utils/share-poster'
 import Icon from '@/components/Icon'
 import './index.scss'
 
@@ -80,13 +81,26 @@ function VideoPublishEditor({ shareRef }: { shareRef: MutableRefObject<SharePayl
   const [coverUploading, setCoverUploading] = useState(false)
   const [publishing, setPublishing] = useState(false)
 
+  // 发布成功后跳转到文章详情页（视频以 article 形式存储）
+  const [publishedArticleId, setPublishedArticleId] = useState<string | null>(null)
+
   useEffect(() => {
+    const t = title.trim() || '精彩视频'
+    const path = publishedArticleId
+      ? `/pages/content/article-detail/index?id=${publishedArticleId}`
+      : '/pages/content/content-center/make-video/index'
     shareRef.current = {
-      title: title.trim() || '来电有喜 · 视频分享',
-      path: '/pages/content/content-center/make-video/index',
+      title: `🎬 ${t} — 来电有喜`,
+      path,
       imageUrl: coverImage || '',
     }
-  }, [title, coverImage, shareRef])
+    // 有封面时异步生成精美视频海报
+    if (coverImage && title.trim()) {
+      generateVideoSharePoster({ title: t, cover_image: coverImage, video_url: videoUrl || undefined }, 'videoShareCanvas')
+        .then(url => { if (url) shareRef.current = { ...shareRef.current, imageUrl: url } })
+        .catch(() => {})
+    }
+  }, [title, coverImage, videoUrl, publishedArticleId, shareRef])
 
   // 选择视频：直接调起相册/拍摄并上传到 videos 桶，返回公网地址
   const handleChooseVideo = async () => {
@@ -148,11 +162,12 @@ function VideoPublishEditor({ shareRef }: { shareRef: MutableRefObject<SharePayl
         cover_image: coverImage ?? undefined,
       })
       const id = (art as any)?.id
+      if (id) setPublishedArticleId(id)
       if (user?.id) {
         try { await addEmotionTongbao(user.id, UGC_REWARD, 'ugc_earn', id || undefined, '发布视频') } catch { /* ignore */ }
         try { await grantEmotionBadge(user.id, 'first_share') } catch { /* ignore */ }
       }
-      Taro.showToast({ title: `发布成功 +${UGC_REWARD}金豆`, icon: 'success' })
+      Taro.showToast({ title: '发布成功', icon: 'success' })
       setTimeout(() => {
         if (id) Taro.redirectTo({ url: `/pages/content/article-detail/index?id=${id}` })
         else Taro.navigateBack()
@@ -242,9 +257,16 @@ function VideoPublishEditor({ shareRef }: { shareRef: MutableRefObject<SharePayl
           className={`flex items-center justify-center rounded-2xl py-3 ${publishing ? 'bg-primary/50' : 'bg-primary'}`}
           hoverClass="none"
           onClick={handlePublish}>
-          <Text className="text-lg text-white font-bold">{publishing ? '发布中…' : `发布视频 +${UGC_REWARD}金豆`}</Text>
+          <Text className="text-lg text-white font-bold">{publishing ? '发布中…' : '发布视频'}</Text>
         </View>
       </View>
+
+      {/* 隐藏 Canvas：用于绘制视频分享海报 */}
+      <Canvas
+        type="2d"
+        id="videoShareCanvas"
+        className="share-canvas-hidden"
+        style={{ width: `${POSTER_WIDTH}px`, height: `${POSTER_HEIGHT}px` }} />
     </View>
   )
 }

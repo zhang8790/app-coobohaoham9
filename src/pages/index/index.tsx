@@ -110,6 +110,8 @@ export default function IndexPage() {
   const [inputExpanded, setInputExpanded] = useState(false)
   const [feedItems, setFeedItems] = useState<ScoredProduct<Product>[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  // 门店隔离：首页只展示「当前选中门店」的商品；默认=定位到的最近门店，可切换附近门店
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
   const [orderFeed, setOrderFeed] = useState<OrderFeedItem[]>([])
   const [annIdx, setAnnIdx] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -256,17 +258,12 @@ export default function IndexPage() {
           setLoading(true)
         }
         let raw: Product[] = []
-        // 附近多店聚合：按 nearbyStores（已按距离排序，可能来自 GPS 定位或杭州兜底）取最近 5 家店各拉商品
-        // 注意：不再强制要求 currentLocation，否则用户拒绝定位权限（currentLocation 为 null）时
-        // 会永远走全平台降级、看不到最近门店商品。只要 nearbyStores 有值即可聚合。
-        if (nearbyStores.length > 0) {
-          const storeIds = nearbyStores.slice(0, 5).map((s) => s.id)
-          const batches = await Promise.all(
-            storeIds.map((id) => getProducts({ storeId: id, platformFilter: 'only', limit: 12 })),
-          )
-          raw = batches.flat()
+        // 门店隔离：只拉「当前选中门店」的商品，别的店不混进（可按距离切换附近门店）。
+        const storeId = selectedStoreId
+        if (storeId) {
+          raw = await getProducts({ storeId, limit: 40 })
         }
-        // 降级：未定位 / 附近门店无商品 → 全平台自营商品
+        // 降级：未选中门店 / 选中门店无商品 → 全平台自营商品（保证首页有内容）
         if (raw.length === 0) {
           raw = await getProducts({ limit: 30, platformFilter: 'only' })
         }
@@ -279,7 +276,12 @@ export default function IndexPage() {
       }
     })()
     return feedInflightRef.current
-  }, [currentLocation, nearbyStores])
+  }, [currentLocation, nearbyStores, selectedStoreId])
+
+  // 定位到最近门店 / 切城市重算后，自动把首页 feed 锁定到该门店（门店隔离默认态）
+  useEffect(() => {
+    if (currentStore?.id) setSelectedStoreId(currentStore.id)
+  }, [currentStore])
 
   // 下拉刷新（注：loadOrderFeed/loadAnnouncements/loadFeed 已在上文声明，避免依赖数组 TDZ）
   useEffect(() => {
@@ -407,7 +409,12 @@ export default function IndexPage() {
     const map: Record<string, ProductTherapyReport | null> = {}
     const dictMap = new Map(ingredientDict.map((d) => [d.name, d]))
     const calc = (p?: Product | null) => {
-      if (!p || !p.ingredients || (p.ingredients as string[]).length === 0) return null
+      if (!p) return null
+      // 优先读 therapy_json 单一数据源（服务端回算 / 上传回写），保证首页与门店卡一致
+      const tj = p.therapy_json as Partial<ProductTherapyReport> | null | undefined
+      if (tj && tj.overall_nature_code) return tj as ProductTherapyReport
+      // 回退：客户端按 ingredients + 食材字典现算（兼容尚未回写的商品）
+      if (!p.ingredients || (p.ingredients as string[]).length === 0) return null
       const inputs: ProductIngredientInput[] = (p.ingredients as string[]).map((name) => {
         const row = dictMap.get(name)
         if (!row) return null
@@ -654,6 +661,39 @@ export default function IndexPage() {
           </View>
         </View>
       </View>
+
+      {/* ===================== 附近门店切换器：门店隔离后切换附近自营/平台店 ===================== */}
+      {nearbyStores.length > 0 && (
+        <View className="mx-4 mt-3">
+          <View className="flex items-center gap-1.5 mb-2">
+            <View className="section-accent" />
+            <Text className="text-base font-bold text-foreground">附近门店</Text>
+            <Text className="text-[10px] text-muted-foreground">切换查看不同门店商品</Text>
+          </View>
+          <ScrollView scrollX showScrollbar={false} className="nearby-store-scroll">
+            <View className="flex flex-row gap-2 pr-3" style={{ display: 'flex', flexDirection: 'row' }}>
+              {nearbyStores.map((s) => {
+                const active = selectedStoreId === s.id
+                const isLocated = currentStore?.id === s.id
+                return (
+                  <View
+                    key={s.id}
+                    onClick={() => setSelectedStoreId(s.id)}
+                    hoverClass="none"
+                    className={`flex-shrink-0 rounded-full px-3 py-1.5 border flex items-center gap-1 ${active ? 'bg-primary text-white border-primary' : 'bg-card text-foreground border-border'}`}
+                  >
+                    {isLocated && (
+                      <Icon name="crosshairs-gps" size={12} className={active ? 'text-white' : 'text-primary'} />
+                    )}
+                    <Text className={`text-xs font-semibold ${active ? 'text-white' : 'text-foreground'}`}>{s.store_name}</Text>
+                    <Text className={`text-[10px] ${active ? 'text-white/80' : 'text-muted-foreground'}`}>约{s.distance_km}km</Text>
+                  </View>
+                )
+              })}
+            </View>
+          </ScrollView>
+        </View>
+      )}
 
       {/* ===================== L1 个性食养层：懂你的推荐 ===================== */}
       {/* 今日食养推荐 + 为你优选：合并节气/画像双维度为单一卡片，消除首页两张雷同食品 rail */}

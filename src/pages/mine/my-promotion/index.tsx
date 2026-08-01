@@ -8,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/client/supabase'
 import { generateQrcode } from '@/db/api'
 import { calculateDynamicScore, getRankByDynamicScoreV5, RANK_CONFIG_TABLE_V5 } from '@/utils/commission-calculator-v5'
-import RiskWarning from '@/components/RiskWarning'
 import { RANK_ORDER, RANK_COLOR_MAP } from '@/constants/ranks'
 
 // 段位顺序与颜色统一引用 src/constants/ranks（RANK_ORDER / RANK_COLOR_MAP）
@@ -223,7 +222,7 @@ function MyPromotionPage() {
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
 
-      <RiskWarning />
+      {/* 风险提示与升段进度已移除，界面更简洁聚焦 */}
 
       {/* 段位英雄卡 */}
       <View className="mx-4 mt-6 rounded-3xl overflow-hidden"
@@ -239,32 +238,7 @@ function MyPromotionPage() {
             </View>
           </View>
 
-          {/* 段位进度条 */}
-          {rankData?.next_rank !== '已是最高段位' && (
-            <View>
-              <View className="flex items-center justify-between mb-2">
-                <Text className="text-xl text-white/80">升段进度</Text>
-                <Text className="text-xl text-white font-bold">{rankData?.direct_count}/{rankData?.target_count}人</Text>
-              </View>
-              <View className="w-full h-3 bg-white/25 rounded-full overflow-hidden">
-                <View className="h-full bg-white rounded-full transition"
-                  style={{ width: `${Math.round((rankData?.progress || 0) * 100)}%` }} />
-              </View>
-              <View className="flex items-center justify-between mt-2">
-                {RANK_ORDER.map((r, i) => (
-                  <View key={r} className={`flex flex-col items-center gap-1 ${i <= rankIdx ? 'opacity-100' : 'opacity-40'}`}>
-                    <View className={`w-3 h-3 rounded-full ${i <= rankIdx ? 'bg-white' : 'bg-white/40'}`} />
-                    <Text className="text-xs text-white">{r}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-          {rankData?.next_rank === '已是最高段位' && (
-            <View className="text-center py-2">
-              <Text className="text-2xl text-white font-bold">🎉 登临绝顶，无心境传人</Text>
-            </View>
-          )}
+          {/* 升段进度条已移除，段位信息保留在顶部卡片 */}
         </View>
       </View>
 
@@ -299,16 +273,15 @@ function MyPromotionPage() {
           </Text>
         </View>
 
-        {/* 操作按钮：保存二维码 + 分享给好友 */}
+        {/* 操作按钮：仅保留分享（推广码图片不可保存，防滥用） */}
         <View className="flex gap-3">
-          <Button type="button"
-            className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-border bg-muted"
-            onClick={handleSaveQr}>
+          <View
+            className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-border bg-muted opacity-50">
             <View className="py-3 flex items-center gap-2">
               <Icon name="download" size={24} className="text-muted-foreground" />
               <Text className="text-xl text-muted-foreground">保存图片</Text>
             </View>
-          </Button>
+          </View>
           <Button openType="share"
             className="flex-1 flex items-center justify-center leading-none rounded-2xl"
             style={{ background: `linear-gradient(135deg, ${rankColor}, ${rankColor}99)`, border: 'none' }}>

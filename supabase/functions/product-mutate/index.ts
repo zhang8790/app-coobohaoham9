@@ -39,6 +39,11 @@ type ProductInput = {
   match_goods?: string[] | null
   conflict_goods?: string[] | null
   aux_remind?: string | null
+  // 食养系统化（迁移 20260801）：therapy_json 单一数据源 + 冗余加速列
+  therapy_json?: any | null
+  fit_people?: string | null
+  therapy_pending?: boolean | null
+  allergens?: string[] | null
 }
 
 Deno.serve(async (req: Request) => {
@@ -108,11 +113,15 @@ Deno.serve(async (req: Request) => {
       if (body.match_goods !== undefined) updatePayload.match_goods = body.match_goods && body.match_goods.length ? body.match_goods : []
       if (body.conflict_goods !== undefined) updatePayload.conflict_goods = body.conflict_goods && body.conflict_goods.length ? body.conflict_goods : []
       if (body.aux_remind !== undefined) updatePayload.aux_remind = body.aux_remind && body.aux_remind.trim() ? body.aux_remind.trim() : null
+      if (body.therapy_json !== undefined) updatePayload.therapy_json = body.therapy_json
+      if (body.fit_people !== undefined) updatePayload.fit_people = body.fit_people && body.fit_people.trim() ? body.fit_people.trim() : null
+      if (body.therapy_pending !== undefined) updatePayload.therapy_pending = !!body.therapy_pending
+      if (body.allergens !== undefined) updatePayload.allergens = body.allergens && body.allergens.length ? body.allergens : null
 
       const { data, error } = await supabase.from('products').update(updatePayload).eq('id', body.id).select().maybeSingle()
       if (error) {
-        if (/ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind/.test(error.message)) {
-          const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind, ...rest } = updatePayload
+        if (/ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|therapy_json|fit_people|therapy_pending|allergens/.test(error.message)) {
+          const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind, therapy_json, fit_people, therapy_pending, allergens, ...rest } = updatePayload
           const r2 = await supabase.from('products').update(rest).eq('id', body.id).select().maybeSingle()
           if (r2.error) return Response.json({ error: `更新失败: ${r2.error.message}` }, { status: 500, headers: corsHeaders })
           return Response.json({ success: true, product: r2.data }, { headers: corsHeaders })
@@ -171,11 +180,15 @@ Deno.serve(async (req: Request) => {
     if (body.match_goods && body.match_goods.length) insertPayload.match_goods = body.match_goods
     if (body.conflict_goods && body.conflict_goods.length) insertPayload.conflict_goods = body.conflict_goods
     if (body.aux_remind && body.aux_remind.trim()) insertPayload.aux_remind = body.aux_remind.trim()
+    if (body.therapy_json) insertPayload.therapy_json = body.therapy_json
+    if (body.fit_people && body.fit_people.trim()) insertPayload.fit_people = body.fit_people.trim()
+    if (typeof body.therapy_pending === 'boolean') insertPayload.therapy_pending = body.therapy_pending
+    if (body.allergens && body.allergens.length) insertPayload.allergens = body.allergens
 
     const { data, error } = await supabase.from('products').insert(insertPayload).select().maybeSingle()
     if (error) {
-      if (/ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind/.test(error.message)) {
-        const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind, ...rest } = insertPayload
+      if (/ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|therapy_json|fit_people|therapy_pending|allergens/.test(error.message)) {
+        const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind, therapy_json, fit_people, therapy_pending, allergens, ...rest } = insertPayload
         const r2 = await supabase.from('products').insert(rest).select().maybeSingle()
         if (r2.error) return Response.json({ error: `保存失败: ${r2.error.message}` }, { status: 500, headers: corsHeaders })
         return Response.json({ success: true, product: r2.data }, { headers: corsHeaders })

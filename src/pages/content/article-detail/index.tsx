@@ -7,7 +7,7 @@ import './index.scss'
 import { useAuth } from '@/contexts/AuthContext'
 import { getArticleById, incrementArticleView, getArticles, getProductById, getProducts, toggleArticleFavorite, isArticleFavorited, toggleAuthorFollow, isFollowingAuthor, toggleArticleLike, isArticleLiked, getArticleLikeCount, incrementArticleShare, addEmotionTongbao, grantEmotionBadge, getArticleShareCode } from '@/db/api'
 import { handleInviterFromQuery, buildArticleShareTitle, getMyReferralCode } from '@/utils/share'
-import { generateArticleSharePoster, POSTER_WIDTH, POSTER_HEIGHT, generateArticleCodePoster, CODE_POSTER_WIDTH, CODE_POSTER_HEIGHT } from '@/utils/share-poster'
+import { generateArticleSharePoster, POSTER_WIDTH, POSTER_HEIGHT, generateVideoSharePoster, generateArticleCodePoster, CODE_POSTER_WIDTH, CODE_POSTER_HEIGHT } from '@/utils/share-poster'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import Icon from '@/components/Icon'
 
@@ -35,17 +35,20 @@ export default function ArticleDetailPage() {
   const [sharePosterUrl, setSharePosterUrl] = useState<string>('')
   const [savingPoster, setSavingPoster] = useState(false)
 
-  // 文章加载成功后，异步生成分享海报
+  // 文章加载成功后，异步生成分享海报（视频文章用视频专属风格）
   useEffect(() => {
     if (!article) return
     let alive = true
     const timer = setTimeout(() => {
-      generateArticleSharePoster(article, 'articleShareCanvas')
+      const posterFn = article?.video_url
+        ? () => generateVideoSharePoster({ title: article.title, cover_image: article.cover_image, video_url: article.video_url }, 'articleShareCanvas')
+        : () => generateArticleSharePoster(article, 'articleShareCanvas')
+      posterFn()
         .then((url) => {
           if (alive) setSharePosterUrl(url)
         })
         .catch((err) => {
-          console.warn('[文章分享] 生成海报失败，回退到封面图', err)
+          console.warn('[分享] 生成海报失败，回退到封面图', err)
         })
     }, 500)
     return () => {

@@ -2931,6 +2931,11 @@ export async function createProduct(params: {
   match_goods?: string[]
   conflict_goods?: string[]
   aux_remind?: string
+  // 食养系统化（迁移 20260801）：therapy_json 单一数据源 + 冗余加速列
+  therapy_json?: any
+  fit_people?: string
+  therapy_pending?: boolean
+  allergens?: string[]
 }): Promise<import('./types').Product | null> {
   // 校验：商品标题/描述不得含违禁词（广告法绝对化用语/金融化/博彩诱导）
   const nameCheck = checkIllegalWords(params.name)
@@ -2969,7 +2974,11 @@ export async function createProduct(params: {
       emotion_tag: params.emotion_tag ?? null,
       match_goods: params.match_goods ?? null,
       conflict_goods: params.conflict_goods ?? null,
-      aux_remind: params.aux_remind ?? null}
+      aux_remind: params.aux_remind ?? null,
+      therapy_json: params.therapy_json ?? null,
+      fit_people: params.fit_people ?? null,
+      therapy_pending: typeof params.therapy_pending === 'boolean' ? params.therapy_pending : null,
+      allergens: params.allergens ?? null}
     const { data, error } = await supabase.functions.invoke('product-mutate', { body: invokeBody })
     if (!error && data?.success) {
       clearRequestCache() // 写后失效列表缓存，刚上架商品立即可见
@@ -3010,7 +3019,11 @@ export async function createProduct(params: {
     emotion_tag: params.emotion_tag ?? null,
     match_goods: params.match_goods ?? null,
     conflict_goods: params.conflict_goods ?? null,
-    aux_remind: params.aux_remind ?? null}
+    aux_remind: params.aux_remind ?? null,
+    therapy_json: params.therapy_json ?? null,
+    fit_people: params.fit_people ?? null,
+    therapy_pending: typeof params.therapy_pending === 'boolean' ? params.therapy_pending : null,
+    allergens: params.allergens ?? null}
   const { data, error } = await supabase.from('products').insert(insertPayload).select().maybeSingle()
   // 软降级：若 products 表尚未加食疗导购新列（迁移 00100 未执行），剥离后重试，保证保存不失败
   if (error && NEW_COLUMN_RE.test(error.message)) {
@@ -3039,6 +3052,8 @@ export async function updateProduct(id: string, params: Partial<{
   // 食材食疗智能导购字段（迁移 00100）
   overall_nature?: string; health_tag?: string[]; emotion_tag?: string[]
   match_goods?: string[]; conflict_goods?: string[]; aux_remind?: string
+  // 食养系统化（迁移 20260801）
+  therapy_json?: any; fit_people?: string; therapy_pending?: boolean; allergens?: string[]
 }>): Promise<boolean> {
   // 优先走 Edge Function（service_role 绕过 RLS 写策略），未部署时回退直写
   try {

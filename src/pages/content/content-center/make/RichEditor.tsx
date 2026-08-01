@@ -262,7 +262,7 @@ export default function RichEditor({ shareRef, articleIdProp }: {
         try { await addEmotionTongbao(user.id, UGC_REWARD, 'ugc_earn', id || undefined, '发布图文') } catch { /* ignore */ }
         try { await grantEmotionBadge(user.id, 'first_share') } catch { /* ignore */ }
       }
-      Taro.showToast({ title: `发布成功 +${UGC_REWARD}金豆`, icon: 'success' })
+      Taro.showToast({ title: '发布成功', icon: 'success' })
       setTimeout(() => {
         Taro.redirectTo({ url: `/pages/content/content-center/my-articles/index?tab=published` })
       }, 900)
@@ -445,7 +445,7 @@ export default function RichEditor({ shareRef, articleIdProp }: {
         </View>
         <View className={`flex items-center justify-center py-3 rounded-2xl ${publishing ? 'bg-primary/50' : 'bg-primary'}`}
           style={{ flex: 2 }} hoverClass="none" onClick={handlePublish}>
-          <Text className="text-lg text-white font-bold">{publishing ? '发布中…' : `发布 +${UGC_REWARD}金豆`}</Text>
+          <Text className="text-lg text-white font-bold">{publishing ? '发布中…' : '发布文章'}</Text>
         </View>
       </View>
 

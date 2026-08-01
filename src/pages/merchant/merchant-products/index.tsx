@@ -187,18 +187,46 @@ function MerchantProductsPage() {
     neutralize: row.neutralize, ratio: 50, cooking: '清炒', aux: [],
   })
 
+  // 食养系统化：未手填食材时，按商品名匹配食材字典推导（如「西瓜」→西瓜、「椰子」→椰子），
+  // 做到"上传商品自动就用食养"；匹配不到则 therapyReport 为 null（标记 therapy_pending 待补）。
+  const deriveIngredientsFromName = (name: string, dict: FoodIngredientRow[]): ProductIngredientInput[] => {
+    const nm = (name || '').trim()
+    if (!nm) return []
+    const inputs: ProductIngredientInput[] = []
+    for (const row of dict) {
+      if (!row.name || row.name.length < 2) continue
+      if (nm.includes(row.name)) {
+        inputs.push({
+          ingredient: {
+            name: row.name, nature: row.nature, base_effect: row.base_effect,
+            caution_crowds: row.caution_crowds, allergens: row.allergens || [],
+            chronic_tags: row.chronic_tags || [], neutralize: row.neutralize,
+          },
+          ratio: 50, cooking: '清炒', aux: [],
+        })
+      }
+    }
+    return inputs
+  }
+
   // 实时食疗分析（引擎：性味合并 / 过敏原 / 三色预警 / 商家寄语）
   const therapyReport = useMemo(() => {
-    if (!ingredientItems.length) return null
-    const inputs: ProductIngredientInput[] = ingredientItems.map(it => ({
-      ingredient: {
-        name: it.name, nature: it.nature, base_effect: it.base_effect,
-        caution_crowds: it.caution_crowds, allergens: it.allergens, chronic_tags: it.chronic_tags, neutralize: it.neutralize,
-      },
-      ratio: it.ratio, cooking: it.cooking, aux: it.aux,
-    }))
+    let inputs: ProductIngredientInput[] = []
+    if (ingredientItems.length) {
+      inputs = ingredientItems.map(it => ({
+        ingredient: {
+          name: it.name, nature: it.nature, base_effect: it.base_effect,
+          caution_crowds: it.caution_crowds, allergens: it.allergens, chronic_tags: it.chronic_tags, neutralize: it.neutralize,
+        },
+        ratio: it.ratio, cooking: it.cooking, aux: it.aux,
+      }))
+    } else {
+      // 兜底：按商品名匹配食材字典推导
+      inputs = deriveIngredientsFromName(form.name, ingredientDict)
+    }
+    if (!inputs.length) return null
     return buildTherapyReport(form.name || '本菜品', inputs)
-  }, [ingredientItems, form.name])
+  }, [ingredientItems, form.name, ingredientDict])
 
   // 引擎结果自动回填商品食养字段（系统算，商家可微调）
   useEffect(() => {
@@ -387,6 +415,10 @@ function MerchantProductsPage() {
         nutrition: form.nutrition || undefined,
         safety_grade: form.safety_grade || undefined,
         safety_summary: form.safety_summary || undefined,
+        // 食养系统化：上传即落 therapy_json 单一数据源；无食养则标记 therapy_pending 待补
+        therapy_json: therapyReport || undefined,
+        fit_people: therapyReport?.fit_people || undefined,
+        therapy_pending: !therapyReport,
         is_active: form.is_active,
         category_id: form.category_id || null,
       }
