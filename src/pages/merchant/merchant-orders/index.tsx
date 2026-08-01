@@ -1,5 +1,5 @@
 // @title 订单管理（商家端）
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
 import { getMerchantStore, getMerchantOrders, getMerchantOrderSummary, merchantShipOrder, merchantCompleteOrder } from '@/db/api'
@@ -8,27 +8,30 @@ import Icon from '@/components/Icon'
 
 const STATUS_LABEL: Record<string, string> = {
   pending_pay: '待支付', pending_ship: '待发货', pending_receive: '待收货',
-  pending_review: '待评价', completed: '已完成',
+  pending_pickup: '待自提', pending_review: '待评价', completed: '已完成',
   after_sale: '售后', cancelled: '已取消',
 }
 const STATUS_COLOR: Record<string, string> = {
   pending_pay: 'text-orange-500', pending_ship: 'text-primary', pending_receive: 'text-blue-500',
-  completed: 'text-green-600', cancelled: 'text-muted-foreground',
+  pending_pickup: 'text-blue-500', completed: 'text-green-600', cancelled: 'text-muted-foreground',
   after_sale: 'text-red-500', pending_review: 'text-primary',
 }
 
 function MerchantOrdersPage() {
   const [store, setStore] = useState<any>(null)
-  const [orders, setOrders] = useState<any[]>([])
+  const [orders, setOrders] = useState<any[]>([])   // 原始 order_items 行（全量，用于按订单聚合）
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'all' | 'pending_ship' | 'completed'>('all')
   const [summary, setSummary] = useState<any>(null)
 
-  // 列表(getMerchantOrders, order_items粒度, 用于明细展示) + 汇总(getMerchantOrderSummary RPC, 真实全量)
+  // 列表(getMerchantOrders 全量 order_items) + 汇总(getMerchantOrderSummary RPC, 真实全量)
+  // 说明：getMerchantOrders 以 order_items 粒度返回，这里一次性拉全量(limit=1000)，
+  // 再按 orders.id 聚合成「每订单一行」+ 内嵌商品明细，彻底消除原先 limit=20
+  // 只显前20商品行 + 同一订单多商品被拆成多张卡片的失真。中小商户订单量远低于此上限。
   const loadAll = async (s: any) => {
     if (!s) return
     const [ords, sum] = await Promise.all([
-      getMerchantOrders(s.id),
+      getMerchantOrders(s.id, 0, 1000),
       getMerchantOrderSummary(s.id),
     ])
     setOrders(ords)
@@ -43,9 +46,41 @@ function MerchantOrdersPage() {
     })
   }, [])
 
-  const filtered = tab === 'all' ? orders
-    : tab === 'pending_ship' ? orders.filter(o => o.orders?.status === 'pending_ship')
-    : orders.filter(o => o.orders?.status === 'completed')
+  // 把 order_items 行还原成「一订单一行」+ 内嵌商品明细
+  const orderGroups = useMemo(() => {
+    const map = new Map<string, any>()
+    for (const it of orders) {
+      const o = it.orders
+      if (!o || !o.id) continue
+      if (!map.has(o.id)) {
+        map.set(o.id, {
+          id: o.id,
+          order_no: o.order_no,
+          status: o.status,
+          total_amount: o.total_amount,
+          created_at: o.created_at,
+          payment_method: o.payment_method,
+          merchant_settlements: Array.isArray(o.merchant_settlements)
+            ? o.merchant_settlements
+            : (o.merchant_settlements ? [o.merchant_settlements] : []),
+          items: [] as any[],
+        })
+      }
+      map.get(o.id).items.push({
+        product_name: it.product_name,
+        product_image: it.product_image,
+        quantity: it.quantity,
+        price: it.price,
+      })
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    )
+  }, [orders])
+
+  const filtered = tab === 'all' ? orderGroups
+    : tab === 'pending_ship' ? orderGroups.filter((g: any) => g.status === 'pending_ship')
+    : orderGroups.filter((g: any) => g.status === 'completed')
 
   const handleShip = async (order: any) => {
     Taro.showModal({
@@ -53,7 +88,7 @@ function MerchantOrdersPage() {
       success: async (res) => {
         if (!res.confirm) return
         Taro.showLoading({ title: '发货中' })
-        const ok = await merchantShipOrder(order.orders?.id)
+        const ok = await merchantShipOrder(order.id)
         Taro.hideLoading()
         if (ok) { Taro.showToast({ title: '已发货', icon: 'success' }); load() }
         else Taro.showToast({ title: '操作失败', icon: 'none' })
@@ -67,7 +102,7 @@ function MerchantOrdersPage() {
       success: async (res) => {
         if (!res.confirm) return
         Taro.showLoading({ title: '处理中' })
-        const ok = await merchantCompleteOrder(order.orders?.id)
+        const ok = await merchantCompleteOrder(order.id)
         Taro.hideLoading()
         if (ok) { Taro.showToast({ title: '已完成，货款已结算', icon: 'success' }); load() }
         else Taro.showToast({ title: '操作失败', icon: 'none' })
@@ -127,49 +162,52 @@ function MerchantOrdersPage() {
         </View>
       ) : (
         <View className="px-4 mt-3">
-          {filtered.map((item, i) => (
-            <View key={item.id ?? i} className="bg-card rounded-2xl border border-border mb-3 p-4">
+          {filtered.map((g) => (
+            <View key={g.id} className="bg-card rounded-2xl border border-border mb-3 p-4">
               <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-muted-foreground">订单号：{item.orders?.order_no || '-'}</Text>
-                <Text className={`text-sm font-bold ${STATUS_COLOR[item.orders?.status] || 'text-foreground'}`}>
-                  {STATUS_LABEL[item.orders?.status] || item.orders?.status || '-'}
+                <Text className="text-sm text-muted-foreground">订单号：{g.order_no || '-'}</Text>
+                <Text className={`text-sm font-bold ${STATUS_COLOR[g.status] || 'text-foreground'}`}>
+                  {STATUS_LABEL[g.status] || g.status || '-'}
                 </Text>
               </View>
-              <View className="flex items-center gap-3">
-                {item.product_image && (
-                  <Image src={item.product_image} mode="aspectFill" style={{ width: '56px', height: '56px', borderRadius: '8px', flexShrink: 0 }} />
-                )}
-                <View className="flex-1">
-                  <Text className="text-base text-foreground font-bold line-clamp-1">{item.product_name}</Text>
-                  <View className="flex items-center justify-between mt-1">
-                    <Text className="text-sm text-muted-foreground">x{item.quantity}</Text>
-                    <Text className="text-base font-bold text-primary">¥{item.price}</Text>
+              {/* 商品明细（同一订单可能含多个商品，合并展示） */}
+              <View className="flex flex-col gap-3">
+                {g.items.map((it: any, idx: number) => (
+                  <View key={idx} className="flex items-center gap-3">
+                    {it.product_image && (
+                      <Image src={it.product_image} mode="aspectFill" style={{ width: '56px', height: '56px', borderRadius: '8px', flexShrink: 0 }} />
+                    )}
+                    <View className="flex-1">
+                      <Text className="text-base text-foreground font-bold line-clamp-1">{it.product_name}</Text>
+                      <View className="flex items-center justify-between mt-1">
+                        <Text className="text-sm text-muted-foreground">x{it.quantity}</Text>
+                        <Text className="text-base font-bold text-primary">¥{it.price}</Text>
+                      </View>
+                    </View>
                   </View>
-                </View>
+                ))}
               </View>
               <View className="mt-2 pt-2 border-t border-border flex items-center justify-between">
                 <Text className="text-xs text-muted-foreground">
-                  {item.orders?.created_at ? new Date(item.orders.created_at).toLocaleDateString('zh-CN') : ''}
+                  {g.created_at ? new Date(g.created_at).toLocaleDateString('zh-CN') : ''}
                 </Text>
                 <View className="flex items-center gap-2">
-                  {item.orders?.status === 'pending_ship' && (
+                  {g.status === 'pending_ship' && (
                     <View className="flex items-center justify-center leading-none rounded-xl bg-primary"
-                      onClick={() => handleShip(item)}>
+                      onClick={() => handleShip(g)}>
                       <View className="py-1.5 px-3 text-sm text-white font-bold">发货</View>
                     </View>
                   )}
-                  {(item.orders?.status === 'pending_receive' || item.orders?.status === 'pending_pickup' || item.orders?.status === 'pending_review') && (
+                  {(g.status === 'pending_receive' || g.status === 'pending_pickup' || g.status === 'pending_review') && (
                     <View className="flex items-center justify-center leading-none rounded-xl bg-green-600"
-                      onClick={() => handleComplete(item)}>
+                      onClick={() => handleComplete(g)}>
                       <View className="py-1.5 px-3 text-sm text-white font-bold">确认完成</View>
                     </View>
                   )}
                   <View className="flex flex-col items-end">
-                    <Text className="text-xs text-muted-foreground">合计 ¥{item.orders?.total_amount?.toFixed(2) || '-'}</Text>
+                    <Text className="text-xs text-muted-foreground">合计 ¥{g.total_amount?.toFixed(2) || '-'}</Text>
                     {(() => {
-                      const ms = Array.isArray(item.orders?.merchant_settlements)
-                        ? (item.orders?.merchant_settlements[0] ?? null)
-                        : (item.orders?.merchant_settlements ?? null)
+                      const ms = g.merchant_settlements?.[0]
                       if (!ms || ms.settle_amount == null) return null
                       return (
                         <Text className="text-sm font-bold text-emerald-600">
