@@ -358,8 +358,9 @@ export async function getNearestStores(lat: number, lng: number, limit = 20): Pr
     }
     const list = (data || [])
       .filter((s: any) => {
-        // ① 仅直营且在售且有坐标；② 排除坐标恰好=杭州中心的测试占位点（如横笼铺），双保险即使未停用 is_active
-        if (s.is_platform !== true || s.lat == null || s.lng == null) return false
+        // ① 活跃门店且有坐标（不再限制 is_platform——物理店如张林水果店也需参与"最近门店"判定）
+        if (s.lat == null || s.lng == null) return false
+        // ② 排除坐标恰好=杭州中心的测试占位点（如横笼铺），双保险即使未停用 is_active
         if (Math.abs(Number(s.lat) - HZ_CENTER.lat) < 1e-4 && Math.abs(Number(s.lng) - HZ_CENTER.lng) < 1e-4) return false
         return true
       })

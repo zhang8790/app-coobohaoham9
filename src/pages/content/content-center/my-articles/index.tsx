@@ -1,7 +1,7 @@
 // @title 我的创作
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline, useRouter, useDidShow } from '@tarojs/taro'
-import { View, Button, Text } from '@tarojs/components'
+import { View, Button, Text, Canvas } from '@tarojs/components'
 import {
   getMyArticles, deleteArticle, getMyProfile,
   getMyArticleStats, getMyContentSummary, setArticlePublished,
@@ -9,6 +9,7 @@ import {
 import type { ArticleStat, ContentSummary } from '@/db/api'
 import type { Article } from '@/db/types'
 import Icon from '@/components/Icon'
+import { generateArticleSharePoster, generateVideoSharePoster } from '@/utils/share-poster'
 
 type Tab = 'all' | 'published' | 'draft'
 
@@ -30,14 +31,47 @@ export default function MyArticlesPage() {
   const [shareArticle, setShareArticle] = useState<Article | null>(null)
   const [stats, setStats] = useState<ArticleStat[]>([])
   const [summary, setSummary] = useState<ContentSummary | null>(null)
+  // 分享海报缓存：articleId → 临时文件路径（解决"无封面图→微信截屏锁客面板"的根因）
+  const [posterMap, setPosterMap] = useState<Record<string, string>>({})
+  const posterCanvasRef = useRef<number>(0) // 用于生成唯一 canvas ID
+
+  // 预生成分享海报：文章列表加载后，对已发布文章静默生成公众号风格卡片
+  // 确保用户点分享时 imageUrl 一定有值（不再依赖 cover_image，避免微信截屏）
+  useEffect(() => {
+    if (loading || articles.length === 0) return
+    const published = articles.filter(a => a.status === 'published')
+    if (published.length === 0) return
+    let alive = true
+    const timer = setTimeout(async () => {
+      const map: Record<string, string> = {}
+      for (const art of published.slice(0, 8)) { // 最多预生成 8 张，防性能过载
+        if (!alive) break
+        try {
+          posterCanvasRef.current += 1
+          const cid = `sharePreCanvas${posterCanvasRef.current}`
+          const url = art.video_url
+            ? await generateVideoSharePoster({ title: art.title, cover_image: art.cover_image || '', video_url: art.video_url }, cid)
+            : await generateArticleSharePoster(art, cid)
+          if (url && alive) map[art.id] = url
+        } catch (e) {
+          console.warn('[我的创作] 预生成海报失败:', art.id, e)
+        }
+      }
+      if (alive && Object.keys(map).length > 0) setPosterMap(prev => ({ ...prev, ...map }))
+    }, 800) // 延迟 800ms 让页面先渲染完
+    return () => { alive = false }
+  }, [loading, articles])
 
   // 分享：跳到文章详情页（带推广码归属推荐关系 + 封面缩略图），原生面板含好友/群/朋友圈
+  // 关键修复：imageUrl 优先读预生成的海报（一定有图），不再裸用 cover_image（为空时微信截屏→锁客面板）
   useShareAppMessage(() => ({
     title: shareArticle
       ? `【来电有喜】${shareArticle.title}`
       : '我在来电有喜发现了好内容，快来看看！',
     path: `/pages/content/article-detail/index${shareArticle ? `?id=${shareArticle.id}${myCode ? `&ref=${myCode}` : ''}` : ''}`,
-    imageUrl: shareArticle?.cover_image || undefined,
+    imageUrl: (shareArticle?.id && posterMap[shareArticle.id])
+      ? posterMap[shareArticle.id]
+      : shareArticle?.cover_image || undefined,
   }))
   // 朋友圈分享（query 拼 id + ref，参数名与 useShareWithReferral / article-detail 落地解析保持一致）
   useShareTimeline(() => ({
@@ -293,6 +327,15 @@ export default function MyArticlesPage() {
           </View>
         )}
       </View>
+
+      {/* 隐藏 Canvas 池：用于预生成分享海报（公众号风格卡片），解决无封面图时微信截屏问题 */}
+      {Array.from({ length: 8 }).map((_, i) => (
+        <Canvas key={`precanvas${i}`} id={`sharePreCanvas${i + 1}`}
+          type="2d"
+          style={{ position: 'fixed', left: '-9999px', top: '-9999px', width: '500px', height: '400px' }}
+          canvasId={`sharePreCanvas${i + 1}`}
+        />
+      ))}
     </View>
   )
 }

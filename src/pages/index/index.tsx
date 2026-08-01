@@ -112,6 +112,8 @@ export default function IndexPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   // 门店隔离：首页只展示「当前选中门店」的商品；默认=定位到的最近门店，可切换附近门店
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
+  // 用户是否手动选过门店：一旦手动选过，定位异步完成 / 切回首页自动定位都不应再覆盖选择
+  const manualStoreRef = useRef(false)
   const [orderFeed, setOrderFeed] = useState<OrderFeedItem[]>([])
   const [annIdx, setAnnIdx] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -259,12 +261,12 @@ export default function IndexPage() {
         }
         let raw: Product[] = []
         // 门店隔离：只拉「当前选中门店」的商品，别的店不混进（可按距离切换附近门店）。
+        // 重要：选中门店后不降级到全平台——每个门店只看自己的商品，空的就显示空状态
         const storeId = selectedStoreId
         if (storeId) {
           raw = await getProducts({ storeId, limit: 40 })
-        }
-        // 降级：未选中门店 / 选中门店无商品 → 全平台自营商品（保证首页有内容）
-        if (raw.length === 0) {
+        } else {
+          // 未选中任何门店时才降级到全平台自营商品（保证首页有内容）
           raw = await getProducts({ limit: 30, platformFilter: 'only' })
         }
         const next = raw.map(p => ({ product: p, matchScore: 1, matchLabel: null }))
@@ -279,8 +281,9 @@ export default function IndexPage() {
   }, [currentLocation, nearbyStores, selectedStoreId])
 
   // 定位到最近门店 / 切城市重算后，自动把首页 feed 锁定到该门店（门店隔离默认态）
+  // 守卫：用户一旦手动切换过门店，自动定位不再覆盖（否则定位异步完成会把选择弹回最近门店）
   useEffect(() => {
-    if (currentStore?.id) setSelectedStoreId(currentStore.id)
+    if (currentStore?.id && !manualStoreRef.current) setSelectedStoreId(currentStore.id)
   }, [currentStore])
 
   // 下拉刷新（注：loadOrderFeed/loadAnnouncements/loadFeed 已在上文声明，避免依赖数组 TDZ）
@@ -678,7 +681,10 @@ export default function IndexPage() {
                 return (
                   <View
                     key={s.id}
-                    onClick={() => setSelectedStoreId(s.id)}
+                    onClick={() => {
+                      manualStoreRef.current = true
+                      setSelectedStoreId(s.id)
+                    }}
                     hoverClass="none"
                     className={`flex-shrink-0 rounded-full px-3 py-1.5 border flex items-center gap-1 ${active ? 'bg-primary text-white border-primary' : 'bg-card text-foreground border-border'}`}
                   >
@@ -1079,7 +1085,18 @@ export default function IndexPage() {
               ))}
             </View>
           ) : (
-            <Text className="text-base text-muted-foreground">该分类暂无好物，换个分类看看～</Text>
+            <View className="flex flex-col items-center justify-center py-10 gap-3">
+              <Icon name="storefront-outline" size={48} className="text-muted-foreground/40" />
+              <Text className="text-base text-muted-foreground text-center">
+                {selectedStoreId ? '该门店暂无商品，店主正在上架中…' : '暂无推荐好物，切换门店看看～'}
+              </Text>
+              {selectedStoreId && (
+                <Button type="button" className="px-4 py-2 rounded-xl bg-primary/10 text-primary text-base"
+                  onClick={() => { setSelectedStoreId(null); loadFeed() }}>
+                  查看全平台商品
+                </Button>
+              )}
+            </View>
           )}
         </View>
       )}
