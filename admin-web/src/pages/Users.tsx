@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getUsers, updateUserRole } from '@/api/admin'
+import { getUsers, updateUserRole, createUserAccount } from '@/api/admin'
 import { adminRechargeGoldBean } from '@/api/finance'
 import type { Profile } from '@/types'
 import { maskPhone } from '@/utils/mask'
@@ -22,6 +22,46 @@ export default function Users() {
   const [rcRemark, setRcRemark] = useState('')
   const [rcBusy, setRcBusy] = useState(false)
   const [rcMsg, setRcMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  // 新建账号弹窗状态
+  const [createOpen, setCreateOpen] = useState(false)
+  const [cEmail, setCEmail] = useState('')
+  const [cPwd, setCPwd] = useState('')
+  const [cNick, setCNick] = useState('')
+  const [cPhone, setCPhone] = useState('')
+  const [cRole, setCRole] = useState<'admin' | 'user'>('admin')
+  const [cBusy, setCBusy] = useState(false)
+  const [cMsg, setCMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const openCreate = () => {
+    setCEmail(''); setCPwd(''); setCNick(''); setCPhone(''); setCRole('admin'); setCMsg(null)
+    setCreateOpen(true)
+  }
+  const closeCreate = () => {
+    if (cBusy) return
+    setCreateOpen(false)
+  }
+  const doCreate = async () => {
+    const email = cEmail.trim()
+    const pwd = cPwd
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setCMsg({ ok: false, text: '请输入合法的邮箱地址' }); return }
+    if (pwd.length < 6) { setCMsg({ ok: false, text: '密码至少 6 位' }); return }
+    setCBusy(true); setCMsg(null)
+    const res = await createUserAccount({
+      email, password: pwd,
+      phone: cPhone.trim() || undefined,
+      nickname: cNick.trim() || undefined,
+      role: cRole,
+    })
+    setCBusy(false)
+    if (res.ok) {
+      setCMsg({ ok: true, text: `✅ 账号 ${email} 已创建（角色：${cRole === 'admin' ? '管理员' : '普通用户'}）` })
+      setCEmail(''); setCPwd(''); setCNick(''); setCPhone('')
+      load() // 刷新列表
+    } else {
+      setCMsg({ ok: false, text: res.error || '创建失败' })
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,8 +113,17 @@ export default function Users() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>用户管理</h1>
-        <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>平台用户管理 · 共 {total} 名用户</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>用户管理</h1>
+            <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>平台用户管理 · 共 {total} 名用户</p>
+          </div>
+          <button onClick={openCreate}
+            style={{ padding: '9px 16px', background: 'var(--primary)', color: '#fff', border: 'none',
+              borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            + 新建账号
+          </button>
+        </div>
       </div>
 
       <div style={S.card}>
@@ -178,6 +227,66 @@ export default function Users() {
               <p style={{ fontSize: 13, marginTop: 12, color: rcMsg.ok ? 'var(--success-strong)' : 'var(--danger-text)' }}>{rcMsg.text}</p>
             )}
             <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 10 }}>充值不可逆，请核对金额。</p>
+          </div>
+        </div>
+      )}
+
+      {/* 新建登录账号弹窗 */}
+      {createOpen && (
+        <div onClick={closeCreate}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 210, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: 440, maxWidth: '92vw', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>新建登录账号</h2>
+              <button onClick={closeCreate} disabled={cBusy}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: 22, lineHeight: 1, cursor: cBusy ? 'not-allowed' : 'pointer' }}>×</button>
+            </div>
+            <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 16, lineHeight: 1.6 }}>
+              该账号可凭邮箱 + 密码直接登录后台。创建后将在服务端自动确认邮箱，<b style={{ color: 'var(--text-muted)' }}>无需邮件验证</b>即可使用。
+            </p>
+
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>邮箱 *</label>
+            <input value={cEmail} onChange={e => setCEmail(e.target.value)}
+              placeholder="如 admin2@laidianyouxi.com"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, marginBottom: 12 }} />
+
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>密码 *（至少 6 位）</label>
+            <input value={cPwd} onChange={e => setCPwd(e.target.value)} type="password"
+              placeholder="登录密码"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, marginBottom: 12 }} />
+
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>昵称（可选）</label>
+            <input value={cNick} onChange={e => setCNick(e.target.value)}
+              placeholder="后台显示名称"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, marginBottom: 12 }} />
+
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>手机号（可选，用于验证码登录）</label>
+            <input value={cPhone} onChange={e => setCPhone(e.target.value)} inputMode="numeric"
+              placeholder="选填"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, marginBottom: 12 }} />
+
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>角色 *</label>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              {([['admin', '管理员（可登录后台）'], ['user', '普通用户（C 端）']] as const).map(([val, label]) => (
+                <button key={val} onClick={() => setCRole(val)}
+                  style={{ flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 13, cursor: 'pointer',
+                    border: `1px solid ${cRole === val ? 'var(--primary)' : 'var(--border)'}`,
+                    background: cRole === val ? 'var(--primary-soft)' : 'transparent',
+                    color: cRole === val ? 'var(--primary)' : 'var(--text-muted)', fontWeight: cRole === val ? 600 : 400 }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <button onClick={doCreate} disabled={cBusy}
+              style={{ width: '100%', background: 'var(--primary)', color: '#fff', fontWeight: 700, borderRadius: 8, padding: '11px 0', fontSize: 14, cursor: cBusy ? 'not-allowed' : 'pointer', opacity: cBusy ? 0.6 : 1 }}>
+              {cBusy ? '创建中…' : '确认创建'}
+            </button>
+            {cMsg && (
+              <p style={{ fontSize: 13, marginTop: 12, color: cMsg.ok ? 'var(--success-strong)' : 'var(--danger-text)' }}>{cMsg.text}</p>
+            )}
+            <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 10 }}>仅超级管理员可创建账号；服务端的账号创建不会在前端暴露任何密钥。</p>
           </div>
         </div>
       )}

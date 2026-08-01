@@ -513,6 +513,27 @@ export async function updateUserRole(_id: string, _role: 'user' | 'admin'): Prom
   return safeQuery(() => supabase.from('profiles').update({ role: _role }).eq('id', _id).then(() => true), true)
 }
 
+// ── 后台新建登录账号 ──────────────────────────────────────────────────
+// 经 Edge Function admin-create-user 创建（service_role 在服务端，前端不持有密钥）。
+// 调用方需为已登录 admin，函数内会二次校验 role='admin'。
+export interface CreateUserPayload {
+  email: string
+  password: string
+  phone?: string
+  nickname?: string
+  role: 'admin' | 'user'
+}
+export async function createUserAccount(payload: CreateUserPayload): Promise<{ ok: boolean; error?: string; data?: any }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('admin-create-user', { body: payload })
+    if (error) return { ok: false, error: error.message }
+    if (data && (data as any).error) return { ok: false, error: (data as any).error }
+    return { ok: true, data }
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? '调用失败' }
+  }
+}
+
 // ── 公告管理 ──────────────────────────────────────────────────────────
 export async function getAnnouncements(): Promise<Announcement[]> {
   return safeQuery(async () => {
