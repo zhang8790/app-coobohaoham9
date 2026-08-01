@@ -91,6 +91,8 @@ _tmp_img*.sql
 diag-*.sql
 *.bak
 dist.bak.*
+_dist_*
+dist_old_build
 .color-sweep*
 .icon-fix-backup/
 .icon-migrate-backup/
