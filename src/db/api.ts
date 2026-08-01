@@ -15,6 +15,7 @@ import { calculateDynamicScore, RANK_CONFIG_TABLE_V5, calculateCommissionV5, com
 import { bumpCartCount } from '@/utils/cartStore'
 import { checkIllegalWords } from '@/utils/compliance-words'
 import { calculateDistance } from '@/utils/lbs-service'
+import { toGcj02, type CoordSystem } from '@/utils/coord-convert'
 import { cacheGet, cacheSet, cacheMakeKey, clearRequestCache } from './requestCache'
 
 // 食材食疗导购新列（迁移 00100）：DB 未执行时软降级剥离，保证既有上架不失败
@@ -325,6 +326,18 @@ export interface NearestStore {
 }
 
 /**
+ * 门店坐标系统声明（定位“几公里”偏差的关键开关）。
+ * 用户定位来自微信 getLocation(type:'gcj02')，即 GCJ-02；门店距离必须在其同坐标系下才算准。
+ * 门店坐标是手填的，若当时取自：
+ *   - 高德/腾讯地图、或微信内长按地图取点 → 'gcj02'（默认，正确，无需转换）
+ *   - 百度地图 → 'bd09'
+ *   - 原始 GPS / 苹果地图 / Google 地图 → 'wgs84'
+ * 改成对应值即可自动校正，否则与 GCJ-02 用户点混算会偏差几百米~几公里。
+ * 默认 'gcj02' 为无副作用（坐标不变），仅在明确来源后调整。
+ */
+const STORE_COORD_SYSTEM: CoordSystem = 'gcj02'
+
+/**
  * 根据经纬度返回最近的直营门店列表（升序）。
  * 直营判定：is_platform=true（品牌馆已归并，partner_brand 恒 NULL）。
  */
@@ -340,15 +353,19 @@ export async function getNearestStores(lat: number, lng: number, limit = 20): Pr
     }
     const list = (data || [])
       .filter((s: any) => s.is_platform === true && s.lat != null && s.lng != null)
-      .map((s: any) => ({
-        id: s.id,
-        store_name: s.name,
-        address: s.address || '',
-        lat: s.lat,
-        lng: s.lng,
-        is_open: s.is_open,
-        distance_km: Math.round(calculateDistance(lat, lng, s.lat, s.lng) * 100) / 100,
-      }))
+      .map((s: any) => {
+        // 把门店坐标统一转到 GCJ-02（与用户微信定位同系），再算距离，避免“几公里”系统偏差
+        const g = toGcj02(Number(s.lat), Number(s.lng), STORE_COORD_SYSTEM)
+        return {
+          id: s.id,
+          store_name: s.name,
+          address: s.address || '',
+          lat: g.lat,
+          lng: g.lng,
+          is_open: s.is_open,
+          distance_km: Math.round(calculateDistance(lat, lng, g.lat, g.lng) * 100) / 100,
+        }
+      })
       .sort((a: any, b: any) => a.distance_km - b.distance_km)
     return list.slice(0, limit)
   } catch (err) {

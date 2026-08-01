@@ -189,18 +189,28 @@ export default function IndexPage() {
     }
   }, [routeParams])
 
-  // 首页启动时自动获取定位；若附近门店尚未解析（如城市已缓存但首次无附近列表），一并定位解析
-  // 修法：移除对 detectLocation 函数本体的依赖（改用 ref 持有，函数已稳定化不会反复重装引用），
-  // 并用 locatingRef 在定位进行中锁住重复触发——彻底消除因 nearbyStores 异步就绪前的渲染间隙
-  // 反复进入 detectLocation 造成的定位 pill 闪烁（与购物车页同源：乐观更新 + 并发去重 + 自触发抑制）
+  // 首页启动 / 切回时，始终用【当前真实 GPS】重新解析最近门店。
+  // 修复（定位“几公里”偏差根因）：
+  //   原逻辑 `if (currentCity && nearbyStores.length > 0) return` 一旦本地缓存过任意门店
+  //   （哪怕是兜底到杭州中心、或上次在别处定位的残留），就跳过定位 —— 首页永远显示旧位置的
+  //   门店与距离，人已移动/站在店门口却仍显示「几公里外」的旧门店。
+  //   现改为：先秒显缓存保证不白屏，再后台用当前 GPS 刷新（detectLocation 内部有并发去重，不会重复拉）。
   useEffect(() => {
     if (locatingRef.current) return
-    if (currentCity && nearbyStores.length > 0) return
     locatingRef.current = true
     detectLocationRef.current()
       .catch(() => {})
       .finally(() => { locatingRef.current = false })
-  }, [currentCity, nearbyStores.length])
+  }, [])
+
+  // 切回首页 tab 时同样用当前 GPS 刷新（用户可能已移动位置）
+  useDidShow(() => {
+    if (locatingRef.current) return
+    locatingRef.current = true
+    detectLocationRef.current()
+      .catch(() => {})
+      .finally(() => { locatingRef.current = false })
+  })
 
   // 首页分享：若用户点击了某商品的分享按钮则分享该商品，否则分享首页（均携带推广码）
   useShareAppMessage(() => {
