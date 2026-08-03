@@ -1,66 +1,7 @@
-// 全局悬浮操作栏 —— 两个独立常驻按钮（不展开、不浮层）
-// 入口：客服 / 食疗咨询。结算已嵌入「食疗咨询」页内联面板。
-.fab-container {
-  position: fixed;
-  right: 18px;
-  bottom: calc(env(safe-area-inset-bottom) + 110px);
-  z-index: 70;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-// 独立按钮：圆形图标 + 文字药丸，始终可见、各自可点
-.fab-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #fff;
-  border-radius: 28px;
-  padding: 10px 16px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
-  position: relative;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-
-  &:active {
-    transform: scale(0.94);
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
-  }
-}
-.fab-btn-icon {
-  font-size: 20px;
-  line-height: 1;
-}
-.fab-btn-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #334155;
-  white-space: nowrap;
-}
-
-// 颜色微调
-.fab-btn--consult {
-  border: 1px solid rgba(22, 163, 74, 0.25);
-}
-.fab-btn--kefu {
-  border: 1px solid rgba(37, 99, 235, 0.25);
-}
-
-// 客服按钮：微信 Button 默认带边框/背景，重置为透明，仅保留内部药丸
-.fab-btn--kefu {
-  background: #fff !important;
-  border: 1px solid rgba(37, 99, 235, 0.25) !important;
-  padding: 10px 16px !important;
-  margin: 0 !important;
-  line-height: normal;
-  &::after {
-    border: none !important;
-  }
-}
-
+// 全局悬浮操作栏 —— 全站统一右侧边缘把手（按下才向左侧滑出「食养咨询 / 客服」）
+// 入口：食养咨询（主）/ 客服。无遮罩、按钮直接可点。结算已嵌入「食疗咨询」页内联面板。
 // =====================================================================
-// 首页：右侧边缘停靠把手，按下才向左侧滑出「食养咨询 / 客服」
+// 右侧边缘停靠把手：按下才向左侧滑出「食养咨询 / 客服」
 // 设计要点：无遮罩、面板与把手都在右侧边缘，按钮直接可点（规避浮层点不动）。
 // =====================================================================
 .fab-edge {
