@@ -55,7 +55,11 @@ function SettingsPage() {
       title: '退出登录', content: '确认退出当前账号？',
       confirmText: '退出', confirmColor: '#ef4444',
       success: async (r) => {
-        if (r.confirm) { await signOut(); Taro.reLaunch({ url: '/pages/login/index' }) }
+        if (r.confirm) {
+          await signOut()
+          // 用 navigateTo 而非 reLaunch：保留上一页栈，微信胶囊才能显示返回箭头，避免"登录返回无效"
+          Taro.navigateTo({ url: '/pages/login/index' })
+        }
       },
     })
   }
@@ -73,7 +77,8 @@ function SettingsPage() {
           if (ok) {
             Taro.showToast({ title: '账号已注销', icon: 'success' })
             await signOut()
-            Taro.reLaunch({ url: '/pages/login/index' })
+            // 用 navigateTo 而非 reLaunch：保留上一页栈，微信胶囊才能显示返回箭头
+            Taro.navigateTo({ url: '/pages/login/index' })
           } else {
             Taro.showToast({ title: '注销失败，请联系客服', icon: 'none' })
           }
@@ -232,6 +237,22 @@ function SettingsPage() {
         </View>
       </View>
 
+      {/* 定位授权管理（3.4.7 位置信息退出机制） */}
+      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+        <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <Icon name="map-marker-outline" size={24} className="text-primary" />
+          <Text className="text-xl font-bold text-foreground">定位授权管理</Text>
+        </View>
+        <View className="flex items-center justify-between px-4 py-4"
+          onClick={() => Taro.openSetting()}>
+          <View className="flex flex-col gap-1">
+            <Text className="text-xl text-foreground">位置权限</Text>
+            <Text className="text-base text-muted-foreground">用于匹配就近门店；可在此关闭授权</Text>
+          </View>
+          <Icon name="chevron-right" size={24} className="text-muted-foreground" />
+        </View>
+      </View>
+
       {/* 账号安全 */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
         <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
@@ -266,7 +287,7 @@ function SettingsPage() {
           { label: '隐私政策', handler: () => Taro.navigateTo({ url: '/pages/agreement/privacy-policy/index' }) },
           { label: '交易规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/trade-rules/index' }) },
           { label: '提现规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/withdraw-rules/index' }) },
-          { label: '佣金规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/commission-rules/index' }) },
+          { label: '推荐奖励规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/commission-rules/index' }) },
           { label: '段位规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/rank-rules/index' }) },
           { label: '资产规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/points-rules/index' }) },
           { label: '自营门店协议', handler: () => Taro.navigateTo({ url: '/pages/agreement/merchant-agreement/index' }) },

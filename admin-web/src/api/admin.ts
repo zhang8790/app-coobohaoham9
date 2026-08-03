@@ -1,12 +1,12 @@
 import { supabase } from '@/lib/supabase'
 import type {
   AdminStats, MerchantApplication, Product,
-  Withdrawal, MerchantSettlement, Article, Profile, Announcement, Refund,
+  Withdrawal, MerchantSettlement, Profile, Announcement, Refund,
 } from '@/types'
 import {
   MOCK_ADMIN_STATS,
   MOCK_MERCHANTS, MOCK_PRODUCTS, MOCK_WITHDRAWALS,
-  MOCK_ARTICLES, MOCK_USERS, MOCK_ANNOUNCEMENTS, MOCK_REFUNDS,
+  MOCK_USERS, MOCK_ANNOUNCEMENTS, MOCK_REFUNDS,
 } from '@/mock/data'
 
 // =========== 模式控制 ===========
@@ -87,18 +87,16 @@ export async function getAdminStats(): Promise<AdminStats> {
       { count: merchants },
       { count: products },
       { count: withdrawals },
-      { count: articles },
       { count: users },
       { count: orders },
     ] = await Promise.all([
       supabase.from('merchant_applications').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('products').select('*', { count: 'exact', head: true }).eq('review_status', 'pending'),
       supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('articles').select('*', { count: 'exact', head: true }),
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       supabase.from('orders').select('*', { count: 'exact', head: true }),
     ])
-    return { merchants: merchants ?? 0, products: products ?? 0, withdrawals: withdrawals ?? 0, articles: articles ?? 0, users: users ?? 0, orders: orders ?? 0 }
+    return { merchants: merchants ?? 0, products: products ?? 0, withdrawals: withdrawals ?? 0, users: users ?? 0, orders: orders ?? 0 }
   }, MOCK_ADMIN_STATS)
 }
 
@@ -283,13 +281,24 @@ export async function getPendingWithdrawals(page: number, pageSize: number, stat
   })())
 }
 
-/** 审核通过：状态 pending → approved（待财务打款）。带 pending 守卫，防重复审核。 */
+/** 审核通过：状态 pending → approved（待财务打款）。带 pending 守卫，防重复审核。
+ *  修复：「审核通过却仍显示审核中」根因——旧实现 .then(() => true) 无条件返回成功，
+ *  把 RLS 拦截 / 0 行匹配 / 网络异常全部静默吞掉，导致 UI 报成功但 DB 仍是 pending。
+ *  现改为校验 {error} 与命中行数，仅在确有行被更新时返回 true，失败返回 false（不再吞错）。 */
 export async function approveWithdrawal(_id: string, remark?: string): Promise<boolean> {
-  return safeQuery(() => supabase.from('withdrawals').update({
-    status: 'approved',
-    remark: remark || null,
-    updated_at: new Date().toISOString(),
-  }).eq('id', _id).eq('status', 'pending').then(() => true), true)
+  return safeQuery(async () => {
+    try {
+      const { data, error } = await supabase.from('withdrawals').update({
+        status: 'approved',
+        remark: remark || null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', _id).eq('status', 'pending').select('id')
+      if (error) { console.error('[approveWithdrawal] 更新失败:', error); return false }
+      return Array.isArray(data) && data.length > 0
+    } catch (e) {
+      console.error('[approveWithdrawal] 异常:', e); return false
+    }
+  }, false)
 }
 
 /**
@@ -323,14 +332,23 @@ export async function payWithdrawal(_id: string, remark?: string): Promise<boole
   }, true)
 }
 
-/** 驳回：状态 → rejected，释放（退回）相应佣金额度 */
+/** 驳回：状态 → rejected，释放（退回）相应佣金额度。
+ *  修复：同上，去掉 .then(() => true)，校验真实成败。 */
 export async function rejectWithdrawal(_id: string, reason: string, remark?: string): Promise<boolean> {
-  return safeQuery(() => supabase.from('withdrawals').update({
-    status: 'rejected',
-    reject_reason: reason || null,
-    remark: remark || null,
-    updated_at: new Date().toISOString(),
-  }).eq('id', _id).then(() => true), true)
+  return safeQuery(async () => {
+    try {
+      const { data, error } = await supabase.from('withdrawals').update({
+        status: 'rejected',
+        reject_reason: reason || null,
+        remark: remark || null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', _id).select('id')
+      if (error) { console.error('[rejectWithdrawal] 更新失败:', error); return false }
+      return Array.isArray(data) && data.length > 0
+    } catch (e) {
+      console.error('[rejectWithdrawal] 异常:', e); return false
+    }
+  }, false)
 }
 
 // ── 商家货款结算（迁移 00120）──────────────────────────────────────────
@@ -403,11 +421,20 @@ export async function triggerSettlementPayout(withdrawalId: string): Promise<{ o
   }
 }
 
-/** 货款提现打款完成：仅置状态 paid（货款余额已在申请时扣减，无需再扣） */
+/** 货款提现打款完成：仅置状态 paid（货款余额已在申请时扣减，无需再扣）。
+ *  修复：去掉 .then(() => true)，校验真实成败（含 RLS 拦截 / 0 行）。 */
 export async function paySettlementWithdrawal(_id: string, remark?: string): Promise<boolean> {
-  return safeQuery(() => supabase.from('withdrawals').update({
-    status: 'paid', remark: remark || null, updated_at: new Date().toISOString(),
-  }).eq('id', _id).eq('status', 'approved').then(() => true), true)
+  return safeQuery(async () => {
+    try {
+      const { data, error } = await supabase.from('withdrawals').update({
+        status: 'paid', remark: remark || null, updated_at: new Date().toISOString(),
+      }).eq('id', _id).eq('status', 'approved').select('id')
+      if (error) { console.error('[paySettlementWithdrawal] 更新失败:', error); return false }
+      return Array.isArray(data) && data.length > 0
+    } catch (e) {
+      console.error('[paySettlementWithdrawal] 异常:', e); return false
+    }
+  }, false)
 }
 
 /** 货款提现驳回：退回货款到门店 merchant_balance（申请时已扣，需回补），
@@ -461,40 +488,6 @@ export async function rejectRefund(_id: string, _reason: string): Promise<boolea
   return safeQuery(() => supabase.from('refunds').update({ status: 'closed' }).eq('id', _id).then(() => true), true)
 }
 
-// ── UGC 内容管理 ─────────────────────────────────────────────────────
-export async function getArticles(
-  _filter: 'all' | 'published' | 'hidden', page: number, pageSize: number
-): Promise<{ data: Article[]; total: number }> {
-  return safeQuery(async () => {
-    let q = supabase.from('articles').select('*', { count: 'exact' })
-    if (_filter === 'published') q = q.eq('is_published', true)
-    else if (_filter === 'hidden') q = q.eq('is_published', false)
-    const { data, count } = await q
-      .order('created_at', { ascending: false })
-      .range(page * pageSize, (page + 1) * pageSize - 1)
-    const rows = Array.isArray(data) ? (data as any[]) : []
-    const pmap = await profileMap(rows.map(r => r.user_id))
-    return {
-      data: rows.map(r => ({
-        ...r,
-        profiles: { nickname: pmap.get(r.user_id)?.nickname ?? null },
-      })),
-      total: count ?? 0,
-    }
-  }, (() => {
-    let data = [...MOCK_ARTICLES]
-    return { data: data.slice(page * pageSize, (page + 1) * pageSize), total: data.length }
-  })())
-}
-
-export async function toggleArticlePublish(_id: string, _publish: boolean): Promise<boolean> {
-  return safeQuery(() => supabase.from('articles').update({ is_published: _publish }).eq('id', _id).then(() => true), true)
-}
-
-export async function deleteArticle(_id: string): Promise<boolean> {
-  return safeQuery(() => supabase.from('articles').delete().eq('id', _id).then(() => true), true)
-}
-
 // ── 用户管理 ──────────────────────────────────────────────────────────
 export async function getUsers(page: number, pageSize: number): Promise<{ data: Profile[]; total: number }> {
   return safeQuery(async () => {
@@ -517,7 +510,7 @@ export async function updateUserRole(_id: string, _role: 'user' | 'admin'): Prom
 // 经 Edge Function admin-create-user 创建（service_role 在服务端，前端不持有密钥）。
 // 调用方需为已登录 admin，函数内会二次校验 role='admin'。
 export interface CreateUserPayload {
-  email: string
+  email?: string
   password: string
   phone?: string
   nickname?: string
@@ -581,14 +574,18 @@ export async function createSelfStore(input: {
   name: string; description?: string; category: string; referral_rate: number
   open_time?: string; close_time?: string; image_url?: string; banner_url?: string
   referral_rate_enabled?: boolean
+  store_type?: 'hub' | 'transfer' | 'truck' | 'branch'
   owner_id?: string   // 店长账号 uid；不传则归平台主账号（兼容旧行为）
 }): Promise<boolean> {
   return safeQuery(async () => {
     // 店长自治：owner 放宽为指定店长，每家自营店可绑定独立店长账号
     const ownerId = input.owner_id || PLATFORM_OWNER_ID
+    const { data: me } = await supabase.auth.getUser()
     const shortCode = await generateUniqueShortCode()
     const { error } = await supabase.from('stores').insert({
       owner_id: ownerId,
+      created_by: me?.user?.id ?? null,
+      store_type: input.store_type ?? null,
       name: input.name,
       description: input.description || null,
       category: input.category,
@@ -611,6 +608,34 @@ export async function createSelfStore(input: {
     }
     return true
   }, true)
+}
+
+/** 总后台「建店 + 建运营登陆」原子操作：经 Edge Function admin-create-store
+ *  一次性完成：创建门店(is_platform=true) + 创建运营登录账号(email/密码) +
+ *  绑定 store_staff(role=owner) + 置 profiles.role='merchant'。 */
+export async function adminCreateStoreWithLogin(input: {
+  store_name: string
+  category: string
+  description?: string
+  referral_rate: number
+  open_time?: string
+  close_time?: string
+  image_url?: string
+  banner_url?: string
+  store_type?: 'hub' | 'transfer' | 'truck' | 'branch'
+  manager_email: string
+  manager_password: string
+  manager_phone?: string
+  manager_nickname?: string
+}): Promise<{ ok: boolean; error?: string; data?: any }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('admin-create-store', { body: input })
+    if (error) return { ok: false, error: error.message }
+    if (data && (data as any).error) return { ok: false, error: (data as any).error }
+    return { ok: true, data }
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? '调用失败' }
+  }
 }
 
 /** 搜索用户（按手机号/昵称），用于自营店绑定店长 */
@@ -845,3 +870,4 @@ export async function testLlmConfig(): Promise<{ ok: boolean; message: string; s
     return { ok: false, message: e?.message ?? '调用失败' }
   }
 }
+

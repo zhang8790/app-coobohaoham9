@@ -1,7 +1,8 @@
 // 食材食疗智能导购 —— 全局状态（重构对齐版）
 // 新模型：用户「勾选身体人群(多选) + 选择当前场景(单选)」，全站基于纯函数分类器
 // classifyProducts 把商品分入三栏（五星推荐 / 谨慎食用 / 不建议点）。
-// 设计原则：纯被动匹配，不依赖 LLM / NLU / 用户反馈权重；规则确定、可解释、零网络。
+// 战略支柱②扩展：家庭档案（一户一档）。家庭成员>0 时派生 activeProfile，
+// 商品页「为谁选购」据此切换个人化食养报告对象（中性食养参考，不替代医嘱）。
 
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
@@ -14,11 +15,14 @@ import {
 } from '@/utils/food-therapy'
 import { profileToCrowds } from '@/utils/food-therapy/profile-map'
 import { getUserHealthProfile } from '@/db/food-api'
-import type { Product } from '@/db/types'
+import { listFamilyMembers } from '@/db/family-api'
+import type { Product, UserHealthProfile, FamilyMember } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 
 const CROWD_KEY = 'ftSelectedCrowds'
 const SCENE_KEY = 'ftSelectedScene'
+// 战略②：当前选购对象（'self' = 本人；否则为 family_members.id）
+const MEMBER_KEY = 'ftSelectedMember'
 
 interface FoodTherapyCtx {
   selectedCrowds: Crowd[]
@@ -36,6 +40,18 @@ interface FoodTherapyCtx {
   hasHealthProfile: boolean
   // 「适合我」三态：结合用户过敏原 + 人群/场景，返回 适合/慎吃/忌口/未判定
   getSuitability: (p: Product) => FitTier | null
+  // 用户本人完整结构化健康画像（驱动商品详情页「千人千面专属报告」；含 age_group 分群维度）
+  userHealthProfile: UserHealthProfile | null
+  // ── 战略② 家庭档案 ──
+  // 家庭成员列表（本人除外；本人画像即 userHealthProfile）
+  familyMembers: FamilyMember[]
+  // 当前选购对象：'self' 或 family_members.id
+  selectedMemberId: string
+  setSelectedMemberId: (id: string) => void
+  // 重新拉取家庭成员（编辑后调用，保证家庭页与商品页「为谁选购」同源一致）
+  refreshFamilyMembers: () => void
+  // 派生「当前画像」：选成员用成员画像，否则本人 userHealthProfile（供商品页千人千面报告）
+  activeProfile: UserHealthProfile | null
 }
 
 const Ctx = createContext<FoodTherapyCtx | null>(null)
@@ -50,6 +66,13 @@ export function FoodTherapyProvider({ children }: { children: ReactNode }) {
   // 用户结构化画像的过敏原（驱动「适合我」三态中的「忌口」判定）
   const [userAllergens, setUserAllergens] = useState<string[]>([])
   const [hasHealthProfile, setHasHealthProfile] = useState(false)
+  // 完整结构化画像（含 age_group 分群维度），供商品页千人千面报告使用
+  const [userHealthProfile, setUserHealthProfile] = useState<UserHealthProfile | null>(null)
+  // 战略②：家庭成员 + 当前选购对象
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([])
+  const [selectedMemberId, setSelectedMemberIdState] = useState<string>(() => {
+    try { return (Taro.getStorageSync(MEMBER_KEY) || 'self') as string } catch { return 'self' }
+  })
 
   // 用户体质档案自动注入：登录后读取 user_health_profile 结构化画像，
   // 用 profileToCrowds 推导食疗人群并作为默认匹配项，实现"懂用户身体→自动配对商品"。
@@ -83,8 +106,36 @@ export function FoodTherapyProvider({ children }: { children: ReactNode }) {
         const allergens = Array.isArray((hp as any)?.allergens) ? ((hp as any).allergens as string[]) : []
         setUserAllergens(allergens)
         setHasHealthProfile(!!hp)
+        // 暴露完整画像（含 age_group），供商品页「千人千面专属报告」按 viewer 分群呈现差异化建议
+        setUserHealthProfile(hp as UserHealthProfile | null)
       })
       .catch(() => seedFromTags(profile?.constitution_tags))
+    // 战略②：并行加载家庭成员（一户一档），用于「为谁选购」
+    listFamilyMembers(profile.id)
+      .then((rows) => setFamilyMembers(Array.isArray(rows) ? rows : []))
+      .catch(() => setFamilyMembers([]))
+  }, [profile?.id])
+
+  // 选购对象若指向已删除成员，回落本人，避免选中幽灵成员
+  useEffect(() => {
+    if (selectedMemberId !== 'self' && !familyMembers.some((m) => m.id === selectedMemberId)) {
+      setSelectedMemberIdState('self')
+      try { Taro.setStorageSync(MEMBER_KEY, 'self') } catch { /* ignore */ }
+    }
+  }, [selectedMemberId, familyMembers])
+
+  const setSelectedMemberId = useCallback((id: string) => {
+    setSelectedMemberIdState(id)
+    try { Taro.setStorageSync(MEMBER_KEY, id) } catch { /* storage 不可用时静默降级 */ }
+  }, [])
+
+  // 战略②：重新拉取家庭成员（家庭档案页写入后调用，保证商品页「为谁选购」同源）
+  const refreshFamilyMembers = useCallback(() => {
+    const ownerId = profile?.id
+    if (!ownerId) return
+    listFamilyMembers(ownerId)
+      .then((rows) => setFamilyMembers(Array.isArray(rows) ? rows : []))
+      .catch(() => setFamilyMembers([]))
   }, [profile?.id])
 
   const toggleCrowd = useCallback((c: Crowd) => {
@@ -137,9 +188,37 @@ export function FoodTherapyProvider({ children }: { children: ReactNode }) {
     [userAllergens, selectedCrowds, selectedScene],
   )
 
+  // 战略②：派生当前画像（activeProfile）。选成员 → 成员画像；否则本人画像。
+  // 形状与 UserHealthProfile 兼容，可直接喂给 analyzeForProfile / profileToCrowds / describeCohort。
+  const activeProfile = useMemo<UserHealthProfile | null>(() => {
+    if (selectedMemberId === 'self') return userHealthProfile
+    const m = familyMembers.find((x) => x.id === selectedMemberId)
+    if (!m) return userHealthProfile // 兜底：成员不存在时回落本人
+    return {
+      user_id: m.id,
+      age_group: m.age_group,
+      gender: m.gender,
+      constitution_type: m.constitution_type,
+      allergies: m.allergies ?? [],
+      chronic_conditions: m.chronic_conditions ?? [],
+      body_states: m.body_states ?? [],
+      health_goals: m.health_goals ?? [],
+      privacy_flags: null,
+      updated_at: m.updated_at,
+    }
+  }, [selectedMemberId, familyMembers, userHealthProfile])
+
   const value = useMemo<FoodTherapyCtx>(
-    () => ({ selectedCrowds, selectedScene, toggleCrowd, setScene, clearFilters, classifyProduct, classifyProducts, userAllergens, hasHealthProfile, getSuitability }),
-    [selectedCrowds, selectedScene, toggleCrowd, setScene, clearFilters, classifyProduct, classifyProducts, userAllergens, hasHealthProfile, getSuitability],
+    () => ({
+      selectedCrowds, selectedScene, toggleCrowd, setScene, clearFilters, classifyProduct, classifyProducts,
+      userAllergens, hasHealthProfile, getSuitability,       userHealthProfile,
+      familyMembers, selectedMemberId, setSelectedMemberId, refreshFamilyMembers, activeProfile,
+    }),
+    [
+      selectedCrowds, selectedScene, toggleCrowd, setScene, clearFilters, classifyProduct, classifyProducts,
+      userAllergens, hasHealthProfile, getSuitability, userHealthProfile,
+      familyMembers, selectedMemberId, setSelectedMemberId, refreshFamilyMembers, activeProfile,
+    ],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

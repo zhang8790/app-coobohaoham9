@@ -159,22 +159,10 @@ export interface MerchantSettlement {
   stores?: { name: string | null; wx_sub_mch_id: string | null } | null
 }
 
-export interface Article {
-  id: string
-  user_id: string
-  title: string
-  content: string | null
-  images: string[]
-  is_published: boolean
-  created_at: string
-  profiles?: { nickname: string | null } | null
-}
-
 export interface AdminStats {
   merchants: number
   products: number
   withdrawals: number
-  articles: number
   users: number
   orders: number
 }

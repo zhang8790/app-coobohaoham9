@@ -47,7 +47,7 @@ export interface FoodAnalysisReport {
   source: 'manual' | 'ocr' | 'llm'
   input_text: string | null
   parsed_ingredients: string[] | null
-  additive_list: Array<{ name: string; level: 'safe' | 'limit' | 'high_risk'; type: string; desc: string }> | null
+  additive_list: Array<{ name: string; level: 'safe' | 'limit' | 'high_risk'; risk_tier?: string; type: string; desc: string }> | null
   allergen_list: Array<{ key: string; name: string; crowd_code: string }> | null
   crowd_tips: string[] | null
   safe_level: string | null
@@ -58,6 +58,21 @@ export interface FoodAnalysisReport {
   created_at: string
 }
 
+// 私有目录表药食同源洞察（ingredient-analyze EF 服务端基于 medicinal_food_catalog 计算，
+// 客户端读不到该表；仅回传衍生洞察，是「竞品抄不到」的差异化数据层）
+export interface CatalogAgeCautionHit {
+  ingredient: string
+  cautions: string[]
+}
+export interface CatalogInsight {
+  matched_count: number
+  matched: string[]
+  nature_summary: string
+  nature_distribution: Record<string, number>
+  age_caution_hits: CatalogAgeCautionHit[]
+  compatibility_notes: string[]
+}
+
 // 标准报告输出（与 ingredient-analyze Edge Function 完全对齐）
 export interface StandardFoodReport {
   success: boolean
@@ -66,11 +81,32 @@ export interface StandardFoodReport {
   safe_level_code?: SafeLevelCode
   main_conclusion?: { general: string; children: string; fit_people: string; unfit_people: string }
   health_shortboard_tip?: string
-  additive_list?: Array<{ name: string; level: 'safe' | 'limit' | 'high_risk'; type: string; desc: string }>
+  catalog_insight?: CatalogInsight
+  additive_list?: Array<{ name: string; level: 'safe' | 'limit' | 'high_risk'; risk_tier?: string; type: string; desc: string }>
   crowd_tips?: string[]
   parsed_ingredients?: string[]
   matched_additives?: string[]
+  match_score?: { score: number; tier: 'recommend' | 'caution' | 'avoid'; reasons: string[]; tags: string[] } | null
   error?: string
+}
+
+// 适配分（模块三·食疗人群匹配算法引擎输出）
+export interface FoodMatchScore {
+  score: number
+  tier: 'recommend' | 'caution' | 'avoid'
+  reasons: string[]
+}
+
+// 用户食疗标签规则（food_tag_rules）
+export interface FoodTagRule {
+  tag_key: string
+  label: string
+  group_name?: string
+  prefer_ingredients: string[]
+  avoid_ingredients: string[]
+  weight_prefer: number
+  weight_avoid: number
+  status: string
 }
 
 // ============================================================
@@ -186,6 +222,9 @@ export async function callIngredientAnalyze(payload: {
   ocr_task_id?: string
   product_id?: string
   user_id?: string
+  user_tags?: string[]
+  age_group?: string
+  persist?: boolean
   source?: 'manual' | 'ocr' | 'llm'
 }): Promise<StandardFoodReport> {
   try {
@@ -199,6 +238,48 @@ export async function callIngredientAnalyze(payload: {
     return (data as StandardFoodReport) ?? { success: false, error: '空响应' }
   } catch (e: any) {
     console.error('[callIngredientAnalyze] 异常:', e)
+    return { success: false, error: e?.message ?? String(e) }
+  }
+}
+
+// 读取食疗标签规则（供前端「自检标签库」勾选 + 后台面板）
+export async function getFoodTagRules(): Promise<FoodTagRule[]> {
+  const { data, error } = await supabase
+    .from('food_tag_rules')
+    .select('*')
+    .eq('status', 'active')
+    .order('tag_key')
+  if (error) {
+    console.error('[getFoodTagRules] 查询失败:', error.message)
+    return []
+  }
+  return (data as FoodTagRule[]) ?? []
+}
+
+// 跨商品适配分排序（模块三·food-match Edge Function）
+export async function callFoodMatch(payload: {
+  user_tags: string[]
+  product_ids?: string[]
+  store_id?: string
+  user_id?: string
+  limit?: number
+}): Promise<{ success: boolean; count?: number; items?: Array<{
+  product_id: string
+  score: number
+  tier: 'recommend' | 'caution' | 'avoid'
+  reasons: string[]
+  safe_level?: string
+  safe_level_code?: string
+}>; error?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('food-match', { body: payload })
+    if (error) {
+      console.error('[callFoodMatch] 调用失败:', error.message)
+      return { success: false, error: error.message }
+    }
+    return (data as any) ?? { success: false, error: '空响应' }
+  } catch (e: any) {
+    console.error('[callFoodMatch] 异常:', e)
     return { success: false, error: e?.message ?? String(e) }
   }
 }

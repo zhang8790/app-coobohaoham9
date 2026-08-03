@@ -48,8 +48,6 @@ const subPackages = [
       'my-referrals/index',
       'city-select/index',
       'messages/index',
-      'article-favorites/index',
-      'followed-authors/index',
     ],
   },
   {
@@ -63,7 +61,6 @@ const subPackages = [
       'admin-merchants/index',
       'admin-products/index',
       'admin-withdrawals/index',
-      'admin-ugc/index',
       'admin-users/index',
       'admin-refunds/index',
       'admin-announcements/index',
@@ -85,16 +82,12 @@ const subPackages = [
     ],
   },
   {
-    root: 'pages/content',
-    pages: ['content-center/make/index', 'content-center/make-rich/index', 'content-center/make-video/index', 'content-center/my-articles/index', 'article-detail/index'],
-  },
-  {
     root: 'pages/marketing',
     pages: ['campaign-claim/index'],
   },
   {
     root: 'pages/food',
-    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index', 'ingredient-pairing/index', 'consult/index', 'tracker/index', 'bmi/index'],
+    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index', 'ingredient-pairing/index', 'consult/index', 'tracker/index', 'bmi/index', 'family/index', 'need-find/index', 'food-match/index'],
   },
   {
     root: 'pages/ext',

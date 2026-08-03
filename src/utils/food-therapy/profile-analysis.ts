@@ -146,3 +146,34 @@ export function analyzeForProfile(
     disclaimer: FOOD_THERAPY_DISCLAIMER,
   }
 }
+
+// 分群标签（合规等价话术）：年龄 + 中性健康关注描述。
+// 设计要点：年龄组直接展示（儿童/中老年…）；慢病（三高）不点名疾病，统称「日常饮食关注」，
+// 规避医疗宣称，同时保留「同一款零食不同人看到不同参考」的千人千面差异。
+const AGE_LABEL: Record<string, string> = {
+  儿童: '儿童',
+  青少年: '青少年',
+  成人: '成人',
+  孕哺期: '孕哺期',
+  老年: '中老年',
+}
+
+export function describeCohort(profile: UserHealthProfile | null): string {
+  if (!profile) return ''
+  const agePart = AGE_LABEL[profile.age_group || ''] || ''
+  const states = [
+    ...(profile.body_states ?? []),
+    ...(profile.chronic_conditions ?? []),
+  ].filter(Boolean) as string[]
+  let condPart = ''
+  const hasChronic = (profile.chronic_conditions ?? []).some((c) =>
+    ['高血压', '高血糖', '高血脂', '肠胃虚弱', '失眠', '免疫力低'].includes(c),
+  )
+  if (hasChronic) {
+    condPart = '日常饮食关注'
+  } else if (states.length) {
+    // body_states 已是中性生活化标签（如 脾胃虚寒 / 易上火），直接取首个
+    condPart = states[0]
+  }
+  return [agePart, condPart].filter(Boolean).join(' · ')
+}

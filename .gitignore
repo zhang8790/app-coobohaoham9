@@ -92,6 +92,7 @@ diag-*.sql
 *.bak
 dist.bak*
 _dist_*
+_build_stale_*
 dist_old_build
 deliverables/
 .color-sweep*

@@ -276,14 +276,12 @@ export function isKnownCrowd(value: string): value is Crowd {
   return (CROWD_OPTIONS as readonly string[]).includes(value)
 }
 
-// 身体状态快捷词（2026-07-17）：一键直接配对商品，零额外操作
+// 日常饮食偏好快捷词（合规版：仅日常饮食习惯标签，不含任何病症关键词）
+// 每个标签映射到既有的体质/人群 Crowd 轴，保证「选偏好→自动配对零食」逻辑可继续工作。
 export const QUICK_BODY_PRESETS: Array<{ label: string; emoji: string; crowds: Crowd[] }> = [
-  { label: '感冒了', emoji: '🤧', crowds: ['喉咙肿痛', '易上火'] },
-  { label: '嗓子疼', emoji: '🗣️', crowds: ['喉咙肿痛'] },
-  { label: '上火长痘', emoji: '🔥', crowds: ['易上火'] },
-  { label: '睡不着', emoji: '😵', crowds: ['失眠'] },
-  { label: '胃不舒服', emoji: '🤢', crowds: ['脾胃虚寒'] },
-  { label: '怕冷畏寒', emoji: '🧥', crowds: ['体虚怕冷'] },
-  { label: '肠胃弱', emoji: '🌿', crowds: ['肠胃虚弱'] },
-  { label: '姨妈痛', emoji: '🩸', crowds: ['宫寒量少'] },
+  { label: '熬夜加班', emoji: '🌙', crowds: ['免疫力低'] },
+  { label: '儿童挑食', emoji: '🧒', crowds: ['肠胃虚弱'] },
+  { label: '甜食偏好', emoji: '🍬', crowds: ['高血糖'] },
+  { label: '低糖饮食', emoji: '🥗', crowds: ['高血脂'] },
+  { label: '中老年食补', emoji: '🌿', crowds: ['高血压'] },
 ]

@@ -12,14 +12,28 @@ function checkIllegalWords(text: string | undefined | null): string[] {
   return Array.from(new Set(AD_ILLEGAL_WORDS.filter(w => text.includes(w))))
 }
 
-// ── 门店解析 ───────────────────────────────────────────────────────────
+// ── 门店解析（统一身份：owner_id 或 store_staff 活跃成员）──────────────────
+// 总后台「建店+建登陆」会把运营账号写成 store_staff(role=owner)，
+// 此处同时覆盖两种身份，使网页端运营账号与小程序端直达同一家店（三端通）。
 export async function getMyMerchantStore(userId: string): Promise<{ id: string; name: string } | null> {
-  const { data } = await supabase
+  // 主路径：owner_id（现有商家模型）
+  const { data: owner } = await supabase
     .from('stores')
     .select('id, name')
     .eq('owner_id', userId)
     .maybeSingle()
-  return (data as any) || null
+  if (owner?.id) return owner as any
+
+  // 统一运营身份：store_staff 活跃成员
+  const { data: staff } = await supabase
+    .from('store_staff')
+    .select('stores(id, name)')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle()
+  const s = (staff as any)?.stores
+  return s ? { id: s.id, name: s.name } : null
 }
 
 // ── 优惠券 ─────────────────────────────────────────────────────────────
@@ -454,4 +468,77 @@ export function aggregateEmotionFunnel(
     overallRate: pct(cta, enter),
     byProduct,
   }
+}
+
+// ── 流动车 vehicles（P3 门店联动）────────────────────────────────────
+// 流动车随统一 RBAC 按门店隔离（RLS: store_id = ANY(fn_my_store_ids)）。
+// 以下 API 全部以「本店 storeId」为作用域，运营账号/店长/总后台 admin 各司其职。
+export interface MerchantVehicle {
+  id: string
+  store_id: string
+  name: string
+  status: 'active' | 'offline'
+  created_at: string
+}
+
+export interface VehicleTransferRow {
+  id: string
+  vehicle_id: string
+  type: 'out' | 'return' | 'cross'
+  product_id: string | null
+  qty: number
+  operator_id: string | null
+  sync_status: 'synced' | 'pending'
+  created_at: string
+}
+
+/** 本店流动车列表（按创建时间倒序） */
+export async function getMerchantVehicles(storeId: string): Promise<MerchantVehicle[]> {
+  const { data, error } = await supabase
+    .from('vehicles')
+    .select('id, store_id, name, status, created_at')
+    .eq('store_id', storeId)
+    .order('created_at', { ascending: false })
+  if (error) { console.error('[getMerchantVehicles]', error); return [] }
+  return (data as MerchantVehicle[]) || []
+}
+
+/** 新增流动车（归属本店） */
+export async function createVehicle(storeId: string, name: string): Promise<boolean> {
+  if (!storeId) throw new Error('缺少门店')
+  if (!name.trim()) throw new Error('请输入流动车名称')
+  const { error } = await supabase.from('vehicles').insert({
+    store_id: storeId,
+    name: name.trim(),
+    status: 'active',
+  })
+  if (error) throw error
+  return true
+}
+
+/** 改名流动车 */
+export async function updateVehicleName(id: string, name: string): Promise<boolean> {
+  if (!name.trim()) throw new Error('名称不能为空')
+  const { error } = await supabase.from('vehicles').update({ name: name.trim() }).eq('id', id)
+  if (error) throw error
+  return true
+}
+
+/** 启停流动车 */
+export async function setVehicleStatus(id: string, status: 'active' | 'offline'): Promise<boolean> {
+  const { error } = await supabase.from('vehicles').update({ status }).eq('id', id)
+  if (error) throw error
+  return true
+}
+
+/** 某流动车的调拨记录（出库/回库/跨车） */
+export async function getVehicleTransfers(vehicleId: string): Promise<VehicleTransferRow[]> {
+  const { data, error } = await supabase
+    .from('vehicle_transfers')
+    .select('id, vehicle_id, type, product_id, qty, operator_id, sync_status, created_at')
+    .eq('vehicle_id', vehicleId)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  if (error) { console.error('[getVehicleTransfers]', error); return [] }
+  return (data as VehicleTransferRow[]) || []
 }

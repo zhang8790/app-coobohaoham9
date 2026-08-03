@@ -198,6 +198,8 @@ export interface RecommendForConsultInput {
   previousContext?: string
   /** 购物车已有商品 ID 列表，让 LLM 避开重复推荐 */
   cartIds?: string[]
+  /** 显式体质类型（来自 user_health_profile.constitution_type），优先于 profile 标签 */
+  constitutionType?: string | null
 }
 
 // 食类 → 商品侧匹配词（与 llm.ts FOOD_TYPE_RULES 对齐；命中 category/food_category/name 任一处即算）
@@ -238,7 +240,7 @@ export async function recommendForConsult(input: RecommendForConsultInput): Prom
   const bought = input.boughtProducts || []
   const radar = buildRadarProfile(bought, term)
   const consumption = analyzeConsumption(bought)
-  const constitution = resolveConstitution(input.profile ?? null)
+  const constitution = resolveConstitution(input.profile ?? null, input.constitutionType ?? null)
 
   let nlu: NluResult | null = null
   // 速度优化：LLM 推荐大脑不需要前置 NLU Edge Function 调用。

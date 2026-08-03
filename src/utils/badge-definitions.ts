@@ -72,7 +72,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDisplay> = {
     rarity: 'rare',
     rarityLabel: '稀有',
     rarityColor: '#8B5CF6',
-    condition: '完成体质测试',
+    condition: '完成食养偏好设置',
     hint: '你愿意花3分钟了解自己的身体，这本身就是一种觉醒',
     borderColor: '#C4B5FD',
     bgGradient: 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)',

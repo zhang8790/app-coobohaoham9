@@ -1,5 +1,5 @@
 // 实时购物车冲突校验（方案「核心引擎③」）
-// 检测：温补叠加 / 寒热对冲 / 同属性过量 / 商家显式相克
+// 检测：温性叠加 / 寒热对冲 / 同属性过量 / 商家显式相克
 // 返回按严重度分级的冲突提示，供结算页弹窗与收银后台复用。
 
 import type { FoodTherapyInput } from './types'
@@ -25,13 +25,13 @@ export function checkCartConflicts(items: FoodTherapyInput[]): CartConflict[] {
   const warmItems = withNature.filter((x) => x.nature && WARM.has(x.nature!))
   const coldItems = withNature.filter((x) => x.nature && COLD.has(x.nature!))
 
-  // 1. 温补叠加：>=2 温热/大热
+  // 1. 温性叠加：>=2 温热/大热
   if (warmItems.length >= 2) {
     conflicts.push({
       type: 'warm_overlap',
       level: 'warn',
       products: warmItems.map((x) => x.item.id),
-      message: `检测到 ${warmItems.length} 份温补类餐品（${warmItems
+      message: `检测到 ${warmItems.length} 份温性类餐品（${warmItems
         .map((x) => x.item.name)
         .join('、')}），叠加易上火，建议二选一或搭配凉润饮品`,
     })

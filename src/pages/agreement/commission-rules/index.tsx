@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components'
-// @title 推广规则
+// @title 推荐奖励规则
 
 import RiskWarning from '@/components/RiskWarning'
 
@@ -9,32 +9,31 @@ function CommissionRules() {
       <RiskWarning />
 
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4 text-muted-foreground text-sm leading-loose">
-        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜推广规则</Text>
+        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜推荐奖励规则</Text>
         <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月29日\n生效日期：2026年7月29日'}</Text>
 
         <View className="mb-4">
-          <Text className="block text-foreground font-semibold mb-1 leading-snug">一、佣金来源（二级推广）</Text>
-          <Text className="block">1. 邀请好友消费，您可获得「我的好友」佣金；好友再邀请其好友消费，您可获得「我的粉丝」佣金。</Text>
-          <Text className="block">2. 本平台仅设二级推广（我的好友 + 我的粉丝），仅两级，不发展第三级及多级分润。</Text>
-          <Text className="block">3. 佣金依托真实商品交易产生，按「一半可提现佣金 + 一半健康豆」发放：50% 发放至可提现佣金余额（属推广服务费，依法代扣个税后可提现）；50% 发放至健康豆余额（仅本平台消费抵扣，不可提现或兑现金）。</Text>
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">一、奖励来源</Text>
+          <Text className="block">1. 您分享本品牌商品或门店给好友，好友通过您的分享完成真实消费，您可获得健康豆推荐奖励。</Text>
+          <Text className="block">2. 奖励依托真实商品交易产生，无虚假高额收益承诺，不设置任何入门费或付费门槛。</Text>
         </View>
 
         <View className="mb-4">
-          <Text className="block text-foreground font-semibold mb-1 leading-snug">二、佣金比例</Text>
-          <Text className="block">1. 佣金比例由您的「段位」决定（段位依近 6 个月消费动态计算，停消费则下调）。</Text>
-          <Text className="block">2. 具体比例以「推广中心」当前段位展示为准，无固定的高额收益承诺。</Text>
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">二、奖励比例</Text>
+          <Text className="block">1. 奖励比例由您的「段位」决定（段位依近 6 个月消费动态计算，停消费则下调）。</Text>
+          <Text className="block">2. 具体比例以「推荐中心」当前段位展示为准，不承诺固定或高额收益。</Text>
         </View>
 
         <View className="mb-4">
-          <Text className="block text-foreground font-semibold mb-1 leading-snug">三、结算与发放</Text>
-          <Text className="block">1. 订单完成且无售后纠纷后，佣金转为已结算，按「50% 可提现佣金余额 + 50% 健康豆余额」发放到账。</Text>
-          <Text className="block">2. 推广佣金属依法应申报的劳务报酬，请依法履行个人所得税纳税申报义务。</Text>
+          <Text className="block text-foreground font-semibold mb-1 leading-snug">三、发放与用途</Text>
+          <Text className="block">1. 推荐奖励以健康豆形式发放至健康豆余额，可在小程序内消费支付抵扣。</Text>
+          <Text className="block">2. 健康豆为本小程序内部消费资产，不可提现、不可兑现金、不可二级转让。</Text>
         </View>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">四、活跃与风控</Text>
-          <Text className="block">1. 需保持推广活跃：近 30 天有推荐成交方可获全额；长期无推荐成交将暂停资格，恢复活跃后自动重新激活。</Text>
-          <Text className="block">2. 推荐订单发生退款，对应佣金同步回扣；严禁刷单、套现等作弊，违者冻结或清零。</Text>
+          <Text className="block">1. 推荐订单发生退款，对应奖励同步回扣；严禁刷单、套现等作弊，违者冻结或清零。</Text>
+          <Text className="block">2. 本品牌有权对违规推荐账号取消奖励资格、冻结或清零相关收益。</Text>
         </View>
 
         <Text className="block text-muted-foreground text-xs mt-5 pt-3" style={{ borderTop: '1px solid hsl(var(--border))' }}>

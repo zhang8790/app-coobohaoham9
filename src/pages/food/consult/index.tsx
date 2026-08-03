@@ -5,18 +5,19 @@
 //       自动排序推荐。界面只呈现咨询对话与推荐结果，不展示体质/六维/已购等分析面板。
 //       零外部依赖（NLU 规则兜底）。
 
-import { useEffect, useRef, useState } from 'react'
-import Taro, { useDidShow } from '@tarojs/taro'
+import { useEffect, useRef, useState, useMemo } from 'react'
+import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { View, Text, ScrollView, Image, Textarea, Button } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
 import { getProducts, getOrders, getProductsByIds, addToCart, createOrder, getCartItems } from '@/db/api'
+import { getUserHealthProfile, upsertUserHealthProfile, addScanHistory } from '@/db/food-api'
 import { supabase } from '@/client/supabase'
 import { recommendForConsult, type ConsultResult, type ConsultRecommendation } from '@/utils/food-therapy/consult-recommend'
 import { checkCartConflicts, toFoodTherapyInput, type CartConflict } from '@/utils/food-therapy'
 import { resolveConstitution } from '@/utils/today-food-therapy'
 import { setPendingCheckout } from '@/utils/checkoutCache'
-import type { Product, CartItem } from '@/db/types'
+import type { Product, CartItem, UserHealthProfile } from '@/db/types'
 import './index.scss'
 
 const HISTORY_KEY = 'consult_history_v1'
@@ -69,11 +70,18 @@ async function fetchCartWithEff(): Promise<{ items: CartItem[]; effMap: Record<s
 export default function ConsultPage() {
   const { user, profile } = useAuth()
   const { currentStore } = useLocation()
+  const router = useRouter()
+  // 商品详情页「问问食养师」入口带过来的商品名 → 预填提问，入口即有意义
+  const incomingProduct = (router.params?.product_name as string) || ''
 
   const [pool, setPool] = useState<Product[]>([])
   const [bought, setBought] = useState<Product[]>([])
   const [turns, setTurns] = useState<Turn[]>([])
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(() =>
+    incomingProduct
+      ? `关于「${incomingProduct}」：孩子 / 老人 / 孕妈能不能吃？帮我看配料和适配度`
+      : ''
+  )
   const [loading, setLoading] = useState(false)
   const [boostTags, setBoostTags] = useState<string[]>([])
   const [cartIds, setCartIds] = useState<Set<string>>(new Set())
@@ -83,6 +91,9 @@ export default function ConsultPage() {
   const [cartTotal, setCartTotal] = useState(0)
   const [checkoutExpanded, setCheckoutExpanded] = useState(false)
   const [checkoutConflict, setCheckoutConflict] = useState<CartConflict[] | null>(null)
+  // 健康档案（学习闭环）：进页自动带入，咨询后沉淀回去
+  const [hp, setHp] = useState<UserHealthProfile | null>(null)
+  const [hpReady, setHpReady] = useState(false)
   const scrollRef = useRef<any>(null)
 
   // 读取本地查询历史（自适应加权，自动优化）
@@ -102,6 +113,34 @@ export default function ConsultPage() {
       /* ignore */
     }
     setBoostTags(Array.from(new Set(next)))
+  }
+
+  // 学习闭环：每次咨询都把"你关注什么"沉淀回健康档案 + 扫描历史，
+  // 下次进页即可自动带入 —— 每一次训练，就是更懂自己身体。
+  const recordLearning = async (text: string, res: ConsultResult) => {
+    if (!user?.id) return
+    try {
+      const tags = (res.nlu?.health_tags || []).filter(Boolean)
+      if (tags.length) {
+        const merged = Array.from(new Set([...(hp?.health_goals || []), ...tags])).slice(0, 12)
+        await upsertUserHealthProfile({ user_id: user.id, health_goals: merged })
+      }
+      const snap = {
+        user_id: user.id,
+        input_type: 'text' as const,
+        raw_text: text,
+        parsed: { health_tags: tags } as Record<string, unknown>,
+        profile_snapshot: {
+          constitution_type: hp?.constitution_type ?? null,
+          health_goals: hp?.health_goals ?? null,
+        } as Record<string, unknown>,
+        tier: res.recommendations[0]?.tier ?? null,
+      }
+      await addScanHistory(snap)
+    } catch (e) {
+      // 学习闭环为增值能力，写入失败仅告警，绝不阻断咨询主流程
+      console.warn('[consult] 学习沉淀失败（不阻断）', e)
+    }
   }
 
   // 对话记忆：存/取上次咨询历史（同门店持续、换门店清空）
@@ -179,6 +218,15 @@ export default function ConsultPage() {
     // 恢复上次对话历史（门店不一致时 restoreTurns 自动清空）
     const prev = restoreTurns(currentStore?.id)
     if (prev.length) setTurns(prev)
+    // 自动带入健康档案：让已沉淀的体质/目标真正参与本次推荐
+    if (user?.id) {
+      getUserHealthProfile(user.id)
+        .then((h) => setHp(h))
+        .catch(() => {/* 表缺失则降级，不阻断 */})
+        .finally(() => setHpReady(true))
+    } else {
+      setHpReady(true)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStore?.id, user?.id])
 
@@ -206,11 +254,14 @@ export default function ConsultPage() {
         boostTags,
         previousContext: prevCtx || undefined,
         cartIds: [...cartIds],
+        constitutionType: hp?.constitution_type ?? null,
       })
       if (res.nlu?.health_tags?.length) pushHistory(res.nlu.health_tags)
       const next = [...turns, { q: text, result: res }]
       setTurns(next)
       saveTurns(next)
+      // 学习闭环：把本次关注的养生目标沉淀回健康档案
+      recordLearning(text, res)
       setTimeout(() => scrollRef.current?.scrollTo?.({ top: 99999, behavior: 'smooth' } as any), 120)
     } finally {
       setLoading(false)
@@ -280,6 +331,15 @@ export default function ConsultPage() {
     Taro.navigateTo({ url: `/pages/payment/index?cartIds=${encodeURIComponent(ids.join(','))}&total=${cartTotal.toFixed(2)}` })
   }
 
+  // 动态「猜你想问」：有档案时按体质/目标/状态个性化，更贴合"越用越懂你"
+  const quickPrompts = useMemo(() => {
+    const personalized: string[] = []
+    if (hp?.constitution_type) personalized.push(`我是${hp.constitution_type}，平时怎么吃`)
+    for (const g of (hp?.health_goals || []).slice(0, 2)) personalized.push(`最近想${g}，适合吃什么`)
+    for (const s of (hp?.body_states || []).slice(0, 2)) personalized.push(`最近${s}，吃些什么好`)
+    return [...personalized, ...QUICK_PROMPTS].slice(0, 12)
+  }, [hp])
+
   return (
     <View className="consult-page">
       {/* 顶部渐变标题 */}
@@ -296,15 +356,24 @@ export default function ConsultPage() {
         <Text className="consult-hero-sub">告诉我你想调养什么，我帮你挑</Text>
       </View>
 
+      {/* 自动带入健康档案横幅：每次训练沉淀的体质/目标，这里直接生效 */}
+      {hpReady && hp && (hp.constitution_type || (hp.health_goals || []).length > 0) && (
+        <View className="consult-hp-banner">
+          <Text className="consult-hp-banner-text">
+            已根据你健康档案准备{hp.constitution_type ? ` · 体质 ${hp.constitution_type}` : ''}{(hp.health_goals || []).length ? ` · 关注 ${(hp.health_goals || []).slice(0, 3).join('/')}` : ''}
+          </Text>
+        </View>
+      )}
+
       <ScrollView
         scrollY
         className="consult-scroll"
         ref={scrollRef}
         scrollWithAnimation>
         <View className="consult-scroll-inner">
-        {/* 快捷问法 */}
+        {/* 快捷问法（按健康档案动态生成） */}
         <View className="consult-chips">
-          {QUICK_PROMPTS.map((p) => (
+          {quickPrompts.map((p) => (
             <View key={p} className="consult-chip" hoverClass="none" onClick={() => submit(p)}>
               <Text className="consult-chip-text">{p}</Text>
             </View>
@@ -376,7 +445,7 @@ export default function ConsultPage() {
               <Text className="consult-bubble-user-text">{t.q}</Text>
             </View>
             <View className="consult-bubble-bot">
-              <Text className="consult-bubble-bot-text">{t.result.summary}</Text>
+              <Typewriter text={t.result.summary} />
             </View>
             {t.result.recommendations.map((rec) => (
               <RecCard key={rec.product.id} rec={rec} inCart={cartIds.has(rec.product.id)} onAdd={() => handleAdd(rec.product)} onBuyNow={() => handleBuyNow(rec.product)} />
@@ -487,6 +556,34 @@ export default function ConsultPage() {
         </View>
       </View>
     </View>
+  )
+}
+
+// 打字机流式呈现：答案到达后逐字浮现，像真人边想边说，避免"转圈等结果"的割裂感
+function Typewriter({ text }: { text: string }) {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    setN(0)
+    if (!text) return
+    const step = Math.max(1, Math.ceil(text.length / 36))
+    let i = 0
+    const timer = setInterval(() => {
+      i += step
+      if (i >= text.length) {
+        setN(text.length)
+        clearInterval(timer)
+      } else {
+        setN(i)
+      }
+    }, 18)
+    return () => clearInterval(timer)
+  }, [text])
+  const done = n >= text.length
+  return (
+    <Text className="consult-bubble-bot-text">
+      {text.slice(0, n)}
+      {!done && <Text className="typewriter-caret">▍</Text>}
+    </Text>
   )
 }
 

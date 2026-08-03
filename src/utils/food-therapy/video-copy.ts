@@ -31,7 +31,7 @@ const NATURE_TONE: Record<string, { cn: string; en: string }> = {
   '平性': { cn: '自然中性米色调，温润平和', en: 'neutral beige, warm calm' },
   '平': { cn: '自然中性米色调，温润平和', en: 'neutral beige, warm calm' },
   '微温': { cn: '暖橙米调，微微温热', en: 'warm peach, cozy' },
-  '温': { cn: '暖橙调，温润治愈', en: 'warm orange, healing' },
+  '温': { cn: '暖橙调，温润舒心', en: 'warm orange, soothing' },
   '温热': { cn: '深暖橙调，浓郁温热', en: 'amber, rich warmth' },
   '大热': { cn: '炽热红调，强烈暖意', en: 'fiery red, intense' },
   '热': { cn: '炽热红调，强烈暖意', en: 'fiery red, intense' },
@@ -95,7 +95,7 @@ export function buildVideoCopy(
   const promptLines: string[] = [
     `美食短视频，主角是「${name}」，画面元素包含：${elements}。`,
     `视觉基调：${tone.cn}；柔光、浅景深、微距特写食材纹理，体现新鲜与手作温度。`,
-    `镜头节奏舒缓，3-5 秒一个分镜，配轻快原声吉他或治愈系 BGM。`,
+    `镜头节奏舒缓，3-5 秒一个分镜，配轻快原声吉他或舒缓系 BGM。`,
     `整体风格：小红书 / 抖音美食博主风，干净留白、食欲感强、无文字水印。`,
     `Negative: 文字叠加、低画质、过度滤镜、黑暗阴沉、医疗场景。`,
     `Keywords: food ASMR, ${tone.en}, close-up, soft light, appetizing, minimal, 4k.`,

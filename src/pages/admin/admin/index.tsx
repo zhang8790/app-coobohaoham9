@@ -47,8 +47,7 @@ function AdminPage() {
   const cards = [
     { label: '门店审核', sub: '自营门店审核', count: stats.merchants, icon: '🏪', color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/20', url: '/pages/admin/admin/admin-merchants/index' },
     { label: '宝贝审阅', sub: '商品上架审核', count: stats.products, icon: '📦', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', url: '/pages/admin/admin/admin-products/index' },
-    { label: '佣金兑付', sub: '提现申请审核', count: stats.withdrawals, icon: '💰', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200', url: '/pages/admin/admin/admin-withdrawals/index' },
-    { label: '内容管理', sub: 'UGC内容管理', count: stats.ugc, icon: '📰', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', url: '/pages/admin/admin/admin-ugc/index' },
+    { label: '奖励兑付', sub: '推荐奖励审核', count: stats.withdrawals, icon: '💰', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200', url: '/pages/admin/admin/admin-withdrawals/index' },
   ]
 
   const platformCards = [
@@ -104,8 +103,8 @@ function AdminPage() {
               ))}
             </View>
 
-            {/* 平台管理 */}
-            <Text className="text-2xl font-bold text-foreground mt-6 mb-4">平台管理</Text>
+            {/* 品牌管理 */}
+            <Text className="text-2xl font-bold text-foreground mt-6 mb-4">品牌管理</Text>
             <View className="grid grid-cols-2 gap-3">
               {platformCards.map(c => (
                 <View key={c.label}

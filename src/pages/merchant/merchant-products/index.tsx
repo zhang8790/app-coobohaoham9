@@ -39,6 +39,13 @@ type FormState = {
   safety_grade: string              // 安全评级 S/A/C/D（智能识别填充）
   safety_summary: string            // 安全摘要（智能识别填充）
   category_id: string               // 商品分类（store_categories.id，空=未分类）
+  // —— 商品类型化（迁移 20260803）：礼品/手作与食养食品分开 ——
+  product_kind: string              // 'food' | 'gift' | 'craft' | 'care'
+  materials: string[]               // 礼品/手作的材质或草本成分清单（绝不写入 ingredients）
+  gift_meaning: string              // 寓意文化
+  gift_craft: string                // 材质工艺
+  gift_scene: string                // 送礼场景
+  gift_care: string                 // 保养与使用注意
 }
 const emptyForm = (): FormState => ({
   name: '', price: '', original_price: '', cost_price: '', discount_rate: '',
@@ -56,6 +63,12 @@ const emptyForm = (): FormState => ({
   safety_grade: '',
   safety_summary: '',
   category_id: '',
+  product_kind: 'food',
+  materials: [],
+  gift_meaning: '',
+  gift_craft: '',
+  gift_scene: '',
+  gift_care: '',
 })
 
 function calcMargin(price: number, cost?: number): string {
@@ -187,18 +200,46 @@ function MerchantProductsPage() {
     neutralize: row.neutralize, ratio: 50, cooking: '清炒', aux: [],
   })
 
+  // 食养系统化：未手填食材时，按商品名匹配食材字典推导（如「西瓜」→西瓜、「椰子」→椰子），
+  // 做到"上传商品自动就用食养"；匹配不到则 therapyReport 为 null（标记 therapy_pending 待补）。
+  const deriveIngredientsFromName = (name: string, dict: FoodIngredientRow[]): ProductIngredientInput[] => {
+    const nm = (name || '').trim()
+    if (!nm) return []
+    const inputs: ProductIngredientInput[] = []
+    for (const row of dict) {
+      if (!row.name || row.name.length < 2) continue
+      if (nm.includes(row.name)) {
+        inputs.push({
+          ingredient: {
+            name: row.name, nature: row.nature, base_effect: row.base_effect,
+            caution_crowds: row.caution_crowds, allergens: row.allergens || [],
+            chronic_tags: row.chronic_tags || [], neutralize: row.neutralize,
+          },
+          ratio: 50, cooking: '清炒', aux: [],
+        })
+      }
+    }
+    return inputs
+  }
+
   // 实时食疗分析（引擎：性味合并 / 过敏原 / 三色预警 / 商家寄语）
   const therapyReport = useMemo(() => {
-    if (!ingredientItems.length) return null
-    const inputs: ProductIngredientInput[] = ingredientItems.map(it => ({
-      ingredient: {
-        name: it.name, nature: it.nature, base_effect: it.base_effect,
-        caution_crowds: it.caution_crowds, allergens: it.allergens, chronic_tags: it.chronic_tags, neutralize: it.neutralize,
-      },
-      ratio: it.ratio, cooking: it.cooking, aux: it.aux,
-    }))
+    let inputs: ProductIngredientInput[] = []
+    if (ingredientItems.length) {
+      inputs = ingredientItems.map(it => ({
+        ingredient: {
+          name: it.name, nature: it.nature, base_effect: it.base_effect,
+          caution_crowds: it.caution_crowds, allergens: it.allergens, chronic_tags: it.chronic_tags, neutralize: it.neutralize,
+        },
+        ratio: it.ratio, cooking: it.cooking, aux: it.aux,
+      }))
+    } else {
+      // 兜底：按商品名匹配食材字典推导
+      inputs = deriveIngredientsFromName(form.name, ingredientDict)
+    }
+    if (!inputs.length) return null
     return buildTherapyReport(form.name || '本菜品', inputs)
-  }, [ingredientItems, form.name])
+  }, [ingredientItems, form.name, ingredientDict])
 
   // 引擎结果自动回填商品食养字段（系统算，商家可微调）
   useEffect(() => {
@@ -330,6 +371,12 @@ function MerchantProductsPage() {
       safety_grade: (p as any).safety_grade ?? '',
       safety_summary: (p as any).safety_summary ?? '',
       category_id: p.category_id ?? '',
+      product_kind: (p as any).product_kind ?? 'food',
+      materials: (p as any).materials ?? [],
+      gift_meaning: (p as any).gift_meaning ?? '',
+      gift_craft: (p as any).gift_craft ?? '',
+      gift_scene: (p as any).gift_scene ?? '',
+      gift_care: (p as any).gift_care ?? '',
     })
     setEditId(p.id); setShowForm(true)
     const items: IngredientItem[] = (p.ingredients ?? []).map((nm: string) => {
@@ -367,6 +414,7 @@ function MerchantProductsPage() {
       if (!ownerMatch) {
         console.error('[商品管理] 归属不匹配：当前登录用户不是该门店 owner，RLS 将拒绝写入')
       }
+      const isGiftKind = form.product_kind && form.product_kind !== 'food'
       const payload: any = {
         name: form.name, description: form.description, price,
         stock, barcode: form.barcode && form.barcode.trim() ? form.barcode.trim() : null,
@@ -377,18 +425,30 @@ function MerchantProductsPage() {
         cost_price: form.cost_price ? parseFloat(form.cost_price) : undefined,
         original_price: form.original_price ? parseFloat(form.original_price) : undefined,
         discount_rate: form.discount_rate ? Math.min(30, Math.max(0, parseFloat(form.discount_rate))) : undefined,
-        ingredients: ingredientItems.map(i => i.name).length > 0 ? ingredientItems.map(i => i.name) : undefined,
-        overall_nature: form.overall_nature || undefined,
-        health_tag: form.health_tag.length > 0 ? form.health_tag : undefined,
-        match_goods: form.match_goods.length > 0 ? form.match_goods : undefined,
-        conflict_goods: form.conflict_goods.length > 0 ? form.conflict_goods : undefined,
-        aux_remind: form.aux_remind.trim() || undefined,
-        allergens: form.allergens.length > 0 ? form.allergens : undefined,
-        nutrition: form.nutrition || undefined,
-        safety_grade: form.safety_grade || undefined,
-        safety_summary: form.safety_summary || undefined,
+        // 礼品/手作：绝不写入 ingredients（避免误触食疗引擎），也不落 therapy_json
+        ingredients: isGiftKind ? undefined : (ingredientItems.map(i => i.name).length > 0 ? ingredientItems.map(i => i.name) : undefined),
+        overall_nature: isGiftKind ? undefined : (form.overall_nature || undefined),
+        health_tag: isGiftKind ? undefined : (form.health_tag.length > 0 ? form.health_tag : undefined),
+        match_goods: isGiftKind ? undefined : (form.match_goods.length > 0 ? form.match_goods : undefined),
+        conflict_goods: isGiftKind ? undefined : (form.conflict_goods.length > 0 ? form.conflict_goods : undefined),
+        aux_remind: isGiftKind ? undefined : (form.aux_remind.trim() || undefined),
+        allergens: isGiftKind ? undefined : (form.allergens.length > 0 ? form.allergens : undefined),
+        nutrition: isGiftKind ? undefined : (form.nutrition || undefined),
+        safety_grade: isGiftKind ? undefined : (form.safety_grade || undefined),
+        safety_summary: isGiftKind ? undefined : (form.safety_summary || undefined),
+        // 食养系统化：上传即落 therapy_json 单一数据源；无食养则标记 therapy_pending 待补
+        therapy_json: isGiftKind ? undefined : (therapyReport || undefined),
+        fit_people: isGiftKind ? undefined : (therapyReport?.fit_people || undefined),
+        therapy_pending: isGiftKind ? false : !therapyReport,
         is_active: form.is_active,
         category_id: form.category_id || null,
+        // 商品类型化
+        product_kind: form.product_kind || 'food',
+        materials: isGiftKind && form.materials.length > 0 ? form.materials : undefined,
+        gift_meaning: isGiftKind && form.gift_meaning.trim() ? form.gift_meaning.trim() : undefined,
+        gift_craft: isGiftKind && form.gift_craft.trim() ? form.gift_craft.trim() : undefined,
+        gift_scene: isGiftKind && form.gift_scene.trim() ? form.gift_scene.trim() : undefined,
+        gift_care: isGiftKind && form.gift_care.trim() ? form.gift_care.trim() : undefined,
       }
       if (editId) {
         await updateProduct(editId, payload)
@@ -957,6 +1017,40 @@ function MerchantProductsPage() {
               </View>
             </View>
 
+            {/* 商品类型（迁移 20260803）：食养食品 / 药膳手串礼品 / 手作 / 护理 —— 决定详情页渲染哪套模块 */}
+            <View style={{ marginBottom: '14px' }}>
+              <Text style={{ fontSize: '14px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>商品类型</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}>
+                {[
+                  { k: 'food', label: '食养食品' },
+                  { k: 'gift', label: '药膳手串礼品' },
+                  { k: 'craft', label: '手作' },
+                  { k: 'care', label: '护理' },
+                ].map((opt) => {
+                  const sel = (form.product_kind || 'food') === opt.k
+                  return (
+                    <View
+                      key={opt.k}
+                      onClick={() => setForm(f => ({ ...f, product_kind: opt.k }))}
+                      style={{
+                        padding: '7px 14px', borderRadius: '9999px',
+                        background: sel ? '#B45309' : '#FFF',
+                        border: sel ? '1px solid #B45309' : '1px solid #EEE',
+                      }}>
+                      <Text style={{ fontSize: '13px', color: sel ? '#FFF' : '#666' }}>{opt.label}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+              <Text style={{ fontSize: '11px', color: '#AAA', marginTop: '4px' }}>
+                {form.product_kind === 'gift'
+                  ? '礼品详情页走「寓意 / 材质 / 场景 / 保养」专属模块，不与食养共用描述'
+                  : form.product_kind && form.product_kind !== 'food'
+                  ? '该类型走礼品化详情模块，不展示食疗 / 配料安全'
+                  : '食养食品走食疗 / 配料安全模块'}
+              </Text>
+            </View>
+
             {/* 价格行：售价 / 原价 / 成本 */}
             <View style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
               <View style={{ flex: 1 }}>
@@ -1321,7 +1415,56 @@ function MerchantProductsPage() {
               <Text style={{ fontSize: '11px', color: '#999', marginTop: '4px', display: 'block' }}>这段话会以「商家寄语」卡片醒目展示在商品详情页，建议写出商品最大卖点和风味，{form.description?.length ?? 0}/80</Text>
             </View>
 
-            {/* 🌿 智能食养 · 食疗配对（让商品更懂用户，科学化表达） */}
+            {/* 礼品专属字段（药膳手串 / 手作 / 护理）：与食养模块互斥，仅当类型≠食养食品时展示 */}
+            {form.product_kind !== 'food' && (
+              <View style={{ marginBottom: '16px', padding: '12px', borderRadius: '12px', background: '#FFF9F0', border: '1px solid #F0D9A8' }}>
+                <Text style={{ fontSize: '14px', color: '#B45309', fontWeight: '700', marginBottom: '8px', display: 'block' }}>🎁 礼品详情（与食养模块互斥）</Text>
+
+                <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>寓意文化（灵魂文案）</Text>
+                <Textarea
+                  style={{ width: '100%', minHeight: '58px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '14px', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+                  placeholder="如：合欢解郁、艾草驱秽——串起一腕清欢"
+                  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
+                  value={form.gift_meaning}
+                  onInput={(e: any) => setForm(f => ({ ...f, gift_meaning: e.detail?.value ?? '' }))} />
+
+                <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>材质 / 草本成分（逗号分隔，绝不填食用食材）</Text>
+                <Textarea
+                  style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '14px', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+                  placeholder="如：檀香、艾草、合欢皮、925银饰"
+                  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
+                  value={(form.materials || []).join('、')}
+                  onInput={(e: any) => setForm(f => ({ ...f, materials: (e.detail?.value ?? '').split(/[、，,\s]+/).filter(Boolean) }))} />
+
+                <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>材质工艺说明</Text>
+                <Textarea
+                  style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '14px', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+                  placeholder="如：天然草木+925银饰，古法编绳，单串手作约40分钟"
+                  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
+                  value={form.gift_craft}
+                  onInput={(e: any) => setForm(f => ({ ...f, gift_craft: e.detail?.value ?? '' }))} />
+
+                <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>送礼场景（每行一个）</Text>
+                <Textarea
+                  style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '14px', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+                  placeholder={'如：送给总熬夜的她\n乔迁新居\n长辈安康'}
+                  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
+                  value={form.gift_scene}
+                  onInput={(e: any) => setForm(f => ({ ...f, gift_scene: e.detail?.value ?? '' }))} />
+
+                <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>保养与使用注意</Text>
+                <Textarea
+                  style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '14px', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+                  placeholder="如：天然草木，佩戴前后以软布轻拭；孕妇及敏感体质请遵医嘱使用"
+                  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
+                  value={form.gift_care}
+                  onInput={(e: any) => setForm(f => ({ ...f, gift_care: e.detail?.value ?? '' }))} />
+                <Text style={{ fontSize: '11px', color: '#999', marginTop: '6px', display: 'block' }}>详情页将强制展示"本品为工艺礼品，非药品"免责；请勿填写疗效 / 辟邪等违规词</Text>
+              </View>
+            )}
+
+            {/* 🌿 智能食养 · 食疗配对（仅食养食品） */}
+            {form.product_kind === 'food' && (
             <View style={{ marginBottom: '16px', padding: '12px', borderRadius: '12px', background: '#FCF8F2', border: '1px solid #F0E6D8' }}>
               <Text style={{ fontSize: '14px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}>🌿 智能食养 · 食疗配对</Text>
 
@@ -1508,6 +1651,7 @@ function MerchantProductsPage() {
                 </View>
               )}
             </View>
+            )}
 
             {/* 上架开关 */}
             <View style={{

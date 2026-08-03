@@ -1,4 +1,4 @@
-// 我的推荐 - 展示两级（我的好友+我的粉丝）推荐关系，仅两级
+// 我的推荐 - 展示我的推荐关系（我的好友 / 好友推荐）
 import { useState, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
@@ -38,7 +38,7 @@ export default function MyReferrals() {
   const copyCode = () => {
     if (!referralCode) return
     Taro.setClipboardData({ data: referralCode })
-    Taro.showToast({ title: '推广码已复制', icon: 'success' })
+    Taro.showToast({ title: '推荐码已复制', icon: 'success' })
   }
 
   const list = activeTab === '1' ? level1List : level2List
@@ -61,27 +61,27 @@ export default function MyReferrals() {
         </View>
       </View>
 
-      {/* 交叉入口：前往推广中心查看段位与佣金（与「推广中心」页互引，消除两页功能重叠困惑） */}
+      {/* 交叉入口：前往推荐中心查看段位与推荐奖励（与「推荐中心」页互引） */}
       <View className="mx-4 mt-4 p-4 rounded-2xl bg-card border border-border flex items-center justify-between"
         hoverClass="none"
         onClick={() => Taro.navigateTo({ url: '/pages/mine/my-promotion/index' })}>
         <View className="flex items-center gap-2">
           <Icon name="medal" size={24} className="text-primary" />
           <View>
-            <Text className="text-base font-bold text-foreground">推广中心</Text>
-            <Text className="text-xs text-muted-foreground">我的段位 · 佣金进度 · 分享获客</Text>
+            <Text className="text-base font-bold text-foreground">推荐中心</Text>
+            <Text className="text-xs text-muted-foreground">我的段位 · 推荐进度 · 分享获客</Text>
           </View>
         </View>
         <Icon name="chevron-right" size={20} className="text-muted-foreground" />
       </View>
 
-      {/* 我的推广码 */}
+      {/* 我的推荐码 */}
       <View className="mx-4 mt-4 p-4 rounded-2xl bg-card border border-border">
-        <Text className="text-base font-bold text-foreground">我的推广码</Text>
+        <Text className="text-base font-bold text-foreground">我的推荐码</Text>
         <View className="flex items-center gap-3 mt-3">
           <View className="flex-1 bg-background rounded-xl px-4 py-3 border border-border">
             <Text className="text-xl font-bold text-primary font-mono tracking-widest">
-              {referralCode || (loading ? '加载中...' : '暂无推广码')}
+              {referralCode || (loading ? '加载中...' : '暂无推荐码')}
             </Text>
           </View>
           <View className="bg-primary px-4 py-2 rounded-xl" onClick={copyCode}>

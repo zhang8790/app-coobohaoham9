@@ -12,10 +12,12 @@ import './app.scss'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { LocationProvider } from '@/contexts/LocationContext'
 import { FoodTherapyProvider } from '@/contexts/FoodTherapyContext'
-import { handleInviterFromQuery, handleScanScene } from '@/utils/share'
+import { handleInviterFromQuery } from '@/utils/share'
 import CartToast from '@/components/CartToast'
 import PrivacyModal from '@/components/PrivacyModal'
 import Taro from '@tarojs/taro'
+import { reportError, initGlobalErrorCapture } from '@/utils/error-log'
+import { useEffect } from 'react'
 
 /**
  * 全局错误边界：任何页面/组件渲染期抛错都不再整页白屏，
@@ -28,6 +30,7 @@ class GlobalErrorBoundary extends Component<{ children: ReactNode }, { err: stri
   }
   componentDidCatch(e: any) {
     console.error('[GlobalErrorBoundary] 应用级渲染异常', e)
+    reportError(e, { phase: 'GlobalErrorBoundary' })
     try { Taro.reportAnalytics?.('app_crash', { msg: String(e?.message || e) }) } catch { /* ignore */ }
   }
   handleRetry = () => this.setState({ err: null })
@@ -50,17 +53,14 @@ class GlobalErrorBoundary extends Component<{ children: ReactNode }, { err: stri
 const App: React.FC = ({ children }: PropsWithChildren<unknown>) => {
   useTabBarPageClass()
   const { onTouchStart, onTouchEnd } = useSwipeToHome()
+  useEffect(() => { initGlobalErrorCapture() }, [])
 
   // 每次页面显示时检查进入参数：
   //  - 小程序码扫码进入（朋友圈海报）→ scene 短码反查图文并锁客
   //  - 普通分享卡片进入 → 处理推广码绑定
   useDidShow((options: any) => {
-    const scene = options?.query?.scene || options?.scene
-    if (scene) {
-      handleScanScene(String(scene))
-    } else {
-      handleInviterFromQuery()
-    }
+    // 处理进入小程序的推广码绑定（文章分享码已随创作功能移除，不再有 article 场景分支）
+    handleInviterFromQuery()
   })
 
   return (

@@ -1,12 +1,12 @@
 import Taro from '@tarojs/taro'
-import { supabase } from '@/client/supabase'
+import { supabase, callEdgeFunction, getLocalUser } from '@/client/supabase'
 import type {
-  Profile, Store, StoreCategory, Product, CartItem,
+  Profile, Store, StoreCategory, ProductSubject, Product, CartItem,
 
 
   EmotionAsset, EmotionTongbaoLog, EmotionTongbaoReason,
   EmotionBadgeDef, EmotionBadgeGrant,
-  ProductEmotion, Order, OrderStatus, Article,
+  ProductEmotion, Order, OrderStatus,
   MerchantApplication, Announcement, EmotionClaim, StoreNearExpiry} from './types'
 import { generateEmotionDescription } from '@/utils/emotion-description'
 import { type ProductCareInfo } from '@/utils/product-care'
@@ -35,14 +35,14 @@ function stripNewProductColumns(payload: Record<string, unknown>): Record<string
 // Profiles
 // =====================
 export async function getMyProfile(): Promise<Profile | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return null
   const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
   return data
 }
 
 export async function updateProfile(updates: Partial<Pick<Profile, 'nickname' | 'avatar_url' | 'constitution_tags'>>): Promise<void> {
-  const uid = (await supabase.auth.getUser()).data.user?.id
+  const uid = (await getLocalUser()).data.user?.id
   if (!uid) return
   await supabase.from('profiles').update(updates).eq('id', uid)
 }
@@ -50,7 +50,7 @@ export async function updateProfile(updates: Partial<Pick<Profile, 'nickname' | 
 // 注销账号：调用 delete-account 云函数（service_role）彻底删除账号及其关联数据，
 // 含 auth.users 认证记录（PIPL 要求：原凭证失效、不可再登录）。客户端无法删除 auth 账号，必须走云函数。
 export async function deleteUserAccount(): Promise<boolean> {
-  const uid = (await supabase.auth.getUser()).data.user?.id
+  const uid = (await getLocalUser()).data.user?.id
   if (!uid) return false
   try {
     const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' })
@@ -83,7 +83,7 @@ function generateReferralCode(): string {
 // 获取我的推广码（无则自动生成）
 // 兼容 profiles 同时存在 referral_code 与 invite_code 两列的历史情况
 export async function ensureReferralCode(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return null
   const { data: profile } = await supabase.from('profiles')
     .select('referral_code, invite_code')
@@ -111,7 +111,7 @@ export async function getMyReferrals(): Promise<{
   level_1_count: number
   level_2_count: number
 }> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return { level_1: [], level_2: [], level_1_count: 0, level_2_count: 0 }
 
   // 一级推荐（直接推荐人是我）
@@ -346,20 +346,35 @@ const HZ_CENTER = { lat: 30.2741, lng: 120.1551 }
  * 根据经纬度返回最近的直营门店列表（升序）。
  * 直营判定：is_platform=true（品牌馆已归并，partner_brand 恒 NULL）。
  */
+// 候选门店缓存（位置无关，可跨调用共享）：TTL 5 分钟 → 扛高并发，
+// 避免每次定位/每次切 tab 都直击 stores 全表。距离排序仍在客户端做。
+const STORE_CANDIDATE_TTL = 5 * 60 * 1000
+const STORE_CANDIDATE_KEY = 'nearest:candidates'
+
+async function getCandidateStores(): Promise<any[]> {
+  const cached = cacheGet<any[]>(STORE_CANDIDATE_KEY)
+  if (cached) return cached
+  const { data, error } = await supabase
+    .from('stores')
+    .select('id, name, address, lat, lng, is_open, is_platform')
+    .not('is_active', 'eq', false)
+  if (error) {
+    console.error('[getCandidateStores] 查询失败:', error.message)
+    return []
+  }
+  const list = data || []
+  cacheSet(STORE_CANDIDATE_KEY, list, STORE_CANDIDATE_TTL)
+  return list
+}
+
 export async function getNearestStores(lat: number, lng: number, limit = 20): Promise<NearestStore[]> {
   try {
-    const { data, error } = await supabase
-      .from('stores')
-      .select('id, name, address, lat, lng, is_open, is_platform')
-      .not('is_active', 'eq', false)
-    if (error) {
-      console.error('[getNearestStores] 查询失败:', error.message)
-      return []
-    }
-    const list = (data || [])
+    const raw = await getCandidateStores()
+    const list = (raw || [])
       .filter((s: any) => {
-        // ① 仅直营且在售且有坐标；② 排除坐标恰好=杭州中心的测试占位点（如横笼铺），双保险即使未停用 is_active
-        if (s.is_platform !== true || s.lat == null || s.lng == null) return false
+        // ① 活跃门店且有坐标（不再限制 is_platform——物理店如张林水果店也需参与"最近门店"判定）
+        if (s.lat == null || s.lng == null) return false
+        // ② 排除坐标恰好=杭州中心的测试占位点（如横笼铺），双保险即使未停用 is_active
         if (Math.abs(Number(s.lat) - HZ_CENTER.lat) < 1e-4 && Math.abs(Number(s.lng) - HZ_CENTER.lng) < 1e-4) return false
         return true
       })
@@ -411,6 +426,43 @@ export async function getCategories(opts: { storeId?: string | null; includeGlob
   if (error) { console.warn('[getCategories]', error); return [] }
   return (data as StoreCategory[]) ?? []
 }
+
+// ============================================
+// 科目化分类（食养科目）：C 端浏览主分类，替代传统物理品类
+// ============================================
+
+/** 读取科目列表（运营后台可改上下架/名称/图标；scope='global' 平台科目 + 指定门店自定义科目）。
+ *  前端浏览入口用 isActive=true + 排序；管理后台可传 isActive 不过滤看全部。 */
+export async function getSubjects(opts: {
+  storeId?: string | null
+  includeGlobal?: boolean
+  isActive?: boolean
+} = {}): Promise<ProductSubject[]> {
+  const { storeId, includeGlobal = true, isActive } = opts
+  let q = supabase.from('product_subjects').select('*')
+  if (typeof isActive === 'boolean') q = q.eq('is_active', isActive)
+  if (storeId) {
+    q = includeGlobal
+      ? q.or(`store_id.eq.${storeId},scope.eq.global`)
+      : q.eq('store_id', storeId)
+  } else if (includeGlobal) {
+    q = q.eq('scope', 'global')
+  }
+  const { data, error } = await q.order('sort_order', { ascending: true })
+  if (error) { console.warn('[getSubjects]', error); return [] }
+  return (data as ProductSubject[]) ?? []
+}
+
+/** 写入商品科目（派生 backfill 或商家/后台手动指定）。直接覆盖 subject_keys。 */
+export async function updateProductSubjectKeys(productId: string, keys: string[]): Promise<boolean> {
+  const { error } = await supabase
+    .from('products')
+    .update({ subject_keys: keys })
+    .eq('id', productId)
+  if (error) { console.warn('[updateProductSubjectKeys]', error); return false }
+  return true
+}
+
 
 /**
  * 临期特惠商品（通用读取）
@@ -486,6 +538,10 @@ function isPlatformProduct(p: Product): boolean {
 export async function getProducts(opts: {
   storeId?: string, categoryId?: string, categoryName?: string, search?: string,
   moodTag?: string, moodTags?: string[], sceneTag?: string, page?: number, limit?: number,
+  /** 科目化分类过滤：传入科目 key 数组（如 ['spleen','sleep']），按 subject_keys 求交集（overlaps） */
+  subjectKeys?: string[],
+  /** 商品类型过滤：food=食养食品 / gift=药膳手串礼品 / craft=手作 / care=护理 */
+  productKind?: 'food' | 'gift' | 'craft' | 'care',
   /** 自营门店过滤：'only' = 只看自营商品，'exclude' = 排除自营商品，undefined = 不过滤 */
   platformFilter?: 'only' | 'exclude',
   /** 城市ID：用于过滤城市商品（NULL=全国可见，非NULL=仅该城市可见） */
@@ -495,7 +551,7 @@ export async function getProducts(opts: {
   const cached = cacheGet<Product[]>(cacheKey)
   if (cached) return cached
 
-  const { storeId, categoryId, categoryName, search, moodTag, moodTags, sceneTag, page = 0, limit = 20, platformFilter, cityId } = opts
+  const { storeId, categoryId, categoryName, search, moodTag, moodTags, sceneTag, page = 0, limit = 20, subjectKeys, productKind, platformFilter, cityId } = opts
   // 基础查询：所有活跃商品（带上 stores 信息用于 JS 过滤；现仅自营门店，partner_brand 已归并）
   let q = supabase.from('products').select('*, stores(id,name,image_url,is_platform)').not('is_active', 'eq', false)
     .order('created_at', { ascending: false }).range(page * limit, (page + 1) * limit - 1)
@@ -517,6 +573,10 @@ export async function getProducts(opts: {
   // 多标签交集匹配：overlaps = 数组有任意交集（取候选池，前端再按权重排序）
   if (moodTags && moodTags.length > 0) q = q.overlaps('mood_tags', moodTags)
   if (sceneTag) q = q.contains('scene_tags', [sceneTag])
+  // 科目化过滤：overlaps = 数组有任意交集（按 subject_keys 命中任一科目即入选）
+  if (subjectKeys && subjectKeys.length > 0) q = q.overlaps('subject_keys', subjectKeys)
+  // 商品类型过滤：food=食养食品 / gift=药膳手串礼品 / craft=手作 / care=护理（默认不过滤=全部）
+  if (productKind) q = q.eq('product_kind', productKind)
   // 城市过滤：NULL=全国可见，非NULL=仅该城市可见
   if (cityId) {
     q = q.or(`city_id.is.null,city_id.eq.${cityId}`)
@@ -537,6 +597,56 @@ export async function getProducts(opts: {
 
   cacheSet(cacheKey, result, 30_000) // 30s TTL：切 tab 回看秒出；createProduct/updateProduct 会主动 clearRequestCache
   return result
+}
+
+// ============================================
+// 商品推荐排序（均衡热度榜 v1）
+// 服务端 fn_product_feed_rank 计算综合热度分（近期销量+上升势头+新鲜度+历史基线+商家置顶），
+// 这里二次拉取完整商品行并按分排序，复用 Product 类型与 requestCache。
+// 信号均来自既有 order_items / products.sales_count，无需新增埋点。
+// ============================================
+export async function getRankedFeed(opts: {
+  storeId?: string
+  limit?: number
+  page?: number
+} = {}): Promise<Product[]> {
+  const cacheKey = `rf:${cacheMakeKey(opts)}`
+  const cached = cacheGet<Product[]>(cacheKey)
+  if (cached) return cached
+
+  const { storeId, limit = 20, page = 0 } = opts
+  // 多拉一页，保证客户端切片分页正确
+  const fetchLimit = (page + 1) * limit
+  const { data, error } = await supabase.rpc('fn_product_feed_rank', {
+    p_store_id: storeId ?? null,
+    p_limit: fetchLimit,
+    p_recent_days: 30,
+  })
+  if (error) {
+    console.error('[getRankedFeed] RPC 失败:', error.message)
+    return []
+  }
+  const ids: string[] = (data || []).map((r: any) => r.product_id)
+  if (ids.length === 0) return []
+
+  const { data: prods, error: e2 } = await supabase
+    .from('products')
+    .select('*, stores(id,name,image_url,is_platform)')
+    .in('id', ids)
+  if (e2) {
+    console.error('[getRankedFeed] 拉取商品失败:', e2.message)
+    return []
+  }
+  const rows: Product[] = Array.isArray(prods) ? prods : []
+  // 按热度分顺序还原（RPC 已排好序）
+  const map = new Map(rows.map((p) => [p.id, p]))
+  const ordered = ids.map((id) => map.get(id)).filter((p): p is Product => Boolean(p))
+
+  const start = page * limit
+  const sliced = ordered.slice(start, start + limit)
+
+  cacheSet(cacheKey, sliced, 30_000) // 30s TTL，与 getProducts 一致
+  return sliced
 }
 
 // ============================================
@@ -864,7 +974,7 @@ export async function saveProductEmotion(row: Partial<ProductEmotion> & { produc
 // Cart
 // =====================
 export async function getCartItems(): Promise<CartItem[]> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return []
   // 主查询带连表（展示商品名/图）。若 products/stores 因 RLS 等原因导致整条查询失败，
   // 降级为纯 cart_items 查询，保证购物车至少能列出已加购项（渲染层用可选链兜底 products）。
@@ -899,7 +1009,7 @@ export async function addToCart(productId: string, storeId: string, quantity = 1
 }
 
 async function _doAddToCart(productId: string, storeId: string, quantity = 1, batchId: string | null = null): Promise<boolean> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) { Taro.showToast({ title: '请先登录后再加购', icon: 'none' }); return false }
   let q = supabase.from('cart_items')
     .select('id, quantity').eq('user_id', user.id).eq('product_id', productId)
@@ -941,7 +1051,7 @@ export async function updateCartSelected(id: string, selected: boolean): Promise
 }
 
 export async function getCartCount(): Promise<number> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return 0
   // 总件数 = Σ quantity（更贴合「购物数量」心智；改数量时徽标也会跟着变）
   const { data } = await supabase.from('cart_items')
@@ -1004,183 +1114,8 @@ export async function deleteOrder(orderId: string): Promise<boolean> {
 }
 
 // =====================
-// Articles
-// =====================
-export async function getArticles(
-  page = 0,
-  limit = 20,
-  opts?: { followingOnly?: boolean; moodTag?: string }
-): Promise<Article[]> {
-  let q = supabase.from('articles')
-    .select('*, profiles(id,nickname,avatar_url)')
-    .eq('is_published', true)
-  // 心情广场：按 mood_tag 聚合同心情文章
-  if (opts?.moodTag) q = q.eq('mood_tag', opts.moodTag)
-  // 关注流：只看已关注作者的文章
-  if (opts?.followingOnly) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return []
-    const { data: follows } = await supabase
-      .from('article_follows').select('author_id').eq('user_id', user.id)
-    const ids = (follows || []).map((f: any) => f.author_id).filter(Boolean)
-    if (ids.length === 0) return []
-    q = q.in('user_id', ids)
-  }
-  q = q.order('created_at', { ascending: false }).range(page * limit, (page + 1) * limit - 1)
-  // 兼容 UI：DB 无 status 列时按 is_published 推导
-  return (Array.isArray(data) ? data : []).map((a: any) => ({
-    ...a,
-    status: a.status ?? (a.is_published ? 'published' : 'draft'),
-  }))
-}
-
-export async function getMyArticles(status?: 'draft' | 'published'): Promise<Article[]> {
-  // 用 is_published 过滤（articles 真实存在该列；status 列由迁移 00210 补齐，缺失时按 is_published 推导）
-  let q = supabase.from('articles').select('*').order('created_at', { ascending: false })
-  if (status === 'published') q = q.eq('is_published', true)
-  else if (status === 'draft') q = q.eq('is_published', false)
-  const { data } = await q
-  return (Array.isArray(data) ? data : []).map((a: any) => ({
-    ...a,
-    status: a.status ?? (a.is_published ? 'published' : 'draft'),
-  }))
-}
-
-export async function getArticleById(id: string): Promise<Article | null> {
-  const { data } = await supabase.from('articles').select('*').eq('id', id).maybeSingle()
-  if (!data) return null
-  // 兼容 UI：DB 无 status 列时按 is_published 推导
-  return { ...data, status: (data as any).status ?? ((data as any).is_published ? 'published' : 'draft') }
-}
-
-export async function createArticle(
-  title: string, content: string, images: string[], tags: string[],
-  opts?: {
-    status?: 'draft' | 'published', cover_image?: string, video_url?: string | null,
-    mood_tag?: string,
-    /** 素材工坊导入溯源：原文链接 / 类型 / 原文快照（用于改写率闸门） */
-    source_url?: string, source_type?: 'original' | 'imported', source_raw?: string,
-  }
-): Promise<Article | null> {
-  const status = opts?.status ?? 'draft'
-  // 获取当前用户 ID（处理 session 过期的情况）
-  const { data: userData, error: authError } = await supabase.auth.getUser()
-  if (authError || !userData?.user) {
-    console.error('[createArticle] Auth 错误:', authError?.message || '未登录')
-    throw new Error('登录已过期，请重新登录后重试')
-  }
-
-  // 基础字段（articles 表一定存在）
-  const base: any = {
-    user_id: userData.user.id,
-    title,
-    content,
-    is_published: status === 'published', // 草稿=false / 发布=true
-    // 有图片才存（空数组不存）
-    ...(images && images.length > 0 ? { images } : {}),
-    // 有标签才存
-    ...(tags && tags.length > 0 ? { tags } : {}),
-  }
-  // 扩展字段（依赖迁移 00210；若列尚未创建则自动降级）
-  const extended: any = {
-    status,
-    ...(opts?.cover_image != null ? { cover_image: opts.cover_image } : {}),
-    ...(opts?.video_url != null ? { video_url: opts.video_url } : {}),
-    ...(opts?.mood_tag != null ? { mood_tag: opts.mood_tag } : {}),
-    // 素材溯源（迁移 00236；列缺失时走下方 42703 降级）
-    ...(opts?.source_url != null ? { source_url: opts.source_url } : {}),
-    ...(opts?.source_type != null ? { source_type: opts.source_type } : {}),
-    ...(opts?.source_raw != null ? { source_raw: opts.source_raw } : {}),
-  }
-
-  // 先尝试写入完整字段；若报列不存在(42703)则降级为仅基础字段重试
-  try {
-    const { data, error } = await supabase.from('articles')
-      .insert({ ...base, ...extended })
-      .select().maybeSingle()
-    if (error) throw error
-    return data
-  } catch (e: any) {
-    if (e?.code === '42703' || /does not exist/.test(e?.message || '')) {
-      const { data, error } = await supabase.from('articles')
-        .insert(base)
-        .select().maybeSingle()
-      if (error) {
-        console.error('[createArticle] 降级插入失败:', error.message)
-        throw new Error(error.message || '创建文章失败')
-      }
-      return data
-    }
-    console.error('[createArticle] 错误:', e?.message || e)
-    throw new Error(e?.message || '创建文章失败')
-  }
-}
-
-export async function updateArticle(id: string, updates: {
-  title?: string, content?: string, status?: 'draft' | 'published', cover_image?: string, images?: string[], video_url?: string | null
-}): Promise<void> {
-  // 完整字段（status 列存在时一并写入，并同步 is_published）
-  const payload: Record<string, unknown> = {}
-  if (updates.title !== undefined) payload.title = updates.title
-  if (updates.content !== undefined) payload.content = updates.content
-  if (updates.status !== undefined) {
-    payload.status = updates.status
-    payload.is_published = updates.status === 'published'
-  }
-  if (updates.cover_image !== undefined) payload.cover_image = updates.cover_image
-  if (updates.images !== undefined && updates.images.length > 0) payload.images = updates.images
-  if (updates.video_url !== undefined) payload.video_url = updates.video_url
-
-  try {
-    const { error } = await supabase.from('articles').update(payload).eq('id', id)
-    if (error) throw error
-  } catch (e: any) {
-    // 扩展列不存在(42703) → 降级为仅基础字段重试（保留草稿/发布状态）
-    if (e?.code === '42703' || /does not exist/.test(e?.message || '')) {
-      const safe: Record<string, unknown> = {}
-      if (updates.title !== undefined) safe.title = updates.title
-      if (updates.content !== undefined) safe.content = updates.content
-      if (updates.status !== undefined) safe.is_published = updates.status === 'published'
-      if (updates.images !== undefined && updates.images.length > 0) safe.images = updates.images
-      const { error } = await supabase.from('articles').update(safe).eq('id', id)
-      if (error) {
-        console.error('[updateArticle] 降级更新失败:', error.message)
-        throw new Error(error.message || '更新文章失败')
-      }
-      return
-    }
-    console.error('[updateArticle] 错误:', e?.message || e)
-    throw new Error(e?.message || '更新文章失败')
-  }
-}
-
-export async function deleteArticle(id: string): Promise<void> {
-  await supabase.from('articles').delete().eq('id', id)
-}
-
-/** 增加文章浏览量 */
-export async function incrementArticleView(articleId: string): Promise<void> {
-  try {
-    const { data } = await supabase
-      .from('articles')
-      .select('view_count')
-      .eq('id', articleId)
-      .maybeSingle()
-    const current = data?.view_count || 0
-    await supabase
-      .from('articles')
-      .update({ view_count: current + 1 })
-      .eq('id', articleId)
-  } catch (e) {
-    console.error('[incrementArticleView]', e)
-  }
-}
-
-// =====================
-// Merchant Applications
-// =====================
 export async function getMyMerchantApplication(): Promise<MerchantApplication | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return null
   const { data } = await supabase.from('merchant_applications').select('*')
     .eq('user_id', user.id)
@@ -1188,16 +1123,24 @@ export async function getMyMerchantApplication(): Promise<MerchantApplication | 
   return data
 }
 
+// P7 自营门店申请：精简到 3 字段（门店名称 + 联系人手机号 + 门店地址）。
+// 移除联系人姓名/经营类型/简介三个跨类目敏感字段，避免触发微信「第三方入驻/异业招商」审核雷区。
 export async function submitMerchantApplication(info: {
-  store_name: string, contact_name: string, contact_phone: string,
-  business_type: string, description?: string
+  store_name: string
+  contact_phone: string
+  address?: string
 }): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) throw new Error('请先登录')
   const { error } = await supabase.from('merchant_applications').insert({
-    ...info,
-    user_id: user.id,  // 关键：关联当前用户
-    status: 'pending'  // 显式设置状态为待审核
+    user_id: user.id,
+    store_name: info.store_name,
+    contact_name: null,
+    contact_phone: info.contact_phone,
+    business_type: null,
+    description: null,
+    address: info.address ?? null,
+    status: 'pending',
   })
   if (error) {
     console.error('[submitMerchantApplication] 插入失败:', error.message, error.code, error.details)
@@ -1247,7 +1190,7 @@ export async function createOrderV2(params: {
   address?: string  // 收货地址（配送时必填）
 }): Promise<{ order: { id: string; order_no: string; status: string; parent_order_no: string | null }; wxpay_amount: number; tb_used: number; pay_mode: string; is_multi_store: boolean } | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await getLocalUser()
     if (!user) { Taro.showToast({ title: '请先登录', icon: 'none' }); return null }
 
     // 生成订单号
@@ -2221,7 +2164,7 @@ export async function voidClaimByOrder(
   orderNo: string, reason = 'refund', refundRatio = 1
 ): Promise<{ ok: boolean }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await getLocalUser()
     if (!user) return { ok: false }
     const { data: claim } = await supabase
       .from('emotion_claims').select('id').eq('user_id', user.id).eq('order_no', orderNo).eq('status', 'active').maybeSingle()
@@ -2291,7 +2234,7 @@ export async function getOrderForClaim(orderNo: string): Promise<{ verified_at: 
 
 /** 当前用户已确权的订单号集合（订单中心判断「去确权」按钮用） */
 export async function getClaimedOrderNos(): Promise<string[]> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return []
   const { data } = await supabase.from('emotion_claims').select('order_no').eq('user_id', user.id)
   return (data || []).map((r: any) => r.order_no).filter(Boolean)
@@ -2680,7 +2623,7 @@ export async function applyRefund(params: {
   refund_quantity: number; refund_amount: number; reason: string; description?: string
 }): Promise<{ success: boolean; refund_id?: string; method?: string; error?: string }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await getLocalUser()
     if (!user) return { success: false, error: '请先登录' }
 
     // 幂等性检查，防止同一订单重复申请退款（前端页面也有此检查，这里兜底）
@@ -2743,7 +2686,7 @@ export async function applyRefund(params: {
  *  注意：健康豆已合并为健康豆，统一平台内部货币 = tb_balance（人民币1:1锚定，仅平台内消费，不可提现/兑现金）。
  *        历史遗留 gold_beans 已并入佣金，balance 已并入 tb_balance，均不再作为消费币。 */
 export async function getMyBalance(): Promise<{ points: number; tb_balance: number; commission_balance: number }> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return { points: 0, tb_balance: 0, commission_balance: 0 }
   const { data } = await supabase.from('profiles').select('points, tb_balance, commission_balance').eq('id', user.id).maybeSingle()
   return {
@@ -2795,7 +2738,7 @@ export async function applyMerchantWithdrawal(params: {
   method: 'wechat' | 'alipay' | 'bank'
   account_info?: Record<string, unknown>
 }): Promise<{ ok: boolean; withdrawal_id?: string; amount?: number; error?: string }> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return { ok: false, error: '未登录' }
   const amt = Number(params.amount) || 0
   if (!amt || amt <= 0) return { ok: false, error: '提现金额无效' }
@@ -2883,18 +2826,68 @@ export async function updateStore(storeId: string, params: Partial<{
 }
 
 export async function getMerchantStore(): Promise<import('./types').Store | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return null
   // 内存缓存：商家端每个页面挂载都会调一次，缓存 30s 避免重复直击 DB（切换 tab 秒回）
   const ck = `gms:${user.id}`
   const cached = cacheGet<import('./types').Store | null>(ck)
   if (cached !== undefined) return cached
-  // 通过 owner_id 过滤，确保只返回当前商家自己拥有的门店
-  const { data } = await supabase.from('stores').select('*')
+
+  // 主路径：owner_id（现有商家模型，平台主账号/绑定店长）
+  const { data: ownerStore } = await supabase.from('stores').select('*')
     .eq('owner_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
-  const r = data ?? null
-  cacheSet(ck, r, 30_000)
-  return r
+  if (ownerStore) {
+    cacheSet(ck, ownerStore, 30_000)
+    return ownerStore
+  }
+
+  // 统一运营身份：store_staff 活跃成员（总后台「建店+建登陆」绑定的运营账号）
+  // 这样网页端建好的运营账号，用同一微信/账号登录小程序即可直达本店管理中心。
+  const { data: staffLink } = await supabase
+    .from('store_staff')
+    .select('stores(*)')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const staffStore = (staffLink as any)?.stores ?? null
+  cacheSet(ck, staffStore, 30_000)
+  return staffStore
+}
+
+// P3 门店联动：本店流动车（随统一 RBAC 按门店隔离，RLS 已落地）
+export async function getMerchantVehicles(storeId: string): Promise<{
+  id: string; store_id: string; name: string; status: 'active' | 'offline'; created_at: string
+}[]> {
+  if (!storeId) return []
+  const { data, error } = await supabase
+    .from('vehicles')
+    .select('id, store_id, name, status, created_at')
+    .eq('store_id', storeId)
+    .order('created_at', { ascending: false })
+  if (error) { console.error('[getMerchantVehicles]', error); return [] }
+  return (data as any[]) || []
+}
+
+// P3 门店联动：新增流动车（归属本店）
+export async function createMerchantVehicle(storeId: string, name: string): Promise<boolean> {
+  if (!storeId) throw new Error('缺少门店')
+  if (!name.trim()) throw new Error('请输入流动车名称')
+  const { error } = await supabase.from('vehicles').insert({
+    store_id: storeId,
+    name: name.trim(),
+    status: 'active',
+  })
+  if (error) throw error
+  return true
+}
+
+// P3 门店联动：启停流动车
+export async function setMerchantVehicleStatus(id: string, status: 'active' | 'offline'): Promise<boolean> {
+  const { error } = await supabase.from('vehicles').update({ status }).eq('id', id)
+  if (error) throw error
+  return true
 }
 
 export async function getMerchantProducts(storeId: string, page = 0, limit = 500): Promise<import('./types').Product[]> {
@@ -2931,6 +2924,11 @@ export async function createProduct(params: {
   match_goods?: string[]
   conflict_goods?: string[]
   aux_remind?: string
+  // 食养系统化（迁移 20260801）：therapy_json 单一数据源 + 冗余加速列
+  therapy_json?: any
+  fit_people?: string
+  therapy_pending?: boolean
+  allergens?: string[]
 }): Promise<import('./types').Product | null> {
   // 校验：商品标题/描述不得含违禁词（广告法绝对化用语/金融化/博彩诱导）
   const nameCheck = checkIllegalWords(params.name)
@@ -2969,7 +2967,11 @@ export async function createProduct(params: {
       emotion_tag: params.emotion_tag ?? null,
       match_goods: params.match_goods ?? null,
       conflict_goods: params.conflict_goods ?? null,
-      aux_remind: params.aux_remind ?? null}
+      aux_remind: params.aux_remind ?? null,
+      therapy_json: params.therapy_json ?? null,
+      fit_people: params.fit_people ?? null,
+      therapy_pending: typeof params.therapy_pending === 'boolean' ? params.therapy_pending : null,
+      allergens: params.allergens ?? null}
     const { data, error } = await supabase.functions.invoke('product-mutate', { body: invokeBody })
     if (!error && data?.success) {
       clearRequestCache() // 写后失效列表缓存，刚上架商品立即可见
@@ -3010,7 +3012,11 @@ export async function createProduct(params: {
     emotion_tag: params.emotion_tag ?? null,
     match_goods: params.match_goods ?? null,
     conflict_goods: params.conflict_goods ?? null,
-    aux_remind: params.aux_remind ?? null}
+    aux_remind: params.aux_remind ?? null,
+    therapy_json: params.therapy_json ?? null,
+    fit_people: params.fit_people ?? null,
+    therapy_pending: typeof params.therapy_pending === 'boolean' ? params.therapy_pending : null,
+    allergens: params.allergens ?? null}
   const { data, error } = await supabase.from('products').insert(insertPayload).select().maybeSingle()
   // 软降级：若 products 表尚未加食疗导购新列（迁移 00100 未执行），剥离后重试，保证保存不失败
   if (error && NEW_COLUMN_RE.test(error.message)) {
@@ -3039,6 +3045,8 @@ export async function updateProduct(id: string, params: Partial<{
   // 食材食疗智能导购字段（迁移 00100）
   overall_nature?: string; health_tag?: string[]; emotion_tag?: string[]
   match_goods?: string[]; conflict_goods?: string[]; aux_remind?: string
+  // 食养系统化（迁移 20260801）
+  therapy_json?: any; fit_people?: string; therapy_pending?: boolean; allergens?: string[]
 }>): Promise<boolean> {
   // 优先走 Edge Function（service_role 绕过 RLS 写策略），未部署时回退直写
   try {
@@ -3072,68 +3080,6 @@ export async function deleteProduct(id: string): Promise<boolean> {
   return !error
 }
 
-// =====================
-// 文章归属 API
-// =====================
-
-/**
- * 文章预览时归属
- * 当用户通过文章分享链接进入，预览文章时自动建立归属关系
- * @param storeId 门店 ID
- * @param inviterCode 推广码（ref 参数）
- */
-/**
- * 文章阅读归因锁客。
- * storeId 可为空：articles 表并无 store_id 列，绝大多数文章只需完成「推广码 → referrer_id」绑定，
- * 门店业绩归因（步骤 2）才需要 storeId。此前 storeId 为空即 return，导致文章分享的推广归因永久失效。
- */
-export async function lockCustomerByArticle(storeId: string | null | undefined, inviterCode: string): Promise<void> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    // 1) 文章分享带推广码 → 同步绑定推广链（先到先得，已绑则跳过）
-    //    规则：全部佣金「谁先锁客谁先拿」——门店锁客只做业绩归因、不参与佣金；
-    //    此步确保「先锁客的推广员」拿到佣金，不被门店锁客挤掉。
-    if (inviterCode) {
-      try {
-        const code = String(inviterCode).trim()
-        const { data: referrer } = await supabase
-          .from('profiles')
-          .select('id')
-          .or(`invite_code.eq.${code},referral_code.eq.${code}`)
-          .maybeSingle()
-        if (referrer && referrer.id !== user.id) {
-          await supabase
-            .from('profiles')
-            .update({ referrer_id: referrer.id })
-            .eq('id', user.id)
-            .is('referrer_id', null)
-        }
-      } catch (e) { console.warn('[文章归因] 推广绑定失败(不影响)', e) }
-    }
-
-    // 2) 门店归属（业绩归因，不参与佣金）—— 无 storeId 时到此为止，推广绑定已完成
-    if (!storeId) return
-    const { data: exist } = await supabase
-      .from('user_store_relation')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('store_id', storeId)
-      .maybeSingle()
-    if (exist) return  // 已归属，不重复插入
-
-    // 插入归属关系
-    await supabase.from('user_store_relation').insert({
-      user_id: user.id,
-      store_id: storeId,
-      lock_type: 'article',  // 文章分享归属
-      locked_at: new Date().toISOString()})
-
-  } catch (e) {
-    console.warn('[文章归属] 失败(不影响)', e)
-  }
-}
 
 // 强引导门店自推码：客户进入门店域（门店主页/商品详情）时，
 // 若尚未绑定推广链（referrer_id 为空），自动用门店 owner 的推广码绑定，
@@ -3141,7 +3087,7 @@ export async function lockCustomerByArticle(storeId: string | null | undefined, 
 // 已绑定则跳过（先绑先得，保护既有推广员权益，不二次覆盖）。
 export async function bindStoreReferrer(storeId: string): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await getLocalUser()
     if (!user || !storeId) return
 
     // 已绑则跳过（先绑先得）
@@ -3184,13 +3130,12 @@ export async function bindStoreReferrer(storeId: string): Promise<void> {
 // 管理员专用 API
 // =====================
 export async function getAdminStats(): Promise<{ merchants: number; products: number; withdrawals: number; ugc: number }> {
-  const [{ count: m }, { count: p }, { count: w }, { count: u }] = await Promise.all([
+  const [{ count: m }, { count: p }, { count: w }] = await Promise.all([
     supabase.from('merchant_applications').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('products').select('*', { count: 'exact', head: true }).eq('review_status', 'pending'),
     supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('articles').select('*', { count: 'exact', head: true }),
   ])
-  return { merchants: m ?? 0, products: p ?? 0, withdrawals: w ?? 0, ugc: u ?? 0 }
+  return { merchants: m ?? 0, products: p ?? 0, withdrawals: w ?? 0, ugc: 0 }
 }
 
 export async function getAdminMerchantApplications(): Promise<MerchantApplication[]> {
@@ -3200,31 +3145,35 @@ export async function getAdminMerchantApplications(): Promise<MerchantApplicatio
 }
 
 export async function adminApproveApplication(id: string): Promise<boolean> {
-  const app = await supabase.from('merchant_applications').select('user_id, store_name, business_type, description, contact_phone').eq('id', id).maybeSingle()
+  const app = await supabase.from('merchant_applications').select('user_id, store_name, business_type, description, contact_phone, address').eq('id', id).maybeSingle()
   if (!app.data) return false
-  
+
   // 1. 更新申请状态
   const { error } = await supabase.from('merchant_applications').update({ status: 'approved' }).eq('id', id)
   if (error) return false
-  
+
   // 2. 同步 profiles.merchant_status
   await supabase.from('profiles').update({ merchant_status: 'approved' }).eq('id', app.data.user_id)
-  
+
   // 3. 创建门店记录（关键！）
+  // P7：写 store_type='self' 自营标定（与门店隔离 P0 一致）；address 从申请一并写入。
+  //    business_type/description 在新流程已不收集，传 null 即可。
   const { error: storeError } = await supabase.from('stores').insert({
     owner_id: app.data.user_id,
     name: app.data.store_name,
-    description: app.data.description || null,
+    description: null,
     phone: app.data.contact_phone || null,
-    category: app.data.business_type || '其他',
+    address: app.data.address || null,
+    category: '其他',
+    store_type: 'self',
     is_active: true,
     rating: 0})
-  
+
   if (storeError) {
     console.error('[adminApproveApplication] 创建门店失败:', storeError)
     return false
   }
-  
+
   return true
 }
 
@@ -3289,22 +3238,6 @@ export async function adminRejectWithdrawal(id: string): Promise<boolean> {
   return !error
 }
 
-export async function getAdminArticles(): Promise<Article[]> {
-  const { data } = await supabase.from('articles').select('*, profiles(id, nickname, avatar_url)')
-    .order('created_at', { ascending: false }).limit(100)
-  return (data ?? []) as Article[]
-}
-
-export async function adminToggleArticlePublish(id: string, publish: boolean): Promise<boolean> {
-  const { error } = await supabase.from('articles').update({ is_published: publish }).eq('id', id)
-  return !error
-}
-
-export async function adminDeleteArticle(id: string): Promise<boolean> {
-  const { error } = await supabase.from('articles').delete().eq('id', id)
-  return !error
-}
-
 // 商家订单
 // 注意：order_items 表未持久化 store_id（createOrderV2 仅写入 orders.store_id），
 // 因此必须按「关联订单的 store_id」过滤，否则商家永远查不到订单。
@@ -3312,7 +3245,7 @@ export async function getMerchantOrders(storeId: string, page = 0, limit = 20): 
   // 用 orders!inner 把门店过滤变成真正的 INNER JOIN 条件，
   // 即使 RLS 放行了商家作为买家的跨店订单，也不会泄漏到本店订单列表。
   const { data, error } = await supabase.from('order_items')
-    .select('*, orders!inner(id,order_no,status,total_amount,created_at,payment_method, merchant_settlements(settle_amount, discount_pool))')
+    .select('*, orders!inner(id,order_no,status,total_amount,created_at,payment_method,service_type,shipping_address,remark, merchant_settlements(settle_amount, discount_pool))')
     .eq('orders.store_id', storeId).order('created_at', { ascending: false })
     .range(page * limit, (page + 1) * limit - 1)
   if (error) { console.error('[getMerchantOrders]', error); return [] }
@@ -3454,7 +3387,7 @@ export async function applyWithdraw(params: {
   alipay_account?: string; remark?: string
   real_name?: string; id_card?: string
 }): Promise<import('./types').Withdrawal | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return null
 
   // P1-B 修复：客户端前置余额校验（第一道防御；最终拦截在 payWithdrawal 服务端）。
@@ -3564,7 +3497,7 @@ export async function getMyAddresses(): Promise<import('./types').UserAddress[]>
 export async function saveAddress(params: {
   id?: string; name: string; phone: string; province?: string; city?: string; district?: string; detail: string; is_default?: boolean
 }): Promise<import('./types').UserAddress | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return null
   if (params.is_default) await supabase.from('user_addresses').update({ is_default: false }).eq('user_id', user.id)
   if (params.id) {
@@ -3589,7 +3522,7 @@ export async function getMyFavorites(page = 0, limit = 20): Promise<import('./ty
 }
 
 export async function toggleFavorite(productId: string): Promise<{ isFav: boolean }> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return { isFav: false }
   try {
     const { data: existing } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('product_id', productId).maybeSingle()
@@ -3606,7 +3539,7 @@ export async function toggleFavorite(productId: string): Promise<{ isFav: boolea
 }
 
 export async function isFavorited(productId: string): Promise<boolean> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return false
   try {
     const { data } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('product_id', productId).maybeSingle()
@@ -3617,239 +3550,12 @@ export async function isFavorited(productId: string): Promise<boolean> {
   }
 }
 
-// =====================
-// 文章社交（收藏 / 关注作者）—— 报告 P3 内容闭环
-// =====================
-export async function toggleArticleFavorite(articleId: string): Promise<{ isFav: boolean }> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { isFav: false }
-  try {
-    const { data: existing } = await supabase.from('article_favorites').select('id').eq('user_id', user.id).eq('article_id', articleId).maybeSingle()
-    if (existing) {
-      await supabase.from('article_favorites').delete().eq('id', existing.id)
-      return { isFav: false }
-    }
-    await supabase.from('article_favorites').insert({ user_id: user.id, article_id: articleId })
-    return { isFav: true }
-  } catch (e) {
-    console.error('[toggleArticleFavorite]', e)
-    return { isFav: false }
-  }
-}
-
-export async function isArticleFavorited(articleId: string): Promise<boolean> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return false
-  try {
-    const { data } = await supabase.from('article_favorites').select('id').eq('user_id', user.id).eq('article_id', articleId).maybeSingle()
-    return !!data
-  } catch (e) {
-    console.error('[isArticleFavorited]', e)
-    return false
-  }
-}
-
-export async function getMyFavoriteArticles(page = 0, limit = 20): Promise<import('./types').ArticleFavorite[]> {
-  const { data } = await supabase
-    .from('article_favorites')
-    .select('*, articles(*, profiles(nickname, avatar_url, openid))')
-    .order('created_at', { ascending: false })
-    .range(page * limit, (page + 1) * limit - 1)
-  return (data ?? []) as import('./types').ArticleFavorite[]
-}
-
-export async function toggleAuthorFollow(authorId: string): Promise<{ isFollowing: boolean }> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { isFollowing: false }
-  try {
-    const { data: existing } = await supabase.from('article_follows').select('id').eq('user_id', user.id).eq('author_id', authorId).maybeSingle()
-    if (existing) {
-      await supabase.from('article_follows').delete().eq('id', existing.id)
-      return { isFollowing: false }
-    }
-    await supabase.from('article_follows').insert({ user_id: user.id, author_id: authorId })
-    return { isFollowing: true }
-  } catch (e) {
-    console.error('[toggleAuthorFollow]', e)
-    return { isFollowing: false }
-  }
-}
-
-export async function isFollowingAuthor(authorId: string): Promise<boolean> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return false
-  try {
-    const { data } = await supabase.from('article_follows').select('id').eq('user_id', user.id).eq('author_id', authorId).maybeSingle()
-    return !!data
-  } catch (e) {
-    console.error('[isFollowingAuthor]', e)
-    return false
-  }
-}
-
-export async function getMyFollowedAuthors(page = 0, limit = 50): Promise<import('./types').AuthorFollow[]> {
-  const { data } = await supabase
-    .from('article_follows')
-    .select('*, profiles( nickname, avatar_url, openid)')
-    .order('created_at', { ascending: false })
-    .range(page * limit, (page + 1) * limit - 1)
-  return (data ?? []) as import('./types').AuthorFollow[]
-}
-
-// =====================
-// 文章点赞 / 分享激励
-// =====================
-export async function toggleArticleLike(articleId: string): Promise<{ isLiked: boolean }> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { isLiked: false }
-  try {
-    const { data: existing } = await supabase.from('article_likes')
-      .select('id').eq('user_id', user.id).eq('article_id', articleId).maybeSingle()
-    if (existing) {
-      await supabase.from('article_likes').delete().eq('id', existing.id)
-      return { isLiked: false }
-    }
-    await supabase.from('article_likes').insert({ user_id: user.id, article_id: articleId })
-    return { isLiked: true }
-  } catch (e) {
-    console.error('[toggleArticleLike]', e)
-    return { isLiked: false }
-  }
-}
-
-export async function isArticleLiked(articleId: string): Promise<boolean> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return false
-  try {
-    const { data } = await supabase.from('article_likes')
-      .select('id').eq('user_id', user.id).eq('article_id', articleId).maybeSingle()
-    return !!data
-  } catch (e) {
-    console.error('[isArticleLiked]', e)
-    return false
-  }
-}
-
-export async function getArticleLikeCount(articleId: string): Promise<number> {
-  try {
-    const { count } = await supabase.from('article_likes')
-      .select('id', { count: 'exact', head: true }).eq('article_id', articleId)
-    return count || 0
-  } catch (e) {
-    console.error('[getArticleLikeCount]', e)
-    return 0
-  }
-}
-
-/** 分享原子自增（调用 DB 函数，避免读改写丢增量） */
-export async function incrementArticleShare(articleId: string): Promise<void> {
-  try {
-    await supabase.rpc('increment_article_share', { p_article_id: articleId })
-  } catch (e) {
-    console.error('[incrementArticleShare]', e)
-  }
-}
-
-// =====================
-// 图文锁客（成交在线下，图文只负责锁人）
-// =====================
-
-export type ArticleLockResult = {
-  locked: boolean
-  is_new_customer?: boolean
-  first_visit?: boolean
-  reason?: string
-}
-
-/**
- * 访客打开图文时调用：记录锁客关系；访客若尚无上级，把作者设为其推荐人。
- * 幂等（article_id + visitor UNIQUE），未登录/自己看自己自动跳过。
- */
-export async function lockCustomerByArticleId(articleId: string): Promise<ArticleLockResult> {
-  try {
-    const { data, error } = await supabase.rpc('fn_lock_customer_by_article', { p_article_id: articleId })
-    if (error) throw error
-    return (data as ArticleLockResult) ?? { locked: false }
-  } catch (e) {
-    console.error('[lockCustomerByArticleId]', e)
-    return { locked: false, reason: 'error' }
-  }
-}
-
-export type ArticleStat = {
-  article_id: string
-  title: string
-  cover_image: string | null
-  is_published: boolean
-  created_at: string
-  view_count: number
-  share_count: number
-  like_count: number
-  lock_count: number
-  new_customers: number
-}
-
-/** 我的每篇图文战绩：阅读 / 分享 / 点赞 / 锁客 / 新客 */
-export async function getMyArticleStats(): Promise<ArticleStat[]> {
-  try {
-    const { data, error } = await supabase.rpc('fn_my_article_stats')
-    if (error) throw error
-    return (Array.isArray(data) ? data : []).map((r: any) => ({
-      ...r,
-      like_count: Number(r.like_count || 0),
-      lock_count: Number(r.lock_count || 0),
-      new_customers: Number(r.new_customers || 0),
-    }))
-  } catch (e) {
-    console.error('[getMyArticleStats]', e)
-    return []
-  }
-}
-
-export type ContentSummary = {
-  articles: number; drafts: number; views: number
-  shares: number; locks: number; new_customers: number
-}
-
-/** 我的内容锁客总览 */
-export async function getMyContentSummary(): Promise<ContentSummary> {
-  const empty: ContentSummary = { articles: 0, drafts: 0, views: 0, shares: 0, locks: 0, new_customers: 0 }
-  try {
-    const { data, error } = await supabase.rpc('fn_my_content_summary')
-    if (error) throw error
-    return { ...empty, ...(data as any) }
-  } catch (e) {
-    console.error('[getMyContentSummary]', e)
-    return empty
-  }
-}
-
-/** 下架 / 重新发布：下架后分享链接落地页显示「已下架」 */
-export async function setArticlePublished(articleId: string, published: boolean): Promise<void> {
-  const payload: Record<string, unknown> = { is_published: published }
-  try {
-    await supabase.from('articles').update({ ...payload, status: published ? 'published' : 'draft' }).eq('id', articleId)
-  } catch {
-    await supabase.from('articles').update(payload).eq('id', articleId)
-  }
-}
-
-/** 生成图文小程序码（朋友圈海报用）。referrerCode 为分享人推广码，仅作锁客归属参考 */
-export async function getArticleShareCode(articleId: string, referrerCode?: string): Promise<{ scene: string; code: string }> {
-  const { data, error } = await supabase.functions.invoke('wxacode', {
-    body: { articleId, referrerCode },
-  })
-  if (error) throw error
-  const d = data as any
-  if (!d?.success) throw new Error(d?.error || '生成小程序码失败')
-  return { scene: d.scene, code: d.code }
-}
 
 // =====================
 // 浏览足迹
 // =====================
 export async function recordFootprint(productId: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return
   try {
     await supabase.from('footprints').upsert({
@@ -3861,8 +3567,11 @@ export async function recordFootprint(productId: string): Promise<void> {
   }
 }
 
-export async function getMyFootprints(page = 0, limit = 20): Promise<import('./types').Footprint[]> {
-  const { data } = await supabase.from('footprints').select('*, products(*, stores(*))').order('viewed_at', { ascending: false }).range(page * limit, (page + 1) * limit - 1)
+export async function getMyFootprints(page = 0, limit = 20, userId?: string): Promise<import('./types').Footprint[]> {
+  let q = supabase.from('footprints').select('*, products(*, stores(*))').order('viewed_at', { ascending: false }).range(page * limit, (page + 1) * limit - 1)
+  // footprints 表 RLS 关闭时为保护隐私必须显式限定用户；不传则保持原行为（兼容足迹页）
+  if (userId) q = q.eq('user_id', userId)
+  const { data } = await q
   return (data ?? []) as import('./types').Footprint[]
 }
 
@@ -3878,7 +3587,7 @@ export async function submitReviews(reviews: Array<{
   product_id: string | null; order_id: string; order_item_id: string
   rating: number; content?: string; mood_tags?: string[]
 }>): Promise<boolean> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return false
   const rows = reviews.map(r => ({ 
     ...r, 
@@ -3906,7 +3615,7 @@ export async function getProductReviews(productId: string, page = 0, limit = 10)
 // 优惠券
 // =====================
 export async function getMyCoupons(): Promise<import('./types').Coupon[]> {
-  const uid = (await supabase.auth.getUser()).data.user?.id
+  const uid = (await getLocalUser()).data.user?.id
   if (!uid) return []
   const { data } = await supabase.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false })
   return (data ?? []) as import('./types').Coupon[]
@@ -3942,7 +3651,7 @@ export async function merchantRedeemCoupon(code: string, storeId: string): Promi
 // 用户设置
 // =====================
 export async function updateUserProfile(params: { nickname?: string; avatar_url?: string; allow_behavior_analysis?: boolean }): Promise<boolean> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getLocalUser()
   if (!user) return false
   const { error } = await supabase.from('profiles').update(params).eq('id', user.id)
   return !error
@@ -3963,7 +3672,7 @@ export async function trackFoodTherapyEvent(params: {
   emotionTag?: string[] | null
 }): Promise<boolean> {
   try {
-    const uid = (await supabase.auth.getUser()).data.user?.id
+    const uid = (await getLocalUser()).data.user?.id
     if (!uid) return false
     const { error } = await supabase.from('food_therapy_feedback').insert({
       user_id: uid,
@@ -3987,7 +3696,7 @@ export async function trackFoodTherapyEvent(params: {
 // 返回 { [tag]: number }，打分引擎据其提升匹配标签的加分。
 export async function getUserFoodTherapyWeights(): Promise<Record<string, number>> {
   try {
-    const uid = (await supabase.auth.getUser()).data.user?.id
+    const uid = (await getLocalUser()).data.user?.id
     if (!uid) return {}
     const { data, error } = await supabase
       .from('food_therapy_feedback')
@@ -4009,5 +3718,58 @@ export async function getUserFoodTherapyWeights(): Promise<Record<string, number
   } catch (e) {
     console.warn('[getUserFoodTherapyWeights] 异常(不影响主流程)', e)
     return {}
+  }
+}
+
+// ============ 打印机配置 / 云打印 ============
+
+// 读取当前门店的打印机配置（首条）
+export async function getPrinterConfig(storeId: string): Promise<PrinterConfig | null> {
+  const { data, error } = await supabase
+    .from('printer_configs')
+    .select('*')
+    .eq('store_id', storeId)
+    .limit(1)
+    .maybeSingle()
+  if (error) { console.error('[getPrinterConfig]', error); return null }
+  return (data as PrinterConfig) ?? null
+}
+
+// 新增/更新打印机配置（按 store_id+device_sn 唯一）
+export async function upsertPrinterConfig(
+  cfg: Partial<PrinterConfig> & { store_id: string; device_sn: string },
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('printer_configs')
+    .upsert(cfg, { onConflict: 'store_id,device_sn' })
+  if (error) { console.error('[upsertPrinterConfig]', error); return false }
+  return true
+}
+
+// 触发云打印：真实打印(orderId) 或 测试打印(storeId + test)
+// 注意：必须走 callEdgeFunction（Taro.request 封装）而非 supabase.functions.invoke，
+// 后者在小程序端会强制先 getSession()→getUser()（网络请求），未登录/会话异常时卡住或抛错，
+// 且异常被框架静默吞掉，表现为「点击打印毫无反应」。callEdgeFunction(auth:true) 仅本地读
+// session 拿 token、跳过整段网络前戏，且复用项目验证过的 Taro.request 封装。
+export async function callPrintReceipt(opts: {
+  orderId?: string
+  storeId?: string
+  test?: boolean
+}): Promise<{ success: boolean; error?: string; message?: string; need_config?: boolean }> {
+  const body: Record<string, any> = opts.test
+    ? { test: true, store_id: opts.storeId }
+    : { order_id: opts.orderId }
+  try {
+    const { data, error } = await callEdgeFunction('print-receipt', body, { auth: true })
+    if (error) return { success: false, error: error.message }
+    const d = (data ?? {}) as any
+    return {
+      success: !!d.success,
+      error: d.error,
+      message: d.message,
+      need_config: !!d.need_config,
+    }
+  } catch (e: any) {
+    return { success: false, error: e?.message ? String(e.message) : String(e) }
   }
 }

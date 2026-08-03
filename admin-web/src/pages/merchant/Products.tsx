@@ -3,7 +3,7 @@ import type { Product, StoreCategory } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { getCategories, createStoreCategory, updateStoreCategory, deleteStoreCategory } from '@/api/categories'
-import { getMerchantProductSales } from '@/api/merchant'
+import { getMerchantProductSales, getMyMerchantStore } from '@/api/merchant'
 import { localCompileEmotion, recommendDimensions } from '@/utils/emotion'
 import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/utils/shiyang'
 import { NATURE_SCALE, CROWD_OPTIONS, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
@@ -117,6 +117,9 @@ export default function MerchantProducts() {
   const [storeCategory, setStoreCategory] = useState<string | null>(null)
   const [storeRefEnabled, setStoreRefEnabled] = useState(false)
   const [emotionFlash, setEmotionFlash] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [dragOverSub, setDragOverSub] = useState(false)
+  const [dragOverDetail, setDragOverDetail] = useState(false)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<ProductWithExt | null>(null)
@@ -181,14 +184,17 @@ export default function MerchantProducts() {
     if (!profile || !isMerchantUser) return
     if (useMock) { setStoreId(null); return }
     const fetchStore = async () => {
-      const { data } = await supabase
-        .from('stores')
-        .select('id, category, referral_rate_enabled')
-        .eq('owner_id', profile.id)
-        .maybeSingle()
-      setStoreId(data?.id ?? null)
-      setStoreCategory(data?.category ?? null)
-      setStoreRefEnabled(data?.referral_rate_enabled ?? false)
+      const st = await getMyMerchantStore(profile.id)
+      setStoreId(st?.id ?? null)
+      if (st?.id) {
+        const { data } = await supabase
+          .from('stores')
+          .select('category, referral_rate_enabled')
+          .eq('id', st.id)
+          .maybeSingle()
+        setStoreCategory(data?.category ?? null)
+        setStoreRefEnabled(data?.referral_rate_enabled ?? false)
+      }
     }
     fetchStore()
   }, [profile, useMock])
@@ -437,6 +443,98 @@ export default function MerchantProducts() {
     })
   }
 
+  // —— 食疗文案：本地规则草稿（与小程序端同源口径，即使云端 LLM 未配置也能产出可用文案）——
+  const buildRuleCopy = (f: typeof form): { guide_sentence: string; moments_copy: string; emotion_copy: string; taboo_warning: string } => {
+    const name = f.name || '这款好物'
+    const nature = f.overall_nature || (f.ingredients.length ? '平和' : '')
+    const tags = f.health_tag.length ? f.health_tag.join('、') : (f.ingredients.length ? '日常调养' : '')
+    const rec = f.rec_crowds.length ? f.rec_crowds.join('、') : '注重食养的人'
+    const guide = `${name}${nature ? `性${nature}` : ''}，适合${rec}，温润好入口，食疗日常小确幸。`
+    const moments = `今天被${name}暖到了。${tags ? `${tags}缓缓补回来，` : ''}把好好吃饭这件小事，过成对自己的犒赏✨`
+    const emotion = `第一段：柴米油盐里，也有认真生活的证据。\n第二段：一碗${name}的温度，刚好接住疲惫的自己。\n第三段：好好吃饭，就是最朴素的爱自己。`
+    const taboo = f.forbidden_crowds.length
+      ? `${f.forbidden_crowds.join('、')}人群建议少量尝试或回避${f.forbidden_reasons ? '：' + f.forbidden_reasons : ''}`
+      : (f.cautious_crowds.length ? `${f.cautious_crowds.join('、')}人群建议少量品鉴${f.cautious_notes ? '：' + f.cautious_notes : ''}` : '')
+    return { guide_sentence: guide, moments_copy: moments, emotion_copy: emotion, taboo_warning: taboo }
+  }
+
+  // —— 合规巡检：医疗宣称词 + 违规广告词（命中则保存前提示运营确认）——
+  const MEDICAL_CLAIM_WORDS = ['治疗', '治愈', '疗效', '医治', '药方', '处方', '根治', '抗癌', '抗炎', '消炎', '降压', '降糖', '遵医嘱', '诊断', '治愈率']
+  const AD_ILLEGAL_WORDS = ['国家级', '最高级', '最佳', '最好', '第一', '顶级', '极品', '万能', '100%', '绝对', '唯一', '保本', '稳赚', '躺赚', '零风险', '翻倍', '升值', '中奖', '必中']
+  const scanCompliance = (fields: Record<string, string>): string[] => {
+    const hits: string[] = []
+    for (const v of Object.values(fields)) {
+      if (!v) continue
+      for (const w of [...MEDICAL_CLAIM_WORDS, ...AD_ILLEGAL_WORDS]) {
+        if (v.includes(w) && !hits.includes(w)) hits.push(w)
+      }
+    }
+    return hits
+  }
+
+  // —— 拖拽读取图片为 base64 ——
+  const readFilesToBase64 = async (files: FileList | File[]): Promise<string[]> => {
+    const arr = Array.from(files)
+    const out: string[] = []
+    for (const f of arr) out.push(await fileToBase64(f))
+    return out
+  }
+  const onDropSub = async (e: React.DragEvent) => {
+    e.preventDefault(); setDragOverSub(false)
+    const files = e.dataTransfer.files
+    if (!files?.length) return
+    const bases = await readFilesToBase64(files)
+    setForm(f => ({ ...f, sub_images: [...f.sub_images, ...bases].slice(0, 9) }))
+  }
+  const onDropDetail = async (e: React.DragEvent) => {
+    e.preventDefault(); setDragOverDetail(false)
+    const files = e.dataTransfer.files
+    if (!files?.length) return
+    const bases = await readFilesToBase64(files)
+    setForm(f => ({ ...f, detail_images: [...f.detail_images, ...bases].slice(0, 20) }))
+  }
+
+  // —— AI 一键生成食疗文案（复用已部署 food-therapy-ai · copy 模式，内置医疗宣称闸门）——
+  const handleAIGenerate = async () => {
+    if (!form.name) { window.alert('请先填写商品名称'); return }
+    setGenerating(true)
+    const rule = buildRuleCopy(form)
+    try {
+      const { data, error } = await supabase.functions.invoke('food-therapy-ai', {
+        body: {
+          mode: 'copy',
+          name: form.name,
+          nature: form.overall_nature || '',
+          health_tags: form.health_tag,
+          emotion_tags: form.emotion_tag,
+          short_sales_word: rule.guide_sentence,
+          detail_desc: rule.emotion_copy,
+          circle_copy: rule.moments_copy,
+          risk_tip: rule.taboo_warning,
+        },
+      })
+      if (!error && data) {
+        setForm(f => ({
+          ...f,
+          guide_sentence: data.short_sales_word || f.guide_sentence,
+          moments_copy: data.circle_copy || f.moments_copy,
+          emotion_copy: data.detail_desc || f.emotion_copy,
+          taboo_warning: data.risk_tip || f.taboo_warning,
+        }))
+        setEmotionFlash(`✨ AI 已生成食疗文案（来源：${data.source === 'llm' ? '大模型润色' : '本地规则兜底'}）\n可在下方直接微调后再保存`)
+      } else {
+        setForm(f => ({ ...f, ...rule }))
+        setEmotionFlash('⚠️ 云端润色未响应，已用本地规则生成文案，可直接微调')
+      }
+    } catch (e: any) {
+      setForm(f => ({ ...f, ...rule }))
+      setEmotionFlash('AI 生成异常，已用本地规则兜底：' + String(e?.message || e))
+    } finally {
+      setGenerating(false)
+      setTimeout(() => setEmotionFlash(null), 7000)
+    }
+  }
+
   const handleSubmit = async () => {
     const cost = Number(form.cost_price) || 0
     const dr = Number(form.discount_rate) || 0
@@ -480,6 +578,21 @@ export default function MerchantProducts() {
       moments_copy: form.moments_copy || null,
       taboo_warning: form.taboo_warning || null,
       food_stage: form.food_stage || null,
+    }
+    // 合规巡检：营销/食疗文案不得含医疗宣称词或违规广告词（命中则提示运营确认）
+    const complianceHits = scanCompliance({
+      guide_sentence: body.guide_sentence ?? '',
+      moments_copy: body.moments_copy ?? '',
+      emotion_copy: body.emotion_copy ?? '',
+      positive_effect: body.positive_effect ?? '',
+      risk_warning: body.risk_warning ?? '',
+      taboo_warning: body.taboo_warning ?? '',
+    })
+    if (complianceHits.length) {
+      const ok = window.confirm(
+        `检测到疑似违规词：${complianceHits.join('、')}\n\n含医疗宣称 / 绝对化用语可能影响平台审核与合规，建议修改后再保存。\n\n仍要保存？`
+      )
+      if (!ok) return
     }
     // 真实模式：写库，保证网页版与小程序自营门店中心同步
     if (!useMock) {
@@ -818,7 +931,11 @@ export default function MerchantProducts() {
               <div>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>副图（最多9张）</span>
                 <div style={{ marginTop: 6 }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOverSub(true) }}
+                    onDragLeave={() => setDragOverSub(false)}
+                    onDrop={onDropSub}
+                    style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8, padding: dragOverSub ? 8 : 0, borderRadius: 8, background: dragOverSub ? 'rgba(16,185,129,0.12)' : 'transparent', outline: dragOverSub ? '2px dashed var(--success-strong)' : 'none' }}>
                     {form.sub_images.map((img, i) => (
                       <div key={i} style={{ position: 'relative' }}>
                         // eslint-disable-next-line @next/next/no-img-element
@@ -839,7 +956,7 @@ export default function MerchantProducts() {
                     )}
                   </div>
                   <input ref={subImgRef} type="file" accept="image/*" multiple onChange={handleSubImgChange} style={{ display: 'none' }} />
-                  <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>已选 {form.sub_images.length}/9 张，支持 JPG/PNG，单张 ≤ 2MB</span>
+                  <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>已选 {form.sub_images.length}/9 张，支持 JPG/PNG，单张 ≤ 2MB，可直接拖拽图片到此区域</span>
                 </div>
               </div>
 
@@ -869,7 +986,11 @@ export default function MerchantProducts() {
               <div>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>详情图片（商品详情页展示，最多20张）</span>
                 <div style={{ marginTop: 6 }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOverDetail(true) }}
+                    onDragLeave={() => setDragOverDetail(false)}
+                    onDrop={onDropDetail}
+                    style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8, padding: dragOverDetail ? 8 : 0, borderRadius: 8, background: dragOverDetail ? 'rgba(16,185,129,0.12)' : 'transparent', outline: dragOverDetail ? '2px dashed var(--success-strong)' : 'none' }}>
                     {form.detail_images.map((img, i) => (
                       <div key={i} style={{ position: 'relative' }}>
                         <img src={img} alt="" style={{ width: 80, height: 80, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--border-soft)' }} />
@@ -889,7 +1010,7 @@ export default function MerchantProducts() {
                     )}
                   </div>
                   <input ref={detailRef} type="file" accept="image/*" multiple onChange={handleDetailImgChange} style={{ display: 'none' }} />
-                  <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>已选 {form.detail_images.length}/20 张，支持 JPG/PNG，按上传顺序排列，将在商品详情页依次展示</span>
+                  <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>已选 {form.detail_images.length}/20 张，支持 JPG/PNG，按上传顺序排列，可在商品详情页依次展示，可直接拖拽图片到此区域</span>
                 </div>
               </div>
 
@@ -1045,10 +1166,14 @@ export default function MerchantProducts() {
 
             {/*  商品食疗智能系统 · 完整录入（商家一次录入，前端自动匹配） */}
             <div style={{ marginTop: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}> 商品食疗智能系统（录入后前端自动匹配）</span>
-                <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>填全后，小程序端筛选三栏、详情六模块即基于真实数据</span>
+                <button type="button" onClick={handleAIGenerate} disabled={generating || !form.name}
+                  style={{ padding: '6px 14px', background: (generating || !form.name) ? 'var(--border-soft)' : 'linear-gradient(135deg,#10B981,#059669)', border: 'none', borderRadius: 8, color: '#fff', cursor: (generating || !form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                  {generating ? 'AI 生成中…' : '✨ AI 一键生成食疗文案'}
+                </button>
               </div>
+              <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>填全后前端自动匹配；点上方按钮可基于已填字段一键产出导购短句 / 朋友圈 / 情绪文案 / 忌口提示（云端大模型润色，未配置时本地规则兜底）。</p>
 
               {/* 整体性味（系统自动计算适配逻辑用） */}
               <div style={{ marginBottom: 14 }}>

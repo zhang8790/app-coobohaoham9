@@ -20,7 +20,6 @@ import { uploadToStorage } from '@/utils/upload'
 import type { FoodAdditive, Product, UserHealthProfile } from '@/db/types'
 import { scanAndRoute } from '@/utils/scan'
 import { useFoodKnowledgeStore } from '@/store/foodKnowledgeStore'
-import { getCurrentTerm } from '@/utils/seasonal-box'
 
 export default function FoodScanPage() {
   const { currentStore } = useLocation()
@@ -83,7 +82,7 @@ export default function FoodScanPage() {
             .slice(0, 8)
             .map((x) => x.p)
           setRecommend(scored)
-          setRecommendNote('完成「食养偏好自测」后，推荐会更贴合您的身体')
+          setRecommendNote('完成「食养偏好设置」后，推荐会更贴合您的身体')
         }
       })
       .catch(() => {})
@@ -472,70 +471,6 @@ export default function FoodScanPage() {
           未识别到已知配料或食材，请检查输入内容。
         </Text>
       )}
-
-      {/* 食安知识图谱入口 */}
-      <KnowledgeAtlasEntry />
-
-      {/* 节气食盒入口 */}
-      <SeasonalBoxEntry />
-    </View>
-  )
-}
-
-// 节气食盒入口（独立hook取当前节气，避免JSX内直接调用getState）
-function SeasonalBoxEntry() {
-  const current = getCurrentTerm()
-  const termName = current?.name || '当季'
-  return (
-    <View
-      className="mt-4 pg-card rounded-2xl p-4"
-      style={{ background: 'linear-gradient(135deg, hsl(var(--brand-gold) / 0.14) 0%, hsl(var(--brand-gold) / 0.05) 100%)' }}
-      onClick={() => Taro.navigateTo({ url: '/pages/food/seasonal-box/index' })}
-    >
-      <View className="flex items-center justify-between">
-        <View className="flex-1">
-          <Text className="text-sm font-bold" style={{ color: 'hsl(var(--brand-ochre))' }}>🌾 节气食盒</Text>
-          <Text className="text-xs mt-1 opacity-70" style={{ color: 'hsl(var(--brand-ochre))', lineHeight: 1.4 }}>
-            当前{termName} · 应季食材精选，顺时而食
-          </Text>
-        </View>
-        <View className="flex items-center gap-2">
-          <View className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'hsl(var(--brand-gold) / 0.14)' }}>
-            <Text className="text-xl">{current?.emoji || '🌾'}</Text>
-          </View>
-          <Text className="text-sm" style={{ color: 'hsl(var(--brand-ochre))' }}>→</Text>
-        </View>
-      </View>
-    </View>
-  )
-}
-
-// 知识图谱入口组件（独立hook调用，避免JSX内直接调用getState）
-function KnowledgeAtlasEntry() {
-  const collected = useFoodKnowledgeStore((s) => s.collected)
-  const count = Object.keys(collected).length
-  return (
-    <View
-      className="mt-6 pg-card rounded-2xl p-4"
-      style={{ background: 'linear-gradient(135deg, hsl(var(--brand-jade) / 0.10) 0%, hsl(var(--brand-jade) / 0.03) 100%)' }}
-      onClick={() => Taro.navigateTo({ url: '/pages/food/knowledge-atlas/index' })}
-    >
-      <View className="flex items-center justify-between">
-        <View className="flex-1">
-          <Text className="text-sm font-bold" style={{ color: 'hsl(var(--brand-jade))' }}>🧭 食安知识图谱</Text>
-          <Text className="text-xs mt-1 opacity-70" style={{ color: 'hsl(var(--brand-jade))', lineHeight: 1.4 }}>
-            {count === 0
-              ? '扫描配料表，发现新成分收入图谱'
-              : `已收录 ${count} 种成分，继续探索解锁更多`}
-          </Text>
-        </View>
-        <View className="flex items-center gap-2">
-          <View className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'hsl(var(--brand-jade) / 0.12)' }}>
-            <Text className="text-xl">🧪</Text>
-          </View>
-          <Text className="text-sm" style={{ color: 'hsl(var(--brand-jade))' }}>→</Text>
-        </View>
-      </View>
     </View>
   )
 }

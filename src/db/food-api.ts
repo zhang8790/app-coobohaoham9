@@ -15,7 +15,7 @@
 //   import { getFoodAdditives, setProductFoodAdditives, createIngredientOcrTask,
 //            addStockBatch } from '@/db/food-api'
 // ============================================================
-import { supabase } from '@/client/supabase'
+import { supabase, getLocalUser } from '@/client/supabase'
 import type {
   FoodAdditive,
   FoodAdditiveAlias,
@@ -451,4 +451,36 @@ export async function getScanHistory(
     return []
   }
   return (data as UserScanHistory[]) ?? []
+}
+
+// ============================================================
+// 11. 体质测试结果全量存档 constitution_results（迁移 20260804）
+// ============================================================
+export interface ConstitutionResultPayload {
+  primaryKey: string
+  secondaryKey: string | null
+  scores: Record<string, number>
+  answers: number[]
+}
+
+/**
+ * 保存体质测试全量结果（分数 + 答案 + 主/次体质）。
+ * user_id 取自本地 session（零网络，避免游客态 403 风暴），insert 受 RLS 约束只能写自己的行。
+ * 写入失败仅告警不阻断（结果页核心体验是展示，存档是增强）。
+ */
+export async function saveConstitutionResult(payload: ConstitutionResultPayload): Promise<boolean> {
+  const { data: { user } } = await getLocalUser()
+  if (!user?.id) return false
+  const { error } = await supabase.from('constitution_results').insert({
+    user_id: user.id,
+    primary_key: payload.primaryKey,
+    secondary_key: payload.secondaryKey,
+    scores: payload.scores,
+    answers: payload.answers,
+  })
+  if (error) {
+    console.error('[saveConstitutionResult] 写入失败:', error.message)
+    return false
+  }
+  return true
 }

@@ -28,6 +28,14 @@ const ADDITIVE_LEVEL: Record<string, { label: string; color: string; bg: string 
   high_risk: { label: '高风险', color: '#dc2626', bg: 'rgba(239,68,68,0.08)' },
 }
 
+// 添加剂风险分级 L1-L4（模块二核心壁垒，PRD 2.1）
+const RISK_TIER: Record<string, { label: string; color: string; bg: string }> = {
+  L1: { label: 'L1 纯天然', color: '#16a34a', bg: 'rgba(34,197,94,0.12)' },
+  L2: { label: 'L2 常规合规', color: '#0891b2', bg: 'rgba(8,145,178,0.12)' },
+  L3: { label: 'L3 敏感控量', color: '#ca8a04', bg: 'rgba(234,179,8,0.12)' },
+  L4: { label: 'L4 老幼弱少吃', color: '#dc2626', bg: 'rgba(239,68,68,0.12)' },
+}
+
 interface RenderReport {
   safe_level: string
   safe_level_code: SafeLevelCode | string
@@ -237,6 +245,16 @@ export default function AnalysisResult() {
         <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 6, display: 'block' }}>
           扫描配料时重点关注已选的成分类型
         </Text>
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12,
+          paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#16a34a', borderStyle: 'dashed',
+          background: 'rgba(22,163,74,0.05)',
+        }}
+          onClick={() => Taro.navigateTo({ url: '/pages/food/food-match/index' })}
+        >
+          <Text style={{ fontSize: 16, marginRight: 8 }}>🎯</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#15803d' }}>进入个性化食疗推荐专区</Text>
+        </View>
       </View>
 
       {/* ──── 添加剂明细（卡片式） ──── */}
@@ -260,12 +278,22 @@ export default function AnalysisResult() {
                       <Text style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>{a.type}</Text>
                     </View>
                   </View>
-                  <Text style={{
-                    fontSize: 11, fontWeight: '600', color: lv.color, background: lv.bg,
-                    borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8,
-                  }}>
-                    {lv.label}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {a.risk_tier && RISK_TIER[a.risk_tier] ? (
+                      <Text style={{
+                        fontSize: 10, fontWeight: '700', color: RISK_TIER[a.risk_tier].color,
+                        background: RISK_TIER[a.risk_tier].bg, borderRadius: 6, paddingVertical: 3, paddingHorizontal: 7,
+                      }}>
+                        {RISK_TIER[a.risk_tier].label}
+                      </Text>
+                    ) : null}
+                    <Text style={{
+                      fontSize: 11, fontWeight: '600', color: lv.color, background: lv.bg,
+                      borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8,
+                    }}>
+                      {lv.label}
+                    </Text>
+                  </View>
                 </View>
                 {a.desc ? (
                   <Text style={{ fontSize: 13, color: '#475569', marginTop: 8, lineHeight: '20px', paddingLeft: 48 }}>

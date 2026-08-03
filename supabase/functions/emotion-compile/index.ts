@@ -16,6 +16,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { getLlmConfig, type LlmConfig } from '../_shared/llmConfig.ts'
 import { logLlmCall } from '../_shared/logLlmCall.ts'
+import { guardedChat } from '../_shared/llmGuard.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,50 +46,24 @@ function json(body: any, status = 200, headers = corsHeaders) {
 
 // LLM 启用判定改由 getLlmConfig() 在各 handler 内统一处理（读 system_config 表，回退 env）
 
-// OpenAI 兼容调用；返回解析后的 JSON 对象
+// OpenAI 兼容调用；返回解析后的 JSON 对象（失败返回 null → 调用方走兜底）
 async function callLLM(system: string, user: string, cfg: LlmConfig): Promise<any | null> {
-  const key = cfg.key
-  const base = cfg.base || 'https://api.openai.com/v1'
-  const model = cfg.model || 'gpt-4o-mini'
-  const start = Date.now()
+  const r = await guardedChat({
+    base: cfg.base,
+    key: cfg.key,
+    model: cfg.model,
+    functionName: 'emotion-compile',
+    module: '情绪编译',
+    system,
+    user,
+    temperature: 0.85,
+    responseFormat: { type: 'json_object' },
+  })
+  if (!r.ok || !r.data) return null
+  const content = r.data?.choices?.[0]?.message?.content || '{}'
   try {
-    const resp = await fetch(`${base}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model,
-        temperature: 0.85,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-      }),
-    })
-    if (!resp.ok) {
-      const httpMsg = `[emotion-compile] LLM http ${resp.status} ${await resp.text()}`
-      console.error(httpMsg)
-      await logLlmCall({
-        functionName: 'emotion-compile', module: '情绪编译', model,
-        latencyMs: Date.now() - start, success: false, errorMessage: `http ${resp.status}`,
-      })
-      return null
-    }
-    const j = await resp.json()
-    await logLlmCall({
-      functionName: 'emotion-compile', module: '情绪编译', model,
-      usage: j?.usage ?? null, latencyMs: Date.now() - start,
-      success: !!j?.choices?.[0], errorMessage: null,
-    })
-    const content = j?.choices?.[0]?.message?.content || '{}'
     return JSON.parse(content)
-  } catch (e) {
-    console.error('[emotion-compile] LLM error', e)
-    await logLlmCall({
-      functionName: 'emotion-compile', module: '情绪编译', model,
-      latencyMs: Date.now() - start, success: false,
-      errorMessage: e instanceof Error ? e.message : String(e),
-    })
+  } catch {
     return null
   }
 }

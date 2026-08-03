@@ -69,32 +69,37 @@ Deno.serve(async (req: Request) => {
   const phone: string = (body?.phone ?? '').trim()
   const role: string = (body?.role ?? 'user')
 
-  if (!isValidEmail(email)) return json({ error: '请输入合法的邮箱地址' }, 400)
+  // 邮箱与手机号「二选一必填」：至少提供一种登录标识
+  if (!email && !phone) return json({ error: '请填写邮箱或手机号（至少其一）' }, 400)
+  if (email && !isValidEmail(email)) return json({ error: '请输入合法的邮箱地址' }, 400)
   if (password.length < 6) return json({ error: '密码至少 6 位' }, 400)
   if (!ALLOWED_ROLES.includes(role as Role)) return json({ error: '非法角色' }, 400)
   if (phone && !/^\d{6,20}$/.test(phone)) return json({ error: '手机号格式不正确' }, 400)
 
+  // 展示用标识（优先手机号，便于仅手机号账号回显）
+  const label = phone || email
+
   try {
-    // ---- 3. 创建认证账号（email 直接确认，可立即登录；phone 若提供也确认）----
+    // ---- 3. 创建认证账号（email / phone 二选一均可，均自动确认可立即登录）----
     const { data: newUser, error: createErr } = await serviceSupabase.auth.admin.createUser({
-      email,
+      email: email || undefined,
       password,
       phone: phone || undefined,
-      email_confirm: true,
+      email_confirm: email ? true : undefined,
       phone_confirm: phone ? true : undefined,
-      user_metadata: { nickname: nickname || email.split('@')[0] },
+      user_metadata: { nickname: nickname || label },
     })
     if (createErr || !newUser?.user) {
-      // 常见：邮箱已存在(duplicate) / 密码策略
+      // 常见：邮箱/手机号已存在(duplicate) / 密码策略
       return json({ error: createErr?.message || '创建账号失败' }, 400)
     }
 
     // ---- 4. 补写 profiles（触发器默认 role='user'，这里显式落地目标角色与昵称）----
     const { error: profErr } = await serviceSupabase.from('profiles').upsert({
       id: newUser.user.id,
-      username: email.split('@')[0],
+      username: email ? email.split('@')[0] : phone,
       phone: phone || null,
-      nickname: nickname || '管理员',
+      nickname: nickname || label,
       role: role as Role,
     })
     if (profErr) {
@@ -102,8 +107,8 @@ Deno.serve(async (req: Request) => {
       return json({ error: '账号已创建，但用户资料写入失败：' + profErr.message, ok: false }, 500)
     }
 
-    console.log(`[admin-create-user] admin ${user.id} 创建账号 ${email} 角色=${role}`)
-    return json({ ok: true, user: { id: newUser.user.id, email, role } })
+    console.log(`[admin-create-user] admin ${user.id} 创建账号 ${label} 角色=${role}`)
+    return json({ ok: true, user: { id: newUser.user.id, email: email || null, phone: phone || null, role } })
   } catch (err: any) {
     console.error('[admin-create-user] error:', err)
     return json({ error: err?.message ?? '内部错误' }, 500)

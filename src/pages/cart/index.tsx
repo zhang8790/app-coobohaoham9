@@ -10,7 +10,6 @@ import { setPendingCheckout } from '@/utils/checkoutCache'
 import CustomTabBar from '@/components/custom-tabbar'
 import FloatingActionBar from '@/components/FloatingActionBar'
 import type { CartItem, Product } from '@/db/types'
-import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
 import { checkCartConflicts, toFoodTherapyInput, type CartConflict } from '@/utils/food-therapy'
 
@@ -155,9 +154,11 @@ function CartPage() {
   const selectedTotal = selectedItems.reduce((s, i) => s + getDisplayPrice(i) * i.quantity, 0)
   const selectedCount = selectedItems.reduce((s, i) => s + i.quantity, 0)
 
-  if (items.length === 0 && !user) return null // 未登录且无购物车：RouteGuard 已跳转登录（兜底防闪烁）
+  // 访客（未登录）也可浏览购物车空态/本地购物车；结算等动作会按需引导登录。
+  // 不再整体强制跳转登录，避免登录页返回键回到本页被再次拦截（微信审核"返回无效"根因）。
 
-  return (<RouteGuard>
+  return (
+    <>
     <View className="h-screen flex flex-col bg-background tabbar-pad">
       {/* 顶部全选栏 */}
       {items.length > 0 && (
@@ -293,7 +294,7 @@ function CartPage() {
                   <View className="flex items-center gap-2 mb-1">
                     <Text className="text-xl">{c.level === 'danger' ? '⚠️' : '🟡'}</Text>
                     <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#9A8070' }}>
-                      {c.type === 'warm_overlap' ? '温补叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
+                      {c.type === 'warm_overlap' ? '温性叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
                     </Text>
                   </View>
                   <Text className="text-base text-muted-foreground" style={{ display: 'block', lineHeight: '1.5' }}>{c.message}</Text>
@@ -311,7 +312,8 @@ function CartPage() {
     </View>
     <FloatingActionBar />
     <CustomTabBar />
-  </RouteGuard>)
+    </>
+  )
 }
 
 /* wrapped by RouteGuard - see render */

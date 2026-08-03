@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '推广中心',
+  navigationBarTitleText: '推荐中心',
   enableShareAppMessage: true,
   enableShareTimeline: true,
 })

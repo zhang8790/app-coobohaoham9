@@ -1,11 +1,29 @@
-[auth.email]
-enable_confirmations = false
-
-[auth.phone]
-enable_confirmations = false
-
 # 关闭 ocr-ingredient 的 JWT 校验：前端用 anon key 调用，开启会导致 401 →
 # "Failed to send a request to the Edge Function"。函数内部无强 auth 要求，
 # 按 Supabase 推荐做法（OFF + 函数内自定义校验）关闭。
 [functions.ocr-ingredient]
+verify_jwt = false
+
+[functions.product-therapy-sync]
+verify_jwt = false
+
+# 配料解析 + 食疗推荐均为面向 C 端的公开能力（拍照解析/推荐专区可未登录浏览），
+# 前端统一用 anon key 调用；函数内部走 service_role，无强 auth 要求，关闭 JWT 校验避免 401。
+[functions.ingredient-analyze]
+verify_jwt = false
+
+[functions.food-match]
+verify_jwt = false
+
+# 批量回算运维工具：服务端 service_role 执行，curl 触发即可（无需登录态）
+[functions.food-backfill]
+verify_jwt = false
+
+# 科目 key 回算运维工具：服务端 service_role 执行，curl 触发即可（无需登录态）
+[functions.subject-backfill]
+verify_jwt = false
+
+# 门店订单小票云打印：前端（商家端/后台）用 anon key 触发，函数内走 service_role，
+# 校验门店打印机配置后才推送，按项目惯例关闭 JWT 校验避免 401。
+[functions.print-receipt]
 verify_jwt = false

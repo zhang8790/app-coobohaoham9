@@ -1,4 +1,4 @@
-// @title 分享官中心
+// @title 推荐中心
 import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, ScrollView } from '@tarojs/components'
@@ -57,12 +57,12 @@ export default function PartnerCenter() {
     <ScrollView style={page} scrollY>
       {/* 顶部身份卡 */}
       <View style={headerCard}>
-        <Text style={{ fontSize: 13, color: '#fff', opacity: 0.8, letterSpacing: 1 }}>我的分享官身份</Text>
+        <Text style={{ fontSize: 13, color: '#fff', opacity: 0.8, letterSpacing: 1 }}>我的推荐身份</Text>
         <Text style={{ fontSize: 28, fontWeight: '800', color: '#fff', marginTop: 4 }}>
           {data?.equity?.current_rank || '凡心'}
         </Text>
         <Text style={{ fontSize: 13, color: '#fff', opacity: 0.7, marginTop: 2 }}>
-          累计推广收益：¥{(data?.equity?.total_earned || 0).toFixed(2)}
+          累计推荐奖励：¥{(data?.equity?.total_earned || 0).toFixed(2)}
         </Text>
       </View>
 
@@ -70,7 +70,7 @@ export default function PartnerCenter() {
       <View style={statsRow}>
         <View style={{ ...statCard, borderRightWidth: 1, borderRightColor: 'rgba(0,0,0,0.06)' }}>
           <Text style={statNum}>¥{totalCommission.toFixed(2)}</Text>
-          <Text style={statLabel}>近10单佣金</Text>
+          <Text style={statLabel}>近10单推荐奖励</Text>
         </View>
         <View style={{ ...statCard, borderRightWidth: 1, borderRightColor: 'rgba(0,0,0,0.06)' }}>
           <Text style={statNum}>¥{totalNet.toFixed(2)}</Text>
@@ -78,32 +78,32 @@ export default function PartnerCenter() {
         </View>
         <View style={statCard}>
           <Text style={{ ...statNum, color: '#16a34a' }}>¥{data?.balance.commission_balance?.toFixed(2) || '0.00'}</Text>
-          <Text style={statLabel}>可提现</Text>
+          <Text style={statLabel}>可提现奖励</Text>
         </View>
       </View>
 
-      {/* 团队概况 */}
+      {/* 推荐关系概况 */}
       <View style={sectionCard}>
-        <Text style={sectionTitle}>👥 我的团队</Text>
+        <Text style={sectionTitle}>👥 我的推荐关系</Text>
         <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 12 }}>
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 24, fontWeight: '800', color: '#1e293b' }}>{data?.referrals.l1 || 0}</Text>
-            <Text style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>一级好友</Text>
+            <Text style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>我的好友</Text>
           </View>
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 24, fontWeight: '800', color: '#1e293b' }}>{data?.referrals.l2 || 0}</Text>
-            <Text style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>二级粉丝</Text>
+            <Text style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>好友推荐</Text>
           </View>
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 24, fontWeight: '800', color: '#1e293b' }}>¥{data?.equity?.total_spent?.toFixed(2) || '0.00'}</Text>
-            <Text style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>团队消费</Text>
+            <Text style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>推荐消费</Text>
           </View>
         </View>
       </View>
 
       {/* 快捷操作 */}
       <View style={sectionCard}>
-        <Text style={sectionTitle}>🚀 快速推广</Text>
+        <Text style={sectionTitle}>🚀 快速推荐</Text>
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
           <View style={actionBtn} onClick={() => Taro.switchTab({ url: '/pages/index/index' })}>
             <Text style={{ fontSize: 18 }}>🛒</Text>
@@ -119,17 +119,17 @@ export default function PartnerCenter() {
           </View>
           <View style={actionBtn} onClick={() => {
             Taro.setClipboardData({ data: `快来「来电有喜」一起分享好物～健康配料、放心选择！` })
-            Taro.showToast({ title: '已复制推广语', icon: 'success' })
+            Taro.showToast({ title: '已复制推荐语', icon: 'success' })
           }}>
             <Text style={{ fontSize: 18 }}>📤</Text>
-            <Text style={actionBtnText}>复制推广语</Text>
+            <Text style={actionBtnText}>复制推荐语</Text>
           </View>
         </View>
       </View>
 
       {/* 推广素材库 */}
       <View style={sectionCard}>
-        <Text style={sectionTitle}>🎨 推广素材</Text>
+        <Text style={sectionTitle}>🎨 推荐素材</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
           {[
             { label: '健康配料', desc: '"配料表全透明，孩子吃得安心"', color: '#16a34a' },
@@ -158,17 +158,17 @@ export default function PartnerCenter() {
         </View>
       </View>
 
-      {/* 本月排行榜 */}
+      {/* 本月活跃榜 */}
       <View style={sectionCard}>
-        <Text style={sectionTitle}>🏆 本月分销排行</Text>
+        <Text style={sectionTitle}>🏆 本月推荐活跃榜</Text>
         <Text style={{ fontSize: 12, color: '#94a3b8', marginTop: 2, display: 'block' }}>
-          努力分享，下个月上榜的就是你！
+          真诚分享好物，下个月上榜的就是你！
         </Text>
         <View style={{ marginTop: 12 }}>
           {[
-            { rank: '🥇', name: '分享达人A', amount: 1280, color: '#d4a537' },
-            { rank: '🥈', name: '健康推荐官B', amount: 960, color: '#94a3b8' },
-            { rank: '🥉', name: '食养传播者C', amount: 720, color: '#cd7f32' },
+            { rank: '🥇', name: '分享达人A', color: '#d4a537' },
+            { rank: '🥈', name: '健康推荐官B', color: '#94a3b8' },
+            { rank: '🥉', name: '食养传播者C', color: '#cd7f32' },
           ].map((item, i) => (
             <View key={i} style={{
               flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
@@ -176,28 +176,28 @@ export default function PartnerCenter() {
             }}>
               <Text style={{ fontSize: 20, width: 36 }}>{item.rank}</Text>
               <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#334155' }}>{item.name}</Text>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#16a34a' }}>+¥{item.amount}</Text>
+              <Text style={{ fontSize: 11, color: item.color, fontWeight: '600' }}>活跃推荐官</Text>
             </View>
           ))}
         </View>
       </View>
 
-      {/* 近期佣金 */}
+      {/* 近期推荐奖励 */}
       <View style={sectionCard}>
-        <Text style={sectionTitle}>📊 近期佣金记录</Text>
+        <Text style={sectionTitle}>📊 近期推荐奖励记录</Text>
         {data?.recentCommissions.length === 0 ? (
           <Text style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', padding: 20, display: 'block' }}>
-            暂无佣金记录，快分享商品给好友吧～
+            暂无推荐奖励，快分享好物给好友吧～
           </Text>
         ) : (
           data?.recentCommissions.map((c, i) => (
             <View key={i} style={commItem}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 14, color: '#334155', fontWeight: '600' }}>
-                  +¥{c.amount.toFixed(2)}
+                  推荐奖励 +¥{c.amount.toFixed(2)}
                 </Text>
                 <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                  {new Date(c.created_at).toLocaleDateString('zh-CN')} · 净到手 ¥{c.net.toFixed(2)}
+                  {new Date(c.created_at).toLocaleDateString('zh-CN')} · 健康豆 +¥{c.net.toFixed(2)}
                 </Text>
               </View>
               <Text style={{

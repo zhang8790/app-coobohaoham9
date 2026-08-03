@@ -66,7 +66,7 @@ export default function CategoryManager({
               ) : (
                 <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: '6px' }} onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }}>
                   <Text style={{ fontSize: '15px', color: '#333' }}>{c.name}</Text>
-                  {isGlobal && <Text style={{ fontSize: '11px', color: '#BBB' }}>🌐 平台</Text>}
+                  {isGlobal && <Text style={{ fontSize: '11px', color: '#BBB' }}>🌐 总部</Text>}
                 </View>
               )}
               {!isGlobal && (
@@ -82,7 +82,7 @@ export default function CategoryManager({
             </View>
           )
         })}
-        <Text style={{ fontSize: '11px', color: '#BBB', marginTop: '12px', display: 'block' }}>🌐 平台分类由总部统一维护，店内不可修改；店内分类仅对本店商品生效。</Text>
+        <Text style={{ fontSize: '11px', color: '#BBB', marginTop: '12px', display: 'block' }}>🌐 总部分类由总部统一维护，店内不可修改；店内分类仅对本店商品生效。</Text>
       </View>
     </View>
   )

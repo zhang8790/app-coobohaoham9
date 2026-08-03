@@ -1,5 +1,5 @@
 import Taro from "@tarojs/taro";
-import { supabase } from "@/client/supabase";
+import { supabase, getLocalUser } from "@/client/supabase";
 
 /** 默认存储桶名 */
 const DEFAULT_BUCKET = 'images'
@@ -107,7 +107,7 @@ export async function uploadToStorage(tempFilePath: string, options?: { bucket?:
     // 获取当前用户 ID（用于存储路径）
     let userId = 'public'
     try {
-      const { data: userData } = await supabase.auth.getUser()
+      const { data: userData } = await getLocalUser()
       if (userData?.user?.id) userId = userData.user.id
     } catch (authErr: any) {
       console.warn('[uploadToStorage] 获取用户失败，使用 public:', authErr?.message)

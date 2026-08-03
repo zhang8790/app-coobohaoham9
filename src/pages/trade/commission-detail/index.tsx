@@ -1,5 +1,5 @@
 import { View, Button, Text } from '@tarojs/components'
-// @title 佣金明细
+// @title 推荐奖励明细
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { getMyCommissions } from '@/db/api'
@@ -48,17 +48,6 @@ function CommissionDetailPage() {
             <Text className="text-xl text-white/80">已结算</Text>
           </View>
         </View>
-        <View className="px-4 pb-4">
-          <Button type="button"
-            className="w-full flex items-center justify-center leading-none rounded-xl border border-white/40 bg-white/10"
-            onClick={() => Taro.navigateTo({ url: '/pages/trade/withdraw' })}>
-            <View className="py-2 text-xl text-white font-bold">去提现佣金 →</View>
-          </Button>
-          <View className="mt-3 p-3 rounded-xl bg-white/5">
-            <Text className="text-base text-white/80">推广佣金按「50% 可提现佣金 + 50% 健康豆」发放：可提现部分可在「提现」页申请到账（银行卡 / 支付宝 / 微信）；健康豆在平台内消费抵扣。</Text>
-            <Text className="text-base text-white/70 mt-1">推广佣金为劳务报酬，提现后请依法履行纳税申报义务。</Text>
-          </View>
-        </View>
       </View>
 
       {/* Tab */}
@@ -80,8 +69,8 @@ function CommissionDetailPage() {
         ) : filtered.length === 0 ? (
           <View className="flex flex-col items-center py-16 gap-3">
             <Icon name="cash-remove" size={60} className="text-muted-foreground/30" />
-            <Text className="text-xl text-muted-foreground">暂无佣金记录</Text>
-            <Text className="text-base text-muted-foreground text-center px-8">分享商品给好友，好友购买后即可获得佣金</Text>
+            <Text className="text-xl text-muted-foreground">暂无推荐奖励记录</Text>
+            <Text className="text-base text-muted-foreground text-center px-8">分享商品给好友，好友购买后即可获得健康豆推荐奖励</Text>
           </View>
         ) : (
           filtered.map(c => (
@@ -92,7 +81,7 @@ function CommissionDetailPage() {
                     <Text className={`text-base font-bold ${c.level === 1 ? 'text-primary' : 'text-muted-foreground'}`}>L{c.level}</Text>
                   </View>
                   <Text className="text-xl text-foreground">
-                    {c.level === 1 ? '我的好友佣金' : '我的粉丝佣金'}
+                    {c.level === 1 ? '我的好友奖励' : '我的粉丝奖励'}
                   </Text>
                 </View>
                 <Text className={`text-2xl font-black ${statusColor[c.status] || 'text-foreground'}`}>

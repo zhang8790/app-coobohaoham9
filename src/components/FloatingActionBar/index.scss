@@ -58,3 +58,107 @@
     border: none !important;
   }
 }
+
+// =====================================================================
+// 首页：右侧边缘停靠把手，按下才向左侧滑出「食养咨询 / 客服」
+// 设计要点：无遮罩、面板与把手都在右侧边缘，按钮直接可点（规避浮层点不动）。
+// =====================================================================
+.fab-edge {
+  position: fixed;
+  right: 0;
+  top: 52%;
+  transform: translateY(-50%);
+  z-index: 70;
+  display: flex;
+  flex-direction: row; // 面板在左、把手在右（把手贴屏幕右缘）
+  align-items: center;
+}
+
+// 右侧边缘把手：竖排小药丸，半露在右侧，提示「这里有咨询入口」
+.fab-edge-handle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: #fff;
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  border-right: none;
+  border-radius: 16px 0 0 16px; // 右侧贴边、左侧圆角
+  padding: 12px 7px;
+  box-shadow: -4px 4px 16px rgba(0, 0, 0, 0.16);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.fab-edge-handle-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.fab-edge-handle-text {
+  font-size: 11px;
+  font-weight: 700;
+  color: #16a34a;
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
+}
+
+// 展开面板：默认隐藏（右移 + 透明 + 不可点），展开后露出
+.fab-edge-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  padding-right: 10px;
+  opacity: 0;
+  transform: translateX(24px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fab-edge--open .fab-edge-panel {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+// 面板内按钮：食养咨询为主、客服次级
+.fab-edge-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 24px;
+  padding: 9px 15px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+  position: relative;
+}
+.fab-edge-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.fab-edge-label {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+// 食养咨询：最重要的入口 → 绿底白字高亮置顶
+.fab-edge-item--consult {
+  background: #16a34a;
+  border: none;
+  .fab-edge-label {
+    color: #fff;
+  }
+}
+
+// 客服：次级，白底蓝描边
+.fab-edge-item--kefu {
+  background: #fff !important;
+  border: 1px solid rgba(37, 99, 235, 0.3) !important;
+  margin: 0 !important;
+  line-height: normal;
+  &::after {
+    border: none !important;
+  }
+  .fab-edge-label {
+    color: #2563eb;
+  }
+}

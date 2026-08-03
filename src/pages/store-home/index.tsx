@@ -10,7 +10,7 @@ import LazyImage from '@/components/LazyImage'
 import { getStoreById, getStoreCategories, getProducts, addToCart, bindStoreReferrer } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
 import type { Store, StoreCategory, Product } from '@/db/types'
-import { supabase } from '@/client/supabase'
+import { supabase, getLocalUser } from '@/client/supabase'
 import Icon from '@/components/Icon'
 import AddToCartButton from '@/components/AddToCartButton'
 import { buildTherapyReport, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
@@ -126,12 +126,17 @@ export default function StoreHomePage() {
     ? products
     : products.filter(p => p.category_id === activeCat)
 
-  // 食疗引擎：为当前展示的每个商品实时算「三色预警 + 整体性味」（与详情页同源）
+  // 食疗引擎：与首页同源——优先读 therapy_json 单一数据源（服务端回算 / 上传回写），
+  // 回退才按 ingredients + 食材字典现算。即使门店商品未填 ingredients，只要已系统化写入
+  // therapy_json（上传回写 / backfill），门店卡也稳定有食养，不再「进了门店就没食养」。
   const therapyMap = useMemo<Record<string, ProductTherapyReport | null>>(() => {
     const map: Record<string, ProductTherapyReport | null> = {}
-    if (!ingredientDict.length) return map
     const dictMap = new Map(ingredientDict.map((r) => [r.name, r]))
     for (const p of filteredProducts) {
+      // 优先读 therapy_json 单一数据源
+      const tj = p.therapy_json as Partial<ProductTherapyReport> | null | undefined
+      if (tj && tj.overall_nature_code) { map[p.id] = tj as ProductTherapyReport; continue }
+      // 回退：客户端按 ingredients + 食材字典现算
       const names = (p.ingredients as string[] | undefined) || []
       if (!names.length) { map[p.id] = null; continue }
       const inputs: ProductIngredientInput[] = names
@@ -157,7 +162,7 @@ export default function StoreHomePage() {
 
   // 加入购物车（门店详情页商品）
   const handleAddCart = async (product: Product) => {
-    const uid = (await supabase.auth.getUser()).data.user
+    const uid = (await getLocalUser()).data.user
     if (!uid) { Taro.navigateTo({ url: '/pages/login/index' }); return }
     setAddingId(product.id)
     await addToCart(product.id, product.store_id || storeId)
