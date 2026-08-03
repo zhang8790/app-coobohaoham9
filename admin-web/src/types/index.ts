@@ -42,6 +42,8 @@ export interface Product {
   original_price: number | null
   image_url: string | null
   main_image: string | null
+  barcode?: string | null        // EAN-13 店内码（超市同款）；DB 默认 EAN13
+  barcode_type?: string | null   // 码制：EAN13 等
   sub_images: string[] | null
   detail_images: string[] | null
   video_url: string | null

@@ -430,7 +430,8 @@ export default function TodayFoodTherapyPage() {
 
   return (
     <View className="min-h-screen bg-[#FFFBF7]">
-      <ScrollView scrollY className="px-4 pt-1 pb-24" style={{ height: '100vh' }}>
+      <ScrollView scrollY style={{ height: '100vh' }}>
+        <View className="px-4 pt-1 pb-24">
         {/* 今日节气 */}
         <SeasonHero result={result} />
 
@@ -541,6 +542,7 @@ export default function TodayFoodTherapyPage() {
             ))}
           </View>
         )}
+        </View>
       </ScrollView>
 
       {/* 底部固定分享/返回 */}

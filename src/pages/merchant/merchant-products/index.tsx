@@ -10,7 +10,7 @@ import {
   getMerchantStore, getMerchantProducts, getMerchantProductSales,
   createProduct, updateProduct, deleteProduct, getProductByBarcode,
   getCategories, createStoreCategory, updateStoreCategory, deleteStoreCategory,
-  getNearExpiryProducts,
+  getNearExpiryProducts, generateProductBarcode, callPrintBarcode,
 } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import { uploadImage, uploadVideo } from '@/utils/upload'
@@ -18,6 +18,7 @@ import { analyzeProductFromName, type ProductAnalysis } from '@/utils/food-thera
 import { buildTherapyReport, type ProductIngredientInput } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 import type { Product, Store, StoreCategory } from '@/db/types'
+import { encodeEAN13 } from '@/utils/barcode'
 import { RouteGuard } from '@/components/RouteGuard'
 import CategoryManager from './CategoryManager'
 
@@ -100,6 +101,24 @@ type IngredientItem = {
 const COOKING_METHODS = ['清炒', '少油', '重油', '红烧', '水煮', '凉拌']
 const AUX_OPTIONS = ['盐', '糖', '食用油', '酱油', '味精']
 
+// 屏幕预览 EAN-13 条码（纯 CSS 条，人眼可辨 + 数字可读；真实扫码靠打印纸）
+function EAN13Preview({ code }: { code: string }) {
+  const enc = encodeEAN13(code)
+  if (!enc) {
+    return <Text style={{ fontSize: '12px', color: '#DC2626' }}>条码格式无效（须为 13 位 EAN-13）</Text>
+  }
+  return (
+    <View style={{ background: '#fff', border: '1px solid #EEE', borderRadius: '10px', padding: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '2px' }}>
+      <View style={{ display: 'flex', flexDirection: 'row', height: '54px', width: '100%', justifyContent: 'center' }}>
+        {enc.modules.split('').map((m, i) => (
+          <View key={i} style={{ width: '2px', height: '100%', backgroundColor: m === '1' ? '#000' : '#fff' }} />
+        ))}
+      </View>
+      <Text style={{ fontSize: '13px', letterSpacing: '2px', marginTop: '6px', color: '#333' }}>{code}</Text>
+    </View>
+  )
+}
+
 function MerchantProductsPage() {
   const [store, setStore] = useState<Store | null>(null)
   const [products, setProducts] = useState<Product[]>([])
@@ -125,6 +144,9 @@ function MerchantProductsPage() {
   const [editingCatId, setEditingCatId] = useState<string | null>(null)
   const [editingCatName, setEditingCatName] = useState('')
   const [expiryMap, setExpiryMap] = useState<Record<string, string>>({})
+  // 条码：生成中 / 打印中
+  const [generatingBarcode, setGeneratingBarcode] = useState(false)
+  const [printingBarcode, setPrintingBarcode] = useState(false)
 
   // 智能识别（食疗/安全系统）：菜名 + 图片 → 自动识别属性
   const [dishName, setDishName] = useState('')
@@ -385,6 +407,41 @@ function MerchantProductsPage() {
       return { id: nm, name: nm, nature: '平性', base_effect: null, caution_crowds: null, allergens: [], chronic_tags: [], neutralize: null, ratio: 50, cooking: '清炒', aux: [] }
     })
     setIngredientItems(items)
+  }
+
+  // 一键生成店内码（仅编辑已有商品）：调 product-mutate auto_barcode 分配 EAN-13 并回写
+  const onGenerateBarcode = async () => {
+    if (!editId) { Taro.showToast({ title: '请先保存商品', icon: 'none' }); return }
+    setGeneratingBarcode(true)
+    try {
+      const prod = await generateProductBarcode(editId)
+      if (prod && prod.barcode) {
+        setForm(f => ({ ...f, barcode: prod.barcode! }))
+        Taro.showToast({ title: '已生成店内码', icon: 'success' })
+      } else {
+        Taro.showToast({ title: '生成失败，请重试', icon: 'none' })
+      }
+    } finally {
+      setGeneratingBarcode(false)
+    }
+  }
+
+  // 打印条码标签（需该门店已配置易联云打印机）
+  const onPrintBarcode = async () => {
+    if (!form.barcode || !editId) return
+    setPrintingBarcode(true)
+    try {
+      const r = await callPrintBarcode({ productId: editId, storeId: store?.id })
+      if (r.success) {
+        Taro.showToast({ title: '已推送打印', icon: 'success' })
+      } else if (r.need_config) {
+        Taro.showModal({ title: '未配置打印机', content: '该门店尚未配置易联云打印机，请先到「设置」配置打印机后再打印标签。', showCancel: false })
+      } else {
+        Taro.showToast({ title: r.error || '打印失败', icon: 'none' })
+      }
+    } finally {
+      setPrintingBarcode(false)
+    }
   }
 
   const handleSave = async () => {
@@ -1157,6 +1214,30 @@ function MerchantProductsPage() {
                   placeholder="扫码或手动输入"
                   value={form.barcode}
                   onInput={(e: any) => setForm(f => ({ ...f, barcode: e.detail?.value ?? '' }))} />
+              </View>
+              {/* 条码操作：生成 / 预览 / 打印（超市同款 EAN-13 店内码）*/}
+              <View style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {editId ? (
+                    <View
+                      onClick={onGenerateBarcode}
+                      style={{ padding: '8px 14px', borderRadius: '10px', background: generatingBarcode ? '#9CA3AF' : '#10B981', opacity: generatingBarcode ? 0.7 : 1 }}>
+                      <Text style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>{generatingBarcode ? '生成中…' : '⚡ 一键生成店内码'}</Text>
+                    </View>
+                  ) : null}
+                  {form.barcode ? (
+                    <View
+                      onClick={onPrintBarcode}
+                      style={{ padding: '8px 14px', borderRadius: '10px', background: printingBarcode ? '#9CA3AF' : '#FF8C42', opacity: printingBarcode ? 0.7 : 1 }}>
+                      <Text style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>{printingBarcode ? '打印中…' : '🖨 打印标签'}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                {form.barcode ? (
+                  <EAN13Preview code={form.barcode} />
+                ) : (
+                  <Text style={{ fontSize: '12px', color: '#999' }}>无条码：可「一键生成店内码」（EAN-13 超市同款），再打印标签贴商品。</Text>
+                )}
               </View>
             </View>
 

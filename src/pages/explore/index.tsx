@@ -190,7 +190,7 @@ export default function ExplorePage() {
 
   // 分享配置：携带推广码
   useShareWithReferral({
-    title: '来电有喜 · 自营好物',
+    title: '来电有喜 · 全城好物',
     path: '/pages/explore/index',
     timelineTitle: '来电有喜 · 发现品质好物'})
 

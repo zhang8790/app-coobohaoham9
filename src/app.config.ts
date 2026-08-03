@@ -110,7 +110,7 @@ export default defineAppConfig({
     borderStyle: 'white',
     list: [
       { pagePath: 'pages/index/index',     text: '首页' },
-      { pagePath: 'pages/explore/index',   text: '自营' },
+      { pagePath: 'pages/explore/index',   text: '好物' },
       { pagePath: 'pages/cart/index',      text: '购物车' },
       { pagePath: 'pages/user/index',      text: '我的' },
     ],

@@ -25,18 +25,18 @@ const TURNS_KEY = 'consult_turns_v2'
 const TURNS_MAX = 20
 
 const QUICK_PROMPTS = [
-  '最近嗓子干痒还怕冷',
+  '最近嗓子干痒怎么润',
   '容易上火想清火',
   '换季想润一润',
   '体寒怕冷怎么吃',
   '想消暑解腻',
-  '脾胃调理吃什么',
-  '刚做完手术，适合吃什么水果',
-  '术后想补补，喝点什么汤',
-  '熬夜后喝什么茶养胃',
+  '脾胃弱适合吃什么',
+  '换季易疲惫怎么吃养精神',
+  '想喝点温和的汤水暖暖胃',
+  '熬夜后喝什么茶舒服',
   '想吃点坚果补补脑',
   '换季干燥，吃什么蔬菜好',
-  '脾胃弱，喝点什么粥养胃',
+  '脾胃弱，喝点什么粥养人',
   '想吃点粗粮主食替代米饭',
 ]
 
@@ -507,6 +507,7 @@ export default function ConsultPage() {
             {/* 商品明细（可展开内联） */}
             {checkoutExpanded && (
               <ScrollView scrollY className="consult-checkout-items">
+                <View className="consult-checkout-items-inner">
                 {cartItems.map((i) => (
                   <View key={i.id} className="consult-checkout-item">
                     <Image src={i.products?.main_image || i.products?.image_url || ''} mode="aspectFill" className="consult-checkout-item-img" />
@@ -517,6 +518,7 @@ export default function ConsultPage() {
                     <Text className="consult-checkout-item-sub">¥{(computePrice(i, cartEff) * i.quantity).toFixed(2)}</Text>
                   </View>
                 ))}
+                </View>
               </ScrollView>
             )}
 

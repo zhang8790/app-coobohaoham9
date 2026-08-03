@@ -21,6 +21,7 @@ type ProductInput = {
   price?: number
   stock?: number
   barcode?: string | null
+  auto_barcode?: boolean   // 为无条码商品自动分配 EAN-13 店内码
   main_image?: string
   sub_images?: string[] | null
   detail_images?: string[] | null
@@ -73,7 +74,7 @@ Deno.serve(async (req: Request) => {
     // ── 更新分支：校验归属后更新 ──
     if (body.id) {
       const { data: existing, error: existErr } = await supabase
-        .from('products').select('id, store_id').eq('id', body.id).maybeSingle()
+        .from('products').select('id, store_id, barcode').eq('id', body.id).maybeSingle()
       if (existErr) {
         console.error('[product-mutate] 商品查询失败:', existErr.message)
         return Response.json({ error: '商品查询失败' }, { status: 500, headers: corsHeaders })
@@ -95,7 +96,25 @@ Deno.serve(async (req: Request) => {
       if (body.description !== undefined) updatePayload.description = body.description ?? null
       if (body.price !== undefined) updatePayload.price = Number(body.price)
       if (body.stock !== undefined) updatePayload.stock = Number(body.stock)
-      if (body.barcode !== undefined) updatePayload.barcode = body.barcode && body.barcode.trim() ? body.barcode.trim() : null
+      // 解析用户意图的 barcode（undefined = 不改动）
+      let resolvedBarcode: string | null | undefined = undefined
+      if (body.barcode !== undefined) {
+        resolvedBarcode = body.barcode && body.barcode.trim() ? body.barcode.trim() : null
+      }
+      // auto_barcode：商品当前无码（且用户未显式填/null）时自动分配店内码
+      if (body.auto_barcode && (resolvedBarcode === undefined || resolvedBarcode === null) && !existing.barcode) {
+        const { data: alloc, error: allocErr } = await supabase
+          .rpc('fn_alloc_store_barcode', { p_store_id: existing.store_id })
+        if (allocErr || !alloc || !alloc.length) {
+          console.error('[product-mutate] 分配条码失败:', allocErr?.message)
+          return Response.json({ error: '自动生成条码失败' }, { status: 500, headers: corsHeaders })
+        }
+        resolvedBarcode = alloc[0].barcode
+      }
+      if (resolvedBarcode !== undefined) {
+        updatePayload.barcode = resolvedBarcode
+        updatePayload.barcode_type = 'EAN13'
+      }
       if (body.main_image !== undefined) updatePayload.main_image = body.main_image || null
       if (body.sub_images !== undefined) updatePayload.sub_images = body.sub_images && body.sub_images.length ? body.sub_images : null
       if (body.detail_images !== undefined) updatePayload.detail_images = body.detail_images && body.detail_images.length ? body.detail_images : null
@@ -154,13 +173,26 @@ Deno.serve(async (req: Request) => {
       return Response.json({ error: '无权操作该门店（门店归属不匹配）', code: 'STORE_OWNER_MISMATCH' }, { status: 403, headers: corsHeaders })
     }
 
+    // 解析条码：auto_barcode 且为空时自动分配店内码
+    let resolvedBarcode: string | null = (body.barcode && body.barcode.trim()) ? body.barcode.trim() : null
+    if (body.auto_barcode && !resolvedBarcode) {
+      const { data: alloc, error: allocErr } = await supabase
+        .rpc('fn_alloc_store_barcode', { p_store_id: store_id })
+      if (allocErr || !alloc || !alloc.length) {
+        console.error('[product-mutate] 分配条码失败:', allocErr?.message)
+        return Response.json({ error: '自动生成条码失败' }, { status: 500, headers: corsHeaders })
+      }
+      resolvedBarcode = alloc[0].barcode
+    }
+
     const insertPayload: Record<string, unknown> = {
       store_id,
       name,
       description: body.description ?? null,
       price,
       stock,
-      barcode: body.barcode && body.barcode.trim() ? body.barcode.trim() : null,
+      barcode: resolvedBarcode,
+      barcode_type: 'EAN13',
       main_image: body.main_image || null,
       sub_images: body.sub_images && body.sub_images.length ? body.sub_images : null,
       detail_images: body.detail_images && body.detail_images.length ? body.detail_images : null,

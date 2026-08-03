@@ -184,6 +184,35 @@ function renderReceipt(store: any, order: any, items: any[]): string {
   return lines.join('')
 }
 
+// ===== 渲染条码标签（易联云 K4 指令集，超市同款 EAN-13 店内码）=====
+// <BR>条码内容</BR> 是易联云 EAN-13 矢量条码指令（非换行！换行用 \n）
+// 用数字指令而非 PNG 图片：保证扫码枪清晰可扫，避免栅格图糊掉扫不出
+function renderBarcodeLabel(store: any, product: any): string {
+  const lines: string[] = []
+  const name = (store?.name || '来电有喜').slice(0, 18)
+  const pname = String(product?.name || '商品').slice(0, 18)
+  const price = '¥' + (Math.round(Number(product?.price || 0) * 100) / 100).toFixed(2)
+  const code = String(product?.barcode || '').replace(/\s/g, '')
+
+  // 店名（放大居中）
+  lines.push('<FS><CA>' + name + '</CA></FS>\n')
+  // 商品名
+  lines.push('<CA>' + pname + '</CA>\n')
+  // 价格（大字加粗）
+  lines.push('<FS><FB>' + price + '</FB></FS>\n')
+  // 条码（易联云 EAN-13 矢量指令，扫码枪可解）
+  if (code) {
+    lines.push('<BR>' + code + '</BR>\n')
+    // 人类可读数字（居中，便于人眼核对）
+    lines.push('<CA>' + code + '</CA>\n')
+  }
+  // 角标
+  lines.push('<CA>店内码 · 超市同款</CA>\n')
+  // 全切纸
+  lines.push('<MK>2</MK>')
+  return lines.join('')
+}
+
 // ===== 飞鹅打印 =====
 async function printFeie(cfg: any, content: string): Promise<{ ok: boolean; msg: string }> {
   const url = 'https://api.feieyun.com/Api/Open/'
@@ -288,7 +317,58 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
     const body = await req.json().catch(() => ({}))
+    const mode = body.mode === 'barcode' ? 'barcode' : 'receipt'
     const isTest = body.test === true
+
+    // ════════════ 条码标签打印模式 ════════════
+    if (mode === 'barcode') {
+      const bcStoreId: string | undefined = body.store_id
+      const productId: string | undefined = body.product_id
+      if (!isTest && !productId) return json({ success: false, error: '条码打印缺少 product_id' }, 400)
+      if (isTest && !bcStoreId) return json({ success: false, error: '测试条码打印缺少 store_id' }, 400)
+
+      let targetStoreId: string
+      let store: any = null
+      let product: any = null
+
+      if (isTest) {
+        targetStoreId = bcStoreId!
+        const { data: s } = await supabase.from('stores').select('*').eq('id', targetStoreId).maybeSingle()
+        store = s
+        product = { name: '【测试】精品礼盒', price: 19.9, barcode: '2000001000021' }
+      } else {
+        const { data: p, error: pErr } = await supabase
+          .from('products').select('id, store_id, name, price, barcode, barcode_type')
+          .eq('id', productId).maybeSingle()
+        if (pErr) throw new Error('读取商品失败: ' + pErr.message)
+        if (!p) return json({ success: false, error: '商品不存在' }, 404)
+        if (!p.barcode) return json({ success: false, error: '该商品无条码，请先生成店内码' }, 400)
+        product = p
+        targetStoreId = p.store_id
+        const { data: s } = await supabase.from('stores').select('*').eq('id', targetStoreId).maybeSingle()
+        store = s
+      }
+
+      const { data: cfgRows, error: cErr } = await supabase
+        .from('printer_configs').select('*').eq('store_id', targetStoreId).eq('enabled', true).limit(1)
+      if (cErr) throw new Error('读取打印机配置失败: ' + cErr.message)
+      const cfg = (cfgRows || [])[0]
+      if (!cfg) return json({ success: false, error: '该门店未配置已启用的打印机', need_config: true }, 200)
+
+      const content = renderBarcodeLabel(store, product)
+      let result: { ok: boolean; msg: string }
+      if (cfg.provider === 'feie') result = await printFeie(cfg, content)
+      else if (cfg.provider === 'yilianyun') result = await printYilianyun(cfg, content, (product?.barcode || productId || Date.now().toString()))
+      else return json({ success: false, error: '暂不支持的打印机服务商: ' + cfg.provider }, 200)
+
+      if (!result.ok) return json({ success: false, error: '打印推送失败: ' + result.msg }, 200)
+      if (!isTest) {
+        await supabase.from('printer_configs').update({ print_count: (cfg.print_count || 0) + 1, last_print_at: new Date().toISOString() }).eq('id', cfg.id)
+      }
+      return json({ success: true, test: isTest, mode: 'barcode', provider: cfg.provider, device_sn: cfg.device_sn, message: '条码标签已推送打印' })
+    }
+
+    // ════════════ 订单小票打印模式（原有）══════════
     const orderId: string | undefined = body.order_id
     const storeId: string | undefined = body.store_id
 

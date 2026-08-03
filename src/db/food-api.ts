@@ -484,3 +484,42 @@ export async function saveConstitutionResult(payload: ConstitutionResultPayload)
   }
   return true
 }
+
+export interface ConstitutionResultRow {
+  id: string
+  primaryKey: string
+  secondaryKey: string | null
+  scores: Record<string, number>
+  answers: number[]
+  createdAt: string
+}
+
+/**
+ * 读取当前用户最近一条体质测试结果（含 created_at），用于首页「复测提醒」计算距今天数。
+ * user_id 取自本地 session（零网络，避免游客态 403 风暴）；游客态/无记录返回 null。
+ * 查询失败仅告警不阻断。
+ */
+export async function getLatestConstitutionResult(): Promise<ConstitutionResultRow | null> {
+  const { data: { user } } = await getLocalUser()
+  if (!user?.id) return null
+  const { data, error } = await supabase
+    .from('constitution_results')
+    .select('id, primary_key, secondary_key, scores, answers, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error('[getLatestConstitutionResult] 查询失败:', error.message)
+    return null
+  }
+  if (!data) return null
+  return {
+    id: data.id,
+    primaryKey: data.primary_key,
+    secondaryKey: data.secondary_key,
+    scores: (data.scores as Record<string, number>) ?? {},
+    answers: (data.answers as number[]) ?? [],
+    createdAt: data.created_at,
+  }
+}

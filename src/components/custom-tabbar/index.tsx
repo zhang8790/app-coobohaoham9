@@ -11,12 +11,12 @@ import './index.scss'
 
 type TabItem = { key: string; label: string; path?: string; center?: boolean }
 
-// 5 项布局：首页 / 自营 / [扫码购物·居中凸起] / 购物车 / 用户
+// 5 项布局：首页 / 好物 / [扫码购物·居中凸起] / 购物车 / 用户
 // 扫码购物居中按钮：直接调起扫码 → 门店码进店 / 商品码进 scan-result 加购购车，
 // 不进配料安全分析页（扫码即购车，单一动作）。不参与 switchTab。
 const TABS: TabItem[] = [
   { key: 'home', label: '首页', path: '/pages/index/index' },
-  { key: 'explore', label: '自营', path: '/pages/explore/index' },
+  { key: 'explore', label: '好物', path: '/pages/explore/index' },
   { key: 'scan', label: '扫码购物', center: true },
   { key: 'cart', label: '购物车', path: '/pages/cart/index' },
   { key: 'user', label: '我的', path: '/pages/user/index' },

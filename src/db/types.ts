@@ -139,6 +139,7 @@ export interface Product {
   discount_rate: number | null
   stock: number
   barcode: string | null
+  barcode_type?: string  // 码制：EAN13（店内码）等；DB 默认 EAN13，前端不读取，故可选
   mood_tags: string[]
   scene_tags: string[]
   is_active: boolean

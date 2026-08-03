@@ -3074,6 +3074,23 @@ export async function updateProduct(id: string, params: Partial<{
   return !error
 }
 
+// 为无条码商品自动分配 EAN-13 店内码（调用 product-mutate 的 auto_barcode 逻辑）
+// 仅编辑已有商品时可用（需商品 id）；返回更新后的商品（含 barcode）
+export async function generateProductBarcode(id: string): Promise<import('./types').Product | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('product-mutate', { body: { id, auto_barcode: true } })
+    if (!error && data?.success) {
+      clearRequestCache()
+      return (data as any).product as import('./types').Product
+    }
+    console.warn('[generateProductBarcode]', error?.message || data?.error)
+    return null
+  } catch (e: any) {
+    console.warn('[generateProductBarcode]', e?.message || e)
+    return null
+  }
+}
+
 export async function deleteProduct(id: string): Promise<boolean> {
   const { error } = await supabase.from('products').delete().eq('id', id)
   clearRequestCache()
@@ -3744,6 +3761,26 @@ export async function upsertPrinterConfig(
     .upsert(cfg, { onConflict: 'store_id,device_sn' })
   if (error) { console.error('[upsertPrinterConfig]', error); return false }
   return true
+}
+
+// 打印商品条码标签（易联云 EAN-13 店内码）：真实打印(productId) 或 测试打印(storeId + test)
+// 复用 callEdgeFunction(auth:true) 封装（理由同 callPrintReceipt）
+export async function callPrintBarcode(opts: {
+  productId?: string
+  storeId?: string
+  test?: boolean
+}): Promise<{ success: boolean; error?: string; message?: string; need_config?: boolean }> {
+  const body: Record<string, any> = opts.test
+    ? { test: true, mode: 'barcode', store_id: opts.storeId }
+    : { mode: 'barcode', product_id: opts.productId }
+  try {
+    const { data, error } = await callEdgeFunction('print-receipt', body, { auth: true })
+    if (error) return { success: false, error: error.message }
+    const d = (data ?? {}) as any
+    return { success: !!d.success, error: d.error, message: d.message, need_config: !!d.need_config }
+  } catch (e: any) {
+    return { success: false, error: e?.message ? String(e.message) : String(e) }
+  }
 }
 
 // 触发云打印：真实打印(orderId) 或 测试打印(storeId + test)

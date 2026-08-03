@@ -4,10 +4,11 @@ import Taro, { useDidShow, useShareAppMessage, useShareTimeline, useRouter } fro
 import { Image, Input, View, Text, ScrollView, Button } from '@tarojs/components'
 import { getProducts, getRankedFeed, getAnnouncements, getOrderFeed, getOrders, getProductsByIds, getMyFootprints, getUserFoodTherapyWeights, addToCart } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
-import { getUserHealthProfile } from '@/db/food-api'
-import type { Product, Announcement, OrderFeedItem, UserHealthProfile } from '@/db/types'
+import { getUserHealthProfile, getLatestConstitutionResult, getScanHistory } from '@/db/food-api'
+import type { Product, Announcement, OrderFeedItem, UserHealthProfile, UserScanHistory } from '@/db/types'
 import StoreStrip from '@/components/StoreStrip'
 import { type ScoredProduct } from '@/utils/emotionEngine'
+import { scanAndRoute } from '@/utils/scan'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
@@ -81,16 +82,17 @@ const FEED_CACHE_TTL = 5 * 60 * 1000
 const CONSUME_CACHE_KEY = 'home_consume_cache_v1'
 const CONSUME_CACHE_TTL = 10 * 60 * 1000
 
-function readFeedCache(): ScoredProduct<Product>[] | null {
+function readFeedCache(storeId: string | null): ScoredProduct<Product>[] | null {
   try {
-    const raw = Taro.getStorageSync(FEED_CACHE_KEY) as { t: number; items: ScoredProduct<Product>[] } | null
+    const key = `${FEED_CACHE_KEY}:${storeId ?? 'none'}`
+    const raw = Taro.getStorageSync(key) as { t: number; items: ScoredProduct<Product>[] } | null
     if (!raw?.items?.length) return null
     if (Date.now() - raw.t > FEED_CACHE_TTL) return null
     return raw.items
   } catch { return null }
 }
-function writeFeedCache(items: ScoredProduct<Product>[]) {
-  try { Taro.setStorageSync(FEED_CACHE_KEY, { t: Date.now(), items }) } catch { /* ignore */ }
+function writeFeedCache(storeId: string | null, items: ScoredProduct<Product>[]) {
+  try { Taro.setStorageSync(`${FEED_CACHE_KEY}:${storeId ?? 'none'}`, { t: Date.now(), items }) } catch { /* ignore */ }
 }
 function readConsumeCache(uid: string): { profile: ConsumptionProfile; boughtIds: string[] } | null {
   try {
@@ -105,8 +107,18 @@ function writeConsumeCache(uid: string, data: { profile: ConsumptionProfile; bou
 }
 
 export default function IndexPage() {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const { currentCity, currentLocation, currentStore, nearbyStores, loading: locationLoading, error: locationError, detectLocation } = useLocation()
+  // 最近扫码：扫码购物的「学习闭环」沉淀，首页食养区可见（只读、不阻断主流程）
+  const [scanChips, setScanChips] = useState<UserScanHistory[]>([])
+  useEffect(() => {
+    if (!user?.id) { setScanChips([]); return }
+    let alive = true
+    getScanHistory(user.id, { limit: 6 })
+      .then(list => { if (alive) setScanChips(list.filter(h => h.input_type === 'barcode')) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [user?.id])
   const { selectedCrowds, toggleCrowd, clearFilters, getSuitability, hasHealthProfile, userAllergens } = useFoodTherapy()
   // 定位自动触发：用 ref 持有 detectLocation（函数已稳定化，不放入 effect 依赖以免触发重跑），
   // 并用 locatingRef 在首批定位完成前锁住后续触发，根治「定位一直在闪烁」的回流循环
@@ -142,7 +154,7 @@ export default function IndexPage() {
   const [inputExpanded, setInputExpanded] = useState(false)
   const [feedItems, setFeedItems] = useState<ScoredProduct<Product>[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  // 门店隔离：首页只展示「当前选中门店」的商品；默认=定位到的最近门店，可切换附近门店
+  // 门店筛选：未选=全城聚合流；用户点门店切换器才收窄到该店（下钻）
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
   // 用户是否手动选过门店：一旦手动选过，定位异步完成 / 切回首页自动定位都不应再覆盖选择
   const manualStoreRef = useRef(false)
@@ -178,8 +190,22 @@ export default function IndexPage() {
   // 门店红包对应的门店名（用于在首页弹窗标注「XX店专享」）
   const [storeNameMap, setStoreNameMap] = useState<Record<string, string>>({})
   const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
+  // P2 复测提醒：最近一次体质测试距今天数（null = 游客态/无记录，不提示）
+  const [retestDays, setRetestDays] = useState<number | null>(null)
   useEffect(() => {
     getFoodIngredients().then(setIngredientDict).catch(() => {})
+  }, [])
+  // 读取最近一次体质结果并算天数（零网络 user 解析，游客态静默返回 null）
+  useEffect(() => {
+    let alive = true
+    getLatestConstitutionResult()
+      .then((row) => {
+        if (!row || !alive) return
+        const diff = Math.floor((Date.now() - new Date(row.createdAt).getTime()) / 86400000)
+        setRetestDays(diff >= 0 ? diff : null)
+      })
+      .catch(() => {})
+    return () => { alive = false }
   }, [])
 
   // 修复：用 useRouter() 取响应式 params，原 useMemo(..., []) 冻结首屏快照，
@@ -283,8 +309,12 @@ export default function IndexPage() {
     if (feedInflightRef.current) return feedInflightRef.current
     feedInflightRef.current = (async () => {
       try {
-        // ① 先用缓存秒出，避免每次打开白屏等网络（下拉刷新仍会强制走下面网络）
-        const cached = readFeedCache()
+        // 默认全城聚合：未显式选店时拉「全城好物」（原'自营'总仓聚合流）；仅当用户在门店切换器
+        // 手动点选某门店时才按该店过滤（下钻）。既保留门店隔离（选店只看该店），又守住
+        // 「先逛全城、再进店」的人类浏览习惯，避免小店首页空白。
+        const storeId = selectedStoreId
+        // ① 先用缓存秒出（按门店隔离缓存，避免切店串味），下拉刷新仍会强制走网络
+        const cached = readFeedCache(storeId)
         if (cached && cached.length) {
           setFeedItems(cached)
           setLoading(false)
@@ -292,34 +322,31 @@ export default function IndexPage() {
           setLoading(true)
         }
         let raw: Product[] = []
-        // 门店隔离：只拉「当前选中门店」的商品，别的店不混进（可按距离切换附近门店）。
-        // 重要：选中门店后不降级到全平台——每个门店只看自己的商品，空的就显示空状态
-        const storeId = selectedStoreId
-        if (feedSort === 'hot') {
-          // 推荐模式：服务端综合热度分排序（近期销量+势头+新鲜度+历史基线+置顶）
-          raw = await getRankedFeed({ storeId: storeId ?? undefined, limit: 40 })
-        } else if (storeId) {
-          raw = await getProducts({ storeId, limit: 40 })
+        if (storeId) {
+          // 已显式选定门店：只拉该店商品（下钻），别的店不混进
+          raw = feedSort === 'hot'
+            ? await getRankedFeed({ storeId, limit: 40 })
+            : await getProducts({ storeId, limit: 40 })
         } else {
-          // 未选中任何门店时才降级到全平台自营商品（保证首页有内容）
-          raw = await getProducts({ limit: 30, platformFilter: 'only' })
+          // 默认全城聚合流：推荐=热度榜（storeId 不传=全城）；最新=全城好物
+          raw = feedSort === 'hot'
+            ? await getRankedFeed({ storeId: undefined, limit: 40 })
+            : await getProducts({ limit: 30, platformFilter: 'only' })
         }
         const next = raw.map(p => ({ product: p, matchScore: 1, matchLabel: null }))
         setFeedItems(next)
-        writeFeedCache(next)
+        writeFeedCache(storeId, next)
       } finally {
         setLoading(false)
         feedInflightRef.current = null
       }
     })()
     return feedInflightRef.current
-  }, [currentLocation, nearbyStores, selectedStoreId, feedSort])
+  }, [currentLocation, nearbyStores, selectedStoreId, currentStore, feedSort])
 
-  // 定位到最近门店 / 切城市重算后，自动把首页 feed 锁定到该门店（门店隔离默认态）
-  // 守卫：用户一旦手动切换过门店，自动定位不再覆盖（否则定位异步完成会把选择弹回最近门店）
-  useEffect(() => {
-    if (currentStore?.id && !manualStoreRef.current) setSelectedStoreId(currentStore.id)
-  }, [currentStore])
+  // 注意：不再自动把首页 feed 锁到最近门店——默认全城聚合流，用户手动点门店切换器才下钻。
+  // （旧逻辑会在定位完成后自动 setSelectedStoreId(currentStore.id)，强制单店、小店首页空白，
+  // 违背「先逛全城」的人类习惯，已撤销。）
 
   // 下拉刷新（注：loadOrderFeed/loadAnnouncements/loadFeed 已在上文声明，避免依赖数组 TDZ）
   useEffect(() => {
@@ -633,7 +660,11 @@ export default function IndexPage() {
     let pool: Product[] = feedItems.map(f => f.product)
     if (pool.length === 0) {
       try {
-        pool = await getProducts({ limit: 40, platformFilter: 'only' })
+        // 复用首页主池失败时的兜底：优先按当前锁定门店，无门店才退全平台（保持一致）
+        const sid = selectedStoreId ?? currentStore?.id ?? null
+        pool = sid
+          ? await getProducts({ storeId: sid, limit: 40 })
+          : await getProducts({ limit: 40, platformFilter: 'only' })
       } catch (e) {
         console.error('[Index] 匹配查询失败', e)
       }
@@ -659,7 +690,7 @@ export default function IndexPage() {
     setMatchAvoid(avoidCount)
     setMatchLabel(buildMatchLabel(crowds))
     setMatchedLoading(false)
-  }, [syncAutoCrowds, feedItems])
+  }, [syncAutoCrowds, feedItems, selectedStoreId, currentStore])
 
   // 身体状态输入实时防抖（300ms，更跟手）→ 直接触发食养配对
   const handleMoodInput = (value: string) => {
@@ -765,7 +796,7 @@ export default function IndexPage() {
         </View>
       </View>
 
-      {/* ===================== 附近门店切换器：门店隔离后切换附近自营/平台店 ===================== */}
+      {/* ===================== 附近门店切换器：点选某门店即下钻只看该店，默认全城聚合 ===================== */}
       {nearbyStores.length > 0 && (
         <View className="mx-4 mt-3">
           <View className="flex items-center gap-1.5 mb-2">
@@ -847,6 +878,24 @@ export default function IndexPage() {
               {todayResult.constitution ? '已为你个性化' : '游客版 · 通用参考'}
             </Text>
           </View>
+
+          {/* P2 复测提醒：仅登录且距上次测试 ≥30 天才出现，内联不浮层，点「再测」直达测试页 */}
+          {retestDays !== null && retestDays >= 30 && (
+            <View
+              className="mb-3 rounded-xl px-3 py-2 flex items-center gap-2 bg-primary/10 border-l-2 border-primary active:scale-[0.99] transition-transform"
+              hoverClass="none"
+              onClick={() => Taro.navigateTo({ url: '/pages/food/constitution-test/index' })}
+            >
+              <Text className="text-base flex-shrink-0">🔔</Text>
+              <View className="min-w-0 flex-1">
+                <Text className="text-xs font-bold text-foreground block">体质可能有变化</Text>
+                <Text className="text-[11px] text-muted-foreground block">
+                  你 {retestDays} 天前测过体质，季节和作息都在变，再来一次更准
+                </Text>
+              </View>
+              <Text className="text-xs text-primary font-bold flex-shrink-0">再测 ›</Text>
+            </View>
+          )}
 
           {/* top3 推荐（点击直达对应药食同源零食商品） */}
           {todayResult.recommendations.length > 0 && (
@@ -993,6 +1042,34 @@ export default function IndexPage() {
           </View>
         )}
       </View>
+
+      {/* 最近扫码：扫码购物的「学习闭环」在首页食养区可见，点按跳回商品详情 */}
+      {scanChips.length > 0 && (
+        <View className="pg-card mx-4 mt-4 p-4 rounded-2xl">
+          <SectionHeader
+            emoji="📷"
+            title="最近扫码"
+            action={{ label: '去扫码 ›', onClick: () => scanAndRoute() }}
+          />
+          <ScrollView scrollX className="whitespace-nowrap mt-2">
+            {scanChips.map((h) => {
+              const pid = (h.parsed?.product_id as string) || ''
+              const pname = (h.parsed?.product_name as string) || h.raw_text || '扫码商品'
+              return (
+                <View
+                  key={h.id}
+                  hoverClass="none"
+                  onClick={() => pid && Taro.navigateTo({ url: `/pages/product/index?id=${pid}` })}
+                  className="rounded-xl border border-border bg-card px-3 py-2"
+                  style={{ display: 'inline-block', maxWidth: 160, marginRight: 12, verticalAlign: 'top' }}
+                >
+                  <Text className="text-sm text-foreground" numberOfLines={2}>{pname}</Text>
+                </View>
+              )
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {/* 即时匹配：输入/选择后直接展示配对好物，零额外操作（紧跟输入框，无需滚动） */}
       {hasQuery && (
@@ -1147,8 +1224,8 @@ export default function IndexPage() {
             className="home-cat-sticky"
             style={{ position: 'sticky', top: 0, zIndex: 20, background: 'hsl(var(--background))' }}
           >
-            <ScrollView scrollX showScrollbar={false} className="py-2">
-              <View className="flex items-center gap-2">
+            <ScrollView scrollX showScrollbar={false}>
+              <View className="flex items-center gap-2 py-2">
             {[
               { key: 'all', label: '全部', emoji: '🍱' },
               { key: '粉面', label: '粉面', emoji: '🍜' },

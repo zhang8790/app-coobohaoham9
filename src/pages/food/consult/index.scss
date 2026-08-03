@@ -349,8 +349,11 @@
 /* 商品明细（可展开内联） */
 .consult-checkout-items {
   max-height: 32vh;
-  padding: 0 14px;
   border-bottom: 1px solid #f0f0f0;
+}
+/* 内层容器承载 padding：scroll-view 在 webview 渲染模式不支持 padding，故移到内层 View */
+.consult-checkout-items-inner {
+  padding: 0 14px;
 }
 .consult-checkout-item {
   display: flex;

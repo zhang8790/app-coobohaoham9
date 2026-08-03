@@ -22,6 +22,7 @@ import {
 import { buildHealthShortfalls } from '@/utils/food-therapy/health-shortfall'
 import { STAGE_META, type ShiyangStage } from '@/utils/food-therapy/shiyang-stage'
 import { getProducts, updateProfile } from '@/db/api'
+import { getLocalUser } from '@/client/supabase'
 import { upsertUserHealthProfile, saveConstitutionResult } from '@/db/food-api'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import type { Product } from '@/db/types'
@@ -42,8 +43,6 @@ const POSTER_INSIGHT: Record<string, string> = {
 }
 
 export default function ConstitutionTestPage() {
-  const { profile } = useAuth()
-
   const [step, setStep] = useState<Step>('intro')
   const [currentQ, setCurrentQ] = useState(0)
   const [answers, setAnswers] = useState<number[]>(() => TEST_QUESTIONS.map(() => -1))
@@ -115,7 +114,8 @@ export default function ConstitutionTestPage() {
   }
 
   const handleSave = async () => {
-    if (!profile?.id) {
+    const { data: { user } } = await getLocalUser()
+    if (!user?.id) {
       Taro.showToast({ title: '请先登录', icon: 'none' })
       return
     }

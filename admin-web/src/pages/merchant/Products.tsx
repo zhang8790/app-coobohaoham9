@@ -8,6 +8,7 @@ import { localCompileEmotion, recommendDimensions } from '@/utils/emotion'
 import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/utils/shiyang'
 import { NATURE_SCALE, CROWD_OPTIONS, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
 import { analyzeDish } from '@/utils/dish-analyzer'
+import { encodeEAN13 } from '@/utils/barcode'
 
 interface ProductWithExt extends Product {
   status: 'online' | 'offline'
@@ -118,13 +119,15 @@ export default function MerchantProducts() {
   const [storeRefEnabled, setStoreRefEnabled] = useState(false)
   const [emotionFlash, setEmotionFlash] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
+  const [generatingBarcode, setGeneratingBarcode] = useState(false)
+  const [printingBarcode, setPrintingBarcode] = useState(false)
   const [dragOverSub, setDragOverSub] = useState(false)
   const [dragOverDetail, setDragOverDetail] = useState(false)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<ProductWithExt | null>(null)
   const [form, setForm] = useState({
-    name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '',
+    name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', barcode: '',
     main_image: '', sub_images: [] as string[], detail_images: [] as string[], video_url: '',
     discount_rate: '',
     ingredients: [] as string[],
@@ -262,7 +265,7 @@ export default function MerchantProducts() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', main_image: '', sub_images: [], detail_images: [], video_url: '', discount_rate: '', ingredients: [],
+    setForm({ name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', barcode: '', main_image: '', sub_images: [], detail_images: [], video_url: '', discount_rate: '', ingredients: [],
       overall_nature: '', health_tag: [], emotion_tag: [], match_goods: [], conflict_goods: [], aux_remind: '',
       food_category: '', positive_effect: '', risk_warning: '', emotion_copy: '', scenes: [],
       rec_crowds: [], cautious_crowds: [], cautious_notes: '', forbidden_crowds: [], forbidden_reasons: '',
@@ -280,6 +283,7 @@ export default function MerchantProducts() {
       cost_price: p.cost_price != null ? String(p.cost_price) : '',
       stock: String(p.stock),
       desc: p.description || '',
+      barcode: p.barcode ?? '',
       main_image: p.main_image || '',
       sub_images: p.sub_images ? [...p.sub_images] : [],
       detail_images: p.detail_images ? [...p.detail_images] : [],
@@ -313,6 +317,46 @@ export default function MerchantProducts() {
   }
 
   const closeModal = () => { setShowModal(false); setEditing(null) }
+
+  // 一键生成店内码（仅编辑已有商品）：服务端原子分配 EAN-13 并回写 products.barcode
+  // 用 RPC fn_alloc_store_barcode（SECURITY DEFINER，行锁防并发撞码），保证唯一且校验位正确
+  const onGenerateBarcode = async () => {
+    if (!editing) { window.alert('请先打开一个商品进行编辑'); return }
+    if (!storeId) { window.alert('未关联门店，无法生成店内码'); return }
+    setGeneratingBarcode(true)
+    try {
+      const { data, error } = await supabase.rpc('fn_alloc_store_barcode', { p_store_id: storeId })
+      if (error || !data || !data.length) {
+        window.alert('生成失败：' + (error?.message || '未知错误'))
+        return
+      }
+      const code = (data[0] as any).barcode as string
+      const type = (data[0] as any).barcode_type as string
+      const { error: upErr } = await supabase.from('products').update({ barcode: code, barcode_type: type }).eq('id', editing.id)
+      if (upErr) { window.alert('回写条码失败：' + upErr.message); return }
+      setForm(f => ({ ...f, barcode: code }))
+      setList(prev => prev.map(p => p.id === editing.id ? { ...p, barcode: code } : p))
+      window.alert('已生成店内码：' + code)
+    } finally {
+      setGeneratingBarcode(false)
+    }
+  }
+
+  // 打印条码标签（易联云 EAN-13 店内码）：依赖门店已配置打印机
+  const onPrintBarcode = async () => {
+    if (!form.barcode || !editing) return
+    setPrintingBarcode(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('print-receipt', { body: { mode: 'barcode', product_id: editing.id } })
+      if (error) { window.alert('打印失败：' + error.message); return }
+      const d = (data ?? {}) as any
+      if (d.need_config) { window.alert('该门店尚未配置易联云打印机，请先到「设置」配置打印机后再打印标签。'); return }
+      if (d.success) { window.alert('已推送打印'); }
+      else { window.alert('打印失败：' + (d.error || '未知错误')); }
+    } finally {
+      setPrintingBarcode(false)
+    }
+  }
 
   // —— 商品分类管理（新建/改名/排序/删除，仅店内分类可改；全局分类只读）——
   const catNameOf = (id: string | null | undefined): string => {
@@ -544,6 +588,8 @@ export default function MerchantProducts() {
       original_price: Number(form.original_price),
       cost_price: cost || null,
       stock: Number(form.stock),
+      barcode: form.barcode ? form.barcode.trim() : null,
+      barcode_type: 'EAN13',
       description: form.desc,
       main_image: form.main_image,
       sub_images: form.sub_images,
@@ -1044,6 +1090,45 @@ export default function MerchantProducts() {
                   <input value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} type="number" placeholder="0" style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />
                 </label>
               </div>
+
+              {/* 条码（EAN-13 店内码，超市同款）：生成 / 预览 / 打印 */}
+              <div style={{ marginTop: 14, padding: 14, background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 10 }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 600 }}>商品条码（EAN-13 店内码）</span>
+                <input value={form.barcode} onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))} placeholder="13 位 EAN-13，可留空一键生成" style={{ width: '100%', marginTop: 8, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                  <button type="button" onClick={onGenerateBarcode} disabled={generatingBarcode || !editing}
+                    style={{ padding: '6px 14px', background: (generatingBarcode || !editing) ? 'var(--border-soft)' : 'var(--success-strong)', border: '1px solid ' + (generatingBarcode || !editing ? 'var(--border-soft)' : 'var(--success-strong)'), borderRadius: 8, color: (generatingBarcode || !editing) ? 'var(--text-dim)' : '#fff', cursor: (generatingBarcode || !editing) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                    {generatingBarcode ? '生成中…' : '⚡ 一键生成店内码'}
+                  </button>
+                  {form.barcode && (
+                    <button type="button" onClick={onPrintBarcode} disabled={printingBarcode}
+                      style={{ padding: '6px 14px', background: printingBarcode ? 'var(--border-soft)' : 'var(--primary)', border: '1px solid ' + (printingBarcode ? 'var(--border-soft)' : 'var(--primary)'), borderRadius: 8, color: printingBarcode ? 'var(--text-dim)' : '#fff', cursor: printingBarcode ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                      {printingBarcode ? '打印中…' : '🖨 打印标签'}
+                    </button>
+                  )}
+                </div>
+                {form.barcode ? (
+                  <div style={{ marginTop: 12 }}>
+                    {(() => {
+                      const enc = encodeEAN13(form.barcode)
+                      if (!enc) return <span style={{ color: 'var(--danger)', fontSize: 12 }}>条码格式无效（须为 13 位 EAN-13）</span>
+                      return (
+                        <div style={{ background: '#fff', border: '1px solid var(--border-soft)', borderRadius: 8, padding: '10px', display: 'inline-block' }}>
+                          <div style={{ display: 'flex', flexDirection: 'row', height: 54, justifyContent: 'center' }}>
+                            {enc.modules.split('').map((m, i) => (
+                              <span key={i} style={{ display: 'inline-block', width: 2, height: 54, background: m === '1' ? '#000' : '#fff' }} />
+                            ))}
+                          </div>
+                          <div style={{ fontSize: 13, letterSpacing: 2, marginTop: 6, color: '#333', textAlign: 'center', fontFamily: 'monospace' }}>{form.barcode}</div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                ) : (
+                  <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '10px 0 0' }}>无条码：可「一键生成店内码」（EAN-13 超市同款），再打印标签贴商品。</p>
+                )}
+              </div>
+
               {/* 让利% */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <label>

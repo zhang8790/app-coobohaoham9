@@ -9,6 +9,7 @@ import {
   addToCart,
   trackFoodTherapyEvent,
 } from '@/db/api'
+import { addScanHistory } from '@/db/food-api'
 import { showCartToast } from '@/utils/cartToast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
@@ -44,6 +45,17 @@ export default function ScanResultPage() {
     }
     setProduct(prod)
     setNotFound(!prod)
+    if (user?.id && prod) {
+      // 扫码购物闭环：落一条 barcode 扫描历史（学习沉淀，首页食养区可见；失败静默不阻断）
+      addScanHistory({
+        user_id: user.id,
+        input_type: 'barcode',
+        raw_text: trimmed,
+        parsed: { product_id: prod.id, product_name: prod.name, health_tag: (prod as any).health_tag ?? [] },
+        profile_snapshot: null,
+        tier: null,
+      }).catch(() => {})
+    }
     setLoading(false)
   }, [code])
 
