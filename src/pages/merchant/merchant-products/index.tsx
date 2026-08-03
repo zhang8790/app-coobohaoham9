@@ -409,17 +409,21 @@ function MerchantProductsPage() {
     setIngredientItems(items)
   }
 
-  // 一键生成店内码（仅编辑已有商品）：调 product-mutate auto_barcode 分配 EAN-13 并回写
+  // 一键生成店内码：编辑已有商品→即时分配并回写；新建商品→保存时自动分配并保持在编辑态
   const onGenerateBarcode = async () => {
-    if (!editId) { Taro.showToast({ title: '请先保存商品', icon: 'none' }); return }
     setGeneratingBarcode(true)
     try {
-      const prod = await generateProductBarcode(editId)
-      if (prod && prod.barcode) {
-        setForm(f => ({ ...f, barcode: prod.barcode! }))
-        Taro.showToast({ title: '已生成店内码', icon: 'success' })
+      if (editId) {
+        const prod = await generateProductBarcode(editId)
+        if (prod && prod.barcode) {
+          setForm(f => ({ ...f, barcode: prod.barcode! }))
+          Taro.showToast({ title: '已生成店内码', icon: 'success' })
+        } else {
+          Taro.showToast({ title: '生成失败，请重试', icon: 'none' })
+        }
       } else {
-        Taro.showToast({ title: '生成失败，请重试', icon: 'none' })
+        // 新建商品：保存即自动分配店内码，并保持编辑态便于立即打印
+        await handleSave({ keepOpen: true })
       }
     } finally {
       setGeneratingBarcode(false)
@@ -444,7 +448,7 @@ function MerchantProductsPage() {
     }
   }
 
-  const handleSave = async () => {
+  const handleSave = async (opts?: { keepOpen?: boolean }) => {
     if (!store) return
     if (!form.name.trim()) { Taro.showToast({ title: '请填写商品名称', icon: 'none' }); return }
     const price = parseFloat(form.price)
@@ -475,6 +479,8 @@ function MerchantProductsPage() {
       const payload: any = {
         name: form.name, description: form.description, price,
         stock, barcode: form.barcode && form.barcode.trim() ? form.barcode.trim() : null,
+        // 新建商品且无码时自动分配店内码；生成流程（keepOpen）强制分配
+        auto_barcode: !!opts?.keepOpen || (!editId && !(form.barcode && form.barcode.trim())),
         main_image: form.main_image || undefined,
         sub_images: form.sub_images.length > 0 ? form.sub_images : undefined,
         detail_images: form.detail_images.length > 0 ? form.detail_images : undefined,
@@ -511,9 +517,18 @@ function MerchantProductsPage() {
         await updateProduct(editId, payload)
         Taro.showToast({ title: '修改成功', icon: 'success' })
       } else {
-        const created = await createProduct({ ...payload, store_id: store.id })
+        const autoBarcode = !!opts?.keepOpen || !(form.barcode && form.barcode.trim())
+        const created = await createProduct({ ...payload, store_id: store.id, auto_barcode: autoBarcode })
         if (!created) {
           Taro.showToast({ title: '保存失败，请检查后重试', icon: 'error' })
+          return
+        }
+        // 生成流程（keepOpen）：新建后拿到店内码并保持在编辑态，便于立即打印标签
+        if (opts?.keepOpen && created.barcode) {
+          setEditId(created.id)
+          setForm(f => ({ ...f, barcode: created.barcode! }))
+          Taro.showToast({ title: '已生成店内码并上架', icon: 'success' })
+          load()
           return
         }
         Taro.showToast({ title: '上架成功', icon: 'success' })
@@ -1218,11 +1233,11 @@ function MerchantProductsPage() {
               {/* 条码操作：生成 / 预览 / 打印（超市同款 EAN-13 店内码）*/}
               <View style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {editId ? (
+                  {!form.barcode ? (
                     <View
                       onClick={onGenerateBarcode}
                       style={{ padding: '8px 14px', borderRadius: '10px', background: generatingBarcode ? '#9CA3AF' : '#10B981', opacity: generatingBarcode ? 0.7 : 1 }}>
-                      <Text style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>{generatingBarcode ? '生成中…' : '⚡ 一键生成店内码'}</Text>
+                      <Text style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>{generatingBarcode ? '生成中…' : (editId ? '⚡ 一键生成店内码' : '⚡ 保存并生成店内码')}</Text>
                     </View>
                   ) : null}
                   {form.barcode ? (

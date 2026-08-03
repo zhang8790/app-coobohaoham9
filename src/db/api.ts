@@ -2911,7 +2911,7 @@ export async function getProductByBarcode(barcode: string): Promise<import('./ty
 export async function createProduct(params: {
   store_id: string; category_id?: string; name: string; description?: string
   price: number; original_price?: number; image_url?: string; stock: number
-  barcode?: string; mood_tags?: string[]; scene_tags?: string[]
+  barcode?: string; auto_barcode?: boolean; mood_tags?: string[]; scene_tags?: string[]
   // 新增字段
   main_image?: string; sub_images?: string[]; detail_images?: string[]
   video_url?: string; cost_price?: number; discount_rate?: number
@@ -2971,7 +2971,8 @@ export async function createProduct(params: {
       therapy_json: params.therapy_json ?? null,
       fit_people: params.fit_people ?? null,
       therapy_pending: typeof params.therapy_pending === 'boolean' ? params.therapy_pending : null,
-      allergens: params.allergens ?? null}
+      allergens: params.allergens ?? null,
+      auto_barcode: params.auto_barcode ?? null}
     const { data, error } = await supabase.functions.invoke('product-mutate', { body: invokeBody })
     if (!error && data?.success) {
       clearRequestCache() // 写后失效列表缓存，刚上架商品立即可见
@@ -3016,7 +3017,9 @@ export async function createProduct(params: {
     therapy_json: params.therapy_json ?? null,
     fit_people: params.fit_people ?? null,
     therapy_pending: typeof params.therapy_pending === 'boolean' ? params.therapy_pending : null,
-    allergens: params.allergens ?? null}
+      allergens: params.allergens ?? null}
+  // auto_barcode 仅供 product-mutate 内部分配店内码，不是 products 表列，回退直写前必须剥除
+  delete (insertPayload as any).auto_barcode
   const { data, error } = await supabase.from('products').insert(insertPayload).select().maybeSingle()
   // 软降级：若 products 表尚未加食疗导购新列（迁移 00100 未执行），剥离后重试，保证保存不失败
   if (error && NEW_COLUMN_RE.test(error.message)) {
