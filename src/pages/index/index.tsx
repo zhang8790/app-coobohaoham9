@@ -739,13 +739,20 @@ export default function IndexPage() {
           </View>
         </View>
 
-        {/* 顶部搜索/扫码合一栏：扫码降级为右侧相机入口，不再独占 C 位 */}
+        {/* 顶部搜索/扫码合一栏：左半搜索区点进搜索页，右侧扫码独立入口 */}
         <View
           className="mx-4 mt-3 rounded-2xl bg-card border border-border flex items-center gap-2 px-3 py-2.5"
           hoverClass="none"
         >
-          <Text style={{ fontSize: 16 }}>🔍</Text>
-          <Text className="text-sm text-muted-foreground flex-1">搜索好物，或扫码查配料安全</Text>
+          {/* 搜索区：点击进入搜索页（关键词/历史/热门词/适合我筛选） */}
+          <View
+            className="flex items-center gap-2 flex-1 active:opacity-70 transition-opacity"
+            hoverClass="none"
+            onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}
+          >
+            <Text style={{ fontSize: 16 }}>🔍</Text>
+            <Text className="text-sm text-muted-foreground flex-1">搜索好物，或扫码查配料安全</Text>
+          </View>
           <View
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-full active:scale-95 transition-transform"
             style={{ background: 'hsl(var(--primary))' }}
