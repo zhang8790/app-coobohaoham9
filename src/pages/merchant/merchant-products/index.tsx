@@ -126,6 +126,8 @@ function MerchantProductsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
+  // 是否通过「无条码？生成店内码上架」入口打开（保存时自动分配 EAN-13 店内码并保持编辑态便于立即打印）
+  const [pendingAutoBarcode, setPendingAutoBarcode] = useState(false)
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [scanning, setScanning] = useState(false)
@@ -280,6 +282,16 @@ function MerchantProductsPage() {
     setForm(emptyForm())
     setEditId(null)
     setIngredientItems([])
+    setPendingAutoBarcode(false)
+    setShowForm(true)
+  }
+
+  // 无条码商品：先造店内码再上架（与「扫码上架」平级的兄弟入口，让无码商品也能进入可扫码体系）
+  const onNewInstoreProduct = () => {
+    setForm(emptyForm())
+    setEditId(null)
+    setIngredientItems([])
+    setPendingAutoBarcode(true)
     setShowForm(true)
   }
 
@@ -553,6 +565,7 @@ function MerchantProductsPage() {
   const handleCloseForm = () => {
     setShowForm(false)
     setIngredientItems([])
+    setPendingAutoBarcode(false)
   }
 
   // —— 商品分类管理（新建/改名/删除/排序）——
@@ -858,6 +871,20 @@ function MerchantProductsPage() {
         </View>
       </View>
 
+      {/* 无条码？生成店内码上架 —— 与「扫码上架」平级，让无码商品也能进入可扫码体系 */}
+      <View style={{ padding: '10px 14px 0' }}>
+        <View
+          onClick={onNewInstoreProduct}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '13px 16px', borderRadius: '14px',
+            background: 'linear-gradient(135deg, #10B981, #059669)',
+            boxShadow: '0 2px 8px rgba(16,185,129,0.25)',
+          }}>
+          <Text style={{ color: '#FFF', fontSize: '15px', fontWeight: 'bold' }}>🏷 无条码？生成店内码上架</Text>
+        </View>
+      </View>
+
       {/* 批量配料安全分析按钮 */}
       <View style={{ display: 'flex', gap: '10px', padding: '10px 14px 0' }}>
         <View
@@ -1017,7 +1044,7 @@ function MerchantProductsPage() {
             {/* 标题栏 */}
             <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
               <Text style={{ fontSize: '18px', fontWeight: 'bold', color: '#333' }}>
-                {editId ? '✏️ 编辑商品' : '🆕 新增商品'}
+                {editId ? '✏️ 编辑商品' : (pendingAutoBarcode ? '🏷 生成店内码上架' : '🆕 新增商品')}
               </Text>
               <View
                 onClick={handleCloseForm}
@@ -1233,7 +1260,7 @@ function MerchantProductsPage() {
               {/* 条码操作：生成 / 预览 / 打印（超市同款 EAN-13 店内码）*/}
               <View style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {!form.barcode ? (
+                  {!form.barcode && !pendingAutoBarcode ? (
                     <View
                       onClick={onGenerateBarcode}
                       style={{ padding: '8px 14px', borderRadius: '10px', background: generatingBarcode ? '#9CA3AF' : '#10B981', opacity: generatingBarcode ? 0.7 : 1 }}>
@@ -1250,6 +1277,10 @@ function MerchantProductsPage() {
                 </View>
                 {form.barcode ? (
                   <EAN13Preview code={form.barcode} />
+                ) : pendingAutoBarcode ? (
+                  <View style={{ padding: '10px 12px', borderRadius: '10px', background: '#E8F5E9', borderLeft: '3px solid #10B981' }}>
+                    <Text style={{ fontSize: '12px', color: '#2E7D32', lineHeight: '18px' }}>🏷 该商品无原厂码，保存时将自动生成 EAN-13 店内码（合法 EAN-13，与厂码等效）。生成后可立即打印标签贴商品，后续「扫码上架 / 收银 / 盘点」都能识别。</Text>
+                  </View>
                 ) : (
                   <Text style={{ fontSize: '12px', color: '#999' }}>无条码：可「一键生成店内码」（EAN-13 超市同款），再打印标签贴商品。</Text>
                 )}
@@ -1762,9 +1793,9 @@ function MerchantProductsPage() {
                 color="hsl(var(--primary))" />
             </View>
 
-            {/* 保存按钮 */}
+            {/* 保存按钮 —— 店内码上架入口打开时，保存即生成店内码并保持编辑态便于立即打印 */}
             <View
-              onClick={handleSave}
+              onClick={pendingAutoBarcode && !editId ? () => handleSave({ keepOpen: true }) : () => handleSave()}
               style={{
                 width: '100%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1773,7 +1804,7 @@ function MerchantProductsPage() {
                 boxShadow: saving ? 'none' : '0 3px 12px rgba(255,87,34,0.3)',
               }}>
               <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#FFF' }}>
-                {saving ? '保存中…' : '💾 保存'}
+                {saving ? '保存中…' : (pendingAutoBarcode && !editId ? '💾 保存并生成店内码' : '💾 保存')}
               </Text>
             </View>
           </View>
