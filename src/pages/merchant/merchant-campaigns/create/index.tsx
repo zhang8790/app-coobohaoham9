@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Input, Button } from '@tarojs/components'
-import { supabase } from '@/client/supabase'
+import { supabase, getLocalUser } from '@/client/supabase'
 import { MOOD_CATEGORIES, MOOD_TAGS, MOOD_TAGS_ALL } from '@/utils/mood-tags'
 import Icon from '@/components/Icon'
 
@@ -51,7 +51,7 @@ export default function CreateCampaignPage() {
       const { data: store } = await supabase
         .from('stores')
         .select('id')
-        .eq('owner_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('owner_id', (await getLocalUser()).data.user?.id)
         .single()
 
       if (!store) {
@@ -67,7 +67,7 @@ export default function CreateCampaignPage() {
           store_id: store.id,
           campaign_name: formData.campaign_name,
           campaign_type: formData.campaign_type,
-          gift_name: formData.campaign_type === 'red_packet' ? '现金红包' : formData.gift_name,
+          gift_name: formData.campaign_type === 'red_packet' ? '福利金' : formData.gift_name,
           gift_value: parseFloat(formData.gift_value),
           total_limit: parseInt(formData.total_limit),
           daily_limit: parseInt(formData.daily_limit) || 10,
@@ -125,7 +125,7 @@ export default function CreateCampaignPage() {
             }`}
               onClick={() => handleInputChange('campaign_type', 'red_packet')}>
               <Text className={`text-base font-bold ${formData.campaign_type === 'red_packet' ? 'text-primary' : 'text-foreground'}`}>
-                🧧 现金红包
+                🧧 福利金
               </Text>
             </View>
             <View className={`flex-1 p-3 rounded-xl border-2 text-center ${
@@ -186,9 +186,9 @@ export default function CreateCampaignPage() {
           </View>
         </View>
 
-        {/* 佣金比例 */}
+        {/* 推荐奖励比例 */}
         <View className="mb-4">
-          <Text className="text-base font-bold text-foreground mb-2">推广佣金比例</Text>
+          <Text className="text-base font-bold text-foreground mb-2">推荐奖励比例</Text>
           <View className="border-2 border-input rounded-xl px-4 py-3 bg-card">
             <Input
               className="w-full text-xl text-foreground bg-transparent"
@@ -197,7 +197,7 @@ export default function CreateCampaignPage() {
               onInput={(e: any) => handleInputChange('commission_rate', e.detail?.value || '')}
               type="digit" />
           </View>
-          <Text className="text-sm text-muted-foreground mt-1">用户核销消费后，推荐人可获得佣金比例</Text>
+          <Text className="text-sm text-muted-foreground mt-1">用户核销消费后，推荐人可获得推荐奖励比例</Text>
         </View>
 
         {/* 情绪标签 */}

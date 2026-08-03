@@ -12,7 +12,7 @@ import {
   type SeasonalTerm,
 } from '@/utils/seasonal-box'
 import { INGREDIENT_DICT } from '@/utils/shiyang-dictionary'
-import { getProducts } from '@/db/api'
+import { getProducts, addToCart } from '@/db/api'
 import type { Product } from '@/db/types'
 
 // 节气emoji大图映射
@@ -154,7 +154,7 @@ function TermKnowledgeCard({ term }: { term: SeasonalTerm }) {
       </View>
       <View className="mt-2">
         <View className="flex items-start gap-1.5 mb-1.5">
-          <Text className="text-[10px] text-[#16A34A] font-bold mt-0.5">宜</Text>
+          <Text className="text-[10px] text-[#16A34A] font-bold mt-0.5">参考</Text>
           <Text className="text-xs text-[#374151] flex-1 leading-relaxed">{term.principle}</Text>
         </View>
         <View className="flex items-start gap-1.5">
@@ -178,7 +178,7 @@ function SeasonIngredients({ term }: { term: SeasonalTerm }) {
         <Text className="text-sm font-bold text-[#1A1A1A]">应季食材</Text>
         <View className="flex items-center gap-1">
           <View className="w-2 h-2 rounded-full" style={{ background: '#DC2626' }} />
-          <Text className="text-xs text-[#9A8070]">{term.nature} · {goods.length}种</Text>
+          <Text className="text-xs text-[#9A8070]">{term.natureLabel} · {goods.length}种</Text>
         </View>
       </View>
       <View className="flex flex-wrap gap-2">
@@ -213,7 +213,7 @@ function NextTermCard({ term, daysLeft }: { term: SeasonalTerm; daysLeft: number
             <Text className="text-xl">{TERM_ICONS[term.key] || term.emoji}</Text>
             <View>
               <Text className="text-sm font-bold text-[#1A1A1A]">{term.name}</Text>
-              <Text className="text-xs text-[#9A8070]">{daysLeft}天后开始 · {term.nature}</Text>
+              <Text className="text-xs text-[#9A8070]">{daysLeft}天后开始 · {term.natureLabel}</Text>
             </View>
           </View>
         </View>
@@ -300,6 +300,30 @@ export default function SeasonalBoxPage() {
     Taro.showToast({ title: '已取消订阅', icon: 'none' })
   }
 
+  // 一键加购本节气精选（组合包直接下单，打通现金流）
+  const handleBatchAdd = async () => {
+    const picks = products.filter((p) => p.store_id).slice(0, 6)
+    if (picks.length === 0) {
+      Taro.showToast({ title: '暂无可选商品', icon: 'none' })
+      return
+    }
+    Taro.showLoading({ title: '加购中...' })
+    let ok = 0
+    for (const p of picks) {
+      try {
+        const r = await addToCart(p.id, p.store_id as string, 1, null)
+        if (r) ok++
+      } catch (e) {
+        // 单件失败不影响其余
+      }
+    }
+    Taro.hideLoading()
+    Taro.showToast({
+      title: ok > 0 ? `已加购 ${ok} 件精选` : '加购失败',
+      icon: ok > 0 ? 'success' : 'none',
+    })
+  }
+
   if (!currentTerm) {
     return (
       <View className="min-h-screen bg-[#FFFBF7] flex items-center justify-center">
@@ -338,7 +362,7 @@ export default function SeasonalBoxPage() {
         {/* 食养主方向 */}
         <View className="flex items-center gap-2 mt-3">
           <View className="px-3 py-1 rounded-full bg-white/20">
-            <Text className="text-xs text-white font-medium">{displayTerm.nature}</Text>
+            <Text className="text-xs text-white font-medium">{displayTerm.natureLabel}</Text>
           </View>
           <Text className="text-xs text-white/80">{displayTerm.natureDesc}</Text>
         </View>
@@ -406,6 +430,28 @@ export default function SeasonalBoxPage() {
           </View>
         )}
 
+        {/* 一键加购本节气精选（组合包直接下单） */}
+        <View className="px-4 mt-3">
+          <View
+            className="rounded-2xl p-4 flex items-center justify-between"
+            style={{ background: '#FFFFFF', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+          >
+            <View className="flex-1">
+              <Text className="text-sm font-bold text-[#1A1A1A]">🛒 本节气精选组合</Text>
+              <Text className="text-xs text-[#9A8070] mt-0.5">
+                应季食材搭配，一键加购 {Math.min(products.filter((p) => p.store_id).length, 6)} 款好物
+              </Text>
+            </View>
+            <Button
+              className="rounded-full py-2 px-4 text-xs font-medium text-white"
+              style={{ background: '#DC2626', fontSize: 12 }}
+              onClick={handleBatchAdd}
+            >
+              一键加购本节气精选
+            </Button>
+          </View>
+        </View>
+
         {/* 节气知识卡 */}
         <TermKnowledgeCard term={displayTerm} />
 
@@ -442,6 +488,22 @@ export default function SeasonalBoxPage() {
             daysLeft={getDaysLeftInTerm(nextTerm)}
           />
         )}
+
+        {/* 年度会员专属：定制节气食盒方案（信息展示，非硬性付费墙） */}
+        <View
+          className="mx-4 mt-4 rounded-2xl p-4 flex items-center justify-between"
+          style={{ background: 'linear-gradient(135deg, #FEF3E2 0%, #FDE68A 100%)' }}
+          hoverClass="none"
+          onClick={() => Taro.showToast({ title: '年度会员定制食盒即将开放', icon: 'none' })}
+        >
+          <View className="flex-1">
+            <Text className="text-sm font-bold text-[#78350F]">🌟 年度会员专属</Text>
+            <Text className="text-xs text-[#92400E] mt-0.5">解锁定制化节气食盒方案，按月配齐应季好物</Text>
+          </View>
+          <View className="px-3 py-1.5 rounded-full bg-white/60 flex-shrink-0">
+            <Text className="text-xs font-medium text-[#78350F]">了解 ›</Text>
+          </View>
+        </View>
 
         {/* 免责声明 */}
         <View className="px-4 mt-6">

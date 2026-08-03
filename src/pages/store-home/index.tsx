@@ -10,7 +10,7 @@ import LazyImage from '@/components/LazyImage'
 import { getStoreById, getStoreCategories, getProducts, addToCart, bindStoreReferrer } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
 import type { Store, StoreCategory, Product } from '@/db/types'
-import { supabase } from '@/client/supabase'
+import { supabase, getLocalUser } from '@/client/supabase'
 import Icon from '@/components/Icon'
 import AddToCartButton from '@/components/AddToCartButton'
 import { buildTherapyReport, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
@@ -162,7 +162,7 @@ export default function StoreHomePage() {
 
   // 加入购物车（门店详情页商品）
   const handleAddCart = async (product: Product) => {
-    const uid = (await supabase.auth.getUser()).data.user
+    const uid = (await getLocalUser()).data.user
     if (!uid) { Taro.navigateTo({ url: '/pages/login/index' }); return }
     setAddingId(product.id)
     await addToCart(product.id, product.store_id || storeId)

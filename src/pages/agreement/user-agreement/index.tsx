@@ -26,37 +26,37 @@ function UserAgreement() {
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">三、服务内容</Text>
-          <Text className="block">1. 来电有喜是一个本地生活服务平台，为用户提供周边商家优惠信息及消费服务。</Text>
-          <Text className="block">2. 我们尽力确保平台信息的真实性，但不对商家提供的商品或服务的质量承担保证责任。</Text>
-          <Text className="block">3. 您通过本平台购买的商品或服务，由对应商家直接提供，相关售后由商家负责。</Text>
+          <Text className="block">1. 来电有喜是品牌自营商城，由各地连锁门店统一提供商品与到店消费服务。</Text>
+          <Text className="block">2. 我们尽力确保商品信息的真实性，但不对门店提供的商品或服务质量承担保证责任。</Text>
+          <Text className="block">3. 您通过本小程序购买的商品或服务由各连锁门店统一自营提供，相关售后由对应门店负责。</Text>
         </View>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">四、订单与支付</Text>
           <Text className="block">1. 您提交订单即视为购买意向的确认，订单生效后请按时完成支付。</Text>
           <Text className="block">2. 支付完成后，到店消费即视为已使用，订单完成。</Text>
-          <Text className="block">3. 如需退款，请在订单有效期内申请，我们将按平台规则处理。</Text>
+          <Text className="block">3. 如需退款，请在订单有效期内申请，我们将按本小程序规则处理。</Text>
         </View>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">五、用户行为规范</Text>
           <Text className="block">您承诺不得从事以下行为：</Text>
-          <Text className="block">1. 使用本平台从事任何违法活动。</Text>
-          <Text className="block">2. 发布虚假信息、恶意评价或干扰平台正常秩序。</Text>
-          <Text className="block">3. 尝试未经授权访问本平台服务器或网络系统。</Text>
-          <Text className="block">4. 将本平台用于任何商业性用途而未获得我们事先书面同意。</Text>
+          <Text className="block">1. 使用本小程序从事任何违法活动。</Text>
+          <Text className="block">2. 发布虚假信息、恶意评价或干扰本小程序正常秩序。</Text>
+          <Text className="block">3. 尝试未经授权访问本小程序服务器或网络系统。</Text>
+          <Text className="block">4. 将本小程序用于任何商业性用途而未获得我们事先书面同意。</Text>
         </View>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">六、知识产权</Text>
-          <Text className="block">本平台所有内容（包括但不限于文字、图片、视频、标识等）的知识产权归我们或相关内容提供方所有。未经许可，任何人不得擅自使用。</Text>
+          <Text className="block">本小程序所有内容（包括但不限于文字、图片、视频、标识等）的知识产权归我们或相关内容提供方所有。未经许可，任何人不得擅自使用。</Text>
         </View>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">七、免责声明</Text>
           <Text className="block">1. 因不可抗力（如自然灾害、政府行为、网络故障等）导致服务中断或数据丢失，我们不承担责任。</Text>
-          <Text className="block">2. 因第三方（如商家、支付机构）原因导致的损失，我们将依法协助您向责任方主张权利；法律法规规定平台应承担责任的情形，我们不以免责条款规避。</Text>
-          <Text className="block">3. 我们尽最大努力保障平台安全，但不保证平台不会存在漏洞或错误。</Text>
+          <Text className="block">2. 因第三方（如门店、支付机构）原因导致的损失，我们将依法协助您向责任方主张权利；法律法规规定我们应承担责任的情形，我们不以免责条款规避。</Text>
+          <Text className="block">3. 我们尽最大努力保障本小程序安全，但不保证本小程序不会存在漏洞或错误。</Text>
         </View>
 
         <View className="mb-4">

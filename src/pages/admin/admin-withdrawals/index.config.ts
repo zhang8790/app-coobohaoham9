@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '佣金兑付',
+  navigationBarTitleText: '奖励兑付',
   enableShareAppMessage: true,
   enableShareTimeline: true,
 })

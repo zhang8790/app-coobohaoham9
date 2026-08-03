@@ -1,5 +1,5 @@
 // @title 消息中心
-// @description 展示用户全部业务通知（订单/佣金/退款/提现/公告）
+// @description 展示用户全部业务通知（订单/推荐奖励/退款/提现/公告）
 // 样式对齐全站「墨韵国潮」暖米亮色主题（设计 token: app.scss :root），
 // 与首页/自营/购物车/用户 4 个 tab 页保持一致，移除离群的暗色皮肤。
 import { useState, useCallback, useEffect } from 'react'
@@ -26,7 +26,7 @@ interface Notification {
 // 状态语义色映射到全局 token（app.scss :root），统一国潮调，不再用离群 hex
 const TYPE_META: Record<string, { icon: string; color: string; label: string }> = {
   order_paid:         { icon: '🛒', color: 'success',    label: '订单' },
-  commission_arrived: { icon: '💰', color: 'warning',    label: '佣金' },
+  commission_arrived: { icon: '💰', color: 'warning',    label: '推荐奖励' },
   withdraw_progress:  { icon: '💸', color: 'info',       label: '提现' },
   refund_result:      { icon: '↩',  color: 'destructive', label: '退款' },
   announcement:       { icon: '📢', color: 'primary',    label: '公告' },
@@ -141,7 +141,7 @@ export default function MessagesPage() {
         <EmptyState
           icon={<Text className="text-5xl block mb-3">📭</Text>}
           title="暂无消息"
-          description="订单支付成功、佣金到账、退款结果、提现进度、换季提醒都会在这里通知"
+          description="订单支付成功、推荐奖励到账、退款结果、提现进度、换季提醒都会在这里通知"
         />
       ) : (
         <View className="py-3">

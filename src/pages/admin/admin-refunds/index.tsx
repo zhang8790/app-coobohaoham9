@@ -89,7 +89,7 @@ function AdminRefundsPage() {
       success: async (res) => {
         if (!res.confirm) return
         setProcessing(r.id)
-        const { error } = await supabase.from('refunds').update({ status: 'closed', reject_reason: '平台审核未通过' }).eq('id', r.id)
+        const { error } = await supabase.from('refunds').update({ status: 'closed', reject_reason: '品牌审核未通过' }).eq('id', r.id)
         setProcessing(null)
         if (error) { Taro.showToast({ title: '操作失败', icon: 'none' }); return }
         Taro.showToast({ title: '已驳回', icon: 'success' }); load()

@@ -11,7 +11,7 @@ import { supabase } from '@/client/supabase'
 const REASONS = [
   '商品质量问题',
   '商品与描述不符',
-  '商家发货错误',
+  '门店发货错误',
   '不想要了/冲动消费',
   '长时间未发货',
   '其他原因',

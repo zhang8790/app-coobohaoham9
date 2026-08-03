@@ -6,7 +6,6 @@
  * 字段说明：
  *  - ingredients    原材料食材 + 各自作用
  *  - modernNutrition 现代营养作用（分点）
- *  - tcmTherapy     中医食疗功效（分点）
  *  - suitableFor    适合人群
  *  - matchKeywords  演示用：商品名包含其一即展示（后端接入后改用 product.id 精确匹配）
  */
@@ -27,7 +26,6 @@ export interface FoodBenefit {
   subtitle?: string
   ingredients: IngredientRole[]
   modernNutrition: BenefitItem[]
-  tcmTherapy: BenefitItem[]
   suitableFor: string[]
   matchKeywords?: string[]
 }
@@ -47,12 +45,6 @@ export const FOOD_BENEFITS: Record<string, FoodBenefit> = {
       { title: '补充优质蛋白与矿物质', desc: '现代营养学认为，羊肉含优质蛋白质、血红素铁、锌、B 族维生素等营养成分；日常适量食用，可作为补铁、补充蛋白质的来源之一。' },
       { title: '口感柔和、温和适口', desc: '煮软的宽面口感柔和；久熬的羊汤温润，适合肠胃偏敏感、胃口一般的人日常适量食用。' },
       { title: '配菜丰富营养结构', desc: '传统烩面常搭配海带、豆腐、青菜、粉条等，丰富膳食纤维与矿物质，让营养更均衡。' },
-    ],
-    tcmTherapy: [
-      { title: '温润暖身', desc: '羊肉性温，秋冬适量食用能带来温润暖身的感觉，适合容易怕冷、畏寒的人群日常食养。' },
-      { title: '温和补给', desc: '适合体质偏弱、日常需要温和营养补给的人群作为正餐选择。' },
-      { title: '温养适口', desc: '温润适口，适合怕冷、容易疲乏时作为日常食养选择（食养参考，不替代医疗建议）。' },
-      { title: '暖润开胃', desc: '汤里常用生姜等香料去腥提味，入口暖润，容易让人有食欲。' },
     ],
     suitableFor: ['容易怕冷', '畏寒人群', '体力消耗大', '秋冬需要温润食养', '肠胃偏弱'],
     matchKeywords: ['烩面', '羊肉烩面', '羊肉汤面'],

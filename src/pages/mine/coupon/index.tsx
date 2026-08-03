@@ -57,7 +57,7 @@ function CouponPage() {
   const handleUse = (c: Coupon) => {
     Taro.showModal({
       title: '到店核销',
-      content: `券码：${c.code}\n请到店出示此码给商家核销`,
+      content: `券码：${c.code}\n请到店出示此码给门店核销`,
       showCancel: false,
       confirmText: '知道了',
     })

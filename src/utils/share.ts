@@ -5,8 +5,8 @@ import type { Product } from '@/db/types'
 // 获取当前用户的推广码（用于分享）
 // 新用户注册时数据库触发器会自动生成，这里只需要读取
 export async function getMyReferralCode(): Promise<string> {
-  const { supabase } = await import('@/client/supabase')
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, getLocalUser } = await import('@/client/supabase')
+  const { data: { user } } = await getLocalUser()
   if (!user) return ''
 
   const { data } = await supabase
@@ -72,8 +72,8 @@ export async function handleInviterFromQuery(): Promise<void> {
     const { createPendingReferral } = await import('@/db/api')
     await createPendingReferral({ referral_code: inviterCode })
 
-    const { supabase } = await import('@/client/supabase')
-    const { data: { user } } = await supabase.auth.getUser()
+    const { supabase, getLocalUser } = await import('@/client/supabase')
+    const { data: { user } } = await getLocalUser()
     if (!user) {
       Taro.setStorageSync('pendingReferralCode', inviterCode)
       return
@@ -91,7 +91,7 @@ export async function bindPendingInviter(): Promise<void> {
   try {
     const pending = Taro.getStorageSync('pendingReferralCode') as string | undefined
     if (!pending) return
-    const { supabase } = await import('@/client/supabase')
+    const { supabase, getLocalUser } = await import('@/client/supabase')
     await supabase.rpc('bind_referrer', { p_referral_code: pending })
     Taro.removeStorageSync('pendingReferralCode')
   } catch (e) {
@@ -133,112 +133,7 @@ export function buildProductShare(product: Product, referralCode: string) {
   return { title, path, query, imageUrl, timelineTitle }
 }
 
-// ============ 文章分享（标题优化 + 摘要提取） ============
-
-/**
- * 从文章中提取一段干净的摘要，用于分享海报/描述。
- * 优先顺序：summary 字段 → content 去 HTML 前 80 字 → 标题。
- */
-export function extractArticleExcerpt(article: any, maxLength = 80): string {
-  if (!article) return '发现一篇好文，快来看看~'
-  if (article.summary && typeof article.summary === 'string') {
-    return article.summary.slice(0, maxLength)
-  }
-  if (article.content && typeof article.content === 'string') {
-    // 粗暴去标签：把 [[product:...]] 和内容 HTML 标签都去掉
-    const plain = article.content
-      .replace(/\[\[product:[\w-]+\]\]/g, '')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-    if (plain.length > 0) {
-      return plain.slice(0, maxLength)
-    }
-  }
-  return (article.title || '发现一篇好文，快来看看~').slice(0, maxLength)
-}
-
-/**
- * 构建适合分享卡片的标题：
- * - 去掉运营/测试残留的后缀（如「预览时标签不可点」）
- * - 截断到 26 字，保留悬念
- * - 若标题太短，补一个情绪前缀增加点击欲
- */
-export function buildArticleShareTitle(article: any): string {
-  if (!article) return '来电有喜 - 好文推荐'
-  let title = (article.title || '').trim()
-
-  // 去掉常见的测试/调试后缀
-  title = title
-    .replace(/[\s]*预览时标签不可点[\s]*$/gi, '')
-    .replace(/[\s]*测试[\s]*$/gi, '')
-    .replace(/[\s]*test[\s]*$/gi, '')
-    .trim()
-
-  // 如果标题已经简短有力，直接返回
-  if (title.length > 0 && title.length <= 26) {
-    return title
-  }
-
-  // 否则截断，保留语义完整
-  if (title.length > 26) {
-    // 尽量在句号、冒号、分节处截断，保留钩子
-    const cutMarks = ['：', '；', '。', '，', '！', '?', ' ']
-    let bestCut = 26
-    for (const mark of cutMarks) {
-      const idx = title.lastIndexOf(mark, 26)
-      if (idx > 14) {
-        bestCut = idx + 1
-        break
-      }
-    }
-    return title.slice(0, bestCut) + (bestCut < title.length ? '…' : '')
-  }
-
-  // 标题为空时，用情绪词或摘要兜底
-  const tags = article.tags || []
-  const tag = tags[0] || ''
-  const excerpt = extractArticleExcerpt(article, 22)
-  if (tag) return `「${tag}」${excerpt}`
-  return excerpt || '来电有喜 - 好文推荐'
-}
-
-/**
- * 处理小程序码扫码进入（朋友圈海报锁客闭环）
- * scene 是短码，反查 article_share_codes → 跳转到对应图文。
- * 跳转带 ref=分享人推广码，使 article-detail 的锁客双保险能正确绑定归属。
- * 返回 true 表示已处理（已跳转），false 表示无 scene 或非本场景。
- */
-export async function handleScanScene(scene: string): Promise<boolean> {
-  if (!scene) return false
-  try {
-    const { supabase } = await import('@/client/supabase')
-    const { data, error } = await supabase
-      .from('article_share_codes')
-      .select('article_id, referrer_id')
-      .eq('scene', scene)
-      .maybeSingle()
-    if (error || !data?.article_id) return false
-
-    let ref = ''
-    if (data.referrer_id) {
-      const { data: p } = await supabase
-        .from('profiles')
-        .select('referral_code, invite_code')
-        .eq('id', data.referrer_id)
-        .maybeSingle()
-      ref = p?.referral_code || p?.invite_code || ''
-    }
-
-    const url =
-      `/pages/content/article-detail/index?id=${data.article_id}` +
-      `${ref ? `&ref=${ref}` : ''}&from=share`
-    // 跳转前先回首页栈再进详情，避免扫码时在任意页面被盖住
-    Taro.navigateTo({ url })
-    return true
-  } catch {
-    return false
-  }
-}
+// ============ 文章分享（已随创作功能移除，保留商品/推广分享） ============
+// extractArticleExcerpt / buildArticleShareTitle / handleScanScene 已删除：
+// 创作与文章分享闭环随「内容中心」整体下线，扫码仅保留门店/商品（见 utils/scan.ts）。
 

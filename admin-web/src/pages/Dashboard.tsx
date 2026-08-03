@@ -7,7 +7,7 @@ import { NavIcon } from '@/components/icons'
 
 // Mock 数据
 const MOCK_STATS: AdminStats = {
-  merchants: 3, products: 5, withdrawals: 2, articles: 3, users: 8, orders: 12,
+  merchants: 3, products: 5, withdrawals: 2, users: 8, orders: 12,
 }
 const MOCK_RECENT: MerchantApplication[] = [
   { id: 'm1', user_id: 'u1', store_name: '霸王茶姬（旗舰店）', contact_name: '张三', contact_phone: '13800138001', business_type: '餐饮', description: '头部新中式茶饮品牌', status: 'pending', reject_reason: null, created_at: new Date().toISOString() },
@@ -76,7 +76,6 @@ export default function Dashboard() {
     { label: '待审自营门店', key: 'merchants', color: 'var(--warning)', to: '/merchants', icon: 'store' },
     { label: '待审商品', key: 'products', color: 'var(--info)', to: '/products', icon: 'box' },
     { label: '待审提现', key: 'withdrawals', color: 'var(--primary)', to: '/withdrawals', icon: 'dollar' },
-    { label: '文章总数', key: 'articles', color: 'var(--accent)', to: '/ugc', icon: 'news' },
     { label: '用户总数', key: 'users', color: 'var(--success-strong)', to: '/users', icon: 'user' },
     { label: '订单总数', key: 'orders', color: 'var(--text-dim)', to: '/dashboard', icon: 'document' },
   ]

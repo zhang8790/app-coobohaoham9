@@ -15,11 +15,11 @@ const TYPE_LABEL: Record<string, string> = {
   purchase_spend: '消费支出',
   refund_return: '退款返还',
   recharge: '充值',
-  admin_grant: '平台发放',
-  admin_deduct: '平台扣除',
+  admin_grant: '品牌发放',
+  admin_deduct: '品牌扣除',
   purchase_earn: '购物返健康豆',
   refund_deduct: '退款扣回',
-  commission_earn: '佣金收益',
+  commission_earn: '推荐奖励',
 }
 
 const TYPE_COLOR: Record<string, string> = {
@@ -140,7 +140,7 @@ function TongbaoLedgerPage() {
             <EmptyState
               icon={<Icon name="cash-remove" size={60} className="text-muted-foreground/30" />}
               title="暂无健康豆明细"
-              description="佣金、充值、消费都会在这里记录"
+              description="推荐奖励、充值、消费都会在这里记录"
             />
           ) : (
             <View className="flex flex-col gap-3">

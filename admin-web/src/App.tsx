@@ -7,7 +7,6 @@ import Dashboard from '@/pages/Dashboard'
 import Merchants from '@/pages/Merchants'
 import Products from '@/pages/Products'
 import Withdrawals from '@/pages/Withdrawals'
-import Ugc from '@/pages/Ugc'
 import Users from '@/pages/Users'
 import Refunds from '@/pages/Refunds'
 import Announcements from '@/pages/Announcements'
@@ -27,6 +26,7 @@ import Settings from '@/pages/Settings'
 import Expiry from '@/pages/Expiry'
 import FoodSafetyLibs from '@/pages/FoodSafetyLibs'
 import FoodIngredients from '@/pages/FoodIngredients'
+import FoodTagRules from '@/pages/FoodTagRules'
 // 商家管理页面
 import MerchantDashboard from '@/pages/merchant/Index'
 import MerchantProducts from '@/pages/merchant/Products'
@@ -38,6 +38,9 @@ import MerchantMessages from '@/pages/merchant/Messages'
 import MerchantWithdraw from '@/pages/merchant/Withdraw'
 import MerchantMembers from '@/pages/merchant/Members'
 import MerchantSettings from '@/pages/merchant/Settings'
+import MerchantVehicles from '@/pages/merchant/Vehicles'
+import MerchantStaffInvites from '@/pages/merchant/StaffInvites'
+import MerchantPrinters from '@/pages/merchant/Printers'
 
 // ============ 路由守卫 ============
 
@@ -118,7 +121,6 @@ export default function App() {
             <Route path="merchants" element={<Merchants />} />
             <Route path="products" element={<Products />} />
             <Route path="withdrawals" element={<Withdrawals />} />
-            <Route path="ugc" element={<Ugc />} />
             <Route path="users" element={<Users />} />
           <Route path="refunds" element={<Refunds />} />
           <Route path="announcements" element={<Announcements />} />
@@ -136,6 +138,7 @@ export default function App() {
             <Route path="expiry" element={<Expiry />} />
             <Route path="food-safety-libs" element={<FoodSafetyLibs />} />
             <Route path="food-ingredients" element={<FoodIngredients />} />
+            <Route path="food-tag-rules" element={<FoodTagRules />} />
             <Route path="risk" element={<Risk />} />
             <Route path="settings" element={<Settings />} />
             </Route>
@@ -152,6 +155,9 @@ export default function App() {
             <Route path="withdraw" element={<MerchantWithdraw />} />
             <Route path="members" element={<MerchantMembers />} />
             <Route path="settings" element={<MerchantSettings />} />
+            <Route path="vehicles" element={<MerchantVehicles />} />
+            <Route path="staff" element={<MerchantStaffInvites />} />
+            <Route path="printers" element={<MerchantPrinters />} />
           </Route>
 
           {/* 兜底：未匹配路由 → 按角色跳转 */}

@@ -19,7 +19,7 @@ const DICT_TO_SCALE: Record<string, NatureLevel> = {
   '大热': '大热',
 }
 
-// 方案档位 → 数值（越热越大），用于寒热对冲 / 温补叠加判定
+// 方案档位 → 数值（越热越大），用于寒热对冲 / 温性叠加判定
 const SCALE_VALUE: Record<NatureLevel, number> = {
   '大寒': -3,
   '寒凉': -2,

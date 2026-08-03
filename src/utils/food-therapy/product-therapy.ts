@@ -72,8 +72,8 @@ const NATURE_LABEL: Record<string, string> = {
 // 性味 → 体感短句（抓心用，仅描述口感/体感，不写功效断言，守住合规底线）
 export const NATURE_FEELING: Record<string, string> = {
   大寒: '寒凉清润', 寒凉: '清爽凉润', 凉: '清爽偏凉', 微凉: '清润爽口',
-  平性: '平和养胃', 平: '平和适口', 微温: '温润舒服', 温: '温润暖胃',
-  温热: '温热养身', 大热: '辛温偏燥', 热: '温通偏燥',
+  平性: '平和适口', 平: '平和适口', 微温: '温润舒服', 温: '温润适口',
+  温热: '温热适身', 大热: '辛温偏燥', 热: '温通偏燥',
 }
 
 function natureToValue(n?: string | null): number {
@@ -112,6 +112,29 @@ const MEDICAL_TERM_MAP: Record<string, string> = {
   疗效: '食养参考',
   药用: '食养',
   药疗: '食养',
+  // —— 普通食品禁用功效词（药食同源项目合规红线，替换值均不含禁用词）——
+  补气血: '温和营养',
+  养血: '温和营养',
+  补血: '温和营养',
+  益气: '温和营养',
+  补气: '温和营养',
+  强筋健骨: '营养支持',
+  健骨: '营养支持',
+  强身健体: '膳食营养',
+  滋阴: '温润',
+  壮阳: '温和养护',
+  补肾: '温和养护',
+  // —— PRD 整改补充 ——
+  调理: '日常饮食',
+  滋补: '温和养护',
+  温补: '温性',
+  补益: '温和营养',
+  祛湿: '轻盈',
+  术后恢复: '恢复期',
+  慢性病: '身体状态',
+  营养补给: '饮食搭配',
+  温养: '温和养护',
+  滋养: '温和养护',
 }
 export function sanitizeTherapyCopy(text: string): string {
   let out = text || ''
@@ -122,7 +145,7 @@ export function sanitizeTherapyCopy(text: string): string {
 }
 
 export const THERAPY_DISCLAIMER =
-  '本内容仅为食养参考，不属于医疗建议，不能替代药物治疗；过敏体质、慢性病患者请结合自身医嘱食用。'
+  '本内容仅为食养参考，不属于医疗建议，不能替代专业医疗指导；过敏体质、慢性病患者请结合自身医嘱食用。'
 
 // ---------- 1. 性味合并 ----------
 export function mergeNature(items: ProductIngredientInput[]): { code: string; desc: string } {
@@ -194,12 +217,6 @@ export function mergeCrowds(
       if (cat.kw.some((k) => lower.includes(k.toLowerCase()))) careCategories.add(cat.key)
     }
   }
-  // 烹饪/辅料派生提示（高血压差异化的核心）
-  const hasHeavyOil = items.some((it) => /重油|红烧|油炸|油焖/.test(it.cooking || ''))
-  const hasSaltOrSugar = items.some((it) => (it.aux || []).some((a) => /盐|糖|酱油|酱/.test(a)))
-  if (hasHeavyOil || hasSaltOrSugar) {
-    caution.add('高血压人群注意控盐控油，建议少油少盐版本')
-  }
   return {
     caution: Array.from(caution),
     chronic: Array.from(chronic),
@@ -223,7 +240,7 @@ export function buildTherapyReport(
     const tipMap: Record<string, string> = {
       体寒: '体寒怕冷、脾胃虚寒、女生生理期人群：偏凉食材建议搭配生姜、红枣等同食，更温和适口。',
       经期: '生理期女性：偏凉食材建议搭配温性辅料，不宜过量生冷。',
-      上火: '容易上火、咽喉肿痛人群：温补食材建议单次少量食用。',
+      上火: '容易上火、咽喉肿痛人群：温性食材建议单次少量食用。',
     }
     warnings.push({ level: 'orange', code: `care_${cat}`, label: '体质慎食', text: tipMap[cat] || '' })
   }
@@ -234,20 +251,13 @@ export function buildTherapyReport(
     } as TherapyWarning)
   }
 
-  // 蓝：慢病适配（附食用建议）
-  for (const t of chronic) {
-    const advice = /高血压/.test(t)
-      ? '建议选择少油少盐款，单次食用适量。'
-      : /减脂|减肥/.test(t)
-        ? '作为日常轻盈膳食搭配适量食用。'
-        : /儿童/.test(t)
-          ? '适合作为日常营养补给。'
-          : '结合个人体质适量食用。'
+  // 蓝：慢病适配（统一兜底，严禁按疾病名称做定向适配建议，详见 PRD 3.3）
+  if (chronic.length > 0) {
     warnings.push({
       level: 'blue',
-      code: `chronic_${t}`,
+      code: 'chronic_general',
       label: '慢病适配',
-      text: `${t}：${advice}`,
+      text: '若存在慢性身体问题，建议结合自身情况咨询专业人士后选择食材。',
     })
   }
 
@@ -261,16 +271,14 @@ export function buildTherapyReport(
         .filter(Boolean),
     ),
   )
-  const chronicFit = chronic.filter((t) => /友好|适宜|营养|补充/.test(t))
-  const fitParts = [...fitScenes, ...chronicFit]
+  const fitParts = [...fitScenes]
   // 兜底通用项去重（避免与食材适用场景重复，如「日常佐餐」）
-  const fallback = ['日常佐餐', '上班族', '青少年营养补给'].filter((x) => !fitParts.includes(x))
+  const fallback = ['日常佐餐', '上班族', '青少年饮食搭配'].filter((x) => !fitParts.includes(x))
   const fit_people = sanitizeTherapyCopy([...fitParts, ...fallback].join('、'))
 
-  // 商家寄语模板（80 字内，合规过滤）
+  // 商家寄语模板（80 字内，合规过滤；中性体感描述，杜绝功效/疾病定向，详见 PRD 2.4）
   const merchant_note = sanitizeTherapyCopy(
-    `${productName}为${nature.desc}食养，${combined_effect}；日常温和适口。` +
-      (chronic.some((t) => /高血压/.test(t)) ? '高血压食客建议清淡做法食用。' : ''),
+    `${productName}属于${nature.desc}食用食材，口感温和适口，可作为日常饮食搭配参考；用户可根据自身饮食习惯调整烹饪方式。`,
   ).slice(0, 80)
 
   return {
@@ -295,7 +303,7 @@ export interface TherapyHeadline {
 
 export function buildTherapyHeadline(r: ProductTherapyReport): TherapyHeadline {
   const feeling = NATURE_FEELING[r.overall_nature_code] || ''
-  const main = feeling ? `${feeling} · 多数人都能安心吃` : '食养参考 · 适量为宜'
+  const main = feeling ? `${feeling}，适合大众日常饮食` : '口感温和适口，适合大众日常饮食'
   const sub = r.fit_people
     ? `适合${r.fit_people.split('、')[0].replace(/等$/, '')}等`
     : '基于真实配料实时计算'

@@ -24,10 +24,10 @@ export interface StageMeta {
 
 export const STAGE_META: Record<ShiyangStage, StageMeta> = {
   清: { stage: '清', label: '温和清润', coreTag: '温和清润', desc: '清润舒缓，给日常做减法' },
-  通: { stage: '通', label: '轻畅疏通', coreTag: '轻畅舒畅', desc: '疏通调理，让身体更轻畅' },
-  调: { stage: '调', label: '养护脾胃', coreTag: '养护脾胃', desc: '调和脾胃，养护运化之本' },
-  补: { stage: '补', label: '温和补益', coreTag: '温和补益', desc: '温和补益，补足日常所需' },
-  固: { stage: '固', label: '固本养护', coreTag: '固本养护', desc: '固本培元，稳住日常状态' },
+  通: { stage: '通', label: '轻畅疏通', coreTag: '轻畅舒畅', desc: '疏通舒畅，让身体更轻畅' },
+  调: { stage: '调', label: '温和养护', coreTag: '温和养护', desc: '调和脾胃，养护运化之本' },
+  补: { stage: '补', label: '温和营养', coreTag: '温和营养', desc: '温和营养，补足日常所需' },
+  固: { stage: '固', label: '固本养护', coreTag: '固本养护', desc: '温和养护，稳住日常状态' },
 }
 
 // 食养作用关键词 → 阶段（确定性映射；单关键词仅归一个主导阶段，保证可复现）
@@ -52,15 +52,15 @@ export const STAGE_NEIGHBORS: Record<ShiyangStage, { base: ShiyangStage | null; 
 // 阶段默认暖心一句话（无人工文案时兜底；过 shieldCopy 仍安全）
 const STAGE_ONELINER: Record<ShiyangStage, string> = {
   清: '日常清润舒缓，适合需要温和清润、给身体做减法的时候。',
-  通: '帮助身体保持轻畅，适合饮食油腻、需要疏通调理的时候。',
-  调: '温和养护脾胃运化，适合日常调理、把底子慢慢养好的时候。',
-  补: '温和补充营养，适合生长发育或日常需要多加一点的时候。',
-  固: '固本培元、稳住状态，适合日常打底、长期温和养护的时候。',
+  通: '帮助身体保持轻畅，适合饮食油腻、需要疏通舒畅的时候。',
+  调: '温和养护脾胃运化，适合日常温和养护、把底子慢慢养好的时候。',
+  补: '温和补给营养，适合日常饮食多加一点的时候。',
+  固: '固本养护、稳住状态，适合日常打底、长期温和养护的时候。',
 }
 
 // 通用合规声明（食品预包装合规 + 食养护栏合并，过 shieldCopy）
 const UNIFIED_DISCLAIMER =
-  '以上内容为传统食养文化与营养学常识分享，仅作日常饮食参考，不替代医疗诊断与治疗建议。'
+  '以上内容为传统食养文化与营养学常识分享，仅作日常饮食参考，不替代医疗诊断与专业建议。'
 
 function safe(text: string): string {
   return shieldCopy(text).safe
@@ -121,6 +121,9 @@ export interface StageIngredientRow {
   scenarios: string[]  // 适配场景
 }
 
+// 适配场景展示过滤：剔除带功效/恢复期待/经期调理暗示的场景词（仅影响展示，内部评分仍用原始数据）
+const SCENE_FORBIDDEN = /(温补|温养|滋养|调理|调养|术后|恢复|进补|补益|滋补|经期)/
+
 export interface ShiyangStageModule {
   stage: ShiyangStage | null
   label: string
@@ -155,20 +158,27 @@ export function buildShiyangStageModule(
     name: e.zh,
     icon: e.icon || '🍃',
     nature: e.nature,
-    benefits: e.benefits,
-    scenarios: e.scenarios,
+    // 合规：模块①展示中性传统饮食描述（不再透出「补气血/强筋健骨」等功效词，详见 PRD 2.1）
+    benefits: [`${e.nature}性食材，可作日常饮食搭配参考`],
+    // 适配场景：过滤功效/恢复期待词，仅保留日常场景（不影响内部阶段评分）
+    scenarios: (() => {
+      const filtered = e.scenarios
+        .map((s) => shieldCopy(s).safe)
+        .filter((s) => s.trim().length > 0 && !SCENE_FORBIDDEN.test(s))
+      return filtered.length > 0 ? filtered : ['日常饮食']
+    })(),
   }))
 
-  // 搭配建议：阶段上下游叙事（过合规脱敏）
+  // 搭配建议：阶段上下游叙事（过合规脱敏，去调理暗示）
   let comboNarrative = ''
   if (stage) {
     const nb = STAGE_NEIGHBORS[stage]
     const baseText = nb.base
       ? `先搭配「${STAGE_META[nb.base].label}·${STAGE_META[nb.base].coreTag}」类零食打底`
-      : '本品为调理起点，上火/积食期可优先单独食用'
+      : '本品为食养起点，上火/积食期可优先单独食用'
     const consText = `再搭配「${STAGE_META[nb.consolidate].label}·${STAGE_META[nb.consolidate].coreTag}」类零食巩固`
     comboNarrative = safe(
-      `💡 搭配建议：本品为「${meta!.label}」食养零食，${baseText}，${consText}，按阶调理更均衡。`,
+      `💡 搭配建议：本品为「${meta!.label}」食养零食，${baseText}，${consText}，按阶搭配更均衡。`,
     )
   }
 

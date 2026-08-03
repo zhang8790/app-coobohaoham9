@@ -38,7 +38,7 @@ function SeasonHero({ result }: { result: TodayFoodTherapyResult }) {
           <Text className="text-3xl">{term.emoji}</Text>
           <View>
             <Text className="text-xl font-bold" style={{ color: '#374151' }}>{term.name}</Text>
-            <Text className="text-xs" style={{ color: '#6B7280' }}>{term.pinyin} · {term.nature}</Text>
+            <Text className="text-xs" style={{ color: '#6B7280' }}>{term.pinyin} · {term.natureLabel}</Text>
           </View>
         </View>
         <View className="px-3 py-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.6)' }}>
@@ -91,7 +91,7 @@ function ConstitutionCard({ result }: { result: TodayFoodTherapyResult }) {
           <View className="flex items-center gap-2">
             <Text className="text-lg">🧪</Text>
             <Text className="text-sm font-medium" style={{ color: '#92400E' }}>
-              还未完整体质测试
+              还未完整设置偏好
             </Text>
           </View>
           <View
@@ -99,12 +99,12 @@ function ConstitutionCard({ result }: { result: TodayFoodTherapyResult }) {
             onClick={() => Taro.navigateTo({ url: '/pages/food/constitution-test/index' })}
           >
             <Text className="text-xs font-medium" style={{ color: '#78350F' }}>
-              立即测试 →
+              立即设置 →
             </Text>
           </View>
         </View>
         <Text className="text-xs mt-2" style={{ color: '#92400E' }}>
-          完成测试后，推荐会更贴合你的体质
+          完成设置后，推荐会更贴合你的体质
         </Text>
       </View>
     )

@@ -1,5 +1,8 @@
 // @title 自营门店中心 - 会员管理（含跨店消费流水）
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
+import { getMyMerchantStore } from '@/api/merchant'
 
 // ============ 类型 ============
 interface Member {
@@ -105,6 +108,195 @@ const LEVEL_COLOR: Record<string, string> = {
   '青铜会员': '#8B7355', '白银会员': 'var(--text-muted)', '黄金会员': 'var(--warning)', '铂金会员': 'var(--accent-text)',
 }
 
+// ============ 食养导购参考（战略闭环：C 端食养工具 → 门店精准导购）============
+// 合规：仅展示会员「显式授权」后的中性食养参考维度；未授权 / 未登录 / 非本店会员
+//       一律走演示兜底并醒目标注，绝不裸奔暴露健康 PII。
+interface FoodMember {
+  age_group: string | null
+  gender: string | null
+  constitution_type: string | null
+  allergies: string[]
+  chronic_conditions: string[]
+  body_states: string[]
+  health_goals: string[]
+}
+interface FoodProfileResp {
+  authorized: boolean
+  reason: string
+  member?: FoodMember
+  family?: (FoodMember & { name: string })[]
+}
+
+// 健康目标 → 本店零食适配方向（中性食养建议，非医疗宣称）
+const GOAL_GUIDE: Record<string, string> = {
+  '控糖': '低糖/无糖零食，避开含糖饮料、蜜饯、糕点',
+  '护胃': '温热不刺激、细软好消化，少冰少辣',
+  '助眠': '含 GABA、酸枣仁、温牛奶等舒缓类零食',
+  '补血': '富铁零食：红枣、桑葚、黑芝麻、动物肝脏类',
+  '抗疲劳': '坚果、黑巧克力(适量)、全谷物能量类',
+  '减脂': '低脂高纤、原味坚果、冻干果脆',
+  '清热': '花草茶、绿豆、梨等清润类零食',
+}
+
+// 演示兜底数据（标注「演示」，真实场景由 C 端授权后从 RPC 拉取）
+const DEMO_FOOD: Record<string, FoodProfileResp> = {
+  u1: { authorized: true, reason: 'demo', member: { age_group: '成人', gender: '女', constitution_type: '平和质', allergies: ['牛奶', '椰果'], chronic_conditions: ['控糖关注'], body_states: ['易疲劳'], health_goals: ['控糖', '护胃'] },
+       family: [{ name: '妈妈', age_group: '老年', gender: '女', constitution_type: '阴虚质', allergies: ['牛奶'], chronic_conditions: ['血糖关注'], body_states: ['易疲劳'], health_goals: ['控糖'] }] },
+  u2: { authorized: true, reason: 'demo', member: { age_group: '成人', gender: '男', constitution_type: '痰湿质', allergies: ['花生', '芒果'], chronic_conditions: ['体重管理'], body_states: ['易水肿'], health_goals: ['减脂', '清热'] }, family: [] },
+  u3: { authorized: true, reason: 'demo', member: { age_group: '成人', gender: '女', constitution_type: '气虚质', allergies: ['海鲜', '鸡蛋'], chronic_conditions: ['贫血关注'], body_states: ['易疲劳', '怕冷'], health_goals: ['补血', '抗疲劳'] },
+       family: [{ name: '女儿', age_group: '儿童', gender: '女', constitution_type: '平和质', allergies: ['鸡蛋'], chronic_conditions: [], body_states: [], health_goals: ['护胃'] }] },
+  u4: { authorized: true, reason: 'demo', member: { age_group: '青少年', gender: '男', constitution_type: '阳虚质', allergies: ['芒果'], chronic_conditions: [], body_states: ['怕冷'], health_goals: ['护胃'] }, family: [] },
+  u5: { authorized: true, reason: 'demo', member: { age_group: '成人', gender: '男', constitution_type: '湿热质', allergies: ['麸质', '乳糖'], chronic_conditions: ['睡眠关注'], body_states: ['易上火'], health_goals: ['助眠', '清热'] }, family: [] },
+}
+
+function FoodChip({ label, color }: { label: string; color?: string }) {
+  return (
+    <span style={{
+      background: color ? `${color}1a` : 'var(--border)',
+      color: color || 'var(--text-muted)',
+      fontSize: 12, padding: '3px 10px', borderRadius: 20, margin: '0 6px 6px 0', display: 'inline-block',
+    }}>{label}</span>
+  )
+}
+
+function MemberFoodCard({ p, title, accent }: { p: FoodMember; title: string; accent: string }) {
+  const allergens = p.allergies || []
+  const goals = p.health_goals || []
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <p style={{ color: accent, fontSize: 13, fontWeight: 700, margin: '0 0 8px' }}>{title}</p>
+      <div style={{ marginBottom: 6 }}>
+        {p.constitution_type && <FoodChip label={`体质·${p.constitution_type}`} color={accent} />}
+        {p.age_group && <FoodChip label={p.age_group} />}
+        {p.gender && <FoodChip label={p.gender} />}
+      </div>
+      {allergens.length > 0 && (
+        <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '8px 10px', marginBottom: 6 }}>
+          <p style={{ color: 'var(--danger)', fontSize: 12, fontWeight: 700, margin: '0 0 4px' }}>⚠️ 导购红线 · 过敏回避</p>
+          <p style={{ color: 'var(--text)', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+            对 {allergens.join('、')} 过敏，挑选零食时务必避开含这些配料的商品。
+          </p>
+        </div>
+      )}
+      {goals.length > 0 && (
+        <div style={{ background: 'rgba(5,150,105,0.07)', border: '1px solid rgba(5,150,105,0.25)', borderRadius: 8, padding: '8px 10px' }}>
+          <p style={{ color: 'var(--success-strong)', fontSize: 12, fontWeight: 700, margin: '0 0 4px' }}>🛒 本店适配方向</p>
+          {goals.map(g => (
+            <p key={g} style={{ color: 'var(--text)', fontSize: 12, margin: '2px 0', lineHeight: 1.5 }}>
+              · {g}：{GOAL_GUIDE[g] || '结合体质做中性食养推荐'}
+            </p>
+          ))}
+        </div>
+      )}
+      {(((p.chronic_conditions || []).length) > 0 || ((p.body_states || []).length) > 0) && (
+        <div style={{ marginTop: 6 }}>
+          {(p.chronic_conditions || []).map(c => <FoodChip key={c} label={c} color="#C8A45C" />)}
+          {(p.body_states || []).map(b => <FoodChip key={b} label={b} color="#3B5B7A" />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function demoFallback(_memberId: string): FoodProfileResp {
+  return {
+    authorized: true, reason: 'demo',
+    member: { age_group: '成人', gender: null, constitution_type: '平和质', allergies: [], chronic_conditions: [], body_states: [], health_goals: ['护胃'] },
+    family: [],
+  }
+}
+
+function FoodProfilePanel({ memberId, memberName }: { memberId: string; memberName: string }) {
+  const { profile } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [data, setData] = useState<FoodProfileResp | null>(null)
+  const [isDemo, setIsDemo] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      setLoading(true)
+      setData(null)
+      setIsDemo(false)
+      try {
+        // 本店 store_id：统一身份解析（owner_id 或 store_staff 活跃成员）
+        let storeId: string | null = null
+        if (profile?.id) {
+          const st = await getMyMerchantStore(profile.id)
+          storeId = st?.id ?? null
+        }
+        let real: FoodProfileResp | null = null
+        if (storeId && memberId) {
+          const { data: rpc, error } = await supabase.rpc('get_store_member_food_profile', {
+            p_store_id: storeId,
+            p_member_user_id: memberId,
+          })
+          if (!error && rpc && (rpc as FoodProfileResp).authorized === true) {
+            real = rpc as FoodProfileResp
+          }
+        }
+        if (real) {
+          if (!cancelled) { setData(real); setIsDemo(false) }
+        } else if (!cancelled) {
+          // 演示兜底：未授权 / 未登录 / 非本店会员 → 展示演示数据并标注
+          setData(DEMO_FOOD[memberId] || demoFallback(memberId))
+          setIsDemo(true)
+        }
+      } catch (e) {
+        if (!cancelled) { setData(DEMO_FOOD[memberId] || demoFallback(memberId)); setIsDemo(true) }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    run()
+    return () => { cancelled = true }
+  }, [memberId, profile?.id])
+
+  return (
+    <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden', marginTop: 16 }}>
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 18 }}>🍎</span>
+        <p style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, margin: 0 }}>食养导购参考</p>
+        <span style={{ background: 'rgba(5,150,105,0.15)', color: 'var(--success-strong)', fontSize: 10, padding: '2px 8px', borderRadius: 10, marginLeft: 'auto' }}>
+          {loading ? '加载中' : isDemo ? '演示数据' : '已授权'}
+        </span>
+      </div>
+
+      <div style={{ padding: 20 }}>
+        {loading ? (
+          <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>正在读取会员食养档案…</p>
+        ) : data?.member ? (
+          <>
+            {isDemo && (
+              <div style={{ background: 'rgba(202,164,92,0.12)', border: '1px solid rgba(202,164,92,0.3)', borderRadius: 8, padding: '8px 10px', marginBottom: 14 }}>
+                <p style={{ color: '#9A3324', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+                  演示数据：真实场景需会员在 C 端「家庭食养档案」页开启「向常去门店分享食养档案」授权，到店时由本店店员读取。以下为示例画像。
+                </p>
+              </div>
+            )}
+            <MemberFoodCard p={data.member} title={`${memberName} · 本人食养参考`} accent="var(--accent-text)" />
+            {data.family && data.family.length > 0 && (
+              <>
+                <p style={{ color: 'var(--text-dim)', fontSize: 12, fontWeight: 700, margin: '10px 0 6px' }}>家庭成员食养参考</p>
+                {data.family.map((f, i) => (
+                  <MemberFoodCard key={i} p={f} title={f.name} accent="#3B5B7A" />
+                ))}
+              </>
+            )}
+            <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: '10px 0 0', lineHeight: 1.6 }}>
+              以上仅为膳食参考，不替代医嘱；店员据此做零食推荐，不做任何诊断。
+            </p>
+          </>
+        ) : (
+          <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: 0 }}>
+            该会员尚未开启「向常去门店分享食养档案」授权，或不是本店会员，暂无可用的食养参考。
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ============ 组件 ============
 export default function MerchantMembers() {
   const [members]   = useState<Member[]>(MOCK_MEMBERS)
@@ -196,6 +388,7 @@ export default function MerchantMembers() {
 
         {/* ===== 右侧：会员详情 + 跨店流水 ===== */}
         {selected && (
+          <>
           <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
             {/* 会员信息头部 */}
             <div style={{ padding: 20, borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
@@ -320,6 +513,8 @@ export default function MerchantMembers() {
               </div>
             )}
           </div>
+          <FoodProfilePanel memberId={selected.id} memberName={selected.nickname} key={selected.id} />
+        </>
         )}
       </div>
 

@@ -10,8 +10,12 @@ import { maskPhone } from '@/utils/mask'
 import Icon from '@/components/Icon'
 
 type App = {
-  id: string; user_id: string; store_name: string; contact_name: string
-  contact_phone: string; business_type: string; description: string | null
+  id: string; user_id: string; store_name: string
+  contact_name: string | null
+  contact_phone: string
+  business_type: string | null
+  description: string | null
+  address: string | null
   status: string; created_at: string
 }
 
@@ -78,23 +82,19 @@ function AdminMerchantsPage() {
                 <View className="flex items-start justify-between">
                   <View className="flex flex-col gap-1">
                     <Text className="text-2xl font-bold text-foreground">{app.store_name}</Text>
-                    <Text className="text-xl text-muted-foreground">{app.business_type}</Text>
+                    <Text className="text-base text-muted-foreground">自营门店申请</Text>
                   </View>
                   <Text className="px-3 py-1 rounded-full text-base bg-amber-100 text-amber-700 font-bold">待审</Text>
                 </View>
                 <View className="flex flex-col gap-1">
                   <View className="flex items-center gap-2">
-                    <Icon name="account" size={20} className="text-muted-foreground" />
-                    <Text className="text-xl text-foreground">{app.contact_name}</Text>
-                  </View>
-                  <View className="flex items-center gap-2">
                     <Icon name="phone" size={20} className="text-muted-foreground" />
                     <Text className="text-xl text-foreground">{maskPhone(app.contact_phone)}</Text>
                   </View>
-                  {app.description && (
+                  {app.address && (
                     <View className="flex items-start gap-2">
-                      <Icon name="text" size={20} className="text-muted-foreground flex-shrink-0 mt-0.5" />
-                      <Text className="text-xl text-muted-foreground">{app.description}</Text>
+                      <Icon name="map-marker" size={20} className="text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <Text className="text-base text-muted-foreground">{app.address}</Text>
                     </View>
                   )}
                   <Text className="text-base text-muted-foreground">{new Date(app.created_at).toLocaleDateString('zh-CN')}</Text>
@@ -105,7 +105,7 @@ function AdminMerchantsPage() {
                     onClick={() => handleApprove(app.id)}>
                     <View className="py-3 px-4 text-xl font-bold text-white flex items-center gap-1">
                       <Icon name="check-circle" size={20} />
-                      <Text>准许开山立派</Text>
+                      <Text>通过</Text>
                     </View>
                   </Button>
                   <Button type="button"
@@ -113,7 +113,7 @@ function AdminMerchantsPage() {
                     onClick={() => { setRejectId(app.id); setRejectReason('') }}>
                     <View className="py-3 px-4 text-xl font-bold text-destructive flex items-center gap-1">
                       <Icon name="close-circle" size={20} />
-                      <Text>逐出山门</Text>
+                      <Text>驳回</Text>
                     </View>
                   </Button>
                 </View>
@@ -128,7 +128,7 @@ function AdminMerchantsPage() {
         <View className="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
           <View className="w-full bg-card rounded-t-3xl p-6 flex flex-col gap-4">
             <View className="flex items-center justify-between">
-              <Text className="text-2xl font-bold text-foreground">填写驳回理由</Text>
+              <Text className="text-2xl font-bold text-foreground">填写驳回原因</Text>
               <Button type="button" onClick={() => setRejectId(null)}>
                 <Icon name="close" size={30} className="text-muted-foreground" />
               </Button>
@@ -136,7 +136,7 @@ function AdminMerchantsPage() {
             <View className="border-2 border-input rounded-xl px-4 py-3 bg-background">
               <Textarea className="w-full text-xl text-foreground bg-transparent outline-none"
                 style={{ height: '20vw', minHeight: '80px' }}
-                placeholder="请填写驳回理由，将告知申请自营门店..."
+                placeholder="请填写驳回原因，将通知申请人"
                 value={rejectReason}
                 onInput={(e) => { const ev = e as any; setRejectReason(ev.detail?.value ?? ev.target?.value ?? '') }} />
             </View>

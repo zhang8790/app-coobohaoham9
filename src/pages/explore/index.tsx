@@ -94,12 +94,15 @@ export default function ExplorePage() {
   const page = useRef(0)
   const hasMore = useRef(true)
   // 防重入：首屏 useEffect + currentStore 切换可能并发触发同一 reset 拉取
+  // ⚠️ 关键修复：用 generation 计数器替代 boolean 锁，确保 currentStore 变化驱动的reload不会被上一次mount请求阻塞
   const inflightRef = useRef<Promise<void> | null>(null)
+  const loadGeneration = useRef(0)
 
   const loadProducts = useCallback(async (cat: string, reset = true) => {
     if (loading && !reset) return
-    // reset 拉取并发去重：已有同类型请求在飞则复用，避免双拉覆盖闪烁
-    if (reset && inflightRef.current) return inflightRef.current
+    // ⚠️ 修复：currentStore 切换驱动的 reload 必须穿透，不能被 mount 请求的 inflightRef 阻塞
+    // 用 generation 计数器区分"同一次请求复用" vs "新门店驱动的新请求"
+    const gen = ++loadGeneration.current
     const exec = async () => {
       const p = reset ? 0 : page.current
       setLoading(true)
@@ -128,8 +131,11 @@ export default function ExplorePage() {
             platformFilter: 'only',
             page: p, limit: 20,
             ...(catParam ? { categoryName: catParam } : {}),
+
+
           })
           const mapped = data.map(mapToNearby)
+          if (gen !== loadGeneration.current) return // 旧请求被新请求超越，丢弃结果
           if (reset) { setProducts(mapped); page.current = 1 }
           else { setProducts(prev => [...prev, ...mapped]); page.current = p + 1 }
           hasMore.current = data.length === 20
@@ -139,15 +145,20 @@ export default function ExplorePage() {
             page: p, limit: 20,
             platformFilter: 'only',
             ...(catParam ? { categoryName: catParam } : {}),
+
+
           })
           const mapped = data.map(mapToNearby)
+          if (gen !== loadGeneration.current) return // 旧请求被超越，丢弃
           if (reset) { setProducts(mapped); page.current = 1 }
           else { setProducts(prev => [...prev, ...mapped]); page.current = p + 1 }
           hasMore.current = data.length === 20
         }
       } finally {
-        setLoading(false)
-        if (reset) inflightRef.current = null
+        if (gen === loadGeneration.current) {
+          setLoading(false)
+          if (reset) inflightRef.current = null
+        }
       }
     }
 
@@ -189,8 +200,8 @@ export default function ExplorePage() {
   }
 
   const handleAddCart = async (product: NearbyProduct) => {
-    const { supabase } = await import('@/client/supabase')
-    const uid = (await supabase.auth.getUser()).data.user
+    const { supabase, getLocalUser } = await import('@/client/supabase')
+    const uid = (await getLocalUser()).data.user
     if (!uid) { Taro.navigateTo({ url: '/pages/login/index' }); return }
     setAddingId(product.product_id)
     await addToCart(product.product_id, product.store_id)

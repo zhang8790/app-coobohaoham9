@@ -471,11 +471,6 @@ export let mockRefunds: Refund[] = []
 export let mockWithdrawals: Withdrawal[] = []
 
 // =====================
-// 文章（UGC）
-// =====================
-export let mockArticles: Article[] = []
-
-// =====================
 // 佣金记录（用于推广中心）
 // =====================
 export let mockCommissions: Commission[] = [
@@ -569,7 +564,6 @@ export function resetMockData() {
   mockWithdrawals = []
   mockFavorites = []
   mockFootprints = []
-  mockArticles = []
   mockCommissions = []
   mockPointsLogs = []
 }

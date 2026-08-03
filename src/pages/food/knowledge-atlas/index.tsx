@@ -5,6 +5,7 @@ import { View, Text, Image, ScrollView, Button } from '@tarojs/components'
 import { useFoodKnowledgeStore, type KnowledgeFragment } from '@/store/foodKnowledgeStore'
 import { KNOWLEDGE_FRAGMENTS } from '@/utils/knowledge-fragments'
 import { ADDITIVE_DICT, matchAdditiveKeys, type AdditiveRisk } from '@/utils/additive-dictionary'
+import { useAuth } from '@/contexts/AuthContext'
 
 // ==================== 风险图标映射 ====================
 const RISK_CONFIG: Record<string, { color: string; bg: string; icon: string; label: string }> = {
@@ -240,6 +241,82 @@ function DiscoveryModal({ fragment, onClose }: { fragment: KnowledgeFragment; on
   )
 }
 
+// 配料风险台账（会员专属资产）：按安全等级聚合已收录成分，重点标注「应避免」
+function RiskLedger({ collection, isMember }: { collection: KnowledgeFragment[]; isMember: boolean }) {
+  const counts = useMemo(() => {
+    const c = { white: 0, yellow: 0, black: 0 } as Record<'white' | 'yellow' | 'black', number>
+    for (const f of collection) {
+      if (f.riskLevel === 'white') c.white++
+      else if (f.riskLevel === 'yellow') c.yellow++
+      else if (f.riskLevel === 'black') c.black++
+    }
+    return c
+  }, [collection])
+
+  const avoidList = useMemo(
+    () => collection.filter((f) => f.riskLevel === 'black'),
+    [collection],
+  )
+
+  // 未登录：引导登录查看专属台账
+  if (!isMember) {
+    return (
+      <View className="bg-white rounded-2xl p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <View className="flex items-center justify-between mb-2">
+          <Text className="text-sm font-bold text-[#1A1A1A]">📒 配料风险台账</Text>
+          <Text className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#FEF3C7', color: '#92400E' }}>会员专属资产</Text>
+        </View>
+        <Text className="text-xs text-[#6B7280] leading-relaxed">
+          登录开通会员后，可查看你的专属配料风险台账——按安全等级自动归档已扫食材，重点标注「应避免」成分，沉淀为家庭食安资产。
+        </Text>
+        <Button
+          className="mt-3 py-2 rounded-xl text-xs font-medium text-white"
+          style={{ background: '#1A1A1A' }}
+          onClick={() => Taro.navigateTo({ url: '/pages/user/profile/index' })}
+        >
+          登录查看
+        </Button>
+      </View>
+    )
+  }
+
+  return (
+    <View className="bg-white rounded-2xl p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+      <View className="flex items-center justify-between mb-3">
+        <Text className="text-sm font-bold text-[#1A1A1A]">📒 配料风险台账</Text>
+        <Text className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#FEF3C7', color: '#92400E' }}>会员专属资产</Text>
+      </View>
+
+      {/* 三档统计 */}
+      <View className="flex gap-2 mb-3">
+        {(['white', 'yellow', 'black'] as const).map((lv) => {
+          const cfg = RISK_CONFIG[lv]
+          return (
+            <View key={lv} className="flex-1 rounded-xl p-2.5 flex flex-col items-center" style={{ background: cfg.bg }}>
+              <Text className="text-lg font-bold" style={{ color: cfg.color }}>{counts[lv]}</Text>
+              <Text className="text-[10px]" style={{ color: cfg.color }}>{cfg.label}</Text>
+            </View>
+          )
+        })}
+      </View>
+
+      {/* 应避免明细 */}
+      <Text className="text-xs font-bold text-[#1A1A1A] mb-2">⚠️ 应避免成分（{avoidList.length}）</Text>
+      {avoidList.length === 0 ? (
+        <Text className="text-xs text-[#9A8070]">暂无高风险成分，继续保持～</Text>
+      ) : (
+        <View className="flex flex-wrap gap-2">
+          {avoidList.map((f) => (
+            <View key={f.additiveKey} className="px-2.5 py-1 rounded-full" style={{ background: '#FEE2E2' }}>
+              <Text className="text-xs" style={{ color: '#DC2626' }}>{f.name}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  )
+}
+
 // 探索页：未收集的碎片
 function ExploreTab({ onDiscover }: { onDiscover: (key: string) => void }) {
   const allKeys = Object.keys(KNOWLEDGE_FRAGMENTS)
@@ -310,6 +387,7 @@ function ExploreTab({ onDiscover }: { onDiscover: (key: string) => void }) {
 
 export default function KnowledgeAtlasPage() {
   const router = useRouter()
+  const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState<'collection' | 'explore'>('collection')
   const [selectedFragment, setSelectedFragment] = useState<KnowledgeFragment | null>(null)
   const [showDiscovery, setShowDiscovery] = useState<KnowledgeFragment | null>(null)
@@ -396,6 +474,14 @@ export default function KnowledgeAtlasPage() {
           已收录 {stats.collected} / 总计 {stats.total} 种成分
         </Text>
 
+        {/* 同步提示：扫码记录自动沉淀为家庭食安档案 */}
+        <View className="mt-3 px-3 py-2 rounded-xl flex items-center gap-2" style={{ background: '#EFF6FF' }}>
+          <Text className="text-base">🔗</Text>
+          <Text className="text-xs text-[#1E40AF] flex-1 leading-relaxed">
+            扫码记录已自动同步至「家庭食安档案」，随时回看你的专属配料库
+          </Text>
+        </View>
+
         {/* Tab切换 */}
         <View className="flex gap-3 mt-4">
           {(['collection', 'explore'] as const).map((tab) => (
@@ -420,24 +506,27 @@ export default function KnowledgeAtlasPage() {
 
       {/* 内容区 */}
       {activeTab === 'collection' ? (
-        sortedCollection.length === 0 ? (
-          <View className="flex-1 flex flex-col items-center justify-center py-16 px-6">
-            <Text className="text-5xl mb-4">🔬</Text>
-            <Text className="text-base font-bold text-[#1A1A1A] mb-2">图谱还是空的</Text>
-            <Text className="text-xs text-[#9A8070] text-center leading-relaxed mb-6">
-              去扫描食品配料表{'\n'}每发现一种成分就会自动收录到这里
-            </Text>
-            <Button
-              className="py-2.5 px-6 rounded-full text-sm font-medium text-[#FFFBF7]"
-              style={{ background: '#16A34A' }}
-              onClick={() => setActiveTab('explore')}
-            >
-              先去看看有哪些
-            </Button>
-          </View>
-        ) : (
-          <ScrollView scrollY className="flex-1 px-4 pt-4 pb-6">
-            {sortedCollection.map((fragment) => (
+        <ScrollView scrollY className="flex-1 px-4 pt-4 pb-6">
+          {/* 会员专属资产：配料风险台账 */}
+          <RiskLedger collection={collectionList} isMember={!!profile} />
+
+          {sortedCollection.length === 0 ? (
+            <View className="flex flex-col items-center justify-center py-12 px-6">
+              <Text className="text-5xl mb-4">🔬</Text>
+              <Text className="text-base font-bold text-[#1A1A1A] mb-2">图谱还是空的</Text>
+              <Text className="text-xs text-[#9A8070] text-center leading-relaxed mb-6">
+                去扫描食品配料表{'\n'}每发现一种成分就会自动收录到这里
+              </Text>
+              <Button
+                className="py-2.5 px-6 rounded-full text-sm font-medium text-[#FFFBF7]"
+                style={{ background: '#16A34A' }}
+                onClick={() => setActiveTab('explore')}
+              >
+                先去看看有哪些
+              </Button>
+            </View>
+          ) : (
+            sortedCollection.map((fragment) => (
               <FragmentCard
                 key={fragment.additiveKey}
                 fragment={fragment}
@@ -446,9 +535,9 @@ export default function KnowledgeAtlasPage() {
                   markViewed(fragment.additiveKey)
                 }}
               />
-            ))}
-          </ScrollView>
-        )
+            ))
+          )}
+        </ScrollView>
       ) : (
         <ExploreTab onDiscover={handleDiscover} />
       )}

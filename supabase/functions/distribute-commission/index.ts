@@ -189,6 +189,7 @@ async function fetchBeneficiaryMetrics(
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
+  let failedOrderId: string | null = null
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -214,6 +215,7 @@ Deno.serve(async (req: Request) => {
       store_id?: string | null
       referrer_id: string | null
     }
+    failedOrderId = order_id
 
     // 防重复分佣
     const { data: ord } = await supabase
@@ -735,6 +737,18 @@ Deno.serve(async (req: Request) => {
 
   } catch (err: any) {
     console.error('[V5] 分佣失败:', err)
+    // 落 commission_error，供 commission-retry 自动补跑扫描（2026-08-01 可观测性优化）
+    if (failedOrderId) {
+      try {
+        const sb = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        )
+        await sb.from('orders').update({ commission_error: err?.message ?? '内部错误' }).eq('id', failedOrderId)
+      } catch (e2: any) {
+        console.warn('[V5] 写 commission_error 失败:', e2?.message)
+      }
+    }
     return Response.json({ error: err?.message ?? '内部错误' }, { status: 500, headers: corsHeaders })
   }
 })

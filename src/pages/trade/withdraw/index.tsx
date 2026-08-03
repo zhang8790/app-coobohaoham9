@@ -3,7 +3,7 @@ import { View, Button, Input, Text } from '@tarojs/components'
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { getMyWithdrawals, getMyBalance, getMerchantStore, getMerchantSettlement, applyMerchantWithdrawal, applyWithdraw, getWithdrawalAccounts, saveWithdrawalAccount, deleteWithdrawalAccount } from '@/db/api'
-import { supabase } from '@/client/supabase'
+import { supabase, getLocalUser } from '@/client/supabase'
 import type { Withdrawal, WithdrawMethod, SavedWithdrawalAccount } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import RiskWarning from '@/components/RiskWarning'
@@ -87,7 +87,7 @@ function WithdrawPage() {
       setMerchantBalance(Number(sett?.merchant_balance ?? 0))
       setRecords(wds)
     } else {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await getLocalUser()
       const [bal, store, recs] = await Promise.all([
         getMyBalance(), getMerchantStore(), getMyWithdrawals(),
       ])
@@ -121,7 +121,7 @@ function WithdrawPage() {
 
   // 导航栏标题随模式切换
   useEffect(() => {
-    Taro.setNavigationBarTitle({ title: mode === 'settlement' ? '货款提现' : '推广佣金' })
+    Taro.setNavigationBarTitle({ title: mode === 'settlement' ? '货款提现' : '推荐奖励提现' })
   }, [mode])
 
   const handleSubmit = async () => {
@@ -129,7 +129,7 @@ function WithdrawPage() {
     if (isNaN(amt) || amt <= 0) { Taro.showToast({ title: '请填写正确的提现金额', icon: 'none' }); return }
     const curBalance = mode === 'settlement' ? merchantBalance : balance
     if (amt > curBalance) {
-      Taro.showToast({ title: mode === 'settlement' ? '提现金额不能超过可结算货款' : '提现金额不能超过可用佣金', icon: 'none' }); return
+      Taro.showToast({ title: mode === 'settlement' ? '提现金额不能超过可结算货款' : '提现金额不能超过可用推荐奖励', icon: 'none' }); return
     }
     if (!realName.trim()) { Taro.showToast({ title: '请填写真实姓名', icon: 'none' }); return }
     if (method === 'bank') {
@@ -190,7 +190,7 @@ function WithdrawPage() {
               method, realName, idCard, bankName, bankAccount, bankHolder, alipayAccount, makeDefault: true,
             })
           } else {
-            const { data: { user } } = await supabase.auth.getUser()
+            const { data: { user } } = await getLocalUser()
             if (user?.id) {
               await saveWithdrawalAccount({
                 ownerId: user.id, ownerType: 'user',
@@ -232,13 +232,13 @@ function WithdrawPage() {
         <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #059669, #10B981)' }}>
           <Text className="text-xl text-white/80 mb-1">可结算货款（元）</Text>
           <Text className="text-4xl font-bold text-white">{merchantBalance.toLocaleString()}<Text className="text-xl ml-1">元</Text></Text>
-          <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}（含健康豆支付等值部分，由平台垫付）</Text>
+          <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}（含健康豆支付等值部分，由总部统一结算）</Text>
         </View>
       ) : (
         <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)))' }}>
-          <Text className="text-xl text-white/80 mb-1">我的可提现佣金（推广佣金）</Text>
+          <Text className="text-xl text-white/80 mb-1">我的可提现推荐奖励</Text>
           <Text className="text-4xl font-bold text-white">{balance.toLocaleString()}<Text className="text-xl ml-1">元</Text></Text>
-          <Text className="text-xl text-white/70 mt-2">可提现至银行卡 / 支付宝 / 微信 · 推广佣金为劳务报酬，请依法申报个税</Text>
+          <Text className="text-xl text-white/70 mt-2">可提现至银行卡 / 支付宝 / 微信 · 推荐奖励为劳务报酬，请依法申报个税</Text>
         </View>
       )}
 
@@ -392,7 +392,7 @@ function WithdrawPage() {
               <Text className="text-xl text-foreground mb-1">身份证号 <Text className="text-red-500">*</Text></Text>
               <View className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden">
                 <Input className="w-full text-xl text-foreground bg-transparent outline-none"
-                  placeholder="用于打款核对，仅平台打款核对"
+                  placeholder="用于打款核对，仅核对身份"
                   value={idCard}
                   onInput={e => { const ev = e as any; setIdCard(ev.detail?.value ?? ev.target?.value ?? '') }} />
               </View>
@@ -452,8 +452,8 @@ function WithdrawPage() {
           </Button>
           <Text className="text-base text-muted-foreground text-center mt-3">
             {mode === 'settlement'
-              ? '货款提现为商家销售货款结算，审核通过后由微信直接打款到您的账户；如含健康豆垫付部分，由平台自有资金打款。'
-              : '提现按申请金额发放，审核 1-3 个工作日到账；推广佣金为劳务报酬所得，请依法履行纳税申报义务'}
+              ? '货款提现为门店销售货款结算，审核通过后由微信直接打款到您的账户；如含健康豆垫付部分，由品牌自有资金打款。'
+              : '提现按申请金额发放，审核 1-3 个工作日到账；推荐奖励为劳务报酬所得，请依法履行纳税申报义务'}
           </Text>
           <View className="mt-2 text-center" onClick={() => Taro.navigateTo({ url: '/pages/agreement/withdraw-rules/index' })}>
             <Text className="text-base text-primary">查看《提现规则》</Text>

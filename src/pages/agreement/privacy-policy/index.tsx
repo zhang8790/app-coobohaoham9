@@ -16,7 +16,7 @@ function PrivacyPolicy() {
           <Text className="block">1. 账号信息：手机号、昵称、头像。</Text>
           <Text className="block">2. 交易信息：订单记录、收货地址、支付信息。</Text>
           <Text className="block">3. 设备信息：设备型号、操作系统、唯一设备标识。</Text>
-          <Text className="block">4. 位置信息：为向您推荐附近商家，经您授权后获取位置信息。</Text>
+          <Text className="block">4. 位置信息：为向您推荐附近门店优惠，经您授权后获取位置信息。</Text>
           <Text className="block">5. 浏览信息：浏览记录、搜索记录、收藏记录。</Text>
         </View>
 
@@ -38,7 +38,7 @@ function PrivacyPolicy() {
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">四、我们如何共享您的信息</Text>
-          <Text className="block">1. 商家：为完成交易，您的收货信息将提供给对应商家。</Text>
+          <Text className="block">1. 门店：为完成交易，您的收货信息将提供给对应门店。</Text>
           <Text className="block">2. 支付机构：为完成支付，必要信息将提供给微信支付等支付机构。</Text>
           <Text className="block">3. 第三方服务及 SDK 清单：我们接入以下第三方服务处理必要信息——</Text>
           <Text className="block">  · Supabase（后端数据存储与云函数，提供方：Supabase Inc.，处理账号与业务数据）；</Text>

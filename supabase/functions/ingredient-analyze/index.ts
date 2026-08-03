@@ -31,11 +31,14 @@ function json(body: any, status = 200, headers = corsHeaders) {
   })
 }
 
-// 风险等级映射：DB 的 white/yellow/black → 标准 JSON 的 safe/limit/high_risk
+// 风险等级映射：DB 的 L1-L4 → 标准 JSON 的 safe/limit/high_risk
+//   L1 纯天然无风险 / L2 常规合规   → safe
+//   L3 敏感人群控量                → limit
+//   L4 老幼弱尽量少吃（原 black）   → high_risk
 function toLevel(risk: string | null): 'safe' | 'limit' | 'high_risk' {
-  if (risk === 'black') return 'high_risk'
-  if (risk === 'yellow') return 'limit'
-  return 'safe'
+  if (risk === 'L4' || risk === 'black') return 'high_risk'
+  if (risk === 'L3' || risk === 'yellow') return 'limit'
+  return 'safe' // L1 / L2 / white
 }
 
 // 清洗：按中英文标点/空白拆分，过滤纯数字与过短串（复用 ocr-ingredient 的解析逻辑）
@@ -60,6 +63,16 @@ type Additive = {
   risk_desc: string | null
 }
 
+// 用户年龄段 → 私有目录 age_caution 命中词（覆盖目录里更细的写法：
+// 孕哺期↔孕妇、老年↔中老年、儿童↔婴幼儿），保证不同年龄看到不同年龄段提醒。
+const AGE_TOKEN_MAP: Record<string, string[]> = {
+  '儿童': ['儿童', '婴幼儿'],
+  '青少年': ['青少年'],
+  '成人': ['成人'],
+  '孕哺期': ['孕哺期', '孕妇'],
+  '老年': ['中老年', '老年'],
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   try {
@@ -72,7 +85,12 @@ Deno.serve(async (req: Request) => {
     const ocrTaskId: string | undefined = body.ocr_task_id || undefined
     const productId: string | undefined = body.product_id || undefined
     const userId: string | undefined = body.user_id || undefined
+    const userTags: string[] | undefined = body.user_tags || undefined
+    const ageGroup: string | undefined = body.age_group || undefined
+    // persist=false 时跳过写 food_analysis_reports（商品页内联调用只为拿洞察，不刷报告表）
+    const persist: boolean = body.persist !== false
     const source: string = body.source || (ocrTaskId ? 'ocr' : 'manual')
+    let profileAgeGroup = ''
 
     // ---------- 1. 取得候选配料名 ----------
     let candidates: string[] = []
@@ -101,12 +119,14 @@ Deno.serve(async (req: Request) => {
       { data: allergens },
       { data: triggers },
       { data: tips },
+      { data: tagRules },
     ] = await Promise.all([
       supabase.from('food_additives').select('id,name,category,risk_level,gb_std,risk_desc').eq('status', 'active'),
       supabase.from('food_additive_aliases').select('alias,additive_id'),
       supabase.from('food_allergens').select('key,name,description,crowd_code'),
       supabase.from('food_crowd_triggers').select('trigger_keyword,crowd_code'),
       supabase.from('food_crowd_tips').select('crowd_code,label,general_tip,children_tip,fit_people,unfit_people'),
+      supabase.from('food_tag_rules').select('tag_key,label,prefer_ingredients,avoid_ingredients,weight_prefer,weight_avoid').eq('status', 'active'),
     ])
 
     const addList = (adds || []) as Additive[]
@@ -151,6 +171,7 @@ Deno.serve(async (req: Request) => {
         additiveList.push({
           name: hit.name,
           level,
+          risk_tier: hit.risk_level,
           type: `${hit.category || '添加剂'}·国标${hit.gb_std || 'GB2760'}`,
           desc: hit.risk_desc || '',
         })
@@ -219,10 +240,11 @@ Deno.serve(async (req: Request) => {
     if (userId) {
       const { data: prof } = await supabase
         .from('user_health_profile')
-        .select('allergies,chronic_conditions')
+        .select('allergies,chronic_conditions,age_group')
         .eq('user_id', userId)
         .maybeSingle()
       if (prof) {
+        profileAgeGroup = prof.age_group || ''
         const allergies: string[] = prof.allergies || []
         const chronic: string[] = prof.chronic_conditions || []
         const conflicts: string[] = []
@@ -241,27 +263,129 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ---------- 7. 持久化报告 ----------
-    const insertRow = {
-      product_id: productId || null,
-      source,
-      input_text: text || (ocrTaskId ? `[ocr_task:${ocrTaskId}]` : null),
-      parsed_ingredients: candidates,
-      additive_list: additiveList,
-      allergen_list: allergenListOut,
-      crowd_tips: Array.from(crowdCodes),
-      safe_level: safeLevelLabel,
-      safe_level_code: safeLevelCode,
-      main_conclusion: mainConclusion,
-      health_shortboard_tip: healthShortboardTip,
-      created_by: userId || null,
+    // ---------- 6.5 私有目录表药食同源洞察（核心壁垒） ----------
+    // service_role 读取 medicinal_food_catalog（客户端 RLS 拒绝公开读），结合用户年龄段做
+    // 差异化食养参考：同一款零食，孕哺期看到「孕妇慎用」、婴幼儿看到「禁用」、中老年看到
+    // 日常饮食关注 —— 这是「竞品抄不到」的私有数据层。仅输出衍生洞察，绝不回传原始目录表。
+    // 注意：此处只用 age_group（内联调用前端直传，不暴露过敏/慢病等敏感画像）做差异化。
+    let catalogInsight: any = null
+    {
+      const { data: mfcRows, error: mfcErr } = await supabase
+        .from('medicinal_food_catalog')
+        .select('name,nature,flavor,age_suitable,age_caution,compatibility')
+        .in('name', candidates)
+      if (mfcErr) {
+        console.error('[ingredient-analyze] 私有目录查询失败:', mfcErr.message)
+      } else {
+        const catalogByName = new Map<string, any>()
+        for (const r of (mfcRows || []) as any[]) catalogByName.set(r.name, r)
+        const matchedCatalog = candidates.filter((c) => catalogByName.has(c))
+        if (matchedCatalog.length) {
+          const effAgeGroup = ageGroup || profileAgeGroup
+          const ageTokens: string[] = (AGE_TOKEN_MAP[effAgeGroup] || []).concat(effAgeGroup ? [effAgeGroup] : [])
+          const natureCount: Record<string, number> = {}
+          const compatibilityNotes: string[] = []
+          const ageCautionHits: { ingredient: string; cautions: string[] }[] = []
+          for (const c of matchedCatalog) {
+            const r = catalogByName.get(c)
+            if (r.nature) natureCount[r.nature] = (natureCount[r.nature] || 0) + 1
+            if (r.compatibility) compatibilityNotes.push(`${r.name}：${r.compatibility}`)
+            const acs: string[] = (r.age_caution || []).filter((ac: string) => ageTokens.some((t) => ac.includes(t)))
+            if (acs.length) ageCautionHits.push({ ingredient: r.name, cautions: acs })
+          }
+          const natureEntries = Object.entries(natureCount).sort((a, b) => (b[1] as number) - (a[1] as number))
+          const topNature = natureEntries[0]?.[0] || ''
+          const natureSummary = natureEntries.length
+            ? `本品含药食同源食材 ${matchedCatalog.length} 味，食性以「${topNature}」为主（${natureEntries
+                .map(([k, v]) => `${k}${v}`)
+                .join('、')}），日常膳食中属温和调理范畴，建议结合自身情况适量。`
+            : ''
+          catalogInsight = {
+            matched_count: matchedCatalog.length,
+            matched: matchedCatalog,
+            nature_summary: natureSummary,
+            nature_distribution: natureCount,
+            age_caution_hits: ageCautionHits,
+            compatibility_notes: compatibilityNotes.slice(0, 4),
+          }
+        }
+      }
     }
-    const { data: rep, error: repErr } = await supabase
-      .from('food_analysis_reports')
-      .insert(insertRow)
-      .select('id')
-      .maybeSingle()
-    if (repErr) throw new Error(`报告持久化失败: ${repErr.message}`)
+
+    // ---------- 6.8 适配分 match_score（核心变现壁垒：用户标签 × 安全引擎） ----------
+    let matchScore: any = null
+    if (userTags && userTags.length) {
+      const tagRows = ((tagRules as any[]) || []).filter((r) => userTags.includes(r.tag_key))
+      if (tagRows.length) {
+        let score = 50
+        const reasons: string[] = []
+        const additiveNames = additiveList.map((a: any) => a.name)
+        const allIng = new Set<string>([...candidates, ...additiveNames])
+        for (const r of tagRows) {
+          const pref = (r.prefer_ingredients || []) as string[]
+          const avoid = (r.avoid_ingredients || []) as string[]
+          const wp = Number(r.weight_prefer) || 15
+          const wa = Number(r.weight_avoid) || 25
+          for (const p of pref) {
+            if ([...allIng].some((c) => c.includes(p) || p.includes(c))) {
+              score += wp
+              reasons.push(`含「${p}」契合${r.label}`)
+            }
+          }
+          for (const a of avoid) {
+            const hit = additiveList.find((x: any) => (x.name || '').includes(a) || a.includes(x.name || ''))
+            const inParsed = [...allIng].some((c) => c.includes(a) || a.includes(c))
+            if (!hit && !inParsed) continue // 未实际检出该规避项：不扣分、不提示（合规，不夸大）
+            const penalty = hit
+              ? hit.level === 'high_risk' ? 40 : hit.level === 'limit' ? wa : 12
+              : 8
+            score -= penalty
+            reasons.push(`检出「${a}」与${r.label}相悖`)
+          }
+        }
+        // 过敏原硬冲突（结合用户画像过敏史）
+        if (userId) {
+          const { data: prof } = await supabase
+            .from('user_health_profile').select('allergies').eq('user_id', userId).maybeSingle()
+          const ual = (prof?.allergies as string[]) || []
+          for (const al of allergenListOut) {
+            if (ual.includes(al.key) || ual.includes(al.name)) {
+              score -= 40
+              reasons.push(`含过敏原「${al.name}」与您的过敏史冲突`)
+            }
+          }
+        }
+        score = Math.max(0, Math.min(100, Math.round(score)))
+        const tier = score >= 85 ? 'recommend' : score >= 30 ? 'caution' : 'avoid'
+        matchScore = { score, tier, reasons: reasons.slice(0, 6), tags: userTags }
+      }
+    }
+
+    // ---------- 7. 持久化报告（persist=false 时跳过，避免商品页内联调用刷表） ----------
+    let rep: { id: string } | null = null
+    if (persist) {
+      const insertRow = {
+        product_id: productId || null,
+        source,
+        input_text: text || (ocrTaskId ? `[ocr_task:${ocrTaskId}]` : null),
+        parsed_ingredients: candidates,
+        additive_list: additiveList,
+        allergen_list: allergenListOut,
+        crowd_tips: Array.from(crowdCodes),
+        safe_level: safeLevelLabel,
+        safe_level_code: safeLevelCode,
+        main_conclusion: mainConclusion,
+        health_shortboard_tip: healthShortboardTip,
+        created_by: userId || null,
+      }
+      const { data, error: repErr } = await supabase
+        .from('food_analysis_reports')
+        .insert(insertRow)
+        .select('id')
+        .maybeSingle()
+      if (repErr) throw new Error(`报告持久化失败: ${repErr.message}`)
+      rep = data
+    }
 
     return json({
       success: true,
@@ -270,6 +394,8 @@ Deno.serve(async (req: Request) => {
       safe_level_code: safeLevelCode,
       main_conclusion: mainConclusion,
       health_shortboard_tip: healthShortboardTip,
+      catalog_insight: catalogInsight,
+      match_score: matchScore,
       additive_list: additiveList,
       crowd_tips: Array.from(crowdCodes),
       parsed_ingredients: candidates,

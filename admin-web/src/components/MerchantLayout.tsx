@@ -2,17 +2,30 @@ import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 
-const MERCHANT_NAV = [
-  { to: '/merchant', icon: '⬡', label: '店铺概况' },
-  { to: '/merchant/products', icon: '📦', label: '商品管理' },
-  { to: '/merchant/orders', icon: '📋', label: '订单管理' },
-  { to: '/merchant/members', icon: '👥', label: '会员管理' },
-  { to: '/merchant/coupons', icon: '🎟️', label: '优惠券' },
-  { to: '/merchant/analytics', icon: '📊', label: '数据分析' },
-  { to: '/merchant/ads', icon: '📢', label: '广告管理' },
-  { to: '/merchant/messages', icon: '🔔', label: '消息通知' },
-  { to: '/merchant/withdraw', icon: '💰', label: '货款提现' },
-  { to: '/merchant/settings', icon: '⚙️', label: '店铺设置' },
+const MERCHANT_NAV_GROUPS = [
+  {
+    title: '日常运营',
+    items: [
+      { to: '/merchant', icon: '⬡', label: '店铺概况' },
+      { to: '/merchant/products', icon: '📦', label: '商品管理' },
+      { to: '/merchant/orders', icon: '📋', label: '订单管理' },
+      { to: '/merchant/members', icon: '👥', label: '会员管理' },
+      { to: '/merchant/coupons', icon: '🎟️', label: '优惠券' },
+      { to: '/merchant/analytics', icon: '📊', label: '数据分析' },
+      { to: '/merchant/messages', icon: '🔔', label: '消息通知' },
+      { to: '/merchant/withdraw', icon: '💰', label: '货款提现' },
+      { to: '/merchant/printers', icon: '🖨️', label: '小票打印' },
+    ],
+  },
+  {
+    title: '进阶设置',
+    items: [
+      { to: '/merchant/ads', icon: '📢', label: '营销活动' },
+      { to: '/merchant/vehicles', icon: '🚚', label: '流动车' },
+      { to: '/merchant/staff', icon: '🤝', label: '运营成员' },
+      { to: '/merchant/settings', icon: '⚙️', label: '店铺设置' },
+    ],
+  },
 ]
 
 export default function MerchantLayout() {
@@ -53,23 +66,34 @@ export default function MerchantLayout() {
 
         {/* 导航 */}
         <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
-          {MERCHANT_NAV.map(item => (
-            <NavLink key={item.to} to={item.to}
-              end={item.to === '/merchant'}
-              style={({ isActive }) => ({
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: collapsed ? '10px 14px' : '10px 12px',
-                borderRadius: 8,
-                background: isActive ? 'rgba(5,150,105,0.15)' : 'transparent',
-                color: isActive ? 'var(--success-strong)' : 'var(--text-muted)',
-                textDecoration: 'none', fontSize: 14, fontWeight: isActive ? 600 : 400,
-                transition: 'all 0.15s',
-                borderLeft: isActive ? '2px solid var(--success-strong)' : '2px solid transparent',
-              })}
-            >
-              <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
-              {!collapsed && <span>{item.label}</span>}
-            </NavLink>
+          {MERCHANT_NAV_GROUPS.map(group => (
+            <div key={group.title} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {collapsed ? (
+                <div style={{ height: 10 }} />
+              ) : (
+                <div style={{ padding: '12px 12px 4px', fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: 1 }}>
+                  {group.title}
+                </div>
+              )}
+              {group.items.map(item => (
+                <NavLink key={item.to} to={item.to}
+                  end={item.to === '/merchant'}
+                  style={({ isActive }) => ({
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: collapsed ? '10px 14px' : '10px 12px',
+                    borderRadius: 8,
+                    background: isActive ? 'rgba(5,150,105,0.15)' : 'transparent',
+                    color: isActive ? 'var(--success-strong)' : 'var(--text-muted)',
+                    textDecoration: 'none', fontSize: 14, fontWeight: isActive ? 600 : 400,
+                    transition: 'all 0.15s',
+                    borderLeft: isActive ? '2px solid var(--success-strong)' : '2px solid transparent',
+                  })}
+                >
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>{item.icon}</span>
+                  {!collapsed && <span>{item.label}</span>}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 

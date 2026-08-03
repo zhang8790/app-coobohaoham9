@@ -13,11 +13,9 @@ import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 // 食养功能聚合：将分散在首页/用户中心/各独立页的食养入口收敛到单一 hub，避免重复入口
 const FEATURES = [
   { key: 'today', icon: '🌟', label: '今日食养推荐', desc: '按节气与你体质挑好物', page: '/pages/food/today-food-therapy/index', color: '#9A3324' },
-  { key: 'constitution', icon: '🧪', label: '食养偏好自测', desc: '读懂你的体质与口味', page: '/pages/food/constitution-test/index', color: '#C8A45C' },
-  { key: 'seasonal', icon: '🌾', label: '节气食盒', desc: '顺时而食 · 当季养生', page: '/pages/food/seasonal-box/index', color: '#7A8B5A' },
+  { key: 'constitution', icon: '🧪', label: '食养偏好设置', desc: '读懂你的体质与口味', page: '/pages/food/constitution-test/index', color: '#C8A45C' },
   { key: 'pairing', icon: '🥘', label: '食材配对探索', desc: '什么食材更适合你', page: '/pages/food/ingredient-pairing/index', color: '#B5651D' },
-  { key: 'safety', icon: '🔍', label: '食品配料安全', desc: '扫码看配料安不安全', page: '/pages/food/food-scan/index', color: '#3B5B7A' },
-  { key: 'atlas', icon: '📚', label: '食养知识图谱', desc: '食材功效与宜忌', page: '/pages/food/knowledge-atlas/index', color: '#5B4636' },
+  { key: 'family', icon: '👨‍👩‍👧', label: '家庭食养档案', desc: '全家人的食养参考', page: '/pages/food/family/index', color: '#9A3324' },
 ]
 
 export default function FoodHubPage() {
@@ -51,7 +49,7 @@ export default function FoodHubPage() {
               <View className="min-w-0">
                 <Text className="text-sm font-bold text-foreground">今日食养推荐</Text>
                 {today.term && (
-                  <Text className="text-xs text-muted-foreground block truncate">{today.term.name} · {today.term.nature}</Text>
+                  <Text className="text-xs text-muted-foreground block truncate">{today.term.name} · {today.term.natureLabel}</Text>
                 )}
               </View>
             </View>

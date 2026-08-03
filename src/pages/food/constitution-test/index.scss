@@ -1,0 +1,78 @@
+// 体质测试结果页 · 叙事化动效
+// 揭晓 / 为什么是你 / 今天做 三段依次浮现，得分条生长动画
+
+@keyframes ct-reveal-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.965);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ct-bar-grow {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes ct-pulse-soft {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+// 揭晓主卡：放大浮现
+.ct-reveal {
+  animation: ct-reveal-pop 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+// 段落依次延迟浮现（配合 .ct-reveal 使用）
+.ct-stagger-1 {
+  animation-delay: 0.1s;
+}
+.ct-stagger-2 {
+  animation-delay: 0.22s;
+}
+.ct-stagger-3 {
+  animation-delay: 0.34s;
+}
+.ct-stagger-4 {
+  animation-delay: 0.46s;
+}
+.ct-stagger-5 {
+  animation-delay: 0.58s;
+}
+
+// 得分条生长
+.ct-score-bar {
+  animation: ct-bar-grow 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+// 主卡 emoji 轻微呼吸，增加「活」的感觉
+.ct-emoji-breathe {
+  animation: ct-pulse-soft 2.4s ease-in-out infinite;
+}
+
+// 海报卡微光描边
+.ct-poster {
+  position: relative;
+  overflow: hidden;
+}
+.ct-poster::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -30%;
+  width: 60%;
+  height: 80%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.55), transparent 70%);
+  transform: rotate(18deg);
+  pointer-events: none;
+}

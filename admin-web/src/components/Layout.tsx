@@ -13,7 +13,6 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/dashboard', icon: 'grid', label: '仪表盘' },
       { to: '/merchants', icon: 'store', label: '自营门店申请' },
       { to: '/products', icon: 'box', label: '商品审阅' },
-      { to: '/ugc', icon: 'news', label: 'UGC管理' },
       { to: '/users', icon: 'user', label: '用户管理' },
       { to: '/refunds', icon: 'refund', label: '退款管理' },
       { to: '/announcements', icon: 'megaphone', label: '公告管理' },

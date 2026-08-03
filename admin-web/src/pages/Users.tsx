@@ -44,18 +44,21 @@ export default function Users() {
   const doCreate = async () => {
     const email = cEmail.trim()
     const pwd = cPwd
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setCMsg({ ok: false, text: '请输入合法的邮箱地址' }); return }
+    const phone = cPhone.trim()
+    if (!email && !phone) { setCMsg({ ok: false, text: '请填写邮箱或手机号（至少其一）' }); return }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setCMsg({ ok: false, text: '请输入合法的邮箱地址' }); return }
+    if (phone && !/^\d{6,20}$/.test(phone)) { setCMsg({ ok: false, text: '手机号格式不正确' }); return }
     if (pwd.length < 6) { setCMsg({ ok: false, text: '密码至少 6 位' }); return }
     setCBusy(true); setCMsg(null)
     const res = await createUserAccount({
-      email, password: pwd,
-      phone: cPhone.trim() || undefined,
+      email: email || undefined, password: pwd,
+      phone: phone || undefined,
       nickname: cNick.trim() || undefined,
       role: cRole,
     })
     setCBusy(false)
     if (res.ok) {
-      setCMsg({ ok: true, text: `✅ 账号 ${email} 已创建（角色：${cRole === 'admin' ? '管理员' : '普通用户'}）` })
+      setCMsg({ ok: true, text: `✅ 账号 ${phone || email} 已创建（角色：${cRole === 'admin' ? '管理员' : '普通用户'}）` })
       setCEmail(''); setCPwd(''); setCNick(''); setCPhone('')
       load() // 刷新列表
     } else {
@@ -243,10 +246,10 @@ export default function Users() {
                 style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: 22, lineHeight: 1, cursor: cBusy ? 'not-allowed' : 'pointer' }}>×</button>
             </div>
             <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 16, lineHeight: 1.6 }}>
-              该账号可凭邮箱 + 密码直接登录后台。创建后将在服务端自动确认邮箱，<b style={{ color: 'var(--text-muted)' }}>无需邮件验证</b>即可使用。
+              该账号可凭<b style={{ color: 'var(--text-muted)' }}>邮箱或手机号 + 密码</b>登录后台。创建后将在服务端自动确认（<b style={{ color: 'var(--text-muted)' }}>无需邮件/短信验证</b>）即可使用。邮箱与手机号二选一即可。
             </p>
 
-            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>邮箱 *</label>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>邮箱（与手机号二选一）</label>
             <input value={cEmail} onChange={e => setCEmail(e.target.value)}
               placeholder="如 admin2@laidianyouxi.com"
               style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, marginBottom: 12 }} />
@@ -261,9 +264,9 @@ export default function Users() {
               placeholder="后台显示名称"
               style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, marginBottom: 12 }} />
 
-            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>手机号（可选，用于验证码登录）</label>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>手机号（与邮箱二选一）</label>
             <input value={cPhone} onChange={e => setCPhone(e.target.value)} inputMode="numeric"
-              placeholder="选填"
+              placeholder="如 13800138000"
               style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, marginBottom: 12 }} />
 
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>角色 *</label>

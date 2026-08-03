@@ -3,6 +3,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { View, Text, Input } from '@tarojs/components'
 import { getCartItems, getMyBalance, createOrderV2, getWechatPayParams, getWechatOpenid, getMyProfile, getMyAddresses, grantEmotionClaim, trackFoodTherapyEvent, removeCartItem, getOrderById } from '@/db/api'
+
+// 注：支付即打印已改为「数据库触发器 trg_print_receipt」在服务端统一触发（订单状态 → pending_ship 时异步调 print-receipt），
+//     不再依赖客户端预览包版本，也不会与触发器重复出单。详见 supabase/migrations/20260803_print_receipt_trigger.sql
 import Icon from '@/components/Icon'
 import { supabase } from '@/client/supabase'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
@@ -163,7 +166,7 @@ function paidOrderUpdate(serviceType?: 'dine_in' | 'delivery' | 'self_pickup'): 
   return { status: 'pending_review', verified_at: now, paid_at: now }
 }
 
-// 结算风险校验：购物车冲突（温补叠加/寒热对冲/同属性过量/相克）+ 当前体质禁忌（avoid 档）
+// 结算风险校验：购物车冲突（温性叠加/寒热对冲/同属性过量/相克）+ 当前体质禁忌（avoid 档）
 function computeCheckoutRisks(items: any[], classifyProduct: (p: any) => any): {
   conflicts: CartConflict[]
   avoidNames: string[]
@@ -953,7 +956,7 @@ function PaymentPage() {
               <Text className="text-base text-red-500 flex-1 text-right">{it.reason}</Text>
             </View>
           ))}
-          <Text className="text-base text-muted-foreground mt-2">请移除失效商品或联系商家处理后再支付</Text>
+          <Text className="text-base text-muted-foreground mt-2">请移除失效商品或联系门店处理后再支付</Text>
         </View>
       )}
 
@@ -1108,7 +1111,7 @@ function PaymentPage() {
                   <View className="flex items-center gap-2 mb-1">
                     <Text className="text-xl">{c.level === 'danger' ? '⚠️' : '🟡'}</Text>
                     <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#9A8070' }}>
-                      {c.type === 'warm_overlap' ? '温补叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
+                      {c.type === 'warm_overlap' ? '温性叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
                     </Text>
                   </View>
                   <Text className="text-base text-muted-foreground" style={{ display: 'block', lineHeight: '1.5' }}>{c.message}</Text>

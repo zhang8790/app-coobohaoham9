@@ -2,15 +2,14 @@
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Image, Input } from '@tarojs/components'
-import { getMyProfile, getMyMerchantApplication, getOrderCounts, updateProfile, getEquitySummary, getOrders, getProductsByIds } from '@/db/api'
-import type { EquitySummary } from '@/db/api'
+import { getMyProfile, getMyMerchantApplication, getOrderCounts, updateProfile, getOrders, getProductsByIds } from '@/db/api'
 import type { Profile, MerchantApplication } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
-import { RouteGuard } from '@/components/RouteGuard'
 import { supabase } from '@/client/supabase'
 import CustomTabBar from '@/components/custom-tabbar'
 import FloatingActionBar from '@/components/FloatingActionBar'
 import Icon from '@/components/Icon'
+import BrandSymbol from '@/components/BrandSymbol'
 import RankProgress from '@/components/RankProgress'
 import { RANK_COLOR_MAP } from '@/constants/ranks'
 import { buildRadarProfile, type RadarDim } from '@/utils/food-therapy/radar-profile'
@@ -28,18 +27,7 @@ const MENU_GROUPS: { title: string; icon: string; items: MenuItem[] }[] = [
       { name: '我的段位', icon: 'medal', page: '/pages/mine/my-promotion/index' },
       { name: '我的好友', icon: 'account-group', page: '/pages/mine/my-referrals/index' },
       { name: '食品管家', icon: '⏰', page: '/pages/food/tracker/index' },
-      { name: '健康豆兑换', icon: '🔄', page: '/pages/trade/bean-exchange/index' },
-      { name: '分享官中心', icon: '💰', page: '/pages/trade/partner-center/index' },
       { name: '地址管理', icon: '🗺', page: '/pages/mine/address/index' },
-    ]
-  },
-  {
-    title: '我的创作',
-    icon: '✏',
-    items: [
-      { name: '创作文章', icon: '📖', page: '/pages/content/content-center/make-rich/index' },
-      { name: '发布视频', icon: '🎬', page: '/pages/content/content-center/make-video/index' },
-      { name: '我的作品', icon: '📑', page: '/pages/content/content-center/my-articles/index' },
     ]
   },
   {
@@ -47,18 +35,22 @@ const MENU_GROUPS: { title: string; icon: string; items: MenuItem[] }[] = [
     icon: '◆',
     items: [
       { name: '商品收藏', icon: '❤', page: '/pages/mine/favorites/index' },
-      { name: '文章收藏', icon: '📑', page: '/pages/mine/article-favorites/index' },
-      { name: '我的关注', icon: '👤', page: '/pages/mine/followed-authors/index' },
       { name: '浏览足迹', icon: '⟲', page: '/pages/mine/footprint/index' },
       { name: '我的徽章', icon: '🏅', page: '/pages/mine/my-badges/index' },
+    ]
+  },
+  {
+    title: '服务中心',
+    icon: '🛎',
+    items: [
+      { name: '食养服务中心', icon: '', iconName: 'leaf', page: '/pages/food/index' },
+      { name: '联系客服', icon: '', iconName: 'headset', page: '/pages/agreement/help/index' },
     ]
   },
   {
     title: '设置',
     icon: '⚙',
     items: [
-      { name: '食疗咨询', icon: '', iconName: 'leaf', page: '/pages/food/consult/index' },
-      { name: '联系客服', icon: '', iconName: 'headset', page: '/pages/agreement/help/index' },
       { name: '设置', icon: '⚙', page: '/pages/mine/settings/index' },
     ]
   },
@@ -80,7 +72,6 @@ function UserPage() {
   const [editingNick, setEditingNick] = useState(false)
   const [nickInput, setNickInput] = useState('')
   const [profileLoading, setProfileLoading] = useState(true)
-  const [equity, setEquity] = useState<EquitySummary | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
 
   // 消费偏好雷达图
@@ -181,11 +172,6 @@ function UserPage() {
   useEffect(() => { loadRadar() }, [loadRadar])
   useDidShow(() => { loadData(); loadUnread(); loadRadar() })
 
-  useEffect(() => {
-    if (!user) return
-    getEquitySummary().catch(() => null).then(eq => { if (eq) setEquity(eq) })
-  }, [user])
-
   const rankColor = profile ? (RANK_COLOR_MAP[profile.member_rank] || '#78350F') : '#78350F'
 
   const handleRandomNick = async () => {
@@ -205,7 +191,11 @@ function UserPage() {
 
   const handleSignOut = async () => {
     Taro.showModal({ title: '退出登录', content: '确认退出当前账号？', success: async (res) => {
-      if (res.confirm) { await signOut(); Taro.reLaunch({ url: '/pages/login/index' }) }
+      if (res.confirm) {
+        await signOut()
+        // 用 navigateTo 而非 reLaunch：保留上一页栈，微信胶囊才能显示返回箭头，避免"登录返回无效"
+        Taro.navigateTo({ url: '/pages/login/index' })
+      }
     }})
   }
 
@@ -247,10 +237,17 @@ function UserPage() {
     )
   })()
 
-  return (<RouteGuard>
+  return (
+    <>
     <View className="min-h-screen bg-background tabbar-pad">
       {/* 顶部用户卡 */}
-      <View className="px-4 pt-6 pb-4" style={{ background: 'linear-gradient(160deg,#F1E9D9 0%,#FFFBF7 80%)' }}>
+      {/* 顶部用户卡 */}
+      <View className="px-4 pt-6 pb-4 relative overflow-hidden" style={{ background: 'linear-gradient(160deg,#F1E9D9 0%,#FFFBF7 80%)' }}>
+        {/* 超级符号水印：放大镜查配料 —— 品牌视觉锤，降低传播成本 */}
+        <Icon name="brand-detect" size={170} className="text-primary"
+          style={{ position: 'absolute', right: -36, top: -28, opacity: 0.08, pointerEvents: 'none' }} />
+        {/* 品牌 slogan 行 */}
+        <BrandSymbol size={22} withSlogan className="mb-3" />
         {!user ? (
           <View className="flex items-center gap-4 py-4"
             onClick={() => Taro.navigateTo({ url: '/pages/login/index' })}>
@@ -308,7 +305,7 @@ function UserPage() {
           <View className="grid grid-cols-3 gap-3 mt-4">
             {[
               { label: '健康豆', value: profile.tb_balance || 0, icon: '👛', page: '/pages/trade/goldbean-ledger/index', badge: unreadCount },
-              { label: '佣金', value: `¥${(profile.commission_balance || 0).toFixed(2)}`, icon: '💰', page: '/pages/trade/commission-detail/index' },
+              { label: '推荐奖励', value: `¥${(profile.commission_balance || 0).toFixed(2)}`, icon: '💰', page: '/pages/trade/commission-detail/index' },
               { label: '优惠券', value: `${profile.coupons_count || 0}张`, icon: '🎫', page: '/pages/mine/coupon/index' },
             ].map(item => (
               <View key={item.label}
@@ -334,46 +331,7 @@ function UserPage() {
 
       {/* 段位成长（读取现有 member_rank / cv_total，纯展示，零新增功能） */}
       {user && profile && (
-        <View>
-          <RankProgress cvTotal={profile.cv_total ?? 0} memberRank={profile.member_rank} />
-          <View
-            style={{ textAlign: 'center', marginTop: 8 }}
-            onClick={() => {
-              Taro.setClipboardData({ data: `我在「来电有喜」已是「${profile.member_rank || '凡心'}」段位！来一起挑选健康好物吧～` })
-              Taro.showToast({ title: '已复制段位卡', icon: 'success' })
-            }}>
-            <Text style={{ fontSize: 12, color: '#d4a537', fontWeight: '600', borderBottomWidth: 1, borderBottomColor: '#d4a537' }}>
-              📋 复制段位卡，晒给好友
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* 会员权益区块 */}
-      {user && profile && (
-        <View className="mx-4 mt-3 rounded-2xl border border-primary/30 px-4 py-4" style={{ background: 'linear-gradient(120deg,#FFF7ED 0%,#FFEDD5 100%)' }}>
-          <View className="flex items-center justify-between">
-            <Text className="text-xl font-bold text-foreground">我的会员权益</Text>
-          </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: '12px' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>
-                {equity ? (equity.shareRatio * 100 < 0.01 ? (equity.shareRatio * 100).toFixed(4) : (equity.shareRatio * 100).toFixed(2)) + '%' : '0%'}
-              </Text>
-              <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>我的消费贡献占比</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: '20px', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>
-                {equity ? (equity.dividendEstimate || 0).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '0'}
-              </Text>
-              <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>年度消费回馈·馈赠健康豆</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: '20px', fontWeight: 'bold' }}>{profile.cv_total || 0}</Text>
-              <Text style={{ fontSize: '12px', color: '#9A8070', display: 'block' }}>我的贡献值</Text>
-            </View>
-          </View>
-        </View>
+        <RankProgress cvTotal={profile.cv_total ?? 0} memberRank={profile.member_rank} />
       )}
 
       {/* 我的食养画像（消费偏好雷达图） */}
@@ -479,7 +437,8 @@ function UserPage() {
     </View>
     <FloatingActionBar />
     <CustomTabBar />
-  </RouteGuard>)
+    </>
+  )
 }
 
 /* wrapped by RouteGuard - see render */

@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
-import { getMerchantStore, getMerchantOrders, getMerchantOrderSummary, merchantShipOrder, merchantCompleteOrder } from '@/db/api'
+import { getMerchantStore, getMerchantOrders, getMerchantOrderSummary, merchantShipOrder, merchantCompleteOrder, callPrintReceipt } from '@/db/api'
 import { RouteGuard } from '@/components/RouteGuard'
 import Icon from '@/components/Icon'
 
@@ -21,7 +21,7 @@ function MerchantOrdersPage() {
   const [store, setStore] = useState<any>(null)
   const [orders, setOrders] = useState<any[]>([])   // 原始 order_items 行（全量，用于按订单聚合）
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'all' | 'pending_ship' | 'completed'>('all')
+  const [tab, setTab] = useState<'all' | 'pending_ship' | 'delivery' | 'completed'>('all')
   const [summary, setSummary] = useState<any>(null)
 
   // 列表(getMerchantOrders 全量 order_items) + 汇总(getMerchantOrderSummary RPC, 真实全量)
@@ -60,6 +60,9 @@ function MerchantOrdersPage() {
           total_amount: o.total_amount,
           created_at: o.created_at,
           payment_method: o.payment_method,
+          service_type: o.service_type,
+          shipping_address: o.shipping_address,
+          remark: o.remark,
           merchant_settlements: Array.isArray(o.merchant_settlements)
             ? o.merchant_settlements
             : (o.merchant_settlements ? [o.merchant_settlements] : []),
@@ -80,6 +83,7 @@ function MerchantOrdersPage() {
 
   const filtered = tab === 'all' ? orderGroups
     : tab === 'pending_ship' ? orderGroups.filter((g: any) => g.status === 'pending_ship')
+    : tab === 'delivery' ? orderGroups.filter((g: any) => g.service_type === 'delivery')
     : orderGroups.filter((g: any) => g.status === 'completed')
 
   const handleShip = async (order: any) => {
@@ -104,10 +108,31 @@ function MerchantOrdersPage() {
         Taro.showLoading({ title: '处理中' })
         const ok = await merchantCompleteOrder(order.id)
         Taro.hideLoading()
-        if (ok) { Taro.showToast({ title: '已完成，货款已结算', icon: 'success' }); load() }
-        else Taro.showToast({ title: '操作失败', icon: 'none' })
+        if (ok) {
+          Taro.showToast({ title: '已完成，货款已结算', icon: 'success' }); load()
+          // 订单完成后自动推送小票（延时避免覆盖结算提示）
+          setTimeout(() => {
+            callPrintReceipt({ orderId: order.id }).then((r) => {
+              if (r.success) Taro.showToast({ title: '小票已打印', icon: 'none' })
+              else if (!r.need_config) Taro.showToast({ title: '小票打印失败', icon: 'none' })
+            }).catch(() => {})
+          }, 1200)
+        } else Taro.showToast({ title: '操作失败', icon: 'none' })
       }
     })
+  }
+  const handlePrint = async (order: any) => {
+    Taro.showLoading({ title: '打印中' })
+    try {
+      const r = await callPrintReceipt({ orderId: order.id, test: false })
+      Taro.hideLoading()
+      if (r.success) Taro.showToast({ title: '小票已推送', icon: 'success' })
+      else if (r.need_config) Taro.showToast({ title: '未配置打印机', icon: 'none' })
+      else Taro.showToast({ title: '打印失败：' + (r.error || '未知错误'), icon: 'none' })
+    } catch (e: any) {
+      Taro.hideLoading()
+      Taro.showToast({ title: '打印异常：' + (e?.message ? String(e.message) : String(e)), icon: 'none' })
+    }
   }
   const load = () => {
     getMerchantStore().then(async (s) => {
@@ -120,10 +145,10 @@ function MerchantOrdersPage() {
     <View className="min-h-screen bg-background pb-8">
 
       <View className="flex mx-4 mt-3 bg-muted rounded-2xl p-1">
-        {(['all', 'pending_ship', 'completed'] as const).map(key => (
+        {(['all', 'pending_ship', 'delivery', 'completed'] as const).map(key => (
           <View key={key} className={`flex-1 flex items-center justify-center py-2 rounded-xl text-sm font-bold ${tab === key ? 'bg-card text-primary' : 'text-muted-foreground'}`}
             onClick={() => setTab(key)}>
-            {{ all: '全部', pending_ship: '待发货', completed: '已完成' }[key]}
+            {{ all: '全部', pending_ship: '待发货', delivery: '配送单', completed: '已完成' }[key]}
           </View>
         ))}
       </View>
@@ -165,11 +190,28 @@ function MerchantOrdersPage() {
           {filtered.map((g) => (
             <View key={g.id} className="bg-card rounded-2xl border border-border mb-3 p-4">
               <View className="flex items-center justify-between mb-2">
-                <Text className="text-sm text-muted-foreground">订单号：{g.order_no || '-'}</Text>
+                <View className="flex items-center gap-2">
+                  <Text className="text-sm text-muted-foreground">订单号：{g.order_no || '-'}</Text>
+                  {g.service_type === 'delivery' && (
+                    <Text className="text-xs font-bold text-white bg-blue-500 rounded px-1.5 py-0.5">配送</Text>
+                  )}
+                  {g.service_type === 'self_pickup' && (
+                    <Text className="text-xs font-bold text-white bg-amber-500 rounded px-1.5 py-0.5">自提</Text>
+                  )}
+                  {g.service_type === 'dine_in' && (
+                    <Text className="text-xs font-bold text-white bg-gray-400 rounded px-1.5 py-0.5">堂食</Text>
+                  )}
+                </View>
                 <Text className={`text-sm font-bold ${STATUS_COLOR[g.status] || 'text-foreground'}`}>
                   {STATUS_LABEL[g.status] || g.status || '-'}
                 </Text>
               </View>
+              {g.service_type === 'delivery' && g.shipping_address && (
+                <View className="mb-2 rounded-lg bg-blue-50 border border-blue-100 px-2 py-1.5">
+                  <Text className="text-xs text-blue-600 font-bold">收货地址</Text>
+                  <Text className="text-xs text-foreground mt-0.5 leading-snug">{g.shipping_address}</Text>
+                </View>
+              )}
               {/* 商品明细（同一订单可能含多个商品，合并展示） */}
               <View className="flex flex-col gap-3">
                 {g.items.map((it: any, idx: number) => (
@@ -204,6 +246,10 @@ function MerchantOrdersPage() {
                       <View className="py-1.5 px-3 text-sm text-white font-bold">确认完成</View>
                     </View>
                   )}
+                  <View className="flex items-center justify-center leading-none rounded-xl border border-border"
+                    onClick={() => handlePrint(g)}>
+                    <View className="py-1.5 px-3 text-sm text-foreground font-bold">打印小票</View>
+                  </View>
                   <View className="flex flex-col items-end">
                     <Text className="text-xs text-muted-foreground">合计 ¥{g.total_amount?.toFixed(2) || '-'}</Text>
                     {(() => {

@@ -1,5 +1,5 @@
 // 全局 Mock 数据 — 演示模式用
-import type { MerchantApplication, Product, Withdrawal, Refund, Profile, Article, Announcement } from '@/types'
+import type { MerchantApplication, Product, Withdrawal, Refund, Profile, Announcement } from '@/types'
 
 export const MOCK_MERCHANTS: MerchantApplication[] = [
   { id: 'm1', user_id: 'u1', store_name: '霸王茶姬（旗舰店）', contact_name: '张三', contact_phone: '13800138001', business_type: '餐饮', description: '头部新中式茶饮品牌', status: 'pending', reject_reason: null, created_at: new Date().toISOString() },
@@ -35,12 +35,6 @@ export const MOCK_USERS: Profile[] = [
   { id: 'u5', username: 'admin', nickname: '超级管理员', phone: '13800138000', avatar_url: null, role: 'admin', member_rank: '盟主', points: 9999, balance: 0, merchant_status: 'none', created_at: new Date(Date.now()-30*864e5).toISOString() },
 ]
 
-export const MOCK_ARTICLES: Article[] = [
-  { id: 'a1', user_id: 'u1', title: '夏季新品上市：伯牙绝弦云茶', content: '...', images: [], is_published: true, created_at: new Date().toISOString() },
-  { id: 'a2', user_id: 'u2', title: '平台规则更新通知（2026年6月）', content: '...', images: [], is_published: true, created_at: new Date(Date.now()-3*864e5).toISOString() },
-  { id: 'a3', user_id: 'u3', title: '如何提升店铺曝光率？', content: '...', images: [], is_published: false, created_at: new Date(Date.now()-7*864e5).toISOString() },
-]
-
 export const MOCK_ANNOUNCEMENTS: Announcement[] = [
   { id: 'an1', content: '来电有喜平台正式上线！', is_active: true, sort_order: 1, created_at: new Date().toISOString() },
   { id: 'an2', content: '全平台满减活动进行中', is_active: true, sort_order: 2, created_at: new Date(Date.now()-864e5).toISOString() },
@@ -48,5 +42,5 @@ export const MOCK_ANNOUNCEMENTS: Announcement[] = [
 ]
 
 export const MOCK_ADMIN_STATS = {
-  merchants: 3, products: 5, withdrawals: 2, articles: 3, users: 8, orders: 12,
+  merchants: 3, products: 5, withdrawals: 2, users: 8, orders: 12,
 }

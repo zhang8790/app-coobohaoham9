@@ -1,5 +1,5 @@
 // @title 商品详情
-import { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef, useLayoutEffect, type ReactNode } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { Image, Button, Swiper, SwiperItem, Video, View, Text } from '@tarojs/components'
 import { getProductById, getProductBatchInfo, addToCart, isFavorited, toggleFavorite, recordFootprint, trackFoodTherapyEvent, bindStoreReferrer } from '@/db/api'
@@ -17,11 +17,16 @@ import { toFoodTherapyInput, TIER_LABEL, buildShiyangStageModule } from '@/utils
 import { resolveIngredientEntries } from '@/utils/ingredient-analysis'
 import FoodSafetyPanel from '@/components/FoodSafetyPanel'
 import ComprehensiveSafetyReport from '@/components/ComprehensiveSafetyReport'
+import GiftSections from '@/pages/product/GiftSections'
 import { getFoodBenefit } from '@/data/foodBenefits'
 import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
-import { PRODUCT_DISCLAIMER } from '@/utils/compliance/shield'
+import { PRODUCT_DISCLAIMER, FOOD_THERAPY_DISCLAIMER, FOOD_REFERENCE_DISCLAIMER, shieldCopy, cleanAudienceTags } from '@/utils/compliance/shield'
 import { buildTherapyReport, buildTherapyHeadline, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
-import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
+import { analyzeForProfile, describeCohort } from '@/utils/food-therapy/profile-analysis'
+import { getFoodIngredients, callIngredientAnalyze, type FoodIngredientRow, type CatalogInsight } from '@/db/food-safety'
+
+// 模块级缓存：食材字典（食养引擎基础数据）仅拉一次，跨商品跳转不再重复请求（PRD 4.1）
+let ingredientDictPromise: Promise<FoodIngredientRow[]> | null = null
 
 function CollapsibleSection({ title, children }: { title: string; children: ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -39,9 +44,19 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
   )
 }
 
+// 🛡️ 首屏信任锚点：每条都对应真实能力，绝不夸大（更信任的底层是「可验证」）
+function TrustChip({ icon, label }: { icon: string; label: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, background: '#F0F7F1', border: '1px solid #D6EFD8' }}>
+      <Text style={{ fontSize: 13 }}>{icon}</Text>
+      <Text style={{ fontSize: 12, color: '#2F5D3A', fontWeight: 600 }}>{label}</Text>
+    </View>
+  )
+}
+
 export default function ProductPage() {
   const { user } = useAuth()
-  const { selectedCrowds, selectedScene, classifyProduct } = useFoodTherapy()
+  const { selectedCrowds, selectedScene, classifyProduct, hasHealthProfile, getSuitability, activeProfile, familyMembers, selectedMemberId, setSelectedMemberId } = useFoodTherapy()
   const { id, expiryEp, expiryBatch } = useMemo(() => {
     const params = Taro.getCurrentInstance().router?.params
     const rawId = params?.id ? decodeURIComponent(params.id) : ''
@@ -61,6 +76,19 @@ const [adding, setAdding] = useState(false)
   const [favLoading, setFavLoading] = useState(false)
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  // 底部悬浮栏高度测量：内容区 paddingBottom 动态等于栏高（含安全区），杜绝遮挡（PRD 2.5）
+  const barRef = useRef<{ uid?: string } | null>(null)
+  const [barH, setBarH] = useState(76)
+  useLayoutEffect(() => {
+    Taro.nextTick(() => {
+      Taro.createSelectorQuery()
+        .select('#bottomBar')
+        .boundingClientRect((rect: any) => {
+          if (rect && rect.height) setBarH(Math.ceil(rect.height))
+        })
+        .exec()
+    })
+  }, [])
   // 临期特惠入口带入的折扣单价（仅用于展示与透传；实际成交价由 createOrderV2 按 batch_id 服务端套用）
   const displayPrice = useMemo(() => {
     const base = Number(product?.price || 0)
@@ -77,10 +105,12 @@ const [adding, setAdding] = useState(false)
   // 在售批次的生产日期 / 保质期（来自商家端批次入库 stock_batches，与商家端同步）
   const [batchInfo, setBatchInfo] = useState<{ produced_at: string | null; expire_at: string | null; shelf_life_days: number | null } | null>(null)
 
-  // 构建媒体列表：主图 + 副图 + 视频（视频放最后）
+  // 构建媒体列表：视频置首帧 + 主图 + 副图（抖音电商习惯：视频即第一眼，更易建立信任）
   const mediaList = useMemo(() => {
     if (!product) return []
-    const list: { type: 'image'; url: string }[] = []
+    const list: { type: 'image' | 'video'; url: string }[] = []
+    const v = product.video_url
+    if (v) list.push({ type: 'video', url: v })
     const main = product.main_image || product.image_url
     if (main) list.push({ type: 'image', url: main })
     ;(product.sub_images || []).forEach(url => {
@@ -89,12 +119,16 @@ const [adding, setAdding] = useState(false)
     return list
   }, [product])
 
-  const videoUrl = useMemo(() => product?.video_url || '', [product])
-
   // 统一食疗引擎：拉取食材字典 + 实时计算三色预警（C 端详情页复用商家端同一套算法）
   const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
+  // 资产化①闭环：EF 私有目录表层「药食同源专属洞察」（服务端匹配，客户端读不到，竞品抄不到）
+  const [catalogInsight, setCatalogInsight] = useState<CatalogInsight | null>(null)
+  const [catalogLoading, setCatalogLoading] = useState(false)
   useEffect(() => {
-    getFoodIngredients().then(setIngredientDict).catch(() => setIngredientDict([]))
+    if (!ingredientDictPromise) {
+      ingredientDictPromise = getFoodIngredients().catch(() => [] as FoodIngredientRow[])
+    }
+    ingredientDictPromise.then(setIngredientDict).catch(() => setIngredientDict([]))
   }, [])
 
   // 生产日期 / 保质期展示计算（来自在售批次）
@@ -251,6 +285,59 @@ const [adding, setAdding] = useState(false)
   // 菜品级食养作用：原材料食材组合的现代营养 + 中医食疗（演示用，按 id/名称匹配）
   const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
 
+  // 资产化①升级：千人千面专属报告（核心壁垒·升首屏）
+  // 基于用户完整结构化画像（含 age_group 分群维度），本品对「你个人」的食养参考。
+  // 差异由过敏原 + 性味宜忌 + 人群标签自然产生，走中性食养话术，规避医疗宣称。
+  const personalReport = useMemo<ReturnType<typeof analyzeForProfile> | null>(() => {
+    if (!product || !activeProfile) return null
+    return analyzeForProfile(product, activeProfile)
+  }, [product, activeProfile])
+  const cohortLabel = useMemo(() => describeCohort(activeProfile), [activeProfile])
+
+  // 战略②：当前选购对象展示名（本人 / 家庭成员）
+  const subjectLabel = useMemo(() => {
+    if (selectedMemberId === 'self') return '你'
+    const m = familyMembers.find((x) => x.id === selectedMemberId)
+    return m ? m.name : '你'
+  }, [selectedMemberId, familyMembers])
+
+  // 资产化①闭环：调 ingredient-analyze EF 拿「药食同源专属洞察」
+  // EF 用 service_role 读 medicinal_food_catalog（客户端 RLS 拒绝），按用户年龄段做差异化；
+  // 仅回传衍生洞察，竞品无法复刻。persist:false 避免商品页内联调用刷 food_analysis_reports。
+  useEffect(() => {
+    let cancelled = false
+    const ageGroup = activeProfile?.age_group
+    const ingredients = (product?.ingredients || []) as string[]
+    if (!product || !ageGroup || !ingredients.length) {
+      setCatalogInsight(null)
+      return
+    }
+    setCatalogLoading(true)
+    callIngredientAnalyze({
+      text: ingredients.join('，'),
+      age_group: ageGroup,
+      product_id: product.id,
+      persist: false,
+      source: 'manual',
+    })
+      .then((r) => {
+        if (cancelled) return
+        setCatalogInsight(r.success ? (r.catalog_insight ?? null) : null)
+      })
+      .finally(() => {
+        if (!cancelled) setCatalogLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [product, activeProfile])
+
+  // 资产化②：同体质适配食材（复用搭配候选池，按用户画像筛出适配项）
+  const matchedProducts = useMemo(() => {
+    if (!hasHealthProfile) return []
+    return comboProducts.filter((c) => getSuitability(c) === 'recommend').slice(0, 4)
+  }, [hasHealthProfile, comboProducts, getSuitability])
+
   // 商品卡分享：一定是产品（商品主图 + 商品详情路径），并注入食疗分档
   useShareAppMessage(() => {
     if (!product) return { title: '来电有喜', path: '/pages/product/index' }
@@ -326,8 +413,12 @@ const [adding, setAdding] = useState(false)
     </View>
   )
 
+  // 商品类型分流：food=食养走食疗模块；gift/craft/care=走礼品模块（互斥，绝不共用食疗话术）
+  const isFood = !product.product_kind || product.product_kind === 'food'
+  const isGift = !isFood
+
   return (
-    <View className="min-h-screen bg-background pb-28">
+    <View className="min-h-screen bg-background" style={{ paddingBottom: barH }}>
       {/* 商品媒体轮播 + 顶部返回 + 购物车角标 */}
       <View className="relative">
         {/* 主图 + 副图轮播 */}
@@ -345,7 +436,11 @@ const [adding, setAdding] = useState(false)
           >
             {mediaList.map((m, i) => (
               <SwiperItem key={i}>
-                <Image src={m.url} mode="aspectFill" className="w-full h-full" style={{ display: 'block' }} />
+                {m.type === 'video' ? (
+                  <Video src={m.url} className="w-full h-full" style={{ display: 'block' }} controls showCenterPlayBtn enableProgressGesture objectFit="contain" />
+                ) : (
+                  <Image src={m.url} mode="aspectFill" className="w-full h-full" style={{ display: 'block' }} lazyLoad />
+                )}
               </SwiperItem>
             ))}
           </Swiper>
@@ -358,28 +453,7 @@ const [adding, setAdding] = useState(false)
           </View>
         )}
 
-        {/* 有视频标识 */}
-        {videoUrl && (
-          <View className="absolute bottom-3 left-4 px-2 py-0.5 rounded-full bg-red-500/80 text-white text-xs flex items-center gap-1">
-            <Icon name="video" size={14} />
-            <Text>含视频</Text>
-          </View>
-        )}
       </View>
-
-      {/* 视频播放区域 */}
-      {videoUrl && (
-        <View className="mx-4 mt-3 rounded-2xl overflow-hidden bg-black">
-          <Video
-            src={videoUrl}
-            className="w-full"
-            style={{ height: '200px' }}
-            controls
-            showCenterPlayBtn
-            enableProgressGesture
-            objectFit="contain" />
-        </View>
-      )}
 
       {/* 价格信息卡 */}
       <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
@@ -387,7 +461,7 @@ const [adding, setAdding] = useState(false)
         {myCode && (
           <View className="mb-3 py-2 px-3 rounded-xl bg-primary/10 flex items-center gap-2">
             <Icon name="share-variant" size={20} className="text-primary" />
-            <Text className="text-xl text-primary font-bold">分享此商品，好友购买你可获佣金</Text>
+            <Text className="text-sm text-primary font-medium">分享给好友，好友下单你可得健康豆奖励</Text>
           </View>
         )}
         <View className="flex items-center gap-3">
@@ -419,8 +493,15 @@ const [adding, setAdding] = useState(false)
         {product.sales_count != null && (
           <Text className="text-sm text-muted-foreground mt-1">已售 {product.sales_count >= 10000 ? `${(Math.floor(product.sales_count / 1000) / 10).toFixed(1)}万` : product.sales_count} 件</Text>
         )}
-        {/* 生产日期 / 保质期（来自在售批次，与商家端批次入库同步） */}
-        {batchDisplay && (
+        {/* 🛡️ 首屏信任锚点：每条都对应真实能力，不夸大（更信任的底层是「可验证」） */}
+        <View className="mt-2 flex flex-wrap gap-2">
+          {(safetyReport || foodAdditives.length > 0 || therapyReport) && (<TrustChip icon="🔬" label="已检配料" />)}
+          {personalReport && (<TrustChip icon="🌟" label="已为你适配" />)}
+          {batchDisplay && (<TrustChip icon="📦" label="批次可溯" />)}
+          {catalogInsight && (<TrustChip icon="🌿" label="药食同源" />)}
+        </View>
+        {/* 生产日期 / 保质期（来自在售批次，与商家端批次入库同步，仅食养食品） */}
+        {isFood && batchDisplay && (
           <View className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
             {batchDisplay.produced && (
               <Text className="text-xs text-muted-foreground">生产日期：{batchDisplay.produced}</Text>
@@ -433,24 +514,139 @@ const [adding, setAdding] = useState(false)
             )}
           </View>
         )}
-        {/* 配料安全：挂载的添加剂安全分级 + 食养成分分析 */}
-        <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} />
-        {/* 全面安全分析：致敏原 / 营养成分 / 标签合规 / 适宜人群 */}
-        {safetyReport && <ComprehensiveSafetyReport report={safetyReport} fullLabel />}
+        {/* 战略②：为谁选购 —— 家庭成员>0 时切换千人千面报告对象（inline 横滑，无浮层） */}
+        {isFood && familyMembers.length > 0 && (
+          <View className="mt-3">
+            <Text className="text-xs text-muted-foreground mb-2 block">为谁选购（切换专属食养参考）</Text>
+            <View className="flex gap-2 overflow-x-auto">
+              <View
+                onClick={() => setSelectedMemberId('self')}
+                className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs"
+                style={{ background: selectedMemberId === 'self' ? '#0F4C81' : '#EEF6FF', color: selectedMemberId === 'self' ? '#fff' : '#0F4C81' }}
+              >
+                我自己
+              </View>
+              {familyMembers.map((m) => (
+                <View
+                  key={m.id}
+                  onClick={() => setSelectedMemberId(m.id)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs"
+                  style={{ background: selectedMemberId === m.id ? '#0F4C81' : '#EEF6FF', color: selectedMemberId === m.id ? '#fff' : '#0F4C81' }}
+                >
+                  {m.name}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* 🌟 千人千面专属报告（核心壁垒·升首屏）：基于家庭食养画像，本品对当前选购对象的食养参考 */}
+        {isFood && personalReport && (
+          <View className="mt-3" style={{ padding: '14px 16px', borderRadius: '16px', background: 'linear-gradient(135deg,#EEF6FF,#E3F0FF)', border: '1px solid #BBD4F5' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: '15px', fontWeight: '800', color: '#0F4C81', display: 'block' }}>🌟 为{subjectLabel}定制的食养参考</Text>
+              {cohortLabel ? (
+                <Text style={{ fontSize: '11px', color: '#0F4C81', background: '#D6E6FB', paddingVertical: '2px', paddingHorizontal: '8px', borderRadius: '999px' }}>{cohortLabel}</Text>
+              ) : null}
+            </View>
+            {cohortLabel ? (
+              <Text style={{ fontSize: '12px', color: '#5B7CA6', display: 'block', marginTop: 4 }}>基于你的家庭食养画像，同一款零食不同体质看到的参考不同</Text>
+            ) : null}
+
+            {/* 过敏原强预警（最高优先级） */}
+            {personalReport.allergenHits.length > 0 && (
+              <View style={{ marginTop: 10, padding: '8px 10px', borderRadius: '10px', background: '#FEF2F2', border: '1px solid #FECACA' }}>
+                <Text style={{ fontSize: '12px', color: '#DC2626', fontWeight: '700', display: 'block', marginBottom: 4 }}>⚠️ 过敏原提醒</Text>
+                {personalReport.allergenHits.map((a) => (
+                  <Text key={a.key} style={{ fontSize: '13px', color: '#7F1D1D', display: 'block', lineHeight: '1.6' }}>· 您对{a.name}过敏{a.severity ? `（${a.severity}）` : ''}，本品含相关成分，请谨慎</Text>
+                ))}
+              </View>
+            )}
+
+            {/* 体质 / 慢病参考留意（中性食养话术） */}
+            {personalReport.contraindications.length > 0 && (
+              <View style={{ marginTop: 8, padding: '8px 10px', borderRadius: '10px', background: '#FFF7ED', border: '1px solid #FED7AA' }}>
+                <Text style={{ fontSize: '12px', color: '#C2410C', fontWeight: '700', display: 'block', marginBottom: 4 }}>🍂 参考留意</Text>
+                {personalReport.contraindications.map((c, i) => (
+                  <Text key={i} style={{ fontSize: '13px', color: '#7C2D12', display: 'block', lineHeight: '1.6' }}>· {c}</Text>
+                ))}
+              </View>
+            )}
+
+            {/* 🌿 药食同源专属参考（依你的年龄段）· 核心壁垒：私有目录表服务端匹配，竞品抄不到 */}
+            {catalogInsight && (
+              <View style={{ marginTop: 10, padding: '10px 12px', borderRadius: '12px', background: '#F0FBF4', border: '1px solid #BBE9CC' }}>
+                <Text style={{ fontSize: '13px', color: '#15803D', fontWeight: '800', display: 'block', marginBottom: 6 }}>🌿 药食同源专属参考 · 依你的年龄段</Text>
+                {catalogInsight.age_caution_hits.length > 0 && (
+                  <View style={{ marginBottom: 6 }}>
+                    <Text style={{ fontSize: '12px', color: '#B91C1C', fontWeight: '700', display: 'block', marginBottom: 3 }}>⚠️ 年龄段留意</Text>
+                    {catalogInsight.age_caution_hits.map((h) => (
+                      <Text key={h.ingredient} style={{ fontSize: '13px', color: '#7F1D1D', display: 'block', lineHeight: '1.6' }}>
+                        · {h.ingredient}：{h.cautions.join('、')}
+                      </Text>
+                    ))}
+                  </View>
+                )}
+                {catalogInsight.nature_summary ? (
+                  <Text style={{ fontSize: '13px', color: '#166534', display: 'block', lineHeight: '1.6', marginBottom: 6 }}>{catalogInsight.nature_summary}</Text>
+                ) : null}
+                {catalogInsight.compatibility_notes.length > 0 && (
+                  <View>
+                    <Text style={{ fontSize: '12px', color: '#15803D', fontWeight: '700', display: 'block', marginBottom: 3 }}>🤝 性味配伍</Text>
+                    {catalogInsight.compatibility_notes.map((n, i) => (
+                      <Text key={i} style={{ fontSize: '12px', color: '#166534', display: 'block', lineHeight: '1.6' }}>· {n}</Text>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+            {catalogLoading ? (
+              <Text style={{ fontSize: '12px', color: '#5B7CA6', display: 'block', marginTop: 10 }}>药食同源参考分析中…</Text>
+            ) : null}
+
+            {/* 契合度 + 一句话个性化点评 */}
+            <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ alignItems: 'center', flexShrink: 0, marginRight: 12 }}>
+                <Text style={{ fontSize: '24px', fontWeight: '800', color: '#0F4C81', display: 'block', lineHeight: '1.1' }}>{personalReport.profileFit}</Text>
+                <Text style={{ fontSize: '10px', color: '#5B7CA6', display: 'block', marginTop: 2 }}>契合度</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: '14px', color: '#0F4C81', fontWeight: '600', display: 'block', lineHeight: '1.5' }}>{personalReport.comment}</Text>
+              </View>
+            </View>
+
+            {/* CTA：完善档案让建议更准（承接原底部档案匹配度入口） */}
+            <View
+              className="mt-3 flex items-center justify-center rounded-xl"
+              style={{ paddingVertical: 8, background: '#0F4C81' }}
+              onClick={() => Taro.navigateTo({ url: '/pages/food/family/index' })}>
+              <Text style={{ fontSize: '14px', color: '#fff', fontWeight: '700' }}>完善家庭食养档案，让建议更准 →</Text>
+            </View>
+
+            <Text style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginTop: 8, lineHeight: '1.5' }}>{personalReport.disclaimer}</Text>
+          </View>
+        )}
+
+        {/* 配料安全：挂载的添加剂安全分级 + 食养成分分析（仅食养食品） */}
+        {isFood && <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} />}
+        {/* 全面安全分析：致敏原 / 营养成分 / 标签合规 / 适宜人群（仅食养食品） */}
+        {isFood && safetyReport && <ComprehensiveSafetyReport report={safetyReport} fullLabel />}
         {/* 📣 商家寄语（醒目卡片：暖白底 + 品牌色边条，与配料安全/食疗导购区隔） */}
         {product.description && (
           <View className="mt-3" style={{ padding: '12px 14px', borderRadius: '14px', background: '#FFFAF5', border: '1px solid #F0D9C0', borderLeftWidth: '4px', borderLeftColor: 'hsl(var(--primary))' }}>
-            <Text style={{ fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '4px', display: 'block' }}>📣 商家寄语</Text>
-            <Text className="text-foreground leading-relaxed" style={{ fontSize: '15px', display: 'block' }}>{product.description}</Text>
+            <Text style={{ fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '4px', display: 'block' }}>📣 门店寄语</Text>
+            <Text className="text-foreground leading-relaxed" style={{ fontSize: '15px', display: 'block' }}>{shieldCopy(product.description).safe}</Text>
           </View>
         )}
+        {/* 礼品模块：药膳手串 / 工艺礼品专属（仅当 product_kind !== 'food' 渲染，与食养模块互斥） */}
+        {isGift && <GiftSections product={product} />}
         {/* 🔍 食疗安全分析（统一引擎实时计算，三色预警 + 整体性味 + 引擎商家寄语） */}
-        {therapyReport && (
+        {isFood && therapyReport && (
           <View className="mt-3" style={{ padding: '12px 14px', borderRadius: '16px', background: '#F7F9FF', border: '1px solid #D9E2F3' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: '15px', fontWeight: '700', color: '#1E3A8A', display: 'block' }}>🍃 这口吃得安心吗</Text>
               {NATURE_FEELING[therapyReport.overall_nature_code] ? (
-                <Text style={{ fontSize: '12px', color: '#1E3A8A', background: '#E0E7FF', paddingVertical: '2px', paddingHorizontal: '8px', borderRadius: '999px' }}>体感 · {NATURE_FEELING[therapyReport.overall_nature_code]}</Text>
+                <Text style={{ fontSize: '12px', color: '#1E3A8A', background: '#E0E7FF', paddingVertical: '2px', paddingHorizontal: '8px', borderRadius: '999px' }}>食用体感 · {NATURE_FEELING[therapyReport.overall_nature_code]}</Text>
               ) : null}
             </View>
             <View style={{ marginTop: 8 }}>
@@ -465,34 +661,34 @@ const [adding, setAdding] = useState(false)
             ) : null}
             {therapyReport.merchant_note ? (
               <View style={{ marginTop: 8, padding: '8px 10px', borderRadius: '10px', background: '#FFFDF7', border: '1px solid #F0E6CF' }}>
-                <Text style={{ fontSize: '12px', color: '#C2410C', fontWeight: '700', display: 'block', marginBottom: 2 }}>📣 商家食养寄语（系统生成）</Text>
+                <Text style={{ fontSize: '12px', color: '#C2410C', fontWeight: '700', display: 'block', marginBottom: 2 }}>📣 门店食养寄语（系统生成）</Text>
                 <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>{therapyReport.merchant_note}</Text>
               </View>
             ) : null}
             <Text style={{ fontSize: '11px', color: '#9CA3AF', display: 'block', marginTop: 8, lineHeight: '1.5' }}>{therapyReport.disclaimer}</Text>
           </View>
         )}
-        {/* 食材食疗智能导购 · 五模块纯展示（读取商家预存成品内容） */}
-        {product && (() => {
+        {/* 食材食疗智能导购 · 五模块纯展示（读取商家预存成品内容，仅食养食品） */}
+        {isFood && product && (() => {
           const input = toFoodTherapyInput(product)
           const tier = classifyProduct(product)
           const tierLabel = tier ? TIER_LABEL[tier] : ''
           const tierColor = tier === 'recommend' ? '#16A34A' : tier === 'caution' ? '#A8552E' : tier === 'avoid' ? '#DC2626' : '#6B7280'
           const stageMod = buildShiyangStageModule(product.ingredients, product.food_stage)
           // 食用小贴士：适宜状态（食材受众 + 适配人群去重）
-          const tipAudiences = Array.from(new Set([
+          const tipAudiences = cleanAudienceTags([
             ...shiyangEntries.flatMap((e) => e.audiences || []),
             ...(foodBenefit?.suitableFor || []),
             ...(input.rec_crowds || []),
-          ])).slice(0, 4)
+          ]).slice(0, 4)
           const eatAmount = stageMod.stage === '补'
-            ? '建议每日 1–2 份，作为日常营养补充，不宜过量。'
+            ? '建议每日 1–2 份，作为日常饮食搭配参考，不宜过量。'
             : stageMod.stage === '清' || stageMod.stage === '通'
             ? '建议每日 1–2 份，肠胃敏感者可从小量开始。'
             : '建议每日 1–2 份，随餐或两餐之间食用，细嚼慢咽更舒服。'
 
-          // 人群标签栏：只展示推荐人群
-          const crowdRec = Array.from(new Set([...(foodBenefit?.suitableFor || []), ...(input.rec_crowds || [])])).slice(0, 4)
+          // 人群标签栏：只展示推荐人群（合规过滤疾病定向/恢复期待词）
+          const crowdRec = cleanAudienceTags([...(foodBenefit?.suitableFor || []), ...(input.rec_crowds || [])]).slice(0, 4)
           return (
             <View className="mt-3" style={{ padding: '12px 14px', borderRadius: '16px', background: '#F6FBF7', border: '1px solid #D6EFD8' }}>
               <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>🍵 日常食养参考</Text>
@@ -520,13 +716,17 @@ const [adding, setAdding] = useState(false)
               )}
 
               {/* 模块1：核心食材食养属性（折叠，默认收起） */}
+              {/* 合规提示：PRD 2.1 强制置顶免责声明（浅灰底 + 字号放大），强化普通食品无医疗功效的合规边界 */}
+              <View style={{ padding: '12px 14px', borderRadius: '12px', background: '#F3F4F6', border: '1px solid #E5E7EB', marginBottom: 10 }}>
+                <Text style={{ fontSize: '14px', fontWeight: '800', color: '#374151', display: 'block', lineHeight: '1.6' }}>⚠️ {FOOD_REFERENCE_DISCLAIMER}</Text>
+              </View>
               <CollapsibleSection title="① 核心食材食养属性">
                 {stageMod.ingredients.length > 0 ? (
                   <View style={{ border: '1px solid #E3F2E5', borderRadius: '10px', overflow: 'hidden' }}>
                     <View style={{ flexDirection: 'row', background: '#EAF6EC', padding: '6px 8px' }}>
                       <Text style={{ flex: 2, fontSize: '11px', color: '#2F5D3A', fontWeight: '700' }}>食材</Text>
                       <Text style={{ flex: 1, fontSize: '11px', color: '#2F5D3A', fontWeight: '700' }}>性味</Text>
-                      <Text style={{ flex: 3, fontSize: '11px', color: '#2F5D3A', fontWeight: '700' }}>传统食养作用</Text>
+                      <Text style={{ flex: 3, fontSize: '11px', color: '#2F5D3A', fontWeight: '700' }}>传统食用参考</Text>
                       <Text style={{ flex: 2, fontSize: '11px', color: '#2F5D3A', fontWeight: '700' }}>适配场景</Text>
                     </View>
                     {stageMod.ingredients.map((ing, i) => (
@@ -542,7 +742,7 @@ const [adding, setAdding] = useState(false)
                   <View>
                     {foodBenefit.ingredients.map((ing, i) => (
                       <Text key={i} style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>
-                        {ing.icon ? `${ing.icon} ` : ''}{ing.name}：{ing.role}
+                        {ing.icon ? `${ing.icon} ` : ''}{ing.name}：{shieldCopy(ing.role).safe}
                       </Text>
                     ))}
                   </View>
@@ -559,10 +759,6 @@ const [adding, setAdding] = useState(false)
                     {foodBenefit.modernNutrition.map((it, i) => (
                       <Text key={i} style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>· {it.title}：{it.desc}</Text>
                     ))}
-                    <Text style={{ fontSize: '13px', fontWeight: 'bold', color: '#16A34A', display: 'block', marginTop: 8 }}>🌿 中医食疗</Text>
-                    {foodBenefit.tcmTherapy.map((it, i) => (
-                      <Text key={i} style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>· {it.title}：{it.desc}</Text>
-                    ))}
                   </View>
                 ) : input.positive_effect ? (
                   <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>✅ {input.positive_effect}</Text>
@@ -574,10 +770,10 @@ const [adding, setAdding] = useState(false)
               {/* 模块3：人群适配提示（折叠，默认收起） */}
               <CollapsibleSection title="③ 人群适配提示">
                 {foodBenefit?.suitableFor?.length ? (
-                  <Text style={{ fontSize: '13px', color: '#16A34A', display: 'block', lineHeight: '1.6' }}>🌟 适配人群：{foodBenefit.suitableFor.join('、')}</Text>
+                  <Text style={{ fontSize: '13px', color: '#16A34A', display: 'block', lineHeight: '1.6' }}>🌟 适配人群：{cleanAudienceTags(foodBenefit.suitableFor).join('、')}</Text>
                 ) : null}
-                {input.rec_crowds && input.rec_crowds.length > 0 && (
-                  <Text style={{ fontSize: '13px', color: '#16A34A', display: 'block', lineHeight: '1.6' }}>🌟 适配人群：{input.rec_crowds.join('、')}{input.guide_sentence ? `（${input.guide_sentence}）` : ''}</Text>
+                {cleanAudienceTags(input.rec_crowds).length > 0 && (
+                  <Text style={{ fontSize: '13px', color: '#16A34A', display: 'block', lineHeight: '1.6' }}>🌟 适配人群：{cleanAudienceTags(input.rec_crowds).join('、')}{input.guide_sentence ? `（${input.guide_sentence}）` : ''}</Text>
                 )}
                 {(!foodBenefit?.suitableFor?.length && !input.rec_crowds?.length) && (
                   <Text style={{ fontSize: '12px', color: '#9CA3AF', display: 'block' }}>暂无特定人群标注</Text>
@@ -688,14 +884,15 @@ const [adding, setAdding] = useState(false)
                 src={img}
                 mode="widthFix"
                 className="w-full rounded-2xl"
-                style={{ display: 'block' }} />
+                style={{ display: 'block' }}
+                lazyLoad />
             ))}
           </View>
         </View>
       )}
 
-      {/* 安全保障模块（对标秋田满满信任区） */}
-      {product && (
+      {/* 安全保障模块（对标秋田满满信任区，仅食养食品） */}
+      {isFood && product && (
         <View className="mx-4 mt-3 mb-2 px-4 py-4 rounded-2xl" style={{ background: 'linear-gradient(135deg,#f0fdf4,#fef9e7)', border: '1px solid rgba(34,197,94,0.2)' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Text style={{ fontSize: 18 }}>🛡️</Text>
@@ -725,16 +922,57 @@ const [adding, setAdding] = useState(false)
         </View>
       )}
 
-      {/* 所有商品通用食用温馨提示（普通食品，无医疗调理作用） */}
+      {/* ============ 资产化②：同体质适配食材（基于用户食养画像精选，提升复购，仅食养食品） ============ */}
+      {isFood && matchedProducts.length > 0 && (
+        <View className="mx-4 mt-4">
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={{ fontSize: '15px', fontWeight: '800', color: '#1F2937', display: 'block' }}>🥗 同体质适配食材</Text>
+            <Text style={{ fontSize: '11px', color: '#9CA3AF', display: 'block' }}>基于你的食养画像</Text>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {matchedProducts.map((c) => (
+              <View key={c.id}
+                className="bg-card rounded-2xl border border-border"
+                style={{ width: '48%', padding: 10, marginBottom: 8, marginRight: '4%' }}
+                onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${c.id}` })}>
+                {c.image_url ? (
+                  <Image src={c.image_url} style={{ width: '100%', height: 90, borderRadius: 12, marginBottom: 6 }} mode="aspectFill" lazyLoad />
+                ) : null}
+                <Text style={{ fontSize: '13px', fontWeight: '700', color: '#1F2937', display: 'block', lineHeight: '1.3' }} numberOfLines={1}>{c.name}</Text>
+                <Text style={{ fontSize: '13px', color: '#EA580C', fontWeight: '700', display: 'block', marginTop: 2 }}>¥{c.price}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* 食养食品通用食用温馨提示（普通食品，无医疗调理作用；礼品不展示） */}
+      {isFood && (
       <View className="mx-4 mt-3 mb-2 px-3 py-3 rounded-xl" style={{ background: '#F8FAF9', border: '1px solid #E3EDEC' }}>
         <Text style={{ fontSize: '11px', color: '#6B7280', display: 'block', lineHeight: '1.6' }}>{PRODUCT_DISCLAIMER}</Text>
       </View>
+      )}
 
-      {/* 底部操作栏：左 3 个工具图标（缩小去边框）+ 右侧双主操作；移除「合计」（主图区已显示），主操作「立即支付」加阴影 + 不截断 */}
-      <View className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border px-3 flex items-center gap-2"
-        style={{ paddingTop: '10px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}>
+      {/* 问问食养师：商品详情页最高转化咨询入口（食养智能化主线落点，下沉替代首页 FAB） */}
+      <View className="mx-4 mt-3 mb-2 px-4 py-3 rounded-xl flex items-center justify-between active:scale-[0.99]"
+        style={{ background: 'linear-gradient(135deg,#EAF3DE 0%,#F8FAF9 100%)', border: '1px solid #C0DD97' }}
+        hoverClass="none"
+        onClick={() => Taro.navigateTo({ url: `/pages/food/consult/index?product_name=${encodeURIComponent(product.name)}${product.store_id ? `&store_id=${encodeURIComponent(product.store_id)}` : ''}` })}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: '#27500A', display: 'block' }}>🌿 问问食养师</Text>
+          <Text style={{ fontSize: 12, color: '#3B6D11', display: 'block', marginTop: 2, lineHeight: 1.4 }}>这件「{product.name}」孩子 / 老人 / 孕妈能不能吃？一键问</Text>
+        </View>
+        <View className="px-3 py-1.5 rounded-full flex-shrink-0" style={{ background: '#639922' }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: '#FFFFFF' }}>去问问</Text>
+        </View>
+      </View>
+
+      {/* 底部操作栏：左 3 个工具图标（缩小去边框）+ 右侧双主操作；移除「合计」（主图区已显示），主操作「立即支付」加阴影 + 不截断。
+          PRD 2.5：容器 pointerEvents:none 实现下层穿透，按钮/工具区 pointerEvents:auto 保证可交互；内容区 paddingBottom 动态等于栏高（含安全区） */}
+      <View id="bottomBar" className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border px-3 flex items-center gap-2"
+        style={{ paddingTop: '10px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)', pointerEvents: 'none' }}>
         {/* 左侧：工具（购物车 / 收藏 / 分享）— 缩小到 40×40，弱化边框，主色 Icon 提示 */}
-        <View className="flex items-center gap-1.5">
+        <View className="flex items-center gap-1.5" style={{ pointerEvents: 'auto' }}>
           {/* 购物车图标入口 */}
           <View className="relative flex-shrink-0" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
             <View className="w-10 h-10 rounded-xl bg-muted/60 flex items-center justify-center">
@@ -764,7 +1002,7 @@ const [adding, setAdding] = useState(false)
         {/* 加入购物车：白底品牌色描边 */}
         <Button type="default"
           className="flex-1 flex items-center justify-center leading-none rounded-xl bg-card"
-          style={{ border: '1.5px solid hsl(var(--primary))' }}
+          style={{ border: '1.5px solid hsl(var(--primary))', pointerEvents: 'auto' }}
           onClick={handleAddCart}>
           <View className="py-2.5 text-[15px] font-bold text-primary" style={{ whiteSpace: 'nowrap' }}>
             {adding ? '加入中...' : '加入购物车'}
@@ -773,7 +1011,7 @@ const [adding, setAdding] = useState(false)
         {/* 立即支付：白底 + 红字 + 红边框 + 红阴影，突出主操作（用户要求红色字体标注） */}
         <Button type="default"
           className="flex-[1.2] flex items-center justify-center leading-none rounded-xl bg-card"
-          style={{ border: '1.5px solid hsl(var(--destructive))', boxShadow: '0 4px 12px hsl(var(--destructive) / 0.30)' }}
+          style={{ border: '1.5px solid hsl(var(--destructive))', boxShadow: '0 4px 12px hsl(var(--destructive) / 0.30)', pointerEvents: 'auto' }}
           onClick={handleBuyNow}>
           <View className="py-2.5 text-[15px] font-bold text-destructive" style={{ whiteSpace: 'nowrap' }}>立即支付</View>
         </Button>

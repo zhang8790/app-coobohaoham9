@@ -40,7 +40,7 @@ function PaymentResultPage() {
         <View className="mt-6 w-full p-4 rounded-2xl bg-card border border-border">
           <Text className="text-base text-foreground leading-relaxed">
             {isDelivery
-              ? '商家将尽快为您发货，您可在「订单中心」查看物流与确认收货。'
+              ? '门店将尽快为您发货，您可在「订单中心」查看物流与确认收货。'
               : '到店消费时，向店员出示本订单号即可核销使用。'}
           </Text>
         </View>

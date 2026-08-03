@@ -61,7 +61,10 @@ export default function BeanExchange() {
         <Text style={{ fontSize: 13, color: '#fff', opacity: 0.8 }}>我的健康豆</Text>
         <Text style={{ fontSize: 36, fontWeight: '800', color: '#fff', marginTop: 4 }}>{balance}</Text>
         <Text style={{ fontSize: 13, color: '#fff', opacity: 0.7, marginTop: 2 }}>
-          1健康豆 = 1元 · 签到、分享、购物均可获得
+          1健康豆 = 1元抵扣额度 · 仅限小程序内消费抵扣，不可提现
+        </Text>
+        <Text style={{ fontSize: 11, color: '#fff', opacity: 0.6, marginTop: 4 }}>
+          健康豆不可提现、不可转赠、不可兑换现金券
         </Text>
       </View>
 

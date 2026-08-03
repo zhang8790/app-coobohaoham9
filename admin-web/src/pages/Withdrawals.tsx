@@ -76,9 +76,13 @@ export default function Withdrawals() {
           },
         }
       }).catch(e => console.warn('[Withdrawals] send-notification approve error:', e))
+      setProcessing(null); setDrawerOpen(false); setSelected(null); load()
+      return
     }
+    // 失败：明确告知，不再静默（修复「审核通过却仍显示审核中」）
     setProcessing(null)
-    setDrawerOpen(false); setSelected(null); load()
+    alert(`审核通过失败：未更新到数据库。\n可能原因：RLS 权限不足（is_admin 未生效）、记录已被改动、或网络异常。\n请打开浏览器控制台查看 [approveWithdrawal] 的具体报错并反馈技术。`)
+    load()
   }
 
   const handlePay = async (w: Withdrawal) => {
@@ -116,9 +120,13 @@ export default function Withdrawals() {
           },
         }
       }).catch(e => console.warn('[Withdrawals] send-notification pay error:', e))
+      setProcessing(null); setDrawerOpen(false); setSelected(null); load()
+      return
     }
+    // 失败：明确告知（余额不足 / 状态非 approved / RLS 拦截等）
     setProcessing(null)
-    setDrawerOpen(false); setSelected(null); load()
+    alert(`打款失败：未更新到数据库。\n可能原因：该单状态已非「已通过」、用户佣金余额不足、或 RLS 权限不足。\n请刷新后重试，或查看控制台 [payWithdrawal] 报错。`)
+    load()
   }
 
   const handleReject = async (w: Withdrawal) => {
@@ -131,26 +139,32 @@ export default function Withdrawals() {
     const ok = w.kind === 'settlement'
       ? await rejectSettlementWithdrawal(w.id, reason.trim(), remark || undefined)
       : await rejectWithdrawal(w.id, reason.trim(), remark || undefined)
-    if (ok && w.kind !== 'settlement') {
-      // 推送「提现被驳回」通知
-      supabase.functions.invoke('send-notification', {
-        body: {
-          user_id: w.user_id,
-          type: 'withdraw_progress',
-          title: '提现被驳回',
-          body: `您的提现 ¥${Number(w.amount).toFixed(2)} 被驳回：${reason.trim()}。佣金已保留在账户中。`,
-          payload: {
-            amount: Number(w.amount).toFixed(2),
-            status_label: '已驳回',
-            updated_at: new Date().toLocaleString('zh-CN'),
-            remark: reason.trim().slice(0, 20),
-            page: 'pages/withdraw/index',
-          },
-        }
-      }).catch(e => console.warn('[Withdrawals] send-notification reject error:', e))
+    if (ok) {
+      if (w.kind !== 'settlement') {
+        // 推送「提现被驳回」通知
+        supabase.functions.invoke('send-notification', {
+          body: {
+            user_id: w.user_id,
+            type: 'withdraw_progress',
+            title: '提现被驳回',
+            body: `您的提现 ¥${Number(w.amount).toFixed(2)} 被驳回：${reason.trim()}。佣金已保留在账户中。`,
+            payload: {
+              amount: Number(w.amount).toFixed(2),
+              status_label: '已驳回',
+              updated_at: new Date().toLocaleString('zh-CN'),
+              remark: reason.trim().slice(0, 20),
+              page: 'pages/withdraw/index',
+            },
+          }
+        }).catch(e => console.warn('[Withdrawals] send-notification reject error:', e))
+      }
+      setProcessing(null); setDrawerOpen(false); setSelected(null); load()
+      return
     }
+    // 失败：明确告知（修复静默失败）
     setProcessing(null)
-    setDrawerOpen(false); setSelected(null); load()
+    alert(`驳回失败：未更新到数据库。\n可能原因：RLS 权限不足、记录已被改动、或网络异常。\n请刷新后重试，或查看控制台 [rejectWithdrawal] 报错。`)
+    load()
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE)

@@ -143,3 +143,32 @@ export async function callEdgeFunction<T = any>(
 }
 
 export const supabase = isLocalDev ? mockSupabase : realSupabase
+
+/**
+ * 本地读取当前登录用户（只读本机 session,零网络请求）。
+ *
+ * 适用场景:业务查询前「拿 uid」(如 .eq('owner_id', user.id))、埋点取 userId 等,
+ * 这些不需要联网校验 token 有效性。替代强制联网的 supabase.auth.getUser(),
+ *   后者在小程序端未登录态下每次都发 GET /auth/v1/user 并 403,既浪费请求又拖慢首屏。
+ *
+ * 返回形状与 supabase.auth.getUser() 一致 { data: { user }, error },便于原地替换。
+ * 需要联网校验 token 有效性（登录 / 确权 / 会话续期）的场景仍用 supabase.auth.getUser()。
+ */
+export async function getLocalUser(): Promise<{ data: { user: any | null }; error: any }> {
+  try {
+    const { data } = await supabase.auth.getSession()
+    return { data: { user: data.session?.user ?? null }, error: null }
+  } catch (e: any) {
+    return { data: { user: null }, error: e }
+  }
+}
+
+/** 仅取 uid 的便捷封装；未登录返回 null,不发任何请求。 */
+export async function getLocalUserId(): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getSession()
+    return data.session?.user?.id ?? null
+  } catch {
+    return null
+  }
+}

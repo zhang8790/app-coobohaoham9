@@ -350,8 +350,8 @@ function MerchantSettingsPage() {
 
       {/* ===== 5.5 让利（推广）配置 ===== */}
       <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
-        <Text className="text-base font-bold text-foreground mb-1 block">让利（推广）配置</Text>
-        <Text className="text-xs text-gray-400 mb-3 block">设置订单金额中让利给平台的比例，用于推广员佣金和健康豆返还</Text>
+        <Text className="text-base font-bold text-foreground mb-1 block">让利（推荐）配置</Text>
+        <Text className="text-xs text-gray-400 mb-3 block">设置订单金额中让利的比例，用于消费者推荐奖励和健康豆返还</Text>
 
         <View className="flex items-center justify-between">
           <Text className="text-sm text-gray-600">让利率</Text>
@@ -372,7 +372,7 @@ function MerchantSettingsPage() {
         </View>
         <View className="mt-2 p-2 rounded-lg bg-orange-50">
           <Text className="text-xs text-orange-600">
-            示例：让利率 10%，订单 100 元 → 平台让利 10 元，用于推广员佣金 + 健康豆返还 + 平台收入
+            示例：让利率 10%，订单 100 元 → 品牌让利 10 元，用于消费者推荐奖励 + 健康豆返还 + 品牌收入
           </Text>
         </View>
         {/* 店铺整体让利开关 */}
@@ -381,7 +381,7 @@ function MerchantSettingsPage() {
             <Text className="text-sm text-gray-700 font-medium">店铺整体让利</Text>
             <Text className="text-xs text-gray-400 mt-0.5 block">
               {form.referral_rate_enabled
-                ? '开启：商品未单独设让利时，按此门店率参与佣金'
+                ? '开启：商品未单独设让利时，按此门店率参与推荐奖励'
                 : '关闭：仅商品级让利生效，整店不被统一让利吃掉利润'}
             </Text>
           </View>

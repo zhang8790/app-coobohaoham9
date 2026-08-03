@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
 import { RouteGuard } from '@/components/RouteGuard'
-import { supabase } from '@/client/supabase'
+import { supabase, getLocalUser } from '@/client/supabase'
 import './index.scss'
 import Icon from '@/components/Icon'
 
@@ -57,7 +57,7 @@ function CampaignClaimPage() {
   useEffect(() => {
     const fetchMine = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { user } } = await getLocalUser()
         if (!user) return
         const { data } = await supabase
           .from('profiles')
@@ -77,7 +77,7 @@ function CampaignClaimPage() {
   useEffect(() => {
     const ensureOpenid = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { user } } = await getLocalUser()
         if (!user) return
         const { data: prof } = await supabase
           .from('profiles')
@@ -99,12 +99,12 @@ function CampaignClaimPage() {
   useShareAppMessage(() => {
     const path = `/pages/marketing/campaign-claim/index?campaignId=${campaignId}${myCode ? `&ref=${myCode}` : ''}`
     const title = campaign?.campaign_type === 'redpacket'
-      ? `🧧 ${campaign.gift_value}元现金红包，限时免费领！`
-      : `🎁 ${campaign?.gift_name || '实物好礼'}，限时免费领！`
+      ? `来电有喜 · 门店福利邀你体验`
+      : `🎁 ${campaign?.gift_name || '实物好礼'}，好物免费领！`
     return { title, path, imageUrl: '' }
   })
   useShareTimeline(() => ({
-    title: '来电有喜 · 优惠好礼，欢迎领取',
+    title: '来电有喜 · 好物推荐',
     query: `campaignId=${campaignId}${myCode ? `&ref=${myCode}` : ''}`}))
 
   const loadCampaign = useCallback(async (id: string) => {
@@ -206,8 +206,8 @@ function CampaignClaimPage() {
           if (payErr) {
             setPayoutMsg('红包已领取，现金发放待处理')
           } else if (pay?.mode === 'live' && pay?.success) {
-            setPayoutMsg('🧧 现金红包已发放至您的微信零钱！')
-            Taro.showToast({ title: '现金已到账微信零钱', icon: 'success' })
+            setPayoutMsg('🧧 福利已发放至您的微信零钱')
+            Taro.showToast({ title: '福利已到账微信零钱', icon: 'success' })
           } else if (pay?.mode === 'manual') {
             setPayoutMsg('🧧 红包已记录，现金将发放至您的微信零钱')
           } else {
@@ -246,7 +246,7 @@ function CampaignClaimPage() {
           领取成功！
         </Text>
         <Text className="text-xl text-muted-foreground text-center">
-          到店核销消费后，推荐人可获得推广佣金
+          到店核销消费后，好友推荐关系即绑定生效
         </Text>
         {payoutDone && payoutMsg ? (
           <View className="w-full py-3 rounded-2xl bg-primary/10 border border-primary/30 text-primary text-center text-lg font-semibold">
@@ -275,19 +275,19 @@ function CampaignClaimPage() {
               </Text>
               <View className="gap-3 mb-6">
                 <Text className="text-base text-foreground">
-                  📌 {campaign.campaign_type === 'redpacket' ? '现金红包' : '实物礼品'}仅门店注册引流福利，注册、成为推广员完全免费，不领取福利也可自主注册。
+                  📌 {campaign.campaign_type === 'redpacket' ? '福利金' : '实物礼品'}仅门店注册引流福利，注册、成为推荐人完全免费，不领取福利也可自主注册。
                 </Text>
                 <Text className="text-base text-foreground">
-                  📌 领取仅记录推荐溯源轨迹，单纯注册、领取福利无任何推广佣金、多级收益。
+                  📌 领取仅记录推荐溯源轨迹，单纯注册、领取福利无任何推荐奖励、多级收益。
                 </Text>
                 <Text className="text-base text-foreground">
-                  📌 仅线下本店真实到店核销消费（抵扣后实付满10元），才会产生推广佣金。
+                  📌 仅线下本店真实到店核销消费（抵扣后实付满10元），才会产生推荐奖励。
                 </Text>
                 <Text className="text-base text-foreground">
-                  📌 推广佣金仅两级，无多层返利，禁止以拉人头、注册数量获利。
+                  📌 推荐奖励基于真实消费，无多层返利，禁止以拉人头、注册数量获利。
                 </Text>
                 <Text className="text-base text-foreground mt-2 pt-2" style={{ borderTop: '1px solid #E7DDD0' }}>
-                  ⚠️ 本店员工、亲属、关联账号禁止领取付费红包/实物。
+                  ⚠️ 本店员工、亲属、关联账号禁止领取福利。
                 </Text>
               </View>
               <View className="flex items-center gap-3 mb-4">
@@ -313,11 +313,11 @@ function CampaignClaimPage() {
         <View className="px-4 pt-4 pb-2">
           <View className="claim-gradient-bg rounded-2xl p-6">
             <Text className="text-3xl font-black text-orange-900 block mb-2">
-              {campaign.campaign_type === 'redpacket' ? '🧧 领取现金红包' : '🎁 抢实物礼品'}
+              {campaign.campaign_type === 'redpacket' ? '🧧 领取门店福利' : '🎁 抢实物礼品'}
             </Text>
             <Text className="text-xl text-orange-700">
               {campaign.campaign_type === 'redpacket'
-                ? `¥${campaign.gift_value} 现金红包`
+                ? `¥${campaign.gift_value} 门店福利金`
                 : campaign.gift_name}
             </Text>
           </View>
@@ -327,10 +327,10 @@ function CampaignClaimPage() {
         <View className="mx-4 mt-4 p-5 rounded-2xl bg-card border border-border">
           <Text className="text-xl font-bold text-foreground mb-3 block">活动规则</Text>
           <View className="gap-2">
-            <Text className="text-base text-muted-foreground">• 领取后72小时内到店核销，否则红包失效</Text>
+            <Text className="text-base text-muted-foreground">• 领取后72小时内到店核销，否则福利失效</Text>
             <Text className="text-base text-muted-foreground">• 单用户单店每日限领1份</Text>
-            <Text className="text-base text-muted-foreground">• 仅记录推荐轨迹，核销消费后才激活佣金</Text>
-            <Text className="text-base text-muted-foreground">• 推广佣金仅两级，无多层返利</Text>
+            <Text className="text-base text-muted-foreground">• 仅记录推荐轨迹，核销消费后才激活推荐奖励</Text>
+            <Text className="text-base text-muted-foreground">• 推荐奖励基于真实消费，无多层返利</Text>
           </View>
         </View>
 
@@ -340,7 +340,7 @@ function CampaignClaimPage() {
             className="w-full py-4 rounded-2xl bg-primary text-white text-center text-2xl font-bold"
             onClick={handleClaim}
           >
-            {claiming ? '领取中...' : `立即领取${campaign.campaign_type === 'redpacket' ? '红包' : '实物'}`}
+            {claiming ? '领取中...' : `立即领取${campaign.campaign_type === 'redpacket' ? '福利' : '实物'}`}
           </View>
         </View>
 
@@ -351,7 +351,7 @@ function CampaignClaimPage() {
             className="w-full py-4 rounded-2xl bg-card border border-border text-primary text-center text-xl font-bold leading-none"
             style={{ border: '1px solid', padding: 0 }}
           >
-            分享给好友一起领 🧧
+            分享给好友 · 好物推荐
           </Button>
         </View>
       </View>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   getSelfStores, updateSelfStore, createSelfStore, searchUsers,
+  adminCreateStoreWithLogin,
   getSelfStoreProducts, createSelfStoreProduct, updateSelfStoreProduct,
   getSelfStoreOrders, getSelfStoreStats,
   type SelfStoreProduct, type SelfStoreOrder, type SelfStoreStats,
@@ -40,11 +41,18 @@ type StoreRow = {
   banner_url: string | null
 }
 
+const STORE_TYPES = ['branch', 'hub', 'transfer', 'truck'] as const
+const STORE_TYPE_LABEL: Record<string, string> = {
+  branch: '普通门店', hub: '总仓/中心仓', transfer: '中转仓', truck: '流动车',
+}
+
 const emptyStoreForm = {
   name: '', description: '', category: '生鲜', referral_rate_pct: 20,
   open_time: '08:00', close_time: '22:00', image_url: '', banner_url: '',
-  referral_rate_enabled: true,
+  referral_rate_enabled: true, store_type: 'branch',
+  manager_mode: 'bind',                 // 'bind' = 绑定已有账号 / 'create' = 创建新运营账号
   manager_keyword: '', manager_uid: '', manager_nickname: '', manager_phone: '',
+  manager_email: '', manager_password: '', manager_phone_create: '', manager_nickname_create: '',
 }
 
 const emptyProductForm = {
@@ -170,7 +178,7 @@ export default function SelfStores() {
 function StoreDetail({ store, onBack }: { store: StoreRow; onBack: () => void }) {
   const [tab, setTab] = useState<'overview' | 'products' | 'orders'>('overview')
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState({ ...emptyStoreForm })
+  const [form, setForm] = useState<any>({ ...emptyStoreForm })
 
   const openEdit = () => {
     setEditing(true)
@@ -448,19 +456,34 @@ function OrdersTab({ storeId }: { storeId: string }) {
 // ── 弹窗 ─────────────────────────────────────────────────────────────
 function NewStoreButton({ onCreated }: { onCreated: () => void }) {
   const [show, setShow] = useState(false)
-  const [form, setForm] = useState({ ...emptyStoreForm })
+  const [form, setForm] = useState<any>({ ...emptyStoreForm })
   const [saving, setSaving] = useState(false)
   const save = async () => {
     if (!form.name.trim()) { alert('请填写店名'); return }
     if (form.referral_rate_pct < 0 || form.referral_rate_pct > 100) { alert('让利率需在 0~100 之间'); return }
     setSaving(true)
-    await createSelfStore({
-      name: form.name.trim(), description: form.description.trim() || undefined, category: form.category,
-      referral_rate: Math.round(form.referral_rate_pct) / 100, open_time: form.open_time, close_time: form.close_time,
-      image_url: form.image_url.trim() || undefined, banner_url: form.banner_url.trim() || undefined,
-      owner_id: form.manager_uid || undefined,
-    })
-    setSaving(false); setShow(false); onCreated()
+    if (form.manager_mode === 'create') {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.manager_email)) { setSaving(false); alert('请输入合法的运营邮箱'); return }
+      if ((form.manager_password || '').length < 6) { setSaving(false); alert('运营账号密码至少 6 位'); return }
+      const r = await adminCreateStoreWithLogin({
+        store_name: form.name.trim(), description: form.description.trim() || undefined, category: form.category,
+        referral_rate: Math.round(form.referral_rate_pct) / 100, open_time: form.open_time, close_time: form.close_time,
+        image_url: form.image_url.trim() || undefined, banner_url: form.banner_url.trim() || undefined,
+        store_type: form.store_type, manager_email: form.manager_email.trim(), manager_password: form.manager_password,
+        manager_phone: form.manager_phone_create.trim() || undefined, manager_nickname: form.manager_nickname_create.trim() || undefined,
+      })
+      setSaving(false)
+      if (!r.ok) { alert('建店失败：' + (r.error || '未知错误')); return }
+      setShow(false); onCreated()
+    } else {
+      await createSelfStore({
+        name: form.name.trim(), description: form.description.trim() || undefined, category: form.category,
+        referral_rate: Math.round(form.referral_rate_pct) / 100, open_time: form.open_time, close_time: form.close_time,
+        image_url: form.image_url.trim() || undefined, banner_url: form.banner_url.trim() || undefined,
+        store_type: form.store_type, owner_id: form.manager_uid || undefined,
+      })
+      setSaving(false); setShow(false); onCreated()
+    }
   }
   return (
     <>
@@ -509,6 +532,11 @@ function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSav
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
+          <Field label="门店类型" flex>
+            <select value={form.store_type} onChange={e => setForm({ ...form, store_type: e.target.value })} style={inputStyle}>
+              {STORE_TYPES.map(t => <option key={t} value={t}>{STORE_TYPE_LABEL[t]}</option>)}
+            </select>
+          </Field>
           <Field label="让利率 (%)" flex>
             <input type="number" min={0} max={100} value={form.referral_rate_pct} onChange={e => setForm({ ...form, referral_rate_pct: Number(e.target.value) })} style={inputStyle} placeholder="20" />
           </Field>
@@ -536,28 +564,52 @@ function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSav
         <Field label="店招图 URL"><input value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })} style={inputStyle} placeholder="https://..." /></Field>
         <Field label="横幅图 URL"><input value={form.banner_url} onChange={e => setForm({ ...form, banner_url: e.target.value })} style={inputStyle} placeholder="https://..." /></Field>
         {showManager && (
-          <Field label="绑定店长（选填 · 店长可登录小程序自营门店中心与后台管理本店）">
-            {form.manager_nickname ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ color: C.text, fontSize: 14 }}>已绑定：{form.manager_nickname}{form.manager_phone ? `（${form.manager_phone}）` : ''}</span>
-                <button type="button" onClick={() => setForm({ ...form, manager_uid: '', manager_nickname: '', manager_phone: '' })} style={miniBtn}>更换</button>
-              </div>
-            ) : (
-              <div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input value={form.manager_keyword} onChange={e => setForm({ ...form, manager_keyword: e.target.value })} style={inputStyle} placeholder="输入手机号或昵称搜索" />
-                  <button type="button" onClick={searchManager} disabled={mSearching} style={{ ...saveBtn, background: C.sub, whiteSpace: 'nowrap' }}>{mSearching ? '搜索中' : '搜索'}</button>
+          <Field label="运营账号（店长可登录小程序自营门店中心与后台管理本店）">
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              {([['bind', '绑定已有账号'], ['create', '创建新运营账号']] as const).map(([m, l]) => (
+                <button key={m} type="button" onClick={() => setForm({ ...form, manager_mode: m })}
+                  style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                    background: form.manager_mode === m ? C.accent : C.card, color: form.manager_mode === m ? '#fff' : C.sub }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            {form.manager_mode === 'bind' ? (
+              form.manager_nickname ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ color: C.text, fontSize: 14 }}>已绑定：{form.manager_nickname}{form.manager_phone ? `（${form.manager_phone}）` : ''}</span>
+                  <button type="button" onClick={() => setForm({ ...form, manager_uid: '', manager_nickname: '', manager_phone: '' })} style={miniBtn}>更换</button>
                 </div>
-                {mResults.length > 0 && (
-                  <div style={{ marginTop: 8, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' }}>
-                    {mResults.map((u: any) => (
-                      <div key={u.id} onClick={() => pickManager(u)}
-                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: `1px solid ${C.border}`, fontSize: 13, color: C.text }}>
-                        {u.nickname}{u.phone ? `（${u.phone}）` : ''}{u.role === 'merchant' ? ' · 已有自营门店身份' : ''}
-                      </div>
-                    ))}
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input value={form.manager_keyword} onChange={e => setForm({ ...form, manager_keyword: e.target.value })} style={inputStyle} placeholder="输入手机号或昵称搜索" />
+                    <button type="button" onClick={searchManager} disabled={mSearching} style={{ ...saveBtn, background: C.sub, whiteSpace: 'nowrap' }}>{mSearching ? '搜索中' : '搜索'}</button>
                   </div>
-                )}
+                  {mResults.length > 0 && (
+                    <div style={{ marginTop: 8, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' }}>
+                      {mResults.map((u: any) => (
+                        <div key={u.id} onClick={() => pickManager(u)}
+                          style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: `1px solid ${C.border}`, fontSize: 13, color: C.text }}>
+                          {u.nickname}{u.phone ? `（${u.phone}）` : ''}{u.role === 'merchant' ? ' · 已有自营门店身份' : ''}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <input value={form.manager_email} onChange={e => setForm({ ...form, manager_email: e.target.value })} style={inputStyle} placeholder="运营邮箱（用作网页端登录账号）" />
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <input type="password" value={form.manager_password} onChange={e => setForm({ ...form, manager_password: e.target.value })} style={{ ...inputStyle, flex: 1 }} placeholder="登录密码（≥6 位）" />
+                  <input value={form.manager_phone_create} onChange={e => setForm({ ...form, manager_phone_create: e.target.value })} style={{ ...inputStyle, flex: 1 }} placeholder="手机号（选填）" />
+                </div>
+                <input value={form.manager_nickname_create} onChange={e => setForm({ ...form, manager_nickname_create: e.target.value })} style={inputStyle} placeholder="运营昵称（选填，默认用店名）" />
+                <p style={{ color: C.dim, fontSize: 12, margin: 0 }}>
+                  将原子创建：门店（自营） + 该邮箱登录账号 + 运营身份绑定。账号立即可在网页管理中心登录本店。
+                </p>
               </div>
             )}
           </Field>

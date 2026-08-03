@@ -10,12 +10,12 @@ function WithdrawRules() {
         <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月20日\n生效日期：2026年7月20日'}</Text>
 
         <View className="mb-3 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
-          <Text className="block text-amber-800 text-xs leading-relaxed">提示：推广佣金已以健康豆形式发放至健康豆余额，可在平台内消费支付抵扣，不可提现或兑现金。以下提现规则仅适用于商家货款。</Text>
+          <Text className="block text-amber-800 text-xs leading-relaxed">提示：推荐奖励已以健康豆形式发放至健康豆余额，可在小程序内消费支付抵扣，不可提现或兑现金。以下提现规则仅适用于门店货款。</Text>
         </View>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">一、可提现范围</Text>
-          <Text className="block">1. 可提现金额为已结算的商家货款（人民币），待结算金额需订单完成结算后方可提现。</Text>
+          <Text className="block">1. 可提现金额为已结算的门店货款（人民币），待结算金额需订单完成结算后方可提现。</Text>
           <Text className="block">2. 单笔提现最低金额为 ¥1.00，最高不超过可结算货款。</Text>
         </View>
 
@@ -28,9 +28,9 @@ function WithdrawRules() {
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">三、货款与税费说明</Text>
-          <Text className="block">1. 商家货款来源于真实商品交易的平台让利结算，平台基础服务费已在结算阶段计提。</Text>
-          <Text className="block">2. 货款提现按申请金额发放，不额外扣除平台服务费。</Text>
-          <Text className="block">3. 货款属于商家经营收入，请依法申报纳税。</Text>
+          <Text className="block">1. 门店货款来源于真实商品交易的品牌让利结算，品牌基础服务费已在结算阶段计提。</Text>
+          <Text className="block">2. 货款提现按申请金额发放，不额外扣除品牌技术服务费。</Text>
+          <Text className="block">3. 货款属于门店经营收入，请依法申报纳税。</Text>
         </View>
 
         <View className="mb-4">
@@ -44,7 +44,7 @@ function WithdrawRules() {
           <Text className="block text-foreground font-semibold mb-1 leading-snug">五、风险提示</Text>
           <Text className="block">1. 请务必核对收款账户信息，因填写错误导致的资金损失由申请人承担。</Text>
           <Text className="block">2. 账户须为本人实名账户，不得借用、冒用他人账户进行提现。</Text>
-          <Text className="block">3. 平台有权对异常提现（如刷单、套现）进行拦截并冻结相关收益。</Text>
+          <Text className="block">3. 本品牌有权对异常提现（如刷单、套现）进行拦截并冻结相关收益。</Text>
         </View>
 
         <Text className="block text-muted-foreground text-xs mt-5 pt-3" style={{ borderTop: '1px solid hsl(var(--border))' }}>

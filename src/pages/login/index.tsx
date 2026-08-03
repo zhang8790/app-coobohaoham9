@@ -80,7 +80,16 @@ export default function LoginPage() {
     setLoading(true)
     const { error } = await signInWithUsername(username.trim(), password)
     setLoading(false)
-    if (error) { Taro.showToast({ title: '登录失败：' + error.message, icon: 'none' }); return }
+    if (error) {
+      // 用户友好提示：不暴露内部路径/技术细节（Supabase 原始错误/SQL 脚本名等）
+      const msg = error.message || ''
+      let friendly = '登录失败，请稍后重试'
+      if (msg.includes('Invalid login credentials')) friendly = '用户名或密码错误'
+      else if (msg.includes('Email not confirmed')) friendly = '账号未验证，请检查邮箱'
+      else if (msg.includes('Too many requests')) friendly = '操作太频繁，请稍后再试'
+      Taro.showToast({ title: friendly, icon: 'none' })
+      return
+    }
     handleLoginSuccess()
   }
 
@@ -102,27 +111,7 @@ export default function LoginPage() {
       } catch { /* non-blocking */ }
     }
 
-    // 检测是否为员工
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: staff } = await supabase
-          .from('store_staff')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
-          .maybeSingle()
-        if (staff) {
-          // 是员工 → 跳员工中心
-          Taro.reLaunch({ url: '/pages/ext/employee/index' })
-          return
-        }
-      }
-    } catch (err) {
-      console.error('[登录] 员工检测失败', err)
-    }
-
-    // 非员工 → 正常跳转
+    // 所有角色统一跳转：优先 loginRedirectPath，否则跳 C 端首页
     const redirect = Taro.getStorageSync('loginRedirectPath')
     Taro.removeStorageSync('loginRedirectPath')
     const tabBarPaths = ['/pages/index/index', '/pages/explore/index', '/pages/cart/index', '/pages/user/index']
@@ -135,14 +124,19 @@ export default function LoginPage() {
     }
   }
 
+  // 微信登录规范：用户拒绝/取消登录时必须可退出当前登录页
+  // 微信原生导航栏返回键（胶囊区返回）+ 显式"暂不登录"按钮 双重保险。
+  // 取消登录后统一回到「首页」（访客可浏览，无强制登录），避免回跳到受保护页
+  // 再次被拦截弹回登录页（微信审核"点击返回选项无效"的根因）。
+  const handleExitLogin = () => {
+    Taro.removeStorageSync('loginRedirectPath')
+    Taro.switchTab({ url: '/pages/index/index' })
+  }
+
   return (
     <View className="min-h-screen flex flex-col bg-background">
       {/* 顶部装饰 */}
       <View className="relative px-6 pt-16 pb-10" style={{ background: 'linear-gradient(160deg,#F1E9D9 0%,#FFFBF7 100%)' }}>
-        <View className="absolute top-12 left-4 w-10 h-10 flex items-center justify-center"
-          onClick={() => Taro.navigateBack()}>
-          <Icon name="arrow-left" size={24} className="text-foreground" />
-        </View>
         <View className="flex items-center gap-3 mt-2">
           <View className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
             <Text className="text-white font-bold text-xl">喜</Text>
@@ -155,7 +149,7 @@ export default function LoginPage() {
         {referralCode ? (
           <View className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20">
             <Icon name="gift" size={20} className="text-primary flex-shrink-0" />
-            <Text className="text-xl text-primary">推广码 <Text className="font-bold tracking-wider">{referralCode}</Text> 已识别，注册后自动绑定</Text>
+            <Text className="text-xl text-primary">推荐码 <Text className="font-bold tracking-wider">{referralCode}</Text> 已识别，注册后自动绑定</Text>
           </View>
         ) : null}
       </View>
@@ -253,6 +247,13 @@ export default function LoginPage() {
                 <Icon name="wechat" size={24} />
                 <Text className="text-xl text-foreground">微信一键登录</Text>
               </View>
+            </View>
+
+            {/* 微信登录规范：用户明确可拒绝登录，必须提供"暂不登录"出口 */}
+            <View
+              className="mt-6 flex items-center justify-center"
+              onClick={handleExitLogin}>
+              <Text className="text-xl text-muted-foreground underline">暂不登录</Text>
             </View>
           </>
         ) : (

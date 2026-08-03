@@ -68,9 +68,9 @@ export default function ResetPasswordPage() {
 
     Taro.showToast({ title: isChange ? '密码已修改' : '密码已重置', icon: 'success' })
     if (!isChange) {
-      // 忘记密码：清除临时登录态，回到登录页用新密码登录
+      // 忘记密码：清除临时登录态，回到上一层（登录页），保留栈让微信胶囊能显示返回箭头
       await supabase.auth.signOut().catch(() => {})
-      setTimeout(() => Taro.reLaunch({ url: '/pages/login/index' }), 1200)
+      setTimeout(() => Taro.navigateBack({ delta: 1 }), 1200)
     } else {
       setTimeout(() => Taro.navigateBack(), 1200)
     }

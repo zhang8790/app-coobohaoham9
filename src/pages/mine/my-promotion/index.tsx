@@ -1,4 +1,4 @@
-// @title 推广中心
+// @title 推荐中心
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { Button, Image, View, Text } from '@tarojs/components'
@@ -27,7 +27,7 @@ function MyPromotionPage() {
   const { user, profile, loading: authLoading } = useAuth()
   const [rankData, setRankData] = useState<RankProgress | null>(null)
   const [commSummary, setCommSummary] = useState<CommSummary | null>(null)
-  const [referralCode, setReferralCode] = useState<string>('LDYX001')  // 默认推广码，避免空白
+  const [referralCode, setReferralCode] = useState<string>('LDYX001')  // 默认推荐码，避免空白
   const [directTeam, setDirectTeam] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [copySuccess, setCopySuccess] = useState(false)
@@ -36,7 +36,7 @@ function MyPromotionPage() {
   const [error, setError] = useState<string>('')  // 添加错误状态
 
   // 分享配置
-  const shareTitle = `我在"来电有喜"找到了好东西，用我的推广码${referralCode}注册，享首单优惠！`
+  const shareTitle = `我在"来电有喜"找到了好东西，用我的推荐码${referralCode}注册，享首单优惠！`
   const sharePath = `/pages/index/index?ref=${referralCode}`
   useShareAppMessage(() => ({ title: shareTitle, path: sharePath }))
   useShareTimeline(() => ({ title: shareTitle }))
@@ -108,11 +108,11 @@ function MyPromotionPage() {
         })
       }
 
-      // 处理推广码
+      // 处理推荐码
       if (profileRes.status === 'fulfilled' && profileRes.value?.data) {
         const pd = profileRes.value.data as any
         if (pd.invite_code) setReferralCode(pd.invite_code)
-        else setReferralCode('LDYX001')  // 默认推广码
+        else setReferralCode('LDYX001')  // 默认推荐码
       } else {
         setReferralCode('LDYX001')  // 兜底默认值
       }
@@ -160,7 +160,7 @@ function MyPromotionPage() {
 
   useEffect(() => { load() }, [load])
 
-  // 加载完推广码后自动生成二维码
+  // 加载完推荐码后自动生成二维码
   useEffect(() => {
     if (!referralCode || qrUrl || qrLoading) return
     setQrLoading(true)
@@ -176,38 +176,16 @@ function MyPromotionPage() {
   const handleCopyCode = () => {
     Taro.setClipboardData({ data: referralCode, success: () => {
       setCopySuccess(true)
-      Taro.showToast({ title: '推广码已复制', icon: 'success' })
+      Taro.showToast({ title: '推荐码已复制', icon: 'success' })
       setTimeout(() => setCopySuccess(false), 2000)
     }})
   }
 
   const handleShareLink = () => {
-    const link = `来电有喜，专属推广码：${referralCode}，下载并使用我的推广码注册享优惠！`
+    const link = `来电有喜，专属推荐码：${referralCode}，下载并使用我的推荐码注册享优惠！`
     Taro.setClipboardData({ data: link, success: () =>
-      Taro.showToast({ title: '推广链接已复制', icon: 'success' })
+      Taro.showToast({ title: '推荐链接已复制', icon: 'success' })
     })
-  }
-
-  const handleShowQr = async () => {
-    if (qrUrl) return  // 已生成
-    if (!referralCode) { Taro.showToast({ title: '推广码加载中', icon: 'none' }); return }
-    setQrLoading(true)
-    const url = await generateQrcode({ type: 'user', referral_code: referralCode })
-    setQrLoading(false)
-    if (url) setQrUrl(url)
-    else Taro.showToast({ title: '二维码生成失败，请稍后重试', icon: 'none' })
-  }
-
-  const handleSaveQr = () => {
-    if (!qrUrl) return
-    const isWeapp = Taro.getEnv() === 'WEAPP'
-    if (!isWeapp) { Taro.showToast({ title: '保存功能仅在微信小程序中可用', icon: 'none' }); return }
-    Taro.downloadFile({ url: qrUrl, success: (res) => {
-      Taro.saveImageToPhotosAlbum({ filePath: res.tempFilePath,
-        success: () => Taro.showToast({ title: '二维码已保存到相册', icon: 'success' }),
-        fail: () => Taro.showToast({ title: '保存失败，请授权相册权限', icon: 'none' }),
-      })
-    }, fail: () => Taro.showToast({ title: '下载失败', icon: 'none' }) })
   }
 
   const rankColor = userRankInfo?.rankName ? (RANK_COLOR_MAP[userRankInfo.rankName] || 'hsl(var(--primary))') : 'hsl(var(--primary))'
@@ -234,7 +212,7 @@ function MyPromotionPage() {
                 <Icon name="medal" size={30} className="text-white" />
                 <Text className="text-3xl font-bold text-white">{rankData?.current_rank || '凡心'}</Text>
               </View>
-              <Text className="text-xl text-white/80">我的好友: {rankData?.direct_count || 0}人  |  累计累计消费额: ¥{Number(rankData?.total_gmv || 0).toFixed(0)}</Text>
+              <Text className="text-xl text-white/80">我的好友: {rankData?.direct_count || 0}人  |  累计消费额: ¥{Number(rankData?.total_gmv || 0).toFixed(0)}</Text>
             </View>
           </View>
 
@@ -242,11 +220,11 @@ function MyPromotionPage() {
         </View>
       </View>
 
-      {/* 推广码二维码 —— 主焦点 */}
+      {/* 推荐码二维码 —— 主焦点 */}
       <View className="mx-4 mt-4 p-5 bg-card rounded-3xl border-2 border-primary/20">
         <View className="flex items-center gap-2 mb-4">
           <Icon name="qrcode" size={24} className="text-primary" />
-          <Text className="text-xl font-bold text-foreground">我的推广码</Text>
+          <Text className="text-xl font-bold text-foreground">我的推荐码</Text>
           <Text className="text-xl text-muted-foreground ml-auto tracking-widest font-mono">{referralCode}</Text>
         </View>
 
@@ -273,15 +251,8 @@ function MyPromotionPage() {
           </Text>
         </View>
 
-        {/* 操作按钮：仅保留分享（推广码图片不可保存，防滥用） */}
+        {/* 操作按钮：分享专属推荐码，邀请好友注册 */}
         <View className="flex gap-3">
-          <View
-            className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-border bg-muted opacity-50">
-            <View className="py-3 flex items-center gap-2">
-              <Icon name="download" size={24} className="text-muted-foreground" />
-              <Text className="text-xl text-muted-foreground">保存图片</Text>
-            </View>
-          </View>
           <Button openType="share"
             className="flex-1 flex items-center justify-center leading-none rounded-2xl"
             style={{ background: `linear-gradient(135deg, ${rankColor}, ${rankColor}99)`, border: 'none' }}>
@@ -296,7 +267,7 @@ function MyPromotionPage() {
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
         <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
           <View className="text-primary"><Icon name="coin" size={24} /></View>
-          <Text className="text-xl font-bold text-foreground">佣金概览</Text>
+          <Text className="text-xl font-bold text-foreground">推荐奖励概览</Text>
           <View className="flex-1" />
           <View className="flex items-center gap-1 text-primary text-xl"
             onClick={() => Taro.navigateTo({ url: '/pages/trade/commission-detail/index' })}>
@@ -318,7 +289,7 @@ function MyPromotionPage() {
         </View>
       </View>
 
-        {/* 余额与佣金（佣金已改为健康豆发放，可在平台内直接消费支付） */}
+        {/* 余额与推荐奖励（推荐奖励已以健康豆发放，可在小程序内直接消费支付） */}
         <View className="mx-4 mt-4 grid grid-cols-2 gap-3">
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
             onClick={() => Taro.navigateTo({ url: '/pages/trade/goldbean-ledger/index' })}>
@@ -330,11 +301,11 @@ function MyPromotionPage() {
             onClick={() => Taro.navigateTo({ url: '/pages/trade/commission-detail/index' })}>
             <View className="text-primary"><Icon name="coin" size={28} /></View>
             <Text className="text-2xl font-bold text-foreground">{Number(commSummary?.total_earned || 0).toFixed(2)}</Text>
-            <Text className="text-base text-muted-foreground">累计佣金(健康豆)</Text>
+            <Text className="text-base text-muted-foreground">累计推荐奖励(健康豆)</Text>
           </View>
         </View>
 
-      {/* 我的好友团队 */}
+      {/* 我的推荐关系 */}
       {directTeam.length > 0 && (
         <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
           <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
@@ -362,20 +333,6 @@ function MyPromotionPage() {
         </View>
       )}
 
-      {/* 交叉入口：查看完整两级推荐关系（与「我的推荐」页互引，消除两页功能重叠困惑） */}
-      <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border flex items-center justify-between"
-        hoverClass="none"
-        onClick={() => Taro.navigateTo({ url: '/pages/mine/my-referrals/index' })}>
-        <View className="flex items-center gap-2">
-          <Icon name="account-group" size={24} className="text-primary" />
-          <View>
-            <Text className="text-lg font-bold text-foreground">我的推荐关系</Text>
-            <Text className="text-sm text-muted-foreground">查看我的好友 / 我的粉丝完整名单</Text>
-          </View>
-        </View>
-        <Icon name="chevron-right" size={20} className="text-muted-foreground" />
-      </View>
-
       {/* 相关协议入口 */}
       <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
         <View className="flex items-center gap-2 mb-2">
@@ -385,12 +342,12 @@ function MyPromotionPage() {
         <View className="flex flex-col gap-1">
           <View className="flex items-center justify-between py-2"
             onClick={() => Taro.navigateTo({ url: '/pages/agreement/distribution-agreement/index' })}>
-            <Text className="text-base text-muted-foreground">《推广服务协议》</Text>
+            <Text className="text-base text-muted-foreground">《推荐激励说明》</Text>
             <Icon name="chevron-right" size={20} className="text-muted-foreground" />
           </View>
           <View className="flex items-center justify-between py-2"
             onClick={() => Taro.navigateTo({ url: '/pages/agreement/commission-rules/index' })}>
-            <Text className="text-base text-muted-foreground">《佣金规则》</Text>
+            <Text className="text-base text-muted-foreground">《推荐奖励规则》</Text>
             <Icon name="chevron-right" size={20} className="text-muted-foreground" />
           </View>
         </View>

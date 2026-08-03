@@ -35,8 +35,10 @@ function navigateToLogin(currentPath: string): void {
 
   // Save current path for redirect after login
   Taro.setStorageSync(STORAGE_KEY_REDIRECT_PATH, currentPath)
-  const navigateMethod = isTabBarPage(currentPath) ? Taro.navigateTo : Taro.redirectTo
-  navigateMethod({url: LOGIN_PAGE_PATH})
+  // 始终用 navigateTo 进登录页：保证登录页返回栈存在，微信原生返回键有目标可退，
+  // 避免 redirectTo 清空栈导致原生返回键"无效"（微信审核"点击返回选项无效"根因之一）。
+  // 登录页的"暂不登录"统一跳回首页（访客可浏览），不会回到受保护页被再次拦截。
+  Taro.navigateTo({ url: LOGIN_PAGE_PATH })
 
   // Reset flag after 100ms
   setTimeout(() => {

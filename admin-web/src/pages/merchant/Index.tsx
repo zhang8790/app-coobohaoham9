@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { getMerchantSettlementBalance, getStoreProducts } from '@/api/merchant'
+import { getMerchantSettlementBalance, getStoreProducts, getMyMerchantStore } from '@/api/merchant'
 
 // Mock 数据（演示模式 fallback）
 const MOCK_STATS = {
@@ -60,12 +60,8 @@ export default function MerchantDashboard() {
   useEffect(() => {
     if (!profile || !isMerchantUser(profile)) return
     const fetchStore = async () => {
-      const { data } = await supabase
-        .from('stores')
-        .select('id')
-        .eq('owner_id', profile.id)
-        .maybeSingle()
-      setStoreId(data?.id ?? null)
+      const st = await getMyMerchantStore(profile.id)
+      setStoreId(st?.id ?? null)
     }
     if (!useMock) {
       fetchStore()

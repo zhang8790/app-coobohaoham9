@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { getMyMerchantStore } from '@/api/merchant'
 
 interface OrderRow {
   id: string
@@ -81,15 +82,15 @@ export default function MerchantOrders() {
       return
     }
     try {
-      // 解析当前商家店铺
-      const { data: store } = await supabase
-        .from('stores').select('id').eq('owner_id', profile.id).maybeSingle()
-      if (!store) { setOrders([]); setLoading(false); return }
+      // 解析当前商家店铺（统一身份：owner_id 或 store_staff）
+      const st = await getMyMerchantStore(profile.id)
+      const storeId = st?.id
+      if (!storeId) { setOrders([]); setLoading(false); return }
 
       const { data } = await supabase
         .from('orders')
         .select('id, order_no, status, total_amount, created_at, address, service_type, user_id, profiles(phone), order_items(id, product_name, product_image, quantity, price, store_id)')
-        .eq('store_id', store.id)
+        .eq('store_id', storeId)
         .order('created_at', { ascending: false })
         .limit(200)
 

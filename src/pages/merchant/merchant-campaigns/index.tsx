@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
-import { supabase } from '@/client/supabase'
+import { supabase, getLocalUser } from '@/client/supabase'
 import Icon from '@/components/Icon'
 
 export default function MerchantCampaignsPage() {
@@ -20,7 +20,7 @@ export default function MerchantCampaignsPage() {
       const { data: store } = await supabase
         .from('stores')
         .select('id')
-        .eq('owner_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('owner_id', (await getLocalUser()).data.user?.id)
         .single()
 
       if (store) {
@@ -119,7 +119,7 @@ export default function MerchantCampaignsPage() {
                 <View className="flex items-center gap-1">
                   <Icon name="gift" size={28} className="text-primary" />
                   <Text className="text-base text-foreground">
-                    {campaign.campaign_type === 'red_packet' ? '现金红包' : '实物礼品'}
+                    {campaign.campaign_type === 'red_packet' ? '福利金' : '实物礼品'}
                   </Text>
                 </View>
                 <View className="flex items-center gap-1">

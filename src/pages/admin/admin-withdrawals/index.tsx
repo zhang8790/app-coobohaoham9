@@ -1,5 +1,5 @@
 import { View, Button, Text } from '@tarojs/components'
-// @title 佣金兑付
+// @title 奖励兑付
 import { useState, useCallback, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { getAdminWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal } from '@/db/api'
@@ -59,7 +59,7 @@ function AdminWithdrawalsPage() {
   const handleReject = async (id: string) => {
     Taro.showModal({
       title: '确认驳回',
-      content: '驳回后该提现申请将被关闭，佣金退还至用户账户',
+      content: '驳回后该提现申请将被关闭，推荐奖励退还至用户账户',
       success: async (res) => {
         if (!res.confirm) return
         setProcessing(id)
@@ -103,7 +103,7 @@ function AdminWithdrawalsPage() {
                   <View className="bg-muted rounded-xl p-3 flex flex-col gap-2">
                     {[
                       { label: '提现方式', val: METHOD_LABELS[w.withdraw_method] || w.withdraw_method },
-                      { label: '平台服务费(10%)', val: `-¥${taxAmount.toFixed(2)}` },
+                      { label: '品牌技术服务费(10%)', val: `-¥${taxAmount.toFixed(2)}` },
                       { label: '实际到手', val: `¥${actualAmount.toFixed(2)}` },
                       { label: '申请时间', val: new Date(w.created_at).toLocaleString('zh-CN') },
                     ].map(item => (

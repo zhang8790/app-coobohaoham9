@@ -157,7 +157,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
             if (fnError) throw fnError
             if (fnData?.error) throw new Error(fnData.error)
             if (fnData?.sql_cleanup_needed) {
-              throw new Error('需要先在 Supabase SQL Editor 跑 scripts/force-login-prep.sql 删除旧行，再重新登录')
+              throw new Error('登录状态异常，请稍后重试或联系管理员')
             }
             if (!fnData?.access_token) throw new Error('force-login 未返回 access_token')
 
@@ -185,7 +185,12 @@ export function AuthProvider({children}: {children: ReactNode}) {
             if (pwError) throw pwError
             return { error: null }
           } catch (pwLoginErr) {
-            throw new Error('1870 登录失败：' + (pwLoginErr as Error).message + '（请先在本机 Supabase SQL Editor 跑 scripts/fix-1870-password.sql）')
+            const msg = (pwLoginErr as Error).message || '未知错误'
+            // 用户友好提示：不暴露内部脚本路径/技术细节
+            if (msg.includes('Invalid login credentials')) {
+              throw new Error('用户名或密码错误')
+            }
+            throw new Error('登录失败，请稍后重试')
           }
         } else if (username === '13526245633') {
           // 后台脚本建号账号（scripts/create_user_with_upline.js）：email 规则 test<裸号>@test.com，走密码登录
@@ -319,7 +324,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
             if (fnError) throw fnError
             if (fnData?.error) throw new Error(fnData.error)
             if (fnData?.sql_cleanup_needed) {
-              throw new Error('需要先在 Supabase SQL Editor 跑 scripts/force-login-prep.sql 删除旧行，再重新登录')
+              throw new Error('登录状态异常，请稍后重试或联系管理员')
             }
             if (!fnData?.access_token) throw new Error('force-login 未返回 access_token')
 

@@ -8,9 +8,10 @@ import { supabase } from '@/lib/supabase'
 type Tab = 'additives' | 'allergens' | 'triggers' | 'tips'
 
 const RISK_OPTS = [
-  { v: 'white', label: '安全(white)' },
-  { v: 'yellow', label: '限量(yellow)' },
-  { v: 'black', label: '禁用(black)' },
+  { v: 'L1', label: 'L1 纯天然无风险' },
+  { v: 'L2', label: 'L2 常规合规·正常食用无压力' },
+  { v: 'L3', label: 'L3 敏感人群建议控制摄入' },
+  { v: 'L4', label: 'L4 老幼弱尽量少吃' },
 ]
 const CROWD_CODES = [
   'hypertension', 'hyperlipidemia', 'diabetes', 'gout', 'children',
@@ -18,7 +19,7 @@ const CROWD_CODES = [
   'allergy_dairy', 'allergy_shrimp', 'allergy_crab', 'allergy_nut',
 ]
 
-interface AdditiveRow { id?: string; name: string; category: string; risk_level: string; gb_std: string; risk_desc: string }
+interface AdditiveRow { id?: string; name: string; category: string; risk_level: string; gb_std: string; risk_desc: string; gb_number?: string; usage_scope?: string; limit_standard?: string; sensitive_crowds?: string[]; fixed_tip?: string; forbidden_pairings?: string[] }
 interface AllergenRow { id?: string; key: string; name: string; description: string; crowd_code: string; sort_order: number }
 interface TriggerRow { id?: string; trigger_keyword: string; crowd_code: string }
 interface TipRow { id?: string; crowd_code: string; label: string; general_tip: string; children_tip: string; fit_people: string; unfit_people: string; sort_order: number }
@@ -62,7 +63,7 @@ export default function FoodSafetyLibs() {
   useEffect(() => { load() }, [load])
 
   const blank = (t: Tab) => {
-    if (t === 'additives') return { name: '', category: '', risk_level: 'white', gb_std: 'GB2760', risk_desc: '' }
+    if (t === 'additives') return { name: '', category: '', risk_level: 'L2', gb_std: 'GB2760', risk_desc: '', gb_number: '', usage_scope: '', limit_standard: '', sensitive_crowds: [], fixed_tip: '', forbidden_pairings: [] }
     if (t === 'allergens') return { key: '', name: '', description: '', crowd_code: 'allergy_soy', sort_order: 99 }
     if (t === 'triggers') return { trigger_keyword: '', crowd_code: 'hypertension' }
     return { crowd_code: '', label: '', general_tip: '', children_tip: '', fit_people: '', unfit_people: '', sort_order: 99 }
@@ -146,6 +147,12 @@ export default function FoodSafetyLibs() {
                   </Field>
                   <Field label="国标 gb_std"><input style={inputStyle} value={editing.gb_std} onChange={(e) => setField('gb_std', e.target.value)} /></Field>
                   <Field label="说明 risk_desc"><textarea style={{ ...inputStyle, minHeight: 56 }} value={editing.risk_desc} onChange={(e) => setField('risk_desc', e.target.value)} /></Field>
+                  <Field label="国标编号 gb_number"><input style={inputStyle} value={editing.gb_number || ''} onChange={(e) => setField('gb_number', e.target.value)} /></Field>
+                  <Field label="允许使用范围 usage_scope"><input style={inputStyle} value={editing.usage_scope || ''} onChange={(e) => setField('usage_scope', e.target.value)} /></Field>
+                  <Field label="限量标准 limit_standard"><input style={inputStyle} value={editing.limit_standard || ''} onChange={(e) => setField('limit_standard', e.target.value)} /></Field>
+                  <Field label="敏感人群黑名单 sensitive_crowds（逗号分隔）"><input style={inputStyle} value={(editing.sensitive_crowds || []).join('，')} onChange={(e) => setField('sensitive_crowds', e.target.value.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean))} /></Field>
+                  <Field label="标准合规提示文案 fixed_tip（固定，不可随意改）"><textarea style={{ ...inputStyle, minHeight: 56 }} value={editing.fixed_tip || ''} onChange={(e) => setField('fixed_tip', e.target.value)} /></Field>
+                  <Field label="禁忌搭配食材 forbidden_pairings（逗号分隔）"><input style={inputStyle} value={(editing.forbidden_pairings || []).join('，')} onChange={(e) => setField('forbidden_pairings', e.target.value.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean))} /></Field>
                 </>
               )}
               {tab === 'allergens' && (
@@ -209,13 +216,13 @@ export default function FoodSafetyLibs() {
 }
 
 function headCells(tab: Tab): string[] {
-  if (tab === 'additives') return ['名称', '类别', '风险', '国标', '说明']
+  if (tab === 'additives') return ['名称', '类别', '风险档', '限量标准', '说明']
   if (tab === 'allergens') return ['key', '名称', '说明', '人群code', '排序']
   if (tab === 'triggers') return ['触发词', '人群code']
   return ['code', '标签', '一般提示', '儿童提示', '适宜', '不宜', '排序']
 }
 function bodyCells(tab: Tab, row: any): string[] {
-  if (tab === 'additives') return [row.name, row.category, row.risk_level, row.gb_std, (row.risk_desc || '').slice(0, 40)]
+  if (tab === 'additives') return [row.name, row.category, row.risk_level, (row.limit_standard || '').slice(0, 20), (row.risk_desc || '').slice(0, 30)]
   if (tab === 'allergens') return [row.key, row.name, (row.description || '').slice(0, 30), row.crowd_code, String(row.sort_order)]
   if (tab === 'triggers') return [row.trigger_keyword, row.crowd_code]
   return [row.crowd_code, row.label, (row.general_tip || '').slice(0, 30), (row.children_tip || '').slice(0, 30), (row.fit_people || '').slice(0, 20), (row.unfit_people || '').slice(0, 20), String(row.sort_order)]

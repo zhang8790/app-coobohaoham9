@@ -2,7 +2,7 @@ import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { useCartCount, refreshCartCount } from '@/utils/cartStore'
-import { ICON_WHITE, ICON_PRIMARY } from '@/components/Icon/iconBase64'
+import { scanAndRoute } from '@/utils/scan'
 import './index.scss'
 
 // 去 AI 化手绘风底部导航
@@ -11,18 +11,16 @@ import './index.scss'
 
 type TabItem = { key: string; label: string; path?: string; center?: boolean }
 
-// 5 项布局：首页 / 自营 / [创作·居中凸起] / 购物车 / 用户
-// 创作居中按钮走 navigateTo（保留草稿编辑传参），不参与 switchTab
+// 5 项布局：首页 / 自营 / [扫码购物·居中凸起] / 购物车 / 用户
+// 扫码购物居中按钮：直接调起扫码 → 门店码进店 / 商品码进 scan-result 加购购车，
+// 不进配料安全分析页（扫码即购车，单一动作）。不参与 switchTab。
 const TABS: TabItem[] = [
   { key: 'home', label: '首页', path: '/pages/index/index' },
   { key: 'explore', label: '自营', path: '/pages/explore/index' },
-  { key: 'create', label: '创作', center: true },
+  { key: 'scan', label: '扫码购物', center: true },
   { key: 'cart', label: '购物车', path: '/pages/cart/index' },
   { key: 'user', label: '我的', path: '/pages/user/index' },
 ]
-
-// 创作中心半屏弹层：模板快选名称（与 make 页 TEMPLATES 对齐）
-const HUB_TEMPLATES = ['探店推荐', '美食攻略', '购物心得', '生活见闻']
 
 const TAB_ICONS_ACTIVE: Record<string, string> = {
   home: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQTg1NTJFIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNIDkgMzIgI0E4NTUyRSAxNyAyMSwyOCAxMywzMiAxMSAjQTg1NTJFIDM2IDEzLDQ3IDIyLDU1IDMyIi8+PHBhdGggZD0iTSAxNSAzMiBMIDE0LjUgNTIgTCA0OSA1MS41IEwgNDguNSAzMiIvPjxwYXRoIGQ9Ik0gMjcgNTIgTCAyNy41IDQxIEwgMzYgNDEuMiBMIDM2IDUyIi8+PC9zdmc+',
@@ -33,7 +31,7 @@ const TAB_ICONS_ACTIVE: Record<string, string> = {
 }
 
 const TAB_ICONS_INACTIVE: Record<string, string> = {
-  home: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOEM3RTZFIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNIDkgMzIgIzhDN0U2RSAxNyAyMSwyOCAxMywzMiAxMSAjOEM3RTZFIDM2IDEzLDQ3IDIyLDU1IDMyIi8+PHBhdGggZD0iTSAxNSAzMiBMIDE0LjUgNTIgTCA0OSA1MS41IEwgNDguNSAzMiIvPjxwYXRoIGQ9Ik0gMjcgNTIgTCAyNy41IDQxIEwgMzYgNDEuMiBMIDM2IDUyIi8+PC9zdmc+',
+  home: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOEM3RTZFIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS13aWR0aD0iMi42IiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNIDkgMzIgIzhDN0U2RSAxNyAyMSwyOCAxMywzMiAxMSAjOEM3RTZFIDM2IDEzLDQ3IDIyLDU1IDMyIi8+PHBhdGggZD0iTSAxNSAzMiBMIDE0LjUgNTIgTCA0OSA1MS41IEwgNDguNSAzMiIvPjxwYXRoIGQ9Ik0gMjcgNTIgTCAyNy41IDQxIEwgMzYgNDEuMiBMIDM2IDUyIi8+PC9zdmc+',
   explore: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOEM3RTZFIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNIDExIDE5IEwgMjMgMTkgTCAyNyAzMiBMIDIzIDQ1IEwgMTEgNDUgWiIvPjxwYXRoIGQ9Ik0gMjcgMzIgTCA0MSAzMiIvPjxwYXRoIGQ9Ik0gNDEgMTkgTCA1MyAxOSBMIDUzIDQ1IEwgNDEgNDUgTCA0MSAxOSIvPjxjaXJjbGUgY3g9IjE3IiBjeT0iMTkiIHI9IjEuNCIgZmlsbD0iIzhDN0U2RSIvPjxjaXJjbGUgY3g9IjQ3IiBjeT0iMTkiIHI9IjEuNCIgZmlsbD0iIzhDN0U2RSIvPjwvc3ZnPg==',
   reward: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOEM3RTZFIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNIDEyIDI2IEwgNTIgMjYgTCA1MCA1MiBMIDE0IDUyIFoiLz48cGF0aCBkPSJNIDEwIDIyIEwgNTQgMjIgTCA1MyAyNiBMIDExIDI2IFoiLz48cGF0aCBkPSJNIDMyIDIyIEwgMzIgNTIiLz48cGF0aCBkPSJNIDI1IDE2ICM4QzdFNkUgMjIgMTYsMjIgMjIsMjggMjIgIzhDN0U2RSAzMSAyMiwzMiAxOSwzMiAxNyIvPjxwYXRoIGQ9Ik0gMzkgMTYgIzhDN0U2RSA0MiAxNiw0MiAyMiwzNiAyMiAjOEM3RTZFIDMzIDIyLDMyIDE5LDMyIDE3Ii8+PC9zdmc+',
   cart: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOEM3RTZFIiBzdHJva2Utd2lkdGg9IjIuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNIDEwIDI0IEwgMTYgNTIgTCA0OCA1MiBMIDU0IDI0Ii8+PHBhdGggZD0iTSAxMCAyNCAjOEM3RTZFIDIwIDIyLDQ0IDIyLDU0IDI0Ii8+PHBhdGggZD0iTSAyMiAyNCAjOEM3RTZFIDIyIDEzLDQyIDEzLDQyIDI0Ii8+PHBhdGggZD0iTSAxOCAzMiBMIDQ2IDMyIiBzdHJva2UtZGFzaGFycmF5PSIyIDMiIG9wYWNpdHk9IjAuNTUiLz48L3N2Zz4=',
@@ -42,7 +40,6 @@ const TAB_ICONS_INACTIVE: Record<string, string> = {
 
 export default function CustomTabBar() {
   const [active, setActive] = useState<string>('home')
-  const [showHub, setShowHub] = useState(false)
   const cartCount = useCartCount()
 
   useDidShow(() => {
@@ -72,17 +69,17 @@ export default function CustomTabBar() {
   return (
     <View className="ctb">
       {TABS.map(t => {
-        // 居中「创作」凸起按钮：navigateTo 打开创作页（非 switchTab，保留草稿编辑传参）
+        // 居中「扫码购物」凸起按钮：直接调起扫码 → 购车链路（门店码进店 / 商品码进 scan-result 加购）
         if (t.center) {
           return (
             <View
               key={t.key}
               className="ctb-item ctb-center"
               hoverClass="ctb-item--hover"
-              onClick={() => setShowHub(true)}
+              onClick={() => scanAndRoute()}
             >
               <View className="ctb-center-btn">
-                <Image className="ctb-center-icon" src={ICON_WHITE['pencil']} mode="aspectFit" />
+                <Text className="ctb-center-emoji">📷</Text>
               </View>
               <Text className="ctb-label">{t.label}</Text>
             </View>
@@ -111,52 +108,6 @@ export default function CustomTabBar() {
           </View>
         )
       })}
-
-      {/* 创作中心半屏弹层：写文章 + 模板快选 + 我的创作（收编原「我的」页的「我的创作」入口） */}
-      {showHub && (
-        <View className="ctb-hub-mask" onClick={() => setShowHub(false)}>
-          <View className="ctb-hub-sheet" onClick={(e: any) => e.stopPropagation()}>
-            <View className="ctb-hub-grip" />
-            <View className="ctb-hub-head">
-              <Text className="ctb-hub-title">创作中心</Text>
-              <View className="ctb-hub-close" hoverClass="none" onClick={() => setShowHub(false)}>
-                <Image className="ctb-hub-close-ic" src={ICON_PRIMARY['close']} mode="aspectFit" />
-              </View>
-            </View>
-
-            {/* 主行动：创作文章 */}
-            <View className="ctb-hub-primary" hoverClass="none"
-              onClick={() => { setShowHub(false); Taro.navigateTo({ url: '/pages/content/content-center/make-rich/index' }) }}>
-              <View className="ctb-hub-primary-ic">
-                <Image className="ctb-hub-primary-img" src={ICON_WHITE['pencil']} mode="aspectFit" />
-              </View>
-              <View className="ctb-hub-primary-body">
-                <Text className="ctb-hub-primary-t">创作文章</Text>
-                <Text className="ctb-hub-primary-s">写图文 · 套模板 · 插好物 · 发布得豆</Text>
-              </View>
-              <Text className="ctb-hub-arrow">›</Text>
-            </View>
-
-            {/* 发布视频 */}
-            <View className="ctb-hub-row" hoverClass="none"
-              onClick={() => { setShowHub(false); Taro.navigateTo({ url: '/pages/content/content-center/make-video/index' }) }}>
-              <Text className="ctb-hub-row-emoji" style={{ fontSize: '20px', marginRight: '10px' }}>🎬</Text>
-              <Text className="ctb-hub-row-t">发布视频</Text>
-              <Text className="ctb-hub-row-s">选视频 · 上传 · 一键发布</Text>
-              <Text className="ctb-hub-row-arrow">›</Text>
-            </View>
-
-            {/* 我的创作：管理已发布 / 草稿 */}
-            <View className="ctb-hub-row" hoverClass="none"
-              onClick={() => { setShowHub(false); Taro.navigateTo({ url: '/pages/content/content-center/my-articles/index' }) }}>
-              <Image className="ctb-hub-row-ic" src={ICON_PRIMARY['file-document']} mode="aspectFit" />
-              <Text className="ctb-hub-row-t">我的创作</Text>
-              <Text className="ctb-hub-row-s">已发布 · 草稿箱</Text>
-              <Text className="ctb-hub-row-arrow">›</Text>
-            </View>
-          </View>
-        </View>
-      )}
     </View>
   )
 }

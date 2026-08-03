@@ -169,65 +169,67 @@ export interface TestQuestion {
 /** 0=A, 1=B, 2=C, 3=D 对各体质的加分影响 */
 type ConstitutionKey = keyof typeof CONSTITUTION_TYPES
 
-const Q_EFFECTS = {
-  // A=完全不， B=偶尔， C=有时， D=经常
-  A: (effects: Record<string, number>) => { return effects },
-} as const
-
+/**
+ * 题目设计原则（消除「人人平和质」偏置）：
+ *  - 每题第 1 项「基本没有 / 说不清」为中性基线，effect 为空，不给任何体质加分；
+ *    旧版该基线给平和质 +3，导致几乎人人测出平和，个性化形同虚设。
+ *  - 平和质不再由选项主动加分，仅在「所有偏颇质最高分低于阈值」时作为兜底判定；
+ *  - 每题只给与之强相关的偏颇质加分，覆盖 yangxu/yinxu/qixu/tanshi/shire/xueyu/qiyu 七类区分。
+ */
 export const TEST_QUESTIONS: TestQuestion[] = [
   {
     id: 1,
-    question: '最近睡得好吗？',
-    hint: '最近一个月的情况',
+    question: '平时怕冷吗？',
+    hint: '手脚温度、对冷的耐受',
     options: [
-      { label: '睡得很沉，一觉到天亮', value: 0, effect: { pinghe: 3, yinxu: 0, qiyu: 0, qixu: 0 } },
-      { label: '偶尔失眠或浅眠', value: 1, effect: { yangxu: 1, qixu: 1, qiyu: 1 } },
-      { label: '经常多梦或早醒', value: 2, effect: { yinxu: 2, qiyu: 2, qixu: 1 } },
-      { label: '长期睡眠差，很难入睡', value: 3, effect: { yinxu: 3, qiyu: 3, xueyu: 1 } },
+      { label: '手脚温暖，基本不怕冷', value: 0, effect: {} },
+      { label: '偶尔怕冷，手脚偏凉', value: 1, effect: { yangxu: 2, qixu: 1 } },
+      { label: '经常手脚冰凉', value: 2, effect: { yangxu: 3, qixu: 2 } },
+      { label: '一年四季都怕冷，夏天也凉', value: 3, effect: { yangxu: 4, xueyu: 1 } },
     ],
   },
   {
     id: 2,
-    question: '手脚温度怎么样？',
-    hint: '日常状态',
+    question: '容易上火吗？',
+    hint: '口干 / 冒痘 / 口腔溃疡等',
     options: [
-      { label: '手脚温暖，不怕冷', value: 0, effect: { pinghe: 3, yinxu: 0, yangxu: 0 } },
-      { label: '手脚偶尔偏凉', value: 1, effect: { yangxu: 2, qixu: 1 } },
-      { label: '经常手脚冰凉', value: 2, effect: { yangxu: 3, qixu: 2, xueyu: 1 } },
-      { label: '夏天手脚也是凉的', value: 3, effect: { yangxu: 3, xueyu: 2, qixu: 1 } },
+      { label: '很少上火', value: 0, effect: {} },
+      { label: '换季或熬夜时偶尔上火', value: 1, effect: { yinxu: 2, shire: 1 } },
+      { label: '经常觉得口干、咽干', value: 2, effect: { yinxu: 3, shire: 2 } },
+      { label: '频繁冒痘、口腔溃疡', value: 3, effect: { shire: 3, yinxu: 1, xueyu: 1 } },
     ],
   },
   {
     id: 3,
-    question: '容易上火吗？',
-    hint: '口干/冒痘/咽痛等',
+    question: '胃口和消化怎么样？',
+    hint: '吃完饭后的感受',
     options: [
-      { label: '很少上火', value: 0, effect: { pinghe: 3, yangxu: 0, yinxu: 0 } },
-      { label: '换季或熬夜时偶尔上火', value: 1, effect: { yinxu: 2, shire: 1 } },
-      { label: '经常觉得口干/咽干', value: 2, effect: { yinxu: 3, shire: 2 } },
-      { label: '频繁冒痘、口腔溃疡', value: 3, effect: { yinxu: 2, shire: 3, xueyu: 1 } },
+      { label: '胃口好，消化正常', value: 0, effect: {} },
+      { label: '偶尔腹胀、容易累', value: 1, effect: { qixu: 2, tanshi: 1 } },
+      { label: '经常腹胀、食欲不振', value: 2, effect: { qixu: 2, tanshi: 3 } },
+      { label: '吃点就胀，大便偏黏', value: 3, effect: { tanshi: 4, qixu: 1 } },
     ],
   },
   {
     id: 4,
-    question: '胃口和消化怎么样？',
-    hint: '吃完饭后的感受',
+    question: '面色和气血怎么样？',
+    hint: '唇色、气色、是否易留瘀青',
     options: [
-      { label: '胃口好，消化正常', value: 0, effect: { pinghe: 3, yangxu: 0, yinxu: 0 } },
-      { label: '偶尔胃口不好或腹胀', value: 1, effect: { qixu: 1, tanshi: 1 } },
-      { label: '经常腹胀、食欲不振', value: 2, effect: { qixu: 2, tanshi: 2, yangxu: 1 } },
-      { label: '吃点就胀，大便黏滞', value: 3, effect: { tanshi: 3, shire: 2, qixu: 1 } },
+      { label: '面色红润，精力尚可', value: 0, effect: {} },
+      { label: '偶尔疲乏，气色一般', value: 1, effect: { qixu: 1 } },
+      { label: '唇色偏暗、磕碰易留瘀青', value: 2, effect: { xueyu: 3, qixu: 1 } },
+      { label: '面色晦暗、常现瘀斑', value: 3, effect: { xueyu: 4 } },
     ],
   },
   {
     id: 5,
-    question: '情绪波动大吗？',
-    hint: '最近一个月的状态',
+    question: '情绪状态怎么样？',
+    hint: '最近一个月的总体感受',
     options: [
-      { label: '情绪稳定，心态平和', value: 0, effect: { pinghe: 3, qiyu: 0 } },
-      { label: '偶尔焦虑或低落', value: 1, effect: { qiyu: 2, xueyu: 1 } },
-      { label: '经常觉得压力大、烦躁', value: 2, effect: { qiyu: 3, xueyu: 2 } },
-      { label: '情绪起伏很大，难以控制', value: 3, effect: { qiyu: 3, xueyu: 2, yinxu: 1 } },
+      { label: '情绪平稳，心态不错', value: 0, effect: {} },
+      { label: '偶尔焦虑或低落', value: 1, effect: { qiyu: 2 } },
+      { label: '常感压力大、烦躁', value: 2, effect: { qiyu: 3 } },
+      { label: '情绪起伏大，较难自控', value: 3, effect: { qiyu: 4, yinxu: 1 } },
     ],
   },
 ]
@@ -240,7 +242,10 @@ export interface TestResult {
   scores: Record<string, number>
 }
 
-/** 根据5道题答案计算体质得分 */
+/** 偏颇质最高分低于该阈值时，判定为平和质（消除旧版「选健康选项就 +3 平和」的虚假偏置） */
+const PINGHE_THRESHOLD = 3
+
+/** 根据5道题答案计算体质得分（平和质为阈值兜底，非选项主动加分） */
 export function calculateResult(answers: number[]): TestResult {
   const scores: Record<string, number> = {}
   for (const key of Object.keys(CONSTITUTION_TYPES)) {
@@ -259,17 +264,24 @@ export function calculateResult(answers: number[]): TestResult {
     }
   }
 
-  // 找最高分（主）
-  const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1])
-  const primaryKey = sorted[0][0] as keyof typeof CONSTITUTION_TYPES
-  const primary = CONSTITUTION_TYPES[primaryKey]
+  // 排除平和质，找偏颇质中的最高分（消除旧版「选健康选项就+3平和」的虚假偏置）
+  const biased = Object.entries(scores).filter(([k]) => k !== 'pinghe')
+  const sorted = biased.sort((a, b) => b[1] - a[1])
 
-  // 次体质：第2名与第1名分差在3分内才显示
+  let primaryKey: string
+  if (sorted.length === 0 || sorted[0][1] <= PINGHE_THRESHOLD) {
+    primaryKey = 'pinghe'
+  } else {
+    primaryKey = sorted[0][0]
+  }
+  const primary = CONSTITUTION_TYPES[primaryKey as keyof typeof CONSTITUTION_TYPES]
+
+  // 次体质：第2名分数≥4 且与第1名分差≤5 才展示
   let secondary: ConstitutionType | undefined
-  if (sorted.length >= 2) {
-    const gap = sorted[0][1] - sorted[1][1]
-    if (gap <= 3) {
-      secondary = CONSTITUTION_TYPES[sorted[1][0] as keyof typeof CONSTITUTION_TYPES]
+  if (primaryKey !== 'pinghe' && sorted.length >= 2) {
+    const second = sorted[1]
+    if (second[1] >= 4 && sorted[0][1] - second[1] <= 5) {
+      secondary = CONSTITUTION_TYPES[second[0] as keyof typeof CONSTITUTION_TYPES]
     }
   }
 

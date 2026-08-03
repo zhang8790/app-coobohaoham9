@@ -86,6 +86,20 @@ export interface StoreCategory {
   is_active: boolean
 }
 
+/** 科目化分类（食养科目）：C 端浏览主分类，替代传统物理品类。
+ *  key 稳定（驱动派生与过滤），name/icon 运营可改；scope='store' 为门店自定义。 */
+export interface ProductSubject {
+  id: string
+  key: string
+  name: string
+  icon: string | null
+  description: string | null
+  sort_order: number
+  scope: 'global' | 'store'
+  store_id: string | null
+  is_active: boolean
+}
+
 /** 临期特惠商品（读自视图 v_near_expiry_products，数据层通用，按 store_id 可过滤） */
 export interface StoreNearExpiry {
   product_id: string
@@ -151,10 +165,19 @@ export interface Product {
   food_category?: string | null
   store_name?: string | null  // 分析报告缓存（ComprehensiveSafetyReport JSON）
   sales_count?: number        // 累计销量（件），见迁移 00221
+  // 科目化分类（迁移 20260802）：冗余派生字列，支撑 .overlaps 快速过滤与卡片展示
+  subject_keys?: string[] | null
   // 食养系统化（迁移 20260801）：therapy_json 单一数据源 + 冗余加速列
   therapy_json?: Record<string, unknown> | null
   fit_people?: string | null
   therapy_pending?: boolean | null
+  // 商品类型化（迁移 20260803）：礼品/手作与食养食品彻底分开，详情页按 product_kind 条件渲染
+  product_kind?: 'food' | 'gift' | 'craft' | 'care' | null
+  materials?: string[] | null          // 礼品/手作的材质或草本成分清单（绝不写入 ingredients）
+  gift_meaning?: string | null         // 寓意文化（礼品页灵魂）
+  gift_craft?: string | null           // 材质工艺（手作/工序）
+  gift_scene?: string | null           // 送礼场景（转化核心）
+  gift_care?: string | null            // 保养与使用注意（合规嗅觉体感）
 
 }
 
@@ -172,6 +195,35 @@ export interface UserHealthProfile {
   health_goals: string[] | null          // 控糖/护胃/助眠/补血/抗疲劳/减脂/清热
   privacy_flags: Record<string, unknown> | null
   updated_at: string | null
+}
+
+// 家庭档案（战略支柱② · 一户一档，绑定家庭锁死用户）
+// families：每个 owner 仅一条；family_members：全家成员（中性食养参考维度，不替代医嘱）。
+// 仅作食养参考，不替代医嘱（见 compliance/shield.ts 红线）。
+export interface Family {
+  id: string
+  owner_id: string
+  name: string
+  created_at: string
+}
+
+export interface FamilyMember {
+  id: string
+  family_id: string
+  owner_id: string
+  name: string
+  age_group: string | null               // 儿童/青少年/成人/孕哺期/老年
+  gender: string | null                  // 男/女/不填
+  constitution_type: string | null       // 中医九种体质 或 沿用 13 人群标签
+  allergies: string[] | null             // allergen-dictionary key 列表
+  chronic_conditions: string[] | null    // HEALTH_CROWD_OPTIONS
+  body_states: string[] | null           // BODY_CROWD_OPTIONS
+  health_goals: string[] | null          // 控糖/护胃/助眠/补血/抗疲劳/减脂/清热
+  diet_cycle: Record<string, unknown> | null // 中性「饮食周期/节奏」
+  avatar_color: string | null            // 家庭成员卡片配色（前端用）
+  notes: string | null                   // 自由备注（中性食养偏好，非病历）
+  created_at: string
+  updated_at: string
 }
 
 // 扫描历史（学习闭环：输入/解析/画像快照/tier）
@@ -224,6 +276,24 @@ export interface Ingredient {
 export interface ProductFoodAdditive {
   product_id: string
   additive_id: string
+}
+
+// 药食同源体质匹配算法数据库 · 核心私有资产表（迁移 20260802_medicinal_food_catalog）
+// ⚠️ 资产保护：本表 RLS 拒绝 anon / authenticated 读取，仅 service_role（Edge Function 服务端）可读。
+// 小程序客户端禁止直读；匹配逻辑只在 ingredient-analyze EF 内闭运算，保证「不对外公开接口」。
+export interface MedicinalFoodCatalogRow {
+  id: string
+  name: string                 // 食材名（与商品 ingredients 匹配键）
+  category: string | null      // 根茎/果类/种子/谷物/花类/叶类/菌类/蜂产品…
+  nature: string | null        // 食性：大寒/寒凉/平性/微温/温热/大热
+  flavor: string | null        // 味：甘/酸/苦/辛/咸/淡/涩
+  is_homology: boolean         // 是否在「既是食品又是中药材」国家目录
+  homology_batch: string | null // 目录批次：2024版目录 / 试点目录
+  age_suitable: string[]       // 适宜年龄段：儿童/青少年/成人/孕哺期/中老年
+  age_caution: string[]        // 各年龄段注意（婴幼儿禁用 / 孕妇慎用…）
+  compatibility: string | null // 性味配伍宜忌（中性食养参考）
+  source_ref: string | null    // 出处（国家目录名称）
+  created_at: string
 }
 
 // 配料表 OCR 识别任务（ingredient_ocr_tasks 表）—— 商品配料表拍照识别 + 人工复核闭环
@@ -537,10 +607,12 @@ export interface MerchantApplication {
   id: string
   user_id: string
   store_name: string
-  contact_name: string
+  contact_name: string | null
   contact_phone: string
-  business_type: string
+  business_type: string | null
   description: string | null
+  /** P7 自营门店申请：精简到 3 字段后，门店地址作为可选信息一并提交，审核通过时写入 stores.address */
+  address: string | null
   status: MerchantStatus
   reject_reason: string | null
   created_at: string
@@ -795,4 +867,20 @@ export interface EmotionResponse {
   translation: string
   sceneCards: EmotionContent[]
   feedTitles: EmotionContent[]
+}
+
+export interface PrinterConfig {
+  id: string
+  store_id: string
+  provider: 'feie' | 'yilianyun' | '365'
+  device_sn: string
+  api_user: string | null
+  api_key: string | null
+  printer_key: string | null
+  enabled: boolean
+  auto_print_on_paid: boolean
+  print_count: number
+  last_print_at: string | null
+  created_at: string
+  updated_at: string
 }

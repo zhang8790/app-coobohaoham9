@@ -5,7 +5,7 @@ import {
   mockCartItems, mockOrders, mockAnnouncements, mockCoupons,
   mockAddresses, mockFavorites, mockFootprints,
   mockMerchantApps, mockRefunds, mockWithdrawals, mockStores,
-  mockArticles, mockStoreCategories,
+  mockStoreCategories,
   mockCommissions, mockPointsLogs} from './mockData'
 
 // ═══ 本地存储持久化工具（微信小程序用 Taro API） ═══
@@ -57,7 +57,6 @@ const store: Record<string, any[]> = {
   cart_items:        persisted.cart_items ?? mockCartItems.map(c => ({ ...c })),
   orders:            persisted.orders ?? mockOrders.map(o => ({ ...o })),
   order_items:       persisted.order_items ?? [],
-  articles:          persisted.articles ?? mockArticles.map(a => ({ ...a })),
   merchant_applications: persisted.merchant_applications ?? mockMerchantApps.map(m => ({ ...m })),
   announcements:     persisted.announcements ?? mockAnnouncements.map(a => ({ ...a })),
   commissions:       persisted.commissions ?? mockCommissions.map(c => ({ ...c })),
@@ -87,7 +86,6 @@ function getPrimaryKey(table: string): string {
   if (table === 'cart_items') return 'id'
   if (table === 'orders') return 'id'
   if (table === 'order_items') return 'id'
-  if (table === 'articles') return 'id'
   if (table === 'merchant_applications') return 'id'
   if (table === 'announcements') return 'id'
   if (table === 'commissions') return 'id'
@@ -257,21 +255,13 @@ class MockQueryBuilder {
           status: 'pending_pay',
           order_no: `MOCK${Date.now()}`}
       }
-      if (this.table === 'articles') {
-        newItem = {
-          ...newItem,
-          user_id: mockUser.id,
-          is_published: this._data?.is_published ?? (this._data?.status === 'published')}
-      }
-
-      // 写入 store（核心修复：之前只处理了 cart_items / orders / articles）
+      // 写入 store（核心修复：之前只处理了 cart_items / orders）
       if (!store[this.table]) store[this.table] = []
       store[this.table].push(newItem)
 
       // 特殊表：同步到原来的 mock 数组（保持向后兼容）
       if (this.table === 'cart_items') mockCartItems.push(newItem)
       if (this.table === 'orders') mockOrders.push(newItem)
-      if (this.table === 'articles') mockArticles.push(newItem)
 
       console.log(`[Mock] INSERT ${this.table}:`, newItem.id, newItem.name || '')
       persist()  // 立即持久化到 localStorage
@@ -547,18 +537,6 @@ export const mockSupabase = {
           }
           return { data: { success: true, bound: !!code }, error: null }
         }
-        case 'article-fetch':
-          // 模拟链接导入文章提取
-          const url = body.url || ''
-          const mockTitle = url.includes('mp.weixin')
-            ? '微信公众号好文分享'
-            : url.includes('zhihu')
-              ? '知乎热门回答'
-              : url.includes('xiaohongshu')
-                ? '小红书种草笔记'
-                : '导入的好文章'
-          const mockContent = `通过链接「${url.slice(0, 60)}${url.length > 60 ? '...' : ''}」导入的内容\n\n这是一篇从外部平台导入的文章，内容已自动提取。你可以在此基础上进行编辑和创作，加入自己的见解和体验。\n\n---\n\n（此处显示原文主要内容，实际使用时会根据链接动态提取完整内容）`
-          return { data: { title: mockTitle, content: mockContent }, error: null }
         default:
           console.warn('[Mock] Unhandled Edge Function:', name)
           return { data: { success: true }, error: null }

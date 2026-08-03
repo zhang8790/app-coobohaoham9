@@ -265,31 +265,21 @@ function buildReason(
   return parts.join(' · ')
 }
 
+/**
+ * 生成今日食养建议（合规版）
+ * 仅描述时令饮食习惯参考，不含任何功效/体质调理宣称，也不带天气与体质指令。
+ */
 function buildDailyAdvice(
   term: SeasonalTerm | null,
   constitution: ConstitutionType | null,
 ): string {
-  const lines: string[] = []
-
+  if (term && constitution) {
+    return `${term.name}时节｜${constitution.name}宜偏向${constitution.recommendNature.join('、')}性味，顺应时令参考`
+  }
   if (term) {
-    lines.push(`${term.emoji} 今日${term.name}，${term.natureDesc}。`)
-    if (term.weatherDesc) {
-      lines.push(`🌤 ${term.weatherDesc.split('，')[0]}。`)
-    }
+    return `${term.name}时节｜传统时令饮食习惯参考，${term.natureDesc}`
   }
-
-  if (constitution) {
-    const goal = constitution.healthGoals[0]
-    if (goal) {
-      lines.push(`💪 你的${constitution.name}倾向：今日宜${goal}。`)
-    }
-  }
-
-  if (lines.length === 0) {
-    return '今天吃点什么好呢？看看当季推荐吧。'
-  }
-
-  return lines.join('\n')
+  return '今天吃点什么好呢？看看当季推荐吧。'
 }
 
 function buildShareCopy(
@@ -343,7 +333,13 @@ export function isSeasonTransition(term: SeasonalTerm): boolean {
  * 由 profiles.constitution_tags（body_state 标签 / 体质 key / 体质名）解析出体质类型。
  * 解析顺序：key → 名 → bodyState 匹配（与今日页 getConstitution 同源逻辑，抽为公共函数供首页预览复用）。
  */
-export function resolveConstitution(profile: Profile | null): ConstitutionType | null {
+export function resolveConstitution(profile: Profile | null, explicitType?: string | null): ConstitutionType | null {
+  // 显式体质类型优先（来自 user_health_profile / 体质测试结果），让已沉淀的体质真正参与推荐
+  if (explicitType) {
+    if (CONSTITUTION_TYPES[explicitType]) return CONSTITUTION_TYPES[explicitType]
+    const byName = Object.keys(CONSTITUTION_TYPES).find((k) => CONSTITUTION_TYPES[k].name === explicitType)
+    if (byName) return CONSTITUTION_TYPES[byName]
+  }
   if (!profile) return null
   const tags: string[] = (profile as any).constitution_tags ?? []
   for (const tag of tags) {
