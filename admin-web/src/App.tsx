@@ -27,6 +27,7 @@ import Expiry from '@/pages/Expiry'
 import FoodSafetyLibs from '@/pages/FoodSafetyLibs'
 import FoodIngredients from '@/pages/FoodIngredients'
 import FoodTagRules from '@/pages/FoodTagRules'
+import HomeBranding from '@/pages/HomeBranding'
 // 商家管理页面
 import MerchantDashboard from '@/pages/merchant/Index'
 import MerchantProducts from '@/pages/merchant/Products'
@@ -139,6 +140,7 @@ export default function App() {
             <Route path="food-safety-libs" element={<FoodSafetyLibs />} />
             <Route path="food-ingredients" element={<FoodIngredients />} />
             <Route path="food-tag-rules" element={<FoodTagRules />} />
+            <Route path="home-branding" element={<HomeBranding />} />
             <Route path="risk" element={<Risk />} />
             <Route path="settings" element={<Settings />} />
             </Route>

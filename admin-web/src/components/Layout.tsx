@@ -8,18 +8,19 @@ type NavSection = { title: string; items: NavItem[] }
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    title: '运营管理',
-    items: [
-      { to: '/dashboard', icon: 'grid', label: '仪表盘' },
-      { to: '/merchants', icon: 'store', label: '自营门店申请' },
-      { to: '/products', icon: 'box', label: '商品审阅' },
-      { to: '/users', icon: 'user', label: '用户管理' },
-      { to: '/refunds', icon: 'refund', label: '退款管理' },
-      { to: '/announcements', icon: 'megaphone', label: '公告管理' },
-      { to: '/orders', icon: 'document', label: '成交订单' },
-      { to: '/expiry', icon: 'alert', label: '临期预警' },
-    ],
-  },
+      title: '运营管理',
+      items: [
+        { to: '/dashboard', icon: 'grid', label: '仪表盘' },
+        { to: '/home-branding', icon: 'image', label: '首页品牌' },
+        { to: '/merchants', icon: 'store', label: '自营门店申请' },
+        { to: '/products', icon: 'box', label: '商品审阅' },
+        { to: '/users', icon: 'user', label: '用户管理' },
+        { to: '/refunds', icon: 'refund', label: '退款管理' },
+        { to: '/announcements', icon: 'megaphone', label: '公告管理' },
+        { to: '/orders', icon: 'document', label: '成交订单' },
+        { to: '/expiry', icon: 'alert', label: '临期预警' },
+      ],
+    },
   {
     title: '风控中心',
     items: [

@@ -12,6 +12,7 @@ const pages = [
   'pages/order-center/index',
   'pages/search/index',
   'pages/food-detective/index',
+  'pages/brand-story/index',
 ]
 
 // 分包：按业务域拆分，降低主包体积（目标 < 1.5MB）

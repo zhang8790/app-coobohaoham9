@@ -32,6 +32,27 @@ function stripNewProductColumns(payload: Record<string, unknown>): Record<string
 }
 
 // =====================
+// Site configs（迁移 20260804）：无需发版的热更新配置
+// =====================
+export async function getSiteConfig<T = Record<string, unknown>>(key: string): Promise<T | null> {
+  try {
+    const { data, error } = await supabase
+      .from('site_configs')
+      .select('value')
+      .eq('key', key)
+      .maybeSingle()
+    if (error) {
+      console.warn(`[getSiteConfig] ${key} 读取失败:`, error.message)
+      return null
+    }
+    return (data?.value as T) || null
+  } catch (e: any) {
+    console.warn(`[getSiteConfig] ${key} 异常:`, e?.message)
+    return null
+  }
+}
+
+// =====================
 // Profiles
 // =====================
 export async function getMyProfile(): Promise<Profile | null> {

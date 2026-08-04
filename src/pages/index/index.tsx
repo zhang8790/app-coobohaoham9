@@ -20,6 +20,10 @@ import { analyzeConsumption, recommendByConsumption, type ConsumptionProfile } f
 import CustomTabBar from '@/components/custom-tabbar'
 import FloatingActionBar from '@/components/FloatingActionBar'
 import Icon from '@/components/Icon'
+import BrandHero from '@/components/home/BrandHero'
+import IconZone from '@/components/home/IconZone'
+import TrustStrip from '@/components/home/TrustStrip'
+import BrandStoryEntry from '@/components/home/BrandStoryEntry'
 import ProductGridCard from '@/components/ProductGridCard'
 import AddToCartButton from '@/components/AddToCartButton'
 import { getProductCareInfo } from '@/utils/product-care'
@@ -832,7 +836,16 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* ===================== L1 个性食养层：懂你的推荐 ===================== */}
+      {/* ===================== L1 品牌心智：我们是谁、为何不同 ===================== */}
+      <BrandHero />
+
+      {/* ===================== L2 统一入口：六大金刚区，层级分明 ===================== */}
+      <IconZone />
+
+      {/* ===================== L3 实力背书：信任闭环护城河 ===================== */}
+      <TrustStrip />
+
+      {/* ===================== L4 个性食养层：懂你的推荐 ===================== */}
       {/* 今日食养推荐 + 为你优选：合并节气/画像双维度为单一卡片，消除首页两张雷同食品 rail */}
       {todayResult && (
         <View
@@ -1112,7 +1125,7 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* ===================== L2 千人千面场景层：懂你和家人的需求 ===================== */}
+      {/* ===================== L4（续）千人千面场景层：懂你和家人的需求 ===================== */}
       {personalLine || sceneCaps.length > 0 ? (
         <View className="mx-4 mt-5">
           {/* 个性化 banner：基于家庭档案/食养画像，一行说明为你定制 */}
@@ -1136,15 +1149,7 @@ export default function IndexPage() {
                   <Text className="text-sm font-semibold text-foreground">{cap.label}</Text>
                 </View>
               ))}
-              {/* 食养中心总入口：一处进全部食养功能（替代原食养工具/按需求找平铺入口） */}
-              <View
-                className="flex-shrink-0 rounded-full px-3.5 py-2 flex items-center gap-1 active:scale-95 transition-transform"
-                style={{ background: 'hsl(var(--primary))' }}
-                hoverClass="none"
-                onClick={() => Taro.navigateTo({ url: '/pages/food/index' })}
-              >
-                <Text className="text-sm font-bold" style={{ color: '#fff' }}>食养中心 ›</Text>
-              </View>
+              {/* 食养中心总入口已收口至上方 L2 统一金刚区，避免重复 */}
             </View>
           )}
         </View>
@@ -1163,7 +1168,7 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* ===================== L3 运营惠专区：福利 + 临期双列并排 ===================== */}
+      {/* ===================== 运营惠专区：福利 + 临期双列并排（活动内容） ===================== */}
       <View className="mx-4 mt-5 grid grid-cols-2 gap-3">
         {/* 限时福利：常驻可见，用户主动点击才展开，不再进首页强弹打断 */}
         {campaignList.length > 0 && !showCampaignPopup && (
@@ -1214,7 +1219,7 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* ===================== L4 发现：分类金刚区 + 商品流（主力内容） ===================== */}
+      {/* ===================== L5 为你精选：分类金刚区 + 商品流（主力内容） ===================== */}
       {!hasQuery && (
         <View className="mt-5 px-4">
           <SectionHeader emoji="🍱" title="为你精选" subtitle="懂身体的好物，挑挑看" />
@@ -1340,6 +1345,9 @@ export default function IndexPage() {
           )}
         </View>
       )}
+
+      {/* ===================== L6 品牌故事出口：B 端信任闭环出口 ===================== */}
+      <BrandStoryEntry />
 
       {/* 红包/实物领取弹窗 */}
       {showCampaignPopup && campaignList.length > 0 && (

@@ -239,6 +239,13 @@ export interface UserScanHistory {
   created_at: string
 }
 
+// 站点级配置（迁移 20260804_site_configs）：无需发版的热更新配置
+export interface SiteConfig {
+  key: string
+  value: Record<string, unknown>
+  updated_at: string
+}
+
 // 商品情绪编译结果缓存（由 emotion-compile Edge Function 写入，详情页直读）
 export interface ProductEmotion {
   id: string
