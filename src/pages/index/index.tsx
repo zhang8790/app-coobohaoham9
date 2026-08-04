@@ -850,8 +850,8 @@ export default function IndexPage() {
       {/* ===================== L3 实力背书：信任闭环护城河 ===================== */}
       <TrustStrip />
 
-      {/* ===================== L4 个性食养层：懂你的推荐 ===================== */}
-      {/* 今日食养推荐 + 为你优选：合并节气/画像双维度为单一卡片，消除首页两张雷同食品 rail */}
+      {/* ===================== L4 食养中心入口（合并：今日食养 / 为你优选 收敛为单一卡片，统一跳食养中心 hub） ===================== */}
+      {/* 食养中心 hub 内已含 今日食养推荐 + 顺时节气食盒 + 体质/家庭/食材工具，首页只保留这一个食养入口，消除「食养中心/节气食盒/今日食养」三处重复 */}
       {todayResult && (
         <View
           className="mx-4 mt-5 rounded-2xl p-4 pg-card active:scale-[0.99] transition-transform"
@@ -859,9 +859,9 @@ export default function IndexPage() {
         >
           <SectionHeader
             emoji="🌿"
-            title="今日食养"
-            subtitle={todayResult.term ? `${todayResult.term.name} · ${todayResult.term.natureLabel}` : '顺时而食'}
-            action={{ label: '看完整 ›', onClick: () => Taro.navigateTo({ url: '/pages/food/today-food-therapy/index' }) }}
+            title="食养中心"
+            subtitle="顺时养生 · 今日推荐 · 家庭档案"
+            action={{ label: '进入 ›', onClick: () => Taro.navigateTo({ url: '/pages/food/index' }) }}
           />
 
           {/* 你的体质 × 今日宜吃：首页第一眼「懂你」 */}
@@ -971,6 +971,11 @@ export default function IndexPage() {
               )}
             </View>
           )}
+          {/* 合并说明：今日食养 / 节气食盒 / 体质档案统一在食养中心，首页只保留一个食养入口 */}
+          <View className="mt-3 pt-3 border-t border-border flex items-center justify-between" hoverClass="none" onClick={() => Taro.navigateTo({ url: '/pages/food/index' })}>
+            <Text className="text-xs text-muted-foreground">今日食养 · 节气食盒 · 体质档案，食养一站式</Text>
+            <Text className="text-xs text-primary font-bold flex-shrink-0 ml-2">进入食养中心 ›</Text>
+          </View>
         </View>
       )}
 

@@ -90,6 +90,22 @@ export default function FoodHubPage() {
         </View>
       )}
 
+      {/* 顺时节气食盒：原独立「节气食盒」入口已并入食养中心，统一出口（保留订阅/一键加购能力） */}
+      <View
+        className="mx-4 mt-4 rounded-2xl p-4 bg-card border border-border flex items-center justify-between active:scale-[0.99] transition-transform"
+        hoverClass="none"
+        onClick={() => go('/pages/food/seasonal-box/index')}
+      >
+        <View className="flex items-center gap-3 min-w-0">
+          <View className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: '#9A33241a' }}>🍱</View>
+          <View className="min-w-0">
+            <Text className="text-base font-bold text-foreground">顺时节气食盒</Text>
+            <Text className="text-xs text-muted-foreground">当季限定好物 · 订阅节气上新</Text>
+          </View>
+        </View>
+        <Text className="text-xs text-primary font-bold flex-shrink-0 ml-2">前往 ›</Text>
+      </View>
+
       {/* 食养功能九宫格 */}
       <View className="mx-4 mt-4 grid grid-cols-2 gap-3">
         {FEATURES.map((f) => (

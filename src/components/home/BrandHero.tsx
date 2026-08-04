@@ -6,8 +6,7 @@ import { View, Text } from '@tarojs/components'
 import { getSiteConfig } from '@/db/api'
 
 const VALUES = [
-  { icon: '🧠', t: '食养引擎', d: 'AI 解读成分' },
-  { icon: '🌿', t: '24节气', d: '顺时吃对' },
+  { icon: '🧠', t: '顺时食养引擎', d: 'AI 解读 · 24节气顺时' },
   { icon: '👨‍👩‍👧', t: '家庭档案', d: '一人一档' },
 ]
 
