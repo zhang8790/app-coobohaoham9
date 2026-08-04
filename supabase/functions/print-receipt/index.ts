@@ -185,7 +185,8 @@ function renderReceipt(store: any, order: any, items: any[]): string {
 }
 
 // ===== 渲染条码标签（易联云 K4 指令集，超市同款 EAN-13 店内码）=====
-// <BR>条码内容</BR> 是易联云 EAN-13 矢量条码指令（非换行！换行用 \n）
+// <BR4>br_state,br_height,code</BR4> 是易联云 EAN-13 矢量条码指令（非换行！换行用 \n）
+//   br_state=0 不自动打数字（数字由下方 <CA> 单独居中打印，避免重复）；br_height=99 为最大高度（放大条码，解决太小）
 // 用数字指令而非 PNG 图片：保证扫码枪清晰可扫，避免栅格图糊掉扫不出
 function renderBarcodeLabel(store: any, product: any, opts?: { pending?: boolean }): string {
   const lines: string[] = []
@@ -205,8 +206,9 @@ function renderBarcodeLabel(store: any, product: any, opts?: { pending?: boolean
     lines.push('<FS><FB>' + price + '</FB></FS>\n')
   }
   // 条码（易联云 EAN-13 矢量指令，扫码枪可解）
+  // 用 <BR4> 替代 <BR>：br_state=0(数字由下方<CA>单独居中打印，避免重复) + br_height=99(最大高度，解决"打印条码太小")
   if (code) {
-    lines.push('<BR>' + code + '</BR>\n')
+    lines.push('<BR4>0,99,' + code + '</BR4>\n')
     // 人类可读数字（居中，便于人眼核对）
     lines.push('<CA>' + code + '</CA>\n')
   }

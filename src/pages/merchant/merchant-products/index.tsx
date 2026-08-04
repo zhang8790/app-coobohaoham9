@@ -10,7 +10,7 @@ import {
   getMerchantStore, getMerchantProducts, getMerchantProductSales,
   createProduct, updateProduct, deleteProduct, getProductByBarcode,
   getCategories, createStoreCategory, updateStoreCategory, deleteStoreCategory,
-  getNearExpiryProducts, generateProductBarcode, callPrintBarcode, allocStoreBarcode,
+  getNearExpiryProducts, generateProductBarcode, callPrintBarcode,
 } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import { uploadImage, uploadVideo } from '@/utils/upload'
@@ -126,9 +126,6 @@ function MerchantProductsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
-  // 「生成条形码」独立板块：本次会话已生成的店内码（尚未建商品，可补打空白标签）
-  const [genCodes, setGenCodes] = useState<{ code: string; ts: number }[]>([])
-  const [genLoading, setGenLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [scanning, setScanning] = useState(false)
@@ -317,29 +314,6 @@ function MerchantProductsPage() {
     })
   }
 
-  // 生成条形码（独立板块）：仅原子出码，不建商品；出码后可打印空白标签贴商品，
-  // 再用上方「扫码上架」扫此码即可建档上架（两步分离：先生成、后扫码）。
-  const genBarcode = async () => {
-    if (!store) { Taro.showToast({ title: '请先进入门店', icon: 'none' }); return }
-    setGenLoading(true)
-    try {
-      const code = await allocStoreBarcode(store.id)
-      if (!code) { Taro.showToast({ title: '生成失败', icon: 'none' }); return }
-      setGenCodes(g => [{ code, ts: Date.now() }, ...g].slice(0, 30))
-      Taro.showToast({ title: '已生成店内码', icon: 'success' })
-    } finally { setGenLoading(false) }
-  }
-  // 打印空白店内码标签（裸码，无商品名/价格，待上架）
-  const printBare = async (code: string) => {
-    if (!store) return
-    Taro.showLoading({ title: '推送打印…' })
-    const r = await callPrintBarcode({ storeId: store.id, barcode: code })
-    Taro.hideLoading()
-    if (r.need_config) Taro.showModal({ title: '未配置打印机', content: '请先在门店设置配置云打印机后再打印标签。' })
-    else if (r.success) Taro.showToast({ title: '空白标签已推送打印', icon: 'success' })
-    else Taro.showToast({ title: r.error || '打印失败', icon: 'none' })
-  }
-
   // 批量配料安全分析：对缺失安全评级的商品跑本地确定性引擎（菜名→食材→食养/安全字段），
   // 派生初评级(A/C)后回写 products，运营只需复核标红项，无需逐个手填。纯前端、零网络、可重复跑。
   const handleBatchAnalyze = async () => {
@@ -437,7 +411,7 @@ function MerchantProductsPage() {
   }
 
   // 一键生成店内码：仅用于「已存在的商品」补码（编辑态即时分配并回写）。
-  // 新建商品无码的场景改走独立「生成条形码」板块：先出码打标签，再扫码上架建档。
+  // 新建商品若无原厂码，由后端 auto_barcode 在保存时自动分配店内码（见 handleSave），无需先出码再扫。
   const onGenerateBarcode = async () => {
     if (!editId) return
     setGeneratingBarcode(true)
@@ -789,7 +763,7 @@ function MerchantProductsPage() {
     <View style={{ minHeight: '100vh', background: '#FFF8F4', paddingBottom: '32px' }}>
 
       {store && (
-        <View style={{ margin: '8px 14px 0', padding: '10px 14px', borderRadius: '14px', background: '#FFF', border: '1px solid #F1E9D9' }}>
+        <View style={{ margin: '8px 14px 0', padding: '10px 14px', borderRadius: '14px', background: '#FFF', border: '1px solid #F5EEDF' }}>
           <Text style={{ fontSize: '14px', color: '#888' }}>{store.name}</Text>
         </View>
       )}
@@ -856,7 +830,7 @@ function MerchantProductsPage() {
           style={{
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '13px 16px', borderRadius: '14px',
-            background: 'linear-gradient(135deg, #C77B47, hsl(var(--primary)))',
+            background: 'linear-gradient(135deg, #6B4423, hsl(var(--primary)))',
             boxShadow: '0 2px 8px rgba(255,87,34,0.25)',
           }}>
           <Text style={{ color: '#FFF', fontSize: '15px', fontWeight: 'bold' }}>+ 新增商品</Text>
@@ -875,48 +849,6 @@ function MerchantProductsPage() {
         </View>
       </View>
 
-      {/* 🏷 生成条形码（独立板块）：先出码打空白标签，再去「扫码上架」建商品 */}
-      <View style={{ padding: '10px 14px 0' }}>
-        <View style={{ background: '#0F172A', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 16px rgba(15,23,42,0.18)' }}>
-          <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{ color: '#FFF', fontSize: '16px', fontWeight: 'bold' }}>🏷 生成条形码（店内码）</Text>
-            <Text style={{ color: '#10B981', fontSize: '11px', fontWeight: 'bold', borderWidth: '1px', borderStyle: 'solid', borderColor: '#10B981', borderRadius: '6px', padding: '2px 6px' }}>独立板块</Text>
-          </View>
-          <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: '12px', marginTop: '6px', lineHeight: '18px' }}>为无原厂码商品生成合法 EAN-13 店内码，打印空白标签贴商品；再去上方「扫码上架」扫此码即可建档上架。</Text>
-          <View
-            onClick={genBarcode}
-            style={{ marginTop: '12px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', borderRadius: '12px', background: genLoading ? '#374151' : 'linear-gradient(135deg,#10B981,#059669)' }}>
-            <Text style={{ color: '#FFF', fontSize: '14px', fontWeight: 'bold' }}>{genLoading ? '生成中…' : '＋ 生成新店内码'}</Text>
-          </View>
-          {genCodes.length > 0 ? (
-            <View style={{ marginTop: '12px', background: 'rgba(255,255,255,0.08)', borderRadius: '12px', padding: '12px' }}>
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>最新店内码</Text>
-              <Text style={{ color: '#10B981', fontSize: '22px', fontWeight: 'bold', letterSpacing: '2px', fontFamily: 'monospace' }}>{genCodes[0].code}</Text>
-              <View
-                onClick={() => printBare(genCodes[0].code)}
-                style={{ marginTop: '10px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', borderRadius: '10px', background: '#FF8C42' }}>
-                <Text style={{ color: '#FFF', fontSize: '13px', fontWeight: '600' }}>🖨 打印空白标签</Text>
-              </View>
-            </View>
-          ) : null}
-          {genCodes.length > 1 ? (
-            <View style={{ marginTop: '10px' }}>
-              <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: '11px' }}>本次已生成（点击补打）</Text>
-              <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
-                {genCodes.slice(1).map((g, i) => (
-                  <View
-                    key={i}
-                    onClick={() => printBare(g.code)}
-                    style={{ padding: '6px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.12)' }}>
-                    <Text style={{ color: '#FFF', fontSize: '12px', fontFamily: 'monospace' }}>{g.code}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : null}
-        </View>
-      </View>
-
       {/* 批量配料安全分析按钮 */}
       <View style={{ display: 'flex', gap: '10px', padding: '10px 14px 0' }}>
         <View
@@ -925,7 +857,7 @@ function MerchantProductsPage() {
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '13px 16px', borderRadius: '14px',
             background: batchAnalyzing ? '#F0E6DA' : '#FFF',
-            border: '2px dashed #C77B47',
+            border: '2px dashed #6B4423',
           }}>
           {batchAnalyzing
             ? <Text style={{ color: 'hsl(var(--primary))', fontSize: '15px', fontWeight: 'bold' }}>分析中…</Text>
@@ -948,7 +880,7 @@ function MerchantProductsPage() {
         filtered.map(p => {
           const margin = calcMargin(p.price, p.cost_price)
           return (
-            <View key={p.id} style={{ margin: '10px 14px 0', borderRadius: '16px', background: '#FFF', border: '1px solid #F1E9D9', overflow: 'hidden' }}>
+            <View key={p.id} style={{ margin: '10px 14px 0', borderRadius: '16px', background: '#FFF', border: '1px solid #F5EEDF', overflow: 'hidden' }}>
               <View style={{ display: 'flex', gap: '12px', padding: '12px' }}>
                 <View style={{ width: '80px', height: '80px', borderRadius: '12px', background: '#F5F0EB', flexShrink: 0, overflow: 'hidden' }}>
                   {(p.main_image ?? p.image_url)
@@ -997,14 +929,14 @@ function MerchantProductsPage() {
               </View>
               {/* 操作栏 */}
               <View style={{
-                display: 'flex', borderTop: '1px solid #F1E9D9',
+                display: 'flex', borderTop: '1px solid #F5EEDF',
               }}>
                 <View
                   onClick={() => openEdit(p)}
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
                   <Text style={{ fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: '500' }}>✏️ 编辑</Text>
                 </View>
-                <View style={{ width: '1px', background: '#F1E9D9' }} />
+                <View style={{ width: '1px', background: '#F5EEDF' }} />
                 <View
                   onClick={async () => {
                     try {
@@ -1016,7 +948,7 @@ function MerchantProductsPage() {
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
                   <Text style={{ fontSize: '13px', color: '#666' }}>{p.is_active ? '👁 下架' : '👁 上架'}</Text>
                 </View>
-                <View style={{ width: '1px', background: '#F1E9D9' }} />
+                <View style={{ width: '1px', background: '#F5EEDF' }} />
                 <View
                   onClick={() => {
                     Taro.showModal({
@@ -1037,7 +969,7 @@ function MerchantProductsPage() {
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
                   <Text style={{ fontSize: '13px', color: '#EF4444' }}>🗑 删除</Text>
                 </View>
-                <View style={{ width: '1px', background: '#F1E9D9' }} />
+                <View style={{ width: '1px', background: '#F5EEDF' }} />
                 <View
                   onClick={() => Taro.navigateTo({ url: `/pages/merchant/merchant-batch/index?productId=${p.id}` })}
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
@@ -1112,7 +1044,7 @@ function MerchantProductsPage() {
             <View style={{ marginBottom: '14px' }}>
               <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                 <Text style={{ fontSize: '14px', color: '#333', fontWeight: '600' }}>商品分类</Text>
-                <View onClick={() => setShowCatModal(true)} style={{ padding: '3px 12px', borderRadius: '9999px', background: '#F1E9D9' }}>
+                <View onClick={() => setShowCatModal(true)} style={{ padding: '3px 12px', borderRadius: '9999px', background: '#F5EEDF' }}>
                   <Text style={{ fontSize: '12px', color: 'hsl(var(--primary))' }}>管理分类</Text>
                 </View>
               </View>
@@ -1310,7 +1242,7 @@ function MerchantProductsPage() {
                 {form.barcode ? (
                   <EAN13Preview code={form.barcode} />
                 ) : (
-                  <Text style={{ fontSize: '12px', color: '#999' }}>无条码：编辑时可「一键生成店内码」（EAN-13 超市同款），或去上方「生成条形码」板块先出码再扫码上架。</Text>
+                  <Text style={{ fontSize: '12px', color: '#999' }}>无条码：编辑时点击「⚡ 一键生成店内码」（EAN-13 超市同款）即可自动分配并可打印标签。</Text>
                 )}
               </View>
             </View>
@@ -1641,7 +1573,7 @@ function MerchantProductsPage() {
                     <Image src={dishImageUrl} mode="aspectFill" style={{ width: '40px', height: '40px', borderRadius: '8px' }} />
                   ) : null}
                   <View onClick={runSmartAnalyze}
-                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 12px', borderRadius: '10px', background: analyzing ? '#F0C9A8' : 'hsl(var(--primary))' }}>
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 12px', borderRadius: '10px', background: analyzing ? '#E8D5C0' : 'hsl(var(--primary))' }}>
                     <Text style={{ fontSize: '13px', color: '#FFF', fontWeight: '700' }}>{analyzing ? '识别中…' : '✨ 一键识别'}</Text>
                   </View>
                 </View>
@@ -1828,8 +1760,8 @@ function MerchantProductsPage() {
                 width: '100%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '14px', borderRadius: '14px',
-                background: saving ? '#F0C9A8' : 'linear-gradient(135deg, #C77B47, hsl(var(--primary)))',
-                boxShadow: saving ? 'none' : '0 3px 12px rgba(255,87,34,0.3)',
+                background: saving ? '#E8D5C0' : 'linear-gradient(135deg, #6B4423, hsl(var(--primary)))',
+                boxShadow: saving ? 'none' : '0 3px 12px rgba(107,68,35,0.3)',
               }}>
               <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#FFF' }}>
                 {saving ? '保存中…' : '💾 保存'}
