@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
-import { getMerchantStore, getMerchantOrders, getMerchantOrderSummary, merchantShipOrder, merchantCompleteOrder, callPrintReceipt } from '@/db/api'
+import { getMerchantStore, getMerchantOrders, getMerchantOrderSummary, merchantShipOrder, merchantCompleteOrder, printOrderReceipt } from '@/db/api'
 import { RouteGuard } from '@/components/RouteGuard'
 import Icon from '@/components/Icon'
 
@@ -21,7 +21,9 @@ function MerchantOrdersPage() {
   const [store, setStore] = useState<any>(null)
   const [orders, setOrders] = useState<any[]>([])   // 原始 order_items 行（全量，用于按订单聚合）
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'all' | 'pending_ship' | 'delivery' | 'completed'>('all')
+  const [tab, setTab] = useState<'all' | 'pending_ship' | 'delivery' | 'completed' | 'unprinted'>('all')
+  const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const [batchPrinting, setBatchPrinting] = useState(false)
   const [summary, setSummary] = useState<any>(null)
 
   // 列表(getMerchantOrders 全量 order_items) + 汇总(getMerchantOrderSummary RPC, 真实全量)
@@ -59,6 +61,7 @@ function MerchantOrdersPage() {
           status: o.status,
           total_amount: o.total_amount,
           created_at: o.created_at,
+          printed_at: o.printed_at,
           payment_method: o.payment_method,
           service_type: o.service_type,
           shipping_address: o.shipping_address,
@@ -84,7 +87,9 @@ function MerchantOrdersPage() {
   const filtered = tab === 'all' ? orderGroups
     : tab === 'pending_ship' ? orderGroups.filter((g: any) => g.status === 'pending_ship')
     : tab === 'delivery' ? orderGroups.filter((g: any) => g.service_type === 'delivery')
-    : orderGroups.filter((g: any) => g.status === 'completed')
+    : tab === 'completed' ? orderGroups.filter((g: any) => g.status === 'completed')
+    : orderGroups.filter((g: any) => !g.printed_at)  // 未打印：从未成功打印的漏单
+  const unprintedIds = useMemo(() => orderGroups.filter((g: any) => !g.printed_at).map((g: any) => g.id), [orderGroups])
 
   const handleShip = async (order: any) => {
     Taro.showModal({
@@ -112,7 +117,7 @@ function MerchantOrdersPage() {
           Taro.showToast({ title: '已完成，货款已结算', icon: 'success' }); load()
           // 订单完成后自动推送小票（延时避免覆盖结算提示）
           setTimeout(() => {
-            callPrintReceipt({ orderId: order.id }).then((r) => {
+            printOrderReceipt(order.id).then((r) => {
               if (r.success) Taro.showToast({ title: '小票已打印', icon: 'none' })
               else if (!r.need_config) Taro.showToast({ title: '小票打印失败', icon: 'none' })
             }).catch(() => {})
@@ -124,15 +129,40 @@ function MerchantOrdersPage() {
   const handlePrint = async (order: any) => {
     Taro.showLoading({ title: '打印中' })
     try {
-      const r = await callPrintReceipt({ orderId: order.id, test: false })
+      const r = await printOrderReceipt(order.id)
       Taro.hideLoading()
-      if (r.success) Taro.showToast({ title: '小票已推送', icon: 'success' })
+      if (r.success) { Taro.showToast({ title: '小票已推送', icon: 'success' }); load() }
       else if (r.need_config) Taro.showToast({ title: '未配置打印机', icon: 'none' })
       else Taro.showToast({ title: '打印失败：' + (r.error || '未知错误'), icon: 'none' })
     } catch (e: any) {
       Taro.hideLoading()
       Taro.showToast({ title: '打印异常：' + (e?.message ? String(e.message) : String(e)), icon: 'none' })
     }
+  }
+  const toggleSelect = (id: string) => {
+    setSelected((s) => ({ ...s, [id]: !s[id] }))
+  }
+  const selectAllUnprinted = () => {
+    const all = unprintedIds.every((id) => selected[id])
+    const next: Record<string, boolean> = {}
+    if (!all) unprintedIds.forEach((id) => { next[id] = true })
+    setSelected(next)
+  }
+  const handleBatchPrint = async () => {
+    const ids = unprintedIds.filter((id) => selected[id])
+    if (!ids.length) { Taro.showToast({ title: '请先选择要补打的订单', icon: 'none' }); return }
+    setBatchPrinting(true)
+    let okCount = 0
+    for (let i = 0; i < ids.length; i++) {
+      const r = await printOrderReceipt(ids[i])
+      if (r.success) okCount++
+      // 顺序打印，节奏延时避免云打印机并发拥堵
+      if (i < ids.length - 1) await new Promise((res) => setTimeout(res, 500))
+    }
+    setBatchPrinting(false)
+    setSelected({})
+    Taro.showToast({ title: `已补打 ${okCount}/${ids.length} 单`, icon: okCount === ids.length ? 'success' : 'none' })
+    load()
   }
   const load = () => {
     getMerchantStore().then(async (s) => {
@@ -145,10 +175,10 @@ function MerchantOrdersPage() {
     <View className="min-h-screen bg-background pb-8">
 
       <View className="flex mx-4 mt-3 bg-muted rounded-2xl p-1">
-        {(['all', 'pending_ship', 'delivery', 'completed'] as const).map(key => (
+        {(['all', 'pending_ship', 'delivery', 'completed', 'unprinted'] as const).map(key => (
           <View key={key} className={`flex-1 flex items-center justify-center py-2 rounded-xl text-sm font-bold ${tab === key ? 'bg-card text-primary' : 'text-muted-foreground'}`}
             onClick={() => setTab(key)}>
-            {{ all: '全部', pending_ship: '待发货', delivery: '配送单', completed: '已完成' }[key]}
+            {{ all: '全部', pending_ship: '待发货', delivery: '配送单', completed: '已完成', unprinted: '未打印' }[key]}
           </View>
         ))}
       </View>
@@ -187,11 +217,29 @@ function MerchantOrdersPage() {
         </View>
       ) : (
         <View className="px-4 mt-3">
+          {tab === 'unprinted' && (
+            <View className="flex items-center justify-between mb-2 px-1">
+              <Text className="text-sm text-muted-foreground" onClick={selectAllUnprinted}>
+                共 {unprintedIds.length} 单未打印{unprintedIds.length ? '（点右侧全选）' : ''}
+              </Text>
+              {unprintedIds.length > 0 && (
+                <Text className="text-sm font-bold text-primary" onClick={selectAllUnprinted}>
+                  {unprintedIds.every((id) => selected[id]) ? '取消全选' : '全选'}
+                </Text>
+              )}
+            </View>
+          )}
           {filtered.map((g) => (
             <View key={g.id} className="bg-card rounded-2xl border border-border mb-3 p-4">
               <View className="flex items-center justify-between mb-2">
                 <View className="flex items-center gap-2">
+                  {tab === 'unprinted' && (
+                    <View onClick={() => toggleSelect(g.id)} className={`flex items-center justify-center rounded-md border-2 ${selected[g.id] ? 'bg-primary border-primary' : 'border-border'} w-5 h-5 flex-shrink-0`}>
+                      {selected[g.id] ? <Text className="text-white text-xs leading-none">✓</Text> : null}
+                    </View>
+                  )}
                   <Text className="text-sm text-muted-foreground">订单号：{g.order_no || '-'}</Text>
+                  {tab === 'unprinted' && <Text className="text-xs font-bold text-white bg-red-500 rounded px-1.5 py-0.5">未打印</Text>}
                   {g.service_type === 'delivery' && (
                     <Text className="text-xs font-bold text-white bg-blue-500 rounded px-1.5 py-0.5">配送</Text>
                   )}
@@ -232,6 +280,7 @@ function MerchantOrdersPage() {
               <View className="mt-2 pt-2 border-t border-border flex items-center justify-between">
                 <Text className="text-xs text-muted-foreground">
                   {g.created_at ? new Date(g.created_at).toLocaleDateString('zh-CN') : ''}
+                  {g.printed_at ? ' · 已打印 ✓' : ' · 未打印'}
                 </Text>
                 <View className="flex items-center gap-2">
                   {g.status === 'pending_ship' && (
@@ -267,6 +316,15 @@ function MerchantOrdersPage() {
               </View>
             </View>
           ))}
+          {tab === 'unprinted' && Object.values(selected).some(Boolean) && (
+            <View style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50 }} className="bg-card border-t border-border px-4 py-3 flex items-center justify-between">
+              <Text className="text-sm text-foreground font-bold">已选 {unprintedIds.filter((id) => selected[id]).length} 单</Text>
+              <View className="flex items-center justify-center leading-none rounded-xl bg-primary" onClick={handleBatchPrint}>
+                <View className="py-2 px-5 text-sm text-white font-bold">{batchPrinting ? '补打中…' : '批量补打'}</View>
+              </View>
+            </View>
+          )}
+          {tab === 'unprinted' && Object.values(selected).some(Boolean) && <View style={{ height: '72px' }} />}
         </View>
       )}
     </View>

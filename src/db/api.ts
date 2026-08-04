@@ -3265,7 +3265,7 @@ export async function getMerchantOrders(storeId: string, page = 0, limit = 20): 
   // 用 orders!inner 把门店过滤变成真正的 INNER JOIN 条件，
   // 即使 RLS 放行了商家作为买家的跨店订单，也不会泄漏到本店订单列表。
   const { data, error } = await supabase.from('order_items')
-    .select('*, orders!inner(id,order_no,status,total_amount,created_at,payment_method,service_type,shipping_address,remark, merchant_settlements(settle_amount, discount_pool))')
+    .select('*, orders!inner(id,order_no,status,total_amount,created_at,payment_method,service_type,shipping_address,remark,printed_at, merchant_settlements(settle_amount, discount_pool))')
     .eq('orders.store_id', storeId).order('created_at', { ascending: false })
     .range(page * limit, (page + 1) * limit - 1)
   if (error) { console.error('[getMerchantOrders]', error); return [] }
@@ -3831,4 +3831,14 @@ export async function callPrintReceipt(opts: {
   } catch (e: any) {
     return { success: false, error: e?.message ? String(e.message) : String(e) }
   }
+}
+
+// 打印订单小票并标记 printed_at（NULL=未打印/待补打）。成功打印才写回时间，
+// 网络/打印机失败则不标记，保证"未打印"筛选准确，支撑停电/断网漏单补打。
+export async function printOrderReceipt(orderId: string, storeId?: string): Promise<{ success: boolean; error?: string; message?: string; need_config?: boolean }> {
+  const r = await callPrintReceipt({ orderId, storeId })
+  if (r.success) {
+    await supabase.from('orders').update({ printed_at: new Date().toISOString() }).eq('id', orderId)
+  }
+  return r
 }
