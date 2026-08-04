@@ -187,19 +187,23 @@ function renderReceipt(store: any, order: any, items: any[]): string {
 // ===== 渲染条码标签（易联云 K4 指令集，超市同款 EAN-13 店内码）=====
 // <BR>条码内容</BR> 是易联云 EAN-13 矢量条码指令（非换行！换行用 \n）
 // 用数字指令而非 PNG 图片：保证扫码枪清晰可扫，避免栅格图糊掉扫不出
-function renderBarcodeLabel(store: any, product: any): string {
+function renderBarcodeLabel(store: any, product: any, opts?: { pending?: boolean }): string {
   const lines: string[] = []
   const name = (store?.name || '来电有喜').slice(0, 18)
   const pname = String(product?.name || '商品').slice(0, 18)
   const price = '¥' + (Math.round(Number(product?.price || 0) * 100) / 100).toFixed(2)
   const code = String(product?.barcode || '').replace(/\s/g, '')
+  const pending = !!opts?.pending
 
   // 店名（放大居中）
   lines.push('<FS><CA>' + name + '</CA></FS>\n')
-  // 商品名
-  lines.push('<CA>' + pname + '</CA>\n')
-  // 价格（大字加粗）
-  lines.push('<FS><FB>' + price + '</FB></FS>\n')
+  // 待上架空白标签：不打印商品名/价格（商品尚未建档），仅出码
+  if (!pending) {
+    // 商品名
+    lines.push('<CA>' + pname + '</CA>\n')
+    // 价格（大字加粗）
+    lines.push('<FS><FB>' + price + '</FB></FS>\n')
+  }
   // 条码（易联云 EAN-13 矢量指令，扫码枪可解）
   if (code) {
     lines.push('<BR>' + code + '</BR>\n')
@@ -207,7 +211,7 @@ function renderBarcodeLabel(store: any, product: any): string {
     lines.push('<CA>' + code + '</CA>\n')
   }
   // 角标
-  lines.push('<CA>店内码 · 超市同款</CA>\n')
+  lines.push('<CA>' + (pending ? '店内码 · 待上架' : '店内码 · 超市同款') + '</CA>\n')
   // 全切纸
   lines.push('<MK>2</MK>')
   return lines.join('')
@@ -324,19 +328,15 @@ Deno.serve(async (req: Request) => {
     if (mode === 'barcode') {
       const bcStoreId: string | undefined = body.store_id
       const productId: string | undefined = body.product_id
-      if (!isTest && !productId) return json({ success: false, error: '条码打印缺少 product_id' }, 400)
-      if (isTest && !bcStoreId) return json({ success: false, error: '测试条码打印缺少 store_id' }, 400)
+      const bareCode: string = typeof body.barcode === 'string' ? body.barcode.replace(/\s/g, '') : ''
 
       let targetStoreId: string
       let store: any = null
       let product: any = null
+      let pending = false
 
-      if (isTest) {
-        targetStoreId = bcStoreId!
-        const { data: s } = await supabase.from('stores').select('*').eq('id', targetStoreId).maybeSingle()
-        store = s
-        product = { name: '【测试】精品礼盒', price: 19.9, barcode: '2000001000021' }
-      } else {
+      if (productId) {
+        // 已有商品：按 product_id 出带名称/价格的标签
         const { data: p, error: pErr } = await supabase
           .from('products').select('id, store_id, name, price, barcode, barcode_type')
           .eq('id', productId).maybeSingle()
@@ -347,6 +347,21 @@ Deno.serve(async (req: Request) => {
         targetStoreId = p.store_id
         const { data: s } = await supabase.from('stores').select('*').eq('id', targetStoreId).maybeSingle()
         store = s
+      } else if (bareCode && bcStoreId) {
+        // 裸码打印：生成板块出码但尚未建商品，打印空白「待上架」标签（仅出码，无名称/价格）
+        targetStoreId = bcStoreId
+        const { data: s } = await supabase.from('stores').select('*').eq('id', targetStoreId).maybeSingle()
+        store = s
+        product = { name: '待上架商品', barcode: bareCode }
+        pending = true
+      } else if (isTest && bcStoreId) {
+        // 测试打印：示例标签，验证设备/格式
+        targetStoreId = bcStoreId
+        const { data: s } = await supabase.from('stores').select('*').eq('id', targetStoreId).maybeSingle()
+        store = s
+        product = { name: '【测试】精品礼盒', price: 19.9, barcode: '2000001000021' }
+      } else {
+        return json({ success: false, error: '条码打印缺少 product_id 或 (barcode + store_id)' }, 400)
       }
 
       const { data: cfgRows, error: cErr } = await supabase
@@ -355,7 +370,7 @@ Deno.serve(async (req: Request) => {
       const cfg = (cfgRows || [])[0]
       if (!cfg) return json({ success: false, error: '该门店未配置已启用的打印机', need_config: true }, 200)
 
-      const content = renderBarcodeLabel(store, product)
+      const content = renderBarcodeLabel(store, product, { pending })
       let result: { ok: boolean; msg: string }
       if (cfg.provider === 'feie') result = await printFeie(cfg, content)
       else if (cfg.provider === 'yilianyun') result = await printYilianyun(cfg, content, (product?.barcode || productId || Date.now().toString()))
@@ -365,7 +380,7 @@ Deno.serve(async (req: Request) => {
       if (!isTest) {
         await supabase.from('printer_configs').update({ print_count: (cfg.print_count || 0) + 1, last_print_at: new Date().toISOString() }).eq('id', cfg.id)
       }
-      return json({ success: true, test: isTest, mode: 'barcode', provider: cfg.provider, device_sn: cfg.device_sn, message: '条码标签已推送打印' })
+      return json({ success: true, test: isTest, mode: 'barcode', provider: cfg.provider, device_sn: cfg.device_sn, message: pending ? '空白店内码标签已推送打印' : '条码标签已推送打印' })
     }
 
     // ════════════ 订单小票打印模式（原有）══════════

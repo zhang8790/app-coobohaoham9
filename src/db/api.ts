@@ -3771,11 +3771,14 @@ export async function upsertPrinterConfig(
 export async function callPrintBarcode(opts: {
   productId?: string
   storeId?: string
+  barcode?: string
   test?: boolean
 }): Promise<{ success: boolean; error?: string; message?: string; need_config?: boolean }> {
   const body: Record<string, any> = opts.test
     ? { test: true, mode: 'barcode', store_id: opts.storeId }
-    : { mode: 'barcode', product_id: opts.productId }
+    : opts.barcode
+      ? { mode: 'barcode', store_id: opts.storeId, barcode: opts.barcode }
+      : { mode: 'barcode', product_id: opts.productId }
   try {
     const { data, error } = await callEdgeFunction('print-receipt', body, { auth: true })
     if (error) return { success: false, error: error.message }
@@ -3783,6 +3786,22 @@ export async function callPrintBarcode(opts: {
     return { success: !!d.success, error: d.error, message: d.message, need_config: !!d.need_config }
   } catch (e: any) {
     return { success: false, error: e?.message ? String(e.message) : String(e) }
+  }
+}
+
+// 原子分配下一个 EAN-13 店内码（不建商品，仅出码）：供「生成条形码」独立板块使用。
+// RPC 返回 TABLE(barcode, barcode_type)，取首行 barcode。SECURITY DEFINER 已放开 PUBLIC 调用。
+export async function allocStoreBarcode(storeId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc('fn_alloc_store_barcode', { p_store_id: storeId })
+    if (error || !data || !(data as any[]).length) {
+      console.warn('[allocStoreBarcode]', error?.message || 'empty')
+      return null
+    }
+    return ((data as any[])[0].barcode as string) ?? null
+  } catch (e: any) {
+    console.warn('[allocStoreBarcode]', e?.message || e)
+    return null
   }
 }
 

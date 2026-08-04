@@ -10,7 +10,7 @@ import {
   getMerchantStore, getMerchantProducts, getMerchantProductSales,
   createProduct, updateProduct, deleteProduct, getProductByBarcode,
   getCategories, createStoreCategory, updateStoreCategory, deleteStoreCategory,
-  getNearExpiryProducts, generateProductBarcode, callPrintBarcode,
+  getNearExpiryProducts, generateProductBarcode, callPrintBarcode, allocStoreBarcode,
 } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import { uploadImage, uploadVideo } from '@/utils/upload'
@@ -126,8 +126,9 @@ function MerchantProductsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
-  // 是否通过「无条码？生成店内码上架」入口打开（保存时自动分配 EAN-13 店内码并保持编辑态便于立即打印）
-  const [pendingAutoBarcode, setPendingAutoBarcode] = useState(false)
+  // 「生成条形码」独立板块：本次会话已生成的店内码（尚未建商品，可补打空白标签）
+  const [genCodes, setGenCodes] = useState<{ code: string; ts: number }[]>([])
+  const [genLoading, setGenLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [scanning, setScanning] = useState(false)
@@ -286,15 +287,6 @@ function MerchantProductsPage() {
     setShowForm(true)
   }
 
-  // 无条码商品：先造店内码再上架（与「扫码上架」平级的兄弟入口，让无码商品也能进入可扫码体系）
-  const onNewInstoreProduct = () => {
-    setForm(emptyForm())
-    setEditId(null)
-    setIngredientItems([])
-    setPendingAutoBarcode(true)
-    setShowForm(true)
-  }
-
   // 扫码
   const handleScan = () => {
     if (!store) return
@@ -323,6 +315,29 @@ function MerchantProductsPage() {
       },
       fail: () => { setScanning(false); Taro.showToast({ title: '扫码取消', icon: 'none' }) },
     })
+  }
+
+  // 生成条形码（独立板块）：仅原子出码，不建商品；出码后可打印空白标签贴商品，
+  // 再用上方「扫码上架」扫此码即可建档上架（两步分离：先生成、后扫码）。
+  const genBarcode = async () => {
+    if (!store) { Taro.showToast({ title: '请先进入门店', icon: 'none' }); return }
+    setGenLoading(true)
+    try {
+      const code = await allocStoreBarcode(store.id)
+      if (!code) { Taro.showToast({ title: '生成失败', icon: 'none' }); return }
+      setGenCodes(g => [{ code, ts: Date.now() }, ...g].slice(0, 30))
+      Taro.showToast({ title: '已生成店内码', icon: 'success' })
+    } finally { setGenLoading(false) }
+  }
+  // 打印空白店内码标签（裸码，无商品名/价格，待上架）
+  const printBare = async (code: string) => {
+    if (!store) return
+    Taro.showLoading({ title: '推送打印…' })
+    const r = await callPrintBarcode({ storeId: store.id, barcode: code })
+    Taro.hideLoading()
+    if (r.need_config) Taro.showModal({ title: '未配置打印机', content: '请先在门店设置配置云打印机后再打印标签。' })
+    else if (r.success) Taro.showToast({ title: '空白标签已推送打印', icon: 'success' })
+    else Taro.showToast({ title: r.error || '打印失败', icon: 'none' })
   }
 
   // 批量配料安全分析：对缺失安全评级的商品跑本地确定性引擎（菜名→食材→食养/安全字段），
@@ -421,21 +436,18 @@ function MerchantProductsPage() {
     setIngredientItems(items)
   }
 
-  // 一键生成店内码：编辑已有商品→即时分配并回写；新建商品→保存时自动分配并保持在编辑态
+  // 一键生成店内码：仅用于「已存在的商品」补码（编辑态即时分配并回写）。
+  // 新建商品无码的场景改走独立「生成条形码」板块：先出码打标签，再扫码上架建档。
   const onGenerateBarcode = async () => {
+    if (!editId) return
     setGeneratingBarcode(true)
     try {
-      if (editId) {
-        const prod = await generateProductBarcode(editId)
-        if (prod && prod.barcode) {
-          setForm(f => ({ ...f, barcode: prod.barcode! }))
-          Taro.showToast({ title: '已生成店内码', icon: 'success' })
-        } else {
-          Taro.showToast({ title: '生成失败，请重试', icon: 'none' })
-        }
+      const prod = await generateProductBarcode(editId)
+      if (prod && prod.barcode) {
+        setForm(f => ({ ...f, barcode: prod.barcode! }))
+        Taro.showToast({ title: '已生成店内码', icon: 'success' })
       } else {
-        // 新建商品：保存即自动分配店内码，并保持编辑态便于立即打印
-        await handleSave({ keepOpen: true })
+        Taro.showToast({ title: '生成失败，请重试', icon: 'none' })
       }
     } finally {
       setGeneratingBarcode(false)
@@ -460,7 +472,7 @@ function MerchantProductsPage() {
     }
   }
 
-  const handleSave = async (opts?: { keepOpen?: boolean }) => {
+  const handleSave = async () => {
     if (!store) return
     if (!form.name.trim()) { Taro.showToast({ title: '请填写商品名称', icon: 'none' }); return }
     const price = parseFloat(form.price)
@@ -490,9 +502,9 @@ function MerchantProductsPage() {
       const isGiftKind = form.product_kind && form.product_kind !== 'food'
       const payload: any = {
         name: form.name, description: form.description, price,
-        stock, barcode: form.barcode && form.barcode.trim() ? form.barcode.trim() : null,
-        // 新建商品且无码时自动分配店内码；生成流程（keepOpen）强制分配
-        auto_barcode: !!opts?.keepOpen || (!editId && !(form.barcode && form.barcode.trim())),
+        stock,         barcode: form.barcode && form.barcode.trim() ? form.barcode.trim() : null,
+        // 新建商品且无码时自动分配店内码（保证每个商品都可被扫码体系识别）
+        auto_barcode: !editId && !(form.barcode && form.barcode.trim()),
         main_image: form.main_image || undefined,
         sub_images: form.sub_images.length > 0 ? form.sub_images : undefined,
         detail_images: form.detail_images.length > 0 ? form.detail_images : undefined,
@@ -529,18 +541,10 @@ function MerchantProductsPage() {
         await updateProduct(editId, payload)
         Taro.showToast({ title: '修改成功', icon: 'success' })
       } else {
-        const autoBarcode = !!opts?.keepOpen || !(form.barcode && form.barcode.trim())
+        const autoBarcode = !(form.barcode && form.barcode.trim())
         const created = await createProduct({ ...payload, store_id: store.id, auto_barcode: autoBarcode })
         if (!created) {
           Taro.showToast({ title: '保存失败，请检查后重试', icon: 'error' })
-          return
-        }
-        // 生成流程（keepOpen）：新建后拿到店内码并保持在编辑态，便于立即打印标签
-        if (opts?.keepOpen && created.barcode) {
-          setEditId(created.id)
-          setForm(f => ({ ...f, barcode: created.barcode! }))
-          Taro.showToast({ title: '已生成店内码并上架', icon: 'success' })
-          load()
           return
         }
         Taro.showToast({ title: '上架成功', icon: 'success' })
@@ -871,17 +875,45 @@ function MerchantProductsPage() {
         </View>
       </View>
 
-      {/* 无条码？生成店内码上架 —— 与「扫码上架」平级，让无码商品也能进入可扫码体系 */}
+      {/* 🏷 生成条形码（独立板块）：先出码打空白标签，再去「扫码上架」建商品 */}
       <View style={{ padding: '10px 14px 0' }}>
-        <View
-          onClick={onNewInstoreProduct}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '13px 16px', borderRadius: '14px',
-            background: 'linear-gradient(135deg, #10B981, #059669)',
-            boxShadow: '0 2px 8px rgba(16,185,129,0.25)',
-          }}>
-          <Text style={{ color: '#FFF', fontSize: '15px', fontWeight: 'bold' }}>🏷 无条码？生成店内码上架</Text>
+        <View style={{ background: '#0F172A', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 16px rgba(15,23,42,0.18)' }}>
+          <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ color: '#FFF', fontSize: '16px', fontWeight: 'bold' }}>🏷 生成条形码（店内码）</Text>
+            <Text style={{ color: '#10B981', fontSize: '11px', fontWeight: 'bold', borderWidth: '1px', borderStyle: 'solid', borderColor: '#10B981', borderRadius: '6px', padding: '2px 6px' }}>独立板块</Text>
+          </View>
+          <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: '12px', marginTop: '6px', lineHeight: '18px' }}>为无原厂码商品生成合法 EAN-13 店内码，打印空白标签贴商品；再去上方「扫码上架」扫此码即可建档上架。</Text>
+          <View
+            onClick={genBarcode}
+            style={{ marginTop: '12px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', borderRadius: '12px', background: genLoading ? '#374151' : 'linear-gradient(135deg,#10B981,#059669)' }}>
+            <Text style={{ color: '#FFF', fontSize: '14px', fontWeight: 'bold' }}>{genLoading ? '生成中…' : '＋ 生成新店内码'}</Text>
+          </View>
+          {genCodes.length > 0 ? (
+            <View style={{ marginTop: '12px', background: 'rgba(255,255,255,0.08)', borderRadius: '12px', padding: '12px' }}>
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>最新店内码</Text>
+              <Text style={{ color: '#10B981', fontSize: '22px', fontWeight: 'bold', letterSpacing: '2px', fontFamily: 'monospace' }}>{genCodes[0].code}</Text>
+              <View
+                onClick={() => printBare(genCodes[0].code)}
+                style={{ marginTop: '10px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', borderRadius: '10px', background: '#FF8C42' }}>
+                <Text style={{ color: '#FFF', fontSize: '13px', fontWeight: '600' }}>🖨 打印空白标签</Text>
+              </View>
+            </View>
+          ) : null}
+          {genCodes.length > 1 ? (
+            <View style={{ marginTop: '10px' }}>
+              <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: '11px' }}>本次已生成（点击补打）</Text>
+              <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+                {genCodes.slice(1).map((g, i) => (
+                  <View
+                    key={i}
+                    onClick={() => printBare(g.code)}
+                    style={{ padding: '6px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.12)' }}>
+                    <Text style={{ color: '#FFF', fontSize: '12px', fontFamily: 'monospace' }}>{g.code}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -1044,7 +1076,7 @@ function MerchantProductsPage() {
             {/* 标题栏 */}
             <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
               <Text style={{ fontSize: '18px', fontWeight: 'bold', color: '#333' }}>
-                {editId ? '✏️ 编辑商品' : (pendingAutoBarcode ? '🏷 生成店内码上架' : '🆕 新增商品')}
+                {editId ? '✏️ 编辑商品' : '🆕 新增商品'}
               </Text>
               <View
                 onClick={handleCloseForm}
@@ -1260,11 +1292,11 @@ function MerchantProductsPage() {
               {/* 条码操作：生成 / 预览 / 打印（超市同款 EAN-13 店内码）*/}
               <View style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {!form.barcode && !pendingAutoBarcode ? (
+                  {!form.barcode && editId ? (
                     <View
                       onClick={onGenerateBarcode}
                       style={{ padding: '8px 14px', borderRadius: '10px', background: generatingBarcode ? '#9CA3AF' : '#10B981', opacity: generatingBarcode ? 0.7 : 1 }}>
-                      <Text style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>{generatingBarcode ? '生成中…' : (editId ? '⚡ 一键生成店内码' : '⚡ 保存并生成店内码')}</Text>
+                      <Text style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>{generatingBarcode ? '生成中…' : '⚡ 一键生成店内码'}</Text>
                     </View>
                   ) : null}
                   {form.barcode ? (
@@ -1277,12 +1309,8 @@ function MerchantProductsPage() {
                 </View>
                 {form.barcode ? (
                   <EAN13Preview code={form.barcode} />
-                ) : pendingAutoBarcode ? (
-                  <View style={{ padding: '10px 12px', borderRadius: '10px', background: '#E8F5E9', borderLeft: '3px solid #10B981' }}>
-                    <Text style={{ fontSize: '12px', color: '#2E7D32', lineHeight: '18px' }}>🏷 该商品无原厂码，保存时将自动生成 EAN-13 店内码（合法 EAN-13，与厂码等效）。生成后可立即打印标签贴商品，后续「扫码上架 / 收银 / 盘点」都能识别。</Text>
-                  </View>
                 ) : (
-                  <Text style={{ fontSize: '12px', color: '#999' }}>无条码：可「一键生成店内码」（EAN-13 超市同款），再打印标签贴商品。</Text>
+                  <Text style={{ fontSize: '12px', color: '#999' }}>无条码：编辑时可「一键生成店内码」（EAN-13 超市同款），或去上方「生成条形码」板块先出码再扫码上架。</Text>
                 )}
               </View>
             </View>
@@ -1793,9 +1821,9 @@ function MerchantProductsPage() {
                 color="hsl(var(--primary))" />
             </View>
 
-            {/* 保存按钮 —— 店内码上架入口打开时，保存即生成店内码并保持编辑态便于立即打印 */}
+            {/* 保存按钮 */}
             <View
-              onClick={pendingAutoBarcode && !editId ? () => handleSave({ keepOpen: true }) : () => handleSave()}
+              onClick={() => handleSave()}
               style={{
                 width: '100%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1804,7 +1832,7 @@ function MerchantProductsPage() {
                 boxShadow: saving ? 'none' : '0 3px 12px rgba(255,87,34,0.3)',
               }}>
               <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#FFF' }}>
-                {saving ? '保存中…' : (pendingAutoBarcode && !editId ? '💾 保存并生成店内码' : '💾 保存')}
+                {saving ? '保存中…' : '💾 保存'}
               </Text>
             </View>
           </View>
