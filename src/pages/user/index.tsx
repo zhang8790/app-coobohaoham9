@@ -44,6 +44,7 @@ const MENU_GROUPS: { title: string; icon: string; items: MenuItem[] }[] = [
     icon: '🛎',
     items: [
       { name: '食养服务中心', icon: '', iconName: 'leaf', page: '/pages/food/index' },
+      { name: '了解来电有喜', icon: '🌟', page: '/pages/brand-story/index' },
       { name: '联系客服', icon: '', iconName: 'headset', page: '/pages/agreement/help/index' },
     ]
   },

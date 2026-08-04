@@ -1,24 +1,28 @@
-// L2 统一金刚区：把原先散落的小程序扫码×3、食养路径×5、活动散落等入口
-// 收敛为 6 个标准入口，统一图标语言与跳转，建立「层级分明」的导航心智。
+// L2 统一金刚区：首页唯一入口集群，收敛散落入口、去重、层级分明。
+// 去重说明：
+//   · 扫码由首屏 Hero 搜索栏的「📷扫码」唯一承载，本区不再重复；
+//   · 临期特惠 / 限时福利 原散落在「运营惠专区」双列块，已并入本区，专区整块删除；
+//   · 品牌故事（了解来电有喜）已移至「我的」页，不再占首页位置。
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 
-const ENTRIES = [
+type Entry = { emoji: string; label: string; sub: string; url?: string; campaign?: boolean }
+
+const ENTRIES: Entry[] = [
   { emoji: '🌱', label: '食养中心', sub: '体质·方案', url: '/pages/food/index' },
-  { emoji: '📷', label: '扫码查安全', sub: '成分报告', url: '/pages/food/food-scan/index' },
   { emoji: '🍱', label: '节气食盒', sub: '当季限定', url: '/pages/food/seasonal-box/index' },
   { emoji: '⏰', label: '临期特惠', sub: '捡漏好物', url: '/pages/expiry/index' },
-  { emoji: '🎁', label: '会员福利', sub: '金豆权益', url: '/pages/mine/coupon/index' },
-  { emoji: '🏛️', label: '品牌故事', sub: '企业实力', url: '/pages/brand-story/index' },
+  { emoji: '🎁', label: '限时福利', sub: '红包实物', campaign: true },
+  { emoji: '🎫', label: '会员福利', sub: '金豆权益', url: '/pages/mine/coupon/index' },
 ]
 
-export default function IconZone() {
+export default function IconZone({ onCampaign }: { onCampaign?: () => void }) {
   return (
     <View className="mx-4 mt-4">
       <View className="flex items-center gap-1.5 mb-2">
         <View className="section-accent" />
         <Text className="text-base font-bold text-foreground">逛一逛</Text>
-        <Text className="text-[10px] text-muted-foreground">六大入口 · 层级分明</Text>
+        <Text className="text-[10px] text-muted-foreground">精选入口 · 层级分明</Text>
       </View>
       <View style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {ENTRIES.map((e) => (
@@ -27,7 +31,10 @@ export default function IconZone() {
             className="scene-grid-card"
             hoverClass="scene-grid-card-hover"
             style={{ width: 'calc((100% - 24px) / 3)', borderColor: 'hsl(var(--border))' }}
-            onClick={() => Taro.navigateTo({ url: e.url })}
+            onClick={() => {
+              if (e.campaign) { onCampaign?.(); return }
+              if (e.url) Taro.navigateTo({ url: e.url })
+            }}
           >
             <View
               className="flex items-center justify-center mb-1.5"

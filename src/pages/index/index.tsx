@@ -23,7 +23,6 @@ import Icon from '@/components/Icon'
 import BrandHero from '@/components/home/BrandHero'
 import IconZone from '@/components/home/IconZone'
 import TrustStrip from '@/components/home/TrustStrip'
-import BrandStoryEntry from '@/components/home/BrandStoryEntry'
 import ProductGridCard from '@/components/ProductGridCard'
 import AddToCartButton from '@/components/AddToCartButton'
 import { getProductCareInfo } from '@/utils/product-care'
@@ -614,6 +613,12 @@ export default function IndexPage() {
     }
   }, [currentCity])
 
+  // 首页「限时福利」入口（统一收口至 L2 金刚区）：有活动弹出领取，无活动轻提示
+  const openCampaign = useCallback(() => {
+    if (campaignList.length > 0) setShowCampaignPopup(true)
+    else Taro.showToast({ title: '暂无进行中的活动', icon: 'none' })
+  }, [campaignList])
+
   // 首页「消息公告」合并流：官方公告 + 全站实时下单动态（脱敏）
   const homeFeed = useMemo<Array<{ type: 'announcement' | 'order'; text: string }>>(() => {
     const list: Array<{ type: 'announcement' | 'order'; text: string }> = []
@@ -839,8 +844,8 @@ export default function IndexPage() {
       {/* ===================== L1 品牌心智：我们是谁、为何不同 ===================== */}
       <BrandHero />
 
-      {/* ===================== L2 统一入口：六大金刚区，层级分明 ===================== */}
-      <IconZone />
+      {/* ===================== L2 统一入口：精选金刚区（唯一入口集群，已去重收口） ===================== */}
+      <IconZone onCampaign={openCampaign} />
 
       {/* ===================== L3 实力背书：信任闭环护城河 ===================== */}
       <TrustStrip />
@@ -1168,49 +1173,6 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* ===================== 运营惠专区：福利 + 临期双列并排（活动内容） ===================== */}
-      <View className="mx-4 mt-5 grid grid-cols-2 gap-3">
-        {/* 限时福利：常驻可见，用户主动点击才展开，不再进首页强弹打断 */}
-        {campaignList.length > 0 && !showCampaignPopup && (
-          <View
-            className="p-3 rounded-2xl pg-card flex flex-col"
-            hoverClass="none"
-            onClick={() => setShowCampaignPopup(true)}
-          >
-            <View className="flex items-center gap-2 min-w-0">
-              <Text className="text-2xl">🎁</Text>
-              <Text className="text-sm font-bold text-foreground block" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                限时福利 · {campaignList[0]?.campaign_name}
-              </Text>
-            </View>
-            <Text className="text-[11px] text-muted-foreground mt-1 block" style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              {(campaignList[0]?.store_id && storeNameMap[campaignList[0].store_id])
-                ? `${storeNameMap[campaignList[0].store_id]} 专享`
-                : '领取红包/实物，绑定专属门店优惠'}
-            </Text>
-            <View className="mt-auto pt-2 self-start px-3 py-1.5 rounded-full bg-primary text-white text-sm font-bold flex-shrink-0">领取</View>
-          </View>
-        )}
-        {/* 临期特惠入口：跳转 C 端专属频道页（自动折扣，临近保质期商品超值购） */}
-        <View
-          className="p-3 rounded-2xl flex flex-col"
-          style={{ background: 'linear-gradient(135deg, #FFF4E6, #FFE3CC)', border: '1px solid #F6C99B' }}
-          hoverClass="none"
-          onClick={() => Taro.navigateTo({ url: '/pages/expiry/index' })}
-        >
-          <View className="flex items-center gap-2 min-w-0">
-            <Text className="text-2xl">⏰</Text>
-            <Text className="text-sm font-bold block" style={{ color: '#9A3324', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              临期特惠
-            </Text>
-          </View>
-          <Text className="text-[11px] mt-1 block" style={{ color: '#B26A3C', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-            临近保质期超值购
-          </Text>
-          <View className="mt-auto pt-2 self-start px-3 py-1.5 rounded-full text-sm font-bold flex-shrink-0" style={{ background: '#9A3324', color: '#FFF' }}>去逛逛</View>
-        </View>
-      </View>
-
       {/* ===================== 公告 / 好物动态 ===================== */}
       {homeFeed.length > 0 && (
         <View id="home-feed" className="mx-4 mt-5 notice-pill">
@@ -1346,9 +1308,6 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* ===================== L6 品牌故事出口：B 端信任闭环出口 ===================== */}
-      <BrandStoryEntry />
-
       {/* 红包/实物领取弹窗 */}
       {showCampaignPopup && campaignList.length > 0 && (
         <View className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -1412,7 +1371,7 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* 悬浮扫码按钮已合并至首屏「扫码查安全」唯一入口，避免首页扫码重复 */}
+      {/* 扫码入口已合并至首屏搜索栏（📷扫码），避免首页多处扫码重复 */}
 
       {/* 首页：右侧边缘停靠把手，按下才滑出「食养咨询（主）/ 客服」；其他 Tab 页为右下角独立按钮 */}
       <FloatingActionBar />
