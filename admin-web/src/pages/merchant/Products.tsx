@@ -121,6 +121,7 @@ export default function MerchantProducts() {
   const [generating, setGenerating] = useState(false)
   const [generatingBarcode, setGeneratingBarcode] = useState(false)
   const [printingBarcode, setPrintingBarcode] = useState(false)
+  const [pendingAutoBarcode, setPendingAutoBarcode] = useState(false)
   const [dragOverSub, setDragOverSub] = useState(false)
   const [dragOverDetail, setDragOverDetail] = useState(false)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
@@ -265,6 +266,7 @@ export default function MerchantProducts() {
 
   const openCreate = () => {
     setEditing(null)
+    setPendingAutoBarcode(false)
     setForm({ name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', barcode: '', main_image: '', sub_images: [], detail_images: [], video_url: '', discount_rate: '', ingredients: [],
       overall_nature: '', health_tag: [], emotion_tag: [], match_goods: [], conflict_goods: [], aux_remind: '',
       food_category: '', positive_effect: '', risk_warning: '', emotion_copy: '', scenes: [],
@@ -273,6 +275,9 @@ export default function MerchantProducts() {
       food_stage: '' })
     setShowModal(true)
   }
+
+  // 无条码商品：先造 EAN-13 店内码再上架（与小程序「无条码？生成店内码上架」入口一致）
+  const openCreateWithBarcode = () => { openCreate(); setPendingAutoBarcode(true) }
 
   const openEdit = (p: ProductWithExt) => {
     setEditing(p)
@@ -316,7 +321,7 @@ export default function MerchantProducts() {
     setShowModal(true)
   }
 
-  const closeModal = () => { setShowModal(false); setEditing(null) }
+  const closeModal = () => { setShowModal(false); setEditing(null); setPendingAutoBarcode(false) }
 
   // 一键生成店内码（仅编辑已有商品）：服务端原子分配 EAN-13 并回写 products.barcode
   // 用 RPC fn_alloc_store_barcode（SECURITY DEFINER，行锁防并发撞码），保证唯一且校验位正确
@@ -625,6 +630,7 @@ export default function MerchantProducts() {
       taboo_warning: form.taboo_warning || null,
       food_stage: form.food_stage || null,
     }
+    let inserted: any = null  // 新建商品插入后取真实 id（用于「保存并生成店内码」保持编辑态）
     // 合规巡检：营销/食疗文案不得含医疗宣称词或违规广告词（命中则提示运营确认）
     const complianceHits = scanCompliance({
       guide_sentence: body.guide_sentence ?? '',
@@ -646,6 +652,19 @@ export default function MerchantProducts() {
         window.alert('未找到关联门店（stores.owner_id 未匹配当前账号），无法保存商品。\n请确认：①本账号已通过自营门店审核；②门店 owner_id 已设为当前登录账号。')
         return
       }
+      // 无码上架：新建商品且开启「保存并生成店内码」时，保存前原子分配 EAN-13 店内码（防撞、校验位正确）
+      if (!editing && pendingAutoBarcode && !body.barcode) {
+        const { data: ad, error: ae } = await supabase.rpc('fn_alloc_store_barcode', { p_store_id: storeId })
+        if (ae || !ad || !ad.length) {
+          window.alert('生成店内码失败：' + (ae?.message || '未知错误'))
+          return
+        }
+        const code = (ad[0] as any).barcode as string
+        const type = (ad[0] as any).barcode_type as string
+        body.barcode = code
+        body.barcode_type = type
+        setForm(f => ({ ...f, barcode: code }))
+      }
       const persist = (b: any) =>
         editing
           ? supabase.from('products').update(b).eq('id', editing.id)
@@ -655,10 +674,11 @@ export default function MerchantProducts() {
               review_status: 'pending',
               is_active: false,
               created_at: new Date().toISOString().slice(0, 10),
-            })
+            }).select().single()
       try {
-        const { error } = await persist(body)
-        if (error) throw error
+        const res: any = await persist(body)
+        if (res?.error) throw res.error
+        if (!editing && res?.data) inserted = res.data
       } catch (e: any) {
         const msg = e?.message || ''
         // 软降级：若 products 表尚未加导购相关列（迁移 00090 / 00100 / 00104 未执行），
@@ -668,11 +688,12 @@ export default function MerchantProducts() {
             food_category, positive_effect, risk_warning, emotion_copy, scenes, rec_crowds, cautious_crowds,
             cautious_notes, forbidden_crowds, forbidden_reasons, combo_product_ids, guide_sentence, moments_copy,
             taboo_warning, ...rest } = body
-          const { error } = await persist(rest)
-          if (error) {
-            window.alert(`保存失败（已尝试剥离可选列仍失败）：\n${error.message}${error.hint ? '\n提示：' + error.hint : ''}`)
-            console.error('[Products] 软降级仍失败:', error); return
+          const res2: any = await persist(rest)
+          if (res2?.error) {
+            window.alert(`保存失败（已尝试剥离可选列仍失败）：\n${res2.error.message}${res2.error.hint ? '\n提示：' + res2.error.hint : ''}`)
+            console.error('[Products] 软降级仍失败:', res2.error); return
           }
+          if (!editing && res2?.data) inserted = res2.data
           console.warn('[Products] 已软降级保存（忽略食疗导购/部分列，请在本机执行迁移 00100/00104 加列）')
         } else {
           window.alert(`保存失败：\n${msg}${e?.hint ? '\n提示：' + e.hint : ''}`)
@@ -685,7 +706,7 @@ export default function MerchantProducts() {
       setList(prev => prev.map(p => p.id === editing.id ? { ...p, ...body } : p))
     } else {
       const newP: ProductWithExt = {
-        id: `new-${Date.now()}`, store_id: storeId || 'store-1', ...body,
+        id: inserted?.id || `new-${Date.now()}`, store_id: storeId || 'store-1', ...body,
         image_url: null,
         category_id: '',
         status: 'offline',
@@ -693,8 +714,16 @@ export default function MerchantProducts() {
         sales: 0,
         is_active: false,
         created_at: new Date().toISOString().slice(0, 10),
+        barcode: inserted?.barcode || body.barcode,
       }
       setList(prev => [newP, ...prev])
+      // 无码上架：保存即生成店内码，保持编辑态便于立即打印标签
+      if (pendingAutoBarcode && inserted) {
+        setEditing(newP)
+        setPendingAutoBarcode(false)
+        window.alert('已保存并生成店内码：' + (newP.barcode || '') + '\n可直接点「🖨 打印标签」贴商品。')
+        return  // 不关闭弹窗
+      }
     }
     closeModal()
   }
@@ -750,6 +779,7 @@ export default function MerchantProducts() {
           <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '4px 0 0' }}>管理店铺商品：上架/下架、编辑、查看成本/毛利/让利</p>
         </div>
         <button onClick={openCreate} style={{ padding: '8px 18px', background: 'var(--success-strong)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>+ 添加商品</button>
+        <button onClick={openCreateWithBarcode} style={{ padding: '8px 18px', background: 'transparent', border: '1px solid var(--success-strong)', borderRadius: 8, color: 'var(--success-strong)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>🏷 无条码？生成店内码上架</button>
       </div>
 
       {/* 情绪编译结果 toast */}
@@ -948,7 +978,7 @@ export default function MerchantProducts() {
       {showModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={closeModal}>
           <div style={{ background: 'var(--surface-2)', borderRadius: 16, padding: 24, width: 600, border: '1px solid var(--border)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ color: 'var(--text)', margin: '0 0 20px', fontSize: 16 }}>{editing ? '编辑商品' : '添加商品'}</h3>
+            <h3 style={{ color: 'var(--text)', margin: '0 0 20px', fontSize: 16 }}>{editing ? '编辑商品' : (pendingAutoBarcode ? '🏷 生成店内码上架' : '添加商品')}</h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {/* ===== 主图 ===== */}
@@ -1094,6 +1124,11 @@ export default function MerchantProducts() {
               {/* 条码（EAN-13 店内码，超市同款）：生成 / 预览 / 打印 */}
               <div style={{ marginTop: 14, padding: 14, background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 10 }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 600 }}>商品条码（EAN-13 店内码）</span>
+                {pendingAutoBarcode && !form.barcode && (
+                  <div style={{ marginTop: 8, padding: '8px 10px', background: 'rgba(16,185,129,0.12)', border: '1px solid var(--success-strong)', borderRadius: 8, color: 'var(--text)', fontSize: 12, lineHeight: 1.6 }}>
+                    🏷 该商品无原厂码，保存时将自动生成 EAN-13 店内码（合法 EAN-13，与厂码等效），生成后可立即打印标签贴商品，后续扫码上架 / 收银 / 盘点都能识别。
+                  </div>
+                )}
                 <input value={form.barcode} onChange={e => setForm(f => ({ ...f, barcode: e.target.value }))} placeholder="13 位 EAN-13，可留空一键生成" style={{ width: '100%', marginTop: 8, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
                   <button type="button" onClick={onGenerateBarcode} disabled={generatingBarcode || !editing}
@@ -1423,7 +1458,7 @@ export default function MerchantProducts() {
                 border: 'none', borderRadius: 8, color: '#fff',
                 cursor: (!form.name || !form.price || !form.stock) ? 'not-allowed' : 'pointer',
                 fontSize: 14, fontWeight: 600,
-              }}>确定</button>
+              }}>{pendingAutoBarcode && !editing ? '💾 保存并生成店内码' : '确定'}</button>
             </div>
           </div>
         </div>
