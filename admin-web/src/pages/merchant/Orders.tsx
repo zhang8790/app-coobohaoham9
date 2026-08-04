@@ -12,6 +12,7 @@ interface OrderRow {
   quantity: number
   price: number
   store_id: string
+  printed_at?: string | null
   orders: {
     id: string
     order_no: string
@@ -40,6 +41,7 @@ const TABS = [
   { key: 'pending_pickup', label: '待核销' },
   { key: 'completed', label: '已完成' },
   { key: 'after_sale', label: '售后' },
+  { key: 'unprinted', label: '未打印' },
 ]
 
 const STATUS_LABEL: Record<string, string> = {
@@ -74,6 +76,11 @@ export default function MerchantOrders() {
   const [shipModal, setShipModal] = useState<OrderRow | null>(null)
   const [shipCompany, setShipCompany] = useState('')
   const [shipNo, setShipNo] = useState('')
+  const [printingId, setPrintingId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [batchPrinting, setBatchPrinting] = useState(false)
+  const [notice, setNotice] = useState('')
+  const showNotice = (t: string) => { setNotice(t); setTimeout(() => setNotice(''), 2600) }
 
   const loadOrders = async () => {
     if (useMock || !profile) {
@@ -89,7 +96,7 @@ export default function MerchantOrders() {
 
       const { data } = await supabase
         .from('orders')
-        .select('id, order_no, status, total_amount, created_at, address, service_type, user_id, profiles(phone), order_items(id, product_name, product_image, quantity, price, store_id)')
+        .select('id, order_no, status, total_amount, created_at, address, service_type, user_id, printed_at, profiles(phone), order_items(id, product_name, product_image, quantity, price, store_id)')
         .eq('store_id', storeId)
         .order('created_at', { ascending: false })
         .limit(200)
@@ -127,7 +134,9 @@ export default function MerchantOrders() {
 
   useEffect(() => { loadOrders() }, [profile, useMock])
 
-  const filtered = activeTab === 'all' ? orders : orders.filter(o => o.orders.status === activeTab)
+  const filtered = activeTab === 'all' ? orders
+    : activeTab === 'unprinted' ? orders.filter(o => !o.printed_at)
+    : orders.filter(o => o.orders.status === activeTab)
 
   const handleShip = async () => {
     if (!shipModal || !shipCompany || !shipNo) return
@@ -154,8 +163,67 @@ export default function MerchantOrders() {
     if (!error) loadOrders()
   }
 
+  // 打印单张小票（复用已部署 print-receipt EF，成功标记 printed_at）
+  const printOne = async (orderId: string) => {
+    const { data, error } = await supabase.functions.invoke('print-receipt', { body: { order_id: orderId } })
+    if (error) return { ok: false, msg: error.message }
+    const d = (data ?? {}) as any
+    if (!d.success) return { ok: false, msg: d.error || d.message || '打印失败' }
+    return { ok: true }
+  }
+
+  const handlePrint = async (order: OrderRow) => {
+    if (useMock) { showNotice('演示环境订单不可打印'); return }
+    if (printingId) return
+    setPrintingId(order.orders.id)
+    try {
+      const r = await printOne(order.orders.id)
+      if (r.ok) {
+        const ts = new Date().toISOString()
+        await supabase.from('orders').update({ printed_at: ts }).eq('id', order.orders.id)
+        setOrders(prev => prev.map(o => o.orders.id === order.orders.id ? { ...o, printed_at: ts } : o))
+        showNotice(`订单 ${order.orders.order_no} 小票已推送打印`)
+      } else {
+        showNotice('打印失败：' + r.msg)
+      }
+    } finally {
+      setPrintingId(null)
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => prev.length === filtered.length ? [] : filtered.map(o => o.orders.id))
+  }
+
+  // 批量补打未打印订单：顺序打印+节奏延时防云打印机拥堵，成功即标记
+  const handleBatchPrint = async () => {
+    if (useMock) { showNotice('演示环境不可批量打印'); return }
+    if (batchPrinting || selectedIds.length === 0) return
+    setBatchPrinting(true)
+    let ok = 0, fail = 0
+    for (const id of selectedIds) {
+      const r = await printOne(id)
+      if (r.ok) {
+        const ts = new Date().toISOString()
+        await supabase.from('orders').update({ printed_at: ts }).eq('id', id)
+        setOrders(prev => prev.map(o => o.orders.id === id ? { ...o, printed_at: ts } : o))
+        ok++
+      } else fail++
+      await new Promise(res => setTimeout(res, 800))
+    }
+    setSelectedIds([])
+    setBatchPrinting(false)
+    showNotice(`批量补打完成：成功 ${ok} 张，失败 ${fail} 张`)
+  }
+
   return (
     <div>
+      {notice && (
+        <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', background: notice.includes('失败') ? 'var(--danger)' : 'var(--success-strong)', color: 'white', padding: '10px 20px', borderRadius: 8, fontSize: 14, zIndex: 200, boxShadow: '0 4px 16px rgba(0,0,0,0.18)' }}>{notice}</div>
+      )}
       <h2 style={{ color: 'var(--text)', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>订单管理</h2>
 
       {/* 状态 Tab */}
@@ -176,7 +244,7 @@ export default function MerchantOrders() {
               whiteSpace: 'nowrap',
             }}
           >
-            {tab.label}
+            {tab.label}{tab.key === 'unprinted' ? ` (${orders.filter(o => !o.printed_at).length})` : ''}
           </button>
         ))}
       </div>
@@ -185,13 +253,30 @@ export default function MerchantOrders() {
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)' }}>加载中...</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {activeTab === 'unprinted' && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer' }}>
+                <input type="checkbox" checked={selectedIds.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                全选本页未打印（{filtered.length}）
+              </label>
+              <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>已选 {selectedIds.length}</span>
+            </div>
+          )}
           {filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)', fontSize: 14 }}>暂无订单</div>
           ) : (
             filtered.map(order => (
               <div key={order.id + order.orders.order_no} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>订单号：{order.orders.order_no}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {activeTab === 'unprinted' && (
+                      <input type="checkbox" checked={selectedIds.includes(order.orders.id)} onChange={() => toggleSelect(order.orders.id)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                    )}
+                    <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>订单号：{order.orders.order_no}</span>
+                    {!order.printed_at && activeTab !== 'unprinted' && (
+                      <span style={{ background: 'var(--danger)', color: 'white', fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>未打印</span>
+                    )}
+                  </span>
                   <span style={{ color: STATUS_COLOR[order.orders.status], fontSize: 14, fontWeight: 700 }}>{STATUS_LABEL[order.orders.status] || order.orders.status}</span>
                 </div>
 
@@ -219,6 +304,13 @@ export default function MerchantOrders() {
                 )}
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <button
+                    onClick={() => handlePrint(order)}
+                    disabled={printingId === order.orders.id}
+                    style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${order.printed_at ? 'var(--border-soft)' : 'var(--danger)'}`, borderRadius: 6, color: order.printed_at ? 'var(--text-muted)' : 'var(--danger)', fontSize: 13, cursor: printingId === order.orders.id ? 'not-allowed' : 'pointer' }}
+                  >
+                    {printingId === order.orders.id ? '打印中...' : order.printed_at ? '重打小票' : '打印小票'}
+                  </button>
                   {order.orders.status === 'pending_ship' && (
                     <button
                       onClick={() => setShipModal(order)}
@@ -246,6 +338,18 @@ export default function MerchantOrders() {
                 </div>
               </div>
             ))
+          )}
+          {activeTab === 'unprinted' && selectedIds.length > 0 && (
+            <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, background: 'var(--surface-2)', borderTop: '1px solid var(--border)', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 50, boxShadow: '0 -4px 16px rgba(0,0,0,0.12)' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>已选 {selectedIds.length} 张未打印小票</span>
+              <button
+                onClick={handleBatchPrint}
+                disabled={batchPrinting}
+                style={{ padding: '10px 24px', background: 'var(--danger)', border: 'none', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, cursor: batchPrinting ? 'not-allowed' : 'pointer' }}
+              >
+                {batchPrinting ? '补打中...' : `批量补打 (${selectedIds.length})`}
+              </button>
+            </div>
           )}
         </div>
       )}
