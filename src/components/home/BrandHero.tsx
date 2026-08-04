@@ -6,7 +6,6 @@ import { View, Text } from '@tarojs/components'
 import { getSiteConfig } from '@/db/api'
 
 const VALUES = [
-  { icon: '🧠', t: '顺时食养引擎', d: 'AI 解读 · 24节气顺时' },
   { icon: '👨‍👩‍👧', t: '家庭档案', d: '一人一档' },
 ]
 
@@ -74,7 +73,7 @@ export default function BrandHero() {
           <Text className="text-2xl font-extrabold leading-tight block">是懂你身体的好物</Text>
         </View>
         <Text className="text-xs block mt-2" style={{ opacity: 0.9, lineHeight: 1.6 }}>
-          用 AI 食养引擎解读每一口成分，把"吃什么对身体好"变成可执行的日常选择。
+          为每个家庭建立专属健康食养档案，把"吃什么对身体好"变成可执行的日常选择。
         </Text>
         <View className="flex gap-2 mt-4">
           {VALUES.map((v) => (
