@@ -1,22 +1,16 @@
 // L2 统一金刚区：首页唯一入口集群，收敛散落入口、去重、层级分明。
 // 去重说明：
+//   · 入口清单来自 src/config/nav-registry.ts（全站唯一登记册），本组件不再就地硬编码 label/url；
 //   · 扫码由首屏 Hero 搜索栏的「📷扫码」唯一承载，本区不再重复；
-//   · 临期特惠 / 限时福利 原散落在「运营惠专区」双列块，已并入本区，专区整块删除；
-//   · 品牌故事（了解来电有喜）已移至「我的」页，不再占首页位置；
-//   · 节气食盒已并入「食养中心」hub 内（顺时节气食盒板块），不再单独占金刚区，避免与食养中心重复。
+//   · 临期特惠 / 限时福利 / 会员福利 等统一在登记册定义，避免重复造入口；
+//   · 品牌故事（了解来电有喜）已移至「我的」页服务中心分组，不再占首页位置；
+//   · 节气食盒已并入「食养中心」hub 内（顺时节气食盒板块），不单独占金刚区。
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-
-type Entry = { emoji: string; label: string; sub: string; url?: string; campaign?: boolean }
-
-const ENTRIES: Entry[] = [
-  { emoji: '🌱', label: '食养中心', sub: '体质·节气·方案', url: '/pages/food/index' },
-  { emoji: '⏰', label: '临期特惠', sub: '捡漏好物', url: '/pages/expiry/index' },
-  { emoji: '🎁', label: '限时福利', sub: '红包实物', campaign: true },
-  { emoji: '🎫', label: '会员福利', sub: '金豆权益', url: '/pages/mine/coupon/index' },
-]
+import { NAV, HOME_ICON_ZONE } from '@/config/nav-registry'
 
 export default function IconZone({ onCampaign }: { onCampaign?: () => void }) {
+  const entries = HOME_ICON_ZONE.map(id => NAV[id]).filter(Boolean)
   return (
     <View className="mx-4 mt-4">
       <View className="flex items-center gap-1.5 mb-2">
@@ -25,14 +19,14 @@ export default function IconZone({ onCampaign }: { onCampaign?: () => void }) {
         <Text className="text-[10px] text-muted-foreground">精选入口 · 层级分明</Text>
       </View>
       <View style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        {ENTRIES.map((e) => (
+        {entries.map((e) => (
           <View
-            key={e.label}
+            key={e.id}
             className="scene-grid-card"
             hoverClass="scene-grid-card-hover"
             style={{ width: 'calc((100% - 24px) / 3)', borderColor: 'hsl(var(--border))' }}
             onClick={() => {
-              if (e.campaign) { onCampaign?.(); return }
+              if (e.kind === 'campaign') { onCampaign?.(); return }
               if (e.url) Taro.navigateTo({ url: e.url })
             }}
           >
@@ -43,7 +37,7 @@ export default function IconZone({ onCampaign }: { onCampaign?: () => void }) {
               {e.emoji}
             </View>
             <Text className="text-sm font-bold text-foreground block">{e.label}</Text>
-            <Text className="text-[10px] text-muted-foreground mt-0.5 block">{e.sub}</Text>
+            {e.sub && <Text className="text-[10px] text-muted-foreground mt-0.5 block">{e.sub}</Text>}
           </View>
         ))}
       </View>

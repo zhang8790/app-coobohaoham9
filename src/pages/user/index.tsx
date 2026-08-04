@@ -15,10 +15,19 @@ import { RANK_COLOR_MAP } from '@/constants/ranks'
 import { buildRadarProfile, type RadarDim } from '@/utils/food-therapy/radar-profile'
 import { getCurrentTerm } from '@/utils/seasonal-box'
 import RadarChart from '@/components/food/RadarChart'
+import { NAV, USER_SERVICE_CENTER } from '@/config/nav-registry'
 
 const NEUTRAL_NICKNAMES = ['小确幸', '慢生活', '元气满满', '暖洋洋', '甜豆豆', '乐悠悠', '小欢喜', '轻飘飘', '棉花糖', '微醺猫']
 
 type MenuItem = { name: string; icon: string; iconName?: string; page?: string }
+
+// 服务中心分组统一从导航登记册生成，杜绝与首页同名目的地出现不同标签
+// （原「食养服务中心」与首页「食养中心」指向同一页面，现已统一为登记册中的规范 label）
+const SERVICE_CENTER_ITEMS: MenuItem[] = USER_SERVICE_CENTER.map(id => {
+  const e = NAV[id]
+  return { name: e.label, icon: e.emoji, page: e.url }
+})
+
 const MENU_GROUPS: { title: string; icon: string; items: MenuItem[] }[] = [
   {
     title: '我的账户',
@@ -42,11 +51,7 @@ const MENU_GROUPS: { title: string; icon: string; items: MenuItem[] }[] = [
   {
     title: '服务中心',
     icon: '🛎',
-    items: [
-      { name: '食养服务中心', icon: '', iconName: 'leaf', page: '/pages/food/index' },
-      { name: '了解来电有喜', icon: '🌟', page: '/pages/brand-story/index' },
-      { name: '联系客服', icon: '', iconName: 'headset', page: '/pages/agreement/help/index' },
-    ]
+    items: SERVICE_CENTER_ITEMS,
   },
   {
     title: '设置',
