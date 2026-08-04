@@ -7,16 +7,17 @@
 //   · 节气食盒已并入「食养中心」hub 内（顺时节气食盒板块），不单独占金刚区。
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import type { ReactNode } from 'react'
 import { NAV, HOME_ICON_ZONE } from '@/config/nav-registry'
 
-export default function IconZone({ onCampaign }: { onCampaign?: () => void }) {
+export default function IconZone({ onCampaign, extraBottom }: { onCampaign?: () => void; extraBottom?: ReactNode }) {
   const entries = HOME_ICON_ZONE.map(id => NAV[id]).filter(Boolean)
   return (
     <View className="mx-4 mt-4">
       <View className="flex items-center gap-1.5 mb-2">
         <View className="section-accent" />
-        <Text className="text-base font-bold text-foreground">逛一逛</Text>
-        <Text className="text-[10px] text-muted-foreground">精选入口 · 层级分明</Text>
+        <Text className="text-base font-bold text-foreground">优惠福利</Text>
+        <Text className="text-[10px] text-muted-foreground">临期 · 限时 · 食养偏好</Text>
       </View>
       <View style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {entries.map((e) => (
@@ -41,6 +42,12 @@ export default function IconZone({ onCampaign }: { onCampaign?: () => void }) {
           </View>
         ))}
       </View>
+      {/* 日常饮食偏好等附加区块：虚线分隔嵌入优惠福利卡内（首页改版 2026-08-04） */}
+      {extraBottom && (
+        <View className="mt-4 pt-4" style={{ borderTop: '1px dashed hsl(var(--border))' }}>
+          {extraBottom}
+        </View>
+      )}
     </View>
   )
 }

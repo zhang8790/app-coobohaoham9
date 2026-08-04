@@ -22,7 +22,7 @@ import FloatingActionBar from '@/components/FloatingActionBar'
 import Icon from '@/components/Icon'
 import BrandHero from '@/components/home/BrandHero'
 import IconZone from '@/components/home/IconZone'
-import TrustStrip from '@/components/home/TrustStrip'
+import AdBanner from '@/components/home/AdBanner'
 import ProductGridCard from '@/components/ProductGridCard'
 import AddToCartButton from '@/components/AddToCartButton'
 import { getProductCareInfo } from '@/utils/product-care'
@@ -144,6 +144,25 @@ export default function IndexPage() {
       setAddingId(null)
     }
   }, [addingId])
+
+  // 首页顶部右上角门店切换：把"附近门店"收敛进右上角，移除独立横滑条（首页改版 2026-08-04）。
+  // 当前生效门店 = 用户手动选中的门店（selectedStoreId）或 GPS 定位到的当前门店。
+  const activeStore = nearbyStores.find((s) => s.id === selectedStoreId) || currentStore
+  const openStoreSheet = () => {
+    if (!nearbyStores.length) {
+      // 无附近门店时，退化为切城市
+      Taro.navigateTo({ url: '/pages/mine/city-select/index' })
+      return
+    }
+    Taro.showActionSheet({
+      itemList: nearbyStores.map((s) => `${s.store_name}（约${s.distance_km}km）`),
+    }).then((res) => {
+      const s = nearbyStores[res.tapIndex]
+      if (!s) return
+      manualStoreRef.current = true
+      setSelectedStoreId(s.id)
+    }).catch(() => {})
+  }
 
   const [mood, setMood] = useState('')
   // 首页分类金刚区：本地筛选主商品流（不影响画像/即时匹配区块）
@@ -736,6 +755,95 @@ export default function IndexPage() {
     loadFeed()
   }
 
+  // 日常饮食偏好：已从独立卡片并入「优惠福利」卡内（IconZone extraBottom），交互逻辑保持不变
+  const dailyPrefBlock = (
+    <View>
+      {!inputExpanded ? (
+        <View className="flex items-center justify-between" hoverClass="none" onClick={() => setInputExpanded(true)}>
+          <Text className="text-base font-bold text-foreground">日常饮食偏好</Text>
+          <View className="flex items-center gap-1.5 flex-shrink-0">
+            {QUICK_BODY_PRESETS.slice(0, 3).map((preset) => (
+              <View key={preset.label} hoverClass="none"
+                className="symptom-tag"
+                onClick={(e) => { e.stopPropagation(); handleQuickBody(preset) }}>
+                <Text className="text-sm text-foreground">{preset.label}</Text>
+              </View>
+            ))}
+            <Text className="text-xs text-muted-foreground ml-1">展开 ›</Text>
+          </View>
+        </View>
+      ) : (
+        <View>
+          <View className="flex items-center justify-between mb-3">
+            <View>
+              <Text className="text-lg font-bold text-foreground">今天想吃点什么</Text>
+              <Text className="text-sm text-muted-foreground">选偏好 / 说习惯，看食养推荐</Text>
+            </View>
+            <View className="flex items-center gap-2">
+              {selectedCrowds.length > 0 && (
+                <View className="flex items-center gap-1 text-primary text-sm" onClick={() => { clearStateInput(); clearFilters() }} hoverClass="none">
+                  <Icon name="close-circle" size={18} />
+                  <Text>清空</Text>
+                </View>
+              )}
+              <View className="flex items-center gap-1 text-muted-foreground text-sm" onClick={() => setInputExpanded(false)} hoverClass="none">
+                <Text>收起</Text>
+              </View>
+            </View>
+          </View>
+
+          {profileCrowds.length > 0 && (
+            <View className="mb-3">
+              <View className="flex items-center justify-between" hoverClass="none" onClick={() => setShowBodyStates(v => !v)}>
+                <Text className="text-sm text-muted-foreground">
+                  {showBodyStates ? '你关注的食养偏好' : `你关注的食养偏好 · ${profileCrowds.length} 项 ›`}
+                </Text>
+              </View>
+              {showBodyStates && (
+                <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: 8 }}>
+                  {[...(userProfile?.body_states ?? []), ...(userProfile?.chronic_conditions ?? [])].map((s) => (
+                    <View key={s} className="symptom-tag symptom-tag-active">
+                      <Text className="text-sm text-white font-bold">{s}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          <View className="mt-3">
+            <Text className="text-sm text-muted-foreground mb-2 block">食养偏好（点一下，直接配对）</Text>
+            <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {QUICK_BODY_PRESETS.map((preset) => {
+                const isActive = mood === preset.label
+                return (
+                  <View key={preset.label} hoverClass="none" onClick={() => handleQuickBody(preset)}
+                    className={`symptom-tag ${isActive ? 'symptom-tag-active' : ''}`}>
+                    <Text className="text-base">{preset.emoji}</Text>
+                    <Text className={`text-sm ${isActive ? 'text-white font-bold' : 'text-foreground'}`}>{preset.label}</Text>
+                  </View>
+                )
+              })}
+            </View>
+          </View>
+
+          <View className="flex items-center gap-2">
+            <View className="flex-1 border-2 rounded-2xl px-4 py-3 bg-white transition"
+              style={{ borderColor: 'hsl(var(--border))' }}>
+              <Input className="w-full text-base text-foreground bg-transparent outline-none"
+                placeholder="说说饮食偏好，自动为你配对食养好物…"
+                value={mood}
+                onInput={(e) => { const ev = e as any; handleMoodInput(ev.detail?.value ?? ev.target?.value ?? '') }} />
+            </View>
+            {loading && <Icon name="loading" size={24} className="text-primary animate-spin flex-shrink-0" />}
+          </View>
+
+          <Text className="text-xs text-muted-foreground mt-3">{FOOD_THERAPY_DISCLAIMER}</Text>
+        </View>
+      )}
+    </View>
+  )
+
   return (
     <View className="min-h-screen bg-background tabbar-pad index-page">
 
@@ -754,25 +862,26 @@ export default function IndexPage() {
               <Text className="text-sm text-muted-foreground block mt-0.5">懂身体的好物</Text>
             </View>
           </View>
-          {/* 右上角定位块：门店 + 城市（点击切城市）。定位信息统一在右上角，不占中间 C 位 */}
+          {/* 右上角门店切换：把"附近门店"合并进右上角，移除独立横滑条（首页改版 2026-08-04） */}
           <View
             className="flex flex-col items-end gap-0.5 px-3 py-1.5 rounded-2xl bg-card border border-border flex-shrink-0 active:scale-95 transition-transform text-right"
             hoverClass="none"
-            onClick={() => Taro.navigateTo({ url: '/pages/mine/city-select/index' })}
+            onClick={openStoreSheet}
           >
             <View className="flex items-center gap-1">
-              <Icon name="crosshairs-gps" size={14} className="text-primary" />
+              <Icon name="storefront-outline" size={14} className="text-primary" />
               {locationLoading && <Icon name="loading" size={12} className="text-primary animate-spin" />}
-              <Text className="text-xs font-semibold text-foreground truncate" style={{ maxWidth: 96 }}>
-                {locationLoading ? '定位中' : (currentStore?.store_name || currentCity?.city_name || '选择城市')}
+              <Text className="text-xs font-semibold text-foreground truncate" style={{ maxWidth: 92 }}>
+                {locationLoading ? '定位中' : (activeStore?.store_name || currentCity?.city_name || '选择门店')}
               </Text>
+              <Text className="text-[10px] text-muted-foreground">▾</Text>
             </View>
             {!locationLoading && (
               <Text className="text-[10px] text-muted-foreground truncate" style={{ maxWidth: 110 }}>
-                {currentStore && typeof currentStore.distance_km === 'number'
+                {activeStore && typeof activeStore.distance_km === 'number'
                   ? (locationError
-                      ? `${currentStore.store_name} · 定位未开启`
-                      : `${currentCity?.city_name || '杭州'} · 约${currentStore.distance_km}km`)
+                      ? '定位未开启'
+                      : `${currentCity?.city_name || '杭州'} · 约${activeStore.distance_km}km`)
                   : (currentCity?.city_name || '')}
               </Text>
             )}
@@ -805,50 +914,13 @@ export default function IndexPage() {
         </View>
       </View>
 
-      {/* ===================== 附近门店切换器：点选某门店即下钻只看该店，默认全城聚合 ===================== */}
-      {nearbyStores.length > 0 && (
-        <View className="mx-4 mt-3">
-          <View className="flex items-center gap-1.5 mb-2">
-            <View className="section-accent" />
-            <Text className="text-base font-bold text-foreground">附近门店</Text>
-            <Text className="text-[10px] text-muted-foreground">切换查看不同门店商品</Text>
-          </View>
-          <ScrollView scrollX showScrollbar={false} className="nearby-store-scroll">
-            <View className="flex flex-row gap-2 pr-3" style={{ display: 'flex', flexDirection: 'row' }}>
-              {nearbyStores.map((s) => {
-                const active = selectedStoreId === s.id
-                const isLocated = currentStore?.id === s.id
-                return (
-                  <View
-                    key={s.id}
-                    onClick={() => {
-                      manualStoreRef.current = true
-                      setSelectedStoreId(s.id)
-                    }}
-                    hoverClass="none"
-                    className={`flex-shrink-0 rounded-full px-3 py-1.5 border flex items-center gap-1 ${active ? 'bg-primary text-white border-primary' : 'bg-card text-foreground border-border'}`}
-                  >
-                    {isLocated && (
-                      <Icon name="crosshairs-gps" size={12} className={active ? 'text-white' : 'text-primary'} />
-                    )}
-                    <Text className={`text-xs font-semibold ${active ? 'text-white' : 'text-foreground'}`}>{s.store_name}</Text>
-                    <Text className={`text-[10px] ${active ? 'text-white/80' : 'text-muted-foreground'}`}>约{s.distance_km}km</Text>
-                  </View>
-                )
-              })}
-            </View>
-          </ScrollView>
-        </View>
-      )}
-
       {/* ===================== L1 品牌心智：我们是谁、为何不同 ===================== */}
       <BrandHero />
 
-      {/* ===================== L2 统一入口：精选金刚区（唯一入口集群，已去重收口） ===================== */}
-      <IconZone onCampaign={openCampaign} />
+      {/* ===================== 广告位：纯图片 / 视频（无文字广告、无家庭档案） ===================== */}
+      <AdBanner />
 
-      {/* ===================== L3 实力背书：信任闭环护城河 ===================== */}
-      <TrustStrip />
+      {/* 优惠福利金刚区（含日常饮食偏好）已下移至「食养中心」区块之后，避免与食养中心重复层级 */}
 
       {/* ===================== L4 食养中心入口（合并：今日食养 / 为你优选 收敛为单一卡片，统一跳食养中心 hub） ===================== */}
       {/* 食养中心 hub 内已含 今日食养推荐 + 顺时节气食盒 + 体质/家庭/食材工具，首页只保留这一个食养入口，消除「食养中心/节气食盒/今日食养」三处重复 */}
@@ -860,7 +932,7 @@ export default function IndexPage() {
           <SectionHeader
             emoji="🌿"
             title="食养中心"
-            subtitle="顺时养生 · 今日推荐 · 家庭档案"
+            subtitle="顺时养生 · 今日推荐 · 体质匹配"
             action={{ label: '进入 ›', onClick: () => Taro.navigateTo({ url: '/pages/food/index' }) }}
           />
 
@@ -979,92 +1051,8 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* 状态卡：默认收起为一行胶囊，点开才展开输入（去头重脚轻）；情绪不进前台 */}
-      <View id="state-card" className="pg-card mx-4 mt-4 p-4">
-        {!inputExpanded ? (
-          <View className="flex items-center justify-between" hoverClass="none" onClick={() => setInputExpanded(true)}>
-            <Text className="text-base font-bold text-foreground">日常饮食偏好</Text>
-            <View className="flex items-center gap-1.5 flex-shrink-0">
-              {QUICK_BODY_PRESETS.slice(0, 3).map((preset) => (
-                <View key={preset.label} hoverClass="none"
-                  className="symptom-tag"
-                  onClick={(e) => { e.stopPropagation(); handleQuickBody(preset) }}>
-                  <Text className="text-sm text-foreground">{preset.label}</Text>
-                </View>
-              ))}
-              <Text className="text-xs text-muted-foreground ml-1">展开 ›</Text>
-            </View>
-          </View>
-        ) : (
-          <View>
-            <View className="flex items-center justify-between mb-3">
-              <View>
-                <Text className="text-lg font-bold text-foreground">今天想吃点什么</Text>
-                <Text className="text-sm text-muted-foreground">选偏好 / 说习惯，看食养推荐</Text>
-              </View>
-              <View className="flex items-center gap-2">
-                {selectedCrowds.length > 0 && (
-                  <View className="flex items-center gap-1 text-primary text-sm" onClick={() => { clearStateInput(); clearFilters() }} hoverClass="none">
-                    <Icon name="close-circle" size={18} />
-                    <Text>清空</Text>
-                  </View>
-                )}
-                <View className="flex items-center gap-1 text-muted-foreground text-sm" onClick={() => setInputExpanded(false)} hoverClass="none">
-                  <Text>收起</Text>
-                </View>
-              </View>
-            </View>
-
-            {profileCrowds.length > 0 && (
-              <View className="mb-3">
-                <View className="flex items-center justify-between" hoverClass="none" onClick={() => setShowBodyStates(v => !v)}>
-                  <Text className="text-sm text-muted-foreground">
-                    {showBodyStates ? '你关注的食养偏好' : `你关注的食养偏好 · ${profileCrowds.length} 项 ›`}
-                  </Text>
-                </View>
-                {showBodyStates && (
-                  <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: 8 }}>
-                    {[...(userProfile?.body_states ?? []), ...(userProfile?.chronic_conditions ?? [])].map((s) => (
-                      <View key={s} className="symptom-tag symptom-tag-active">
-                        <Text className="text-sm text-white font-bold">{s}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
-
-            <View className="mt-3">
-              <Text className="text-sm text-muted-foreground mb-2 block">食养偏好（点一下，直接配对）</Text>
-              <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {QUICK_BODY_PRESETS.map((preset) => {
-                  const isActive = mood === preset.label
-                  return (
-                    <View key={preset.label} hoverClass="none" onClick={() => handleQuickBody(preset)}
-                      className={`symptom-tag ${isActive ? 'symptom-tag-active' : ''}`}>
-                      <Text className="text-base">{preset.emoji}</Text>
-                      <Text className={`text-sm ${isActive ? 'text-white font-bold' : 'text-foreground'}`}>{preset.label}</Text>
-                    </View>
-                  )
-                })}
-              </View>
-            </View>
-
-            <View className="flex items-center gap-2">
-              <View className="flex-1 border-2 rounded-2xl px-4 py-3 bg-white transition"
-                style={{ borderColor: 'hsl(var(--border))' }}>
-                <Input className="w-full text-base text-foreground bg-transparent outline-none"
-                  placeholder="说说饮食偏好，自动为你配对食养好物…"
-                  value={mood}
-                  onInput={(e) => { const ev = e as any; handleMoodInput(ev.detail?.value ?? ev.target?.value ?? '') }} />
-              </View>
-              {loading && <Icon name="loading" size={24} className="text-primary animate-spin flex-shrink-0" />}
-            </View>
-
-            <Text className="text-xs text-muted-foreground mt-3">{FOOD_THERAPY_DISCLAIMER}</Text>
-          </View>
-        )}
-      </View>
+      {/* ===================== L2 统一入口：精选金刚区（含日常饮食偏好，已移除会员福利） ===================== */}
+      <IconZone onCampaign={openCampaign} extraBottom={dailyPrefBlock} />
 
       {/* 最近扫码：扫码购物的「学习闭环」在首页食养区可见，点按跳回商品详情 */}
       {scanChips.length > 0 && (
@@ -1136,9 +1124,9 @@ export default function IndexPage() {
       )}
 
       {/* ===================== L4（续）千人千面场景层：懂你和家人的需求 ===================== */}
-      {personalLine || sceneCaps.length > 0 ? (
+      {(personalLine || sceneCaps.length > 0) && (
         <View className="mx-4 mt-5">
-          {/* 个性化 banner：基于家庭档案/食养画像，一行说明为你定制 */}
+          {/* 个性化 banner：基于食养画像 / 过敏原红线，一行说明为你定制 */}
           {personalLine && (
             <View className="rounded-2xl px-4 py-2.5 mb-3 flex items-center gap-2" style={{ background: 'hsl(var(--primary) / 0.08)' }}>
               <Text style={{ fontSize: 15 }}>🌿</Text>
@@ -1159,22 +1147,9 @@ export default function IndexPage() {
                   <Text className="text-sm font-semibold text-foreground">{cap.label}</Text>
                 </View>
               ))}
-              {/* 食养中心总入口已收口至上方 L2 统一金刚区，避免重复 */}
+              {/* 食养中心总入口已收口至下方 L4 大卡片（唯一入口），L2 金刚区不再放食养中心，避免与 L4 重复 */}
             </View>
           )}
-        </View>
-      ) : (
-        // 无画像游客：轻引导入口，不强行展示空胶囊
-        <View
-          className="mx-4 mt-5 rounded-2xl bg-card border border-border px-4 py-3 flex items-center justify-between active:scale-[0.99] transition-transform"
-          hoverClass="none"
-          onClick={() => Taro.navigateTo({ url: '/pages/food/constitution-test/index' })}
-        >
-          <View className="flex items-center gap-2">
-            <Text style={{ fontSize: 18 }}>🧪</Text>
-            <Text className="text-sm text-foreground">测一测你的食养体质，首页为你定制好物</Text>
-          </View>
-          <Text className="text-xs text-primary font-bold">去设置 ›</Text>
         </View>
       )}
 
@@ -1424,7 +1399,7 @@ function SectionHeader({ emoji, title, subtitle, action, className }: {
 function natureDotColor(n: string | null | undefined): string | null {
   if (!n) return null
   if (n.includes('平')) return '#16A34A'
-  if (n.includes('微温') || n.includes('温热')) return '#C77B47'
+  if (n.includes('微温') || n.includes('温热')) return '#6B4423'
   if (n.includes('大热')) return '#DC2626'
   if (n.includes('寒')) return '#3B82F6'
   return '#9CA3AF'

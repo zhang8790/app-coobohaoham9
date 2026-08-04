@@ -4,41 +4,41 @@
 
 @layer base {
   :root {
-    /* 来电有喜：墨韵·国潮（低饱和护眼·手绘线稿） */
-    --background: 38 33% 89%;      /* 墨韵米（护眼底，替代刺眼亮白） */
-    --foreground: 20 12% 17%;      /* 墨字（柔黑，非纯黑） */
-    --card: 40 34% 94%;            /* 米纸卡 */
-    --card-foreground: 20 12% 17%;
-    --popover: 40 34% 94%;
-    --popover-foreground: 20 12% 17%;
-    --primary: 19 57% 42%;         /* 赭红（沉稳主色，替代高亮朱砂） */
-    --primary-foreground: 40 36% 96%;
-    --secondary: 25 30% 36%;       /* 沉褐 */
-    --secondary-foreground: 40 36% 96%;
-    --muted: 34 20% 84%;           /* 淡米灰 */
-    --muted-foreground: 22 12% 40%;
-    --accent: 25 36% 40%;          /* 赭 */
-    --accent-foreground: 40 36% 96%;
-    --destructive: 0 72% 51%;      /* 错误红：语义保留，不动 */
+    /* 来电有喜 × 慢酝手作：中式暖调简约（米杏底·深棕主·大圆角留白） */
+    --background: 41 38% 90%;      /* 米杏 #F2EAD9 风护眼底 */
+    --foreground: 0 0% 20%;        /* 深灰正文 #333 */
+    --card: 42 40% 95%;            /* 米杏卡 */
+    --card-foreground: 0 0% 20%;
+    --popover: 42 40% 95%;
+    --popover-foreground: 0 0% 20%;
+    --primary: 28 51% 28%;         /* 深棕 #6B4423 主色（按钮/标题/选中态） */
+    --primary-foreground: 42 42% 96%; /* 米杏白字 */
+    --secondary: 30 30% 38%;       /* 深褐副色 */
+    --secondary-foreground: 42 42% 96%;
+    --muted: 36 20% 85%;           /* 淡米灰 */
+    --muted-foreground: 0 0% 40%;  /* 浅灰 #888 风 */
+    --accent: 30 36% 34%;          /* 深棕 accent */
+    --accent-foreground: 42 42% 96%;
+    --destructive: 0 60% 45%;      /* 错误红：降饱和，语义保留 */
     --destructive-foreground: 0 0% 98%;
-    --border: 30 18% 79%;          /* 淡描边 */
-    --input: 30 18% 79%;
-    --ring: 19 57% 42%;
-    --radius: 0.75rem;
-    --chart-1: 19 57% 42%;
-    --chart-2: 40 42% 52%;         /* 古金 */
-    --chart-3: 152 24% 42%;        /* 收敛松绿 */
-    --chart-4: 212 24% 42%;        /* 收敛黛蓝 */
-    --chart-5: 340 45% 52%;        /* 收敛胭脂 */
-    /* 国潮辅色：多入口/图标统一色系（替代 Material 与 AI 紫） */
+    --border: 32 22% 80%;          /* 淡描边 */
+    --input: 32 22% 80%;
+    --ring: 28 51% 28%;
+    --radius: 1rem;                /* 大圆角（慢酝：留白充足·弱化厚重） */
+    --chart-1: 28 51% 28%;         /* 深棕 */
+    --chart-2: 40 42% 52%;         /* 古金（价格/段位高光点缀，慢酝同款） */
+    --chart-3: 152 24% 42%;        /* 松绿点缀 */
+    --chart-4: 212 24% 42%;        /* 黛蓝点缀 */
+    --chart-5: 340 45% 52%;        /* 胭脂点缀 */
+    /* 中式辅色：多入口/图标统一色系 */
     --brand-jade: 152 24% 42%;     /* 松绿 */
     --brand-navy: 212 24% 42%;     /* 黛蓝 */
     --brand-bronze: 32 22% 50%;    /* 古铜 */
     --brand-ochre: 38 30% 45%;     /* 赭石 */
-    --brand-ink: 20 12% 17%;       /* 墨 */
-    --brand-gold: 40 42% 52%;      /* 古金（段位/健康豆高光） */
+    --brand-ink: 0 0% 20%;         /* 墨=深灰 */
+    --brand-gold: 40 42% 52%;      /* 古金（价格/会员等级点缀） */
     --brand-gold-soft: 42 38% 62%; /* 古金浅 */
-    /* 状态语义色：国潮调 */
+    /* 状态语义色 */
     --success: 152 28% 40%;        /* 成功·松绿 */
     --warning: 30 52% 42%;         /* 警告·赭橙 */
     --info: 212 28% 42%;           /* 信息·黛蓝 */
@@ -57,7 +57,7 @@
     vertical-align: middle;
   }
   .emotion-bg {
-    background-color: #F1E9D9;
+    background-color: #F5EEDF;
   }
 
   /* ===== 高级商品卡：软 elevate + 图层感 ===== */
@@ -86,9 +86,9 @@
   }
   /* 加购胶囊（墨韵赭红渐变 + 磁吸按压） */
   .pg-add {
-    background: linear-gradient(135deg, #C77B47 0%, hsl(var(--primary)) 100%);
+    background: linear-gradient(135deg, hsl(var(--brand-bronze)) 0%, hsl(var(--primary)) 100%);
     color: #fff;
-    box-shadow: 0 4px 12px rgba(168, 85, 46, 0.30);
+    box-shadow: 0 4px 12px rgba(107, 68, 35, 0.30);
     transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .pg-add-press {
@@ -123,7 +123,7 @@
     width: 4px;
     height: 18px;
     border-radius: 999px;
-    background: linear-gradient(180deg, #C77B47, hsl(var(--primary)));
+    background: hsl(var(--primary));
   }
 
   /* ===== 墨韵国潮·手绘装饰工具类（加法，不改动现有） ===== */
@@ -252,7 +252,7 @@
     position: relative;
     overflow: hidden;
     margin: 10px 16px 0;
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(19 60% 34%) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(28 55% 22%) 100%);
     border-radius: 18px;
     padding: 14px 16px;
     color: #fff;
@@ -298,7 +298,7 @@
   }
   .rank-fill {
     height: 100%;
-    background: linear-gradient(90deg, #F2D58E, hsl(var(--brand-gold)));
+    background: linear-gradient(90deg, hsl(var(--brand-gold-soft)), hsl(var(--brand-gold)));
     border-radius: 999px;
   }
   .rank-foot {
@@ -310,6 +310,10 @@
     opacity: 0.85;
     margin-top: 8px;
   }
+  /* 宋体标题（中式感）：品牌/大标题用，无宋体平台回退系统衬线 */
+  .cn-serif {
+    font-family: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+  }
 }
 
 @keyframes bean-burst-float {
@@ -320,6 +324,15 @@
 .bean-burst {
   animation: bean-burst-float 1.2s ease-out forwards;
   pointer-events: none;
+}
+
+/* 广告位轮播淡入（key=idx 切换时整卡重挂载触发） */
+@keyframes ad-fade-in {
+  0% { opacity: 0.25; }
+  100% { opacity: 1; }
+}
+.ad-fade {
+  animation: ad-fade-in 0.45s ease-out;
 }
 
 /* 固定底部自定义 TabBar（.ctb ≈ 56px + 安全区，z-999）预留底部空间，
