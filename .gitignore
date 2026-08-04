@@ -94,6 +94,14 @@ dist.bak*
 _dist_*
 _build_stale_*
 dist_old_build
+# 构建绕守卫产生的隐藏残留（mv dist .dist_stale_* / .cache_stale_* 等）
+.dist_stale_*
+.dist_empty_*
+.cache_stale_*
+.build_stale_*
+.mvtest_dst
+_tmp_*.sql
+_verify_*.sql
 deliverables/
 .color-sweep*
 .icon-fix-backup/
