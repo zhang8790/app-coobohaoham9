@@ -16,8 +16,8 @@ export default function IconZone({ onCampaign, extraBottom }: { onCampaign?: () 
     <View className="mx-4 mt-4">
       <View className="flex items-center gap-1.5 mb-2">
         <View className="section-accent" />
-        <Text className="text-base font-bold text-foreground">优惠福利</Text>
-        <Text className="text-[10px] text-muted-foreground">临期 · 限时 · 食养偏好</Text>
+        <Text className="text-base font-bold text-foreground">食养工具</Text>
+        <Text className="text-[10px] text-muted-foreground">体质 · 档案 · 知识 · 搭配</Text>
       </View>
       <View style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {entries.map((e) => (

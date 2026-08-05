@@ -27,12 +27,14 @@ export interface NavEntry {
 export const NAV: Record<string, NavEntry> = {
   food: {
     id: 'food',
-    label: '食养中心',
+    label: '药食同源方案库',
     emoji: '🌱',
-    sub: '体质·节气·方案',
+    sub: '四季·忌口·搭配',
     url: '/pages/food/index',
     kind: 'page',
   },
+  // 2026-08-06 战略去折扣化：临期特惠 / 限时福利（红包皮）属折扣零食赛道入口，
+  // 已从首页金刚区摘除，避免与「价值主义 / 药食同源食疗零食」定位冲突。
   expiry: {
     id: 'expiry',
     label: '临期特惠',
@@ -56,6 +58,38 @@ export const NAV: Record<string, NavEntry> = {
     url: '/pages/mine/coupon/index',
     kind: 'page',
   },
+  constitution: {
+    id: 'constitution',
+    label: '测体质',
+    emoji: '🧬',
+    sub: '九种体质',
+    url: '/pages/food/constitution-test/index',
+    kind: 'page',
+  },
+  family: {
+    id: 'family',
+    label: '家庭食养档案',
+    emoji: '👨‍👩‍👧',
+    sub: '过敏原红线',
+    url: '/pages/food/family/index',
+    kind: 'page',
+  },
+  knowledge: {
+    id: 'knowledge',
+    label: '食养知识图谱',
+    emoji: '📚',
+    sub: '配料·功效',
+    url: '/pages/food/knowledge-atlas/index',
+    kind: 'page',
+  },
+  pairing: {
+    id: 'pairing',
+    label: '食材搭配禁忌',
+    emoji: '🥗',
+    sub: '同食宜忌',
+    url: '/pages/food/ingredient-pairing/index',
+    kind: 'page',
+  },
   brand: {
     id: 'brand',
     label: '了解来电有喜',
@@ -73,10 +107,10 @@ export const NAV: Record<string, NavEntry> = {
 }
 
 // ---- 2) 各页面只声明「展示哪些、什么顺序」（存 id，不存 label/url）----
-// 2026-08-04（夜间修订）：删除首页 L4 食养中心大卡片后，食养中心改由金刚区作为单一入口呈现；
-//   顺序 = 临期特惠 → 限时福利 → 食养中心（食养中心位于限时福利右侧，三列网格第 3 格）；
-//   同日移除 'coupon'（会员福利），按首页改版要求从优惠福利金刚区摘除。
-export const HOME_ICON_ZONE: string[] = ['expiry', 'campaign', 'food']
+// 2026-08-06 战略改版：首页金刚区从「优惠福利」重构为「食养工具」，摘除临期特惠/限时福利折扣入口，
+//   改挂功能型价值入口（测体质 / 家庭食养档案 / 食养知识图谱 / 食材搭配禁忌），
+//   与「药食同源食疗零食 + 自研配料数据库壁垒」定位一致；食养方案库由首页 L2 大卡片单独承载。
+export const HOME_ICON_ZONE: string[] = ['constitution', 'family', 'knowledge', 'pairing']
 export const USER_SERVICE_CENTER: string[] = ['food', 'brand', 'help']
 
 // ---- 3) 开发期校验：同一 url 绝不允许出现两次（防止未来再次重复）----
