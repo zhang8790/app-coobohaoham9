@@ -136,7 +136,7 @@ export default function LoginPage() {
   return (
     <View className="min-h-screen flex flex-col bg-background">
       {/* 顶部装饰 */}
-      <View className="relative px-6 pt-16 pb-10" style={{ background: 'linear-gradient(160deg,#F1E9D9 0%,#FFFBF7 100%)' }}>
+      <View className="relative px-6 pt-16 pb-10" style={{ background: 'linear-gradient(160deg,#F5EEDF 0%,#FFFBF7 100%)' }}>
         <View className="flex items-center gap-3 mt-2">
           <View className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
             <Text className="text-white font-bold text-xl">喜</Text>

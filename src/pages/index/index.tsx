@@ -20,7 +20,6 @@ import { analyzeConsumption, recommendByConsumption, type ConsumptionProfile } f
 import CustomTabBar from '@/components/custom-tabbar'
 import FloatingActionBar from '@/components/FloatingActionBar'
 import Icon from '@/components/Icon'
-import BrandHero from '@/components/home/BrandHero'
 import IconZone from '@/components/home/IconZone'
 import AdBanner from '@/components/home/AdBanner'
 import ProductGridCard from '@/components/ProductGridCard'
@@ -145,25 +144,6 @@ export default function IndexPage() {
     }
   }, [addingId])
 
-  // 首页顶部右上角门店切换：把"附近门店"收敛进右上角，移除独立横滑条（首页改版 2026-08-04）。
-  // 当前生效门店 = 用户手动选中的门店（selectedStoreId）或 GPS 定位到的当前门店。
-  const activeStore = nearbyStores.find((s) => s.id === selectedStoreId) || currentStore
-  const openStoreSheet = () => {
-    if (!nearbyStores.length) {
-      // 无附近门店时，退化为切城市
-      Taro.navigateTo({ url: '/pages/mine/city-select/index' })
-      return
-    }
-    Taro.showActionSheet({
-      itemList: nearbyStores.map((s) => `${s.store_name}（约${s.distance_km}km）`),
-    }).then((res) => {
-      const s = nearbyStores[res.tapIndex]
-      if (!s) return
-      manualStoreRef.current = true
-      setSelectedStoreId(s.id)
-    }).catch(() => {})
-  }
-
   const [mood, setMood] = useState('')
   // 首页分类金刚区：本地筛选主商品流（不影响画像/即时匹配区块）
   const [catFilter, setCatFilter] = useState<string | null>(null)
@@ -180,6 +160,25 @@ export default function IndexPage() {
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
   // 用户是否手动选过门店：一旦手动选过，定位异步完成 / 切回首页自动定位都不应再覆盖选择
   const manualStoreRef = useRef(false)
+  // 首页顶部右上角门店切换：把"附近门店"收敛进右上角，移除独立横滑条（首页改版 2026-08-04）。
+  // 当前生效门店 = 用户手动选中的门店（selectedStoreId）或 GPS 定位到的当前门店。
+  // 注意：必须放在 selectedStoreId / manualStoreRef 声明之后，否则函数体内先引用后声明触发 TDZ。
+  const activeStore = nearbyStores.find((s) => s.id === selectedStoreId) || currentStore
+  const openStoreSheet = () => {
+    if (!nearbyStores.length) {
+      // 无附近门店时，退化为切城市
+      Taro.navigateTo({ url: '/pages/mine/city-select/index' })
+      return
+    }
+    Taro.showActionSheet({
+      itemList: nearbyStores.map((s) => `${s.store_name}（约${s.distance_km}km）`),
+    }).then((res) => {
+      const s = nearbyStores[res.tapIndex]
+      if (!s) return
+      manualStoreRef.current = true
+      setSelectedStoreId(s.id)
+    }).catch(() => {})
+  }
   const [orderFeed, setOrderFeed] = useState<OrderFeedItem[]>([])
   const [annIdx, setAnnIdx] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -914,144 +913,9 @@ export default function IndexPage() {
         </View>
       </View>
 
-      {/* ===================== L1 品牌心智：我们是谁、为何不同 ===================== */}
-      <BrandHero />
-
       {/* ===================== 广告位：纯图片 / 视频（无文字广告、无家庭档案） ===================== */}
       <AdBanner />
 
-      {/* 优惠福利金刚区（含日常饮食偏好）已下移至「食养中心」区块之后，避免与食养中心重复层级 */}
-
-      {/* ===================== L4 食养中心入口（合并：今日食养 / 为你优选 收敛为单一卡片，统一跳食养中心 hub） ===================== */}
-      {/* 食养中心 hub 内已含 今日食养推荐 + 顺时节气食盒 + 体质/家庭/食材工具，首页只保留这一个食养入口，消除「食养中心/节气食盒/今日食养」三处重复 */}
-      {todayResult && (
-        <View
-          className="mx-4 mt-5 rounded-2xl p-4 pg-card active:scale-[0.99] transition-transform"
-          hoverClass="none"
-        >
-          <SectionHeader
-            emoji="🌿"
-            title="食养中心"
-            subtitle="顺时养生 · 今日推荐 · 体质匹配"
-            action={{ label: '进入 ›', onClick: () => Taro.navigateTo({ url: '/pages/food/index' }) }}
-          />
-
-          {/* 你的体质 × 今日宜吃：首页第一眼「懂你」 */}
-          {todayResult.constitution && (
-            <View className="flex items-center gap-2 mb-2">
-              <Text className="text-2xl flex-shrink-0">{todayResult.constitution.emoji}</Text>
-              <View className="min-w-0">
-                <Text className="text-sm font-bold text-foreground block">{todayResult.constitution.name}</Text>
-                <Text
-                  className="text-[11px] text-muted-foreground block"
-                  style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-                >
-                  今日宜吃 · {todayResult.constitution.recommendNature.join(' / ')}性味
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* 每日建议（截断 2 行） */}
-          {todayResult.dailyAdvice && (
-            <Text
-              className="text-xs text-muted-foreground block mb-2"
-              style={{ lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-            >
-              {todayResult.dailyAdvice}
-            </Text>
-          )}
-
-          {/* 个性化标识：登录且有体质档案→已个性化，游客→通用参考 */}
-          <View className="mb-2">
-            <Text className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-              {todayResult.constitution ? '已为你个性化' : '游客版 · 通用参考'}
-            </Text>
-          </View>
-
-          {/* P2 复测提醒：仅登录且距上次测试 ≥30 天才出现，内联不浮层，点「再测」直达测试页 */}
-          {retestDays !== null && retestDays >= 30 && (
-            <View
-              className="mb-3 rounded-xl px-3 py-2 flex items-center gap-2 bg-primary/10 border-l-2 border-primary active:scale-[0.99] transition-transform"
-              hoverClass="none"
-              onClick={() => Taro.navigateTo({ url: '/pages/food/constitution-test/index' })}
-            >
-              <Text className="text-base flex-shrink-0">🔔</Text>
-              <View className="min-w-0 flex-1">
-                <Text className="text-xs font-bold text-foreground block">体质可能有变化</Text>
-                <Text className="text-[11px] text-muted-foreground block">
-                  你 {retestDays} 天前测过体质，季节和作息都在变，再来一次更准
-                </Text>
-              </View>
-              <Text className="text-xs text-primary font-bold flex-shrink-0">再测 ›</Text>
-            </View>
-          )}
-
-          {/* top3 推荐（点击直达对应药食同源零食商品） */}
-          {todayResult.recommendations.length > 0 && (
-            <View className="flex gap-2 overflow-x-auto pb-1">
-              {todayResult.recommendations.slice(0, 3).map((item, i) => {
-                const starN = Math.max(1, Math.min(5, Math.round(item.score / 2)))
-                return (
-                <View
-                  key={i}
-                  className="flex-shrink-0 rounded-xl px-3 py-2 bg-background border border-border flex items-center gap-2 active:scale-[0.97] transition-transform"
-                  style={{ minWidth: 96 }}
-                  hoverClass="none"
-                  onClick={() => {
-                    const prod = feedItems.find((f) => f.product.name && f.product.name.includes(item.name))
-                    Taro.navigateTo({ url: prod ? `/pages/product/index?id=${prod.product.id}` : '/pages/food/today-food-therapy/index' })
-                  }}
-                >
-                  <Text className="text-lg flex-shrink-0">{item.emoji}</Text>
-                  <View className="min-w-0">
-                    <Text
-                      className="text-xs font-bold text-foreground block"
-                      style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-                    >
-                      {item.name}
-                    </Text>
-                    <Text className="text-[10px] text-primary">体质匹配度{'★'.repeat(starN)}{'☆'.repeat(5 - starN)}</Text>
-                  </View>
-                </View>
-                )
-              })}
-            </View>
-          )}
-
-          {/* 为你优选：个性化商品网格（体质/常买），与今日推荐互补，去重展示 */}
-          {!hasQuery && personalizedItems.length > 0 && (
-            <View className="mt-3 pt-3 border-t border-border">
-              <View className="flex items-center gap-2 mb-2">
-                <View className="section-accent" />
-                <Text className="text-base font-bold text-foreground">{personalizedTitle}</Text>
-              </View>
-              <View style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                {personalizedItems.slice(0, 6).map((product) => (
-                  <ProductGridCard key={product.id} id={product.id} name={product.name} price={product.price}
-                    imageUrl={product.main_image || product.image_url || ''} storeName={product.store_name || ''}
-                  care={careOf(product)}
-                  suitability={getSuitability(product)}
-                  therapyReport={therapyMap[product.id] ?? null}
-                    onTap={() => Taro.navigateTo({ url: `/pages/product/index?id=${product.id}` })}
-                    onAddCart={(id) => handleAddCart(id, (product as any).store_id)} sales={product.sales_count} adding={addingId === product.id}
-                    compact />
-                ))}
-              </View>
-              {profileItems.length > 0 && (
-                <Text className="text-[10px] text-muted-foreground mt-2">{FOOD_THERAPY_DISCLAIMER}</Text>
-              )}
-            </View>
-          )}
-          {/* 合并说明：今日食养 / 节气食盒 / 体质档案统一在食养中心，首页只保留一个食养入口 */}
-          <View className="mt-3 pt-3 border-t border-border flex items-center justify-between" hoverClass="none" onClick={() => Taro.navigateTo({ url: '/pages/food/index' })}>
-            <Text className="text-xs text-muted-foreground">今日食养 · 节气食盒 · 体质档案，食养一站式</Text>
-            <Text className="text-xs text-primary font-bold flex-shrink-0 ml-2">进入食养中心 ›</Text>
-          </View>
-        </View>
-      )}
-
-      {/* ===================== L2 统一入口：精选金刚区（含日常饮食偏好，已移除会员福利） ===================== */}
       <IconZone onCampaign={openCampaign} extraBottom={dailyPrefBlock} />
 
       {/* 最近扫码：扫码购物的「学习闭环」在首页食养区可见，点按跳回商品详情 */}

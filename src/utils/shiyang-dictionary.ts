@@ -24,7 +24,7 @@ export interface ShiyangTag {
 // 食养成分种子词典（59 条，按性味分组）
 export const INGREDIENT_DICT: Record<string, IngredientEntry> = {
   // ── 温性 · 暖身类 ──
-  jiang:        { zh: '生姜',   nature: '温', icon: '🫚', color: '#C77B47', benefits: ['驱寒暖身','温中'],           audiences: ['畏寒人群','淋雨受寒后'],      scenarios: ['换季温差','着凉初期'], aliases: ['姜'] },
+  jiang:        { zh: '生姜',   nature: '温', icon: '🫚', color: '#6B4423', benefits: ['驱寒暖身','温中'],           audiences: ['畏寒人群','淋雨受寒后'],      scenarios: ['换季温差','着凉初期'], aliases: ['姜'] },
   hongzao:      { zh: '红枣',   nature: '温', icon: '🫘', color: '#A8552E', benefits: ['补中养血'],                   audiences: ['气血偏弱','经期后'],          scenarios: ['日常温补'], aliases: ['枣','大枣'] },
   guiyuan:      { zh: '桂圆',   nature: '温', icon: '🟤', color: '#9A8070', benefits: ['补益心脾'],                   audiences: ['思虑多','睡眠浅'],            scenarios: ['劳神之后'], aliases: ['龙眼'] },
   hetao:        { zh: '核桃',   nature: '温', icon: '🥜', color: '#78350F', benefits: ['日常滋补','健脑'],             audiences: ['用脑较多'],                   scenarios: ['工作学习任务重'], aliases: ['胡桃'] },
@@ -67,7 +67,7 @@ export const INGREDIENT_DICT: Record<string, IngredientEntry> = {
   heizhima:     { zh: '黑芝麻', nature: '平', icon: '🖤', color: '#374151', benefits: ['润肠','日常滋养'],             audiences: ['发质干','肠燥'],              scenarios: ['日常'], aliases: ['芝麻','黑脂麻'] },
   xiaomi:       { zh: '小米',   nature: '凉', icon: '🌽', color: '#FCD34D', benefits: ['养胃'],                       audiences: ['胃弱'],                       scenarios: ['日常'], aliases: ['粟','粟米'] },
   pingguo:      { zh: '苹果',   nature: '平', icon: '🍎', color: '#EF4444', benefits: ['健脾','补充营养'],               audiences: ['日常','肠胃偏弱'],             scenarios: ['日常','加餐'] },
-  huluobo:      { zh: '胡萝卜', nature: '平', icon: '🥕', color: '#C77B47', benefits: ['明目','补充营养'],             audiences: ['用眼多'],                     scenarios: ['日常'] },
+  huluobo:      { zh: '胡萝卜', nature: '平', icon: '🥕', color: '#6B4423', benefits: ['明目','补充营养'],             audiences: ['用眼多'],                     scenarios: ['日常'] },
   niunai:       { zh: '牛奶',   nature: '平', icon: '🥛', color: '#E5E7EB', benefits: ['补钙','补蛋白'],               audiences: ['全人群'],                     scenarios: ['日常'], aliases: ['奶','牛乳'] },
   jidan:        { zh: '鸡蛋',   nature: '平', icon: '🥚', color: '#FDE68A', benefits: ['补虚'],                       audiences: ['日常'],                       scenarios: ['日常'], aliases: ['蛋','鸡子'] },
   niurou:       { zh: '牛肉',   nature: '平', icon: '🥩', color: '#B91C1C', benefits: ['补气血'],                     audiences: ['体弱','术后'],                scenarios: ['调养期'], aliases: ['牛'] },
@@ -75,7 +75,7 @@ export const INGREDIENT_DICT: Record<string, IngredientEntry> = {
   ningmeng:     { zh: '柠檬',   nature: '凉', icon: '🍋', color: '#FACC15', benefits: ['补充维C'],                   audiences: ['易疲劳','换季'],              scenarios: ['日常'], aliases: ['柠','益母果'] },
   mihoutao:     { zh: '猕猴桃', nature: '寒', icon: '🥝', color: '#65A30D', benefits: ['补充维C'],                   audiences: ['日常'],                       scenarios: ['日常'], aliases: ['奇异果','猕猴梨'] },
   xingren:      { zh: '杏仁',   nature: '温', icon: '🥜', color: '#D2B48C', benefits: ['润肠','滋养'],               audiences: ['肠燥'],                       scenarios: ['日常'], aliases: ['杏核','杏子'] },
-  papaya:       { zh: '木瓜',   nature: '温', icon: '🟠', color: '#C77B47', benefits: ['助消化'],                     audiences: ['积食'],                       scenarios: ['油腻饮食后'], aliases: ['木梨','万寿果'] },
+  papaya:       { zh: '木瓜',   nature: '温', icon: '🟠', color: '#6B4423', benefits: ['助消化'],                     audiences: ['积食'],                       scenarios: ['油腻饮食后'], aliases: ['木梨','万寿果'] },
   zhizi:        { zh: '紫菜',   nature: '寒', icon: '🟣', color: '#8B5CF6', benefits: ['常作清润搭配'],                   audiences: ['痰多'],                       scenarios: ['日常'], aliases: ['海苔','索菜'] },
   bingtang:     { zh: '冰糖',   nature: '平', icon: '🍬', color: '#BFDBFE', benefits: ['润肺','调和滋味'],               audiences: ['干燥','咽喉干'],              scenarios: ['秋冬炖煮','甜品汤羹'], aliases: ['老冰糖'] },
   tudou:        { zh: '土豆',   nature: '平', icon: '🥔', color: '#A16207', benefits: ['补充能量','健脾','饱腹'],       audiences: ['日常','体弱'],                scenarios: ['日常'], aliases: ['马铃薯','洋芋'] },

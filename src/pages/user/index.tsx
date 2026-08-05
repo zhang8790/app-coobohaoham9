@@ -248,7 +248,7 @@ function UserPage() {
     <View className="min-h-screen bg-background tabbar-pad">
       {/* 顶部用户卡 */}
       {/* 顶部用户卡 */}
-      <View className="px-4 pt-6 pb-4 relative overflow-hidden" style={{ background: 'linear-gradient(160deg,#F1E9D9 0%,#FFFBF7 80%)' }}>
+      <View className="px-4 pt-6 pb-4 relative overflow-hidden" style={{ background: 'linear-gradient(160deg,#F5EEDF 0%,#FFFBF7 80%)' }}>
         {/* 超级符号水印：放大镜查配料 —— 品牌视觉锤，降低传播成本 */}
         <Icon name="brand-detect" size={170} className="text-primary"
           style={{ position: 'absolute', right: -36, top: -28, opacity: 0.08, pointerEvents: 'none' }} />

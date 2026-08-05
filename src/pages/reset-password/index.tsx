@@ -86,7 +86,7 @@ export default function ResetPasswordPage() {
   return (
     <View className="min-h-screen flex flex-col bg-background">
       {/* 顶部装饰 */}
-      <View className="relative px-6 pt-16 pb-10" style={{ background: 'linear-gradient(160deg,#F1E9D9 0%,#FFFBF7 100%)' }}>
+      <View className="relative px-6 pt-16 pb-10" style={{ background: 'linear-gradient(160deg,#F5EEDF 0%,#FFFBF7 100%)' }}>
         <View className="absolute top-12 left-4 w-10 h-10 flex items-center justify-center" onClick={goBack}>
           <Icon name="arrow-left" size={24} className="text-foreground" />
         </View>

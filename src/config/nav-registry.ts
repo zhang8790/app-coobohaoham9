@@ -73,9 +73,10 @@ export const NAV: Record<string, NavEntry> = {
 }
 
 // ---- 2) 各页面只声明「展示哪些、什么顺序」（存 id，不存 label/url）----
-// 去重：食养中心已在首页 L4 大卡片作为唯一入口呈现，此处不再重复，避免同页两入口跳同一页
-// 2026-08-04：移除 'coupon'（会员福利），按首页改版要求从优惠福利金刚区摘除
-export const HOME_ICON_ZONE: string[] = ['expiry', 'campaign']
+// 2026-08-04（夜间修订）：删除首页 L4 食养中心大卡片后，食养中心改由金刚区作为单一入口呈现；
+//   顺序 = 临期特惠 → 限时福利 → 食养中心（食养中心位于限时福利右侧，三列网格第 3 格）；
+//   同日移除 'coupon'（会员福利），按首页改版要求从优惠福利金刚区摘除。
+export const HOME_ICON_ZONE: string[] = ['expiry', 'campaign', 'food']
 export const USER_SERVICE_CENTER: string[] = ['food', 'brand', 'help']
 
 // ---- 3) 开发期校验：同一 url 绝不允许出现两次（防止未来再次重复）----

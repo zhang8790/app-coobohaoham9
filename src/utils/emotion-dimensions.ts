@@ -16,7 +16,7 @@ export interface DimensionTag {
 // 五维标签库（平台标准词库，运营后台可扩；商家只能从此选择）
 export const EMOTION_DIMENSION_TAGS: Record<string, DimensionTag[]> = {
   function: [
-    { zh: '热饮', icon: '🍵', color: '#C77B47' },
+    { zh: '热饮', icon: '🍵', color: '#6B4423' },
     { zh: '烘焙甜品', icon: '🧁', color: '#DB2777' },
     { zh: '轻食', icon: '🥗', color: '#16A34A' },
     { zh: '单人餐', icon: '🍱', color: '#CA8A04' },
@@ -56,7 +56,7 @@ export const EMOTION_DIMENSION_TAGS: Record<string, DimensionTag[]> = {
     { zh: '仪式感', icon: '🕯️', color: '#9A8070' },
   ],
   identity: [
-    { zh: '懂生活', icon: '🌻', color: '#C77B47' },
+    { zh: '懂生活', icon: '🌻', color: '#6B4423' },
     { zh: '会留白', icon: '⚪', color: '#0891B2' },
     { zh: '爱自己', icon: '💗', color: '#DB2777' },
     { zh: '有品味', icon: '🎩', color: '#7C3AED' },
@@ -74,7 +74,7 @@ export const EMOTION_DIMENSION_TAGS: Record<string, DimensionTag[]> = {
     { zh: '清甜', icon: '🍬', color: '#DB2777' },
     { zh: '绵密', icon: '🍦', color: '#BE185D' },
     { zh: '酥脆', icon: '🥐', color: '#A8552E' },
-    { zh: '丝滑', icon: '🧈', color: '#C77B47' },
+    { zh: '丝滑', icon: '🧈', color: '#6B4423' },
     { zh: '馥郁', icon: '🌺', color: '#9F1239' },
     { zh: '清爽', icon: '💧', color: '#0EA5E9' },
     { zh: '醇厚', icon: '🍷', color: '#7C2D12' },

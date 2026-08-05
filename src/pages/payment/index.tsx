@@ -889,7 +889,7 @@ function PaymentPage() {
   const payModes: Array<{ key: PayMode; icon: string; label: string; color: string; desc: string; disabled?: boolean }> = [
     { key: 'wxpay', icon: '💬', label: '微信支付', color: '#07C160', desc: `¥${totalAmount.toFixed(2)}` },
     { key: 'hybrid', icon: '⚡', label: '健康豆+微信混合', color: 'hsl(var(--primary))', desc: `健康豆抵 ¥${deductYuan.toFixed(2)}，余付 ¥${wxpayAmount.toFixed(2)}`, disabled: balance <= 0 },
-    { key: 'pure_gold', icon: '★', label: '纯健康豆支付', color: '#C77B47', desc: balance >= fullGoldNeeded ? `健康豆 ${balance}` : `健康豆不足，还需 ${pureGoldShort} 健康豆`, disabled: balance < fullGoldNeeded },
+    { key: 'pure_gold', icon: '★', label: '纯健康豆支付', color: '#6B4423', desc: balance >= fullGoldNeeded ? `健康豆 ${balance}` : `健康豆不足，还需 ${pureGoldShort} 健康豆`, disabled: balance < fullGoldNeeded },
   ]
 
   return (<RouteGuard>

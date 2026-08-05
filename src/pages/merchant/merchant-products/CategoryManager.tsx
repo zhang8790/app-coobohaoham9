@@ -46,7 +46,7 @@ export default function CategoryManager({
             onInput={(e: any) => setNewCatName(e.detail?.value ?? '')}
             placeholder="输入新分类名称"
             style={{ flex: 1, height: '42px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '14px', padding: '0 12px', boxSizing: 'border-box' }} />
-          <View onClick={onAddCategory} style={{ padding: '0 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', background: 'linear-gradient(135deg, #C77B47, hsl(var(--primary)))' }}>
+          <View onClick={onAddCategory} style={{ padding: '0 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', background: 'linear-gradient(135deg, #6B4423, hsl(var(--primary)))' }}>
             <Text style={{ fontSize: '14px', color: '#FFF', fontWeight: 'bold' }}>新建</Text>
           </View>
         </View>

@@ -3810,7 +3810,7 @@ export async function callPrintBarcode(opts: {
   }
 }
 
-// 原子分配下一个 EAN-13 店内码（不建商品，仅出码）：供「生成条形码」独立板块使用。
+// 原子分配下一个 EAN-13 店内码（不建商品，仅出码）：通用 RPC 包装，按需调用。
 // RPC 返回 TABLE(barcode, barcode_type)，取首行 barcode。SECURITY DEFINER 已放开 PUBLIC 调用。
 export async function allocStoreBarcode(storeId: string): Promise<string | null> {
   try {

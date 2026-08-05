@@ -133,7 +133,7 @@ function MerchantApplyPage() {
   return (
     <View className="min-h-screen bg-background pb-24">
       {/* 说明：P7 重写为单品牌自营连锁话术，去掉「联盟/百万本地用户/流量红利」等高危词 */}
-      <View className="mx-4 mt-6 p-4 rounded-2xl" style={{ background: '#F1E9D9' }}>
+      <View className="mx-4 mt-6 p-4 rounded-2xl" style={{ background: '#F5EEDF' }}>
         <View className="flex items-center gap-2 mb-2">
           <Icon name="store" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">开通自营门店</Text>

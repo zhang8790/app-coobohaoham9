@@ -170,7 +170,7 @@ function MerchantBatchPage() {
 
           {/* 保存 */}
           <View onClick={handleSave}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px', borderRadius: '14px', background: saving ? '#F0C9A8' : 'linear-gradient(135deg, #C77B47, hsl(var(--primary)))', boxShadow: saving ? 'none' : '0 3px 12px rgba(255,87,34,0.3)' }}>
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px', borderRadius: '14px', background: saving ? '#F0C9A8' : 'linear-gradient(135deg, #6B4423, hsl(var(--primary)))', boxShadow: saving ? 'none' : '0 3px 12px rgba(107,68,35,0.3)' }}>
             <Text style={{ fontSize: '16px', fontWeight: 'bold', color: '#FFF' }}>{saving ? '保存中…' : '💾 保存入库'}</Text>
           </View>
         </View>
