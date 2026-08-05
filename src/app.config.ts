@@ -10,6 +10,7 @@ const pages = [
   'pages/payment/index',
   'pages/payment-result/index',
   'pages/order-center/index',
+  'pages/message-center/index',
   'pages/search/index',
   'pages/food-detective/index',
   'pages/brand-story/index',

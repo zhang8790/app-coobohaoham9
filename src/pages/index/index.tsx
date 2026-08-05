@@ -5,7 +5,7 @@ import { Image, Input, View, Text, ScrollView, Button } from '@tarojs/components
 import { getProducts, getRankedFeed, getAnnouncements, getOrderFeed, getOrders, getProductsByIds, getMyFootprints, getUserFoodTherapyWeights, addToCart } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
 import { getUserHealthProfile, getLatestConstitutionResult, getScanHistory } from '@/db/food-api'
-import type { Product, Announcement, OrderFeedItem, UserHealthProfile, UserScanHistory } from '@/db/types'
+import type { Product, Announcement, OrderFeedItem, Order, UserHealthProfile, UserScanHistory } from '@/db/types'
 import StoreStrip from '@/components/StoreStrip'
 import { type ScoredProduct } from '@/utils/emotionEngine'
 import { scanAndRoute } from '@/utils/scan'
@@ -156,6 +156,8 @@ export default function IndexPage() {
   const [inputExpanded, setInputExpanded] = useState(false)
   const [feedItems, setFeedItems] = useState<ScoredProduct<Product>[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  // 个人订单（仅登录后拉取）：用于首页「订单通知」强提醒
+  const [myOrders, setMyOrders] = useState<Order[]>([])
   // 门店筛选：未选=全城聚合流；用户点门店切换器才收窄到该店（下钻）
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null)
   // 用户是否手动选过门店：一旦手动选过，定位异步完成 / 切回首页自动定位都不应再覆盖选择
@@ -322,6 +324,13 @@ export default function IndexPage() {
     setAnnouncements(data)
   }, [])
 
+  // 加载个人订单（仅登录后）；用于首页「订单通知」强提醒与右上角铃铛红点
+  const loadMyOrders = useCallback(async () => {
+    if (!profile?.id) { setMyOrders([]); return }
+    const data = await getOrders(undefined, 0, 10)
+    setMyOrders(Array.isArray(data) ? data : [])
+  }, [profile?.id])
+
   // 加载 Feed（首页推荐：定位就绪时按最近门店聚合附近多店商品；食养分档由前端 classifyProductList 处理，情绪不再参与前台）
   // 防重入：并发的 loadFeed（useEffect 挂载 + useDidShow 切回 tab）只跑一次网络请求，
   // 避免首页 Feed 双拉取导致的列表重渲染/重影（与购物车页同源修复）
@@ -382,7 +391,7 @@ export default function IndexPage() {
     return () => { ;(Taro as any).onPullDownRefresh = null }
   }, [loadOrderFeed, loadAnnouncements])
 
-  useEffect(() => { loadAnnouncements(); loadOrderFeed(); loadFeed() }, [loadAnnouncements, loadOrderFeed, loadFeed])
+  useEffect(() => { loadAnnouncements(); loadOrderFeed(); loadFeed(); loadMyOrders() }, [loadAnnouncements, loadOrderFeed, loadFeed, loadMyOrders])
   useDidShow(() => { loadFeed() })
   // 推荐/最新切换时重拉 feed
   useEffect(() => { loadFeed() }, [feedSort])
@@ -637,18 +646,14 @@ export default function IndexPage() {
     else Taro.showToast({ title: '暂无进行中的活动', icon: 'none' })
   }, [campaignList])
 
-  // 首页「消息公告」合并流：官方公告 + 全站实时下单动态（脱敏）
-  const homeFeed = useMemo<Array<{ type: 'announcement' | 'order'; text: string }>>(() => {
-    const list: Array<{ type: 'announcement' | 'order'; text: string }> = []
-    for (const a of announcements) list.push({ type: 'announcement', text: a.content })
-    for (const o of orderFeed) {
-      list.push({
-        type: 'order',
-        text: `${o.masked_name} 在 ${o.store_name || '本品牌门店'} 下单 ¥${o.amount} 的 ${o.product_name}`,
-      })
-    }
-    return list
-  }, [announcements, orderFeed])
+  // 首页「好物动态」：仅全站实时下单脱敏聚合（社会证明）。
+  // 注：官方公告在右上角铃铛（消息中心）聚合展示，此处仅保留「好物动态」社会证明，不再重复展示公告。
+  const homeFeed = useMemo<Array<{ type: 'order'; text: string }>>(() => {
+    return orderFeed.map((o) => ({
+      type: 'order' as const,
+      text: `${o.masked_name} 在 ${o.store_name || '本品牌门店'} 下单 ¥${o.amount} 的 ${o.product_name}`,
+    }))
+  }, [orderFeed])
 
   // 公告/动态轮播
   useEffect(() => {
@@ -656,6 +661,28 @@ export default function IndexPage() {
     const t = setInterval(() => setAnnIdx(i => (i + 1) % homeFeed.length), 3000)
     return () => clearInterval(t)
   }, [homeFeed.length])
+
+  // ===================== 首页通知：右上角铃铛（公告/订单分层，红点提醒） =====================
+  // 进行中订单状态（排除已取消/已完成）
+  const ACTIVE_ORDER_STATUSES = ['pending_pay', 'pending_ship', 'pending_receive', 'pending_pickup', 'pending_review', 'after_sale']
+  const ORDER_STATUS_LABEL: Record<string, string> = {
+    pending_pay: '待付款', pending_ship: '待发货', pending_receive: '待收货',
+    pending_pickup: '待取货', pending_review: '待评价', after_sale: '售后中',
+    completed: '已完成', cancelled: '已取消',
+  }
+  // 进行中个人订单（最新的排前面）
+  const activeOrders = useMemo(
+    () => myOrders.filter((o) => ACTIVE_ORDER_STATUSES.includes(o.status)),
+    [myOrders],
+  )
+  // 右上角铃铛红点：有进行中订单，或存在未读公告（以本地已读最新公告 id 比对）
+  const annSeenId = (Taro.getStorageSync('ann_seen') as string | undefined) ?? ''
+  const bellUnread = activeOrders.length > 0 || (announcements.length > 0 && announcements[0].id !== annSeenId)
+  // 进入消息中心：标记最新公告为已读
+  const goMessageCenter = () => {
+    if (announcements[0]) Taro.setStorageSync('ann_seen', announcements[0].id)
+    Taro.navigateTo({ url: '/pages/message-center/index' })
+  }
 
   // 自然语言识别身体状态人群后，自动高亮对应 chip（与手动选择并存，差异合并）
   const syncAutoCrowds = useCallback((detected: Crowd[]) => {
@@ -861,29 +888,43 @@ export default function IndexPage() {
               <Text className="text-sm text-muted-foreground block mt-0.5">懂身体的好物</Text>
             </View>
           </View>
-          {/* 右上角门店切换：把"附近门店"合并进右上角，移除独立横滑条（首页改版 2026-08-04） */}
-          <View
-            className="flex flex-col items-end gap-0.5 px-3 py-1.5 rounded-2xl bg-card border border-border flex-shrink-0 active:scale-95 transition-transform text-right"
-            hoverClass="none"
-            onClick={openStoreSheet}
-          >
-            <View className="flex items-center gap-1">
-              <Icon name="storefront-outline" size={14} className="text-primary" />
-              {locationLoading && <Icon name="loading" size={12} className="text-primary animate-spin" />}
-              <Text className="text-xs font-semibold text-foreground truncate" style={{ maxWidth: 92 }}>
-                {locationLoading ? '定位中' : (activeStore?.store_name || currentCity?.city_name || '选择门店')}
-              </Text>
-              <Text className="text-[10px] text-muted-foreground">▾</Text>
+          {/* 右侧：消息铃铛 + 门店切换（首页改版 2026-08-05：公告/订单分层入口） */}
+          <View className="flex items-center gap-2 flex-shrink-0">
+            {/* 消息中心铃铛：红点 = 进行中订单 / 未读公告 */}
+            <View
+              className="relative px-1.5 py-1.5 active:scale-95 transition-transform"
+              hoverClass="none"
+              onClick={goMessageCenter}
+            >
+              <Text style={{ fontSize: 18 }}>🔔</Text>
+              {bellUnread && (
+                <View style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: 999, background: '#E5484D' }} />
+              )}
             </View>
-            {!locationLoading && (
-              <Text className="text-[10px] text-muted-foreground truncate" style={{ maxWidth: 110 }}>
-                {activeStore && typeof activeStore.distance_km === 'number'
-                  ? (locationError
-                      ? '定位未开启'
-                      : `${currentCity?.city_name || '杭州'} · 约${activeStore.distance_km}km`)
-                  : (currentCity?.city_name || '')}
-              </Text>
-            )}
+            {/* 右上角门店切换：把"附近门店"合并进右上角，移除独立横滑条（首页改版 2026-08-04） */}
+            <View
+              className="flex flex-col items-end gap-0.5 px-3 py-1.5 rounded-2xl bg-card border border-border flex-shrink-0 active:scale-95 transition-transform text-right"
+              hoverClass="none"
+              onClick={openStoreSheet}
+            >
+              <View className="flex items-center gap-1">
+                <Icon name="storefront-outline" size={14} className="text-primary" />
+                {locationLoading && <Icon name="loading" size={12} className="text-primary animate-spin" />}
+                <Text className="text-xs font-semibold text-foreground truncate" style={{ maxWidth: 92 }}>
+                  {locationLoading ? '定位中' : (activeStore?.store_name || currentCity?.city_name || '选择门店')}
+                </Text>
+                <Text className="text-[10px] text-muted-foreground">▾</Text>
+              </View>
+              {!locationLoading && (
+                <Text className="text-[10px] text-muted-foreground truncate" style={{ maxWidth: 110 }}>
+                  {activeStore && typeof activeStore.distance_km === 'number'
+                    ? (locationError
+                        ? '定位未开启'
+                        : `${currentCity?.city_name || '杭州'} · 约${activeStore.distance_km}km`)
+                    : (currentCity?.city_name || '')}
+                </Text>
+              )}
+            </View>
           </View>
         </View>
 
@@ -911,6 +952,7 @@ export default function IndexPage() {
             <Text className="text-xs font-bold" style={{ color: '#fff' }}>扫码</Text>
           </View>
         </View>
+
       </View>
 
       {/* ===================== 广告位：纯图片 / 视频（无文字广告、无家庭档案） ===================== */}
@@ -1017,10 +1059,10 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* ===================== 公告 / 好物动态 ===================== */}
+      {/* ===================== 好物动态（社会证明：全站脱敏实时下单，公告已上移至顶部条+铃铛） ===================== */}
       {homeFeed.length > 0 && (
         <View id="home-feed" className="mx-4 mt-5 notice-pill">
-          <Text className="text-base">{homeFeed[annIdx]?.type === 'order' ? '🛒' : '📢'}</Text>
+          <Text className="text-base">🛒</Text>
           <Text className="text-sm text-foreground flex-1 truncate">{homeFeed[annIdx]?.text}</Text>
         </View>
       )}
@@ -1217,7 +1259,7 @@ export default function IndexPage() {
 
       {/* 扫码入口已合并至首屏搜索栏（📷扫码），避免首页多处扫码重复 */}
 
-      {/* 首页：右侧边缘停靠把手，按下才滑出「食养咨询（主）/ 客服」；其他 Tab 页为右下角独立按钮 */}
+      {/* 首页：右下角停靠咨询入口（食养咨询（主）/ 客服），全站统一 bottom-right */}
       <FloatingActionBar />
 
       {/* 自定义底部导航：独立渲染（贴底全宽），不可嵌套在 FAB 容器内，否则购物车徽标在真机渲染异常 */}
