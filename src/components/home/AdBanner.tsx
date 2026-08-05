@@ -81,16 +81,30 @@ export default function AdBanner() {
 
         {/* 真实视频素材：海报 + 原生控件，不自动播放，播完进下一张 */}
         {ads.length > 0 && ad?.media_type === 'video' && (
-          <Video
-            src={ad.media_url}
-            poster={ad.poster_url || ''}
-            autoplay={false}
-            loop={false}
-            controls
-            muted={false}
-            className="w-full h-full"
-            onEnded={() => setIdx(i => (i + 1) % list.length)}
-          />
+          <View style={{ width: '100%', height: '100%', background: '#1a1a1a' }}>
+            <Video
+              src={ad.media_url}
+              poster={ad.poster_url || undefined}
+              autoplay={false}
+              loop={false}
+              controls
+              muted={false}
+              className="w-full h-full"
+              onEnded={() => setIdx(i => (i + 1) % list.length)}
+            />
+            {/* 无封面时显示提示 */}
+            {!ad.poster_url && (
+              <View
+                style={{
+                  position: 'absolute', left: '50%', top: '50%',
+                  transform: 'translate(-50%,-50%)', alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 28, color: 'rgba(255,255,255,0.6)' }}>▶</Text>
+                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>点击播放</Text>
+              </View>
+            )}
+          </View>
         )}
 
         {/* 演示回退：渐变背景 + 素材名标签 + 类型角标 + 视频播放键 */}
