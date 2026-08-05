@@ -10,6 +10,7 @@ import {
   type FoodCrowdTip,
   type SafeLevelCode,
   type FoodAnalysisReport,
+  type AudienceAdvice,
 } from '@/db/food-safety'
 import { getProducts, type Product } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
@@ -36,10 +37,18 @@ const RISK_TIER: Record<string, { label: string; color: string; bg: string }> = 
   L4: { label: 'L4 老幼弱少吃', color: '#dc2626', bg: 'rgba(239,68,68,0.12)' },
 }
 
+// 人群 severity → 提醒配色（莫兰迪合规色：禁用红 / 不建议橙 / 慎用黄 / 可适量绿）
+const SEV_META: Record<string, { icon: string; tag: string; fg: string; bg: string; border: string; chipBg: string }> = {
+  forbidden:       { icon: '🚫', tag: '禁用',   fg: '#dc2626', bg: 'rgba(239,68,68,0.12)',  border: 'rgba(239,68,68,0.45)',  chipBg: 'rgba(239,68,68,0.20)' },
+  advise_against:  { icon: '⚠️', tag: '不建议', fg: '#ea580c', bg: 'rgba(249,115,22,0.10)', border: 'rgba(249,115,22,0.40)', chipBg: 'rgba(249,115,22,0.18)' },
+  caution:         { icon: '⚠️', tag: '慎用',   fg: '#ca8a04', bg: 'rgba(234,179,8,0.10)',  border: 'rgba(234,179,8,0.38)',  chipBg: 'rgba(234,179,8,0.18)' },
+  ok:              { icon: '✅', tag: '可适量', fg: '#16a34a', bg: 'rgba(34,197,94,0.08)',   border: 'rgba(34,197,94,0.30)',   chipBg: 'rgba(34,197,94,0.16)' },
+}
+
 interface RenderReport {
   safe_level: string
   safe_level_code: SafeLevelCode | string
-  main_conclusion?: { general: string; children: string; fit_people: string; unfit_people: string } | null
+  main_conclusion?: { general: string; children: string; fit_people: string; unfit_people: string; audience_advice?: AudienceAdvice[] | null } | null
   health_shortboard_tip?: string
   additive_list?: Array<{ name: string; level: string; type: string; desc: string }>
   crowd_tips?: string[]
@@ -194,6 +203,34 @@ export default function AnalysisResult() {
           </Text>
         </View>
       </View>
+
+      {/* ──── 人群适配强提醒（婴幼儿/孕产妇/病人，severity 分级，信任度核心） ──── */}
+      {(report.main_conclusion?.audience_advice && report.main_conclusion.audience_advice.length > 0) && (
+        <View style={{ marginBottom: 14 }}>
+          {(report.main_conclusion.audience_advice || []).map((adv: AudienceAdvice, i: number) => {
+            const sm = SEV_META[adv.severity] || SEV_META.caution
+            return (
+              <View key={i} style={{
+                borderRadius: 14, padding: 14, marginBottom: 8,
+                background: sm.bg, borderWidth: 1, borderColor: sm.border,
+                flexDirection: 'row', alignItems: 'flex-start',
+              }}>
+                <Text style={{ fontSize: 18, marginTop: 1, marginRight: 10 }}>{sm.icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+                    <Text style={{
+                      fontSize: 11, fontWeight: '700', color: sm.fg,
+                      background: sm.chipBg, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 7, marginRight: 6,
+                    }}>{sm.tag}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: sm.fg }}>{adv.label}</Text>
+                  </View>
+                  <Text style={{ fontSize: 13, color: '#334155', lineHeight: '20px' }}>{adv.text}</Text>
+                </View>
+              </View>
+            )
+          })}
+        </View>
+      )}
 
       {/* ──── 核心结论 ──── */}
       {report.main_conclusion && (

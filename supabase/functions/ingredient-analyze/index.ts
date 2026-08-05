@@ -87,6 +87,8 @@ Deno.serve(async (req: Request) => {
     const userId: string | undefined = body.user_id || undefined
     const userTags: string[] | undefined = body.user_tags || undefined
     const ageGroup: string | undefined = body.age_group || undefined
+    // unsuitable_crowds：包装印刷的「不适宜人群」字段（OCR/人工录入），权威优先，命中即 forbidden
+    const unsuitableCrowds: string[] | undefined = body.unsuitable_crowds || undefined
     // persist=false 时跳过写 food_analysis_reports（商品页内联调用只为拿洞察，不刷报告表）
     const persist: boolean = body.persist !== false
     const source: string = body.source || (ocrTaskId ? 'ocr' : 'manual')
@@ -124,7 +126,7 @@ Deno.serve(async (req: Request) => {
       supabase.from('food_additives').select('id,name,category,risk_level,gb_std,risk_desc').eq('status', 'active'),
       supabase.from('food_additive_aliases').select('alias,additive_id'),
       supabase.from('food_allergens').select('key,name,description,crowd_code'),
-      supabase.from('food_crowd_triggers').select('trigger_keyword,crowd_code'),
+      supabase.from('food_crowd_triggers').select('trigger_keyword,crowd_code,severity'),
       supabase.from('food_crowd_tips').select('crowd_code,label,general_tip,children_tip,fit_people,unfit_people'),
       supabase.from('food_tag_rules').select('tag_key,label,prefer_ingredients,avoid_ingredients,weight_prefer,weight_avoid').eq('status', 'active'),
     ])
@@ -140,7 +142,7 @@ Deno.serve(async (req: Request) => {
     for (const a of addList) addByName.set(a.name, a)
 
     const allergenList = (allergens || []) as { key: string; name: string; description: string | null; crowd_code: string }[]
-    const triggerList = (triggers || []) as { trigger_keyword: string; crowd_code: string }[]
+    const triggerList = (triggers || []) as { trigger_keyword: string; crowd_code: string; severity?: string }[]
     const tipByCode = new Map<string, any>()
     for (const t of (tips || []) as any[]) tipByCode.set(t.crowd_code, t)
 
@@ -187,16 +189,44 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 人群触发词匹配（候选包含触发词）
+    // 人群触发词匹配（候选包含触发词）→ 收集 code 与该命中下的最严 severity
+    const SEV_RANK: Record<string, number> = { ok: 0, caution: 1, advise_against: 2, forbidden: 3 }
+    const crowdSeverity = new Map<string, string>()
+    const bumpSeverity = (code: string, sev: string) => {
+      const cur = crowdSeverity.get(code)
+      if (!cur || SEV_RANK[sev] > SEV_RANK[cur]) crowdSeverity.set(code, sev)
+    }
     for (const tr of triggerList) {
       if (candidates.some((c) => c.includes(tr.trigger_keyword))) {
         crowdCodes.add(tr.crowd_code)
+        bumpSeverity(tr.crowd_code, tr.severity || 'caution')
       }
     }
 
-    // 儿童提示：只要有任何添加剂/过敏原/人群触发，即附带儿童食养建议
-    if (additiveList.length || allergenListOut.length || crowdCodes.size) {
+    // 过敏原：过敏严禁（forbidden），强化提示（配料层面绝对不建议）
+    for (const al of allergenListOut) bumpSeverity(al.crowd_code, 'forbidden')
+
+    // 包装印刷「不适宜人群」字段（OCR/人工录入，权威优先）→ 直接 forbidden
+    const UNSUITABLE_TO_CODE: Record<string, string> = {
+      '婴幼儿': 'infant', '儿童': 'children', '孕妇': 'pregnant',
+      '哺乳期': 'lactating', '产妇': 'lactating',
+    }
+    if (unsuitableCrowds && unsuitableCrowds.length) {
+      for (const uc of unsuitableCrowds) {
+        const code = UNSUITABLE_TO_CODE[uc] || uc
+        crowdCodes.add(code)
+        bumpSeverity(code, 'forbidden')
+      }
+    }
+
+    // children 派生父维度：不再无条件挂。仅当命中 infant 或任一慢病（高血压/高血脂/糖尿病/痛风）
+    // 时附带 caution（儿童本就该控糖控盐）；命中咖啡因等显式触发器则按触发器 severity 覆盖。
+    if (
+      crowdSeverity.has('infant') ||
+      ['hypertension', 'hyperlipidemia', 'diabetes', 'gout'].some((c) => crowdSeverity.has(c))
+    ) {
       crowdCodes.add('children')
+      bumpSeverity('children', crowdSeverity.get('children') || 'caution')
     }
 
     // ---------- 4. 4 档安全评级 ----------
@@ -213,26 +243,54 @@ Deno.serve(async (req: Request) => {
       safeLevelLabel = 'A含限量成分'
     }
 
-    // ---------- 5. main_conclusion ----------
+    // ---------- 5. main_conclusion（兼容旧字段） + audience_advice（severity 分级，信任度核心） ----------
     const generalByLevel: Record<string, string> = {
       A_preferred: '可适量食用',
       A_limit: '可适量食用（含限量添加剂，注意控制）',
       B_caution: '适度慎选，建议控制食用量',
       C_avoid: '不建议食用（检出高风险成分）',
     }
-    const childrenTip = tipByCode.get('children')?.children_tip || '儿童可食用（仍建议适量、家长酌情）'
+    // children 文案按 severity 分级（不再永远绿灯）
+    const childrenSev = crowdSeverity.get('children')
+    const childrenTip =
+      tipByCode.get('children')?.children_tip ||
+      (childrenSev === 'forbidden'
+        ? '儿童禁用：检出婴幼儿/儿童禁忌配料，请勿给儿童食用'
+        : childrenSev === 'advise_against'
+        ? '儿童不建议：检出咖啡因等儿童慎用配料'
+        : '儿童可适量食用（仍建议家长酌情、避免过量）')
     const fitPieces: string[] = []
     const unfitPieces: string[] = []
+    const SEV_PREFIX: Record<string, string> = { forbidden: '禁用', advise_against: '不建议', caution: '慎用', ok: '可适量' }
+    const audienceAdvice: any[] = []
     for (const code of crowdCodes) {
       const t = tipByCode.get(code)
+      const sev = crowdSeverity.get(code) || 'caution'
       if (t?.fit_people) fitPieces.push(t.fit_people)
       if (t?.unfit_people) unfitPieces.push(t.unfit_people)
+      // 文案来源：children 用 children_tip，其余用 general_tip
+      const baseText = code === 'children' ? (t?.children_tip || t?.general_tip) : (t?.general_tip || '')
+      audienceAdvice.push({
+        code,
+        severity: sev,
+        label: t?.label || code,
+        text: baseText ? `${SEV_PREFIX[sev] || '提示'}：${baseText}` : `${SEV_PREFIX[sev] || '提示'}（详见配料成分）`,
+      })
     }
+    // 按 severity 倒序（forbidden 最前），同级按 sort_order 稳定排序
+    audienceAdvice.sort((a, b) => {
+      const d = SEV_RANK[b.severity] - SEV_RANK[a.severity]
+      if (d !== 0) return d
+      const sa = tipByCode.get(a.code)?.sort_order ?? 99
+      const sb = tipByCode.get(b.code)?.sort_order ?? 99
+      return sa - sb
+    })
     const mainConclusion = {
       general: generalByLevel[safeLevelCode],
       children: childrenTip,
       fit_people: fitPieces.length ? Array.from(new Set(fitPieces)).join('；') : '无相关过敏/禁忌的一般人群',
       unfit_people: unfitPieces.length ? Array.from(new Set(unfitPieces)).join('；') : '暂无明确禁忌人群',
+      audience_advice: audienceAdvice,
     }
 
     // ---------- 6. health_shortboard_tip（个性化，结合 user_health_profile） ----------
@@ -393,6 +451,7 @@ Deno.serve(async (req: Request) => {
       safe_level: safeLevelLabel,
       safe_level_code: safeLevelCode,
       main_conclusion: mainConclusion,
+      audience_advice: audienceAdvice,
       health_shortboard_tip: healthShortboardTip,
       catalog_insight: catalogInsight,
       match_score: matchScore,

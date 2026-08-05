@@ -11,6 +11,17 @@ import { supabase } from '@/client/supabase'
 // 4 档安全评级 code（与 ingredient-analyze EF / ingredient_ocr_tasks.safety_level 一致）
 export type SafeLevelCode = 'A_preferred' | 'A_limit' | 'B_caution' | 'C_avoid'
 
+// 人群 severity 分级（负向四级语义；信任度核心）
+export type CrowdSeverity = 'ok' | 'caution' | 'advise_against' | 'forbidden'
+
+// 人群适配建议（ingredient-analyze EF 输出，按 severity 倒序）
+export interface AudienceAdvice {
+  code: string
+  severity: CrowdSeverity
+  label: string
+  text: string
+}
+
 // ① 过敏原匹配库 food_allergens（8 类）
 export interface FoodAllergen {
   id: string
@@ -52,7 +63,7 @@ export interface FoodAnalysisReport {
   crowd_tips: string[] | null
   safe_level: string | null
   safe_level_code: SafeLevelCode | null
-  main_conclusion: { general: string; children: string; fit_people: string; unfit_people: string } | null
+  main_conclusion: { general: string; children: string; fit_people: string; unfit_people: string; audience_advice?: AudienceAdvice[] | null } | null
   health_shortboard_tip: string | null
   created_by: string | null
   created_at: string
