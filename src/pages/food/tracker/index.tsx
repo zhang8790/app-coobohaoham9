@@ -22,34 +22,55 @@ export default function FoodTracker() {
 
   useEffect(() => {
     if (!user) { setLoading(false); return }
-    supabase.from('orders')
-      .select('id, product_id, product_name, product_image, created_at')
-      .eq('user_id', user.id)
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(async ({ data: orders }) => {
-        if (!orders?.length) { setItems([]); setLoading(false); return }
+    let cancelled = false
+    ;(async () => {
+      try {
+        // 1) 当前用户的已完成订单（orders 仅存订单维度，无商品列）
+        const { data: orders, error: oErr } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+        if (oErr) { console.error('[食品管家] 订单查询失败', oErr); if (!cancelled) setLoading(false); return }
+        if (!orders || orders.length === 0) { if (!cancelled) { setItems([]); setLoading(false) } return }
+        const orderIds = (orders as any[]).map((o) => o.id)
 
-        const productIds = [...new Set(orders.map((o: any) => o.product_id))]
-        // 拉取批次信息（保质期）
-        const { data: batches } = await supabase
-          .from('stock_batches')
-          .select('product_id, expire_at')
-          .in('product_id', productIds)
-          .eq('is_active', true)
-          .order('expire_at', { ascending: true })
+        // 2) 订单商品明细（商品信息在 order_items，不在 orders）
+        const { data: lineItems, error: iErr } = await supabase
+          .from('order_items')
+          .select('product_id, product_name, product_image')
+          .in('order_id', orderIds)
+        if (iErr) { console.error('[食品管家] 明细查询失败', iErr); if (!cancelled) setLoading(false); return }
+        if (!lineItems || lineItems.length === 0) { if (!cancelled) { setItems([]); setLoading(false) } return }
 
+        // 同一商品多次购买只列一条
+        const uniqueMap = new Map<string, any>()
+        for (const li of lineItems as any[]) {
+          if (li.product_id && !uniqueMap.has(li.product_id)) uniqueMap.set(li.product_id, li)
+        }
+        const uniqueItems = [...uniqueMap.values()]
+        const productIds = uniqueItems.map((i: any) => i.product_id)
+
+        // 3) 批次保质期（尽力而为，失败不影响列表展示）
         const batchMap: Record<string, string> = {}
-        for (const b of (batches || [])) {
-          if (!batchMap[b.product_id] || b.expire_at < batchMap[b.product_id]) {
-            batchMap[b.product_id] = b.expire_at
-          }
+        if (productIds.length) {
+          try {
+            const { data: batches } = await supabase
+              .from('stock_batches')
+              .select('product_id, expire_at')
+              .in('product_id', productIds)
+            for (const b of (batches || []) as any[]) {
+              if (!b.expire_at) continue
+              const pid = String(b.product_id)
+              // 取最早到期（最保守，便于提前预警）
+              if (!batchMap[pid] || b.expire_at < batchMap[pid]) batchMap[pid] = b.expire_at
+            }
+          } catch (e) { console.warn('[食品管家] 批次查询失败（不影响列表）', e) }
         }
 
-        const result: ExpiryItem[] = orders.map((o: any) => {
-          const expireAt = batchMap[o.product_id]
-          const now = new Date()
+        const now = new Date()
+        const result: ExpiryItem[] = uniqueItems.map((li: any) => {
+          const expireAt = batchMap[String(li.product_id)] || null
           const expireDate = expireAt ? new Date(expireAt) : null
           const daysLeft = expireDate ? Math.ceil((expireDate.getTime() - now.getTime()) / 86400000) : 999
           let status: ExpiryItem['status'] = 'normal'
@@ -57,10 +78,10 @@ export default function FoodTracker() {
           else if (daysLeft <= 7) status = 'expiring'
 
           return {
-            id: o.id,
-            product_name: o.product_name || '未知商品',
-            product_id: o.product_id,
-            image_url: o.product_image || null,
+            id: li.product_id,
+            product_name: li.product_name || '未知商品',
+            product_id: li.product_id,
+            image_url: li.product_image || null,
             expire_at: expireAt,
             status,
             days_left: daysLeft,
@@ -70,9 +91,13 @@ export default function FoodTracker() {
           return order[a.status] - order[b.status]
         })
 
-        setItems(result)
-        setLoading(false)
-      }).catch(() => setLoading(false))
+        if (!cancelled) { setItems(result); setLoading(false) }
+      } catch (e) {
+        console.error('[食品管家] 加载异常', e)
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
   }, [user])
 
   if (loading) {
@@ -136,7 +161,8 @@ export default function FoodTracker() {
                 <Text style={{ fontSize: 12, color: STATUS_COLORS[item.status].fg || '#94a3b8', marginTop: 2 }}>
                   {item.status === 'expired' ? `已过期 ${Math.abs(item.days_left)} 天`
                     : item.status === 'expiring' ? `临期 · 剩${item.days_left}天`
-                    : `保质期内 · 约${Math.max(1, Math.round(item.days_left / 30))}个月`}
+                    : item.expire_at ? `保质期内 · 约${Math.max(1, Math.round(item.days_left / 30))}个月`
+                    : '暂无保质期信息'}
                 </Text>
               </View>
             </View>
