@@ -120,3 +120,8 @@ lib/
 
 # 静态托管构建副本（make-static-cloud.mjs 产物）
 admin-web/dist-cloud/
+
+# 临时诊断/排查脚本（排查问题时本机会话产生，勿提交）
+_*.sql
+_ext_index
+_audit*
