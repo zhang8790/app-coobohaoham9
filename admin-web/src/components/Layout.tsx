@@ -12,8 +12,10 @@ const NAV_SECTIONS: NavSection[] = [
       items: [
         { to: '/dashboard', icon: 'grid', label: '仪表盘' },
         { to: '/home-branding', icon: 'image', label: '首页品牌' },
+        { to: '/home-ads', icon: 'image', label: '首页广告' },
         { to: '/merchants', icon: 'store', label: '自营门店申请' },
         { to: '/products', icon: 'box', label: '商品审阅' },
+        { to: '/barcode-maker', icon: 'tag', label: '条形码制作' },
         { to: '/users', icon: 'user', label: '用户管理' },
         { to: '/refunds', icon: 'refund', label: '退款管理' },
         { to: '/announcements', icon: 'megaphone', label: '公告管理' },

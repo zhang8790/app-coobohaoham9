@@ -16,8 +16,9 @@ const BUCKET = 'images'
 const FOLDER = 'site-configs'
 
 interface BrandingConfig {
-  image_url?: string | null
-  alt?: string
+  media_type?: 'image' | 'video'
+  media_url?: string | null
+  poster_url?: string | null
   updated_by?: string | null
 }
 
@@ -27,6 +28,8 @@ export default function HomeBranding() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewType, setPreviewType] = useState<'image' | 'video'>('image')
+  const [posterUrl, setPosterUrl] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -43,7 +46,9 @@ export default function HomeBranding() {
     }
     const value = (data?.value as BrandingConfig) || {}
     setCfg(value)
-    setPreviewUrl(value.image_url || null)
+    setPreviewUrl(value.media_url || null)
+    setPreviewType(value.media_type || 'image')
+    setPosterUrl(value.poster_url || null)
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -52,37 +57,46 @@ export default function HomeBranding() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // 只接受图片
-    if (!file.type.startsWith('image/')) {
-      alert('请选择图片文件')
+    const isImage = file.type.startsWith('image/')
+    const isVideo = file.type.startsWith('video/')
+    if (!isImage && !isVideo) {
+      alert('请选择图片或视频文件')
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
+    if (isImage && file.size > 5 * 1024 * 1024) {
       alert('图片大小不能超过 5MB')
+      return
+    }
+    if (isVideo && file.size > 200 * 1024 * 1024) {
+      alert('视频大小不能超过 200MB')
       return
     }
 
     // 本地预览
     const localUrl = URL.createObjectURL(file)
     setPreviewUrl(localUrl)
+    setPreviewType(isVideo ? 'video' : 'image')
 
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
+      const ext = file.name.split('.').pop() || (isImage ? 'jpg' : 'mp4')
+      const bucket = isVideo ? 'videos' : BUCKET
       const path = `${FOLDER}/${CONFIG_KEY}_${Date.now()}.${ext}`
       const { data, error } = await supabase.storage
-        .from(BUCKET)
+        .from(bucket)
         .upload(path, file, { contentType: file.type, upsert: false })
 
       if (error) throw error
 
-      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(data.path)
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path)
       const publicUrl = urlData?.publicUrl || ''
       setPreviewUrl(publicUrl)
-      setCfg(prev => ({ ...prev, image_url: publicUrl }))
+      setPreviewType(isVideo ? 'video' : 'image')
+      setCfg(prev => ({ ...prev, media_type: isVideo ? 'video' : 'image', media_url: publicUrl }))
     } catch (err: any) {
       alert('上传失败：' + (err.message || '未知错误'))
-      setPreviewUrl(cfg.image_url || null)
+      setPreviewUrl(cfg.media_url || null)
+      setPreviewType(cfg.media_type || 'image')
     } finally {
       setUploading(false)
       if (fileRef.current) fileRef.current.value = ''
@@ -96,7 +110,9 @@ export default function HomeBranding() {
       .update({
         value: {
           ...cfg,
-          image_url: previewUrl || null,
+          media_type: previewType,
+          media_url: previewUrl || null,
+          poster_url: posterUrl || null,
           updated_at: new Date().toISOString(),
         },
         updated_at: new Date().toISOString(),
@@ -113,7 +129,9 @@ export default function HomeBranding() {
 
   const handleRemove = () => {
     setPreviewUrl(null)
-    setCfg(prev => ({ ...prev, image_url: null }))
+    setPreviewType('image')
+    setPosterUrl(null)
+    setCfg(prev => ({ ...prev, media_url: null, media_type: 'image', poster_url: null }))
   }
 
   return (
@@ -121,7 +139,7 @@ export default function HomeBranding() {
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ color: 'var(--text)', fontSize: 20, fontWeight: 700, margin: 0 }}>首页品牌配置</h2>
         <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '6px 0 0' }}>
-          上传底图后，小程序首页「品牌主张区」将自动替换背景；不填则保持默认渐变。
+          上传图片或视频后，小程序首页「品牌主张区」将自动替换；不填则保持默认渐变。
         </p>
       </div>
 
@@ -132,7 +150,7 @@ export default function HomeBranding() {
           <>
             <div style={{ marginBottom: 16 }}>
               <label style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 8 }}>
-                L1 品牌主张区底图
+                L1 品牌主张区（图片 / 视频）
               </label>
               <div
                 style={{
@@ -153,12 +171,21 @@ export default function HomeBranding() {
                   overflow: 'hidden',
                 }}
               >
-                <span style={{ fontSize: 12, letterSpacing: 2, opacity: 0.9 }}>顺时而食 · 智慧食养零售</span>
-                <span style={{ fontSize: 22, fontWeight: 800, marginTop: 6, lineHeight: 1.25 }}>不只是零食</span>
-                <span style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.25 }}>是懂你身体的好物</span>
-                <span style={{ fontSize: 12, opacity: 0.9, marginTop: 8, maxWidth: 280, lineHeight: 1.5 }}>
-                  用 AI 食养引擎解读每一口成分，把"吃什么对身体好"变成可执行的日常选择。
-                </span>
+                {previewUrl && previewType === 'video' ? (
+                  <video
+                    src={previewUrl}
+                    poster={posterUrl || undefined}
+                    controls
+                    muted
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 12 }}
+                  />
+                ) : previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt="品牌底图"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 12 }}
+                  />
+                ) : null}
 
                 {previewUrl && (
                   <button
@@ -181,7 +208,7 @@ export default function HomeBranding() {
                 )}
               </div>
               <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '8px 0 0' }}>
-                建议尺寸：750 × 400 px；格式 JPG / PNG / WebP；大小 ≤ 5MB。
+                建议尺寸：750 × 400 px；图片 JPG/PNG/WebP（≤5MB），视频 MP4（≤200MB）。
               </p>
             </div>
 
@@ -189,7 +216,7 @@ export default function HomeBranding() {
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 style={{ display: 'none' }}
                 onChange={handlePick}
               />
@@ -198,7 +225,7 @@ export default function HomeBranding() {
                 disabled={uploading}
                 style={{ ...primaryBtn, opacity: uploading ? 0.7 : 1 }}
               >
-                {uploading ? '上传中...' : '上传新底图'}
+                {uploading ? '上传中...' : '上传图片/视频'}
               </button>
               <button onClick={handleRemove} style={ghostBtn}>恢复默认渐变</button>
             </div>
