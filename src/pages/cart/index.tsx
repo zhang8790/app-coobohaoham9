@@ -283,7 +283,7 @@ function CartPage() {
 
       {/* 食疗冲突校验弹窗 */}
       {conflictModal && (
-        <View className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <View className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View className="w-10/12 max-h-4/5 bg-card rounded-3xl p-6 overflow-y-auto">
             <Text className="text-2xl font-bold text-foreground text-center block mb-1">🍲 搭配小贴士</Text>
             <Text className="text-base text-muted-foreground text-center block mb-4">结算前为你做了食疗冲突检测</Text>

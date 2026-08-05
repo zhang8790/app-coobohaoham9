@@ -448,7 +448,7 @@ const [adding, setAdding] = useState(false)
 
         {/* 媒体计数指示 */}
         {mediaList.length > 1 && (
-          <View className="absolute bottom-3 right-4 px-2 py-0.5 rounded-full bg-black/50 text-white text-xs">
+          <View className="absolute bottom-3 right-4 px-2 py-0.5 rounded-full text-white text-xs" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
             {currentMediaIndex + 1}/{mediaList.length}
           </View>
         )}

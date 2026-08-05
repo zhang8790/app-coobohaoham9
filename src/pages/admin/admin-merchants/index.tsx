@@ -125,7 +125,7 @@ function AdminMerchantsPage() {
 
       {/* 驳回理由弹窗 */}
       {rejectId && (
-        <View className="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
+        <View className="fixed inset-0 z-50 flex items-end justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <View className="w-full bg-card rounded-t-3xl p-6 flex flex-col gap-4">
             <View className="flex items-center justify-between">
               <Text className="text-2xl font-bold text-foreground">填写驳回原因</Text>

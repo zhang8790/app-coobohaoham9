@@ -873,67 +873,27 @@ export default function IndexPage() {
   return (
     <View className="min-h-screen bg-background tabbar-pad index-page">
 
-      {/* ===================== L0 主视觉：品牌 + 定位 + 唯一核心动作 ===================== */}
+      {/* ===================== L0 主视觉：品牌标题置顶 + 搜索/定位一行 ===================== */}
       <View className="mx-4 mt-4 pg-hero p-4 rounded-2xl">
         {/* 国潮装饰层（印章圆环 + 松绿柔光，纯视觉不挡操作） */}
         <View className="pg-hero-seal" />
         <View className="pg-hero-glow" />
-        <View className="flex items-center justify-between relative" style={{ zIndex: 1 }}>
-          <View className="flex items-center gap-3">
-            <View className="pg-hero-badge">
-              <Text className="text-xl">🍃</Text>
-            </View>
-            <View>
-              <Text className="text-2xl font-extrabold text-foreground leading-tight">来电有喜</Text>
-              <Text className="text-sm text-muted-foreground block mt-0.5">懂身体的好物</Text>
-            </View>
+
+        {/* 品牌标题行：来电有喜 · 懂身体的好物（最顶部） */}
+        <View className="flex items-center gap-2.5 relative" style={{ zIndex: 1 }}>
+          <View className="pg-hero-badge">
+            <Text className="text-xl">🍃</Text>
           </View>
-          {/* 右侧：消息铃铛 + 门店切换（首页改版 2026-08-05：公告/订单分层入口） */}
-          <View className="flex items-center gap-2 flex-shrink-0">
-            {/* 消息中心铃铛：红点 = 进行中订单 / 未读公告 */}
-            <View
-              className="relative px-1.5 py-1.5 active:scale-95 transition-transform"
-              hoverClass="none"
-              onClick={goMessageCenter}
-            >
-              <Text style={{ fontSize: 18 }}>🔔</Text>
-              {bellUnread && (
-                <View style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: 999, background: '#E5484D' }} />
-              )}
-            </View>
-            {/* 右上角门店切换：把"附近门店"合并进右上角，移除独立横滑条（首页改版 2026-08-04） */}
-            <View
-              className="flex flex-col items-end gap-0.5 px-3 py-1.5 rounded-2xl bg-card border border-border flex-shrink-0 active:scale-95 transition-transform text-right"
-              hoverClass="none"
-              onClick={openStoreSheet}
-            >
-              <View className="flex items-center gap-1">
-                <Icon name="storefront-outline" size={14} className="text-primary" />
-                {locationLoading && <Icon name="loading" size={12} className="text-primary animate-spin" />}
-                <Text className="text-xs font-semibold text-foreground truncate" style={{ maxWidth: 92 }}>
-                  {locationLoading ? '定位中' : (activeStore?.store_name || currentCity?.city_name || '选择门店')}
-                </Text>
-                <Text className="text-[10px] text-muted-foreground">▾</Text>
-              </View>
-              {!locationLoading && (
-                <Text className="text-[10px] text-muted-foreground truncate" style={{ maxWidth: 110 }}>
-                  {activeStore && typeof activeStore.distance_km === 'number'
-                    ? (locationError
-                        ? '定位未开启'
-                        : `${currentCity?.city_name || '杭州'} · 约${activeStore.distance_km}km`)
-                    : (currentCity?.city_name || '')}
-                </Text>
-              )}
-            </View>
-          </View>
+          <Text className="text-xl font-extrabold text-foreground leading-tight">来电有喜，懂身体的好物</Text>
         </View>
 
-        {/* 顶部搜索/扫码合一栏：左半搜索区点进搜索页，右侧扫码独立入口 */}
+        {/* 搜索 / 扫码 / 定位 合一行：搜索在左，门店切换在右 */}
         <View
-          className="mx-4 mt-3 rounded-2xl bg-card border border-border flex items-center gap-2 px-3 py-2.5"
+          className="mt-3 rounded-2xl bg-card border border-border flex items-center gap-2 px-3 py-2.5 relative"
+          style={{ zIndex: 1 }}
           hoverClass="none"
         >
-          {/* 搜索区：点击进入搜索页（关键词/历史/热门词/适合我筛选） */}
+          {/* 搜索区：点击进入搜索页 */}
           <View
             className="flex items-center gap-2 flex-1 active:opacity-70 transition-opacity"
             hoverClass="none"
@@ -942,14 +902,39 @@ export default function IndexPage() {
             <Text style={{ fontSize: 16 }}>🔍</Text>
             <Text className="text-sm text-muted-foreground flex-1">搜索好物，或扫码查配料安全</Text>
           </View>
+          {/* 扫码按钮 */}
           <View
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full active:scale-95 transition-transform"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full active:scale-95 transition-transform flex-shrink-0"
             style={{ background: 'hsl(var(--primary))' }}
             hoverClass="none"
             onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}
           >
             <Text style={{ fontSize: 14 }}>📷</Text>
             <Text className="text-xs font-bold" style={{ color: '#fff' }}>扫码</Text>
+          </View>
+          {/* 门店切换（右侧） */}
+          <View
+            className="flex flex-col items-end gap-0.5 pl-2.5 ml-0.5 border-l border-border flex-shrink-0 active:scale-95 transition-transform text-right"
+            hoverClass="none"
+            onClick={openStoreSheet}
+          >
+            <View className="flex items-center gap-1">
+              <Icon name="storefront-outline" size={14} className="text-primary" />
+              {locationLoading && <Icon name="loading" size={12} className="text-primary animate-spin" />}
+              <Text className="text-xs font-semibold text-foreground truncate" style={{ maxWidth: 80 }}>
+                {locationLoading ? '定位中' : (activeStore?.store_name || currentCity?.city_name || '选择门店')}
+              </Text>
+              <Text className="text-[10px] text-muted-foreground">▾</Text>
+            </View>
+            {!locationLoading && (
+              <Text className="text-[10px] text-muted-foreground truncate" style={{ maxWidth: 96 }}>
+                {activeStore && typeof activeStore.distance_km === 'number'
+                  ? (locationError
+                      ? '定位未开启'
+                      : `${currentCity?.city_name || '杭州'} · 约${activeStore.distance_km}km`)
+                  : (currentCity?.city_name || '')}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -1196,7 +1181,7 @@ export default function IndexPage() {
 
       {/* 红包/实物领取弹窗 */}
       {showCampaignPopup && campaignList.length > 0 && (
-        <View className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <View className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View className="w-10/12 max-h-4/5 bg-card rounded-3xl p-6 overflow-y-auto">
             <Text className="text-2xl font-bold text-foreground text-center block mb-4">
               🎁 限时福利

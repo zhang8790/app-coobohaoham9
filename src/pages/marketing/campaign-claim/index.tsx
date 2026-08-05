@@ -268,7 +268,7 @@ function CampaignClaimPage() {
       <View className="min-h-screen bg-background">
         {/* 公示弹窗 */}
         {showCompliance && (
-          <View className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <View className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
             <View className="w-10/12 max-h-3/4 bg-card rounded-3xl p-6 overflow-y-auto">
               <Text className="text-2xl font-bold text-foreground text-center block mb-4">
                 活动规则公示

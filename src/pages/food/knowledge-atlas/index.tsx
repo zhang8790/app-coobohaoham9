@@ -92,7 +92,7 @@ function FragmentDetail({ fragment, onClose }: { fragment: KnowledgeFragment; on
 
   return (
     <View className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
-      <View className="absolute inset-0 bg-black/40" />
+      <View className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }} />
       <View
         className="relative w-full rounded-t-3xl bg-[#FFFBF7] px-5 pt-5 pb-8 max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
@@ -200,7 +200,7 @@ function DiscoveryModal({ fragment, onClose }: { fragment: KnowledgeFragment; on
   const cfg = RISK_CONFIG[fragment.riskLevel] || RISK_CONFIG.white
   return (
     <View className="fixed inset-0 z-50 flex items-center justify-center">
-      <View className="absolute inset-0 bg-black/50" />
+      <View className="absolute inset-0" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} />
       <View
         className="relative mx-6 bg-[#FFFBF7] rounded-3xl p-6 text-center"
         style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}

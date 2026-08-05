@@ -113,7 +113,7 @@ export default function ProductGridCard({
         )}
 
         {onShare && (
-          <Button openType="share" className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full pg-badge bg-black/40 flex items-center justify-center leading-none"
+          <Button openType="share" className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full pg-badge flex items-center justify-center leading-none" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
             style={{ border: 'none', padding: 0 }}
             onClick={(e) => { e.stopPropagation(); onShare(id) }}>
             <Icon name="share-variant" size={16} className="text-white" />
