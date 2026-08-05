@@ -229,10 +229,8 @@ function predictAllergens(keys: string[]): string[] {
 
 function inferCategory(name: string): string {
   const t = name || ''
-  if (/面|粉|米线|河粉|肠粉|凉皮/.test(t)) return '粉面'
-  if (/汤|羹|煲|炖/.test(t)) return '炖汤'
-  if (/茶|奶茶|饮|露|汁|咖啡/.test(t)) return '热饮'
-  if (/菜|拌|卤|凉|小炒|泡菜/.test(t)) return '小菜'
+  if (/蛋糕|饼干|烘焙|糕点|面包|麻薯|司康|桃酥|曲奇/.test(t)) return '药食同源烘焙'
+  if (/无糖|低糖|控糖|0糖|代糖|轻食/.test(t)) return '低糖轻食零食'
   return ''
 }
 

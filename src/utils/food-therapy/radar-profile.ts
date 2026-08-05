@@ -50,10 +50,8 @@ function guessTags(name = ''): string[] {
 }
 
 function guessCategory(name = ''): string {
-  if (['面', '粉'].some((k) => name.includes(k))) return '粉面'
-  if (['汤', '炖', '煲'].some((k) => name.includes(k))) return '炖汤'
-  if (['饮', '茶', '奶', '咖啡', '水'].some((k) => name.includes(k))) return '热饮'
-  if (['菜', '卤', '拌'].some((k) => name.includes(k))) return '小菜'
+  if (/蛋糕|饼干|烘焙|糕点|面包|麻薯|司康|桃酥|曲奇/.test(name)) return '药食同源烘焙'
+  if (/无糖|低糖|控糖|0糖|代糖|轻食/.test(name)) return '低糖轻食零食'
   return ''
 }
 

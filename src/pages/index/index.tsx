@@ -41,28 +41,71 @@ function classifyProductList(products: Product[], crowds: Crowd[]) {
 
 // 画像人群 → 首页动态场景胶囊映射（千人千面核心入口：按画像自动浮现高相关食养场景）
 const SCENE_BY_CROWD: Array<{ kw: string[]; scene: string; label: string; emoji: string }> = [
-  { kw: ['儿童', '成长', '宝'], scene: 'children', label: '宝宝零食', emoji: '👶' },
-  { kw: ['糖', '血糖'], scene: 'sugar', label: '控糖专场', emoji: '🍬' },
-  { kw: ['眠', '安神', '失眠'], scene: 'sleep', label: '晚安助眠', emoji: '😴' },
-  { kw: ['老年', '三高', '血压'], scene: 'elderly', label: '老年养生', emoji: '🧓' },
-  { kw: ['免疫', '体虚'], scene: 'immunity', label: '增强免疫', emoji: '💪' },
+  { kw: ['儿童', '成长', '宝'], scene: 'children', label: '成长轻养', emoji: '👶' },
+  { kw: ['糖', '血糖'], scene: 'sugar', label: '低糖轻食', emoji: '🍬' },
+  { kw: ['眠', '安神', '失眠'], scene: 'sleep', label: '轻盈舒眠', emoji: '😴' },
+  { kw: ['老年', '三高', '血压'], scene: 'elderly', label: '长辈关怀', emoji: '🧓' },
+  { kw: ['免疫', '体虚'], scene: 'immunity', label: '日常养护', emoji: '💪' },
   { kw: ['过敏'], scene: 'allergy', label: '敏感防护', emoji: '🛡️' },
-  { kw: ['消化', '脾胃', '胃'], scene: 'digestion', label: '消化调理', emoji: '🫗' },
-  { kw: ['孕', '产'], scene: 'pregnant', label: '孕产营养', emoji: '🤰' },
+  { kw: ['消化', '脾胃', '胃'], scene: 'digestion', label: '温和养护', emoji: '🫗' },
+  { kw: ['孕', '产'], scene: 'pregnant', label: '温润养护', emoji: '🤰' },
 ]
 
 // 首页「按功能挑 · 8 大食养场景」功能筛选网格（战略改版 2026-08-06）：
 // 用功能/人群精准获客，不靠低价；每个场景直达 need-find 真筛 SKU（闭环到食养方案）。
+// 合规化改版 2026-08-06：全部标签避开违禁词（养胃/健脾/祛湿/安神/慢病/调理/滋补/增强免疫 等）。
 const HOME_SCENES: Array<{ scene: string; label: string; icon: string; desc: string }> = [
-  { scene: 'children', label: '宝宝零食', icon: '👶', desc: '成长发育' },
-  { scene: 'sugar', label: '控糖饮食', icon: '🍬', desc: '轻负担' },
-  { scene: 'sleep', label: '助眠安神', icon: '😴', desc: '舒心' },
-  { scene: 'elderly', label: '老年养生', icon: '🧓', desc: '舒养' },
-  { scene: 'immunity', label: '增强免疫', icon: '💪', desc: '温补' },
+  { scene: 'children', label: '成长轻养', icon: '👶', desc: '成长发育' },
+  { scene: 'sugar', label: '低糖轻食', icon: '🍬', desc: '轻负担' },
+  { scene: 'sleep', label: '轻盈舒眠', icon: '😴', desc: '舒心' },
+  { scene: 'elderly', label: '长辈关怀', icon: '🧓', desc: '舒养' },
+  { scene: 'immunity', label: '日常养护', icon: '💪', desc: '温润' },
   { scene: 'allergy', label: '敏感防护', icon: '🛡️', desc: '过敏原红线' },
-  { scene: 'digestion', label: '消化调理', icon: '🫗', desc: '养胃' },
-  { scene: 'pregnant', label: '孕产营养', icon: '🤰', desc: '温润' },
+  { scene: 'digestion', label: '温和养护', icon: '🫗', desc: '温和' },
+  { scene: 'pregnant', label: '温润养护', icon: '🤰', desc: '温润' },
 ]
+
+// 首页「严选食疗零食」分类筛选条（合规化改版 2026-08-06）：
+// 原 粉面/炖汤/热饮/小菜/儿童/控糖/孕妈 按做法或敏感人群划分，改为按「人群 · 品类」的中性食养分类，
+// 全部避开违禁词（养胃/健脾/祛湿/安神/慢病/三高/调理/滋补 等）。筛选取后台「商品分类」(food_category) 精确匹配；未打标签的商品走关键词 + 食养字段兜底。
+const CATEGORY_TABS = [
+  { key: 'all', label: '全部商品' },
+  { key: '长辈关怀零食', label: '长辈关怀零食' },
+  { key: '四季时令零食', label: '四季时令零食' },
+  { key: '药食同源烘焙', label: '药食同源烘焙' },
+  { key: '低糖轻食零食', label: '低糖轻食零食' },
+  { key: '温和养护零食', label: '温和养护零食' },
+  { key: '轻盈舒眠零食', label: '轻盈舒眠零食' },
+  { key: '温润养护零食', label: '温润养护零食' },
+] as const
+
+// 每个分类的预估命中规则（名称关键词 ∪ 食养字段），在后台未打「商品分类」标签时给出兜底结果。
+// 注：正则里的「养胃/健脾/安神/祛湿」等用于匹配商品已有字段值，非面向用户的文案，不触合规护栏。
+const CATEGORY_PREDICATES: Record<string, (p: any) => boolean> = {
+  '长辈关怀零食': (p) =>
+    /长辈|中老年|银发|老年|三高|高血压/.test(p.name || '') ||
+    (p.rec_crowds ?? []).some((c: string) => ['高血压', '高血糖', '高血脂'].includes(c)) ||
+    ['平性', '微温', '温热'].includes(p.overall_nature || ''),
+  '四季时令零食': (p) =>
+    (p.scenes?.length ?? 0) > 0 ||
+    (p.overall_nature || '') !== '' ||
+    /春|夏|秋|冬|时令|节气/.test(p.name || ''),
+  '药食同源烘焙': (p) => /蛋糕|饼干|烘焙|糕点|面包|麻薯|司康|桃酥|曲奇/.test(p.name || ''),
+  '低糖轻食零食': (p) =>
+    (p.health_tag ?? []).some((t: string) => /低糖|控糖|无糖|轻食/.test(t)) ||
+    /无糖|低糖|控糖|0糖|代糖|轻食/.test(p.name || ''),
+  '温和养护零食': (p) =>
+    (p.health_tag ?? []).some((t: string) => /健脾|养胃|温和|养护|温中|脾胃/.test(t)) ||
+    ['平性', '微温'].includes(p.overall_nature || '') ||
+    /养胃|脾胃|温和/.test(p.name || ''),
+  '轻盈舒眠零食': (p) =>
+    (p.health_tag ?? []).some((t: string) => /安神|舒缓|利湿|轻盈|宁神|安适/.test(t)) ||
+    /晚安|安神|舒眠|祛湿|睡眠|安睡/.test(p.name || ''),
+  '温润养护零食': (p) =>
+    (p.health_tag ?? []).some((t: string) => /温润|养护|滋阴|润燥/.test(t)) ||
+    /孕期|产后|温润|孕/.test(p.name || '') ||
+    ['微温', '温热'].includes(p.overall_nature || ''),
+}
 
 // 行为标签复利：把用户显式反馈权重（点赞+1 / 点踩-1 / 加购+1 / 购买+1，view 记 0）叠加进消费画像的标签权重，
 // 让「浏览 / 购买 / 互动」共同沉淀为食养偏好，反哺首页推荐与今日食养。
@@ -546,7 +589,17 @@ export default function IndexPage() {
     const hideIds = new Set(personalizedItems.map((p) => p.id))
     return feedItems.filter((f) => {
       if (hideIds.has(f.product.id)) return false
-      if (catFilter && (f.product.food_category || '') !== catFilter) return false
+      if (catFilter && catFilter !== 'all') {
+        const fc = f.product.food_category
+        if (fc) {
+          // 后台已打「商品分类」标签：精确匹配（数据驱动，商家可控）
+          if (fc !== catFilter) return false
+        } else {
+          // 未打标签：关键词 + 食养字段兜底，保证分类流不空
+          const pred = CATEGORY_PREDICATES[catFilter]
+          if (pred && !pred(f.product)) return false
+        }
+      }
       if (fitOnly && getSuitability(f.product) !== 'recommend') return false
       return true
     })
@@ -914,13 +967,13 @@ export default function IndexPage() {
             <Text style={{ fontSize: 22 }}>🌱</Text>
             <View className="min-w-0">
               <Text className="text-white text-lg font-extrabold block truncate">药食同源食养方案库</Text>
-              <Text className="text-white/75 text-[11px] block mt-0.5">四季食疗 · 慢病忌口 · 食材搭配禁忌 · 定制零食清单</Text>
+              <Text className="text-white/75 text-[11px] block mt-0.5">四季食疗 · 体质忌口 · 食材搭配禁忌 · 定制零食清单</Text>
             </View>
           </View>
           <Text className="text-white text-xs font-bold flex-shrink-0 ml-2">进入 ›</Text>
         </View>
         <View className="flex items-center gap-2 mt-3 flex-wrap">
-          {['四季食疗', '慢病忌口', '食材搭配禁忌', '定制零食清单'].map((t) => (
+          {['四季食疗', '体质忌口', '食材搭配禁忌', '定制零食清单'].map((t) => (
             <View key={t} className="rounded-full px-2.5 py-1" style={{ background: 'rgba(255,255,255,0.16)' }}>
               <Text className="text-white text-[11px] font-medium">{t}</Text>
             </View>
@@ -1062,16 +1115,7 @@ export default function IndexPage() {
           >
             <ScrollView scrollX showScrollbar={false}>
               <View className="flex items-center gap-2 py-2">
-            {[
-              { key: 'all', label: '全部', emoji: '🍱' },
-              { key: '粉面', label: '粉面', emoji: '🍜' },
-              { key: '炖汤', label: '炖汤', emoji: '🍲' },
-              { key: '热饮', label: '热饮', emoji: '🍵' },
-              { key: '小菜', label: '小菜', emoji: '🥗' },
-              { key: 'children', label: '👶儿童', emoji: '' },
-              { key: 'sugar', label: '🍬控糖', emoji: '' },
-              { key: 'pregnant', label: '🤰孕妈', emoji: '' },
-            ].map((cat) => {
+            {CATEGORY_TABS.map((cat) => {
               const active = catFilter === (cat.key === 'all' ? null : cat.key)
               return (
                 <View

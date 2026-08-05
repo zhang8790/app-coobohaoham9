@@ -241,7 +241,7 @@ export default function FamilyArchivePage() {
           <View className="flex-1 pr-3">
             <Text className="text-sm font-bold text-[#1A1A1A]">向常去门店分享食养档案</Text>
             <Text className="text-[11px] text-[#9CA3AF] mt-1 block" style={{ lineHeight: 1.6 }}>
-              开启后，你锁定的门店店员可在你到店时查看中性食养参考（体质 / 过敏原 / 慢病 / 目标），做精准导购。仅分享膳食参考维度，不含任何病历或诊断信息，可随时关闭。
+              开启后，你锁定的门店店员可在你到店时查看中性食养参考（体质 / 过敏原 / 健康关注 / 目标），做精准导购。仅分享膳食参考维度，不含任何病历或诊断信息，可随时关闭。
             </Text>
           </View>
           <View

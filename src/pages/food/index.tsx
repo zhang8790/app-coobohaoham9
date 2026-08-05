@@ -39,14 +39,14 @@ export default function FoodHubPage() {
 
   // 自研食疗算法：画像人群 → 高相关零食类目（千人千面匹配，点按直达对应需求筛选页）
   const SCENE_BY_CROWD: Array<{ kw: string[]; scene: string; label: string; emoji: string }> = [
-    { kw: ['儿童', '成长', '宝'], scene: 'children', label: '宝宝零食', emoji: '👶' },
-    { kw: ['糖', '血糖'], scene: 'sugar', label: '控糖专场', emoji: '🍬' },
-    { kw: ['眠', '安神', '失眠'], scene: 'sleep', label: '晚安助眠', emoji: '😴' },
-    { kw: ['老年', '三高', '血压'], scene: 'elderly', label: '老年养生', emoji: '🧓' },
-    { kw: ['免疫', '体虚'], scene: 'immunity', label: '增强免疫', emoji: '💪' },
+    { kw: ['儿童', '成长', '宝'], scene: 'children', label: '成长轻养', emoji: '👶' },
+    { kw: ['糖', '血糖'], scene: 'sugar', label: '低糖轻食', emoji: '🍬' },
+    { kw: ['眠', '安神', '失眠'], scene: 'sleep', label: '轻盈舒眠', emoji: '😴' },
+    { kw: ['老年', '三高', '血压'], scene: 'elderly', label: '长辈关怀', emoji: '🧓' },
+    { kw: ['免疫', '体虚'], scene: 'immunity', label: '日常养护', emoji: '💪' },
     { kw: ['过敏'], scene: 'allergy', label: '敏感防护', emoji: '🛡️' },
-    { kw: ['消化', '脾胃', '胃'], scene: 'digestion', label: '消化调理', emoji: '🫗' },
-    { kw: ['孕', '产'], scene: 'pregnant', label: '孕产营养', emoji: '🤰' },
+    { kw: ['消化', '脾胃', '胃'], scene: 'digestion', label: '温和养护', emoji: '🫗' },
+    { kw: ['孕', '产'], scene: 'pregnant', label: '温润养护', emoji: '🤰' },
   ]
   const matchedScenes = useMemo(() => {
     const out: Array<{ scene: string; label: string; emoji: string }> = []
@@ -68,7 +68,7 @@ export default function FoodHubPage() {
       {/* Hero */}
       <View className="px-4 pt-6 pb-2">
         <Text className="text-2xl font-bold text-foreground">药食同源食养方案库</Text>
-        <Text className="text-sm text-muted-foreground block mt-1">四季食疗 · 慢病忌口 · 食材搭配禁忌 · 定制零食清单</Text>
+        <Text className="text-sm text-muted-foreground block mt-1">四季食疗 · 体质忌口 · 食材搭配禁忌 · 定制零食清单</Text>
       </View>
 
       {/* 自研食疗算法 · 按档案智能匹配零食类目（千人千面，点按直达对应零食类目） */}

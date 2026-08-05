@@ -39,8 +39,11 @@ export const SCENE_OPTIONS = [
 ] as const
 export type Scene = typeof SCENE_OPTIONS[number]
 
-// 商品分类（spec 基础信息区）
-export const FOOD_CATEGORIES = ['粉面', '炖汤', '热饮', '小菜'] as const
+// 商品分类（spec 基础信息区）—— 与首页筛选体系一致（药食同源食疗零食 7 分类）
+export const FOOD_CATEGORIES = [
+  '长辈关怀零食', '四季时令零食', '药食同源烘焙', '低糖轻食零食',
+  '温和养护零食', '轻盈舒眠零食', '温润养护零食',
+] as const
 export type FoodCategory = typeof FOOD_CATEGORIES[number]
 
 // 将逗号/顿号/空格分隔的文本解析为字符串数组

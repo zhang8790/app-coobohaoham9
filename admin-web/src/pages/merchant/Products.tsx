@@ -1245,7 +1245,7 @@ export default function MerchantProducts() {
                 <option value="">未分类</option>
                 {FOOD_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>粉面 / 炖汤 / 热饮 / 小菜，驱动食疗导购分类筛选</span>
+              <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>长辈关怀 / 四季时令 / 药食同源烘焙 / 低糖轻食 / 温和养护 / 轻盈舒眠 / 温润养护，驱动首页食疗分类筛选</span>
             </div>
 
             {/* 商品自定义分类（store_categories：本店 + 平台全局） */}

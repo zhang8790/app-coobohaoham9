@@ -160,13 +160,13 @@ function deriveRisks(entries: IngredientEntry[]): { cautious: string[]; risk: st
   return { cautious: [...cautious], risk: parts.join('；') }
 }
 
-// 从菜名推断合法 food_category（解决历史「面食」越界报错 → 一律归为「粉面」）
+// 从菜名推断合法 food_category（返回新 7 分类之一或空串；空串表示无法推断，由商家手选）。
+// 仅对可明确识别的品类（烘焙 / 低糖轻食）做自动归类，其余交商家在后台「商品分类」手动选择，
+// 避免产出枚举外的值导致保存时违反 CHECK 约束。
 function inferCategory(name: string): FoodCategory | '' {
   const t = name || ''
-  if (/面|粉|米线|河粉|肠粉|凉皮/.test(t)) return '粉面'
-  if (/汤|羹|煲|炖/.test(t)) return '炖汤'
-  if (/茶|奶茶|饮|露|汁|咖啡/.test(t)) return '热饮'
-  if (/菜|拌|卤|凉|小炒|泡菜/.test(t)) return '小菜'
+  if (/蛋糕|饼干|烘焙|糕点|面包|麻薯|司康|桃酥|曲奇/.test(t)) return '药食同源烘焙'
+  if (/无糖|低糖|控糖|0糖|代糖|轻食/.test(t)) return '低糖轻食零食'
   return ''
 }
 
