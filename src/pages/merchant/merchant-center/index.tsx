@@ -1,5 +1,5 @@
 // @title 自营门店管理中心（仪表盘）
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { View, Text, Button, Image, Input } from '@tarojs/components'
 import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMerchantOrderStats, getMyMerchantApplication, generateQrcode, getMerchantSettlement, getNearExpiryProducts, getMerchantVehicles, createMerchantVehicle, setMerchantVehicleStatus } from '@/db/api'
@@ -7,6 +7,7 @@ import { supabase } from '@/client/supabase'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import Icon from '@/components/Icon'
+import { useAuth } from '@/contexts/AuthContext'
 
 // 仪表盘导航项
 const NAV_ITEMS = [
@@ -48,40 +49,37 @@ function MerchantCenterPage() {
   const [vehicleName, setVehicleName] = useState('')
   const [vehicleSubmitting, setVehicleSubmitting] = useState(false)
 
+  // 复用全局登录态（RouteGuard 已确保已登录），避免商家中心再走一次 auth 网络请求
+  const { user: authUser } = useAuth()
+  // 跟踪加载态（供超时提示判断是否仍在加载，避免加载完成后还弹"较慢"提示）
+  const loadingRef = useRef(true)
+
   // 第一步：加载商家信息（快速）
   useEffect(() => {
     let cancelled = false
 
-    // 超时保护：5秒后强制退出加载状态
+    // 超时保护：15秒后若仍在加载，给一个温和提示（Supabase 从微信访问偶发较慢，
+    // 不再用"网络错误/重新登录"这种告警式文案，避免误报）
     const timeoutId = setTimeout(() => {
-      if (!cancelled) {
-        console.warn('[MerchantCenter] 加载超时，强制退出加载状态')
-        setLoading(false)
-        Taro.showToast({
-          title: '加载超时，请检查网络或重新登录',
-          icon: 'none',
-          duration: 3000
-        })
+      if (!cancelled && loadingRef.current) {
+        Taro.showToast({ title: '加载较慢，请稍候…', icon: 'none', duration: 2000 })
       }
-    }, 5000)
+    }, 15000)
 
     // 分别加载，避免一个失败影响另一个
     const loadData = async () => {
     try {
-      // 先检查登录状态（race 8s 超时，避免 getUser 在异常网络下永久挂起导致整页 loading 卡死）
-      const authRes = await Promise.race<any>([
-        supabase.auth.getUser(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('getUser timeout 8s')), 8000)),
-      ]).catch((err) => { console.warn('[MerchantCenter] getUser 超时', err); return { data: { user: null }, error: err } })
-      const { data: { user }, error: authError } = authRes
-      if (authError || !user) {
-          console.error('[MerchantCenter] 用户未登录')
-          if (!cancelled) {
-            setLoading(false)
-            Taro.showToast({ title: '请先登录', icon: 'none' })
-          }
-          return
+      // RouteGuard 已确保已登录，直接复用上下文 user，省去一次 auth 网络往返
+      // （微信访问 Supabase auth 接口偶发慢，正是此前 5 秒超时误报"网络错误"的根因）
+      const user = authUser
+      if (!user) {
+        if (!cancelled) {
+          loadingRef.current = false
+          setLoading(false)
+          Taro.showToast({ title: '请先登录', icon: 'none' })
         }
+        return
+      }
 
 
         // 并行加载，但分别处理错误
@@ -107,11 +105,13 @@ function MerchantCenterPage() {
         }
 
         // 无论成功失败，都退出加载状态
+        loadingRef.current = false
         setLoading(false)
 
       } catch (error) {
         console.error('[MerchantCenter] 加载过程异常:', error)
         if (!cancelled) {
+          loadingRef.current = false
           setLoading(false)
         }
       } finally {
@@ -125,7 +125,7 @@ function MerchantCenterPage() {
       cancelled = true
       clearTimeout(timeoutId)
     }
-  }, [])
+  }, [authUser])
 
   // 第二步：异步加载统计数据（慢，但不阻塞UI）
   useEffect(() => {
