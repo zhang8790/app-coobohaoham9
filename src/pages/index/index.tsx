@@ -1,8 +1,8 @@
 // @title 首页
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
-import { Image, Input, View, Text, ScrollView, Button } from '@tarojs/components'
-import { getProducts, getRankedFeed, getAnnouncements, getOrderFeed, getOrders, getProductsByIds, getMyFootprints, getUserFoodTherapyWeights, addToCart } from '@/db/api'
+import { Image, Input, View, Text, ScrollView, Button, Video } from '@tarojs/components'
+import { getProducts, getRankedFeed, getAnnouncements, getOrderFeed, getOrders, getProductsByIds, getMyFootprints, getUserFoodTherapyWeights, addToCart, getSiteConfig } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
 import { getUserHealthProfile, getLatestConstitutionResult, getScanHistory } from '@/db/food-api'
 import type { Product, Announcement, OrderFeedItem, Order, UserHealthProfile, UserScanHistory } from '@/db/types'
@@ -112,6 +112,24 @@ export default function IndexPage() {
   const { user, profile } = useAuth()
   const { currentCity, currentLocation, currentStore, nearbyStores, loading: locationLoading, error: locationError, detectLocation } = useLocation()
   // 最近扫码：扫码购物的「学习闭环」沉淀，首页食养区可见（只读、不阻断主流程）
+  // 首页品牌区背景：运营在「首页品牌配置」上传的图/视频，写 site_configs.home_brand_hero_bg。
+  // 兼容旧结构 image_url 与新结构 media_url/media_type。
+  const [brandMedia, setBrandMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null)
+  useEffect(() => {
+    let alive = true
+    getSiteConfig<{ image_url?: string; media_url?: string; media_type?: string }>('home_brand_hero_bg')
+      .then(v => {
+        if (!alive || !v) return
+        const url = v.media_url || v.image_url || ''
+        if (!url) return
+        const isVideo = v.media_type === 'video' ||
+          (v.media_type !== 'image' && /\.(mp4|webm|ogg|mov)$/i.test(url))
+        setBrandMedia({ url, type: isVideo ? 'video' : 'image' })
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
+
   const [scanChips, setScanChips] = useState<UserScanHistory[]>([])
   useEffect(() => {
     if (!user?.id) { setScanChips([]); return }
@@ -209,6 +227,8 @@ export default function IndexPage() {
 
   // 首页「限时福利」弹窗状态（仅在有可领取活动、且用户主动点击入口卡片时才展开）
   const [showCampaignPopup, setShowCampaignPopup] = useState(false)
+  // 首页扫码配料识别 · 技术壁垒弹窗（突出自研数据库区别于通用 AI）
+  const [showScanMoat, setShowScanMoat] = useState(false)
   const [campaignList, setCampaignList] = useState<any[]>([])
   // 门店红包对应的门店名（用于在首页弹窗标注「XX店专享」）
   const [storeNameMap, setStoreNameMap] = useState<Record<string, string>>({})
@@ -874,10 +894,29 @@ export default function IndexPage() {
     <View className="min-h-screen bg-background tabbar-pad index-page">
 
       {/* ===================== L0 主视觉：品牌标题置顶 + 搜索/定位一行 ===================== */}
-      <View className="mx-4 mt-4 pg-hero p-4 rounded-2xl">
+      <View className="mx-4 mt-4 pg-hero p-4 rounded-2xl" style={{ position: 'relative', overflow: 'hidden' }}>
+        {/* 品牌背景图/视频（运营在「首页品牌配置」上传；无配置则回退 CSS 渐变） */}
+        {brandMedia?.type === 'image' && (
+          <Image
+            src={brandMedia.url}
+            mode="aspectFill"
+            className="absolute left-0 top-0 w-full h-full"
+            style={{ zIndex: 0 }}
+          />
+        )}
+        {brandMedia?.type === 'video' && (
+          <Video
+            src={brandMedia.url}
+            autoplay
+            muted
+            loop
+            className="absolute left-0 top-0 w-full h-full"
+            style={{ zIndex: 0 }}
+          />
+        )}
         {/* 国潮装饰层（印章圆环 + 松绿柔光，纯视觉不挡操作） */}
-        <View className="pg-hero-seal" />
-        <View className="pg-hero-glow" />
+        <View className="pg-hero-seal" style={{ zIndex: 1 }} />
+        <View className="pg-hero-glow" style={{ zIndex: 1 }} />
 
         {/* 品牌标题行：来电有喜 · 懂身体的好物（最顶部） */}
         <View className="flex items-center gap-2.5 relative" style={{ zIndex: 1 }}>
@@ -900,17 +939,7 @@ export default function IndexPage() {
             onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}
           >
             <Text style={{ fontSize: 16 }}>🔍</Text>
-            <Text className="text-sm text-muted-foreground flex-1">搜索好物，或扫码查配料安全</Text>
-          </View>
-          {/* 扫码按钮 */}
-          <View
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full active:scale-95 transition-transform flex-shrink-0"
-            style={{ background: 'hsl(var(--primary))' }}
-            hoverClass="none"
-            onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}
-          >
-            <Text style={{ fontSize: 14 }}>📷</Text>
-            <Text className="text-xs font-bold" style={{ color: '#fff' }}>扫码</Text>
+            <Text className="text-sm text-muted-foreground flex-1">搜索好物</Text>
           </View>
           {/* 门店切换（右侧） */}
           <View
@@ -938,6 +967,21 @@ export default function IndexPage() {
           </View>
         </View>
 
+      </View>
+
+      {/* 扫码配料识别 CTA：项目最强壁垒，首页首屏强曝光（区别于通用 AI） */}
+      <View
+        className="mx-4 mt-3 rounded-2xl p-3.5 flex items-center gap-3 active:scale-[0.99] transition-transform"
+        style={{ background: 'hsl(var(--primary))' }}
+        hoverClass="none"
+        onClick={() => setShowScanMoat(true)}
+      >
+        <View className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>📷</View>
+        <View className="flex-1 min-w-0">
+          <Text className="text-white text-sm font-bold block">扫码解析配料｜添加剂风险评级｜体质适配度检测</Text>
+          <Text className="text-white/80 text-[11px] block mt-0.5">区别于通用 AI · 自研十万级零食配料数据库</Text>
+        </View>
+        <Text className="text-white text-xs font-bold flex-shrink-0">去识别 ›</Text>
       </View>
 
       {/* ===================== 广告位：纯图片 / 视频（无文字广告、无家庭档案） ===================== */}
@@ -1242,7 +1286,34 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* 扫码入口已合并至首屏搜索栏（📷扫码），避免首页多处扫码重复 */}
+      {/* 扫码识别 · 技术壁垒弹窗：突出自研数据库区别于通用 AI */}
+      {showScanMoat && (
+        <View className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <View className="w-10/12 max-h-4/5 bg-card rounded-3xl p-6 overflow-y-auto">
+            <Text className="text-2xl font-bold text-foreground block mb-4">🔬 配料识别 · 你的私人食养安全官</Text>
+            <Text className="text-base text-muted-foreground leading-relaxed block mb-3">自建十万级零食配料数据库，区别通用 AI。</Text>
+            <Text className="text-base text-muted-foreground leading-relaxed block mb-3">数据库持续迭代食疗搭配算法，扫码即知配料风险与体质适配度。</Text>
+            <Text className="text-base text-muted-foreground leading-relaxed block mb-6">可保存个人饮食档案，越用越懂你。</Text>
+            <View
+              className="w-full py-3 rounded-2xl text-center text-white text-xl font-bold"
+              style={{ background: 'hsl(var(--primary))' }}
+              hoverClass="none"
+              onClick={() => { setShowScanMoat(false); Taro.navigateTo({ url: '/pages/food/food-scan/index' }) }}
+            >
+              开始扫描
+            </View>
+            <View
+              className="w-full py-3 rounded-2xl text-center text-muted-foreground text-base mt-3"
+              hoverClass="none"
+              onClick={() => setShowScanMoat(false)}
+            >
+              暂不需要
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 扫码入口已合并为上方首屏强曝光 CTA 带（📷扫码），避免首页多处扫码重复 */}
 
       {/* 首页：右下角停靠咨询入口（食养咨询（主）/ 客服），全站统一 bottom-right */}
       <FloatingActionBar />
