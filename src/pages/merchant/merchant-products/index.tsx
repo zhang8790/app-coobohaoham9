@@ -409,13 +409,20 @@ function MerchantProductsPage() {
     setIngredientItems(items)
   }
 
-  // 一键生成店内码：仅用于「已存在的商品」补码（编辑态即时分配并回写）。
-  // 新建商品若无原厂码，由后端 auto_barcode 在保存时自动分配店内码（见 handleSave），无需先出码再扫。
+  // 一键生成店内码：
+  // - 编辑态（已有 editId）：即时补码/重生成并回写。
+  // - 新建态（无 editId）：先保存商品（handleSave 会停留编辑态并自动分配店内码），再提示。
   const onGenerateBarcode = async () => {
-    if (!editId) return
     setGeneratingBarcode(true)
     try {
-      const prod = await generateProductBarcode(editId)
+      let pid = editId
+      if (!pid) {
+        // 新建未保存：先上架，后端自动分配店内码，弹窗停留编辑态
+        await handleSave()
+        Taro.showToast({ title: '已保存并自动分配店内码', icon: 'success' })
+        return
+      }
+      const prod = await generateProductBarcode(pid)
       if (prod && prod.barcode) {
         setForm(f => ({ ...f, barcode: prod.barcode! }))
         Taro.showToast({ title: '已生成店内码', icon: 'success' })
@@ -513,6 +520,7 @@ function MerchantProductsPage() {
       if (editId) {
         await updateProduct(editId, payload)
         Taro.showToast({ title: '修改成功', icon: 'success' })
+        setShowForm(false)
       } else {
         const autoBarcode = !(form.barcode && form.barcode.trim())
         const created = await createProduct({ ...payload, store_id: store.id, auto_barcode: autoBarcode })
@@ -520,9 +528,12 @@ function MerchantProductsPage() {
           Taro.showToast({ title: '保存失败，请检查后重试', icon: 'error' })
           return
         }
-        Taro.showToast({ title: '上架成功', icon: 'success' })
+        // 新建成功后停留编辑态：回写 id 与自动分配的店内码，让用户立即打印标签
+        setEditId(created.id)
+        setForm(f => ({ ...f, barcode: created.barcode || f.barcode }))
+        Taro.showToast({ title: '已上架，已自动分配店内码，可立即打印标签', icon: 'success' })
+        load()
       }
-      setShowForm(false); load()
     } catch (e: any) {
       console.error('[商品管理] 保存失败', e)
       const msg: string = e?.message || '未知错误'
@@ -1599,7 +1610,7 @@ function MerchantProductsPage() {
                 {/* 条码操作：生成 / 预览 / 打印（超市同款 EAN-13 店内码）*/}
                 <View style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {!form.barcode && editId ? (
+                    {!form.barcode ? (
                       <View
                         onClick={onGenerateBarcode}
                         style={{ padding: '8px 14px', borderRadius: '10px', background: generatingBarcode ? '#9CA3AF' : '#10B981', opacity: generatingBarcode ? 0.7 : 1 }}>
@@ -1617,7 +1628,7 @@ function MerchantProductsPage() {
                   {form.barcode ? (
                     <EAN13Preview code={form.barcode} />
                   ) : (
-                    <Text style={{ fontSize: '12px', color: '#999' }}>无条码：编辑时点击「⚡ 一键生成店内码」（EAN-13 超市同款）即可自动分配并可打印标签。</Text>
+                    <Text style={{ fontSize: '12px', color: '#999' }}>无条码：点击「⚡ 一键生成店内码」即可自动分配 EAN-13 店内码（新建商品保存后也会自动分配），分配后即可「🖨 打印标签」。</Text>
                   )}
                 </View>
               </View>
