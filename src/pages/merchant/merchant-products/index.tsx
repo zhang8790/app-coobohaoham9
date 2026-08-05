@@ -280,7 +280,6 @@ function MerchantProductsPage() {
     setForm(emptyForm())
     setEditId(null)
     setIngredientItems([])
-    setPendingAutoBarcode(false)
     setShowForm(true)
   }
 
@@ -543,7 +542,6 @@ function MerchantProductsPage() {
   const handleCloseForm = () => {
     setShowForm(false)
     setIngredientItems([])
-    setPendingAutoBarcode(false)
   }
 
   // —— 商品分类管理（新建/改名/删除/排序）——
