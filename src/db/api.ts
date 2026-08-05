@@ -852,7 +852,8 @@ export async function getProductBatchInfo(productId: string): Promise<ProductBat
       .from('stock_batches')
       .select('produced_at, expire_at, shelf_life_days')
       .eq('product_id', productId)
-      .eq('status', 'normal')
+      // 入库批次未显式设置 status（默认 NULL）视为在库可售；仅排除 expired/sold_out/blocked
+      .or('status.is.null,status.eq.normal')
       .gt('qty', 0)
       .order('expire_at', { ascending: true })
       .limit(1)
