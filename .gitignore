@@ -102,6 +102,15 @@ dist_old_build
 .mvtest_dst
 _tmp_*.sql
 _verify_*.sql
+# 沙箱排查/构建临时产物（非项目文件，勿提交）
+_q_*.sql
+_ins_*.sql
+_diag.sql
+_check*.py
+_cleanup*.py
+_dist_stale_*
+_dist_fix_*
+_build_stale_*
 deliverables/
 .color-sweep*
 .icon-fix-backup/
