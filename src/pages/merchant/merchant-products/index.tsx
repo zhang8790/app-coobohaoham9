@@ -1193,56 +1193,18 @@ function MerchantProductsPage() {
               <Text style={{ fontSize: '11px', color: '#AAA', marginTop: '4px' }}>让利比例最高 30%，超出将自动校正为 30%</Text>
             </View>
 
-            {/* 库存 + 条形码 */}
-            <View style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>库存 *</Text>
-                <Input
-                  style={{
-                    width: '100%', height: '42px', borderRadius: '10px',
-                    background: '#FAFAFA', border: '1.5px solid #EEE',
-                    fontSize: '14px', color: '#333', padding: '0 10px', boxSizing: 'border-box',
-                  }}
-                  placeholder="0" type="number"
-                  value={form.stock}
-                  onInput={(e: any) => setForm(f => ({ ...f, stock: e.detail?.value ?? '' }))} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>条形码</Text>
-                <Input
-                  style={{
-                    width: '100%', height: '42px', borderRadius: '10px',
-                    background: '#FAFAFA', border: '1.5px solid #EEE',
-                    fontSize: '14px', color: '#333', padding: '0 10px', boxSizing: 'border-box',
-                  }}
-                  placeholder="扫码或手动输入"
-                  value={form.barcode}
-                  onInput={(e: any) => setForm(f => ({ ...f, barcode: e.detail?.value ?? '' }))} />
-              </View>
-              {/* 条码操作：生成 / 预览 / 打印（超市同款 EAN-13 店内码）*/}
-              <View style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {!form.barcode && editId ? (
-                    <View
-                      onClick={onGenerateBarcode}
-                      style={{ padding: '8px 14px', borderRadius: '10px', background: generatingBarcode ? '#9CA3AF' : '#10B981', opacity: generatingBarcode ? 0.7 : 1 }}>
-                      <Text style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>{generatingBarcode ? '生成中…' : '⚡ 一键生成店内码'}</Text>
-                    </View>
-                  ) : null}
-                  {form.barcode ? (
-                    <View
-                      onClick={onPrintBarcode}
-                      style={{ padding: '8px 14px', borderRadius: '10px', background: printingBarcode ? '#9CA3AF' : '#FF8C42', opacity: printingBarcode ? 0.7 : 1 }}>
-                      <Text style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>{printingBarcode ? '打印中…' : '🖨 打印标签'}</Text>
-                    </View>
-                  ) : null}
-                </View>
-                {form.barcode ? (
-                  <EAN13Preview code={form.barcode} />
-                ) : (
-                  <Text style={{ fontSize: '12px', color: '#999' }}>无条码：编辑时点击「⚡ 一键生成店内码」（EAN-13 超市同款）即可自动分配并可打印标签。</Text>
-                )}
-              </View>
+            {/* 库存 */}
+            <View style={{ marginBottom: '14px' }}>
+              <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>库存 *</Text>
+              <Input
+                style={{
+                  width: '100%', height: '42px', borderRadius: '10px',
+                  background: '#FAFAFA', border: '1.5px solid #EEE',
+                  fontSize: '14px', color: '#333', padding: '0 10px', boxSizing: 'border-box',
+                }}
+                placeholder="0" type="number"
+                value={form.stock}
+                onInput={(e: any) => setForm(f => ({ ...f, stock: e.detail?.value ?? '' }))} />
             </View>
 
             {/* 主图 */}
@@ -1620,6 +1582,44 @@ function MerchantProductsPage() {
                 ) : (
                   <Text style={{ fontSize: '12px', color: '#999', display: 'block' }}>从食材库添加食材或点「智能识别食材」后，这里实时显示整体性味 / 三色预警 / 商家寄语。</Text>
                 )}
+              </View>
+
+              {/* 🏷 条形码 / 店内码标签（移至疗养文案旁） */}
+              <View style={{ marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#FBF7F2', border: '1.5px solid #E8D9C8' }}>
+                <Text style={{ fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}>🏷 条形码 / 店内码标签</Text>
+                <Input
+                  style={{
+                    width: '100%', height: '42px', borderRadius: '10px',
+                    background: '#FAFAFA', border: '1.5px solid #EEE',
+                    fontSize: '14px', color: '#333', padding: '0 10px', boxSizing: 'border-box',
+                  }}
+                  placeholder="扫码或手动输入"
+                  value={form.barcode}
+                  onInput={(e: any) => setForm(f => ({ ...f, barcode: e.detail?.value ?? '' }))} />
+                {/* 条码操作：生成 / 预览 / 打印（超市同款 EAN-13 店内码）*/}
+                <View style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {!form.barcode && editId ? (
+                      <View
+                        onClick={onGenerateBarcode}
+                        style={{ padding: '8px 14px', borderRadius: '10px', background: generatingBarcode ? '#9CA3AF' : '#10B981', opacity: generatingBarcode ? 0.7 : 1 }}>
+                        <Text style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>{generatingBarcode ? '生成中…' : '⚡ 一键生成店内码'}</Text>
+                      </View>
+                    ) : null}
+                    {form.barcode ? (
+                      <View
+                        onClick={onPrintBarcode}
+                        style={{ padding: '8px 14px', borderRadius: '10px', background: printingBarcode ? '#9CA3AF' : '#FF8C42', opacity: printingBarcode ? 0.7 : 1 }}>
+                        <Text style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>{printingBarcode ? '打印中…' : '🖨 打印标签'}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  {form.barcode ? (
+                    <EAN13Preview code={form.barcode} />
+                  ) : (
+                    <Text style={{ fontSize: '12px', color: '#999' }}>无条码：编辑时点击「⚡ 一键生成店内码」（EAN-13 超市同款）即可自动分配并可打印标签。</Text>
+                  )}
+                </View>
               </View>
 
               {/* 实时预览：顾客端卡片长什么样（边填边看，更赏心悦目） */}
