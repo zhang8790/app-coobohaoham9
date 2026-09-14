@@ -121,9 +121,10 @@ export default function ProductGridCard({
         )}
       </View>
 
-      {/* 信息区：紧凑模式(py-1.5 / 更矮 minHeight) 缩短首页卡片纵向占位 */}
+      {/* 信息区：高度下限只做「同排卡片对齐」用，值贴近真实内容高度，
+          避免信息少时被 minHeight 撑出大片空白（价格行 mt-auto 会把空档全挤在中间） */}
       <View className={`flex flex-col gap-1 flex-1 ${compact ? 'px-2 py-1.5' : 'px-2.5 py-2'}`}
-        style={{ minHeight: care ? (compact ? '128px' : '172px') : (compact ? '84px' : '108px') }}>
+        style={{ minHeight: care ? (compact ? '110px' : '134px') : (compact ? '72px' : '88px') }}>
         <Text className="text-base font-bold text-foreground leading-tight line-clamp-2">{name}</Text>
 
         {/* 食疗引擎三色预警（与详情页/门店卡同源）：整体性味 + 红/橙/蓝预警 */}

@@ -125,3 +125,14 @@ admin-web/dist-cloud/
 _*.sql
 _ext_index
 _audit*
+
+# 废弃设计/陈旧构建副本/调试脚本（非项目源码，勿提交；沙箱回收站对目录不可用，需用户在文件管理器手动删除）
+_abandoned_designs/
+ui-mockups-v4/
+admin-web/dist-cloud2/
+dist_stale_*/
+_TRASH/
+_zap_*
+_move_log.txt
+_icacls_log.txt
+_move2_log.txt

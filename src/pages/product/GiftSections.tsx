@@ -23,7 +23,7 @@ export default function GiftSections({ product }: { product: Product }) {
 
   if (!meaning && !craft && !scene && !care && materials.length === 0) return null
 
-  // 送礼场景：按换行 / 分号拆成多行，渲染为带 ✨ 的清单
+  // 送礼场景：按换行 / 分号拆成多行，渲染为带小图标的清单
   const sceneLines = scene
     ? scene.split(/[\n；;]+/).map((s) => s.trim()).filter(Boolean)
     : []
@@ -82,7 +82,7 @@ export default function GiftSections({ product }: { product: Product }) {
         <View className="mb-3" style={{ padding: '14px 16px', borderRadius: '16px', background: 'linear-gradient(135deg,#FEF6EC,#FBEFE0)', border: '1px solid #F1DEC0' }}>
           <Text style={{ fontSize: '13px', fontWeight: '700', color: '#B45309', display: 'block', marginBottom: 8 }}>✦ 适合送给谁</Text>
           {sceneLines.map((s, i) => (
-            <Text key={i} style={{ fontSize: '14px', color: '#6B4A1E', display: 'block', lineHeight: '1.7' }}>✨ {s}</Text>
+            <Text key={i} style={{ fontSize: '14px', color: '#6B4A1E', display: 'block', lineHeight: '1.7' }}>🍬 {s}</Text>
           ))}
         </View>
       )}

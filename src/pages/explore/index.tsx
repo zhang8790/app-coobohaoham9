@@ -26,28 +26,25 @@ type ExploreProduct = NearbyProduct & { raw?: Product }
 // 探索(自营)商品类目：改为读 store_categories(scope='global', is_active=true)，后台可编辑/上架下架
 // 点选后按类目名精确匹配 products.category 文本（见 getProducts 的 categoryName 参数）
 
-// 探索页商品图：全宽 16:10 + 缺失占位
+// 探索页商品图：填满卡片自身的比例框（4:3 / 1:1 由 ProductGridCard 统一控制）。
+// ⚠️ 这里不要再套一层 paddingTop 比例框：会与卡片比例框叠加，导致图片被二次裁切成正方形，白占高度。
 function ExploreProductImage({ src, name }: { src: string | null | undefined; name: string }) {
   if (!src) {
     return (
-      <View className="relative w-full overflow-hidden" style={{ paddingTop: '100%', backgroundColor: 'hsl(var(--muted))' }}>
-        <View className="flex flex-col items-center justify-center" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <Icon name="bag" size={28} className="text-muted-foreground" />
-          <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
-        </View>
+      <View className="w-full h-full flex flex-col items-center justify-center" style={{ backgroundColor: 'hsl(var(--muted))' }}>
+        <Icon name="bag" size={28} className="text-muted-foreground" />
+        <Text className="text-xs text-muted-foreground">{name.slice(0, 4)}</Text>
       </View>
     )
   }
   return (
-    <View className="relative w-full overflow-hidden" style={{ paddingTop: '100%' }}>
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-        <LazyImage
-          src={src}
-          mode="aspectFill"
-          className="w-full h-full bg-muted"
-          width="100%"
-          height="100%" />
-      </View>
+    <View className="w-full h-full">
+      <LazyImage
+        src={src}
+        mode="aspectFill"
+        className="w-full h-full bg-muted"
+        width="100%"
+        height="100%" />
     </View>
   )
 }

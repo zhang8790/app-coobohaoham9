@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { Product, StoreCategory } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -9,6 +10,7 @@ import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/util
 import { NATURE_SCALE, CROWD_OPTIONS, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
 import { analyzeDish } from '@/utils/dish-analyzer'
 import { encodeEAN13 } from '@/utils/barcode'
+import { uploadProductAsset } from '@/utils/storage'
 
 interface ProductWithExt extends Product {
   status: 'online' | 'offline'
@@ -33,16 +35,9 @@ const MOCK_PRODUCTS: ProductWithExt[] = [
   {
     id: '1', store_id: 'store-1', name: '云南高山古树普洱茶 357g', description: '云南古树普洱，陈化5年，汤色红浓明亮，滋味醇厚回甘。每一饼茶都经过严格筛选，确保品质稳定。适合长期储藏，越陈越香。',
     price: 268, original_price: 398, image_url: null,
-    main_image: 'https://img.icons8.com/color/96/000000/tea.png',
-    sub_images: [
-      'https://img.icons8.com/color/96/000000/tea.png',
-      'https://img.icons8.com/color/96/000000/green-tea.png',
-    ],
-    detail_images: [
-      'https://img.icons8.com/color/96/000000/tea.png',
-      'https://img.icons8.com/color/96/000000/green-tea.png',
-      'https://img.icons8.com/color/96/000000/oolong-tea.png',
-    ],
+    main_image: '',
+    sub_images: [],
+    detail_images: [],
     video_url: '',
     category_id: 'cat-1', status: 'online', stock: 126, sales: 342, is_active: true, cost_price: 120,
     discount_rate: 33, review_status: 'approved', created_at: '2026-06-15',
@@ -50,12 +45,9 @@ const MOCK_PRODUCTS: ProductWithExt[] = [
   {
     id: '2', store_id: 'store-1', name: '手工红糖姜茶 15包装', description: '云南手工红糖+老姜，暖胃驱寒，独立小包装，方便携带。精选优质红糖和老姜，传统工艺制作，无添加防腐剂。',
     price: 39.9, original_price: 59.9, image_url: null,
-    main_image: 'https://img.icons8.com/color/96/000000/honey.png',
+    main_image: '',
     sub_images: [],
-    detail_images: [
-      'https://img.icons8.com/color/96/000000/honey.png',
-      'https://img.icons8.com/color/96/000000/ginger.png',
-    ],
+    detail_images: [],
     video_url: '',
     category_id: 'cat-2', status: 'online', stock: 500, sales: 1024, is_active: true, cost_price: 18,
     discount_rate: 33, review_status: 'approved', created_at: '2026-06-10',
@@ -73,11 +65,9 @@ const MOCK_PRODUCTS: ProductWithExt[] = [
   {
     id: '4', store_id: 'store-1', name: '傣族手工鲜花饼 礼盒装', description: '云南鲜花饼，现做现发20枚，选用云南食用玫瑰，皮薄馅多，花香浓郁，甜而不腻。',
     price: 68, original_price: 98, image_url: null,
-    main_image: 'https://img.icons8.com/color/96/000000/cake.png',
+    main_image: '',
     sub_images: [],
-    detail_images: [
-      'https://img.icons8.com/color/96/000000/cake.png',
-    ],
+    detail_images: [],
     video_url: '',
     category_id: 'cat-4', status: 'online', stock: 200, sales: 789, is_active: true, cost_price: 32,
     discount_rate: 31, review_status: 'approved', created_at: '2026-05-28',
@@ -85,31 +75,14 @@ const MOCK_PRODUCTS: ProductWithExt[] = [
   {
     id: '5', store_id: 'store-1', name: '云南小粒咖啡豆 烘焙熟豆 500g', description: '普洱小粒咖啡，中度烘焙，花果香明显，酸度适中，余韵悠长。产地直供，新鲜烘焙。',
     price: 128, original_price: 168, image_url: null,
-    main_image: 'https://img.icons8.com/color/96/000000/coffee.png',
-    sub_images: [
-      'https://img.icons8.com/color/96/000000/coffee.png',
-      'https://img.icons8.com/color/96/000000/coffee-beans.png',
-      'https://img.icons8.com/color/96/000000/espresso-cup.png',
-    ],
-    detail_images: [
-      'https://img.icons8.com/color/96/000000/coffee-beans.png',
-      'https://img.icons8.com/color/96/000000/espresso-cup.png',
-    ],
+    main_image: '',
+    sub_images: [],
+    detail_images: [],
     video_url: 'https://www.w3schools.com/html/mov_bbb.mp4',
     category_id: 'cat-5', status: 'offline', stock: 0, sales: 231, is_active: false, cost_price: 65,
     discount_rate: 24, review_status: 'pending', created_at: '2026-05-20',
   },
 ]
-
-// 本地文件转 base64
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
 
 export default function MerchantProducts() {
   const { profile, useMock } = useAuth()
@@ -121,10 +94,7 @@ export default function MerchantProducts() {
   const [generating, setGenerating] = useState(false)
   const [generatingBarcode, setGeneratingBarcode] = useState(false)
   const [printingBarcode, setPrintingBarcode] = useState(false)
-  // 「生成条形码」独立板块：本次会话已生成的店内码（尚未建商品，可补打空白标签）
-  const [genCodes, setGenCodes] = useState<{ code: string; ts: number }[]>([])
-  const [genLoading, setGenLoading] = useState(false)
-  const [printingBare, setPrintingBare] = useState(false)
+  const navigate = useNavigate()
   const [dragOverSub, setDragOverSub] = useState(false)
   const [dragOverDetail, setDragOverDetail] = useState(false)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
@@ -278,31 +248,6 @@ export default function MerchantProducts() {
     setShowModal(true)
   }
 
-  // 生成条形码（独立板块）：仅原子出码，不建商品；出码后可打印空白标签贴商品，
-  // 再去「扫码上架」扫此码建档上架（两步分离：先生成、后扫码）。
-  const genBarcode = async () => {
-    if (!storeId) { window.alert('未关联门店，无法生成店内码'); return }
-    setGenLoading(true)
-    try {
-      const { data, error } = await supabase.rpc('fn_alloc_store_barcode', { p_store_id: storeId })
-      if (error || !data || !data.length) { window.alert('生成失败：' + (error?.message || '未知错误')); return }
-      const code = (data[0] as any).barcode as string
-      setGenCodes(g => [{ code, ts: Date.now() }, ...g].slice(0, 30))
-    } finally { setGenLoading(false) }
-  }
-  // 打印空白店内码标签（裸码，无商品名/价格，待上架）
-  const printBare = async (code: string) => {
-    if (!storeId) return
-    setPrintingBare(true)
-    try {
-      const { data, error } = await supabase.functions.invoke('print-receipt', { body: { mode: 'barcode', store_id: storeId, barcode: code } })
-      if (error) { window.alert('打印失败：' + error.message); return }
-      const d = (data ?? {}) as any
-      if (d.need_config) { window.alert('该门店尚未配置易联云打印机，请先配置后再打印。'); return }
-      if (d.success) window.alert('已推送打印空白标签')
-    } finally { setPrintingBare(false) }
-  }
-
   const openEdit = (p: ProductWithExt) => {
     setEditing(p)
     setForm({
@@ -432,42 +377,42 @@ export default function MerchantProducts() {
 
   const catBtn: React.CSSProperties = { padding: '4px 8px', background: 'transparent', border: '1px solid var(--border-soft)', borderRadius: 6, cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)' }
 
-  // 主图选择
+  // 主图选择（上传到 product-images 存储桶，返回真实图片 URL）
   const handleMainImgChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const base64 = await fileToBase64(file)
-    setForm(f => ({ ...f, main_image: base64 }))
+    const url = await uploadProductAsset(file)
+    setForm(f => ({ ...f, main_image: url }))
   }
 
   // 副图选择（多选）
   const handleSubImgChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
-    const bases: string[] = []
+    const urls: string[] = []
     for (let i = 0; i < files.length; i++) {
-      bases.push(await fileToBase64(files[i]))
+      urls.push(await uploadProductAsset(files[i]))
     }
-    setForm(f => ({ ...f, sub_images: [...f.sub_images, ...bases].slice(0, 9) }))
+    setForm(f => ({ ...f, sub_images: [...f.sub_images, ...urls].slice(0, 9) }))
   }
 
   // 视频选择
   const handleVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const base64 = await fileToBase64(file)
-    setForm(f => ({ ...f, video_url: base64 }))
+    const url = await uploadProductAsset(file)
+    setForm(f => ({ ...f, video_url: url }))
   }
 
   // 详情图片选择（多选）
   const handleDetailImgChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
-    const bases: string[] = []
+    const urls: string[] = []
     for (let i = 0; i < files.length; i++) {
-      bases.push(await fileToBase64(files[i]))
+      urls.push(await uploadProductAsset(files[i]))
     }
-    setForm(f => ({ ...f, detail_images: [...f.detail_images, ...bases].slice(0, 20) }))
+    setForm(f => ({ ...f, detail_images: [...f.detail_images, ...urls].slice(0, 20) }))
   }
 
   const removeDetailImg = (idx: number) => {
@@ -523,7 +468,7 @@ export default function MerchantProducts() {
     const tags = f.health_tag.length ? f.health_tag.join('、') : (f.ingredients.length ? '日常调养' : '')
     const rec = f.rec_crowds.length ? f.rec_crowds.join('、') : '注重食养的人'
     const guide = `${name}${nature ? `性${nature}` : ''}，适合${rec}，温润好入口，食疗日常小确幸。`
-    const moments = `今天被${name}暖到了。${tags ? `${tags}缓缓补回来，` : ''}把好好吃饭这件小事，过成对自己的犒赏✨`
+    const moments = `今天被${name}暖到了。${tags ? `${tags}缓缓补回来，` : ''}把好好吃饭这件小事，过成对自己的犒赏。`
     const emotion = `第一段：柴米油盐里，也有认真生活的证据。\n第二段：一碗${name}的温度，刚好接住疲惫的自己。\n第三段：好好吃饭，就是最朴素的爱自己。`
     const taboo = f.forbidden_crowds.length
       ? `${f.forbidden_crowds.join('、')}人群建议少量尝试或回避${f.forbidden_reasons ? '：' + f.forbidden_reasons : ''}`
@@ -545,26 +490,26 @@ export default function MerchantProducts() {
     return hits
   }
 
-  // —— 拖拽读取图片为 base64 ——
-  const readFilesToBase64 = async (files: FileList | File[]): Promise<string[]> => {
+  // —— 拖拽读取图片：上传到存储桶，返回真实图片 URL ——
+  const readFilesToUpload = async (files: FileList | File[]): Promise<string[]> => {
     const arr = Array.from(files)
     const out: string[] = []
-    for (const f of arr) out.push(await fileToBase64(f))
+    for (const f of arr) out.push(await uploadProductAsset(f))
     return out
   }
   const onDropSub = async (e: React.DragEvent) => {
     e.preventDefault(); setDragOverSub(false)
     const files = e.dataTransfer.files
     if (!files?.length) return
-    const bases = await readFilesToBase64(files)
-    setForm(f => ({ ...f, sub_images: [...f.sub_images, ...bases].slice(0, 9) }))
+    const urls = await readFilesToUpload(files)
+    setForm(f => ({ ...f, sub_images: [...f.sub_images, ...urls].slice(0, 9) }))
   }
   const onDropDetail = async (e: React.DragEvent) => {
     e.preventDefault(); setDragOverDetail(false)
     const files = e.dataTransfer.files
     if (!files?.length) return
-    const bases = await readFilesToBase64(files)
-    setForm(f => ({ ...f, detail_images: [...f.detail_images, ...bases].slice(0, 20) }))
+    const urls = await readFilesToUpload(files)
+    setForm(f => ({ ...f, detail_images: [...f.detail_images, ...urls].slice(0, 20) }))
   }
 
   // —— AI 一键生成食疗文案（复用已部署 food-therapy-ai · copy 模式，内置医疗宣称闸门）——
@@ -594,14 +539,14 @@ export default function MerchantProducts() {
           emotion_copy: data.detail_desc || f.emotion_copy,
           taboo_warning: data.risk_tip || f.taboo_warning,
         }))
-        setEmotionFlash(`✨ AI 已生成食疗文案（来源：${data.source === 'llm' ? '大模型润色' : '本地规则兜底'}）\n可在下方直接微调后再保存`)
+        setEmotionFlash(`已生成食疗文案（来源：${data.source === 'llm' ? '大模型润色' : '本地规则兜底'}）\n可在下方直接微调后再保存`)
       } else {
         setForm(f => ({ ...f, ...rule }))
         setEmotionFlash('⚠️ 云端润色未响应，已用本地规则生成文案，可直接微调')
       }
     } catch (e: any) {
       setForm(f => ({ ...f, ...rule }))
-      setEmotionFlash('AI 生成异常，已用本地规则兜底：' + String(e?.message || e))
+      setEmotionFlash('生成异常，已用本地规则兜底：' + String(e?.message || e))
     } finally {
       setGenerating(false)
       setTimeout(() => setEmotionFlash(null), 7000)
@@ -759,7 +704,7 @@ export default function MerchantProducts() {
         const local = localCompileEmotion({ name: p.name, description: p.description || '', selected: rec })
         setEmotionFlash(`⚠️ 云端函数未部署，已用本地规则生成：\n${local.emotion_title}\n${local.emotion_detail}`)
       } else if (data) {
-        setEmotionFlash(`✨ ${data.emotion_title || ''}\n${data.emotion_detail || ''}${data.compiled_by ? `（${data.compiled_by}）` : ''}`)
+        setEmotionFlash(`${data.emotion_title || ''}\n${data.emotion_detail || ''}${data.compiled_by ? `（${data.compiled_by}）` : ''}`)
       }
       setTimeout(() => setEmotionFlash(null), 7000)
     } catch (e: any) {
@@ -785,35 +730,16 @@ export default function MerchantProducts() {
         <button onClick={openCreate} style={{ padding: '8px 18px', background: 'var(--success-strong)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>+ 添加商品</button>
       </div>
 
-      {/* 🏷 生成条形码（独立板块）：先出码打空白标签，再去「扫码上架」建商品 */}
+      {/* 🏷 条形码制作：统一入口在独立「条形码制作」菜单页，这里只做快捷跳转，避免功能重复 */}
       <div style={{ marginTop: 16, background: 'linear-gradient(135deg,#0F172A,#1E293B)', borderRadius: 16, padding: 18, boxShadow: '0 6px 20px rgba(15,23,42,0.25)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3 style={{ color: '#fff', margin: 0, fontSize: 16, fontWeight: 700 }}>🏷 生成条形码（店内码）</h3>
-          <span style={{ color: '#10B981', fontSize: 11, fontWeight: 700, border: '1px solid #10B981', borderRadius: 6, padding: '2px 8px' }}>独立板块</span>
+          <h3 style={{ color: '#fff', margin: 0, fontSize: 16, fontWeight: 700 }}>🏷 条形码制作</h3>
+          <span style={{ color: '#10B981', fontSize: 11, fontWeight: 700, border: '1px solid #10B981', borderRadius: 6, padding: '2px 8px' }}>快捷入口</span>
         </div>
-        <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12, margin: '8px 0 0', lineHeight: 1.7 }}>为无原厂码商品生成合法 EAN-13 店内码，打印空白标签贴商品；再去「扫码上架」扫此码即可建档上架。</p>
-        <button onClick={genBarcode} disabled={genLoading} style={{ marginTop: 12, width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: genLoading ? '#374151' : 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: genLoading ? 'not-allowed' : 'pointer' }}>
-          {genLoading ? '生成中…' : '＋ 生成新店内码'}
+        <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12, margin: '8px 0 0', lineHeight: 1.7 }}>生成 EAN-13 店内码、打印空白标签、扫码上架，统一在「条形码制作」独立页面操作。</p>
+        <button onClick={() => navigate('/barcode-maker')} style={{ marginTop: 12, width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          前往条形码制作 →
         </button>
-        {genCodes.length > 0 ? (
-          <div style={{ marginTop: 12, background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12 }}>
-            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>最新店内码</span>
-            <div style={{ color: '#10B981', fontSize: 22, fontWeight: 700, letterSpacing: 2, fontFamily: 'monospace' }}>{genCodes[0].code}</div>
-            <button onClick={() => printBare(genCodes[0].code)} disabled={printingBare} style={{ marginTop: 10, width: '100%', padding: '10px', borderRadius: 10, border: 'none', background: printingBare ? '#B9814B' : '#FF8C42', color: '#fff', fontSize: 13, fontWeight: 600, cursor: printingBare ? 'not-allowed' : 'pointer' }}>
-              {printingBare ? '打印中…' : '🖨 打印空白标签'}
-            </button>
-          </div>
-        ) : null}
-        {genCodes.length > 1 ? (
-          <div style={{ marginTop: 10 }}>
-            <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11 }}>本次已生成（点击补打）</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-              {genCodes.slice(1).map((g, i) => (
-                <button key={i} onClick={() => printBare(g.code)} style={{ padding: '6px 10px', borderRadius: 8, border: 'none', background: 'rgba(255,255,255,0.12)', color: '#fff', fontSize: 12, fontFamily: 'monospace', cursor: 'pointer' }}>{g.code}</button>
-              ))}
-            </div>
-          </div>
-        ) : null}
       </div>
 
       {/* 情绪编译结果 toast */}
@@ -1245,7 +1171,7 @@ export default function MerchantProducts() {
                 <option value="">未分类</option>
                 {FOOD_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>长辈关怀 / 四季时令 / 药食同源烘焙 / 低糖轻食 / 温和养护 / 轻盈舒眠 / 温润养护，驱动首页食疗分类筛选</span>
+              <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>粉面 / 炖汤 / 热饮 / 小菜，驱动食疗导购分类筛选</span>
             </div>
 
             {/* 商品自定义分类（store_categories：本店 + 平台全局） */}
@@ -1274,17 +1200,17 @@ export default function MerchantProducts() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button type="button" onClick={autoDetectIngredients} disabled={!form.name}
                     style={{ padding: '6px 14px', background: (!form.name) ? 'var(--border-soft)' : 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 8, color: (!form.name) ? 'var(--text-dim)' : 'var(--text)', cursor: (!form.name) ? 'not-allowed' : 'pointer', fontSize: 13 }}>
-                    智能识别
+                    自动识别
                   </button>
                   <button type="button" onClick={handleAnalyzeDish} disabled={!form.name}
                     style={{ padding: '6px 14px', background: (!form.name) ? 'var(--border-soft)' : 'var(--success-strong)', border: '1px solid var(--success-strong)', borderRadius: 8, color: (!form.name) ? 'var(--text-dim)' : '#fff', cursor: (!form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
-                    ✨ 食疗分析
+                    食疗分析
                   </button>
                 </div>
               </div>
               <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>根据商品名自动识别食材，匹配食养成分（性味 / 功效 / 适合人群 / 场景）。</p>
               {form.ingredients.length === 0 ? (
-                <div style={{ color: 'var(--text-dim)', fontSize: 13, padding: '12px', background: 'var(--bg)', border: '1px dashed var(--border-soft)', borderRadius: 8 }}>尚未选择原料，可点「智能识别」或下方手动勾选。</div>
+                <div style={{ color: 'var(--text-dim)', fontSize: 13, padding: '12px', background: 'var(--bg)', border: '1px dashed var(--border-soft)', borderRadius: 8 }}>尚未选择原料，可点「自动识别」或下方手动勾选。</div>
               ) : (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
                   {form.ingredients.map((key: string) => {
@@ -1316,10 +1242,10 @@ export default function MerchantProducts() {
             {/*  商品食疗智能系统 · 完整录入（商家一次录入，前端自动匹配） */}
             <div style={{ marginTop: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}> 商品食疗智能系统（录入后前端自动匹配）</span>
+                <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}> 商品食疗系统（录入后前端自动匹配）</span>
                 <button type="button" onClick={handleAIGenerate} disabled={generating || !form.name}
                   style={{ padding: '6px 14px', background: (generating || !form.name) ? 'var(--border-soft)' : 'linear-gradient(135deg,#10B981,#059669)', border: 'none', borderRadius: 8, color: '#fff', cursor: (generating || !form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
-                  {generating ? 'AI 生成中…' : '✨ AI 一键生成食疗文案'}
+                  {generating ? '生成中…' : '一键生成食疗文案'}
                 </button>
               </div>
               <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>填全后前端自动匹配；点上方按钮可基于已填字段一键产出导购短句 / 朋友圈 / 情绪文案 / 忌口提示（云端大模型润色，未配置时本地规则兜底）。</p>
@@ -1470,7 +1396,7 @@ export default function MerchantProducts() {
               </div>
               <div style={{ marginBottom: 14 }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>朋友圈种草文案</span>
-                <textarea value={form.moments_copy} onChange={e => setForm(f => ({ ...f, moments_copy: e.target.value }))} placeholder="如：今天被这碗鸡汤暖到了，暖到心底✨" rows={2}
+                <textarea value={form.moments_copy} onChange={e => setForm(f => ({ ...f, moments_copy: e.target.value }))} placeholder="如：今天被这碗鸡汤暖到了，暖到心底" rows={2}
                   style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
               </div>
               <div style={{ marginBottom: 4 }}>

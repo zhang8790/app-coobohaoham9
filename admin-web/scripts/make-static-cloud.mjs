@@ -10,22 +10,14 @@ import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const src = join(root, 'dist')
-const out = join(root, process.env.STATIC_OUT || 'dist-cloud')
+const out = join(root, 'dist-cloud')
 
 if (!existsSync(join(src, 'index.html'))) {
   console.error('[make-static-cloud] 缺少 dist/index.html，请先执行 npm run build')
   process.exit(1)
 }
 
-// 删除旧产物；若被安全删除策略拦截(EPERM)则降级为覆盖模式
-// （cpSync / writeFileSync 均为覆盖写，不触发 unlink，可正常生成）
-if (existsSync(out)) {
-  try {
-    rmSync(out, { recursive: true, force: true })
-  } catch (e) {
-    console.warn('[make-static-cloud] 无法删除旧 dist-cloud (' + e.code + ')，改用覆盖模式')
-  }
-}
+if (existsSync(out)) rmSync(out, { recursive: true, force: true })
 cpSync(src, out, { recursive: true })
 
 const html = readFileSync(join(src, 'index.html'), 'utf8')

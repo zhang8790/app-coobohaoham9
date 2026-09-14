@@ -371,7 +371,7 @@ export default function AnalysisResult() {
       {recProducts.length > 0 && (
         <View style={cardStyle}>
           <Text style={sectionTitle}>
-            {report.safe_level_code === 'A_preferred' ? '✨ 此商品已是最优选择，看看同类好货' : '🛡️ 为你找到更安心的替代选择'}
+            {report.safe_level_code === 'A_preferred' ? '此商品已是最优选择，看看同类好货' : '🛡️ 为你找到更安心的替代选择'}
           </Text>
           {recProducts.map((p) => (
             <View key={p.id} style={recItemStyle}

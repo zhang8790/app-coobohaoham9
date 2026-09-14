@@ -397,7 +397,7 @@ export async function generateVideoSharePoster(
         // 副标题提示
         ctx.fillStyle = 'rgba(196,181,253,0.7)'
         ctx.font = '18px sans-serif'
-        ctx.fillText('点击播放，看看有什么好内容 ✨', pad, ty + 16)
+        ctx.fillText('点击播放，看看有什么好内容', pad, ty + 16)
 
         // 底部品牌
         const by = H - 44

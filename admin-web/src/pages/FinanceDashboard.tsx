@@ -239,7 +239,7 @@ export default function FinanceDashboard() {
 
       {/* 智能风控 · 异常检测引擎 */}
       {anomaly && (
-        <Section title="智能风控（异常检测）" icon="🛡️">
+        <Section title="风控（异常检测）" icon="🛡️">
           <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
             {anomaly.anomalies.length === 0 ? (
               <p style={{ color: C.green, fontSize: 13 }}>✅ 未发现异常指标</p>
@@ -296,7 +296,7 @@ export default function FinanceDashboard() {
         </div>
       </div>
 
-      {/* 收益结构 & 资产分布 环形图（智能化可视化）*/}
+      {/* 收益结构 & 资产分布 环形图（可视化）*/}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
         <div style={cardStyle}>
           <h3 style={{ color: C.text, fontSize: 14, fontWeight: 600, marginBottom: 12 }}>收益结构（累计消费额 去向）</h3>

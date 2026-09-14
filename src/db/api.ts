@@ -1851,8 +1851,8 @@ function calcWeight(totalAmount: number, b: { repurchase: number; review: number
 /** 情绪 → 确权徽章映射（前端本地，badge_code 同时写入 grants 表；字典表缺省时也能展示） */
 export const EMOTION_BADGE_MAP: Record<string, { code: string; name: string; icon: string }> = {
   '松弛': { code: 'emo_relax', name: '松弛时刻', icon: '🌿' },
-  '舒心': { code: 'emo_heal', name: '暖心微光', icon: '✨' },
-  '治愈': { code: 'emo_heal', name: '暖心微光', icon: '✨' },
+  '舒心': { code: 'emo_heal', name: '暖心微光', icon: '🌸' },
+  '治愈': { code: 'emo_heal', name: '暖心微光', icon: '🌸' },
   '平静': { code: 'emo_calm', name: '安宁片刻', icon: '🍃' },
   '勇敢': { code: 'emo_brave', name: '勇敢一刻', icon: '🔥' },
   '温暖': { code: 'emo_warm', name: '温暖相伴', icon: '☀️' },

@@ -236,7 +236,7 @@ export default function Expiry() {
                             {STAGE_LABEL[r.discount_stage] || r.discount_stage}
                           </span>
                         </td>
-                        <td style={td}>{r.decided_by === 'ai' ? '智能' : r.decided_by === 'merchant_manual' ? '手动' : '规则'}</td>
+                        <td style={td}>{r.decided_by === 'ai' ? '系统' : r.decided_by === 'merchant_manual' ? '手动' : '规则'}</td>
                         <td style={{ ...td, color: 'var(--text-dim)', maxWidth: 220 }}>{r.ai_reason || '-'}</td>
                         <td style={td}>
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -295,7 +295,7 @@ export default function Expiry() {
                             {STAGE_LABEL[a.stage || 'normal'] || a.stage}
                           </span>
                         </td>
-                        <td style={td}>{a.decided_by === 'ai' ? '智能' : a.decided_by === 'merchant_manual' ? '手动' : '规则'}</td>
+                        <td style={td}>{a.decided_by === 'ai' ? '系统' : a.decided_by === 'merchant_manual' ? '手动' : '规则'}</td>
                         <td style={{ ...td, color: 'var(--text-dim)', maxWidth: 280 }}>{a.reason || '-'}</td>
                       </tr>
                     ))

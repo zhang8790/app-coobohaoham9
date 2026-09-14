@@ -144,7 +144,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDisplay> = {
   emo_heal: {
     code: 'emo_heal',
     name: '暖心微光',
-    icon: '✨',
+    icon: '🌸',
     rarity: 'rare',
     rarityLabel: '稀有',
     rarityColor: '#EC4899',

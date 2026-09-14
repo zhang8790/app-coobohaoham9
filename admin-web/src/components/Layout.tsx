@@ -12,10 +12,8 @@ const NAV_SECTIONS: NavSection[] = [
       items: [
         { to: '/dashboard', icon: 'grid', label: '仪表盘' },
         { to: '/home-branding', icon: 'image', label: '首页品牌' },
-        { to: '/home-ads', icon: 'image', label: '首页广告' },
         { to: '/merchants', icon: 'store', label: '自营门店申请' },
         { to: '/products', icon: 'box', label: '商品审阅' },
-        { to: '/barcode-maker', icon: 'tag', label: '条形码制作' },
         { to: '/users', icon: 'user', label: '用户管理' },
         { to: '/refunds', icon: 'refund', label: '退款管理' },
         { to: '/announcements', icon: 'megaphone', label: '公告管理' },
@@ -132,8 +130,8 @@ export default function Layout() {
         <div style={{ padding: '8px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
           <NavLink
             to="/settings"
-            aria-label="智能模型配置"
-            title={collapsed ? '智能模型配置' : undefined}
+            aria-label="模型配置"
+            title={collapsed ? '模型配置' : undefined}
             style={({ isActive }) => ({
               display: 'flex', alignItems: 'center', gap: 10,
               padding: collapsed ? '10px 14px' : '10px 12px',
@@ -146,7 +144,7 @@ export default function Layout() {
             })}
           >
             <NavIcon name="calculator" />
-            {!collapsed && <span>智能模型配置</span>}
+            {!collapsed && <span>模型配置</span>}
           </NavLink>
         </div>
 

@@ -46,7 +46,7 @@ export const EMOTION_DIMENSION_TAGS: Record<string, DimensionTag[]> = {
     { zh: '放空', icon: '🌌', color: '#6D28D9' },
     { zh: '回血', icon: '⚡', color: '#CA8A04' },
     { zh: '治愈', icon: '🩹', color: '#0D9488' },
-    { zh: '小确幸', icon: '✨', color: '#DB2777' },
+    { zh: '小确幸', icon: '🌸', color: '#DB2777' },
     { zh: '仪式感', icon: '🕯️', color: '#9333EA' },
   ],
   identity: [
@@ -55,7 +55,7 @@ export const EMOTION_DIMENSION_TAGS: Record<string, DimensionTag[]> = {
     { zh: '爱自己', icon: '💗', color: '#DB2777' },
     { zh: '有品味', icon: '🎩', color: '#7C3AED' },
     { zh: '不将就', icon: '💎', color: '#B91C1C' },
-    { zh: '精致', icon: '✨', color: '#A855F7' },
+    { zh: '精致', icon: '🌸', color: '#A855F7' },
     { zh: '慢生活', icon: '🐌', color: '#65A30D' },
     { zh: '独立', icon: '🕊️', color: '#0EA5E9' },
     { zh: '温柔', icon: '🌸', color: '#EC4899' },

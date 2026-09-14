@@ -900,7 +900,7 @@ const [adding, setAdding] = useState(false)
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             <View style={{ background: 'rgba(34,197,94,0.08)', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10 }}>
-              <Text style={{ fontSize: 13, color: '#16a34a' }}>✓ 智能配料分析</Text>
+              <Text style={{ fontSize: 13, color: '#16a34a' }}>✓ 配料分析</Text>
             </View>
             <View style={{ background: 'rgba(34,197,94,0.08)', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10 }}>
               <Text style={{ fontSize: 13, color: '#16a34a' }}>✓ 无添加认证</Text>

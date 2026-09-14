@@ -69,7 +69,7 @@ function FragmentCard({ fragment, onClick }: { fragment: KnowledgeFragment; onCl
           <Text className="text-xs text-[#6B7280] mt-1 leading-relaxed">{fragment.title}</Text>
         </View>
         <View className="ml-3 w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: cfg.bg }}>
-          <Text className="text-xl">{fragment.viewed ? '📖' : '✨'}</Text>
+          <Text className="text-xl">{fragment.viewed ? '📖' : '🌱'}</Text>
         </View>
       </View>
       {fragment.discoveredAt && (
@@ -132,7 +132,7 @@ function FragmentDetail({ fragment, onClose }: { fragment: KnowledgeFragment; on
 
         {/* 冷知识 */}
         <View className="mb-4">
-          <Text className="text-sm font-bold text-[#1A1A1A] mb-2">🧠 有趣冷知识</Text>
+          <Text className="text-sm font-bold text-[#1A1A1A] mb-2">📚 有趣冷知识</Text>
           <View
             className="rounded-xl p-4"
             style={{ background: 'linear-gradient(135deg, #FEF9EF 0%, #FEF3E2 100%)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
@@ -207,7 +207,7 @@ function DiscoveryModal({ fragment, onClose }: { fragment: KnowledgeFragment; on
       >
         {/* 爆炸星星效果 */}
         <View className="absolute -top-6 left-1/2 -translate-x-1/2">
-          <Text className="text-5xl">✨</Text>
+          <Text className="text-5xl">🌿</Text>
         </View>
 
         <Text className="text-xs text-[#9A8070] mt-2 mb-1">发现新知识碎片</Text>

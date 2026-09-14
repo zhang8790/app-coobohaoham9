@@ -343,10 +343,15 @@ function UserPage() {
       {/* 我的食养画像（消费偏好雷达图） */}
       {user && profile && (
         <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
-          <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <View
+            className="flex items-center gap-2 px-4 py-3 border-b border-border active:opacity-70 transition-opacity"
+            hoverClass="none"
+            onClick={() => Taro.navigateTo({ url: '/pages/food/index' })}
+          >
             <Icon name="chart" size={24} className="text-primary" />
             <Text className="text-xl font-bold text-foreground">我的食养画像</Text>
             <Text className="text-base text-muted-foreground ml-auto">六维消费偏好</Text>
+            <Text className="text-muted-foreground text-lg ml-1">›</Text>
           </View>
 
           {radarLoading ? (
@@ -360,7 +365,7 @@ function UserPage() {
                 多买几单，你的食养画像就越圆满
               </Text>
               <View className="px-4 py-2 rounded-full bg-primary"
-                onClick={() => Taro.navigateTo({ url: '/pages/index/index' })}>
+                onClick={() => Taro.switchTab({ url: '/pages/index/index' })}>
                 <Text className="text-white text-base">去逛逛</Text>
               </View>
             </View>

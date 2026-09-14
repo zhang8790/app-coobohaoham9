@@ -677,7 +677,7 @@ export function generateEmotionDescriptions(
 //   - 确定性：相同输入 + variant → 同一标题。
 
 const MOOD_HEADLINE_EMOJI: Record<string, string> = {
-  快乐: '😊', 兴奋: '🎉', 满足: '🍽️', 惊喜: '✨', 幸福: '💛', 温馨: '🏠',
+  快乐: '😊', 兴奋: '🎉', 满足: '🍽️', 惊喜: '🌟', 幸福: '💛', 温馨: '🏠',
   浪漫: '🌹', 甜蜜: '🍯', 感动: '🥹', 舒心: '🩹', 清爽: '🍃', 清新: '🌿',
   自然: '🌾', 纯净: '❄️', 解暑: '🧊', 奢华: '👑', 高端: '🏛️', 精致: '💎',
   典雅: '🏺', 尊贵: '💠', 有趣: '🎈', 可爱: '🐾', 活力: '⚡', 潮流: '🔥',
@@ -691,7 +691,7 @@ const MOOD_HEADLINE_EMOJI: Record<string, string> = {
   零负担: '🍃', 烟火: '🔥', 酣畅: '🍻', 热络: '🤝', 释放: '🎈', 沸腾: '♨️',
   热闹: '🎉', 围聚: '🍲', 微醺: '🍷', 畅快: '🥂', 优雅: '🍷', 酥香: '🥜',
   轻盈: '🥗', 自律: '💪', 熨帖: '🍜', 甜慰: '🍮', 甜宠: '🧁', 麦香: '🥐',
-  酥软: '🥐', 晨光: '🌅', 小确幸: '✨',
+  酥软: '🥐', 晨光: '🌅', 小确幸: '🌸',
 }
 
 // 高频情绪：语义定制短标题池（2-3 条，确定性轮换）
@@ -745,7 +745,7 @@ export function generateEmotionHeadline(
     if (filtered.length) eff = filtered
   }
   const tag = eff.length ? eff[variant % eff.length] : undefined
-  const emoji = (tag && MOOD_HEADLINE_EMOJI[tag]) || '✨'
+  const emoji = (tag && MOOD_HEADLINE_EMOJI[tag]) || '🌸'
 
   // 高频情绪走定制池（最自然、最贴合语境）
   if (tag && HEADLINE_CUSTOM[tag]) {

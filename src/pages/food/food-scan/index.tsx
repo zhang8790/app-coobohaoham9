@@ -239,7 +239,7 @@ export default function FoodScanPage() {
     <View className="min-h-screen bg-[#FFFBF7] px-4 pt-4 pb-12">
       <Text className="text-xl font-bold text-foreground">🍱 食品配料安全</Text>
       <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 4, lineHeight: 1.6 }}>
-        粘贴配料表文字或输入商品名即可在本地即时分析（无需拍照、不依赖云端）。拍照可提交服务端智能识图（需联网，识别失败时用上方文本同样可用）。
+        粘贴配料表文字或输入商品名即可在本地即时分析（无需拍照、不依赖云端）。拍照可提交服务端识图（需联网，识别失败时用上方文本同样可用）。
       </Text>
 
       {/* 文本输入解析（主控，即时可用） */}

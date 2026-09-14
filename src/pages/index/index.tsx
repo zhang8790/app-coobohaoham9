@@ -2,10 +2,10 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
 import { Image, Input, View, Text, ScrollView, Button, Video } from '@tarojs/components'
-import { getProducts, getAnnouncements, getOrders, getProductsByIds, getMyFootprints, getUserFoodTherapyWeights, addToCart, getSiteConfig } from '@/db/api'
+import { getProducts, getRankedFeed, getAnnouncements, getOrderFeed, getOrders, getProductsByIds, getMyFootprints, getUserFoodTherapyWeights, addToCart, getSiteConfig } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
 import { getUserHealthProfile, getLatestConstitutionResult, getScanHistory } from '@/db/food-api'
-import type { Product, Announcement, Order, UserHealthProfile, UserScanHistory } from '@/db/types'
+import type { Product, Announcement, OrderFeedItem, Order, UserHealthProfile, UserScanHistory } from '@/db/types'
 import StoreStrip from '@/components/StoreStrip'
 import { type ScoredProduct } from '@/utils/emotionEngine'
 import { scanAndRoute } from '@/utils/scan'
@@ -20,7 +20,6 @@ import { analyzeConsumption, recommendByConsumption, type ConsumptionProfile } f
 import CustomTabBar from '@/components/custom-tabbar'
 import FloatingActionBar from '@/components/FloatingActionBar'
 import Icon from '@/components/Icon'
-import IconZone from '@/components/home/IconZone'
 import ProductGridCard from '@/components/ProductGridCard'
 import AddToCartButton from '@/components/AddToCartButton'
 import { getProductCareInfo } from '@/utils/product-care'
@@ -41,71 +40,15 @@ function classifyProductList(products: Product[], crowds: Crowd[]) {
 
 // 画像人群 → 首页动态场景胶囊映射（千人千面核心入口：按画像自动浮现高相关食养场景）
 const SCENE_BY_CROWD: Array<{ kw: string[]; scene: string; label: string; emoji: string }> = [
-  { kw: ['儿童', '成长', '宝'], scene: 'children', label: '成长轻养', emoji: '👶' },
-  { kw: ['糖', '血糖'], scene: 'sugar', label: '低糖轻食', emoji: '🍬' },
-  { kw: ['眠', '安神', '失眠'], scene: 'sleep', label: '轻盈舒眠', emoji: '😴' },
-  { kw: ['老年', '三高', '血压'], scene: 'elderly', label: '长辈关怀', emoji: '🧓' },
-  { kw: ['免疫', '体虚'], scene: 'immunity', label: '日常养护', emoji: '💪' },
+  { kw: ['儿童', '成长', '宝'], scene: 'children', label: '宝宝零食', emoji: '👶' },
+  { kw: ['糖', '血糖'], scene: 'sugar', label: '控糖专场', emoji: '🍬' },
+  { kw: ['眠', '安神', '失眠'], scene: 'sleep', label: '晚安助眠', emoji: '😴' },
+  { kw: ['老年', '三高', '血压'], scene: 'elderly', label: '老年养生', emoji: '🧓' },
+  { kw: ['免疫', '体虚'], scene: 'immunity', label: '增强免疫', emoji: '💪' },
   { kw: ['过敏'], scene: 'allergy', label: '敏感防护', emoji: '🛡️' },
-  { kw: ['消化', '脾胃', '胃'], scene: 'digestion', label: '温和养护', emoji: '🫗' },
-  { kw: ['孕', '产'], scene: 'pregnant', label: '温润养护', emoji: '🤰' },
+  { kw: ['消化', '脾胃', '胃'], scene: 'digestion', label: '消化调理', emoji: '🫗' },
+  { kw: ['孕', '产'], scene: 'pregnant', label: '孕产营养', emoji: '🤰' },
 ]
-
-// 首页「按功能挑 · 8 大食养场景」功能筛选网格（战略改版 2026-08-06）：
-// 用功能/人群精准获客，不靠低价；每个场景直达 need-find 真筛 SKU（闭环到食养方案）。
-// 合规化改版 2026-08-06：全部标签避开违禁词（养胃/健脾/祛湿/安神/慢病/调理/滋补/增强免疫 等）。
-const HOME_SCENES: Array<{ scene: string; label: string; icon: string; desc: string }> = [
-  { scene: 'children', label: '成长轻养', icon: '👶', desc: '成长发育' },
-  { scene: 'sugar', label: '低糖轻食', icon: '🍬', desc: '轻负担' },
-  { scene: 'sleep', label: '轻盈舒眠', icon: '😴', desc: '舒心' },
-  { scene: 'elderly', label: '长辈关怀', icon: '🧓', desc: '舒养' },
-  { scene: 'immunity', label: '日常养护', icon: '💪', desc: '温润' },
-  { scene: 'allergy', label: '敏感防护', icon: '🛡️', desc: '过敏原红线' },
-  { scene: 'digestion', label: '温和养护', icon: '🫗', desc: '温和' },
-  { scene: 'pregnant', label: '温润养护', icon: '🤰', desc: '温润' },
-]
-
-// 首页「严选食疗零食」分类筛选条（合规化改版 2026-08-06）：
-// 原 粉面/炖汤/热饮/小菜/儿童/控糖/孕妈 按做法或敏感人群划分，改为按「人群 · 品类」的中性食养分类，
-// 全部避开违禁词（养胃/健脾/祛湿/安神/慢病/三高/调理/滋补 等）。筛选取后台「商品分类」(food_category) 精确匹配；未打标签的商品走关键词 + 食养字段兜底。
-const CATEGORY_TABS = [
-  { key: 'all', label: '全部商品' },
-  { key: '长辈关怀零食', label: '长辈关怀零食' },
-  { key: '四季时令零食', label: '四季时令零食' },
-  { key: '药食同源烘焙', label: '药食同源烘焙' },
-  { key: '低糖轻食零食', label: '低糖轻食零食' },
-  { key: '温和养护零食', label: '温和养护零食' },
-  { key: '轻盈舒眠零食', label: '轻盈舒眠零食' },
-  { key: '温润养护零食', label: '温润养护零食' },
-] as const
-
-// 每个分类的预估命中规则（名称关键词 ∪ 食养字段），在后台未打「商品分类」标签时给出兜底结果。
-// 注：正则里的「养胃/健脾/安神/祛湿」等用于匹配商品已有字段值，非面向用户的文案，不触合规护栏。
-const CATEGORY_PREDICATES: Record<string, (p: any) => boolean> = {
-  '长辈关怀零食': (p) =>
-    /长辈|中老年|银发|老年|三高|高血压/.test(p.name || '') ||
-    (p.rec_crowds ?? []).some((c: string) => ['高血压', '高血糖', '高血脂'].includes(c)) ||
-    ['平性', '微温', '温热'].includes(p.overall_nature || ''),
-  '四季时令零食': (p) =>
-    (p.scenes?.length ?? 0) > 0 ||
-    (p.overall_nature || '') !== '' ||
-    /春|夏|秋|冬|时令|节气/.test(p.name || ''),
-  '药食同源烘焙': (p) => /蛋糕|饼干|烘焙|糕点|面包|麻薯|司康|桃酥|曲奇/.test(p.name || ''),
-  '低糖轻食零食': (p) =>
-    (p.health_tag ?? []).some((t: string) => /低糖|控糖|无糖|轻食/.test(t)) ||
-    /无糖|低糖|控糖|0糖|代糖|轻食/.test(p.name || ''),
-  '温和养护零食': (p) =>
-    (p.health_tag ?? []).some((t: string) => /健脾|养胃|温和|养护|温中|脾胃/.test(t)) ||
-    ['平性', '微温'].includes(p.overall_nature || '') ||
-    /养胃|脾胃|温和/.test(p.name || ''),
-  '轻盈舒眠零食': (p) =>
-    (p.health_tag ?? []).some((t: string) => /安神|舒缓|利湿|轻盈|宁神|安适/.test(t)) ||
-    /晚安|安神|舒眠|祛湿|睡眠|安睡/.test(p.name || ''),
-  '温润养护零食': (p) =>
-    (p.health_tag ?? []).some((t: string) => /温润|养护|滋阴|润燥/.test(t)) ||
-    /孕期|产后|温润|孕/.test(p.name || '') ||
-    ['微温', '温热'].includes(p.overall_nature || ''),
-}
 
 // 行为标签复利：把用户显式反馈权重（点赞+1 / 点踩-1 / 加购+1 / 购买+1，view 记 0）叠加进消费画像的标签权重，
 // 让「浏览 / 购买 / 互动」共同沉淀为食养偏好，反哺首页推荐与今日食养。
@@ -218,8 +161,7 @@ export default function IndexPage() {
   }, [addingId])
 
   const [mood, setMood] = useState('')
-  // 首页分类金刚区：本地筛选主商品流（不影响画像/即时匹配区块）
-  const [catFilter, setCatFilter] = useState<string | null>(null)
+  const [feedSort, setFeedSort] = useState<'latest' | 'hot'>('latest')
   // 「适合我」个性化筛选：仅看适合我的好物
   const [fitOnly, setFitOnly] = useState(false)
   // 状态卡「你关注的食养偏好」默认折叠，降低首屏高度
@@ -253,6 +195,8 @@ export default function IndexPage() {
       setSelectedStoreId(s.id)
     }).catch(() => {})
   }
+  const [orderFeed, setOrderFeed] = useState<OrderFeedItem[]>([])
+  const [annIdx, setAnnIdx] = useState(0)
   const [loading, setLoading] = useState(false)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -277,8 +221,13 @@ export default function IndexPage() {
   // V1 体质档案：登录后读取，驱动首页个性化（呈现"你关注的食养偏好"，非"今日"）
   const [userProfile, setUserProfile] = useState<UserHealthProfile | null>(null)
 
+  // 首页「限时福利」弹窗状态（仅在有可领取活动、且用户主动点击入口卡片时才展开）
+  const [showCampaignPopup, setShowCampaignPopup] = useState(false)
   // 首页扫码配料识别 · 技术壁垒弹窗（突出自研数据库区别于通用 AI）
   const [showScanMoat, setShowScanMoat] = useState(false)
+  const [campaignList, setCampaignList] = useState<any[]>([])
+  // 门店红包对应的门店名（用于在首页弹窗标注「XX店专享」）
+  const [storeNameMap, setStoreNameMap] = useState<Record<string, string>>({})
   const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
   // P2 复测提醒：最近一次体质测试距今天数（null = 游客态/无记录，不提示）
   const [retestDays, setRetestDays] = useState<number | null>(null)
@@ -379,6 +328,12 @@ export default function IndexPage() {
   })
   useShareTimeline(() => ({ title: '来电有喜，有喜相逢' }))
 
+  // 加载首页「好物动态」：全站实时下单脱敏聚合
+  const loadOrderFeed = useCallback(async () => {
+    const data = await getOrderFeed(20)
+    setOrderFeed(data)
+  }, [])
+
   // 加载公告
   const loadAnnouncements = useCallback(async () => {
     const data = await getAnnouncements()
@@ -415,10 +370,14 @@ export default function IndexPage() {
         let raw: Product[] = []
         if (storeId) {
           // 已显式选定门店：只拉该店商品（下钻），别的店不混进
-          raw = await getProducts({ storeId, limit: 40 })
+          raw = feedSort === 'hot'
+            ? await getRankedFeed({ storeId, limit: 40 })
+            : await getProducts({ storeId, limit: 40 })
         } else {
-          // 默认全城聚合流：全城食疗零食
-          raw = await getProducts({ limit: 30, platformFilter: 'only' })
+          // 默认全城聚合流：推荐=热度榜（storeId 不传=全城）；最新=全城好物
+          raw = feedSort === 'hot'
+            ? await getRankedFeed({ storeId: undefined, limit: 40 })
+            : await getProducts({ limit: 30, platformFilter: 'only' })
         }
         const next = raw.map(p => ({ product: p, matchScore: 1, matchLabel: null }))
         setFeedItems(next)
@@ -429,26 +388,29 @@ export default function IndexPage() {
       }
     })()
     return feedInflightRef.current
-  }, [currentLocation, nearbyStores, selectedStoreId, currentStore])
+  }, [currentLocation, nearbyStores, selectedStoreId, currentStore, feedSort])
 
   // 注意：不再自动把首页 feed 锁到最近门店——默认全城聚合流，用户手动点门店切换器才下钻。
   // （旧逻辑会在定位完成后自动 setSelectedStoreId(currentStore.id)，强制单店、小店首页空白，
   // 违背「先逛全城」的人类习惯，已撤销。）
 
-  // 下拉刷新（注：loadAnnouncements/loadFeed 已在上文声明，避免依赖数组 TDZ）
+  // 下拉刷新（注：loadOrderFeed/loadAnnouncements/loadFeed 已在上文声明，避免依赖数组 TDZ）
   useEffect(() => {
     const handler = () => {
       loadFeed()
       loadAnnouncements()
+      loadOrderFeed()
       Taro.stopPullDownRefresh()
     }
     // Taro 小程序下拉刷新回调
     ;(Taro as any).onPullDownRefresh = handler
     return () => { ;(Taro as any).onPullDownRefresh = null }
-  }, [loadAnnouncements])
+  }, [loadOrderFeed, loadAnnouncements])
 
-  useEffect(() => { loadAnnouncements(); loadFeed(); loadMyOrders() }, [loadAnnouncements, loadFeed, loadMyOrders])
+  useEffect(() => { loadAnnouncements(); loadOrderFeed(); loadFeed(); loadMyOrders() }, [loadAnnouncements, loadOrderFeed, loadFeed, loadMyOrders])
   useDidShow(() => { loadFeed() })
+  // 推荐/最新切换时重拉 feed
+  useEffect(() => { loadFeed() }, [feedSort])
 
   // 消费偏好画像：登录后回溯历史订单 + 浏览足迹 → 聚合食养偏好（health_tag 频次 / nature 众数）
   // 行为标签复利：购买(强信号×3) + 浏览(弱信号×1) 共同沉淀；并叠加显式反馈权重(点赞/点踩/加购/购买)。
@@ -536,23 +498,17 @@ export default function IndexPage() {
     return bits.length ? `为你 · ${bits.join(' · ')}` : ''
   })()
 
-  // 动态场景胶囊：画像人群 → 高相关食养场景（千人千面入口，2-4 个）
-  const sceneCaps = useMemo(() => {
-    const out: Array<{ scene: string; label: string; emoji: string }> = []
-    for (const rule of SCENE_BY_CROWD) {
-      if (profileCrowds.some((c) => rule.kw.some((k) => c.includes(k)))) {
-        out.push({ scene: rule.scene, label: rule.label, emoji: rule.emoji })
-      }
-    }
-    return out.slice(0, 4)
-  }, [profileCrowds])
-
   // 体质档案个性化推荐：无手动查询时，按画像从 Feed 池挑适配好物（推荐+谨慎）
   const profileItems = useMemo(() => {
     if (!profileCrowds.length || hasQuery) return []
     const tr = classifyProductList(feedItems.map((f) => f.product), profileCrowds)
     return [...tr.recommend, ...tr.caution].slice(0, 12)
   }, [profileCrowds, feedItems, hasQuery])
+
+  // 新增：首页加载时检查是否有可领取的红包/实物活动
+  useEffect(() => {
+    checkCampaign()
+  }, [currentCity])
 
   // 商品「关怀层」信息：复用既有食养引擎，依用户体质/人群个性化适配分档 + 关怀度
   // （displayFeed 已移至 consumptionItems 之后定义，以复用 personalizedItems 做去重）
@@ -589,33 +545,21 @@ export default function IndexPage() {
     const hideIds = new Set(personalizedItems.map((p) => p.id))
     return feedItems.filter((f) => {
       if (hideIds.has(f.product.id)) return false
-      if (catFilter && catFilter !== 'all') {
-        const fc = f.product.food_category
-        if (fc) {
-          // 后台已打「商品分类」标签：精确匹配（数据驱动，商家可控）
-          if (fc !== catFilter) return false
-        } else {
-          // 未打标签：关键词 + 食养字段兜底，保证分类流不空
-          const pred = CATEGORY_PREDICATES[catFilter]
-          if (pred && !pred(f.product)) return false
-        }
-      }
       if (fitOnly && getSuitability(f.product) !== 'recommend') return false
       return true
     })
-  }, [hasQuery, matchItems, feedItems, personalizedItems, catFilter, fitOnly, getSuitability])
+  }, [hasQuery, matchItems, feedItems, personalizedItems, fitOnly, getSuitability])
 
   // 千人千面排序：有画像且无查询、非热度模式时，把商品流按食养适配度(recommend→caution→avoid)前置
   const sortedFeed = useMemo<ScoredProduct<Product>[]>(() => {
-    // 无查询且用户已选人群时，按食养适配度(recommend→caution→avoid)前置；始终不拼人气
-    if (hasQuery || selectedCrowds.length === 0) return displayFeed
+    if (hasQuery || feedSort === 'hot' || selectedCrowds.length === 0) return displayFeed
     const rank: Record<string, number> = { recommend: 0, caution: 1, avoid: 2 }
     return [...displayFeed].sort((a, b) => {
       const ra = rank[getSuitability(a.product)] ?? 3
       const rb = rank[getSuitability(b.product)] ?? 3
       return ra - rb
     })
-  }, [displayFeed, hasQuery, selectedCrowds, getSuitability])
+  }, [displayFeed, hasQuery, feedSort, selectedCrowds, getSuitability])
 
   // 食疗引擎报告映射（与详情页/门店卡同源）：首页商品池一次性算好，卡片直接取用
   const therapyMap = useMemo<Record<string, ProductTherapyReport | null>>(() => {
@@ -649,6 +593,78 @@ export default function IndexPage() {
   const careOf = (p: Product) => {
     try { return getProductCareInfo(p) } catch { return null }
   }
+
+  const checkCampaign = useCallback(async () => {
+    if (!currentCity?.id) return
+
+    try {
+      const { supabase } = await import('@/client/supabase')
+      const now = new Date().toISOString().split('T')[0]  // YYYY-MM-DD
+
+      const { data, error } = await supabase
+        .from('marketing_campaigns')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (error) {
+        console.error('[Index] 查询活动失败', error)
+        return
+      }
+
+      // 前端过滤：开始日期 / 结束日期 / 领取上限（仅保留「仍有可发放库存」的活动）
+      const today = new Date()
+      const activeList = (data || []).filter((c: any) => {
+        if (c.start_date && new Date(c.start_date) > today) return false
+        if (c.end_date && new Date(c.end_date) < today) return false
+        // total_limit 缺失视为不限量；claimed_count 缺失按 0 计。仅当剩余库存 > 0 才展示
+        const remaining = (c.total_limit ?? Infinity) - (c.claimed_count ?? 0)
+        if (remaining <= 0) return false
+        return true
+      })
+
+      if (activeList.length > 0) {
+        setCampaignList(activeList)
+        // 解析门店专享红包的门店名
+        const storeIds = activeList.map((c: any) => c.store_id).filter(Boolean)
+        if (storeIds.length > 0) {
+          const { data: stores } = await supabase
+            .from('stores')
+            .select('id, name')
+            .in('id', storeIds)
+          const map: Record<string, string> = {}
+          ;(stores || []).forEach((s: any) => { map[s.id] = s.name })
+          setStoreNameMap(map)
+        }
+        // 红包不再进首页自动强弹：改为内容流常驻入口卡片，用户主动点击才展开
+      }
+    } catch (err) {
+      console.error('[Index] 检查活动失败', err)
+    }
+  }, [currentCity])
+
+  // 首页「限时福利」入口（统一收口至 L2 金刚区）：有活动弹出领取，无活动轻提示
+  const openCampaign = useCallback(() => {
+    if (campaignList.length > 0) setShowCampaignPopup(true)
+    else Taro.showToast({ title: '暂无进行中的活动', icon: 'none' })
+  }, [campaignList])
+
+  // 首页「好物动态」：仅全站实时下单脱敏聚合（社会证明）。
+  // 注：官方公告在右上角铃铛（消息中心）聚合展示，此处仅保留「好物动态」社会证明，不再重复展示公告。
+  const homeFeed = useMemo<Array<{ type: 'order'; text: string }>>(() => {
+    return orderFeed.map((o) => ({
+      type: 'order' as const,
+      text: `${o.masked_name} 在 ${o.store_name || '本品牌门店'} 下单 ¥${o.amount} 的 ${o.product_name}`,
+    }))
+  }, [orderFeed])
+
+  // 公告/动态轮播
+  useEffect(() => {
+    if (homeFeed.length <= 1) return
+    const t = setInterval(() => setAnnIdx(i => (i + 1) % homeFeed.length), 3000)
+    return () => clearInterval(t)
+  }, [homeFeed.length])
 
   // ===================== 首页通知：右上角铃铛（公告/订单分层，红点提醒） =====================
   // 进行中订单状态（排除已取消/已完成）
@@ -769,9 +785,35 @@ export default function IndexPage() {
     loadFeed()
   }
 
-  // 日常饮食偏好：已从 IconZone 摘出，作为首页独立「今天想吃点什么」功能偏好区块（食养精准匹配入口）
-  const dailyPrefBlock = (
-    <View>
+  // 统一需求入口：合并「今天想吃 / 日常饮食偏好」(内联配对) 与「动态场景胶囊」(→need-find)。
+  // 单一选择器 + 双路径，解决原首页三扇门（偏好选择器 / 八大场景 / 动态胶囊）重复、产出不统一的问题。
+  const demandEntrance = (
+    <View className="mx-4 mt-4 rounded-2xl bg-card border border-border p-4">
+      <View className="flex items-center gap-1.5 mb-3">
+        <View className="section-accent" />
+        <Text className="text-base font-bold text-foreground">想吃点什么 / 有什么顾虑？</Text>
+        <Text className="text-[10px] text-muted-foreground">选一个，立刻配好物</Text>
+      </View>
+
+      {/* 场景组：替代原 L4 动态场景胶囊，直达对应食养频道（始终可见，入口更方便） */}
+      <Text className="text-sm text-muted-foreground mb-2 block">按场景</Text>
+      <View style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {SCENE_BY_CROWD.map((s) => (
+          <View
+            key={s.scene}
+            className="rounded-full px-3 py-2 bg-card border border-border flex items-center gap-1.5 active:scale-95 transition-transform"
+            hoverClass="none"
+            onClick={() => Taro.navigateTo({ url: `/pages/food/need-find/index?scene=${s.scene}` })}
+          >
+            <Text style={{ fontSize: 15 }}>{s.emoji}</Text>
+            <Text className="text-sm font-semibold text-foreground">{s.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* 体质 / 人群组：保留原 dailyPrefBlock 内联配对逻辑 */}
+      <View className="mt-4 pt-4" style={{ borderTop: '1px dashed hsl(var(--border))' }}>
+        <View>
       {!inputExpanded ? (
         <View className="flex items-center justify-between" hoverClass="none" onClick={() => setInputExpanded(true)}>
           <Text className="text-base font-bold text-foreground">日常饮食偏好</Text>
@@ -855,6 +897,18 @@ export default function IndexPage() {
           <Text className="text-xs text-muted-foreground mt-3">{FOOD_THERAPY_DISCLAIMER}</Text>
         </View>
       )}
+      </View>
+
+      {/* 单路径：进食养中心看全部（原「首页挑好物」与内联「展开›」重复，已移除） */}
+      <View
+        className="w-full text-center py-3 rounded-2xl font-semibold text-sm active:scale-[0.98] transition-transform mt-4"
+        style={{ background: 'rgba(127,166,151,0.14)', color: '#4f6b5e' }}
+        hoverClass="none"
+        onClick={() => Taro.navigateTo({ url: '/pages/food/index' })}
+      >
+        🗂 进食养中心看全部
+      </View>
+    </View>
     </View>
   )
 
@@ -886,14 +940,14 @@ export default function IndexPage() {
         <View className="pg-hero-seal" style={{ zIndex: 1 }} />
         <View className="pg-hero-glow" style={{ zIndex: 1 }} />
 
-        {/* 品牌标题行：药食同源食疗零食定位（最顶部） */}
+        {/* 品牌标题行：来电有喜 · 药食同源食疗零食（最顶部，5秒懂你定位） */}
         <View className="flex items-center gap-2.5 relative" style={{ zIndex: 1 }}>
           <View className="pg-hero-badge">
             <Text className="text-xl">🍃</Text>
           </View>
-          <View className="flex-1 min-w-0">
-            <Text className="text-xl font-extrabold text-foreground leading-tight block">来电有喜 · 药食同源食疗零食</Text>
-            <Text className="text-[11px] text-muted-foreground mt-0.5 block">自研十万级零食配料数据库 · 全家吃得明白</Text>
+          <View className="flex flex-col">
+            <Text className="text-[11px] font-bold tracking-wide" style={{ color: '#7FA697' }}>药食同源 · 食疗零食</Text>
+            <Text className="text-xl font-extrabold text-foreground leading-tight">来电有喜，懂身体的好物</Text>
           </View>
         </View>
 
@@ -940,69 +994,29 @@ export default function IndexPage() {
 
       </View>
 
-      {/* 扫码配料识别 CTA：项目最强壁垒，首页首屏强曝光（区别于通用 AI） */}
+      {/* 扫码配料识别 CTA：项目最强壁垒，首页首屏强曝光（雾绿主行动色，呼应食养） */}
       <View
-        className="mx-4 mt-3 rounded-2xl p-3.5 flex items-center gap-3 active:scale-[0.99] transition-transform"
-        style={{ background: 'hsl(var(--primary))' }}
+        className="mx-4 mt-4 rounded-2xl p-3.5 flex items-center gap-3 active:scale-[0.99] transition-transform"
+        style={{ background: '#7FA697' }}
         hoverClass="none"
         onClick={() => setShowScanMoat(true)}
       >
-        <View className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>📷</View>
+        <View className="relative w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: 'rgba(255,255,255,0.18)' }}>
+          📷
+          <View className="absolute -inset-1 rounded-xl border-2 border-white/60 animate-pulse" />
+        </View>
         <View className="flex-1 min-w-0">
           <Text className="text-white text-sm font-bold block">扫码解析配料｜添加剂风险评级｜体质适配度检测</Text>
-          <Text className="text-white/80 text-[11px] block mt-0.5">区别于通用 AI · 自研十万级零食配料数据库</Text>
+          <Text className="text-white/85 text-[11px] block mt-0.5">自研十万级零食配料数据库 · 适配度一目了然</Text>
         </View>
         <Text className="text-white text-xs font-bold flex-shrink-0">去识别 ›</Text>
       </View>
-
-      {/* ===================== L2 药食同源食养方案库（核心盈利差异化模块 · 闭环②） ===================== */}
-      <View
-        className="mx-4 mt-3 rounded-2xl p-4 active:scale-[0.99] transition-transform"
-        style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(28 45% 22%) 100%)' }}
-        hoverClass="none"
-        onClick={() => Taro.navigateTo({ url: '/pages/food/index' })}
-      >
-        <View className="flex items-center justify-between">
-          <View className="flex items-center gap-2 min-w-0">
-            <Text style={{ fontSize: 22 }}>🌱</Text>
-            <View className="min-w-0">
-              <Text className="text-white text-lg font-extrabold block truncate">药食同源食养方案库</Text>
-              <Text className="text-white/75 text-[11px] block mt-0.5">四季食疗 · 体质忌口 · 食材搭配禁忌 · 定制零食清单</Text>
-            </View>
-          </View>
-          <Text className="text-white text-xs font-bold flex-shrink-0 ml-2">进入 ›</Text>
-        </View>
-        <View className="flex items-center gap-2 mt-3 flex-wrap">
-          {['四季食疗', '体质忌口', '食材搭配禁忌', '定制零食清单'].map((t) => (
-            <View key={t} className="rounded-full px-2.5 py-1" style={{ background: 'rgba(255,255,255,0.16)' }}>
-              <Text className="text-white text-[11px] font-medium">{t}</Text>
-            </View>
-          ))}
-        </View>
-        <Text className="text-white/80 text-[11px] block mt-3">嵌入自研食疗算法 · 按你的体质/人群自动匹配商品 →</Text>
+      {/* 壁垒数字条：5秒懂你，第一时间亮出数据库规模 */}
+      <View className="mx-4 mt-2 text-center">
+        <Text className="text-[11px] text-muted-foreground">已识别 10万+ 零食配料 · 全家吃得明白</Text>
       </View>
 
-      {/* ===================== L3 按功能挑 · 8 大食养场景（功能筛选精准获客，不靠低价） ===================== */}
-      <View className="mx-4 mt-3">
-        <SectionHeader emoji="🎯" title="按功能挑 · 不靠低价" subtitle="用身体需求精准匹配食疗零食" />
-        <View style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          {HOME_SCENES.map((s) => (
-            <View
-              key={s.scene}
-              hoverClass="none"
-              onClick={() => Taro.navigateTo({ url: `/pages/food/need-find/index?scene=${s.scene}` })}
-              className="pg-card flex flex-col items-center justify-center active:scale-[0.97] transition-transform"
-              style={{ width: 'calc((100% - 30px) / 4)', paddingVertical: 14, paddingHorizontal: 4 }}
-            >
-              <Text style={{ fontSize: 26 }}>{s.icon}</Text>
-              <Text className="text-sm font-bold text-foreground mt-1.5 block text-center">{s.label}</Text>
-              <Text className="text-[10px] text-muted-foreground mt-0.5 block text-center">{s.desc}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      <IconZone />
+      {demandEntrance}
 
       {/* 最近扫码：扫码购物的「学习闭环」在首页食养区可见，点按跳回商品详情 */}
       {scanChips.length > 0 && (
@@ -1074,91 +1088,44 @@ export default function IndexPage() {
       )}
 
       {/* ===================== L4（续）千人千面场景层：懂你和家人的需求 ===================== */}
-      {(personalLine || sceneCaps.length > 0) && (
+      {/* 动态场景胶囊已并入「需求入口」统一模块（sceneCaps → 需求入口场景组），此处仅保留个性化 banner，避免重复入口 */}
+      {personalLine && (
         <View className="mx-4 mt-5">
           {/* 个性化 banner：基于食养画像 / 过敏原红线，一行说明为你定制 */}
-          {personalLine && (
-            <View className="rounded-2xl px-4 py-2.5 mb-3 flex items-center gap-2" style={{ background: 'hsl(var(--primary) / 0.08)' }}>
-              <Text style={{ fontSize: 15 }}>🌿</Text>
-              <Text className="text-sm font-medium text-foreground" style={{ lineHeight: 1.4 }}>{personalLine}</Text>
-            </View>
-          )}
-          {/* 动态场景胶囊：按画像自动浮现 2-4 个高相关场景，点按直达对应食养频道 */}
-          {sceneCaps.length > 0 && (
-            <View className="flex items-center gap-2 overflow-x-auto pb-1">
-              {sceneCaps.map((cap) => (
-                <View
-                  key={cap.scene}
-                  className="flex-shrink-0 rounded-full px-3.5 py-2 bg-card border border-border flex items-center gap-1.5 active:scale-95 transition-transform"
-                  hoverClass="none"
-                  onClick={() => Taro.navigateTo({ url: `/pages/food/need-find/index?scene=${cap.scene}` })}
-                >
-                  <Text style={{ fontSize: 15 }}>{cap.emoji}</Text>
-                  <Text className="text-sm font-semibold text-foreground">{cap.label}</Text>
-                </View>
-              ))}
-              {/* 食养中心总入口已收口至下方 L4 大卡片（唯一入口），L2 金刚区不再放食养中心，避免与 L4 重复 */}
-            </View>
-          )}
+          <View className="rounded-2xl px-4 py-2.5 mb-3 flex items-center gap-2" style={{ background: 'hsl(var(--primary) / 0.08)' }}>
+            <Text style={{ fontSize: 15 }}>🌿</Text>
+            <Text className="text-sm font-medium text-foreground" style={{ lineHeight: 1.4 }}>{personalLine}</Text>
+          </View>
         </View>
       )}
 
-      {/* ===================== L5 严选食疗零食：分类筛选 + 商品流（按食养适配度排序，不拼人气） ===================== */}
+      {/* ===================== L5 为你精选：严选食疗零食商品流（主力内容，已去类目筛选） ===================== */}
       {!hasQuery && (
         <View className="mt-5 px-4">
-          <SectionHeader emoji="🍱" title="严选食疗零食" subtitle="按食养适配度排序 · 吃得明白" />
+          <SectionHeader emoji="🍱" title="为你精选" subtitle="懂身体的好物，挑挑看" />
 
-          {/* 顶部分类筛选 sticky 条：统一筛选心智（替代原首屏金刚区），吸顶常驻 */}
-          <View
-            className="home-cat-sticky"
-            style={{ position: 'sticky', top: 0, zIndex: 20, background: 'hsl(var(--background))' }}
-          >
-            <ScrollView scrollX showScrollbar={false}>
-              <View className="flex items-center gap-2 py-2">
-            {CATEGORY_TABS.map((cat) => {
-              const active = catFilter === (cat.key === 'all' ? null : cat.key)
-              return (
-                <View
-                  key={cat.key}
-                  hoverClass="none"
-                  onClick={() => setCatFilter(active ? null : (cat.key === 'all' ? null : cat.key))}
-                  className="px-3 py-1.5 rounded-full text-sm flex-shrink-0"
-                  style={{
-                    background: active ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--card))',
-                    color: active ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-                    borderWidth: 1,
-                    borderColor: active ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border))',
-                    fontWeight: active ? 'bold' : 'normal',
-                  }}
-                >
-                  {cat.label}
-                </View>
-              )
-            })}
-
-            {/* 「适合我」个性化筛选：仅对已完成健康画像的用户展示，无画像时免打扰 */}
-            {hasHealthProfile && (
-              <>
-                {/* 适合我：仅看画像推荐(recommend)的好物 */}
-                <View
-                  hoverClass="none"
-                  onClick={() => setFitOnly((v) => !v)}
-                  className="px-3 py-1.5 rounded-full text-sm flex-shrink-0 flex items-center gap-1"
-                  style={{
-                    background: fitOnly ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--card))',
-                    color: fitOnly ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-                    borderWidth: 1,
-                    borderColor: fitOnly ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border))',
-                    fontWeight: fitOnly ? 'bold' : 'normal',
-                  }}
-                >
-                  <Text>✅ 适合我</Text>
-                </View>
-              </>
-            )}
+          {/* 顶部分类筛选条（全部/粉面/炖汤/热饮/小菜）已移除：价值主义，不做类目内卷，
+              商品流改为直接按食养适配度个性化呈现，减少一层决策成本 */}
+          {/* 「适合我」个性化筛选：仅对已完成健康画像的用户展示，无画像时免打扰 */}
+          {hasHealthProfile && (
+            <View className="flex items-center gap-2 py-2">
+              {/* 适合我：仅看画像推荐(recommend)的好物 */}
+              <View
+                hoverClass="none"
+                onClick={() => setFitOnly((v) => !v)}
+                className="px-3 py-1.5 rounded-full text-sm flex-shrink-0 flex items-center gap-1"
+                style={{
+                  background: fitOnly ? 'hsl(var(--primary) / 0.12)' : 'hsl(var(--card))',
+                  color: fitOnly ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                  borderWidth: 1,
+                  borderColor: fitOnly ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border))',
+                  fontWeight: fitOnly ? 'bold' : 'normal',
+                }}
+              >
+                <Text>✅ 适合我</Text>
               </View>
-            </ScrollView>
-          </View>
+            </View>
+          )}
 
           {loading && feedItems.length === 0 ? (
             <View style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
@@ -1196,12 +1163,75 @@ export default function IndexPage() {
         </View>
       )}
 
+      {/* 红包/实物领取弹窗 */}
+      {showCampaignPopup && campaignList.length > 0 && (
+        <View className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <View className="w-10/12 max-h-4/5 bg-card rounded-3xl p-6 overflow-y-auto">
+            <Text className="text-2xl font-bold text-foreground text-center block mb-4">
+              🎁 限时福利
+            </Text>
+            <Text className="text-base text-muted-foreground text-center block mb-6">
+              领取红包/实物，绑定专属门店优惠
+            </Text>
+
+            {/* 活动列表 */}
+            <View className="gap-4 mb-6">
+              {campaignList.map((campaign, index) => (
+                <View key={campaign.id} className="p-4 rounded-2xl bg-background border border-border">
+                  <View className="flex items-center gap-3 mb-3">
+                    <Text className="text-3xl">
+                      {campaign.campaign_type === 'red_packet' ? '🧧' : '🎁'}
+                    </Text>
+                    <View className="flex-1">
+                      <Text className="text-xl font-bold text-foreground block">
+                        {campaign.campaign_name}
+                      </Text>
+                      <Text className="text-base text-muted-foreground">
+                        {campaign.campaign_type === 'red_packet'
+                          ? `¥${campaign.gift_value} 门店福利金`
+                          : campaign.gift_name}
+                      </Text>
+                      {campaign.store_id && storeNameMap[campaign.store_id] && (
+                        <View className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full bg-destructive/10">
+                          <Text className="text-xs text-red-600 font-bold">
+                            {storeNameMap[campaign.store_id]} 专享
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  <View
+                    className="w-full py-3 rounded-2xl bg-primary text-white text-center text-xl font-bold"
+                    onClick={() => {
+                      Taro.navigateTo({
+                        url: `/pages/marketing/campaign-claim/index?campaignId=${campaign.id}`
+                      })
+                      setShowCampaignPopup(false)
+                    }}
+                  >
+                    立即领取
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* 关闭按钮 */}
+            <View
+              className="w-full py-3 rounded-2xl bg-muted text-muted-foreground text-center text-xl font-bold"
+              onClick={() => setShowCampaignPopup(false)}
+            >
+              暂时不要
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* 扫码识别 · 技术壁垒弹窗：突出自研数据库区别于通用 AI */}
       {showScanMoat && (
         <View className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View className="w-10/12 max-h-4/5 bg-card rounded-3xl p-6 overflow-y-auto">
             <Text className="text-2xl font-bold text-foreground block mb-4">🔬 配料识别 · 你的私人食养安全官</Text>
-            <Text className="text-base text-muted-foreground leading-relaxed block mb-3">自建十万级零食配料数据库，区别通用 AI。</Text>
+            <Text className="text-base text-muted-foreground leading-relaxed block mb-3">自建十万级零食配料数据库，区别通用识别。</Text>
             <Text className="text-base text-muted-foreground leading-relaxed block mb-3">数据库持续迭代食疗搭配算法，扫码即知配料风险与体质适配度。</Text>
             <Text className="text-base text-muted-foreground leading-relaxed block mb-6">可保存个人饮食档案，越用越懂你。</Text>
             <View
@@ -1223,10 +1253,7 @@ export default function IndexPage() {
         </View>
       )}
 
-      {/* 今天想吃点什么 · 功能偏好输入（食养精准匹配入口，非折扣） */}
-      <View className="pg-card mx-4 mt-4 p-4 rounded-2xl">
-        {dailyPrefBlock}
-      </View>
+      {/* 扫码入口已合并为上方首屏强曝光 CTA 带（📷扫码），避免首页多处扫码重复 */}
 
       {/* 首页：右下角停靠咨询入口（食养咨询（主）/ 客服），全站统一 bottom-right */}
       <FloatingActionBar />

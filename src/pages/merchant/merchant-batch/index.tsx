@@ -111,7 +111,7 @@ function MerchantBatchPage() {
         <View style={{ margin: '14px 14px 0', padding: '16px', borderRadius: '16px', background: 'linear-gradient(135deg, #FFF3EC, #FFE7D6)', border: '1px solid #F8D9C0' }}>
           <Text style={{ fontSize: '18px', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>📦 批次入库</Text>
           <Text style={{ fontSize: '12px', color: '#A86A4A', marginTop: '6px', display: 'block' }}>
-            登记生产 / 过期日期，系统将自动临期预警与智能降价
+            登记生产 / 过期日期，系统将自动临期预警与自动降价
           </Text>
         </View>
 

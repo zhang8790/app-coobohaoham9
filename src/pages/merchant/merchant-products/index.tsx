@@ -716,7 +716,7 @@ function MerchantProductsPage() {
       })
       if (data?.success && data.analysis) {
         fillFromAnalysis(data.analysis as ProductAnalysis)
-        Taro.showToast({ title: '智能识图完成', icon: 'success' })
+        Taro.showToast({ title: '识图完成', icon: 'success' })
       } else {
         const local = analyzeProductFromName(dishName.trim(), form.ingredients)
         fillFromAnalysis(local)
@@ -724,11 +724,11 @@ function MerchantProductsPage() {
         const source = data?.source as string | undefined
         const message = data?.message as string | undefined
         if (source === 'none') {
-          Taro.showToast({ title: '已本地识别（未配置智能识图）', icon: 'none' })
+          Taro.showToast({ title: '已本地识别（未配置识图）', icon: 'none' })
         } else if (source === 'llm_error') {
-          Taro.showToast({ title: `智能识图失败：${message || '服务异常'}`, icon: 'none' })
+          Taro.showToast({ title: `识图失败：${message || '服务异常'}`, icon: 'none' })
         } else {
-          Taro.showToast({ title: `智能识图失败：${message || '请重试'}`, icon: 'none' })
+          Taro.showToast({ title: `识图失败：${message || '请重试'}`, icon: 'none' })
         }
       }
     } catch (e) {
@@ -1426,14 +1426,14 @@ function MerchantProductsPage() {
             {/* 原料成分分析 */}
             <View style={{ marginBottom: '14px' }}>
               <Text style={{ fontSize: '14px', color: '#333', fontWeight: '600', marginBottom: '6px' }}>🥗 原料成分分析（可选）</Text>
-              <Text style={{ fontSize: '11px', color: '#AAA', marginBottom: '8px', display: 'block' }}>① 填商品名称点「智能识别原料」自动带出，或直接输入原料名搜索添加 → 功效/人群/场景展示在商品详情页</Text>
+              <Text style={{ fontSize: '11px', color: '#AAA', marginBottom: '8px', display: 'block' }}>① 填商品名称点「自动识别原料」自动带出，或直接输入原料名搜索添加 → 功效/人群/场景展示在商品详情页</Text>
               <View
                 onClick={handleIdentifyIngredients}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '8px 14px',
                   borderRadius: '12px', background: '#FFF', border: '2px solid #34A853',
                 }}>
-                <Text style={{ color: '#34A853', fontSize: '13px', fontWeight: 'bold' }}>🤖 智能识别原料</Text>
+                <Text style={{ color: '#34A853', fontSize: '13px', fontWeight: 'bold' }}>自动识别原料</Text>
               </View>
 
               {/* 输入原料名快速添加 */}
@@ -1593,11 +1593,11 @@ function MerchantProductsPage() {
             {/* 🌿 智能食养 · 食疗配对（仅食养食品） */}
             {form.product_kind === 'food' && (
             <View style={{ marginBottom: '16px', padding: '12px', borderRadius: '12px', background: '#FCF8F2', border: '1px solid #F0E6D8' }}>
-              <Text style={{ fontSize: '14px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}>🌿 智能食养 · 食疗配对</Text>
+              <Text style={{ fontSize: '14px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}>🌿 食养 · 食疗配对</Text>
 
               {/* 🤖 智能识别：菜名/图片 → 自动识别属性（替代手动选择，仍可微调） */}
               <View style={{ marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#FFF', border: '1.5px solid hsl(var(--primary))' }}>
-                <Text style={{ fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}>🤖 智能识别（输菜名/传图，自动识别属性）</Text>
+                <Text style={{ fontSize: '13px', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}>识别（输菜名/传图，自动识别属性）</Text>
                 <Input
                   style={{ width: '100%', height: '40px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '14px', color: '#333', padding: '0 12px', boxSizing: 'border-box' }}
                   placeholder="输入商品/菜名，如：冰糖雪梨羹、姜枣茶"
@@ -1614,10 +1614,10 @@ function MerchantProductsPage() {
                   ) : null}
                   <View onClick={runSmartAnalyze}
                     style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 12px', borderRadius: '10px', background: analyzing ? '#E8D5C0' : 'hsl(var(--primary))' }}>
-                    <Text style={{ fontSize: '13px', color: '#FFF', fontWeight: '700' }}>{analyzing ? '识别中…' : '✨ 一键识别'}</Text>
+                    <Text style={{ fontSize: '13px', color: '#FFF', fontWeight: '700' }}>{analyzing ? '识别中…' : '一键识别'}</Text>
                   </View>
                 </View>
-                <Text style={{ fontSize: '11px', color: '#999', marginTop: '8px', display: 'block' }}>识别后自动填充下方食养字段，仍可手动微调。配置智能识图后支持"看图识菜"。</Text>
+                <Text style={{ fontSize: '11px', color: '#999', marginTop: '8px', display: 'block' }}>识别后自动填充下方食养字段，仍可手动微调。配置识图后支持"看图识菜"。</Text>
               </View>
 
               {/* 🔍 实时食疗安全分析（引擎边填边算） */}
@@ -1660,7 +1660,7 @@ function MerchantProductsPage() {
                     <Text style={{ fontSize: '10px', color: '#AAA', marginTop: '6px', display: 'block' }}>{therapyReport.disclaimer}</Text>
                   </View>
                 ) : (
-                  <Text style={{ fontSize: '12px', color: '#999', display: 'block' }}>从食材库添加食材或点「智能识别食材」后，这里实时显示整体性味 / 三色预警 / 商家寄语。</Text>
+                  <Text style={{ fontSize: '12px', color: '#999', display: 'block' }}>从食材库添加食材或点「自动识别食材」后，这里实时显示整体性味 / 三色预警 / 商家寄语。</Text>
                 )}
               </View>
 

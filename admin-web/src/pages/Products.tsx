@@ -282,7 +282,7 @@ export default function Products() {
                 <p style={{ color: 'var(--text)', fontSize: 15, fontWeight: 700, margin: 0 }}>食疗分析补全</p>
                 <button onClick={handleAnalyzeAndFill} disabled={analyzing || !detailModal}
                   style={{ padding: '6px 14px', background: (analyzing || !detailModal) ? 'var(--border-soft)' : 'var(--success-strong)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, cursor: (analyzing || !detailModal) ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
-                  {analyzing ? '分析中…' : '✨ 一键分析并补全'}
+                  {analyzing ? '分析中…' : '一键分析并补全'}
                 </button>
               </div>
               <p style={{ color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.5, margin: '0 0 8px' }}>基于菜名自动拆解食材，回填食养字段（性味 / 功效 / 人群 / 场景）。与商家端录入同一引擎，数据同步一致。</p>

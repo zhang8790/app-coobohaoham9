@@ -94,9 +94,9 @@ export default function Settings() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <h2 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>智能模型配置</h2>
+      <h2 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>模型配置</h2>
       <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 20px' }}>
-        填写模型网址与 Key 后，全项目（小程序智能识别 / 食疗导购 / 情绪编译）统一调用，无需改代码、无需重启。
+        填写模型网址与 Key 后，全项目（小程序识别 / 食疗导购 / 情绪编译）统一调用，无需改代码、无需重启。
       </p>
 
       <div style={{
@@ -150,7 +150,7 @@ export default function Settings() {
             type="checkbox" id="llm-enabled" checked={enabled}
             onChange={e => setEnabled(e.target.checked)} style={{ width: 16, height: 16 }}
           />
-          <label htmlFor="llm-enabled" style={{ fontSize: 14, color: 'var(--text)' }}>启用智能识图（关闭则全项目走本地规则兜底）</label>
+          <label htmlFor="llm-enabled" style={{ fontSize: 14, color: 'var(--text)' }}>启用识图（关闭则全项目走本地规则兜底）</label>
         </div>
 
         {/* Actions */}
@@ -179,13 +179,13 @@ export default function Settings() {
         marginTop: 16, padding: '12px 16px', borderRadius: 8,
         background: 'var(--bg)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.7,
       }}>
-        说明：未填写 Key 时，小程序「智能识别」自动回退本地规则引擎，系统照常可用；
-        填写后全项目智能能力即时升级。配置变更后 Edge Function 最多 5 分钟生效（内存缓存）。
+        说明：未填写 Key 时，小程序「识别」自动回退本地规则引擎，系统照常可用；
+        填写后全项目相关能力即时升级。配置变更后 Edge Function 最多 5 分钟生效（内存缓存）。
       </div>
 
       {/* ================= 智能模型调用统计 ================= */}
       <div style={{ marginTop: 32 }}>
-        <h3 style={{ color: 'var(--text)', fontSize: 17, fontWeight: 700, margin: '0 0 4px' }}>智能模型调用统计</h3>
+        <h3 style={{ color: 'var(--text)', fontSize: 17, fontWeight: 700, margin: '0 0 4px' }}>模型调用统计</h3>
         <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: '0 0 16px' }}>
           统计近 30 天各 Edge Function 调用大模型消耗的 token（含成功/失败明细）。
         </p>

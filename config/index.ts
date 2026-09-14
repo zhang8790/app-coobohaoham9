@@ -9,13 +9,39 @@ import devConfig from './dev'
 import lintConfig from './lint'
 import prodConfig from './prod'
 
+// 将 weapp-tailwindcss 拆出的 app-origin.wxss 合并回 app.wxss，
+// 消除微信开发者工具「path app-origin.wxss not found」编译错误。
+// 根因：微信工具的 WXSS 编译缓存不可靠，@import 引用有时找不到同目录文件。
+// 使用 writeBundle 钩子（而非 closeBundle），确保 watch 模式增量编译后也能触发合并。
+function mergeAppOriginPlugin(): Plugin {
+  return {
+    name: 'taro-merge-app-origin',
+    // writeBundle: 每次 bundle 写入后都触发（含 watch 增量编译）
+    writeBundle() {
+      const outDir = path.resolve(__dirname, '../dist_new')
+      const originFile = path.join(outDir, 'app-origin.wxss')
+      const appFile = path.join(outDir, 'app.wxss')
+      if (!fs.existsSync(originFile) || !fs.existsSync(appFile)) return
+      const originCss = fs.readFileSync(originFile, 'utf-8')
+      let appCss = fs.readFileSync(appFile, 'utf-8')
+      // 去掉 @import "app-origin.wxss"; 行
+      appCss = appCss.replace(/@import\s+["']app-origin\.wxss["'];?\s*\n?/g, '')
+      // 把 origin 内容合并到 app.wxss 开头
+      fs.writeFileSync(appFile, originCss + '\n' + appCss, 'utf-8')
+      // 删除 app-origin.wxss
+      fs.unlinkSync(originFile)
+      console.log('[taro-merge-app-origin] 已合并 app-origin.wxss → app.wxss 并删除 app-origin.wxss')
+    }
+  }
+}
+
 // 手动复制 tabBar 图标到 dist（Taro copy 配置在 Vite 模式下不生效）
 function copyIconsPlugin(): Plugin {
   return {
     name: 'taro-copy-icons',
-    closeBundle() {
+    writeBundle() {
       const srcDir = path.resolve(__dirname, '../public/assets/icons')
-      const destDir = path.resolve(__dirname, '../dist/assets/icons')
+      const destDir = path.resolve(__dirname, '../dist_new/assets/icons')
       if (!fs.existsSync(srcDir)) {
         console.warn('[taro-copy-icons] 源目录不存在:', srcDir)
         return
@@ -45,7 +71,7 @@ export default defineConfig<'vite'>(async (merge) => {
       828: 1.81 / 2
     },
     sourceRoot: 'src',
-    outputRoot: 'dist',
+    outputRoot: 'dist_new',
     plugins: [
       '@tarojs/plugin-generator'
     ],
@@ -82,7 +108,9 @@ export default defineConfig<'vite'>(async (merge) => {
           disabled: process.env.TARO_ENV === 'h5',
           // 由于 taro vite 默认会移除所有的 tailwindcss css 变量，所以一定要开启这个配置，进行css 变量的重新注入
           injectAdditionalCssVarScope: true
-        })
+        }),
+        // ⚠️ 必须在 uvtw 之后：weapp-tailwindcss 先写 app-origin.wxss，此插件再合并回 app.wxss
+        mergeAppOriginPlugin()
       ] as Plugin[]
     },
     mini: {

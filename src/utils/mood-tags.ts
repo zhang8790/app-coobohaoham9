@@ -47,7 +47,7 @@ export const MOOD_TAGS: Record<string, MoodTag[]> = {
   luxury: [
     { zh: '奢华', en: 'Luxury', icon: '👑', color: '#FFD700' },
     { zh: '高端', en: 'Premium', icon: '💎', color: '#B9F2FF' },
-    { zh: '精致', en: 'Exquisite', icon: '✨', color: '#DDA0DD' },
+    { zh: '精致', en: 'Exquisite', icon: '🌸', color: '#DDA0DD' },
     { zh: '典雅', en: 'Elegant', icon: '🏛️', color: '#DEB887' },
     { zh: '尊贵', en: 'Noble', icon: '🏆', color: '#FFD700' },
   ],

@@ -130,7 +130,7 @@ export default function FoodTherapyCopyPage() {
             <CopyCard title="🎬 口播脚本" text={video?.script || ''} copied={copied === 'script'} onCopy={() => copy('script', video?.script || '')} />
             <CopyCard title="🎬 视频提示词" text={video?.prompt || ''} copied={copied === 'prompt'} onCopy={() => copy('prompt', video?.prompt || '')} />
             <CopyCard title="🎞 分镜建议" text={(video?.shots || []).join('\n')} copied={copied === 'shots'} onCopy={() => copy('shots', (video?.shots || []).join('\n'))} />
-            <CopyCard title="✨ 海报金句" text={video?.poster || ''} copied={copied === 'poster'} onCopy={() => copy('poster', video?.poster || '')} />
+            <CopyCard title="🖼️ 海报金句" text={video?.poster || ''} copied={copied === 'poster'} onCopy={() => copy('poster', video?.poster || '')} />
 
             <Text className="text-[11px] text-muted-foreground mt-1" style={{ display: 'block', color: '#A89A87', whiteSpace: 'normal' }}>
               {THERAPY_DISCLAIMER}
