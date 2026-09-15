@@ -60,8 +60,8 @@ export default function ProductPage() {
   const { id, expiryEp, expiryBatch } = useMemo(() => {
     const params = Taro.getCurrentInstance().router?.params
     const rawId = params?.id ? decodeURIComponent(params.id) : ''
-    // 临期特惠入口（/pages/expiry/index）带入的折扣单价与批次：仅用于展示与下单透传，
-    // 实际成交价由 createOrderV2 按 batch_id 在服务端从 v_near_expiry_products 套用，前端无法伪造。
+    // 临期价参数（ep=单价 / batch=批次）：早期「临期特惠」入口页已移除，但临期价透传路径保留——
+    // 实际成交价由 createOrderV2 按 batch_id 在服务端从 v_near_expiry_products 校验套用（防资损，前端无法伪造）。
     const ep = params?.ep ? Number(decodeURIComponent(params.ep)) : 0
     const batch = params?.batch ? decodeURIComponent(params.batch) : ''
     return { id: rawId, expiryEp: ep, expiryBatch: batch }
