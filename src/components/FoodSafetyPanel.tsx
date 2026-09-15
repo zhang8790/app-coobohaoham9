@@ -22,11 +22,16 @@ const ADDITIVE_DISCLAIMER =
 export default function FoodSafetyPanel({
   foodAdditives,
   shiyangEntries,
+  showShiyang = true,
 }: {
   foodAdditives: FoodAdditive[]
   shiyangEntries: IngredientEntry[]
+  /** 详情页已用合规中性化的「核心食材表」单独承载食材清单，故此处仅保留添加剂安全分级；扫码页仍传 true 展示完整食养成分 */
+  showShiyang?: boolean
 }) {
-  if (!foodAdditives?.length && !shiyangEntries?.length) return null
+  const hasAdditives = foodAdditives?.length > 0
+  const hasShiyang = showShiyang && shiyangEntries?.length > 0
+  if (!hasAdditives && !hasShiyang) return null
   return (
     <View className="mx-4 mt-4 rounded-2xl border border-black/5 p-4" style={{ background: '#fff' }}>
       {foodAdditives?.length > 0 && (
@@ -82,7 +87,7 @@ export default function FoodSafetyPanel({
         </View>
       )}
 
-      {shiyangEntries?.length > 0 && (
+      {showShiyang && shiyangEntries?.length > 0 && (
         <View style={{ marginTop: foodAdditives?.length ? 12 : 0 }}>
           <Text className="text-base font-bold text-foreground" style={{ display: 'block', marginBottom: 8 }}>
             🌿 食材食养

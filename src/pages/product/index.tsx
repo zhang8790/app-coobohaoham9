@@ -28,8 +28,8 @@ import { getFoodIngredients, callIngredientAnalyze, type FoodIngredientRow, type
 // 模块级缓存：食材字典（食养引擎基础数据）仅拉一次，跨商品跳转不再重复请求（PRD 4.1）
 let ingredientDictPromise: Promise<FoodIngredientRow[]> | null = null
 
-function CollapsibleSection({ title, children }: { title: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false)
+function CollapsibleSection({ title, children, defaultOpen = false }: { title: string; children: ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <View className="mb-3">
       <View
@@ -628,7 +628,7 @@ const [adding, setAdding] = useState(false)
         )}
 
         {/* 配料安全：挂载的添加剂安全分级 + 食养成分分析（仅食养食品） */}
-        {isFood && <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} />}
+        {isFood && <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} showShiyang={false} />}
         {/* 全面安全分析：致敏原 / 营养成分 / 标签合规 / 适宜人群（仅食养食品） */}
         {isFood && safetyReport && <ComprehensiveSafetyReport report={safetyReport} fullLabel />}
         {/* 📣 商家寄语（醒目卡片：暖白底 + 品牌色边条，与配料安全/食疗导购区隔） */}
@@ -706,7 +706,7 @@ const [adding, setAdding] = useState(false)
                 )}
               </View>
 
-              {/* 人群标签栏：3 秒决策 */}
+              {/* 人群标签栏：3 秒决策（唯一一次展示「适合人群」，避免与折叠模块重复） */}
               {crowdRec.length > 0 && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                   {crowdRec.map((c, i) => (
@@ -714,13 +714,16 @@ const [adding, setAdding] = useState(false)
                   ))}
                 </View>
               )}
+              {crowdRec.length === 0 && input.guide_sentence && (
+                <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>{input.guide_sentence}</Text>
+              )}
 
               {/* 模块1：核心食材食养属性（折叠，默认收起） */}
               {/* 合规提示：PRD 2.1 强制置顶免责声明（浅灰底 + 字号放大），强化普通食品无医疗功效的合规边界 */}
               <View style={{ padding: '12px 14px', borderRadius: '12px', background: '#F3F4F6', border: '1px solid #E5E7EB', marginBottom: 10 }}>
                 <Text style={{ fontSize: '14px', fontWeight: '800', color: '#374151', display: 'block', lineHeight: '1.6' }}>⚠️ {FOOD_REFERENCE_DISCLAIMER}</Text>
               </View>
-              <CollapsibleSection title="① 核心食材食养属性">
+              <CollapsibleSection title="① 核心食材食养属性" defaultOpen>
                 {stageMod.ingredients.length > 0 ? (
                   <View style={{ border: '1px solid #E3F2E5', borderRadius: '10px', overflow: 'hidden' }}>
                     <View style={{ flexDirection: 'row', background: '#EAF6EC', padding: '6px 8px' }}>
@@ -767,21 +770,8 @@ const [adding, setAdding] = useState(false)
                 )}
               </CollapsibleSection>
 
-              {/* 模块3：人群适配提示（折叠，默认收起） */}
-              <CollapsibleSection title="③ 人群适配提示">
-                {foodBenefit?.suitableFor?.length ? (
-                  <Text style={{ fontSize: '13px', color: '#16A34A', display: 'block', lineHeight: '1.6' }}>🌟 适配人群：{cleanAudienceTags(foodBenefit.suitableFor).join('、')}</Text>
-                ) : null}
-                {cleanAudienceTags(input.rec_crowds).length > 0 && (
-                  <Text style={{ fontSize: '13px', color: '#16A34A', display: 'block', lineHeight: '1.6' }}>🌟 适配人群：{cleanAudienceTags(input.rec_crowds).join('、')}{input.guide_sentence ? `（${input.guide_sentence}）` : ''}</Text>
-                )}
-                {(!foodBenefit?.suitableFor?.length && !input.rec_crowds?.length) && (
-                  <Text style={{ fontSize: '12px', color: '#9CA3AF', display: 'block' }}>暂无特定人群标注</Text>
-                )}
-              </CollapsibleSection>
-
-              {/* 模块4：食养搭配建议（折叠，含同款搭配入口） */}
-              <CollapsibleSection title="④ 食养搭配建议">
+              {/* 模块3：食养搭配建议（折叠，含同款搭配入口） */}
+              <CollapsibleSection title="③ 食养搭配建议">
                 {stageMod.comboNarrative ? (
                   <Text style={{ fontSize: '13px', color: '#2F5D3A', display: 'block', lineHeight: '1.6' }}>{stageMod.comboNarrative}</Text>
                 ) : null}
@@ -807,7 +797,7 @@ const [adding, setAdding] = useState(false)
 
               {/* 食用小贴士（建议食用量 + 适宜状态 + 注意事项） */}
               <View className="mb-2" style={{ padding: '8px 10px', borderRadius: '12px', background: '#FFFDF7', border: '1px solid #F0E6CF' }}>
-                <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>⑤ 食用小贴士</Text>
+                <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>④ 食用小贴士</Text>
                 <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>🍽️ 建议食用量：{eatAmount}</Text>
                 {tipAudiences.length > 0 && (
                   <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>🌿 更适合这些日常状态：{tipAudiences.join('、')}</Text>
