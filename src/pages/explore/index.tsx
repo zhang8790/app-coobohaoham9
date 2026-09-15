@@ -5,10 +5,9 @@ import { View, Text, Button } from '@tarojs/components'
 import { addToCart, getProducts, getCategories } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
 import Icon from '@/components/Icon'
-import { useCartCount, refreshCartCount } from '@/utils/cartStore'
+import { refreshCartCount } from '@/utils/cartStore'
 import { useShareWithReferral } from '@/hooks/useShareWithReferral'
 import { useLocation } from '@/contexts/LocationContext'
-import { scanAndRoute } from '@/utils/scan'
 import LazyImage from '@/components/LazyImage'
 import ProductGridCard from '@/components/ProductGridCard'
 import CustomTabBar from '@/components/custom-tabbar'
@@ -85,7 +84,6 @@ export default function ExplorePage() {
     })
     return map
   }, [products, ingredientDict])
-  const cartCount = useCartCount()
   const [addingId, setAddingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const page = useRef(0)
@@ -227,18 +225,6 @@ export default function ExplorePage() {
           onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}>
           <View className="text-muted-foreground"><Icon name="search" size={20} /></View>
           <Text className="text-xl text-muted-foreground">搜索商品...</Text>
-        </View>
-        <View className="w-10 h-10 flex items-center justify-center"
-          onClick={() => scanAndRoute()} >
-          <Icon name="qrcode-scan" size={24} className="text-foreground" />
-        </View>
-        <View className="relative" onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
-          <View className="text-foreground"><Icon name="bag" size={24} /></View>
-          {cartCount > 0 && (
-            <View className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-              <Text className="text-white text-xs">{cartCount > 99 ? '99' : cartCount}</Text>
-            </View>
-          )}
         </View>
       </View>
 
