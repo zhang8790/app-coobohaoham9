@@ -43,6 +43,9 @@ type ProductInput = {
   // 食养系统化（迁移 20260801）：therapy_json 单一数据源 + 冗余加速列
   therapy_json?: any | null
   fit_people?: string | null
+  // 辨证/适合人群增强（迁移 00237）：手动覆盖 + 适配体质标签
+  fit_people_override?: string | null
+  fit_crowd_tags?: string[] | null
   therapy_pending?: boolean | null
   allergens?: string[] | null
 }
@@ -134,13 +137,15 @@ Deno.serve(async (req: Request) => {
       if (body.aux_remind !== undefined) updatePayload.aux_remind = body.aux_remind && body.aux_remind.trim() ? body.aux_remind.trim() : null
       if (body.therapy_json !== undefined) updatePayload.therapy_json = body.therapy_json
       if (body.fit_people !== undefined) updatePayload.fit_people = body.fit_people && body.fit_people.trim() ? body.fit_people.trim() : null
+      if (body.fit_people_override !== undefined) updatePayload.fit_people_override = body.fit_people_override && body.fit_people_override.trim() ? body.fit_people_override.trim() : null
+      if (body.fit_crowd_tags !== undefined) updatePayload.fit_crowd_tags = body.fit_crowd_tags && body.fit_crowd_tags.length ? body.fit_crowd_tags : []
       if (body.therapy_pending !== undefined) updatePayload.therapy_pending = !!body.therapy_pending
       if (body.allergens !== undefined) updatePayload.allergens = body.allergens && body.allergens.length ? body.allergens : null
 
       const { data, error } = await supabase.from('products').update(updatePayload).eq('id', body.id).select().maybeSingle()
       if (error) {
-        if (/ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|therapy_json|fit_people|therapy_pending|allergens/.test(error.message)) {
-          const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind, therapy_json, fit_people, therapy_pending, allergens, ...rest } = updatePayload
+        if (/ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|therapy_json|fit_people|fit_people_override|fit_crowd_tags|therapy_pending|allergens/.test(error.message)) {
+          const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind, therapy_json, fit_people, fit_people_override, fit_crowd_tags, therapy_pending, allergens, ...rest } = updatePayload
           const r2 = await supabase.from('products').update(rest).eq('id', body.id).select().maybeSingle()
           if (r2.error) return Response.json({ error: `更新失败: ${r2.error.message}` }, { status: 500, headers: corsHeaders })
           return Response.json({ success: true, product: r2.data }, { headers: corsHeaders })
@@ -214,6 +219,8 @@ Deno.serve(async (req: Request) => {
     if (body.aux_remind && body.aux_remind.trim()) insertPayload.aux_remind = body.aux_remind.trim()
     if (body.therapy_json) insertPayload.therapy_json = body.therapy_json
     if (body.fit_people && body.fit_people.trim()) insertPayload.fit_people = body.fit_people.trim()
+    if (body.fit_people_override && body.fit_people_override.trim()) insertPayload.fit_people_override = body.fit_people_override.trim()
+    if (body.fit_crowd_tags && body.fit_crowd_tags.length) insertPayload.fit_crowd_tags = body.fit_crowd_tags
     if (typeof body.therapy_pending === 'boolean') insertPayload.therapy_pending = body.therapy_pending
     if (body.allergens && body.allergens.length) insertPayload.allergens = body.allergens
 

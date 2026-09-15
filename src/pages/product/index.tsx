@@ -176,7 +176,8 @@ const [adding, setAdding] = useState(false)
       })
       .filter((x): x is ProductIngredientInput => x !== null)
     if (!inputs.length) return null
-    return buildTherapyReport(product.name, inputs)
+    // 传入商品食疗标签(health_tag)，让「适合人群」按中医体质/证型辨证生成
+    return buildTherapyReport(product.name, inputs, (product as any)?.health_tag)
   }, [product, ingredientDict])
 
 
@@ -681,8 +682,17 @@ const [adding, setAdding] = useState(false)
             ? '建议每日 1–2 份，肠胃敏感者可从小量开始。'
             : '建议每日 1–2 份，随餐或两餐之间食用，细嚼慢咽更舒服。'
 
+          // 辨证结论文案：商家手填覆盖优先，回退引擎辨证结果（迁移 00237）
+          const fitText = String((product as any)?.fit_people_override || '').trim()
+            || (therapyReport?.fit_people || '')
           // 人群标签栏：只展示推荐人群（合规过滤疾病定向/恢复期待词）
-          const crowdRec = cleanAudienceTags([...(foodBenefit?.suitableFor || []), ...(input.rec_crowds || [])]).slice(0, 4)
+          // 辨证适配标签优先：持久化的 fit_crowd_tags > 实时辨证报告 > 既有召回
+          const crowdRec = cleanAudienceTags([
+            ...((product as any)?.fit_crowd_tags || []),
+            ...(therapyReport?.fit_crowd_tags || []),
+            ...(foodBenefit?.suitableFor || []),
+            ...(input.rec_crowds || []),
+          ]).slice(0, 4)
           return (
             <View className="mt-3" style={{ padding: '12px 14px', borderRadius: '16px', background: '#F6FBF7', border: '1px solid #D6EFD8' }}>
               <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>🍵 日常食养参考</Text>
@@ -711,6 +721,10 @@ const [adding, setAdding] = useState(false)
               {crowdRec.length === 0 && input.guide_sentence && (
                 <Text style={{ fontSize: '13px', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>{input.guide_sentence}</Text>
               )}
+              {/* 辨证结论：商家手填优先，否则展示引擎按中医体质/证型生成的结论（迁移 00237） */}
+              {fitText ? (
+                <Text style={{ fontSize: '12px', color: '#4B5563', display: 'block', lineHeight: '1.6', marginTop: 2 }}>🎯 适合：{fitText}</Text>
+              ) : null}
 
               {/* 模块1：核心食材食养属性（折叠，默认收起） */}
               {/* 合规提示：PRD 2.1 强制置顶免责声明（浅灰底 + 字号放大），强化普通食品无医疗功效的合规边界 */}

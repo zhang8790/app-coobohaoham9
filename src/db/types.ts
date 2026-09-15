@@ -171,6 +171,8 @@ export interface Product {
   // 食养系统化（迁移 20260801）：therapy_json 单一数据源 + 冗余加速列
   therapy_json?: Record<string, unknown> | null
   fit_people?: string | null
+  fit_people_override?: string | null   // 商家手动覆盖的适合人群（优先级高于 fit_people 引擎结果）
+  fit_crowd_tags?: string[] | null      // 适配体质/人群标签（宫寒量少/脾胃虚寒/高血压…），辨证展示与个性化匹配用
   therapy_pending?: boolean | null
   // 商品类型化（迁移 20260803）：礼品/手作与食养食品彻底分开，详情页按 product_kind 条件渲染
   product_kind?: 'food' | 'gift' | 'craft' | 'care' | null

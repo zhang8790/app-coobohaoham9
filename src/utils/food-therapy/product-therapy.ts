@@ -40,7 +40,8 @@ export interface ProductTherapyReport {
   overall_nature_code: string // 微凉 / 平性 ...（计算所得主导性味）
   overall_nature: string // 描述语：微凉性平组合
   combined_effect: string // 综合功效
-  fit_people: string // 适宜人群
+  fit_people: string // 适宜人群（辨证：中医体质/证型 + 食材适用场景）
+  fit_crowd_tags: string[] // 适配体质/人群标签（体虚怕冷/脾胃虚寒…），辨证展示与个性化匹配
   caution_people: string // 慎食人群
   chronic_tags: string[] // 慢病适配标签（去重）
   warnings: TherapyWarning[] // 三色预警（红/橙/蓝）
@@ -224,10 +225,50 @@ export function mergeCrowds(
   }
 }
 
+// ---------- 4.5 功效标签 → 中医辨证适配（迁移 00237） ----------
+// 把商品的 9 项功效标签（温中散寒/健脾养胃…）反向推导为「适配的中医体质/证型 + 人群标签」，
+// 让「适宜人群」真正辨证生成，而不是只堆「日常佐餐、上班族」这类空洞通用串。
+// 合规边界：仅作体质/证型与食养参考的匹配描述，严禁疾病定向适配与功效断言（PRD 2.4 / 3.3）。
+export const HEALTH_TAG_FIT_MAP: Record<string, { syndrome: string; crowds: string[] }> = {
+  温中散寒: { syndrome: '阳气不足、脾胃虚寒者', crowds: ['体虚怕冷', '脾胃虚寒', '宫寒量少'] },
+  健脾养胃: { syndrome: '脾胃虚弱、运化乏力者', crowds: ['脾胃虚寒', '肠胃虚弱'] },
+  滋阴润燥: { syndrome: '阴虚津亏、燥热内生者', crowds: ['易上火', '喉咙肿痛'] },
+  清热降火: { syndrome: '内热偏盛、易生燥火者', crowds: ['易上火', '喉咙肿痛'] },
+  补气养血: { syndrome: '气血不足、易倦乏力者', crowds: ['体虚怕冷', '宫寒量少'] },
+  舒缓安适: { syndrome: '心神不宁、夜卧不安者', crowds: ['失眠'] },
+  消食化积: { syndrome: '食积内停、脘腹胀满者', crowds: ['肠胃虚弱'] },
+  润养舒喉: { syndrome: '肺燥津伤、咽喉失润者', crowds: ['喉咙肿痛'] },
+  利水消肿: { syndrome: '水湿内停、肢体困重者', crowds: [] },
+}
+
+/** 辨证适配人群词表：与 admin-web BODY/HEALTH_CROWD_OPTIONS 对齐，但刻意剔除
+ *  痛风/高血压/高血糖/高血脂等疾病名——仅保留体质与身体状态类，
+ *  避免构成疾病定向适配（PRD 3.3 合规红线）。商家可在词表内手动增删。 */
+export const FIT_CROWD_OPTIONS = [
+  '体虚怕冷', '脾胃虚寒', '宫寒量少', '经期量大', '易上火', '喉咙肿痛', '肠胃虚弱', '失眠', '免疫力低',
+] as const
+
+/** 由功效标签推导辨证适配：证型短语列表 + 人群标签列表（均去重、保持稳定序） */
+export function deriveFitConstitution(healthTags?: string[] | null): {
+  syndromes: string[]
+  crowdTags: string[]
+} {
+  const syndromes: string[] = []
+  const crowdTags: string[] = []
+  for (const tag of healthTags || []) {
+    const hit = HEALTH_TAG_FIT_MAP[tag]
+    if (!hit) continue
+    if (hit.syndrome && !syndromes.includes(hit.syndrome)) syndromes.push(hit.syndrome)
+    for (const c of hit.crowds) if (!crowdTags.includes(c)) crowdTags.push(c)
+  }
+  return { syndromes, crowdTags }
+}
+
 // ---------- 5. 三色预警 + 文案组装 ----------
 export function buildTherapyReport(
   productName: string,
   items: ProductIngredientInput[],
+  healthTags?: string[] | null,
 ): ProductTherapyReport {
   const nature = mergeNature(items)
   const combined_effect = mergeEffect(items)
@@ -271,9 +312,13 @@ export function buildTherapyReport(
         .filter(Boolean),
     ),
   )
-  const fitParts = [...fitScenes]
-  // 兜底通用项去重（避免与食材适用场景重复，如「日常佐餐」）
-  const fallback = ['日常佐餐', '上班族', '青少年饮食搭配'].filter((x) => !fitParts.includes(x))
+  // 辨证证型（由功效标签推导）优先，再接食材适用场景
+  const { syndromes, crowdTags } = deriveFitConstitution(healthTags)
+  const fitParts = [...syndromes, ...fitScenes]
+  // 兜底通用项：已有辨证结论时不再叠加，避免把专业辨证稀释成「谁都适合」的空洞串
+  const fallback = syndromes.length
+    ? []
+    : ['日常佐餐', '上班族', '青少年饮食搭配'].filter((x) => !fitParts.includes(x))
   const fit_people = sanitizeTherapyCopy([...fitParts, ...fallback].join('、'))
 
   // 商家寄语模板（80 字内，合规过滤；中性体感描述，杜绝功效/疾病定向，详见 PRD 2.4）
@@ -286,6 +331,7 @@ export function buildTherapyReport(
     overall_nature: nature.desc,
     combined_effect,
     fit_people,
+    fit_crowd_tags: crowdTags,
     caution_people: caution.join('；'),
     chronic_tags: chronic,
     warnings,

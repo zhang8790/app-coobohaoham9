@@ -15,7 +15,7 @@ import {
 import { supabase } from '@/client/supabase'
 import { uploadImage, uploadVideo } from '@/utils/upload'
 import { analyzeProductFromName, type ProductAnalysis } from '@/utils/food-therapy/dishAnalyzer'
-import { buildTherapyReport, type ProductIngredientInput } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, deriveFitConstitution, FIT_CROWD_OPTIONS, type ProductIngredientInput } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 import type { Product, Store, StoreCategory } from '@/db/types'
 import { encodeEAN13 } from '@/utils/barcode'
@@ -39,6 +39,9 @@ type FormState = {
   nutrition: { energy_kj?: number; protein_g?: number; fat_g?: number; carb_g?: number; sugar_g?: number; sodium_mg?: number } | null
   safety_grade: string              // 安全评级 S/A/C/D（智能识别填充）
   safety_summary: string            // 安全摘要（智能识别填充）
+  // —— 辨证适配（迁移 00237）——
+  fit_people_override: string       // 商家手填「适合人群」；留空则用引擎辨证结果
+  fit_crowd_tags: string[]          // 适配体质/人群标签（由食疗标签自动推导，可手动增删）
   category_id: string               // 商品分类（store_categories.id，空=未分类）
   // —— 商品类型化（迁移 20260803）：礼品/手作与食养食品分开 ——
   product_kind: string              // 'food' | 'gift' | 'craft' | 'care'
@@ -63,6 +66,8 @@ const emptyForm = (): FormState => ({
   nutrition: null,
   safety_grade: '',
   safety_summary: '',
+  fit_people_override: '',
+  fit_crowd_tags: [],
   category_id: '',
   product_kind: 'food',
   materials: [],
@@ -263,8 +268,9 @@ function MerchantProductsPage() {
       inputs = deriveIngredientsFromName(form.name, ingredientDict)
     }
     if (!inputs.length) return null
-    return buildTherapyReport(form.name || '本菜品', inputs)
-  }, [ingredientItems, form.name, ingredientDict])
+    // 传入食疗标签(health_tag)，让「适合人群」按中医体质/证型辨证生成
+    return buildTherapyReport(form.name || '本菜品', inputs, form.health_tag)
+  }, [ingredientItems, form.name, form.health_tag, ingredientDict])
 
   // 引擎结果自动回填商品食养字段（系统算，商家可微调）
   useEffect(() => {
@@ -277,6 +283,15 @@ function MerchantProductsPage() {
       aux_remind: therapyReport.caution_people,
     }))
   }, [therapyReport])
+
+  // 辨证适配标签：随「食疗标签」变化自动推导；商家可再手动增删。
+  // 仅在 health_tag 变化时重算，避免覆盖商家已手动调整过的标签（迁移 00237）
+  const healthTagKey = form.health_tag.join(',')
+  useEffect(() => {
+    const { crowdTags } = deriveFitConstitution(form.health_tag)
+    setForm(f => ({ ...f, fit_crowd_tags: crowdTags }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [healthTagKey])
 
   // ─── 打开新增表单 ───
   const handleNewProduct = () => {
@@ -395,6 +410,8 @@ function MerchantProductsPage() {
       nutrition: (p as any).nutrition ?? null,
       safety_grade: (p as any).safety_grade ?? '',
       safety_summary: (p as any).safety_summary ?? '',
+      fit_people_override: (p as any).fit_people_override ?? '',
+      fit_crowd_tags: (p as any).fit_crowd_tags ?? [],
       category_id: p.category_id ?? '',
       product_kind: (p as any).product_kind ?? 'food',
       materials: (p as any).materials ?? [],
@@ -533,6 +550,9 @@ function MerchantProductsPage() {
         // 食养系统化：上传即落 therapy_json 单一数据源；无食养则标记 therapy_pending 待补
         therapy_json: isGiftKind ? undefined : (therapyReport || undefined),
         fit_people: isGiftKind ? undefined : (therapyReport?.fit_people || undefined),
+        // 辨证增强（迁移 00237）：商家手填覆盖文案 + 适配体质标签
+        fit_people_override: isGiftKind ? undefined : (form.fit_people_override.trim() || undefined),
+        fit_crowd_tags: isGiftKind ? undefined : (form.fit_crowd_tags.length > 0 ? form.fit_crowd_tags : undefined),
         therapy_pending: isGiftKind ? false : !therapyReport,
         is_active: form.is_active,
         category_id: form.category_id || null,
@@ -749,7 +769,7 @@ function MerchantProductsPage() {
   }
 
   // 通用数组字段切换（食疗标签/宜搭/慎搭，带上限）
-  const toggleArrayField = (field: 'health_tag' | 'match_goods' | 'conflict_goods', val: string, max = 99) => {
+  const toggleArrayField = (field: 'health_tag' | 'match_goods' | 'conflict_goods' | 'fit_crowd_tags', val: string, max = 99) => {
     setForm(f => {
       const arr = f[field]
       if (arr.includes(val)) return { ...f, [field]: arr.filter(v => v !== val) }
@@ -1781,6 +1801,34 @@ function MerchantProductsPage() {
                   )
                 })}
               </View>
+
+              {/* 辨证适配人群：由食疗标签自动推导，可手动增删（迁移 00237） */}
+              <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>辨证适配人群（最多 6）</Text>
+              <Text style={{ fontSize: '11px', color: '#999', marginBottom: '6px', display: 'block' }}>根据上方食疗标签自动推导，可手动增删；用于详情页辨证展示与个性化匹配</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                {FIT_CROWD_OPTIONS.map((t: string) => {
+                  const sel = form.fit_crowd_tags.includes(t)
+                  return (
+                    <View key={t} onClick={() => toggleArrayField('fit_crowd_tags', t, 6)}
+                      style={{
+                        padding: '6px 12px', borderRadius: '9999px',
+                        background: sel ? '#16A34A' : '#FFF',
+                        border: '1px solid rgba(22,163,74,0.25)',
+                      }}>
+                      <Text style={{ fontSize: '13px', color: sel ? '#FFF' : '#16A34A', fontWeight: sel ? '700' : '400' }}>{t}</Text>
+                    </View>
+                  )
+                })}
+              </View>
+
+              {/* 适合人群：引擎辨证生成，商家可手填覆盖（迁移 00237） */}
+              <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>适合人群（可手改，留空则用系统辨证结果）</Text>
+              <Textarea
+                style={{ width: '100%', minHeight: '56px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '14px', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+                placeholder={therapyReport?.fit_people || '系统会根据食疗标签与配料自动辨证生成，也可在此手改…'}
+                placeholderStyle="color:#BBB;font-size:13px"
+                value={form.fit_people_override}
+                onInput={(e: any) => setForm(f => ({ ...f, fit_people_override: e.detail?.value ?? '' }))} />
 
               {/* 辅料提醒：过敏/禁忌，让商品更懂用户 */}
               <Text style={{ fontSize: '13px', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>辅料提醒（过敏/禁忌，如"含坚果，过敏慎选"）</Text>
