@@ -18,6 +18,7 @@ type RefundRow = {
   status: string
   reject_reason: string | null
   created_at: string
+  user_id: string
   profiles?: { nickname: string | null; phone: string | null }
 }
 
@@ -29,16 +30,19 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'text-green-600', closed: 'text-gray-500', abnormal: 'text-red-500',
 }
 const TABS: { value: string; label: string }[] = [
-  { value: 'pending_review', label: '待审核' },
+  { value: 'all', label: '全部' },
   { value: 'processing', label: '处理中' },
+  { value: 'abnormal', label: '异常' },
   { value: 'completed', label: '已完成' },
   { value: 'closed', label: '已关闭' },
-  { value: 'all', label: '全部' },
+  { value: 'pending_review', label: '待审核' },
 ]
 
 function AdminRefundsPage() {
   const { profile, loading: authLoading } = useAuth()
-  const [tab, setTab] = useState('pending_review')
+  // 默认「全部」：refund-order EF 建单即写 processing（微信退款等回调→completed），
+  // 已无 pending_review 产生源，沿用旧默认会让页面看起来「永远是空的」。
+  const [tab, setTab] = useState('all')
   const [list, setList] = useState<RefundRow[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
@@ -48,15 +52,28 @@ function AdminRefundsPage() {
     if (profile?.role !== 'admin') { Taro.reLaunch({ url: '/pages/index/index' }); return }
     setLoading(true)
     try {
+      // ⚠️ 不能用 profiles(nickname,phone) 嵌入查询：
+      // refunds.user_id 外键指向 auth.users，并不存在到 public.profiles 的外键，
+      // PostgREST 会直接返回 PGRST200（Could not find a relationship）→ 列表永远加载失败。
+      // 改为先查退款单，再按 user_id 批量取 profiles 合并。
       let q = supabase
         .from('refunds')
-        .select('id,refund_no,order_no,refund_amount,reason,status,reject_reason,created_at,profiles(nickname,phone)')
+        .select('id,refund_no,order_no,refund_amount,reason,status,reject_reason,created_at,user_id')
         .order('created_at', { ascending: false })
         .limit(100)
       if (tab !== 'all') q = q.eq('status', tab)
       const { data, error } = await withTimeout(q, 8000, '[admin-refunds] load timeout')
       if (error) throw error
-      setList((data as RefundRow[]) || [])
+      const rows = (data as unknown as RefundRow[]) || []
+      const ids = Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean)))
+      const profMap: Record<string, { nickname: string | null; phone: string | null }> = {}
+      if (ids.length) {
+        const { data: profs } = await supabase.from('profiles').select('id,nickname,phone').in('id', ids)
+        for (const p of ((profs as any[]) || [])) {
+          profMap[p.id] = { nickname: p.nickname ?? null, phone: p.phone ?? null }
+        }
+      }
+      setList(rows.map((r) => ({ ...r, profiles: profMap[r.user_id] })))
     } catch (err) {
       console.error('[admin-refunds] load failed:', err)
       Taro.showToast({ title: '加载失败', icon: 'none' })
@@ -157,7 +174,8 @@ function AdminRefundsPage() {
                 <Text className="text-base text-muted-foreground">{new Date(r.created_at).toLocaleString('zh-CN')}</Text>
               </View>
 
-              {r.status === 'pending_review' && (
+              {/* 可人工处置：待审核（历史流程） + 异常（微信退款发起失败，需人工在商户平台退款后标记完成） */}
+              {(r.status === 'pending_review' || r.status === 'abnormal') && (
                 <View className="flex flex-row gap-3">
                   <Button type="button"
                     className={`flex-1 flex items-center justify-center leading-none rounded-xl ${processing === r.id ? 'bg-primary/50' : 'bg-primary'}`}

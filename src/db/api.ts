@@ -2689,8 +2689,25 @@ export async function applyRefund(params: {
     })
 
     if (error) {
-      console.error('[applyRefund] refund-order invoke error:', error)
-      return { success: false, error: (error as any)?.message || '退款服务调用失败，请稍后重试' }
+      // supabase-js 对非 2xx 统一抛通用文案「Edge Function returned a non-2xx status code」，
+      // 真正的业务原因在 error.context(Response) 里。必须读出来，否则用户只看到
+      // 一句无意义的英文，既不知道「为什么不能退」也无从排查（本次线上故障即此表象）。
+      let serverMsg = ''
+      try {
+        const ctx: any = (error as any)?.context
+        if (ctx && typeof ctx.clone === 'function') {
+          try {
+            const body = await ctx.clone().json()
+            serverMsg = body?.error || body?.message || ''
+          } catch {
+            serverMsg = typeof ctx.text === 'function' ? await ctx.text() : ''
+          }
+        }
+      } catch (e) {
+        console.warn('[applyRefund] 读取错误响应体失败', e)
+      }
+      console.error('[applyRefund] refund-order invoke error:', error, serverMsg)
+      return { success: false, error: serverMsg || (error as any)?.message || '退款服务调用失败，请稍后重试' }
     }
 
     const res = (data ?? {}) as { success?: boolean; refund_id?: string; method?: string; error?: string }

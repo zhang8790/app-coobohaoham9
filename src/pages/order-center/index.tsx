@@ -150,7 +150,8 @@ function OrderCenterPage() {
                     <View className="py-2 px-4 text-base text-muted-foreground">删除</View>
                   </View>
                 )}
-                {['pending_ship', 'pending_receive', 'pending_pickup', 'pending_review', 'completed', 'paid'].includes(order.status) && (
+                {/* 可退款状态：须与 refund-order EF 白名单严格一致（pending_pickup/paid 不在 order_status 枚举内，属幻状态已剔除） */}
+                {['pending_ship', 'pending_receive', 'pending_review', 'completed'].includes(order.status) && (
                   <View
                     className="flex items-center justify-center leading-none rounded-xl bg-muted"
                     onClick={() => Taro.navigateTo({ url: `/pages/trade/refund-apply/index?orderId=${encodeURIComponent(order.id)}` })}>
