@@ -21,7 +21,7 @@ import GiftSections from '@/pages/product/GiftSections'
 import { getFoodBenefit } from '@/data/foodBenefits'
 import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
 import { PRODUCT_DISCLAIMER, FOOD_THERAPY_DISCLAIMER, FOOD_REFERENCE_DISCLAIMER, shieldCopy, cleanAudienceTags } from '@/utils/compliance/shield'
-import { buildTherapyReport, buildTherapyHeadline, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, buildTherapyHeadline, isFoodProduct, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { analyzeForProfile, describeCohort } from '@/utils/food-therapy/profile-analysis'
 import { getFoodIngredients, callIngredientAnalyze, type FoodIngredientRow, type CatalogInsight } from '@/db/food-safety'
 
@@ -415,7 +415,8 @@ const [adding, setAdding] = useState(false)
   )
 
   // 商品类型分流：food=食养走食疗模块；gift/craft/care=走礼品模块（互斥，绝不共用食疗话术）
-  const isFood = !product.product_kind || product.product_kind === 'food'
+  // 统一走商品类型闸门（与首页/探索页/门店页同源），避免多处各写一份判断导致漂移
+  const isFood = isFoodProduct(product)
   const isGift = !isFood
 
   return (

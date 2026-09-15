@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { parseCrowdsFromText, classifyProduct as classifyOne, toFoodTherapyInput, QUICK_BODY_PRESETS, profileToCrowds, FOOD_CATEGORIES, HEALTH_TAGS, type Crowd, type FitTier, type HealthTag } from '@/utils/food-therapy'
-import { buildTherapyReport, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, isFoodProduct, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 import { getTodayFoodTherapy, resolveConstitution, type TodayFoodTherapyResult } from '@/utils/today-food-therapy'
 import { analyzeConsumption, recommendByConsumption, type ConsumptionProfile } from '@/utils/consumption-profile'
@@ -541,6 +541,9 @@ export default function IndexPage() {
     const dictMap = new Map(ingredientDict.map((d) => [d.name, d]))
     const calc = (p?: Product | null) => {
       if (!p) return null
+      // 类型闸门：非食养商品（礼品/手作/护理/日用品）不参与食疗计算，
+      // 避免工艺品/日用品被解析出「适合人群 / 食性」这类食品专属结论
+      if (!isFoodProduct(p)) return null
       // 优先读 therapy_json 单一数据源（服务端回算 / 上传回写），保证首页与门店卡一致
       const tj = p.therapy_json as Partial<ProductTherapyReport> | null | undefined
       if (tj && tj.overall_nature_code) return tj as ProductTherapyReport

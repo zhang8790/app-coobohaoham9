@@ -13,7 +13,7 @@ import type { Store, StoreCategory, Product } from '@/db/types'
 import { supabase, getLocalUser } from '@/client/supabase'
 import Icon from '@/components/Icon'
 import AddToCartButton from '@/components/AddToCartButton'
-import { buildTherapyReport, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, isFoodProduct, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 
 export default function StoreHomePage() {
@@ -114,6 +114,8 @@ export default function StoreHomePage() {
     const map: Record<string, ProductTherapyReport | null> = {}
     const dictMap = new Map(ingredientDict.map((r) => [r.name, r]))
     for (const p of filteredProducts) {
+      // 类型闸门：非食养商品不参与食疗计算（工艺品/日用品不应出现「适合人群 / 食性」）
+      if (!isFoodProduct(p)) { map[p.id] = null; continue }
       // 优先读 therapy_json 单一数据源
       const tj = p.therapy_json as Partial<ProductTherapyReport> | null | undefined
       if (tj && tj.overall_nature_code) { map[p.id] = tj as ProductTherapyReport; continue }

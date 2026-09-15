@@ -13,7 +13,7 @@ import ProductGridCard from '@/components/ProductGridCard'
 import CustomTabBar from '@/components/custom-tabbar'
 import FloatingActionBar from '@/components/FloatingActionBar'
 import { getProductCareInfo } from '@/utils/product-care'
-import { buildTherapyReport, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, isFoodProduct, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import type { NearbyProduct } from '@/db/api'
@@ -70,6 +70,8 @@ export default function ExplorePage() {
     products.forEach((p) => {
       const raw = p.raw as Product | undefined
       if (!raw || !raw.ingredients || (raw.ingredients as string[]).length === 0) { map[p.product_id] = null; return }
+      // 类型闸门：非食养商品不参与食疗计算（工艺品/日用品不应出现「适合人群 / 食性」）
+      if (!isFoodProduct(raw)) { map[p.product_id] = null; return }
       const inputs: ProductIngredientInput[] = (raw.ingredients as string[]).map((name) => {
         const row = dictMap.get(name)
         if (!row) return null
