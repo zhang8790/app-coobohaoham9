@@ -111,7 +111,13 @@ Deno.serve(async (req: Request) => {
           notify_url: notifyUrl,
           amount: {
             refund: wxRefundAmount,
-            total: Math.round(Number(order.total_amount) * 100),
+            // ⚠️ total 必须是「原微信交易金额」，不是订单全额！
+            // 微信规定 amount.total = 该笔微信支付交易的实付金额。
+            // 订单若用过健康豆抵扣，实际微信支付额 = total_amount - tb_used
+            // （create-wechat-payment 下单时正是按此口径报的 wxAmount）。
+            // 原先误传 total_amount*100（含健康豆部分），口径大于原交易额，
+            // 微信以「订单金额不一致」拒绝 → 所有混合支付订单退款必然失败。
+            total: Math.round((Number(order.total_amount) - Number(order.tb_used ?? 0)) * 100),
             currency: 'CNY',
           },
         }, { headers: { 'Wechatpay-Serial': WECHAT_PAY_PUBLIC_KEY_ID } })

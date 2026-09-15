@@ -2690,24 +2690,45 @@ export async function applyRefund(params: {
 
     if (error) {
       // supabase-js 对非 2xx 统一抛通用文案「Edge Function returned a non-2xx status code」，
-      // 真正的业务原因在 error.context(Response) 里。必须读出来，否则用户只看到
-      // 一句无意义的英文，既不知道「为什么不能退」也无从排查（本次线上故障即此表象）。
+      // 真正的业务原因在 error.context(Response) 里，必须读出来——否则用户只看到一句
+      // 无意义的英文，既不知「为什么不能退」也无从排查（本次线上故障即此表象）。
+      // ⚠️ 不可依赖 ctx.clone()：小程序 fetch 适配层的 Response 不一定实现 clone，
+      //    一旦缺失旧写法会静默退回英文文案。这里直接读原 Response（只读一次即可）。
       let serverMsg = ''
+      let httpStatus = 0
       try {
         const ctx: any = (error as any)?.context
-        if (ctx && typeof ctx.clone === 'function') {
-          try {
-            const body = await ctx.clone().json()
-            serverMsg = body?.error || body?.message || ''
-          } catch {
-            serverMsg = typeof ctx.text === 'function' ? await ctx.text() : ''
+        if (ctx && typeof ctx === 'object') {
+          httpStatus = Number(ctx.status || 0) || 0
+          if (typeof ctx.text === 'function') {
+            const raw = await ctx.text()
+            if (raw) {
+              try {
+                const body = JSON.parse(raw)
+                serverMsg = String(body?.error || body?.message || '').trim()
+              } catch {
+                serverMsg = raw.slice(0, 200).trim()
+              }
+            }
+          } else if (typeof ctx.json === 'function') {
+            const body = await ctx.json()
+            serverMsg = String(body?.error || body?.message || '').trim()
+          } else {
+            serverMsg = String(ctx.error || ctx.message || '').trim()
           }
         }
       } catch (e) {
         console.warn('[applyRefund] 读取错误响应体失败', e)
       }
-      console.error('[applyRefund] refund-order invoke error:', error, serverMsg)
-      return { success: false, error: serverMsg || (error as any)?.message || '退款服务调用失败，请稍后重试' }
+      console.error('[applyRefund] refund-order invoke error:', error, '| status=', httpStatus, '| serverMsg=', serverMsg)
+      // 兜底也一律给中文可诊断信息，绝不再把英文原文透给用户
+      return {
+        success: false,
+        error:
+          serverMsg
+          || (httpStatus ? `退款服务失败（HTTP ${httpStatus}），请稍后重试或联系客服` : '')
+          || '退款服务调用失败，请稍后重试',
+      }
     }
 
     const res = (data ?? {}) as { success?: boolean; refund_id?: string; method?: string; error?: string }
