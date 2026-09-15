@@ -221,13 +221,8 @@ export default function IndexPage() {
   // V1 体质档案：登录后读取，驱动首页个性化（呈现"你关注的食养偏好"，非"今日"）
   const [userProfile, setUserProfile] = useState<UserHealthProfile | null>(null)
 
-  // 首页「限时福利」弹窗状态（仅在有可领取活动、且用户主动点击入口卡片时才展开）
-  const [showCampaignPopup, setShowCampaignPopup] = useState(false)
   // 首页扫码配料识别 · 技术壁垒弹窗（突出自研数据库区别于通用 AI）
   const [showScanMoat, setShowScanMoat] = useState(false)
-  const [campaignList, setCampaignList] = useState<any[]>([])
-  // 门店红包对应的门店名（用于在首页弹窗标注「XX店专享」）
-  const [storeNameMap, setStoreNameMap] = useState<Record<string, string>>({})
   const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
   // P2 复测提醒：最近一次体质测试距今天数（null = 游客态/无记录，不提示）
   const [retestDays, setRetestDays] = useState<number | null>(null)
@@ -505,11 +500,6 @@ export default function IndexPage() {
     return [...tr.recommend, ...tr.caution].slice(0, 12)
   }, [profileCrowds, feedItems, hasQuery])
 
-  // 新增：首页加载时检查是否有可领取的红包/实物活动
-  useEffect(() => {
-    checkCampaign()
-  }, [currentCity])
-
   // 商品「关怀层」信息：复用既有食养引擎，依用户体质/人群个性化适配分档 + 关怀度
   // （displayFeed 已移至 consumptionItems 之后定义，以复用 personalizedItems 做去重）
 
@@ -593,62 +583,6 @@ export default function IndexPage() {
   const careOf = (p: Product) => {
     try { return getProductCareInfo(p) } catch { return null }
   }
-
-  const checkCampaign = useCallback(async () => {
-    if (!currentCity?.id) return
-
-    try {
-      const { supabase } = await import('@/client/supabase')
-      const now = new Date().toISOString().split('T')[0]  // YYYY-MM-DD
-
-      const { data, error } = await supabase
-        .from('marketing_campaigns')
-        .select('*')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      if (error) {
-        console.error('[Index] 查询活动失败', error)
-        return
-      }
-
-      // 前端过滤：开始日期 / 结束日期 / 领取上限（仅保留「仍有可发放库存」的活动）
-      const today = new Date()
-      const activeList = (data || []).filter((c: any) => {
-        if (c.start_date && new Date(c.start_date) > today) return false
-        if (c.end_date && new Date(c.end_date) < today) return false
-        // total_limit 缺失视为不限量；claimed_count 缺失按 0 计。仅当剩余库存 > 0 才展示
-        const remaining = (c.total_limit ?? Infinity) - (c.claimed_count ?? 0)
-        if (remaining <= 0) return false
-        return true
-      })
-
-      if (activeList.length > 0) {
-        setCampaignList(activeList)
-        // 解析门店专享红包的门店名
-        const storeIds = activeList.map((c: any) => c.store_id).filter(Boolean)
-        if (storeIds.length > 0) {
-          const { data: stores } = await supabase
-            .from('stores')
-            .select('id, name')
-            .in('id', storeIds)
-          const map: Record<string, string> = {}
-          ;(stores || []).forEach((s: any) => { map[s.id] = s.name })
-          setStoreNameMap(map)
-        }
-        // 红包不再进首页自动强弹：改为内容流常驻入口卡片，用户主动点击才展开
-      }
-    } catch (err) {
-      console.error('[Index] 检查活动失败', err)
-    }
-  }, [currentCity])
-
-  // 首页「限时福利」入口（统一收口至 L2 金刚区）：有活动弹出领取，无活动轻提示
-  const openCampaign = useCallback(() => {
-    if (campaignList.length > 0) setShowCampaignPopup(true)
-    else Taro.showToast({ title: '暂无进行中的活动', icon: 'none' })
-  }, [campaignList])
 
   // 首页「好物动态」：仅全站实时下单脱敏聚合（社会证明）。
   // 注：官方公告在右上角铃铛（消息中心）聚合展示，此处仅保留「好物动态」社会证明，不再重复展示公告。
@@ -1160,69 +1094,6 @@ export default function IndexPage() {
               )}
             </View>
           )}
-        </View>
-      )}
-
-      {/* 红包/实物领取弹窗 */}
-      {showCampaignPopup && campaignList.length > 0 && (
-        <View className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="w-10/12 max-h-4/5 bg-card rounded-3xl p-6 overflow-y-auto">
-            <Text className="text-2xl font-bold text-foreground text-center block mb-4">
-              🎁 限时福利
-            </Text>
-            <Text className="text-base text-muted-foreground text-center block mb-6">
-              领取红包/实物，绑定专属门店优惠
-            </Text>
-
-            {/* 活动列表 */}
-            <View className="gap-4 mb-6">
-              {campaignList.map((campaign, index) => (
-                <View key={campaign.id} className="p-4 rounded-2xl bg-background border border-border">
-                  <View className="flex items-center gap-3 mb-3">
-                    <Text className="text-3xl">
-                      {campaign.campaign_type === 'red_packet' ? '🧧' : '🎁'}
-                    </Text>
-                    <View className="flex-1">
-                      <Text className="text-xl font-bold text-foreground block">
-                        {campaign.campaign_name}
-                      </Text>
-                      <Text className="text-base text-muted-foreground">
-                        {campaign.campaign_type === 'red_packet'
-                          ? `¥${campaign.gift_value} 门店福利金`
-                          : campaign.gift_name}
-                      </Text>
-                      {campaign.store_id && storeNameMap[campaign.store_id] && (
-                        <View className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full bg-destructive/10">
-                          <Text className="text-xs text-red-600 font-bold">
-                            {storeNameMap[campaign.store_id]} 专享
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                  <View
-                    className="w-full py-3 rounded-2xl bg-primary text-white text-center text-xl font-bold"
-                    onClick={() => {
-                      Taro.navigateTo({
-                        url: `/pages/marketing/campaign-claim/index?campaignId=${campaign.id}`
-                      })
-                      setShowCampaignPopup(false)
-                    }}
-                  >
-                    立即领取
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            {/* 关闭按钮 */}
-            <View
-              className="w-full py-3 rounded-2xl bg-muted text-muted-foreground text-center text-xl font-bold"
-              onClick={() => setShowCampaignPopup(false)}
-            >
-              暂时不要
-            </View>
-          </View>
         </View>
       )}
 

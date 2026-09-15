@@ -24,8 +24,6 @@ export default function StoreHomePage() {
   const [activeCat, setActiveCat] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [addingId, setAddingId] = useState<string | null>(null)
-  // 门店专属红包（进店领→归属）
-  const [storeCampaign, setStoreCampaign] = useState<any | null>(null)
   // 食疗食材字典：驱动门店商品卡实时三色预警 / 整体性味（与详情页同源引擎）
   const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
   useEffect(() => {
@@ -87,15 +85,7 @@ export default function StoreHomePage() {
       getStoreById(storeId),
       getStoreCategories(storeId),
       getProducts({ storeId }),
-      // 查询该门店的专属进行中红包（用于进店领→归属）
-      supabase
-        .from('marketing_campaigns')
-        .select('*')
-        .eq('store_id', storeId)
-        .eq('status', 'active')
-        .eq('campaign_type', 'red_packet')
-        .limit(5),
-    ]).then(([s, cats, prods, campRes]) => {
+    ]).then(([s, cats, prods]) => {
       if (s) {
         setStore(s)
         // 强引导门店自推码：进店即绑门店 owner 推广码（让利佣金回流门店）
@@ -105,15 +95,6 @@ export default function StoreHomePage() {
       }
       setCategories(cats)
       setProducts(prods)
-      // 过滤有效门店红包（日期区间 + 发放未达上限）
-      const now = new Date()
-      const valid = (campRes.data || []).filter((c: any) => {
-        if (c.start_date && new Date(c.start_date) > now) return false
-        if (c.end_date && new Date(c.end_date) < now) return false
-        if ((c.claimed_count || 0) >= (c.total_limit || 0)) return false
-        return true
-      })
-      setStoreCampaign(valid[0] || null)
     }).catch(err => {
       console.error('[StoreHome] load error:', err)
     }).finally(() => {
@@ -292,34 +273,6 @@ export default function StoreHomePage() {
           </View>
         </View>
       </View>
-
-      {/* ========== 门店专属红包横幅（进店领→归属） ========== */}
-      {storeCampaign && (
-        <View
-          className="store-redpacket-banner"
-          onClick={() => Taro.navigateTo({ url: `/pages/marketing/campaign-claim/index?campaignId=${storeCampaign.id}` })}
-          style={{
-            margin: '10px 16px 0',
-            padding: '12px 16px',
-            borderRadius: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}>
-          <View style={{ display: 'flex', flexDirection: 'column' }}>
-            <Text style={{ color: '#FFF', fontSize: '16px', fontWeight: 'bold' }}>🧧 进店领红包</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', marginTop: '2px' }}>
-              {storeCampaign.campaign_name}
-            </Text>
-          </View>
-          <View style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Text style={{ color: '#FFF', fontSize: '22px', fontWeight: 'bold' }}>¥{storeCampaign.gift_value}</Text>
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: '999px', padding: '6px 14px' }}>
-              <Text style={{ color: '#FFF', fontSize: '14px', fontWeight: 'bold' }}>立即领</Text>
-            </View>
-          </View>
-        </View>
-      )}
 
       {/* ========== 服务模式切换 ========== */}
       <View style={{

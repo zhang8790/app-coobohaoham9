@@ -84,20 +84,12 @@ const subPackages = [
     ],
   },
   {
-    root: 'pages/marketing',
-    pages: ['campaign-claim/index'],
-  },
-  {
     root: 'pages/food',
     pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index', 'ingredient-pairing/index', 'consult/index', 'tracker/index', 'bmi/index', 'family/index', 'need-find/index', 'food-match/index'],
   },
   {
     root: 'pages/ext',
     pages: ['employee/index'],
-  },
-  {
-    root: 'pages/expiry',
-    pages: ['index'],
   },
 ]
 

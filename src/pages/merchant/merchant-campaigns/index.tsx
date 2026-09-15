@@ -141,12 +141,6 @@ export default function MerchantCampaignsPage() {
                     </Text>
                   </View>
                 </Button>
-                <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-xl"
-                  onClick={() => Taro.navigateTo({ url: `/pages/marketing/campaign-claim/index?campaignId=${campaign.id}` })}>
-                  <View className="py-2 flex items-center justify-center">
-                    <Text className="text-sm font-bold text-white">预览</Text>
-                  </View>
-                </Button>
               </View>
             </View>
           ))
