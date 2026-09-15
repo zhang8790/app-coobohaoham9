@@ -135,11 +135,19 @@ export async function callEdgeFunction<T = any>(
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  const json = (await res.json()) as any
+  // ⚠️ 不可直接 await res.json()：网关错误 / 函数崩溃 / 空响应时响应体可能不是 JSON，
+  // 抛出的异常会一路被上层 catch 吞掉，表现为「点击按钮毫无反应」——
+  // 云打印曾踩过此坑，且这类静默失败极难排查。这里安全降级为取不到 body。
+  let json: any = null
+  try {
+    json = (await res.json()) as any
+  } catch {
+    json = null
+  }
   if (!res.ok) {
     return { data: null, error: { message: json?.error || json?.message || `HTTP ${res.status}` } }
   }
-  return { data: json as T, error: null }
+  return { data: (json ?? {}) as T, error: null }
 }
 
 export const supabase = isLocalDev ? mockSupabase : realSupabase
