@@ -259,21 +259,6 @@ export default function FoodScanPage() {
         >
           解析配料
         </Button>
-        <Button
-          onClick={() => {
-            if (!text.trim()) {
-              Taro.showToast({ title: '请先输入或粘贴配料文字', icon: 'none' })
-              return
-            }
-            Taro.navigateTo({
-              url: `/pages/food/analysis-result/index?text=${encodeURIComponent(text.trim())}`,
-            })
-          }}
-          className="mt-2 rounded-full"
-          style={{ background: '#0f172a', color: '#fff', fontSize: 14 }}
-        >
-          查看标准安全报告
-        </Button>
       </View>
 
       {/* 拍照识别 + 扫条码购买（两条下单链路） */}

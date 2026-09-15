@@ -18,6 +18,7 @@ const FEATURES = [
   { key: 'constitution', icon: '🧪', label: '食养偏好设置', desc: '读懂你的体质与口味', page: '/pages/food/constitution-test/index', color: '#C8A45C' },
   { key: 'pairing', icon: '🥘', label: '食材配对探索', desc: '什么食材更适合你', page: '/pages/food/ingredient-pairing/index', color: '#B5651D' },
   { key: 'family', icon: '👨‍👩‍👧', label: '家庭食养档案', desc: '全家人的食养参考', page: '/pages/food/family/index', color: '#9A3324' },
+  { key: 'detective', icon: '🔍', label: '食安侦探局', desc: '玩中学，辨真伪', page: '/pages/food-detective/index', color: '#3B6E4F' },
 ]
 
 export default function FoodHubPage() {

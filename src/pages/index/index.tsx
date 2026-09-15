@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
 import { Image, Input, View, Text, ScrollView, Button, Video } from '@tarojs/components'
-import { getProducts, getRankedFeed, getAnnouncements, getOrderFeed, getOrders, getProductsByIds, getMyFootprints, getUserFoodTherapyWeights, addToCart, getSiteConfig } from '@/db/api'
+import { getProducts, getAnnouncements, getOrders, getProductsByIds, getMyFootprints, getUserFoodTherapyWeights, addToCart, getSiteConfig } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
 import { getUserHealthProfile, getLatestConstitutionResult, getScanHistory } from '@/db/food-api'
 import type { Product, Announcement, OrderFeedItem, Order, UserHealthProfile, UserScanHistory } from '@/db/types'
@@ -161,7 +161,6 @@ export default function IndexPage() {
   }, [addingId])
 
   const [mood, setMood] = useState('')
-  const [feedSort, setFeedSort] = useState<'latest' | 'hot'>('latest')
   // 「适合我」个性化筛选：仅看适合我的好物
   const [fitOnly, setFitOnly] = useState(false)
   // 状态卡「你关注的食养偏好」默认折叠，降低首屏高度
@@ -195,8 +194,6 @@ export default function IndexPage() {
       setSelectedStoreId(s.id)
     }).catch(() => {})
   }
-  const [orderFeed, setOrderFeed] = useState<OrderFeedItem[]>([])
-  const [annIdx, setAnnIdx] = useState(0)
   const [loading, setLoading] = useState(false)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -323,12 +320,6 @@ export default function IndexPage() {
   })
   useShareTimeline(() => ({ title: '来电有喜，有喜相逢' }))
 
-  // 加载首页「好物动态」：全站实时下单脱敏聚合
-  const loadOrderFeed = useCallback(async () => {
-    const data = await getOrderFeed(20)
-    setOrderFeed(data)
-  }, [])
-
   // 加载公告
   const loadAnnouncements = useCallback(async () => {
     const data = await getAnnouncements()
@@ -365,14 +356,10 @@ export default function IndexPage() {
         let raw: Product[] = []
         if (storeId) {
           // 已显式选定门店：只拉该店商品（下钻），别的店不混进
-          raw = feedSort === 'hot'
-            ? await getRankedFeed({ storeId, limit: 40 })
-            : await getProducts({ storeId, limit: 40 })
+          raw = await getProducts({ storeId, limit: 40 })
         } else {
-          // 默认全城聚合流：推荐=热度榜（storeId 不传=全城）；最新=全城好物
-          raw = feedSort === 'hot'
-            ? await getRankedFeed({ storeId: undefined, limit: 40 })
-            : await getProducts({ limit: 30, platformFilter: 'only' })
+          // 默认全城聚合流：全城好物（不再提供热度榜切换，保持信息纯净）
+          raw = await getProducts({ limit: 30, platformFilter: 'only' })
         }
         const next = raw.map(p => ({ product: p, matchScore: 1, matchLabel: null }))
         setFeedItems(next)
@@ -383,29 +370,26 @@ export default function IndexPage() {
       }
     })()
     return feedInflightRef.current
-  }, [currentLocation, nearbyStores, selectedStoreId, currentStore, feedSort])
+  }, [currentLocation, nearbyStores, selectedStoreId, currentStore])
 
   // 注意：不再自动把首页 feed 锁到最近门店——默认全城聚合流，用户手动点门店切换器才下钻。
   // （旧逻辑会在定位完成后自动 setSelectedStoreId(currentStore.id)，强制单店、小店首页空白，
   // 违背「先逛全城」的人类习惯，已撤销。）
 
-  // 下拉刷新（注：loadOrderFeed/loadAnnouncements/loadFeed 已在上文声明，避免依赖数组 TDZ）
+  // 下拉刷新（注：loadAnnouncements/loadFeed 已在上文声明，避免依赖数组 TDZ）
   useEffect(() => {
     const handler = () => {
       loadFeed()
       loadAnnouncements()
-      loadOrderFeed()
       Taro.stopPullDownRefresh()
     }
     // Taro 小程序下拉刷新回调
     ;(Taro as any).onPullDownRefresh = handler
     return () => { ;(Taro as any).onPullDownRefresh = null }
-  }, [loadOrderFeed, loadAnnouncements])
+  }, [loadAnnouncements, loadFeed])
 
-  useEffect(() => { loadAnnouncements(); loadOrderFeed(); loadFeed(); loadMyOrders() }, [loadAnnouncements, loadOrderFeed, loadFeed, loadMyOrders])
+  useEffect(() => { loadAnnouncements(); loadFeed(); loadMyOrders() }, [loadAnnouncements, loadFeed, loadMyOrders])
   useDidShow(() => { loadFeed() })
-  // 推荐/最新切换时重拉 feed
-  useEffect(() => { loadFeed() }, [feedSort])
 
   // 消费偏好画像：登录后回溯历史订单 + 浏览足迹 → 聚合食养偏好（health_tag 频次 / nature 众数）
   // 行为标签复利：购买(强信号×3) + 浏览(弱信号×1) 共同沉淀；并叠加显式反馈权重(点赞/点踩/加购/购买)。
@@ -542,14 +526,14 @@ export default function IndexPage() {
 
   // 千人千面排序：有画像且无查询、非热度模式时，把商品流按食养适配度(recommend→caution→avoid)前置
   const sortedFeed = useMemo<ScoredProduct<Product>[]>(() => {
-    if (hasQuery || feedSort === 'hot' || selectedCrowds.length === 0) return displayFeed
+    if (hasQuery || selectedCrowds.length === 0) return displayFeed
     const rank: Record<string, number> = { recommend: 0, caution: 1, avoid: 2 }
     return [...displayFeed].sort((a, b) => {
       const ra = rank[getSuitability(a.product)] ?? 3
       const rb = rank[getSuitability(b.product)] ?? 3
       return ra - rb
     })
-  }, [displayFeed, hasQuery, feedSort, selectedCrowds, getSuitability])
+  }, [displayFeed, hasQuery, selectedCrowds, getSuitability])
 
   // 食疗引擎报告映射（与详情页/门店卡同源）：首页商品池一次性算好，卡片直接取用
   const therapyMap = useMemo<Record<string, ProductTherapyReport | null>>(() => {
@@ -583,22 +567,6 @@ export default function IndexPage() {
   const careOf = (p: Product) => {
     try { return getProductCareInfo(p) } catch { return null }
   }
-
-  // 首页「好物动态」：仅全站实时下单脱敏聚合（社会证明）。
-  // 注：官方公告在右上角铃铛（消息中心）聚合展示，此处仅保留「好物动态」社会证明，不再重复展示公告。
-  const homeFeed = useMemo<Array<{ type: 'order'; text: string }>>(() => {
-    return orderFeed.map((o) => ({
-      type: 'order' as const,
-      text: `${o.masked_name} 在 ${o.store_name || '本品牌门店'} 下单 ¥${o.amount} 的 ${o.product_name}`,
-    }))
-  }, [orderFeed])
-
-  // 公告/动态轮播
-  useEffect(() => {
-    if (homeFeed.length <= 1) return
-    const t = setInterval(() => setAnnIdx(i => (i + 1) % homeFeed.length), 3000)
-    return () => clearInterval(t)
-  }, [homeFeed.length])
 
   // ===================== 首页通知：右上角铃铛（公告/订单分层，红点提醒） =====================
   // 进行中订单状态（排除已取消/已完成）
