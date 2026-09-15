@@ -1327,18 +1327,28 @@ export async function createOrderV2(params: {
       storeGroups.get(sid)!.push(item)
     }
     const storeGroupArray = Array.from(storeGroups.entries())
+    // 各门店子单小计：多门店拆单时用于把健康豆抵扣按比例摊到子单
+    const subTotals = storeGroupArray.map(([, items]) =>
+      Math.round(items.reduce((s, i) => s + i.price * i.quantity, 0) * 100) / 100)
     const ordersToInsert = storeGroupArray.map(([store_id, items], idx) => ({
       user_id: user.id,
       store_id: store_id === '__no_store__' ? null : store_id,
       order_no: isMultiStore ? `C${orderNo}${store_id?.slice(0, 4)}` : orderNo,
       parent_order_no: parentOrderNo,
-      total_amount: Math.round(items.reduce((s, i) => s + i.price * i.quantity, 0) * 100) / 100,
+      total_amount: subTotals[idx],
       // 纯健康豆支付即视为已支付：配送走「待发货」，到店消费（堂食）当场使用→直接「待评价+已使用」，跳过待核销
       status: params.pay_mode === 'pure_gold'
         ? (params.service_type === 'delivery' ? 'pending_ship' : 'pending_review')
         : 'pending_pay',
       payment_method: params.pay_mode === 'pure_gold' ? 'emotion_beans' : 'wxpay',
-      tb_used: isMultiStore ? 0 : tbUsed,
+      // ⚠️ 多门店拆单必须把健康豆抵扣按比例摊到各子单。
+      // 抵扣额原本只存在于「父单」这个概念里——实际并不存在父订单记录，
+      // tongbao_logs 流水的 order_id 也是 null，退款时无从追溯（按 parent_order_no
+      // 聚合也拿不到）。子单若记 0：退款时会漏退健康豆，且把子单全额误当作微信退款
+      // （而微信实际只收了「总额 − 健康豆」），既伤害用户也可能多退造成平台资损。
+      tb_used: isMultiStore
+        ? Math.round(tbUsed * (catalogTotal > 0 ? subTotals[idx] / catalogTotal : 0) * 100) / 100
+        : tbUsed,
       referrer_id: params.referrer_id || null,
       // idempotency_key 唯一约束：多门店拆单时每个子订单必须独立 key，否则第二单起唯一冲突导致整批建单失败
       idempotency_key: isMultiStore ? `${(params.idempotency_key || orderNo)}-${idx}` : (params.idempotency_key || orderNo),
