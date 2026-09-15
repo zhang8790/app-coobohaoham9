@@ -26,7 +26,7 @@ function MerchantAgreement() {
           <Text className="block text-foreground font-semibold mb-1 leading-snug">三、门店运营者权利与义务</Text>
           <Text className="block">1. 门店运营者须保证所售商品/服务合法、质量合格、描述真实。</Text>
           <Text className="block">2. 门店运营者须及时接单、发货/核销，并按约定处理售后与退款。</Text>
-          <Text className="block">3. 门店运营者可配置本店优惠券、营销活动及门店信息，须遵守品牌运营规范。</Text>
+          <Text className="block">3. 门店运营者可配置本店优惠券及门店信息，须遵守品牌运营规范。</Text>
           <Text className="block">4. 门店运营者应对消费者信息保密，不得滥用或泄露。</Text>
         </View>
 

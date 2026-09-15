@@ -488,23 +488,6 @@ function MerchantCenterPage() {
             </View>
           </Button>
         </View>
-        {/* 红包发放入口 */}
-        <View className="flex gap-3 mt-3">
-          <Button className="!flex-1 !m-0 !p-0 !bg-destructive !border-none !rounded-2xl !leading-none"
-            onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-campaigns/create/index' })}>
-            <View className="py-3 flex items-center gap-1">
-              <Icon name="gift" size={20} className="text-white" />
-              <Text className="text-base font-bold text-white">发放红包</Text>
-            </View>
-          </Button>
-          <Button className="!flex-1 !m-0 !p-0 !bg-warning !border-none !rounded-2xl !leading-none"
-            onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-campaigns/index' })}>
-            <View className="py-3 flex items-center gap-1">
-              <Icon name="gift-outline" size={20} className="text-white" />
-              <Text className="text-base font-bold text-white">管理活动</Text>
-            </View>
-          </Button>
-        </View>
       </View>
 
       {/* 最近订单预览 */}
