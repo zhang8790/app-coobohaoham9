@@ -653,12 +653,6 @@ const [adding, setAdding] = useState(false)
               <Text style={{ fontSize: '18px', fontWeight: '800', color: '#1E3A8A', display: 'block', lineHeight: '1.4' }}>{buildTherapyHeadline(therapyReport).main}</Text>
               <Text style={{ fontSize: '12px', color: '#64748B', display: 'block', marginTop: 2 }}>{buildTherapyHeadline(therapyReport).sub}</Text>
             </View>
-            {therapyReport.fit_people ? (
-              <View style={{ marginTop: 8, padding: '8px 10px', borderRadius: '10px', background: '#ECFDF3', border: '1px solid #BBF7D0' }}>
-                <Text style={{ fontSize: '12px', color: '#16A34A', fontWeight: '700', display: 'block', marginBottom: 2 }}>适合谁</Text>
-                <Text style={{ fontSize: '13px', color: '#14532D', display: 'block', lineHeight: '1.6' }}>{therapyReport.fit_people.split('、').slice(0, 3).join('、')}{therapyReport.fit_people.split('、').length > 3 ? ' 等' : ''}</Text>
-              </View>
-            ) : null}
             {therapyReport.merchant_note ? (
               <View style={{ marginTop: 8, padding: '8px 10px', borderRadius: '10px', background: '#FFFDF7', border: '1px solid #F0E6CF' }}>
                 <Text style={{ fontSize: '12px', color: '#C2410C', fontWeight: '700', display: 'block', marginBottom: 2 }}>📣 门店食养寄语（系统生成）</Text>
