@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "订单中心",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

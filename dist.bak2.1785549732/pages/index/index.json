@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "来电有喜",
-  "enablePullDownRefresh": true,
-  "backgroundTextStyle": "dark",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}
