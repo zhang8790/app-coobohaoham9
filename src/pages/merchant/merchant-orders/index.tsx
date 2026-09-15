@@ -22,6 +22,7 @@ function MerchantOrdersPage() {
   const [orders, setOrders] = useState<any[]>([])   // 原始 order_items 行（全量，用于按订单聚合）
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'all' | 'pending_ship' | 'delivery' | 'completed' | 'unprinted'>('all')
+  const [scanNo, setScanNo] = useState('')   // 扫小票码定位到的订单号；空=不定位
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [batchPrinting, setBatchPrinting] = useState(false)
   const [summary, setSummary] = useState<any>(null)
@@ -84,11 +85,13 @@ function MerchantOrdersPage() {
     )
   }, [orders])
 
-  const filtered = tab === 'all' ? orderGroups
+  const tabFiltered = tab === 'all' ? orderGroups
     : tab === 'pending_ship' ? orderGroups.filter((g: any) => g.status === 'pending_ship')
     : tab === 'delivery' ? orderGroups.filter((g: any) => g.service_type === 'delivery')
     : tab === 'completed' ? orderGroups.filter((g: any) => g.status === 'completed')
     : orderGroups.filter((g: any) => !g.printed_at)  // 未打印：从未成功打印的漏单
+  // 扫小票码定位：优先级高于 tab，避免目标订单被当前筛选条件挡掉
+  const filtered = scanNo ? tabFiltered.filter((g: any) => String(g.order_no) === scanNo) : tabFiltered
   const unprintedIds = useMemo(() => orderGroups.filter((g: any) => !g.printed_at).map((g: any) => g.id), [orderGroups])
 
   const handleShip = async (order: any) => {
@@ -171,8 +174,49 @@ function MerchantOrdersPage() {
     })
   }
 
+  /**
+   * 扫小票二维码查单。
+   * 小票底部 <QR> 的内容就是订单号本身（见 supabase/functions/print-receipt/index.ts:181），
+   * 此前没有任何程序消费它——加上这个入口后，店员处理售后/提货扫一下即可定位订单，
+   * 不必手抄一长串订单号，打印侧零改动。
+   */
+  const handleScanReceipt = async () => {
+    try {
+      const res: any = await Taro.scanCode({ scanType: ['barCode', 'qrCode'], fail: () => {} } as any)
+      const raw = String(res?.result || '').trim()
+      if (!raw) return
+      // 容错：若将来二维码换成链接形式，取最后一段即为订单号
+      const no = raw.includes('/') ? (raw.split('/').filter(Boolean).pop() || raw) : raw
+      const hit = orderGroups.find((g: any) => String(g.order_no) === no)
+      if (!hit) {
+        Taro.showToast({ title: `本店未找到订单 ${no}`, icon: 'none' })
+        return
+      }
+      setScanNo(no)
+      Taro.showToast({ title: '已定位订单', icon: 'success' })
+    } catch {
+      // 用户取消扫码或异常，静默处理
+    }
+  }
+
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
+
+      {/* 扫小票码查单：小票底部二维码内容即订单号，扫码后在本页直接定位 */}
+      <View className="mx-4 mt-3 flex items-center gap-2">
+        <View className="flex items-center justify-center rounded-xl bg-card border-2 border-primary/30 px-3 py-2"
+          onClick={handleScanReceipt}>
+          <Icon name="qrcode-scan" size={18} className="text-primary" />
+          <Text className="text-sm font-bold text-primary ml-1">扫小票码查单</Text>
+        </View>
+        {scanNo ? (
+          <View className="flex items-center rounded-xl bg-primary/10 border border-primary/30 px-3 py-2"
+            onClick={() => setScanNo('')}>
+            <Text className="text-xs font-bold text-primary">已定位 {scanNo}</Text>
+            <Text className="text-xs font-bold text-primary ml-2">✕ 清除</Text>
+          </View>
+        ) : null}
+      </View>
 
       <View className="flex mx-4 mt-3 bg-muted rounded-2xl p-1">
         {(['all', 'pending_ship', 'delivery', 'completed', 'unprinted'] as const).map(key => (
