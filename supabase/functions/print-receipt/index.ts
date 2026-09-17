@@ -309,7 +309,20 @@ async function printYilianyun(cfg: any, content: string, originId: string): Prom
     if (pJson && (pJson.error === '0' || pJson.error === 0)) {
       return { ok: true, msg: pJson?.error_description || 'ok' }
     }
-    return { ok: false, msg: pJson?.error_description || JSON.stringify(pJson) || ('HTTP ' + pRes.status) }
+    const rawMsg = pJson?.error_description || JSON.stringify(pJson) || ('HTTP ' + pRes.status)
+    // 易联云 error 16「不支持k1,k2,k3机型」= 机型级硬拒绝（仅支持 K4/K5/K6 及以上）。
+    // 实测该错误与 machine_code 取值无关（传不存在的编号返回同样的 error 16），
+    // 因此不要误导商家去改设备号，直接给出可执行的处置建议。
+    if (String(pJson?.error) === '16' || /不支持\s*k\d/i.test(String(rawMsg))) {
+      return {
+        ok: false,
+        msg:
+          '打印机机型不受支持（易联云返回：' + rawMsg + '）。' +
+          '易联云开放平台仅支持 K4/K5/K6 及以上机型；K1/K2/K3 机型无法通过开放接口打印。' +
+          '请更换为 K4 及以上机型，或改用飞鹅打印机（provider=feie）。',
+      }
+    }
+    return { ok: false, msg: rawMsg }
   } catch (e: any) {
     return { ok: false, msg: e?.message ?? String(e) }
   }
