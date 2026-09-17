@@ -32,12 +32,15 @@ function EmployeePage() {
 
     // 两条身份来源并行查：store_staff 成员 / stores.owner_id 店主
     const [staffRes, ownerRes] = await Promise.all([
+      // 用 limit(1) 而非 maybeSingle()：同一账号若有多条活跃 store_staff（跨店/历史残留），
+      // maybeSingle() 会因「返回多行」直接报错 → data 为 null → 页面误显示「未绑定门店身份」，
+      // 把已绑定身份的店主/店长也挡在门外。取一行即可。
       supabase
         .from('store_staff')
         .select('id, store_id, role, stores(name)')
         .eq('user_id', user.id)
         .eq('is_active', true)
-        .maybeSingle(),
+        .limit(1),
       supabase
         .from('stores')
         .select('id, name')
@@ -50,7 +53,7 @@ function EmployeePage() {
       console.error('[员工中心] 加载失败', staffRes.error)
     }
 
-    setStaffInfo((staffRes.data as any) ?? null)
+    setStaffInfo(((staffRes.data as any)?.[0]) ?? null)
     setOwnerStore((ownerRes.data as any) ?? null)
     setLoading(false)
   }
@@ -122,8 +125,23 @@ function EmployeePage() {
         <View className="text-center w-full" style={{ maxWidth: 340 }}>
           <Icon name="user" size={56} color="#9CA3AF" className="mb-4" />
           <Text className="text-xl text-muted-foreground block mb-2">未绑定门店身份</Text>
-          <Text className="text-base text-muted-foreground/60 block mb-6">请联系门店添加您为员工，或在下方输入邀请码自助绑定</Text>
-          <View className="flex items-center gap-2 mb-6">
+          <Text className="text-base text-muted-foreground/60 block mb-6">
+            未绑定也可以进入管理后台（管理中心会按本账号实际归属展示）。
+            绑定门店后可管理对应的门店数据。
+          </Text>
+
+          {/* 主通道：取消绑定限制，直接进入管理后台。
+              安全性：门店中心的数据全部由 RLS 按账号归属过滤，未绑定账号只会看到
+              「开通门店 / 输邀请码绑定」引导页，看不到任何他人门店数据。 */}
+          <View className="mb-4">
+            <Button className="!w-full !bg-primary !border-none !rounded-xl" onClick={goMerchantCenter}>
+              <View className="py-3 text-base text-white font-bold">直接进入管理后台</View>
+            </Button>
+          </View>
+
+          {/* 次通道：输入邀请码把本账号绑到门店（可选） */}
+          <Text className="text-sm text-muted-foreground/60 block mb-2">或者，输入门店邀请码绑定身份</Text>
+          <View className="flex items-center gap-2 mb-4">
             <Input
               className="flex-1 bg-card border border-border rounded-xl px-3 py-2 text-base text-foreground"
               placeholder="输入门店邀请码"
@@ -135,6 +153,7 @@ function EmployeePage() {
               <View className="py-2 px-1 text-sm">{binding ? '绑定中' : '绑定'}</View>
             </Button>
           </View>
+
           <Button className="!bg-transparent !border !border-border !text-muted-foreground !rounded-xl" onClick={handleLogout}>返回登录</Button>
         </View>
       </View>
