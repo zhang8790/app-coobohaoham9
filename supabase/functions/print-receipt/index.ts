@@ -339,6 +339,23 @@ Deno.serve(async (req: Request) => {
     const mode = body.mode === 'barcode' ? 'barcode' : 'receipt'
     const isTest = body.test === true
 
+    // ===== 打印失败留痕 =====
+    // 背景：订单支付后由 DB 触发器 trg_print_receipt 经 pg_net **异步**调用本函数，
+    // 触发器只关心 HTTP 是否通畅（成功即记 PRINT_NET_DONE），因此本函数**内部**的失败
+    // （门店无打印机配置 / 服务商接口报错 / 机型不支持）此前完全静默，无人可见。
+    // 曾导致 printer_configs 被外键 ON DELETE CASCADE 连带删除后，整整两天无人察觉。
+    // 这里统一落一条 trigger_logs(action='PRINT_FAILED')，便于 Dashboard 排查。
+    // 留痕失败绝不能影响主流程，故整体 try/catch 吞掉。
+    const logPrintFail = async (bizNo: string, msg: string) => {
+      try {
+        await supabase.from('trigger_logs').insert({
+          order_no: String(bizNo || 'N/A').slice(0, 64),
+          action: 'PRINT_FAILED',
+          error: String(msg || '').slice(0, 500),
+        })
+      } catch (_) { /* noop：留痕失败不能阻断打印主流程 */ }
+    }
+
     // ════════════ 条码标签打印模式 ════════════
     if (mode === 'barcode') {
       const bcStoreId: string | undefined = body.store_id
@@ -383,7 +400,10 @@ Deno.serve(async (req: Request) => {
         .from('printer_configs').select('*').eq('store_id', targetStoreId).eq('enabled', true).limit(1)
       if (cErr) throw new Error('读取打印机配置失败: ' + cErr.message)
       const cfg = (cfgRows || [])[0]
-      if (!cfg) return json({ success: false, error: '该门店未配置已启用的打印机', need_config: true }, 200)
+      if (!cfg) {
+        await logPrintFail(product?.barcode || productId || String(targetStoreId), '该门店未配置已启用的打印机')
+        return json({ success: false, error: '该门店未配置已启用的打印机', need_config: true }, 200)
+      }
 
       const content = renderBarcodeLabel(store, product, { pending })
       let result: { ok: boolean; msg: string }
@@ -391,7 +411,10 @@ Deno.serve(async (req: Request) => {
       else if (cfg.provider === 'yilianyun') result = await printYilianyun(cfg, content, (product?.barcode || productId || Date.now().toString()))
       else return json({ success: false, error: '暂不支持的打印机服务商: ' + cfg.provider }, 200)
 
-      if (!result.ok) return json({ success: false, error: '打印推送失败: ' + result.msg }, 200)
+      if (!result.ok) {
+        await logPrintFail(product?.barcode || productId || String(targetStoreId), '条码标签推送失败: ' + result.msg)
+        return json({ success: false, error: '打印推送失败: ' + result.msg }, 200)
+      }
       if (!isTest) {
         await supabase.from('printer_configs').update({ print_count: (cfg.print_count || 0) + 1, last_print_at: new Date().toISOString() }).eq('id', cfg.id)
       }
@@ -459,6 +482,7 @@ Deno.serve(async (req: Request) => {
     if (cErr) throw new Error('读取打印机配置失败: ' + cErr.message)
     const cfg = (cfgRows || [])[0]
     if (!cfg) {
+      await logPrintFail(order?.order_no || String(targetStoreId), '该门店未配置已启用的打印机')
       return json({ success: false, error: '该门店未配置已启用的打印机', need_config: true }, 200)
     }
 
@@ -473,6 +497,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!result.ok) {
+      await logPrintFail(order?.order_no || String(targetStoreId), '小票推送失败: ' + result.msg)
       return json({ success: false, error: '打印推送失败: ' + result.msg }, 200)
     }
 
