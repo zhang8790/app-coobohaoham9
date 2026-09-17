@@ -4,6 +4,7 @@ import {
   adminCreateStoreWithLogin,
   getSelfStoreProducts, createSelfStoreProduct, updateSelfStoreProduct,
   getSelfStoreOrders, getSelfStoreStats,
+  getStoreManager, bindStoreManager, unbindStoreManager,
   type SelfStoreProduct, type SelfStoreOrder, type SelfStoreStats,
 } from '@/api/admin'
 
@@ -39,6 +40,12 @@ type StoreRow = {
   close_time: string | null
   image_url: string | null
   banner_url: string | null
+  /** 门店地址与经纬度（gcj02）。无坐标的门店在小程序门店选择器里显示「距离未知」 */
+  address?: string | null
+  lat?: number | null
+  lng?: number | null
+  /** 店长账号 uid。为空 = 无主店：商家在小程序里改任何东西都会被 RLS 静默拦截 */
+  owner_id?: string | null
 }
 
 const STORE_TYPES = ['branch', 'hub', 'transfer', 'truck'] as const
@@ -50,6 +57,7 @@ const emptyStoreForm = {
   name: '', description: '', category: '生鲜', referral_rate_pct: 20,
   open_time: '08:00', close_time: '22:00', image_url: '', banner_url: '',
   referral_rate_enabled: true, store_type: 'branch',
+  address: '', lat: '', lng: '',
   manager_mode: 'bind',                 // 'bind' = 绑定已有账号 / 'create' = 创建新运营账号
   manager_keyword: '', manager_uid: '', manager_nickname: '', manager_phone: '',
   manager_email: '', manager_password: '', manager_phone_create: '', manager_nickname_create: '',
@@ -122,7 +130,7 @@ export default function SelfStores() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: C.bg }}>
-                    {['店名', '类目', '让利率', '营业时间', '状态', '自营', '操作'].map(h => (
+                    {['店名', '类目', '让利率', '营业时间', '状态', '定位', '自营', '操作'].map(h => (
                       <th key={h} style={thStyle}>{h}</th>
                     ))}
                   </tr>
@@ -136,6 +144,11 @@ export default function SelfStores() {
                       <td style={{ ...tdStyle, color: C.sub }}>{`${r.open_time || '--:--'} ~ ${r.close_time || '--:--'}`}</td>
                       <td style={tdStyle}>
                         <span style={badge(r.is_open ? C.green : C.dim)}>{r.is_open ? '营业中' : '打烊'}</span>
+                      </td>
+                      <td style={tdStyle}>
+                        <span style={badge(r.lat != null && r.lng != null ? C.green : C.gold)}>
+                          {r.lat != null && r.lng != null ? '已定位' : '未定位'}
+                        </span>
                       </td>
                       <td style={tdStyle}>
                         <button onClick={() => updateSelfStore(r.id, { is_platform: !r.is_platform }).then(() => load())}
@@ -179,6 +192,16 @@ function StoreDetail({ store, onBack }: { store: StoreRow; onBack: () => void })
   const [tab, setTab] = useState<'overview' | 'products' | 'orders'>('overview')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<any>({ ...emptyStoreForm })
+  const hasGeo = store.lat != null && store.lng != null
+
+  // 店长绑定：owner_id 为空 = 无主店，商家端保存会被 RLS 静默拦截（本次故障根因）
+  const [manager, setManager] = useState<{ id: string; nickname: string; phone: string | null } | null>(null)
+  const [managerLoaded, setManagerLoaded] = useState(false)
+  const [showBind, setShowBind] = useState(false)
+  const loadManager = useCallback(() => {
+    getStoreManager(store.id).then(m => { setManager(m); setManagerLoaded(true) })
+  }, [store.id])
+  useEffect(() => { loadManager() }, [loadManager])
 
   const openEdit = () => {
     setEditing(true)
@@ -188,18 +211,32 @@ function StoreDetail({ store, onBack }: { store: StoreRow; onBack: () => void })
       open_time: store.open_time ?? '08:00', close_time: store.close_time ?? '22:00',
       image_url: store.image_url ?? '', banner_url: store.banner_url ?? '',
       referral_rate_enabled: store.referral_rate_enabled ?? true,
+      address: store.address ?? '',
+      lat: store.lat == null ? '' : String(store.lat),
+      lng: store.lng == null ? '' : String(store.lng),
       manager_keyword: '', manager_uid: '', manager_nickname: '', manager_phone: '',
     })
   }
   const save = async () => {
     if (!form.name.trim()) { alert('请填写店名'); return }
     if (form.referral_rate_pct < 0 || form.referral_rate_pct > 100) { alert('让利率需在 0~100 之间'); return }
-    await updateSelfStore(store.id, {
+    // 坐标：留空 = 清空该门店坐标（小程序里显示「距离未知」）；必须成对填写，只填一个会让距离算歪
+    const latRaw = String(form.lat ?? '').trim()
+    const lngRaw = String(form.lng ?? '').trim()
+    const lat = latRaw === '' ? null : Number(latRaw)
+    const lng = lngRaw === '' ? null : Number(lngRaw)
+    if (lat !== null && (!Number.isFinite(lat) || lat < -90 || lat > 90)) { alert('纬度需在 -90 ~ 90 之间'); return }
+    if (lng !== null && (!Number.isFinite(lng) || lng < -180 || lng > 180)) { alert('经度需在 -180 ~ 180 之间'); return }
+    if ((lat === null) !== (lng === null)) { alert('纬度与经度需同时填写，或同时留空'); return }
+    const ok = await updateSelfStore(store.id, {
       name: form.name.trim(), description: form.description.trim() || null, category: form.category,
       referral_rate: Math.round(form.referral_rate_pct) / 100, open_time: form.open_time, close_time: form.close_time,
       is_open: true, image_url: form.image_url.trim() || null, banner_url: form.banner_url.trim() || null,
       referral_rate_enabled: form.referral_rate_enabled,
+      address: String(form.address ?? '').trim() || null, lat, lng,
     })
+    // 之前这里不看返回值直接关闭弹窗 → 保存失败（含被 RLS 拦截）也显示"成功"
+    if (!ok) { alert('保存失败：数据库未接受本次写入（可能是权限不足或字段非法），请重试或检查浏览器控制台'); return }
     setEditing(false)
     onBack()
   }
@@ -214,8 +251,20 @@ function StoreDetail({ store, onBack }: { store: StoreRow; onBack: () => void })
         <h1 style={{ color: C.text, fontSize: 20, fontWeight: 700 }}>{store.name}</h1>
         <span style={badge(C.accent)}>{store.is_platform ? '自营' : '非自营'}</span>
         <span style={badge(store.is_open ? C.green : C.dim)}>{store.is_open ? '营业中' : '打烊'}</span>
+        {/* 定位状态：未定位的门店在小程序门店选择器里显示「距离未知」，这里一眼看出哪家缺坐标 */}
+        <span style={badge(hasGeo ? C.green : C.gold)}>{hasGeo ? '已定位' : '未定位'}</span>
+        {/* 店长状态：未绑定店长 = 无主店，商家在小程序里保存任何设置都会被权限策略静默拦下 */}
+        {managerLoaded && (
+          <span style={badge(manager ? C.green : C.gold)}>
+            {manager ? `店长：${manager.nickname}` : '未绑定店长'}
+          </span>
+        )}
+        <button onClick={() => setShowBind(true)}
+          style={{ marginLeft: 'auto', padding: '7px 16px', background: manager ? C.card : C.gold, border: `1px solid ${C.border}`, borderRadius: 8, color: manager ? C.text : '#fff', cursor: 'pointer', fontSize: 13 }}>
+          {manager ? '更换店长' : '绑定店长'}
+        </button>
         <button onClick={openEdit}
-          style={{ marginLeft: 'auto', padding: '7px 16px', background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, cursor: 'pointer', fontSize: 13 }}>
+          style={{ padding: '7px 16px', background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, cursor: 'pointer', fontSize: 13 }}>
           编辑门店
         </button>
       </div>
@@ -235,8 +284,119 @@ function StoreDetail({ store, onBack }: { store: StoreRow; onBack: () => void })
       {tab === 'orders' && <OrdersTab storeId={store.id} />}
 
       {editing && (
-        <StoreEditModal form={form} setForm={setForm} onCancel={() => setEditing(false)} onSave={save} />
+        <StoreEditModal form={form} setForm={setForm} onCancel={() => setEditing(false)} onSave={save} showGeo />
       )}
+
+      {showBind && (
+        <BindManagerModal
+          storeId={store.id}
+          storeName={store.name}
+          current={manager}
+          onClose={() => setShowBind(false)}
+          onDone={() => { setShowBind(false); loadManager() }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── 绑定 / 更换店长 ────────────────────────────────────────────────────
+/**
+ * 一次写三处，缺一不可：
+ *   stores.owner_id     —— 让按 owner_id 判权的链路生效
+ *   store_staff(owner)  —— 让 fn_my_store_ids / is_store_manager 生效
+ *   profiles.role       —— 赋予「自营门店身份」，商家可登录小程序自营门店中心
+ */
+function BindManagerModal({ storeId, storeName, current, onClose, onDone }: {
+  storeId: string
+  storeName: string
+  current: { id: string; nickname: string; phone: string | null } | null
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [keyword, setKeyword] = useState('')
+  const [results, setResults] = useState<any[]>([])
+  const [searching, setSearching] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const search = async () => {
+    if (!keyword.trim()) { alert('请输入手机号或昵称'); return }
+    setSearching(true)
+    setResults(await searchUsers(keyword))
+    setSearching(false)
+  }
+
+  const bind = async (u: any) => {
+    if (!confirm(`确定将「${storeName}」的店长绑定为 ${u.nickname}${u.phone ? '（' + u.phone + '）' : ''}？\n绑定后该账号可在小程序「自营门店管理中心」管理本店。`)) return
+    setBusy(true)
+    const r = await bindStoreManager(storeId, u.id)
+    setBusy(false)
+    if (!r.ok) { alert('绑定失败：' + (r.error || '未知错误')); return }
+    if (r.error) alert(r.error)
+    alert(`已绑定店长：${u.nickname}。请让该账号在小程序里打开「我的 → 自营门店 → 前往管理后台」验证。`)
+    onDone()
+  }
+
+  const unbind = async () => {
+    if (!current) return
+    if (!confirm(`确定解绑「${current.nickname}」？解绑后该账号将失去本店管理权限。`)) return
+    setBusy(true)
+    const ok = await unbindStoreManager(storeId, current.id)
+    setBusy(false)
+    if (!ok) { alert('解绑失败'); return }
+    alert('已解绑店长')
+    onDone()
+  }
+
+  return (
+    <div style={overlayStyle}>
+      <div style={modalStyle}>
+        <h3 style={{ color: C.text, fontSize: 18, fontWeight: 700, marginBottom: 6 }}>绑定店长</h3>
+        <p style={{ color: C.dim, fontSize: 12, marginBottom: 16 }}>
+          未绑定店长的门店 = 无主店：商家即使能打开小程序管理中心，修改门店信息也会被权限策略静默拦下（保存地址没反应）。
+        </p>
+
+        {current && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '10px 12px', background: C.card, border: `1px solid ${C.border}`, borderRadius: 8 }}>
+            <span style={{ color: C.text, fontSize: 13 }}>
+              当前店长：{current.nickname}{current.phone ? `（${current.phone}）` : ''}
+            </span>
+            <button type="button" onClick={unbind} disabled={busy}
+              style={{ ...miniBtn, marginLeft: 'auto', color: '#DC2626' }}>解绑</button>
+          </div>
+        )}
+
+        <Field label="搜索用户（手机号或昵称）">
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input value={keyword} onChange={e => setKeyword(e.target.value)} style={inputStyle} placeholder="输入手机号或昵称" />
+            <button type="button" onClick={search} disabled={searching}
+              style={{ ...saveBtn, background: C.sub, whiteSpace: 'nowrap' }}>
+              {searching ? '搜索中' : '搜索'}
+            </button>
+          </div>
+        </Field>
+
+        {results.length > 0 && (
+          <div style={{ marginBottom: 12, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' }}>
+            {results.map((u: any) => (
+              <div key={u.id} onClick={() => !busy && bind(u)}
+                style={{ padding: '9px 12px', cursor: 'pointer', borderBottom: `1px solid ${C.border}`, fontSize: 13, color: C.text }}>
+                {u.nickname}{u.phone ? `（${u.phone}）` : ''}{u.role === 'merchant' ? ' · 已有自营门店身份' : ''}
+              </div>
+            ))}
+          </div>
+        )}
+        {results.length === 0 && keyword && !searching && (
+          <p style={{ color: C.dim, fontSize: 12, marginBottom: 12 }}>没有搜索结果。可让店长先在小程序登录一次生成账号，再回来搜索。</p>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+          <button type="button" onClick={onClose}
+            style={{ padding: '9px 18px', background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.sub, cursor: 'pointer', fontSize: 13 }}>
+            关闭
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -505,8 +665,8 @@ function NewStoreButton({ onCreated }: { onCreated: () => void }) {
   )
 }
 
-function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSave, saving, hint, showManager }: {
-  title?: string; form: any; setForm: any; onCancel: () => void; onSave: () => void; saving?: boolean; hint?: string; showManager?: boolean
+function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSave, saving, hint, showManager, showGeo }: {
+  title?: string; form: any; setForm: any; onCancel: () => void; onSave: () => void; saving?: boolean; hint?: string; showManager?: boolean; showGeo?: boolean
 }) {
   const [mResults, setMResults] = useState<any[]>([])
   const [mSearching, setMSearching] = useState(false)
@@ -521,11 +681,30 @@ function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSav
       <div style={modalStyle}>
         <h3 style={{ color: C.text, fontSize: 18, fontWeight: 700, marginBottom: 18 }}>{title}</h3>
         <Field label="店名 *">
-          <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inputStyle} placeholder="如来电有喜·生鲜自营馆" />
+          <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inputStyle} placeholder="如来店有喜·生鲜自营馆" />
         </Field>
         <Field label="简介">
           <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ ...inputStyle, height: 64, resize: 'none' }} placeholder="平台自营好货，品质保障" />
         </Field>
+        {showGeo && (
+          <>
+            <Field label="门店地址">
+              <input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inputStyle} placeholder="如 杭州市西湖区文三路 100 号" />
+            </Field>
+            <div style={{ display: 'flex', gap: 14 }}>
+              <Field label="纬度 lat" flex>
+                <input value={form.lat} onChange={e => setForm({ ...form, lat: e.target.value })} style={inputStyle} placeholder="30.2741" />
+              </Field>
+              <Field label="经度 lng" flex>
+                <input value={form.lng} onChange={e => setForm({ ...form, lng: e.target.value })} style={inputStyle} placeholder="120.1551" />
+              </Field>
+            </div>
+            <p style={{ color: C.dim, fontSize: 12, margin: '-4px 0 16px', lineHeight: 1.7 }}>
+              经纬度用于小程序「最近门店」距离计算与门店选择器排序，坐标系须为 <b style={{ color: C.sub }}>gcj02</b>
+              （高德/腾讯地图取点，或微信内长按地图复制）。缺坐标的门店在小程序里会显示「距离未知」、不参与距离排序；两个都留空即清空坐标。
+            </p>
+          </>
+        )}
         <div style={{ display: 'flex', gap: 14 }}>
           <Field label="类目" flex>
             <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} style={inputStyle}>

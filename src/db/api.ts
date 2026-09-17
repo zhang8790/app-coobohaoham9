@@ -2904,6 +2904,19 @@ export async function generateQrcode(params:
 // =====================
 // 商家管理：门店 CRUD
 // =====================
+/**
+ * 门店写入结果。
+ * 之所以不再返回裸 boolean：RLS 拦截**不会**产生 PostgREST error，
+ * 旧实现只判断 `!error` → 0 行落库也返回 true → 前端弹「保存成功」但数据没变（假成功）。
+ * 现在统一返回结构化结果，调用方必须按 ok/reason 分流提示。
+ */
+export type StoreWriteResult = {
+  ok: boolean
+  /** no_permission=被 RLS 拦截（账号不是该门店 owner/manager）；error=数据库报错 */
+  reason?: 'no_permission' | 'error'
+  message?: string
+}
+
 export async function updateStore(storeId: string, params: Partial<{
   name: string; description: string; address: string; phone: string
   category: string; image_url: string | null; banner_url: string | null
@@ -2914,23 +2927,67 @@ export async function updateStore(storeId: string, params: Partial<{
   announcement: string; contact: string; scene_tags: string[]
   referral_rate: number | string
   referral_rate_enabled: boolean
-}>): Promise<boolean> {
+  lat: number | string | null; lng: number | string | null
+}>): Promise<StoreWriteResult> {
   // 清理字段类型：Input 返回 string，DB 要 numeric/boolean
   // 注意：image_url/banner_url 为 null 时也需要传（用于清空旧值）
   const NULLABLE_FIELDS = ['image_url', 'banner_url']
+  const NUMERIC_FIELDS = ['delivery_radius', 'delivery_fee', 'free_delivery_threshold', 'min_order_amount', 'referral_rate', 'lat', 'lng']
   const clean: Record<string, any> = {}
   for (const [k, v] of Object.entries(params)) {
     if (v === undefined) continue  // undefined 不传
+    // 空字符串对 numeric 是非法输入（'' → NaN → 42704/22P02），直接跳过而不是写成 0：
+    // 否则清空「纬度」输入框会被悄悄写成 0（几内亚湾），门店定位直接跑偏。
+    if (NUMERIC_FIELDS.includes(k) && (v === null || v === '')) continue
     if (v === null && !NULLABLE_FIELDS.includes(k)) continue  // null 跳过（除了可清空的字段）
-    if (['delivery_radius', 'delivery_fee', 'free_delivery_threshold', 'min_order_amount', 'referral_rate'].includes(k)) {
-      clean[k] = Number(v)
+    if (NUMERIC_FIELDS.includes(k)) {
+      const n = Number(v)
+      if (!Number.isFinite(n)) continue
+      clean[k] = n
     } else {
       clean[k] = v
     }
   }
-  const { error } = await supabase.from('stores').update(clean).eq('id', storeId)
-  if (error) console.error('[updateStore] error:', error)
-  return !error
+  if (Object.keys(clean).length === 0) return { ok: true }
+
+  // .select('id') 是关键：让 PostgREST 回传**实际被写入的行**。
+  // RLS 过滤后 0 行 → data 为空数组 → 才能区分「真的存了」与「被静默拦截」。
+  const { data, error } = await supabase
+    .from('stores')
+    .update(clean)
+    .eq('id', storeId)
+    .select('id')
+
+  if (error) {
+    console.error('[updateStore] error:', error)
+    return { ok: false, reason: 'error', message: error.message }
+  }
+  if (!data || data.length === 0) {
+    console.error('[updateStore] 0 行受影响 —— 写入被 RLS 拦截。请确认该账号在 stores.owner_id 或 store_staff(active) 中')
+    return {
+      ok: false,
+      reason: 'no_permission',
+      message: '当前账号没有该门店的编辑权限（不是店主/店长），请用邀请码绑定门店身份后重试',
+    }
+  }
+  return { ok: true }
+}
+
+/**
+ * 判定某账号是否为某门店的合法运营者（店主，或 store_staff 活跃成员）。
+ * 用于 getMerchantStore 校验「本地记住的当前管理门店」是否真的属于本人——
+ * 否则任何账号只要 storage 里残留过某个门店 id 就能"进入"该店管理中心（能看壳、写全静默失败）。
+ */
+async function isStoreOperatorFor(storeId: string, userId: string, ownerId: string | null | undefined): Promise<boolean> {
+  if (ownerId && ownerId === userId) return true
+  const { data } = await supabase
+    .from('store_staff')
+    .select('id')
+    .eq('store_id', storeId)
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .maybeSingle()
+  return !!data
 }
 
 export async function getMerchantStore(): Promise<import('./types').Store | null> {
@@ -2942,10 +2999,17 @@ export async function getMerchantStore(): Promise<import('./types').Store | null
   if (cached !== undefined) return cached
 
   // Phase 4 商家多店：优先返回当前选中的管理门店（商家中心切换器通过 setCurrentMerchantStore 写入 storage）
+  // ⚠️ 必须校验归属：stores 的读策略是公开的（public_read_stores），
+  //    只凭 storage 里的 id 就能取到任意门店 → 必须再确认本人是店主/运营者。
   const preferredId = Taro.getStorageSync(`merchantCurrentStore:${user.id}`) as string | undefined
   if (preferredId) {
     const { data: pref } = await supabase.from('stores').select('*').eq('id', preferredId).maybeSingle()
-    if (pref) { cacheSet(ck, pref, 30_000); return pref }
+    if (pref && await isStoreOperatorFor(pref.id, user.id, pref.owner_id)) {
+      cacheSet(ck, pref, 30_000)
+      return pref
+    }
+    // 与当前账号无绑定关系（换号/解绑/曾被错误写入）→ 清掉，走下方正规身份解析
+    Taro.removeStorageSync(`merchantCurrentStore:${user.id}`)
   }
 
   // 主路径：owner_id（现有商家模型，平台主账号/绑定店长）
@@ -3002,6 +3066,30 @@ export async function getMerchantStores(): Promise<import('./types').Store[]> {
 export function setCurrentMerchantStore(userId: string, storeId: string, store?: import('./types').Store) {
   Taro.setStorageSync(`merchantCurrentStore:${userId}`, storeId)
   if (store) cacheSet(`gms:${userId}`, store, 30_000)
+}
+
+/**
+ * 自助认领门店所有权（迁移 00141 的 claim_store_ownership RPC）。
+ * 场景：门店由总后台建好、stores.owner_id 为空，而本人已经是该店 owner/manager 运营成员
+ * （通常来自「输邀请码绑定门店」）。调用一次即把 owner_id 认领到自己名下，
+ * 让所有仍按 owner_id 判权的链路也一并生效。幂等，可重复调用。
+ */
+export async function claimStoreOwnership(): Promise<{ ok: boolean; claimed: number; message?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('claim_store_ownership')
+    if (error) {
+      console.warn('[claimStoreOwnership]', error.message)
+      return { ok: false, claimed: 0, message: error.message }
+    }
+    const res = data as any
+    if (res && res.ok) {
+      clearRequestCache()   // 认领后身份变化，清掉 gms 缓存避免读到旧归属
+      return { ok: true, claimed: Number(res.claimed) || 0 }
+    }
+    return { ok: false, claimed: 0, message: (res && res.error) || '认领失败' }
+  } catch (e: any) {
+    return { ok: false, claimed: 0, message: e?.message || String(e) }
+  }
 }
 
 // P3 门店联动：本店流动车（随统一 RBAC 按门店隔离，RLS 已落地）

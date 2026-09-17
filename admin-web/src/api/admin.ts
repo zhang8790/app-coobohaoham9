@@ -586,9 +586,78 @@ export async function getSelfStores(
   }, { data: [], total: 0 })
 }
 
-/** 更新门店字段（店名/简介/类目/让利率/营业时间/自营开关等） */
+/**
+ * 更新门店字段（店名/简介/类目/让利率/营业时间/坐标等）。
+ *
+ * 返回 false 有两种含义，都必须暴露给调用方：
+ *   1) 数据库报错；
+ *   2) **RLS 把行过滤掉**——PostgREST 对「UPDATE 匹配 0 行」返回 204/200 且不带 error，
+ *      旧实现 `.then(() => true)` 会把它当成功，于是后台弹「已保存」但数据没变（静默假成功，
+ *      与小程序的 updateStore 同源问题）。这里用 `.select('id')` 回传实际写入行来识别。
+ */
 export async function updateSelfStore(id: string, patch: Record<string, any>): Promise<boolean> {
-  return safeQuery(() => supabase.from('stores').update(patch).eq('id', id).then(() => true), true)
+  return safeQuery(async () => {
+    const { data, error } = await supabase.from('stores').update(patch).eq('id', id).select('id')
+    if (error) { console.error('[updateSelfStore]', error); return false }
+    if (!data || data.length === 0) {
+      console.error('[updateSelfStore] 0 行受影响 —— 写入被 RLS 拦截（当前账号非管理员且非该店 owner）')
+      return false
+    }
+    return true
+  }, true)
+}
+
+/** 读取门店当前店长信息（stores.owner_id → profiles） */
+export async function getStoreManager(storeId: string): Promise<{ id: string; nickname: string; phone: string | null } | null> {
+  return safeQuery(async () => {
+    const { data: s } = await supabase.from('stores').select('owner_id').eq('id', storeId).maybeSingle()
+    const uid = (s as any)?.owner_id as string | null | undefined
+    if (!uid) return null
+    const { data: p } = await supabase.from('profiles').select('id, nickname, phone').eq('id', uid).maybeSingle()
+    if (!p) return { id: uid, nickname: '(账号已删除)', phone: null }
+    return { id: (p as any).id, nickname: (p as any).nickname || '未命名', phone: (p as any).phone ?? null }
+  }, null)
+}
+
+/**
+ * 绑定 / 更换门店店长（补齐「身份闭环」缺失的一步）。
+ *
+ * 背景：门店若 stores.owner_id 为空且 store_staff 无记录，商家在小程序里
+ * 「能进管理中心、但任何修改都被 RLS 静默拦截」（保存地址没反应）。本函数一次把三处写齐：
+ *   1. stores.owner_id      —— 让仍按 owner_id 判权的链路全部生效
+ *   2. store_staff(owner)   —— 让 fn_my_store_ids / is_store_manager 生效
+ *   3. profiles.role        —— 赋予自营门店身份，可登录自营门店中心
+ */
+export async function bindStoreManager(storeId: string, userId: string): Promise<{ ok: boolean; error?: string }> {
+  return safeQuery(async () => {
+    const { data, error } = await supabase.from('stores').update({ owner_id: userId }).eq('id', storeId).select('id')
+    if (error) return { ok: false, error: error.message }
+    if (!data || data.length === 0) return { ok: false, error: '写入被拒绝：当前账号无该门店管理权限（需管理员）' }
+
+    const staffWrite = await supabase.from('store_staff').upsert(
+      { store_id: storeId, user_id: userId, role: 'owner', is_active: true },
+      { onConflict: 'store_id,user_id' },
+    )
+    if (staffWrite.error) {
+      // 门店已绑定成功，成员行失败只影响多店切换等增强能力，故降级为提示而非整体失败
+      console.warn('[bindStoreManager] store_staff 写入失败（门店 owner 已保存）:', staffWrite.error.message)
+      return { ok: true, error: '门店已绑定，但运营成员记录写入失败：' + staffWrite.error.message }
+    }
+    const profWrite = await supabase.from('profiles').update({ role: 'merchant' }).eq('id', userId)
+    if (profWrite.error) console.warn('[bindStoreManager] profiles.role 更新失败:', profWrite.error.message)
+    return { ok: true }
+  }, { ok: true })
+}
+
+/** 解绑门店店长（owner_id 置空，供总部收回管理权） */
+export async function unbindStoreManager(storeId: string, userId: string): Promise<boolean> {
+  return safeQuery(async () => {
+    const { data, error } = await supabase.from('stores').update({ owner_id: null }).eq('id', storeId).select('id')
+    if (error || !data || data.length === 0) return false
+    await supabase.from('store_staff').update({ is_active: false })
+      .eq('store_id', storeId).eq('user_id', userId)
+    return true
+  }, true)
 }
 
 /** 新建自营店：自动 is_platform=true、owner=平台账号、生成唯一 short_code */
