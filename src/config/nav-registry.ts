@@ -35,7 +35,7 @@ export const NAV: Record<string, NavEntry> = {
   },
   coupon: {
     id: 'coupon',
-    label: '会员福利',
+    label: '我的优惠券',
     emoji: '🎫',
     sub: '金豆权益',
     url: '/pages/mine/coupon/index',
@@ -43,16 +43,28 @@ export const NAV: Record<string, NavEntry> = {
   },
   brand: {
     id: 'brand',
-    label: '了解来电有喜',
+    label: '品牌故事',
     emoji: '🌟',
     url: '/pages/brand-story/index',
     kind: 'page',
   },
   help: {
     id: 'help',
-    label: '联系客服',
+    label: '帮助中心',
     emoji: '🛎',
     url: '/pages/agreement/help/index',
+    kind: 'page',
+  },
+  // 门店运营身份自助绑定（邀请码）：总后台/网页门店中心生成的邀请码，
+  // 由运营者本人用微信登录后在此兑换 → upsert store_staff → 直达门店管理中心。
+  // 2026-09-17：该页此前只在 app.config.ts 注册、全站零入口，导致「审核已通过但
+  // 门店没绑到账号」的用户彻底无路可进管理后台。
+  merchantBind: {
+    id: 'merchantBind',
+    label: '输入邀请码绑定门店',
+    emoji: '🔑',
+    sub: '绑定已有门店的运营身份',
+    url: '/pages/ext/employee/index',
     kind: 'page',
   },
 }

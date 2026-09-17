@@ -161,7 +161,7 @@ export async function approveApplication(id: string, assignToExplore: boolean = 
       // 1. 获取申请信息
       const { data: app } = await supabase
         .from('merchant_applications')
-        .select('user_id, store_name, contact_name, contact_phone, business_type, description')
+        .select('user_id, store_name, contact_name, contact_phone, business_type, description, address')
         .eq('id', id)
         .maybeSingle()
       
@@ -169,40 +169,62 @@ export async function approveApplication(id: string, assignToExplore: boolean = 
       
       // 2. 生成唯一 short_code
       const shortCode = await generateUniqueShortCode()
-      
-      // 3. 更新申请状态
-      await supabase
+
+      // 3. ★ 先建店，再落状态（2026-09-17 修复「审核通过却进不了管理后台」）
+      //    旧实现先 update status='approved' 再 insert stores，建店一旦失败就留下
+      //    「已通过 + 无门店」的孤儿态（小程序端同源问题由 store_type='self' 触发 23514）；
+      //    stores 又是 merchant-center 解析商家的唯一依据 → 用户永远进不去管理后台。
+      //    幂等：owner_id 已有门店则跳过建店，支持重复点击「通过」。
+      const { data: existed } = await supabase
+        .from('stores')
+        .select('id')
+        .eq('owner_id', app.user_id)
+        .limit(1)
+        .maybeSingle()
+
+      if (!existed) {
+        const { error: storeError } = await supabase
+          .from('stores')
+          .insert({
+            owner_id: app.user_id,
+            name: app.store_name,
+            short_code: shortCode,  // ← 新增：唯一短码
+            description: app.description || null,
+            phone: app.contact_phone || null,
+            address: (app as any).address || null,
+            category: app.business_type || '其他',
+            // store_type 合法值仅 branch/hub/transfer/truck（stores_store_type_check）
+            store_type: 'branch',
+            is_active: true,
+            rating: 0,
+            is_platform: assignToExplore,
+          })
+
+        if (storeError) {
+          // 建店失败 → 中止审核，保持 pending 可重试
+          console.error('[approveApplication] 创建门店失败，已中止审核:', storeError)
+          return false
+        }
+      }
+
+      console.log(`[approveApplication] 门店就绪，short_code: ${shortCode}`)
+
+      // 4. 更新申请状态
+      const { error: appErr } = await supabase
         .from('merchant_applications')
         .update({ status: 'approved' })
         .eq('id', id)
-      
-      // 4. 更新用户状态
+      if (appErr) {
+        console.error('[approveApplication] 更新申请状态失败:', appErr)
+        return false
+      }
+
+      // 5. 更新用户状态
       await supabase
         .from('profiles')
         .update({ merchant_status: 'approved' })
         .eq('id', app.user_id)
-      
-      // 5. 创建门店记录（包含 short_code）
-      const { error: storeError } = await supabase
-        .from('stores')
-        .insert({
-          owner_id: app.user_id,
-          name: app.store_name,
-          short_code: shortCode,  // ← 新增：唯一短码
-          description: app.description || null,
-          phone: app.contact_phone || null,
-          category: app.business_type || '其他',
-          is_active: true,
-          rating: 0,
-          is_platform: assignToExplore,
-        })
-      
-      if (storeError) {
-        console.error('[approveApplication] 创建门店失败:', storeError)
-        return false
-      }
-      
-      console.log(`[approveApplication] 门店创建成功，short_code: ${shortCode}`)
+
       return true
     },
     true // mock 模式直接返回成功

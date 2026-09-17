@@ -2,33 +2,41 @@
 import { useState, useEffect, useRef } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { View, Text, Button, Image, Input } from '@tarojs/components'
-import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMerchantOrderStats, getMyMerchantApplication, generateQrcode, getMerchantSettlement, getNearExpiryProducts, getMerchantVehicles, createMerchantVehicle, setMerchantVehicleStatus } from '@/db/api'
+import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMerchantOrderStats, getMyMerchantApplication, generateQrcode, getMerchantSettlement, getNearExpiryProducts, getMerchantVehicles, createMerchantVehicle, setMerchantVehicleStatus, getMerchantStores, setCurrentMerchantStore } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
+import { NAV } from '@/config/nav-registry'
+import { clearRequestCache } from '@/db/requestCache'
 import Icon from '@/components/Icon'
 import { useAuth } from '@/contexts/AuthContext'
 
-// 仪表盘导航项
+// 仪表盘导航项（统一主题清新绿淡底，消除多色彩虹网格）
 const NAV_ITEMS = [
-  { to: '/pages/merchant/merchant-products/index', icon: 'box', label: '商品管理', color: 'bg-brand-jade', key: 'products' },
-  { to: '/pages/merchant/merchant-orders/index', icon: 'order', label: '订单管理', color: 'bg-primary', key: 'orders' },
-  { to: '/pages/merchant/merchant-members/index', icon: 'user', label: '会员管理', color: 'bg-brand-navy', key: 'members' },
-  { to: '/pages/merchant/merchant-coupons/index', icon: 'ticket', label: '优惠券', color: 'bg-warning', key: 'coupons' },
-  { to: '/pages/merchant/merchant-analytics/index', icon: 'chart', label: '数据分析', color: 'bg-brand-bronze', key: 'analytics' },
-  { to: '/pages/merchant/merchant-settings/index', icon: 'shop', label: '店铺设置', color: 'bg-secondary', key: 'settings' },
-  { to: '/pages/trade/withdraw/index', icon: 'coin', label: '货款提现', color: 'bg-accent', key: 'withdraw' },
-  { to: '/pages/merchant/merchant-expiry/index', icon: 'bell-outline', label: '临期预警', color: 'bg-destructive', key: 'expiry' },
-  { to: '/pages/merchant/food-therapy-copy/index', icon: 'video', label: '食疗文案', color: 'bg-brand-bronze', key: 'copy' },
+  { to: '/pages/merchant/merchant-products/index', icon: 'box', label: '商品管理', color: 'bg-primary/10', key: 'products' },
+  { to: '/pages/merchant/merchant-orders/index', icon: 'order', label: '订单管理', color: 'bg-primary/10', key: 'orders' },
+  { to: '/pages/merchant/merchant-members/index', icon: 'user', label: '会员管理', color: 'bg-primary/10', key: 'members' },
+  { to: '/pages/merchant/merchant-coupons/index', icon: 'ticket', label: '优惠券', color: 'bg-primary/10', key: 'coupons' },
+  { to: '/pages/merchant/merchant-analytics/index', icon: 'chart', label: '数据分析', color: 'bg-primary/10', key: 'analytics' },
+  { to: '/pages/merchant/merchant-settings/index', icon: 'shop', label: '店铺设置', color: 'bg-primary/10', key: 'settings' },
+  { to: '/pages/trade/withdraw/index', icon: 'coin', label: '货款提现', color: 'bg-primary/10', key: 'withdraw' },
+  { to: '/pages/merchant/merchant-expiry/index', icon: 'bell-outline', label: '临期预警', color: 'bg-primary/10', key: 'expiry' },
+  { to: '/pages/merchant/food-therapy-copy/index', icon: 'video', label: '食疗文案', color: 'bg-primary/10', key: 'copy' },
 ]
 
 function MerchantCenterPage() {
   const [store, setStore] = useState<Store | null>(null)
+  // Phase 4 商家多店：可管理门店列表 + 当前店切换 + 跨店总览
+  const [stores, setStores] = useState<Store[]>([])
+  const [showStoreSwitch, setShowStoreSwitch] = useState(false)
+  const [crossSummary, setCrossSummary] = useState<{ products: number; orders: number; balance: number } | null>(null)
   const [stats, setStats] = useState({ products: 0, online: 0, orders: 0, todayOrders: 0, members: 0, crossStore: 0 })
   const [recentOrders, setRecentOrders] = useState<any[]>([])
   const [statsLoaded, setStatsLoaded] = useState(false)
   const [merchantAppStatus, setMerchantAppStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  // 手动重载触发器：门店刚建好/刚绑定后，清缓存并重跑加载，避免停留在空态
+  const [reloadTick, setReloadTick] = useState(0)
 
   // 临期预警摘要（按本店 store.id 过滤）
   const [expiryStats, setExpiryStats] = useState<{ total: number; red: number; orange: number; amber: number } | null>(null)
@@ -83,9 +91,10 @@ function MerchantCenterPage() {
 
 
         // 并行加载，但分别处理错误
-        const [storeResult, appResult] = await Promise.allSettled([
+        const [storeResult, appResult, storesResult] = await Promise.allSettled([
           getMerchantStore(),
           getMyMerchantApplication(),
+          getMerchantStores(),
         ])
 
         if (cancelled) return
@@ -102,6 +111,11 @@ function MerchantCenterPage() {
           setMerchantAppStatus(appResult.value?.status || null)
         } else {
           console.error('[MerchantCenter] 加载审核状态失败:', appResult.reason)
+        }
+
+        // 处理可管理门店列表（Phase 4 多店）
+        if (storesResult.status === 'fulfilled') {
+          setStores(storesResult.value ?? [])
         }
 
         // 无论成功失败，都退出加载状态
@@ -125,7 +139,7 @@ function MerchantCenterPage() {
       cancelled = true
       clearTimeout(timeoutId)
     }
-  }, [authUser])
+  }, [authUser, reloadTick])
 
   // 第二步：异步加载统计数据（慢，但不阻塞UI）
   useEffect(() => {
@@ -175,6 +189,27 @@ function MerchantCenterPage() {
     return () => { cancelled = true }
   }, [store])
 
+  // Phase 4 跨店总览：遍历门店列表聚合（仅多店时有意义）
+  useEffect(() => {
+    if (stores.length <= 1) { setCrossSummary(null); return }
+    let cancelled = false
+    Promise.all(stores.map(async s => {
+      const [prods, stats, sett] = await Promise.all([
+        getMerchantProducts(s.id).catch(() => [] as any[]),
+        getMerchantOrderStats(s.id).catch(() => ({ totalOrders: 0 } as any)),
+        getMerchantSettlement(s.id).catch(() => null),
+      ])
+      return { products: prods.length, orders: stats.totalOrders ?? 0, balance: sett?.merchant_balance ?? 0 }
+    })).then(arr => {
+      if (cancelled) return
+      setCrossSummary(arr.reduce(
+        (a, b) => ({ products: a.products + b.products, orders: a.orders + b.orders, balance: a.balance + b.balance }),
+        { products: 0, orders: 0, balance: 0 },
+      ))
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [stores])
+
   // 打开门店二维码弹窗
   const handleShowStoreQr = async () => {
     if (!store) return
@@ -215,12 +250,12 @@ function MerchantCenterPage() {
 
   // 分享配置：携带门店链接（用于归属）
   useShareAppMessage(() => ({
-    title: `${store?.name || '来电有喜'} · 扫码进店购物`,
+    title: `${store?.name || '来店有喜'} · 扫码进店购物`,
     path: store ? `/pages/store-home/index?id=${store.id}` : '/pages/explore/index',
     imageUrl: store?.image_url || '',
   }))
   useShareTimeline(() => ({
-    title: `${store?.name || '来电有喜'} · 好店推荐，扫码进店`,
+    title: `${store?.name || '来店有喜'} · 好店推荐，扫码进店`,
     query: store ? `id=${store.id}` : '',
   }))
 
@@ -265,17 +300,23 @@ function MerchantCenterPage() {
     </View>
   )
 
-  // 已通过自营门店但还没有门店（门店尚未创建或 owner_id 不匹配）
+  // 已通过自营门店但还没有门店（门店尚未创建 / owner_id 未匹配 / 本账号还是员工身份）
   if (!store && merchantAppStatus === 'approved') return (
     <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
       <View className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
         <Icon name="check" size={36} className="text-primary" />
       </View>
       <Text className="text-xl font-bold text-foreground text-center">自营门店已通过</Text>
-      <Text className="text-base text-muted-foreground text-center">恭喜！您的自营门店已审核通过，正在为您准备门店数据。</Text>
+      <Text className="text-base text-muted-foreground text-center">门店数据由总部建店后自动关联。若门店已存在，用邀请码绑定本账号即可进入。</Text>
+      {/* 主通道：邀请码绑定（把当前微信身份 upsert 进 store_staff） */}
       <Button className="!bg-primary !border-none !rounded-2xl !px-8 !py-3"
-        onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-apply/index' })}>
-        <Text className="text-base font-bold text-white">完善门店信息</Text>
+        onClick={() => Taro.navigateTo({ url: NAV.merchantBind.url! })}>
+        <Text className="text-base font-bold text-white">输入邀请码绑定门店</Text>
+      </Button>
+      {/* 次通道：可能是刚建好店/缓存未失效，重载一次 */}
+      <Button className="!bg-card !border-2 !border-border !rounded-2xl !px-8 !py-2"
+        onClick={() => { clearRequestCache(); setReloadTick(t => t + 1) }}>
+        <Text className="text-base text-foreground">重新加载</Text>
       </Button>
       <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
         onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
@@ -306,6 +347,11 @@ function MerchantCenterPage() {
           onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-apply/index' })}>
           <Text className="text-base font-bold text-white">开通门店</Text>
         </Button>
+        {/* 门店由总部先建好的情况：用邀请码把本账号绑到该店，免走申请流程 */}
+        <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
+          onClick={() => Taro.navigateTo({ url: NAV.merchantBind.url! })}>
+          <Text className="text-base text-primary font-bold">已有门店邀请码？点此绑定</Text>
+        </Button>
     </View>
   )
 
@@ -321,6 +367,14 @@ function MerchantCenterPage() {
             <Text className="text-2xl font-bold text-foreground">{store.name}</Text>
             <Text className="text-base text-muted-foreground">{store.address || '暂无地址'}</Text>
           </View>
+          {stores.length > 1 && (
+            <View
+              className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary/5"
+              onClick={() => setShowStoreSwitch(true)}>
+              <Text className="text-sm font-bold text-primary">切换</Text>
+              <Text className="text-primary" style={{ fontSize: '14px' }}>▾</Text>
+            </View>
+          )}
         </View>
         {/* 操作按钮行：查看 + 二维码 */}
         <View className="flex gap-2 mt-3">
@@ -341,12 +395,40 @@ function MerchantCenterPage() {
         </View>
       </View>
 
+      {/* Phase 4 跨店总览：仅在多门店时展示聚合 */}
+      {stores.length > 1 && crossSummary && (
+        <View className="mx-4 mt-3 p-4 rounded-2xl border border-primary/30"
+          style={{ background: 'linear-gradient(135deg, rgba(31,157,107,0.08), rgba(31,157,107,0.03))' }}>
+          <View className="flex items-center justify-between">
+            <View className="flex items-center gap-2">
+              <Text className="text-xl" style={{ fontSize: '20px' }}>🏬</Text>
+              <Text className="text-lg font-bold text-foreground">全门店总览</Text>
+            </View>
+            <Text className="text-base text-primary font-bold">{stores.length} 家门店</Text>
+          </View>
+          <View className="flex gap-3 mt-3">
+            <View className="flex-1 bg-background/60 rounded-xl py-2 text-center">
+              <Text className="text-2xl font-bold text-foreground">{crossSummary.products}</Text>
+              <Text className="text-base text-muted-foreground">总商品</Text>
+            </View>
+            <View className="flex-1 bg-background/60 rounded-xl py-2 text-center">
+              <Text className="text-2xl font-bold text-foreground">{crossSummary.orders}</Text>
+              <Text className="text-base text-muted-foreground">总订单</Text>
+            </View>
+            <View className="flex-1 bg-background/60 rounded-xl py-2 text-center">
+              <Text className="text-2xl font-bold text-success">¥{crossSummary.balance.toFixed(2)}</Text>
+              <Text className="text-base text-muted-foreground">总货款</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* 统计卡片 */}
       <View className="flex gap-3 px-4 mt-3">
         {[
-          { label: '商品', value: stats.products, sub: `${stats.online}在售`, color: 'text-orange-500' },
-          { label: '订单', value: stats.orders, sub: `今日${stats.todayOrders}`, color: 'text-blue-500' },
-          { label: '会员', value: stats.members, sub: `${stats.crossStore}跨店`, color: 'text-purple-500' },
+          { label: '商品', value: stats.products, sub: `${stats.online}在售`, color: 'text-primary' },
+          { label: '订单', value: stats.orders, sub: `今日${stats.todayOrders}`, color: 'text-primary' },
+          { label: '会员', value: stats.members, sub: `${stats.crossStore}跨店`, color: 'text-primary' },
         ].map(s => (
           <View key={s.label} className="flex-1 bg-card rounded-2xl border border-border p-3 text-center">
             <Text className={`text-3xl font-bold ${s.color}`}>{s.value}</Text>
@@ -422,7 +504,7 @@ function MerchantCenterPage() {
       {/* ============ P3 门店联动：流动车摘要卡 ============ */}
       <View
         className="mx-4 mt-3 p-4 rounded-2xl border border-primary/30"
-        style={{ background: 'linear-gradient(135deg, rgba(194,65,12,0.10), rgba(194,65,12,0.04))' }}
+        style={{ background: 'linear-gradient(135deg, rgba(31,157,107,0.10), rgba(31,157,107,0.04))' }}
         onClick={() => setShowVehicleModal(true)}>
         <View className="flex items-center justify-between">
           <View className="flex items-center gap-2">
@@ -462,7 +544,7 @@ function MerchantCenterPage() {
           <View key={item.key} className="flex flex-col items-center gap-2 py-4 px-1 bg-card rounded-2xl border border-border"
             onClick={() => Taro.navigateTo({ url: item.to })}>
             <View className={`w-11 h-11 rounded-2xl ${item.color} flex items-center justify-center`}>
-              <Icon name={item.icon} size={22} className="text-white" />
+              <Icon name={item.icon} size={22} className="text-primary" />
             </View>
             <Text className="text-base text-foreground text-center font-bold whitespace-nowrap">{item.label}</Text>
           </View>
@@ -568,7 +650,7 @@ function MerchantCenterPage() {
               <View
                 style={{
                   width: '240px', height: '240px', borderRadius: '16px',
-                  border: '2px solid rgba(194,65,12,0.15)',
+                  border: '2px solid rgba(31,157,107,0.15)',
                   backgroundColor: '#FFF', display: 'flex',
                   alignItems: 'center', justifyContent: 'center',
                   marginTop: '20px', overflow: 'hidden',
@@ -683,6 +765,48 @@ function MerchantCenterPage() {
           </View>
         </View>
       )}
+
+      {/* ========== Phase 4 门店切换弹层 ========== */}
+      {showStoreSwitch && (
+        <View
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+          onClick={() => setShowStoreSwitch(false)}>
+          <View
+            className="w-full rounded-t-3xl bg-card px-6 pt-6 pb-10"
+            style={{ maxHeight: '80vh' }}
+            onClick={(e) => e.stopPropagation()}>
+            <View className="flex items-center justify-between mb-5">
+              <Text className="text-xl font-bold text-foreground">切换管理门店</Text>
+              <View onClick={() => setShowStoreSwitch(false)} style={{ width: '32px', height: '32px', borderRadius: '16px', backgroundColor: '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: '18px', color: '#999' }}>✕</Text>
+              </View>
+            </View>
+            <View className="flex flex-col gap-2" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              {stores.map(s => (
+                <View key={s.id}
+                  className={`flex items-center justify-between px-4 py-3 rounded-2xl border ${s.id === store?.id ? 'border-primary bg-primary/5' : 'border-border bg-background'}`}
+                  onClick={() => {
+                    setCurrentMerchantStore(authUser.id, s.id, s)
+                    setStore(s)
+                    setShowStoreSwitch(false)
+                  }}>
+                  <View className="flex-1 mr-3">
+                    <Text className={`text-base font-bold ${s.id === store?.id ? 'text-primary' : 'text-foreground'}`}>{s.name}</Text>
+                    <Text className="text-base text-muted-foreground mt-0.5">{s.address || '暂无地址'}</Text>
+                  </View>
+                  {s.id === store?.id && (
+                    <View className="px-3 py-1 rounded-full bg-primary/10">
+                      <Text className="text-sm font-bold text-primary">当前</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+      )}
+
      </View>
    </RouteGuard>
   )

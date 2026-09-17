@@ -7,6 +7,7 @@ import type { MerchantApplication } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import { useAuth } from '@/contexts/AuthContext'
 import { withTimeout } from '@/utils/withTimeout'
+import { NAV } from '@/config/nav-registry'
 import Icon from '@/components/Icon'
 
 interface InputFieldProps {
@@ -107,6 +108,13 @@ function MerchantApplyPage() {
               onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
               <View className="py-3 px-8 text-xl text-white font-bold">前往管理后台</View>
             </Button>
+            {/* 兜底通道：若门店已由总部/网页端先建好（本账号还不是 owner），
+                凭门店邀请码即可把当前微信身份绑到该店，直接进管理中心。 */}
+            <Button type="button"
+              className="!flex items-center justify-center leading-none rounded-2xl !bg-card !border-2 !border-primary"
+              onClick={() => Taro.navigateTo({ url: NAV.merchantBind.url! })}>
+              <View className="py-3 px-8 text-xl text-primary font-bold">门店已有？输邀请码绑定</View>
+            </Button>
           </>
         )}
         {existing.status === 'rejected' && (
@@ -133,19 +141,19 @@ function MerchantApplyPage() {
   return (
     <View className="min-h-screen bg-background pb-24">
       {/* 说明：P7 重写为单品牌自营连锁话术，去掉「联盟/百万本地用户/流量红利」等高危词 */}
-      <View className="mx-4 mt-6 p-4 rounded-2xl" style={{ background: '#F5EEDF' }}>
+      <View className="mx-4 mt-6 p-4 rounded-2xl" style={{ background: '#F2F2F2' }}>
         <View className="flex items-center gap-2 mb-2">
           <Icon name="store" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">开通自营门店</Text>
         </View>
         <Text className="text-xl text-secondary leading-relaxed">
-          开通后您将作为「来电有喜」品牌自营门店店主，享有本店商品/订单/会员独立管理权限。
+          开通后您将作为「来店有喜」品牌自营门店店主，享有本店商品/订单/会员独立管理权限。
         </Text>
         <Text className="text-base text-muted-foreground mt-2">
           提交后由总部核验，3 个工作日内反馈结果。门店开通后，您可使用门店手机号绑定到本小程序，或登录网页版管理后台。
         </Text>
-        <Text className="text-sm text-muted-foreground mt-2" style={{ color: '#9A3324' }}>
-          来电有喜为品牌直营连锁，本页仅限品牌内部门店经营者提交开店申请，不对外部商家开放入驻。
+        <Text className="text-sm text-muted-foreground mt-2" style={{ color: '#666666' }}>
+          来店有喜为品牌直营连锁，本页仅限品牌内部门店经营者提交开店申请，不对外部商家开放入驻。
         </Text>
       </View>
 

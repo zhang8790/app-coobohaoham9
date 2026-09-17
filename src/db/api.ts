@@ -3316,31 +3316,49 @@ export async function adminApproveApplication(id: string): Promise<boolean> {
   const app = await supabase.from('merchant_applications').select('user_id, store_name, business_type, description, contact_phone, address').eq('id', id).maybeSingle()
   if (!app.data) return false
 
-  // 1. 更新申请状态
+  // ★ 顺序铁律（2026-09-17 修复「审核通过却进不了管理后台」）：
+  //   建店 → 再置「已通过」。旧实现先改 status 再 insert stores，且 insert 写了
+  //   store_type='self' —— 而 stores_store_type_check 只允许 hub/transfer/truck/branch
+  //   （迁移 20260802），因此建店**必然**报 23514 失败；状态已落地又无法回滚，
+  //   用户就卡在「申请已通过 + 无门店」，merchant-center 按 owner_id/store_staff
+  //   取店永远取到 null → 表现为「进不了管理后台」。建店放前面即可自然重试。
+  // 幂等：该用户已有门店（owner_id 命中）则跳过建店，支持重复点击「通过」。
+  const { data: existed } = await supabase.from('stores').select('id')
+    .eq('owner_id', app.data.user_id).limit(1).maybeSingle()
+
+  if (!existed) {
+    // store_type 合法值仅 branch/hub/transfer/truck；「自营」身份由 is_platform 标识，
+    // 不靠 store_type。写 'branch'（普通门店）与 admin-web / admin-create-store EF 对齐。
+    const { error: storeError } = await supabase.from('stores').insert({
+      owner_id: app.data.user_id,
+      name: app.data.store_name,
+      description: null,
+      phone: app.data.contact_phone || null,
+      address: app.data.address || null,
+      category: '其他',
+      store_type: 'branch',
+      is_active: true,
+      rating: 0})
+
+    if (storeError) {
+      // 建店失败 → 保持 pending，管理员可修复后重试（绝不留下"已通过但无门店"的孤儿态）
+      console.error('[adminApproveApplication] 创建门店失败，已中止审核（申请仍为 pending）:', storeError)
+      return false
+    }
+  }
+
+  // 1. 建店成功后，更新申请状态
   const { error } = await supabase.from('merchant_applications').update({ status: 'approved' }).eq('id', id)
-  if (error) return false
-
-  // 2. 同步 profiles.merchant_status
-  await supabase.from('profiles').update({ merchant_status: 'approved' }).eq('id', app.data.user_id)
-
-  // 3. 创建门店记录（关键！）
-  // P7：写 store_type='self' 自营标定（与门店隔离 P0 一致）；address 从申请一并写入。
-  //    business_type/description 在新流程已不收集，传 null 即可。
-  const { error: storeError } = await supabase.from('stores').insert({
-    owner_id: app.data.user_id,
-    name: app.data.store_name,
-    description: null,
-    phone: app.data.contact_phone || null,
-    address: app.data.address || null,
-    category: '其他',
-    store_type: 'self',
-    is_active: true,
-    rating: 0})
-
-  if (storeError) {
-    console.error('[adminApproveApplication] 创建门店失败:', storeError)
+  if (error) {
+    console.error('[adminApproveApplication] 更新申请状态失败:', error)
     return false
   }
+
+  // 2. 同步 profiles.merchant_status（允许失败：申请人下次进「我的」页仍可由 application.status 兜底）
+  await supabase.from('profiles').update({ merchant_status: 'approved' }).eq('id', app.data.user_id)
+
+  // 3. 失效商家门店缓存，避免审核后 30s 内仍读到 null
+  clearRequestCache()
 
   return true
 }

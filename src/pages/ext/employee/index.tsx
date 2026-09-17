@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { View, Text, Button, Input } from '@tarojs/components'
 import { supabase, getLocalUser } from '@/client/supabase'
 import { RouteGuard } from '@/components/RouteGuard'
+import { clearRequestCache } from '@/db/requestCache'
 import Icon from '@/components/Icon'
 
 interface StaffInfo {
@@ -15,6 +16,8 @@ interface StaffInfo {
 
 function EmployeePage() {
   const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null)
+  // 店长身份兜底：owner_id 命中的门店（owner 不是 store_staff 时也能进管理中心）
+  const [ownerStore, setOwnerStore] = useState<{ id: string; name: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [inviteCode, setInviteCode] = useState('')
   const [binding, setBinding] = useState(false)
@@ -27,19 +30,39 @@ function EmployeePage() {
     const { data: { user } } = await getLocalUser()
     if (!user) { Taro.showToast({ title: '请先登录', icon: 'none' }); return }
 
-    const { data, error } = await supabase
-      .from('store_staff')
-      .select('id, store_id, role, stores(name)')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .maybeSingle()
+    // 两条身份来源并行查：store_staff 成员 / stores.owner_id 店主
+    const [staffRes, ownerRes] = await Promise.all([
+      supabase
+        .from('store_staff')
+        .select('id, store_id, role, stores(name)')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle(),
+      supabase
+        .from('stores')
+        .select('id, name')
+        .eq('owner_id', user.id)
+        .limit(1)
+        .maybeSingle(),
+    ])
 
-    if (error) {
-      console.error('[员工中心] 加载失败', error)
+    if (staffRes.error) {
+      console.error('[员工中心] 加载失败', staffRes.error)
     }
 
-    setStaffInfo(data as any)
+    setStaffInfo((staffRes.data as any) ?? null)
+    setOwnerStore((ownerRes.data as any) ?? null)
     setLoading(false)
+  }
+
+  /**
+   * 绑定成功后统一跳转门店管理中心。
+   * 注意：必须先清 requestCache —— getMerchantStore 有 30s 内存缓存，
+   * 否则刚绑定完进管理中心仍会读到缓存的 null，继续显示"尚未开通门店"。
+   */
+  const goMerchantCenter = () => {
+    clearRequestCache()
+    Taro.redirectTo({ url: '/pages/merchant/merchant-center/index' })
   }
 
   const handleLogout = async () => {
@@ -61,7 +84,8 @@ function EmployeePage() {
       const res = data as any
       if (res && res.ok) {
         Taro.showToast({ title: '绑定成功', icon: 'success' })
-        await loadStaffInfo()
+        // 直接进管理中心（含 owner_id 门店时同样适用）
+        setTimeout(goMerchantCenter, 600)
       } else {
         Taro.showToast({ title: (res && res.error) || '邀请码无效或已过期', icon: 'none' })
       }
@@ -74,6 +98,22 @@ function EmployeePage() {
     <View className="flex items-center justify-center min-h-screen bg-background">
       <Icon name="loading" size={36} className="text-primary animate-spin" />
     </View>
+  )
+
+  // 店长身份：owner_id 命中的门店，直接给入口（无需邀请码）
+  if (!staffInfo && ownerStore) return (
+    <RouteGuard>
+      <View className="min-h-screen bg-background flex items-center justify-center px-6">
+        <View className="text-center w-full" style={{ maxWidth: 340 }}>
+          <Icon name="store-check" size={56} className="text-primary mb-4" />
+          <Text className="text-xl font-bold text-foreground block mb-2">{ownerStore.name}</Text>
+          <Text className="text-base text-muted-foreground block mb-6">您是本店店主，可直接进入门店管理中心</Text>
+          <Button className="!w-full !bg-primary !border-none !rounded-xl" onClick={goMerchantCenter}>
+            <View className="py-3 text-base text-white font-bold">进入门店管理中心</View>
+          </Button>
+        </View>
+      </View>
+    </RouteGuard>
   )
 
   if (!staffInfo) return (
@@ -104,10 +144,10 @@ function EmployeePage() {
   return (
     <RouteGuard>
       <View className="min-h-screen bg-background pb-8">
-        {/* 顶栏 */}
-        <View className="px-4 pb-2" style={{ background: 'linear-gradient(160deg,#F5ECE2 0%,#F0DCCB 100%)' }}>
+        {/* 顶栏（2026-09-17 去暖色遗老，对齐中性灰白 + 主题绿设计系统） */}
+        <View className="px-4 pb-2" style={{ background: 'linear-gradient(160deg,#F2F2F2 0%,#F8F8F8 100%)' }}>
           <Text className="text-2xl font-bold text-foreground">员工中心</Text>
-          <Text className="text-base text-muted-foreground mt-1 block">{staffInfo.stores?.name || '未知店铺'}</Text>
+          <Text className="text-base text-muted-foreground mt-1 block">{staffInfo.stores?.name || ownerStore?.name || '未知店铺'}</Text>
         </View>
 
         {/* 员工信息 */}
@@ -123,13 +163,20 @@ function EmployeePage() {
           </View>
         </View>
 
-        {/* 功能入口（待开发） */}
+        {/* 进入管理中心 */}
+        <View className="mx-4 mt-4">
+          <Button className="!w-full !bg-primary !border-none !rounded-xl" onClick={goMerchantCenter}>
+            <View className="py-3 text-base text-white font-bold">进入门店管理中心</View>
+          </Button>
+        </View>
+
+        {/* 功能入口 */}
         <View className="mx-4 mt-4 grid grid-cols-2 gap-3">
           {[
-            { icon: 'scan', label: '扫码推荐', desc: '让客户扫您的码', color: '#2E7D5B' },
-            { icon: 'chart', label: '业绩统计', desc: '查看推荐业绩', color: '#3B5B7A' },
-            { icon: 'user', label: '我的客户', desc: '查看归属客户', color: '#8A6D3B' },
-            { icon: 'coin', label: '奖励明细', desc: '查看推荐奖励记录', color: '#C77B30' },
+            { icon: 'scan', label: '扫码推荐', desc: '让客户扫您的码', color: '#1F9D6B' },
+            { icon: 'chart', label: '业绩统计', desc: '查看推荐业绩', color: '#0EA5E9' },
+            { icon: 'user', label: '我的客户', desc: '查看归属客户', color: '#1F9D6B' },
+            { icon: 'coin', label: '奖励明细', desc: '查看推荐奖励记录', color: '#B8923A' },
           ].map(btn => (
             <View key={btn.label} className="p-4 rounded-2xl bg-card border border-border">
               <Icon name={btn.icon} size={32} color={btn.color} className="mb-2" />
