@@ -244,12 +244,27 @@ function CartPage() {
                     </View>
                   ))}
 
-                  {/* 门店小计（仅展示，不提供结算按钮） */}
+                  {/* 门店小计（仅展示，不提供结算按钮）+ 门店履约能力标签 */}
                   {selectedStoreItems.length > 0 && (
-                    <View className="flex items-center px-4 py-2 bg-primary/5">
+                    <View className="flex items-center justify-between px-4 py-2 bg-primary/5">
                       <Text className="text-base text-muted-foreground">
                         {group.storeName} 小计：<Text className="font-bold text-primary">¥{storeTotal.toFixed(2)}</Text>
                       </Text>
+                      {(() => {
+                        const st = group.items[0]?.stores as any
+                        if (!st) return null
+                        const tags: string[] = []
+                        if (st.delivery_enabled) tags.push('配送')
+                        if (st.min_order_amount) tags.push(`起送¥${st.min_order_amount}`)
+                        if (tags.length === 0) return null
+                        return (
+                          <Text className="text-base text-muted-foreground ml-2">
+                            {tags.map((t, i) => (
+                              <Text key={i} className="text-primary/80">{i > 0 ? ` · ${t}` : t}</Text>
+                            ))}
+                          </Text>
+                        )
+                      })()}
                     </View>
                   )}
                 </View>
@@ -293,7 +308,7 @@ function CartPage() {
                   style={{ background: c.level === 'danger' ? '#FEE2E2' : '#FEF3C7', borderColor: c.level === 'danger' ? '#FCA5A5' : '#FDE68A' }}>
                   <View className="flex items-center gap-2 mb-1">
                     <Text className="text-xl">{c.level === 'danger' ? '⚠️' : '🟡'}</Text>
-                    <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#9A8070' }}>
+                    <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#666666' }}>
                       {c.type === 'warm_overlap' ? '温性叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
                     </Text>
                   </View>

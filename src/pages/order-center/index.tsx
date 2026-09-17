@@ -22,7 +22,7 @@ const STATUS_TEXT: Record<string, string> = {
 }
 const STATUS_COLOR: Record<string, string> = {
   pending_pay: '#A8552E', pending_ship: '#A8552E', pending_receive: '#3B5B7A', paid: '#6B3A12',
-  pending_pickup: '#9A8070', pending_review: '#8A4B1E', completed: '#2E7D5B', after_sale: '#DC2626', cancelled: '#9A8070'
+  pending_pickup: '#666666', pending_review: '#8A4B1E', completed: '#2E7D5B', after_sale: '#DC2626', cancelled: '#666666'
 }
 
 function OrderCenterPage() {
@@ -104,7 +104,7 @@ function OrderCenterPage() {
               {/* 订单头 */}
               <View className="flex items-center justify-between px-4 py-3 border-b border-border">
                 <Text className="text-base text-muted-foreground">订单号：{order.order_no}</Text>
-                <Text className="text-base font-bold" style={{ color: STATUS_COLOR[order.status] || '#9A8070' }}>
+                <Text className="text-base font-bold" style={{ color: STATUS_COLOR[order.status] || '#666666' }}>
                   {STATUS_TEXT[order.status] || order.status}
                 </Text>
               </View>
@@ -150,15 +150,15 @@ function OrderCenterPage() {
                     <View className="py-2 px-4 text-base text-muted-foreground">删除</View>
                   </View>
                 )}
-                {/* 可退款状态：须与 refund-order EF 白名单严格一致（pending_pickup/paid 不在 order_status 枚举内，属幻状态已剔除） */}
-                {['pending_ship', 'pending_receive', 'pending_review', 'completed'].includes(order.status) && (
+                {/* 可退款状态：须与 refund-order EF 白名单严格一致（pending_pickup 是合法 order_status，见迁移 00061；paid 才是真正不存在的幻状态） */}
+                {['pending_ship', 'pending_receive', 'pending_review', 'completed', 'pending_pickup'].includes(order.status) && (
                   <View
                     className="flex items-center justify-center leading-none rounded-xl bg-muted"
                     onClick={() => Taro.navigateTo({ url: `/pages/trade/refund-apply/index?orderId=${encodeURIComponent(order.id)}` })}>
                     <View className="py-2 px-4 text-base text-muted-foreground font-normal">申请退款</View>
                   </View>
                 )}
-                {(order.status === 'pending_ship' || order.status === 'pending_receive') && (
+                {(order.status === 'pending_ship' || order.status === 'pending_receive' || order.status === 'pending_pickup') && (
                   <View
                     className="flex items-center justify-center leading-none rounded-xl border-2 border-primary bg-card"
                     onClick={() => handleConfirmReceipt(order)}>

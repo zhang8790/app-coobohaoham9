@@ -7,14 +7,23 @@ import LazyImage from '@/components/LazyImage'
 
 // 关键：必须从 common.js 导入至少一项，否则 Rollup 会 tree-sh掉 common.js 和 vendors.js
 // 导致小程序运行时缺少必要代码 → 页面空白崩溃
-import { getStoreById, getStoreCategories, getProducts, addToCart, bindStoreReferrer } from '@/db/api'
+import { getStoreById, getStoreCategories, getProducts, addToCart, bindStoreReferrer, getMyAddresses } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
-import type { Store, StoreCategory, Product } from '@/db/types'
+import type { Store, StoreCategory, Product, UserAddress } from '@/db/types'
 import { supabase, getLocalUser } from '@/client/supabase'
 import Icon from '@/components/Icon'
 import AddToCartButton from '@/components/AddToCartButton'
 import { buildTherapyReport, isFoodProduct, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
+import { haversineKm } from '@/utils/coord-convert'
+
+// 解析 "09:00" / "9:00" / "09:00:00" 为分钟数
+function parseHHMM(s: string | null): { h: number; m: number } | null {
+  if (!s) return null
+  const m = s.match(/(\d{1,2}):(\d{2})/)
+  if (!m) return null
+  return { h: parseInt(m[1], 10), m: parseInt(m[2], 10) }
+}
 
 export default function StoreHomePage() {
   const [storeId, setStoreId] = useState('')
@@ -24,6 +33,8 @@ export default function StoreHomePage() {
   const [activeCat, setActiveCat] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [addingId, setAddingId] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+  const [userAddr, setUserAddr] = useState<UserAddress | null>(null)
   // 食疗食材字典：驱动门店商品卡实时三色预警 / 整体性味（与详情页同源引擎）
   const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
   useEffect(() => {
@@ -95,12 +106,22 @@ export default function StoreHomePage() {
       }
       setCategories(cats)
       setProducts(prods)
+      getMyAddresses().then((list) => {
+        const withCoords = list.filter((a) => a.lat != null && a.lng != null)
+        setUserAddr(withCoords[0] || list[0] || null)
+      }).catch(() => {})
     }).catch(err => {
       console.error('[StoreHome] load error:', err)
     }).finally(() => {
       setLoading(false)
     })
   }, [storeId])
+
+  // 营业状态每分钟刷新一次
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60000)
+    return () => clearInterval(t)
+  }, [])
 
   // 筛选商品
   const filteredProducts = activeCat === 'all'
@@ -143,6 +164,44 @@ export default function StoreHomePage() {
     return map
   }, [filteredProducts, ingredientDict])
 
+  // 履约方式统一在 fulfillmentText 中生成（自营门店：克制展示，不用外卖式 pill 切换）
+
+  // 营业状态智能提示（每分钟刷新）
+  const bizStatus = useMemo(() => {
+    if (!store) return null
+    if (store.is_open === false) return { state: 'closed' as const, text: '休息中' }
+    const o = parseHHMM(store.open_time)
+    const c = parseHHMM(store.close_time)
+    if (!o || !c) return { state: 'unknown' as const, text: '营业时间待更新' }
+    const d = new Date(now)
+    const cur = d.getHours() * 60 + d.getMinutes()
+    const open = o.h * 60 + o.m
+    const close = c.h * 60 + c.m
+    if (cur < open || cur >= close) return { state: 'closed' as const, text: '休息中' }
+    const minsToClose = close - cur
+    return { state: 'open' as const, text: '营业中', closingSoon: minsToClose <= 60, closeText: store.close_time! }
+  }, [store, now])
+
+  // 履约方式文案（自营门店 · 克制展示：不渲染起送价/配送费/满减等外卖式交易信息）
+  const fulfillmentText = useMemo<string | null>(() => {
+    if (!store) return null
+    const parts: string[] = []
+    if (store.delivery_enabled) {
+      const km = store.delivery_radius != null ? store.delivery_radius : 3
+      parts.push(`${km} 公里内配送`)
+    }
+    return parts.length ? parts.join(' · ') : null
+  }, [store])
+
+  // 配送范围前端提示：用默认收货地址坐标算距离（无坐标则跳过，不报错）
+  const deliveryDistance = useMemo<number | null>(() => {
+    if (!store?.delivery_enabled || store.delivery_radius == null) return null
+    const slat = store.lat, slng = store.lng
+    if (slat == null || slng == null || !userAddr?.lat || !userAddr?.lng) return null
+    return haversineKm(userAddr.lat, userAddr.lng, slat, slng)
+  }, [store, userAddr])
+  const outOfRange = deliveryDistance != null && store?.delivery_radius != null && deliveryDistance > store.delivery_radius
+
   // 加入购物车（门店详情页商品）
   const handleAddCart = async (product: Product) => {
     const uid = (await getLocalUser()).data.user
@@ -157,7 +216,7 @@ export default function StoreHomePage() {
   if (loading && !store) {
     return (
       <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '500px' }}>
-        <Text style={{ fontSize: '16px', color: '#9A8C7A' }}>加载中...</Text>
+        <Text style={{ fontSize: '16px', color: '#999999' }}>加载中...</Text>
       </View>
     )
   }
@@ -166,7 +225,7 @@ export default function StoreHomePage() {
   if (!store) {
     return (
       <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '500px' }}>
-        <Text style={{ fontSize: '16px', color: '#9A8C7A' }}>暂无门店信息</Text>
+        <Text style={{ fontSize: '16px', color: '#999999' }}>暂无门店信息</Text>
       </View>
     )
   }
@@ -184,7 +243,7 @@ export default function StoreHomePage() {
   }
 
   return (
-    <View style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#FFFBF7' }}>
+    <View style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#F8F8F8' }}>
 
       {/* ========== 门店头部 Banner ========== */}
       <View style={{ position: 'relative', height: '180px', flexShrink: 0 }}>
@@ -243,14 +302,28 @@ export default function StoreHomePage() {
         <View style={{ position: 'absolute', bottom: '16px', left: '16px', right: '16px' }}>
           <Text style={{ color: '#FFF', fontSize: '22px', fontWeight: 'bold' }}>{store.name}</Text>
           <View style={{ display: 'flex', alignItems: 'center', marginTop: '4px' }}>
-            <Text style={{ color: '#FCD34D', fontSize: '14px' }}>★</Text>
-            <Text style={{ color: '#FFF', fontSize: '16px', marginLeft: '4px' }}>{store.rating || '5.0'}</Text>
+            {store.rating && store.rating > 0 ? (
+              <>
+                <Text style={{ color: '#FCD34D', fontSize: '14px' }}>★</Text>
+                <Text style={{ color: '#FFF', fontSize: '16px', marginLeft: '4px' }}>{store.rating}</Text>
+              </>
+            ) : (
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>暂无评分</Text>
+            )}
             {store.category && (
               <Text style={{ color: '#FFF', fontSize: '14px', opacity: 0.8, marginLeft: '6px' }}>· {store.category}</Text>
             )}
           </View>
         </View>
       </View>
+
+      {/* ========== 配送范围提示 ========== */}
+      {outOfRange && deliveryDistance != null && (
+        <View style={{ margin: '0 16px', marginTop: 12, backgroundColor: '#FEF3C7', borderRadius: 12, padding: '10px 14px', borderWidth: 1, borderColor: '#FCD34D', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 14 }}>⚠️</Text>
+          <Text style={{ fontSize: 13, color: '#D97706', flex: 1 }}>您当前收货地址距本店约 {deliveryDistance.toFixed(1)} km，超出配送范围（{store?.delivery_radius} km），请重选配送范围内的收货地址</Text>
+        </View>
+      )}
 
       {/* ========== 门店详情信息卡 ========== */}
       <View style={{ margin: '0 16px', marginTop: 12, background: '#FFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
@@ -266,48 +339,37 @@ export default function StoreHomePage() {
             <Text style={{ fontSize: 12, color: '#475569' }}>{store.address || '查看地图'}</Text>
           </View>
           <View style={storeInfoTag}>
-            <Text style={{ fontSize: 12 }}>🕐</Text>
-            <Text style={{ fontSize: 12, color: '#475569' }}>{store.open_time ? `${store.open_time}-${store.close_time || ''}` : '营业时间待更新'}</Text>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: bizStatus?.state === 'open' ? '#22C55E' : '#9CA3AF' }} />
+            <Text style={{ fontSize: 12, color: '#475569' }}>{bizStatus?.text}{bizStatus?.closingSoon ? ` · 今日营业至 ${bizStatus.closeText}` : ''}</Text>
           </View>
           <View style={storeInfoTag}>
             <Text style={{ fontSize: 12 }}>📞</Text>
             <Text style={{ fontSize: 12, color: '#475569' }}>{store.phone || '联系方式待更新'}</Text>
           </View>
         </View>
+        {fulfillmentText && (
+          <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 13 }}>🛍️</Text>
+            <Text style={{ fontSize: 13, color: '#666666' }}>{fulfillmentText}</Text>
+          </View>
+        )}
       </View>
 
-      {/* ========== 服务模式切换 ========== */}
-      <View style={{
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: '10px 16px',
-        backgroundColor: '#FFF',
-        borderBottomWidth: '1px',
-        borderBottomColor: '#EAE3DA',
-        flexShrink: 0,
-      }}>
-        {['堂食', '配送'].map(label => (
-          <View
-            key={label}
-            style={{
-              padding: '6px 18px',
-              borderRadius: '999px',
-              borderWidth: '2px',
-              borderColor: 'hsl(var(--primary))',
-              backgroundColor: 'rgba(194,65,12,0.08)',
-              marginRight: '10px',
-            }}>
-            <Text style={{ fontSize: '15px', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>{label}</Text>
-          </View>
-        ))}
-      </View>
+      {/* ========== 门店公告 ========== */}
+      {store.announcement && (
+        <View style={{ margin: '0 16px', marginTop: 12, backgroundColor: '#FFF7ED', borderRadius: 12, padding: '10px 14px', borderWidth: 1, borderColor: '#FED7AA', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 14 }}>📢</Text>
+          <Text style={{ fontSize: 13, color: '#666666', flex: 1 }}>{store.announcement}</Text>
+        </View>
+      )}
+
+      {/* 履约方式已收敛进上方「门店信息」卡（自营门店克制展示，去掉外卖式 pill 切换） */}
 
       {/* ========== 分类 + 商品列表 ========== */}
       <View style={{ display: 'flex', flexDirection: 'row', flex: 1, overflow: 'hidden' }}>
 
         {/* 左侧分类栏 */}
-        <ScrollView scrollY style={{ width: '88px', height: '100%', backgroundColor: '#FFFBF7' }}>
+        <ScrollView scrollY style={{ width: '88px', height: '100%', backgroundColor: '#F8F8F8' }}>
           <View
             onClick={() => setActiveCat('all')}
             style={{
@@ -343,7 +405,7 @@ export default function StoreHomePage() {
         <ScrollView scrollY style={{ flex: 1, height: '100%', padding: '12px' }}>
           {filteredProducts.length === 0 ? (
             <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '80px' }}>
-              <Text style={{ fontSize: '15px', color: '#9A8C7A' }}>暂无商品</Text>
+              <Text style={{ fontSize: '15px', color: '#999999' }}>暂无商品</Text>
             </View>
           ) : (
             <View style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '10px' }}>
@@ -389,7 +451,7 @@ export default function StoreHomePage() {
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
                         {tr.overall_nature_code ? (
                           <View style={{ backgroundColor: '#F1ECE4', borderRadius: '6px', paddingVertical: '1px', paddingHorizontal: '6px' }}>
-                            <Text style={{ fontSize: '10px', color: '#7A6A55' }}>{NATURE_FEELING[tr.overall_nature_code] || tr.overall_nature_code}</Text>
+                            <Text style={{ fontSize: '10px', color: '#666666' }}>{NATURE_FEELING[tr.overall_nature_code] || tr.overall_nature_code}</Text>
                           </View>
                         ) : null}
                         {tr.fit_people ? (

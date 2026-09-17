@@ -66,6 +66,8 @@ export interface Store {
   min_order_amount: number | null
   announcement: string | null
   scene_tags: string[] | null
+  lat?: number | null
+  lng?: number | null
   // 合作品牌标识（历史兼容字段：现已统一归并为自营门店，恒为 NULL，见迁移 00201）
   partner_brand: string | null
   partner_tier: string | null
@@ -327,7 +329,7 @@ export interface IngredientOcrTask {
 
 // =====================
 // 食品配料安全管理系统（V1.0 全量，基于原有 Supabase 基础）
-// 异业共享会员联盟不在此实现；二级分销复用来电有喜既有模型。
+// 异业共享会员联盟不在此实现；二级分销复用来店有喜既有模型。
 // =====================
 
 // 配料安全库（food_additives 表）—— 添加剂安全壁垒资产：白/黄/黑风险 + 国标依据
@@ -658,6 +660,8 @@ export interface UserAddress {
   city: string | null
   district: string | null
   detail: string
+  lat?: number | null
+  lng?: number | null
   is_default: boolean
   created_at: string
 }

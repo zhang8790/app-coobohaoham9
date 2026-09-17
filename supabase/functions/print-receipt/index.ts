@@ -123,7 +123,7 @@ function formatCST(iso?: string): string {
 // 换行用 \n（<BR>在易联云里是EAN13条形码指令！）
 function renderReceipt(store: any, order: any, items: any[]): string {
   const lines: string[] = []
-  const name = (store?.name || '来电有喜').slice(0, 18)
+  const name = (store?.name || '来店有喜').slice(0, 18)
 
   // 订单类型横幅：配送单 / 到店自提 / 堂食（一眼区分，无需逐个翻开）
   const st = order?.service_type
@@ -190,7 +190,7 @@ function renderReceipt(store: any, order: any, items: any[]): string {
 // 用数字指令而非 PNG 图片：保证扫码枪清晰可扫，避免栅格图糊掉扫不出
 function renderBarcodeLabel(store: any, product: any, opts?: { pending?: boolean }): string {
   const lines: string[] = []
-  const name = (store?.name || '来电有喜').slice(0, 18)
+  const name = (store?.name || '来店有喜').slice(0, 18)
   const pname = String(product?.name || '商品').slice(0, 18)
   const price = '¥' + (Math.round(Number(product?.price || 0) * 100) / 100).toFixed(2)
   const code = String(product?.barcode || '').replace(/\s/g, '')

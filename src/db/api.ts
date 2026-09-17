@@ -303,9 +303,9 @@ export async function getStores(category?: string, page = 0, limit = 20, platfor
     
     // 双重保险：is_platform 字段 + 名称/ID 兜底
     const PLATFORM_STORE_IDS = new Set([
-      'ffffffff-ffff-ffff-ffff-ffffffffffff', // 来电有喜官方店
+      'ffffffff-ffff-ffff-ffff-ffffffffffff', // 来店有喜官方店
     ])
-    const PLATFORM_STORE_NAMES = ['来电有喜官方店', '来电有喜自营店', '平台自营店']
+    const PLATFORM_STORE_NAMES = ['来店有喜官方店', '来店有喜自营店', '平台自营店']
 
     const filtered = all.filter(s => {
       const isPlatformById = PLATFORM_STORE_IDS.has(s.id)
@@ -340,7 +340,8 @@ export interface NearestStore {
   id: string
   store_name: string
   address: string
-  distance_km: number
+  /** 距离（km）。null = 门店未填经纬度，无法计算距离（仍会出现在门店选择器中，显示「距离未知」） */
+  distance_km: number | null
   is_open: boolean
   lat: number
   lng: number
@@ -377,7 +378,7 @@ async function getCandidateStores(): Promise<any[]> {
   if (cached) return cached
   const { data, error } = await supabase
     .from('stores')
-    .select('id, name, address, lat, lng, is_open, is_platform')
+    .select('id, name, address, lat, lng, is_open, is_platform, rating')
     .not('is_active', 'eq', false)
   if (error) {
     console.error('[getCandidateStores] 查询失败:', error.message)
@@ -388,32 +389,69 @@ async function getCandidateStores(): Promise<any[]> {
   return list
 }
 
-export async function getNearestStores(lat: number, lng: number, limit = 20): Promise<NearestStore[]> {
+/**
+ * 按距离升序返回门店列表（供定位自动选店 + 门店选择器共用）。
+ *
+ * ⚠️ 坐标缺失不能当作「门店不存在」：线上门店多是手填资料，很多店没填经纬度。
+ * 早期实现直接把 lat/lng 为空的门店 filter 掉，导致「明明有 4 家店，选择器只显示 1 家」
+ * （只有平台自营店有坐标）。现在改为：
+ *   - 有坐标的：算距离、按距离升序，排在最前（定位自动选店只认这一批）
+ *   - 无坐标的：includeUnknown 时追加到末尾，distance_km = null，前端显示「距离未知」
+ *     排序用 rating 降序（无距离可比时，评分是最有意义的次序）
+ */
+export async function getNearestStores(
+  lat: number,
+  lng: number,
+  limit = 20,
+  opts: { includeUnknown?: boolean } = {}
+): Promise<NearestStore[]> {
   try {
     const raw = await getCandidateStores()
-    const list = (raw || [])
-      .filter((s: any) => {
-        // ① 活跃门店且有坐标（不再限制 is_platform——物理店如张林水果店也需参与"最近门店"判定）
-        if (s.lat == null || s.lng == null) return false
-        // ② 排除坐标恰好=杭州中心的测试占位点（如横笼铺），双保险即使未停用 is_active
-        if (Math.abs(Number(s.lat) - HZ_CENTER.lat) < 1e-4 && Math.abs(Number(s.lng) - HZ_CENTER.lng) < 1e-4) return false
-        return true
-      })
-      .map((s: any) => {
-        // 把门店坐标统一转到 GCJ-02（与用户微信定位同系），再算距离，避免“几公里”系统偏差
-        const g = toGcj02(Number(s.lat), Number(s.lng), STORE_COORD_SYSTEM)
-        return {
-          id: s.id,
-          store_name: s.name,
-          address: s.address || '',
-          lat: g.lat,
-          lng: g.lng,
-          is_open: s.is_open,
-          distance_km: Math.round(calculateDistance(lat, lng, g.lat, g.lng) * 100) / 100,
+    const withCoord: NearestStore[] = []
+    const noCoord: NearestStore[] = []
+    // 无坐标门店的评分（用于末尾排序），与 noCoord 平行存放——不污染 NearestStore 结构
+    const noCoordRating = new Map<string, number>()
+
+    for (const s of raw || []) {
+      const hasCoord = s.lat != null && s.lng != null
+      if (!hasCoord) {
+        // 无坐标：仍是活跃门店，只是算不出距离。仅在调用方明确要求时纳入（选择器需要，自动选店不需要）
+        if (opts.includeUnknown) {
+          noCoord.push({
+            id: s.id,
+            store_name: s.name,
+            address: s.address || '',
+            lat: 0,
+            lng: 0,
+            is_open: s.is_open,
+            distance_km: null,
+          })
+          noCoordRating.set(s.id, Number(s.rating) || 0)
         }
+        continue
+      }
+      // 排除坐标恰好=杭州中心的测试占位点（如横笼铺），双保险即使未停用 is_active
+      if (Math.abs(Number(s.lat) - HZ_CENTER.lat) < 1e-4 && Math.abs(Number(s.lng) - HZ_CENTER.lng) < 1e-4) continue
+      // 把门店坐标统一转到 GCJ-02（与用户微信定位同系），再算距离，避免“几公里”系统偏差
+      const g = toGcj02(Number(s.lat), Number(s.lng), STORE_COORD_SYSTEM)
+      withCoord.push({
+        id: s.id,
+        store_name: s.name,
+        address: s.address || '',
+        lat: g.lat,
+        lng: g.lng,
+        is_open: s.is_open,
+        distance_km: Math.round(calculateDistance(lat, lng, g.lat, g.lng) * 100) / 100,
       })
-      .sort((a: any, b: any) => a.distance_km - b.distance_km)
-    return list.slice(0, limit)
+    }
+
+    // ⚠️ 必须分组排序：distance_km 为 null 时 `a - b` 会把 null 当 0，无坐标门店会窜到第一位
+    withCoord.sort((a, b) => (a.distance_km as number) - (b.distance_km as number))
+    noCoord.sort((a, b) => (noCoordRating.get(b.id) || 0) - (noCoordRating.get(a.id) || 0))
+
+    const head = withCoord.slice(0, limit)
+    const rest = opts.includeUnknown ? noCoord.slice(0, Math.max(0, limit - head.length)) : []
+    return [...head, ...rest]
   } catch (err) {
     console.error('[getNearestStores] 异常:', err)
     return []
@@ -541,9 +579,9 @@ export async function deleteStoreCategory(id: string): Promise<boolean> {
 // =====================
 // 自营门店标识（双重保险：ID + 名称）
 const PLATFORM_STORE_IDS = new Set([
-  'ffffffff-ffff-ffff-ffff-ffffffffffff', // 来电有喜官方店
+  'ffffffff-ffff-ffff-ffff-ffffffffffff', // 来店有喜官方店
 ])
-const PLATFORM_STORE_NAMES = ['来电有喜官方店', '来电有喜自营店', '平台自营店']
+const PLATFORM_STORE_NAMES = ['来店有喜官方店', '来店有喜自营店', '平台自营店']
 
 /** 判断商品是否属于自营门店（现仅自营门店：合作品牌已统一归并到自营，partner_brand 不再作为排除条件） */
 function isPlatformProduct(p: Product): boolean {
@@ -729,7 +767,7 @@ export async function getNearbyProducts(
       results = results.filter((item: any) => {
         const isOfficial = item.is_platform === true ||
           item.store_id === 'ffffffff-ffff-ffff-ffff-ffffffffffff' ||
-          ['来电有喜官方店', '来电有喜自营店', '平台自营店'].includes(item.store_name || '')
+          ['来店有喜官方店', '来店有喜自营店', '平台自营店'].includes(item.store_name || '')
         if (platformFilter === 'only') return isOfficial
         return !isOfficial  // exclude: 非自营（当前已无）
       })
@@ -1002,7 +1040,7 @@ export async function getCartItems(): Promise<CartItem[]> {
   // 降级为纯 cart_items 查询，保证购物车至少能列出已加购项（渲染层用可选链兜底 products）。
   try {
     const { data, error } = await supabase.from('cart_items')
-      .select('*, products(*, stores(id,name)), stores(id,name)')
+      .select('*, products(*, stores(id,name)), stores(id,name,delivery_enabled,pickup_enabled,min_order_amount,delivery_fee,free_delivery_threshold,delivery_radius)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
     if (error) throw error
@@ -2837,12 +2875,12 @@ export async function generateQrcode(params:
   if (params.type === 'user') {
     const ref = (params.referral_code || '').toUpperCase().slice(0, 6)
     if (!ref) return null
-    qrContent = `来电有喜·推广码：${ref}\n扫码成为${ref}的推荐用户`
+    qrContent = `来店有喜·推广码：${ref}\n扫码成为${ref}的推荐用户`
   } else {
     const sc = (params.short_code || '').toUpperCase().slice(0, 8)
     const ref = params.referral_code ? (params.referral_code || '').toUpperCase().slice(0, 6) : ''
     if (!sc) return null
-    qrContent = `来电有喜·门店码：${sc}${ref ? `\n推荐人：${ref}` : ''}`
+    qrContent = `来店有喜·门店码：${sc}${ref ? `\n推荐人：${ref}` : ''}`
   }
 
   // 方案1：尝试 Edge Function（生产环境，生成真正的微信小程序码）
@@ -2903,10 +2941,19 @@ export async function getMerchantStore(): Promise<import('./types').Store | null
   const cached = cacheGet<import('./types').Store | null>(ck)
   if (cached !== undefined) return cached
 
+  // Phase 4 商家多店：优先返回当前选中的管理门店（商家中心切换器通过 setCurrentMerchantStore 写入 storage）
+  const preferredId = Taro.getStorageSync(`merchantCurrentStore:${user.id}`) as string | undefined
+  if (preferredId) {
+    const { data: pref } = await supabase.from('stores').select('*').eq('id', preferredId).maybeSingle()
+    if (pref) { cacheSet(ck, pref, 30_000); return pref }
+  }
+
   // 主路径：owner_id（现有商家模型，平台主账号/绑定店长）
   const { data: ownerStore } = await supabase.from('stores').select('*')
     .eq('owner_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
   if (ownerStore) {
+    // 首次/无记录时把最近一家记为当前管理门店，保证切换器有默认值
+    Taro.setStorageSync(`merchantCurrentStore:${user.id}`, ownerStore.id)
     cacheSet(ck, ownerStore, 30_000)
     return ownerStore
   }
@@ -2922,8 +2969,39 @@ export async function getMerchantStore(): Promise<import('./types').Store | null
     .limit(1)
     .maybeSingle()
   const staffStore = (staffLink as any)?.stores ?? null
+  if (staffStore) Taro.setStorageSync(`merchantCurrentStore:${user.id}`, staffStore.id)
   cacheSet(ck, staffStore, 30_000)
   return staffStore
+}
+
+// Phase 4 商家多店：返回该用户可管理的全部门店（owner 直营 + store_staff 关联，去重）
+export async function getMerchantStores(): Promise<import('./types').Store[]> {
+  const { data: { user } } = await getLocalUser()
+  if (!user) return []
+  try {
+    const { data: owned } = await supabase.from('stores').select('*')
+      .eq('owner_id', user.id).order('created_at', { ascending: false })
+    const { data: staffLinks } = await supabase
+      .from('store_staff')
+      .select('stores(*)')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+    const staffStores = (staffLinks ?? [])
+      .map((s: any) => s.stores)
+      .filter(Boolean) as import('./types').Store[]
+    const merged = [...(owned ?? []), ...staffStores]
+    const map = new Map(merged.map(s => [s.id, s]))
+    return [...map.values()]
+  } catch (e) {
+    console.error('[getMerchantStores]', e)
+    return []
+  }
+}
+
+// Phase 4 商家多店：切换当前管理门店（写 storage + 即时覆盖内存缓存，子页进入即跟店）
+export function setCurrentMerchantStore(userId: string, storeId: string, store?: import('./types').Store) {
+  Taro.setStorageSync(`merchantCurrentStore:${userId}`, storeId)
+  if (store) cacheSet(`gms:${userId}`, store, 30_000)
 }
 
 // P3 门店联动：本店流动车（随统一 RBAC 按门店隔离，RLS 已落地）
@@ -3585,7 +3663,7 @@ export async function getMyAddresses(): Promise<import('./types').UserAddress[]>
 }
 
 export async function saveAddress(params: {
-  id?: string; name: string; phone: string; province?: string; city?: string; district?: string; detail: string; is_default?: boolean
+  id?: string; name: string; phone: string; province?: string; city?: string; district?: string; detail: string; lat?: number; lng?: number; is_default?: boolean
 }): Promise<import('./types').UserAddress | null> {
   const { data: { user } } = await getLocalUser()
   if (!user) return null
@@ -3834,6 +3912,32 @@ export async function upsertPrinterConfig(
     .upsert(cfg, { onConflict: 'store_id,device_sn' })
   if (error) { console.error('[upsertPrinterConfig]', error); return false }
   return true
+}
+
+// 商家端自服务保存打印机配置：有 id 走 update（改设备号不产生重复行），无 id 走 insert。
+// 一店一台时由调用方保证仅一条；如需一店多台，device_sn 不同即可。
+export async function savePrinterConfig(
+  cfg: Partial<PrinterConfig> & { store_id: string; device_sn: string },
+): Promise<boolean> {
+  try {
+    const now = new Date().toISOString()
+    if (cfg.id) {
+      const { error } = await supabase
+        .from('printer_configs')
+        .update({ ...cfg, updated_at: now })
+        .eq('id', cfg.id)
+      if (error) { console.error('[savePrinterConfig:update]', error); return false }
+      return true
+    }
+    const { error } = await supabase
+      .from('printer_configs')
+      .insert({ ...cfg, created_at: now, updated_at: now })
+    if (error) { console.error('[savePrinterConfig:insert]', error); return false }
+    return true
+  } catch (e: any) {
+    console.error('[savePrinterConfig]', e)
+    return false
+  }
 }
 
 // 打印商品条码标签（易联云 EAN-13 店内码）：真实打印(productId) 或 测试打印(storeId + test)

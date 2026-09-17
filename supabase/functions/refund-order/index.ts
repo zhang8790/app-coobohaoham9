@@ -53,7 +53,7 @@ Deno.serve(async (req: Request) => {
     // pending_review = 已付款且已收货/到店消费待评价（纯健康豆堂食订单建单即此状态），
     // 属合法已付款状态，必须可退——此前遗漏导致所有堂食订单申请退款必然 400。
     // 排除：pending_pay(未付款)、cancelled(已取消)、after_sale(退款流程中)。
-    if (!['pending_ship', 'pending_receive', 'pending_review', 'completed'].includes(order.status)) {
+    if (!['pending_ship', 'pending_receive', 'pending_review', 'completed', 'pending_pickup'].includes(order.status)) {
       return Response.json({ success: false, error: `订单状态(${order.status})不支持退款` }, { status: 400, headers: corsHeaders })
     }
 

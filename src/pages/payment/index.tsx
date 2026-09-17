@@ -15,6 +15,7 @@ import { getPendingCheckout, clearPendingCheckout } from '@/utils/checkoutCache'
 import { refreshCartCount } from '@/utils/cartStore'
 import type { PayMode } from '@/db/types'
 import { calculateCommissionV5 } from '@/utils/commission-calculator-v5'
+import { haversineKm } from '@/utils/coord-convert'
 
 // 万分位精度
 function toFixed4(n: number) { return Math.round(n * 10000) / 10000 }
@@ -149,18 +150,33 @@ async function autoClaimAfterPay(ctx: {
 // 健康豆抵扣比例：1 健康豆 = 1 元（健康豆与人民币 1:1 锚定，余额即抵扣额，与数据库 profiles.tb_balance 单位一致）
 const GOLD_BEAN_RATE = 1
 
+// 门店履约配置（结算页按子单门店分流堂食/配送 + 起送价/配送费校验）
+interface StoreFulfillment {
+  id: string
+  delivery_enabled: boolean
+  min_order_amount: number | null
+  delivery_fee: number | null
+  free_delivery_threshold: number | null
+  delivery_radius: number | null
+  lat?: number | null
+  lng?: number | null
+}
+
+// 履约方式展示元信息（自提已下线，仅保留堂食 / 配送）
+const SERVICE_META: Record<'dine_in' | 'delivery', { label: string; icon: string }> = {
+  dine_in: { label: '堂食', icon: '🍴' },
+  delivery: { label: '配送', icon: '🛵' },
+}
+
 // 支付成功后的订单状态：配送走「待发货」；到店消费（堂食）当场使用，支付即「待评价+已使用」，跳过待核销
-function paidOrderUpdate(serviceType?: 'dine_in' | 'delivery' | 'self_pickup'): {
-  status: 'pending_ship' | 'pending_review' | 'pending_pickup'
+function paidOrderUpdate(serviceType?: 'dine_in' | 'delivery'): {
+  status: 'pending_ship' | 'pending_review'
   paid_at: string
   verified_at?: string
 } {
   const now = new Date().toISOString()
   if (serviceType === 'delivery') {
     return { status: 'pending_ship', paid_at: now }
-  }
-  if (serviceType === 'self_pickup') {
-    return { status: 'pending_pickup', paid_at: now }
   }
   // 堂食到店消费，无需核销，支付成功即视为已使用（用 verified_at 标记）
   return { status: 'pending_review', verified_at: now, paid_at: now }
@@ -185,7 +201,7 @@ function computeCheckoutRisks(items: any[], classifyProduct: (p: any) => any): {
 
 // 支付成功落地页：标准确认点，用户主动选择下一步（查看订单 / 继续逛），
 // 评价改为可选项而非被强制推送。堂食订单支付即 pending_review，故 reviewable。
-function buildResultUrl(orderNo: string, total: number, serviceType: 'dine_in' | 'delivery' | 'self_pickup'): string {
+function buildResultUrl(orderNo: string, total: number, serviceType: 'dine_in' | 'delivery'): string {
   const reviewable = serviceType === 'dine_in' ? '1' : '0'
   return `/pages/payment-result/index?orderNo=${encodeURIComponent(orderNo)}&total=${total}&serviceType=${serviceType}&reviewable=${reviewable}`
 }
@@ -254,6 +270,8 @@ function PaymentPage() {
   const [userTotalConsumption, setUserTotalConsumption] = useState(0) // 用户个人累计消费
   const [addresses, setAddresses] = useState<any[]>([])  // 收货地址列表
   const [selectedAddress, setSelectedAddress] = useState<any>(null)  // 选中的地址
+  // Phase 2：购物车涉及门店的履约配置（自提/配送开关、起送价、配送费、配送半径）
+  const [storeFulfillment, setStoreFulfillment] = useState<Record<string, StoreFulfillment>>({})
 
   // 防重复支付双重锁
   const _payLock = useRef(false)
@@ -267,7 +285,7 @@ function PaymentPage() {
   // 重付模式：订单中心「去付款」进入，订单已存在，仅重发预支付（不重复建单）
   const [repayMode, setRepayMode] = useState(false)
   const repayOrderIdRef = useRef<string | null>(null)
-  const repayServiceTypeRef = useRef<'dine_in' | 'delivery' | 'self_pickup'>('dine_in')
+  const repayServiceTypeRef = useRef<'dine_in' | 'delivery'>('dine_in')
   const [repayIsMultiStore, setRepayIsMultiStore] = useState(false)
   const [repayParentOrderNo, setRepayParentOrderNo] = useState<string | null>(null)
 
@@ -360,8 +378,10 @@ function PaymentPage() {
       setGoldBeansToUse(tbUsed)
       setPayMode(tbUsed > 0 ? 'hybrid' : 'wxpay')
       // 履约方式锁定为订单原始值（重付不可改）
-      repayServiceTypeRef.current = (order.service_type as any) || 'dine_in'
-      setServiceType(repayServiceTypeRef.current === 'self_pickup' ? 'delivery' : (repayServiceTypeRef.current as 'dine_in' | 'delivery'))
+      // 历史订单可能为 self_pickup（自提已下线），重付时统一按「配送」处理
+      const svc = (order.service_type as any) || 'dine_in'
+      repayServiceTypeRef.current = (svc === 'self_pickup' ? 'delivery' : svc) as 'dine_in' | 'delivery'
+      setServiceType(repayServiceTypeRef.current)
       setRepayMode(true)
       repayOrderIdRef.current = order.id
       setOrderNo(order.order_no)
@@ -422,6 +442,26 @@ function PaymentPage() {
     }
     // 下单前预校验商品状态（拦截已下架 / 无价 / 售罄），避免点到 createOrderV2 才报 INVALID_PRODUCT
     await verifyProducts(loadedItems)
+
+    // Phase 2：拉取购物车/立即购买涉及门店的履约配置（配送开关、起送价、配送费、配送半径）。
+    // 用于结算页按门店能力驱动的履约选择器、每店起送价校验、配送费计算。
+    try {
+      const sids = [...new Set((loadedItems || []).map((i: any) => i.store_id).filter(Boolean))] as string[]
+      if (sids.length > 0) {
+        const { data: sRows } = await supabase
+          .from('stores')
+          .select('id,delivery_enabled,min_order_amount,delivery_fee,free_delivery_threshold,delivery_radius,lat,lng')
+          .in('id', sids)
+        const map: Record<string, StoreFulfillment> = {}
+        for (const s of (sRows || []) as StoreFulfillment[]) map[s.id] = s
+        setStoreFulfillment(map)
+      } else {
+        setStoreFulfillment({})
+      }
+    } catch (e) {
+      console.warn('[payment] 门店履约配置拉取失败(降级为无配置)', e)
+      setStoreFulfillment({})
+    }
     } finally {
       loadLockRef.current = false
     }
@@ -485,18 +525,93 @@ function PaymentPage() {
 
   const [serviceType, setServiceType] = useState<'dine_in' | 'delivery'>('dine_in')
 
-  // 实时计算：健康豆最大可用 & 实付金额
+  // ===== Phase 2：门店履约能力计算 =====
+  // 每店选中小计（按门店分组，用于起送价校验与配送费计算）
+  const storeSubtotals = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const i of items) {
+      const sid = i.store_id
+      if (!sid) continue
+      m[sid] = toFixed4((m[sid] || 0) + toFixed4((Number(i.price) || 0) * (Number(i.quantity) || 0)))
+    }
+    return m
+  }, [items])
+
+  // 可用履约方式 = 购物车所有门店都支持的履约方式（交集）；堂食恒可选，配送按门店开关（自提已下线）
+  const availableServiceTypes = useMemo(() => {
+    const arr = Object.values(storeFulfillment)
+    const list: Array<'dine_in' | 'delivery'> = ['dine_in']
+    if (arr.length > 0 && arr.every(s => s.delivery_enabled)) list.push('delivery')
+    return list
+  }, [storeFulfillment])
+
+  // 默认履约方式：取能力交集里的首选（配送 > 堂食），仅在当前选择不在可用列表内时切换（重付模式不干预）
+  useEffect(() => {
+    if (repayMode) return
+    const preferred: Array<'dine_in' | 'delivery'> = ['delivery', 'dine_in']
+    const def = preferred.find(t => availableServiceTypes.includes(t)) || 'dine_in'
+    if (!availableServiceTypes.includes(serviceType)) setServiceType(def)
+    // 故意不把 serviceType 列入依赖：仅在可用集合变化时调整默认，避免无限循环
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableServiceTypes, repayMode])
+
+  // 每店起送价校验：任一家门店小计 < 自家 min_order_amount 则记录缺口（独立校验，跨店互不影响）
+  const minOrderErrors = useMemo(() => {
+    const errs: Array<{ storeId: string; storeName: string; min: number; current: number; shortfall: number }> = []
+    for (const [sid, sub] of Object.entries(storeSubtotals)) {
+      const f = storeFulfillment[sid]
+      if (f && f.min_order_amount && sub < f.min_order_amount) {
+        const storeName = (items.find(i => i.store_id === sid)?.store_name) || '该门店'
+        errs.push({ storeId: sid, storeName, min: toFixed4(f.min_order_amount), current: sub, shortfall: toFixed4(f.min_order_amount - sub) })
+      }
+    }
+    return errs
+  }, [storeSubtotals, storeFulfillment, items])
+
+  // 配送半径硬校验：收货地址到各门店距离 > 该店 delivery_radius 则拦截（仅配送方式；重付跳过）
+  // 收货地址需带 GCJ-02 坐标（地址页 chooseLocation 选点写入）；无坐标的老地址无法确认范围，提示重选
+  const deliveryRadiusErrors = useMemo(() => {
+    if (serviceType !== 'delivery' || !selectedAddress?.lat || !selectedAddress?.lng) return []
+    const errs: Array<{ storeId: string; storeName: string; radius: number; distance: number }> = []
+    for (const [sid, f] of Object.entries(storeFulfillment)) {
+      if (!f.lat || !f.lng || !f.delivery_radius) continue
+      const d = haversineKm(selectedAddress.lat, selectedAddress.lng, f.lat, f.lng)
+      if (d > f.delivery_radius) {
+        const storeName = (items.find(i => i.store_id === sid)?.store_name) || '该门店'
+        errs.push({ storeId: sid, storeName, radius: f.delivery_radius, distance: d })
+      }
+    }
+    return errs
+  }, [serviceType, selectedAddress, storeFulfillment, items])
+
+  // 配送费：仅配送方式计收，按店累加；达该店免配送门槛则免收
+  const deliveryFee = useMemo(() => {
+    if (serviceType !== 'delivery') return 0
+    let fee = 0
+    for (const [sid, sub] of Object.entries(storeSubtotals)) {
+      const f = storeFulfillment[sid]
+      if (!f || !f.delivery_fee) continue
+      const free = f.free_delivery_threshold != null && sub >= f.free_delivery_threshold
+      if (!free) fee = toFixed4(fee + f.delivery_fee)
+    }
+    return fee
+  }, [serviceType, storeSubtotals, storeFulfillment])
+
+  // 应付总额（含配送费）：商品小计 + 配送费；起送价校验不计入运费
+  const orderTotal = useMemo(() => toFixed4(totalAmount + deliveryFee), [totalAmount, deliveryFee])
+
+  // 实时计算：健康豆最大可用 & 实付金额（基于含运费的 orderTotal）
   // 按「正常价格」精确扣豆：健康豆余额支持小数(numeric(12,2))，1 健康豆=1 元，0.1 元订单即扣 0.1 健康豆，绝不上取整到 1 健康豆；
-  // 纯健康豆用精确额度(totalAmount/RATE，含小数)覆盖订单——不足则禁用纯豆，零头不强行多扣；
+  // 纯健康豆用精确额度(orderTotal/RATE，含小数)覆盖订单——不足则禁用纯豆，零头不强行多扣；
   // 混合/微信仍按「向下取整」——零头留给微信支付，避免微信端出现 <0.01 元的不可支付金额。
   const maxGoldBeans = useMemo(() => {
-    if (payMode === 'pure_gold') return Math.min(balance, totalAmount / GOLD_BEAN_RATE)
-    return Math.min(balance, Math.floor(totalAmount / GOLD_BEAN_RATE))
-  }, [balance, totalAmount, payMode])
+    if (payMode === 'pure_gold') return Math.min(balance, orderTotal / GOLD_BEAN_RATE)
+    return Math.min(balance, Math.floor(orderTotal / GOLD_BEAN_RATE))
+  }, [balance, orderTotal, payMode])
   const deductYuan = useMemo(() => toFixed4(Math.min(goldBeansToUse, maxGoldBeans) * GOLD_BEAN_RATE), [goldBeansToUse, maxGoldBeans])
-  const wxpayAmount = useMemo(() => toFixed4(Math.max(0, totalAmount - deductYuan)), [totalAmount, deductYuan])
+  const wxpayAmount = useMemo(() => toFixed4(Math.max(0, orderTotal - deductYuan)), [orderTotal, deductYuan])
   const actualGoldBeansUsed = useMemo(() => Math.min(goldBeansToUse, maxGoldBeans), [goldBeansToUse, maxGoldBeans])
-  const fullGoldNeeded = useMemo(() => totalAmount / GOLD_BEAN_RATE, [totalAmount])
+  const fullGoldNeeded = useMemo(() => orderTotal / GOLD_BEAN_RATE, [orderTotal])
   const pureGoldShort = useMemo(() => Math.max(0, fullGoldNeeded - balance), [fullGoldNeeded, balance])
 
   // 切换支付方式时同步健康豆使用量
@@ -523,7 +638,7 @@ function PaymentPage() {
   }
 
   // 跨门店订单：支付成功后确认所有子订单（按履约方式分流状态）
-  const confirmMultiStoreOrders = async (parentOrderNo: string, serviceType: 'dine_in' | 'delivery' | 'self_pickup') => {
+  const confirmMultiStoreOrders = async (parentOrderNo: string, serviceType: 'dine_in' | 'delivery') => {
     try {
       const { error } = await supabase
         .from('orders')
@@ -570,6 +685,20 @@ function PaymentPage() {
     // 配送必须选地址
     if (serviceType === 'delivery' && !selectedAddress) {
       Taro.showToast({ title: '请选择收货地址', icon: 'none' })
+      return
+    }
+
+    // 起送价校验（每店独立；重付模式跳过，原订单已校验过）
+    if (!repayMode && minOrderErrors.length > 0) {
+      const e = minOrderErrors[0]
+      Taro.showToast({ title: `${e.storeName} 还差 ¥${e.shortfall.toFixed(2)}起送`, icon: 'none' })
+      return
+    }
+
+    // 配送半径硬校验（收货地址超出门店配送范围则拦截；重付跳过）
+    if (!repayMode && deliveryRadiusErrors.length > 0) {
+      const e = deliveryRadiusErrors[0]
+      Taro.showToast({ title: `${e.storeName} 超出配送范围(${e.radius}km)`, icon: 'none' })
       return
     }
 
@@ -663,7 +792,7 @@ function PaymentPage() {
         try { await runV5Commission(repayOrderIdRef.current, items[0]?.store_id || '', totalAmount) } catch (err) { console.error('[V5] 重付佣金计算失败', err) }
         autoClaimAfterPay({ orderNo: orderNo || '', isMultiStore: repayIsMultiStore, parentOrderNo: repayParentOrderNo, items })
 
-        setTimeout(() => { Taro.navigateTo({ url: buildResultUrl(orderNo || '', totalAmount, st) }) }, 1500)
+        setTimeout(() => { Taro.navigateTo({ url: buildResultUrl(orderNo || '', orderTotal, st) }) }, 1500)
         return
       } catch (err: any) {
         const msg = err?.message || ''
@@ -691,7 +820,7 @@ function PaymentPage() {
       // 1. 创建订单
       const orderResult = await createOrderV2({
         items,
-        total_amount: totalAmount,
+        total_amount: orderTotal,
         pay_mode: payMode,
         tb_used: actualGoldBeansUsed,
         idempotency_key: `pay_${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -760,7 +889,7 @@ function PaymentPage() {
 
       // 支付成功 → 进入「支付成功结果页」（标准确认点；评价改为用户主动，不再被推）
       setTimeout(() => {
-        Taro.navigateTo({ url: buildResultUrl(orderResult?.order?.order_no || '', totalAmount, serviceType) })
+        Taro.navigateTo({ url: buildResultUrl(orderResult?.order?.order_no || '', orderTotal, serviceType) })
       }, 1500)
         return
       }
@@ -856,7 +985,7 @@ function PaymentPage() {
 
       // 支付成功 → 进入「支付成功结果页」（标准确认点；评价改为用户主动，不再被推）
       setTimeout(() => {
-        Taro.navigateTo({ url: buildResultUrl(orderResult?.order?.order_no || '', totalAmount, serviceType) })
+        Taro.navigateTo({ url: buildResultUrl(orderResult?.order?.order_no || '', orderTotal, serviceType) })
       }, 1500)} catch (err: any) {
       const msg = err?.message || ''
       if (msg.includes('cancel') || msg.includes('用户取消')) {
@@ -881,15 +1010,17 @@ function PaymentPage() {
     if (productCheck.loading) return '商品校验中...'
     if (paying) return '支付中...'
     if (productCheck.invalid.length > 0) return '含失效商品，无法支付'
+    if (!repayMode && minOrderErrors.length > 0) return '未达门店起送价'
+    if (!repayMode && deliveryRadiusErrors.length > 0) return '超出配送范围'
     if (payMode === 'pure_gold') return `确认支付 ${actualGoldBeansUsed} 健康豆`
     if (payMode === 'hybrid') return `确认支付 ¥${wxpayAmount.toFixed(2)} + ${actualGoldBeansUsed}健康豆`
-    return `确认支付 ¥${totalAmount.toFixed(2)}`
-  }, [paying, payMode, actualGoldBeansUsed, wxpayAmount, totalAmount, productCheck.loading, productCheck.invalid.length])
+    return `确认支付 ¥${orderTotal.toFixed(2)}`
+  }, [paying, payMode, actualGoldBeansUsed, wxpayAmount, orderTotal, productCheck.loading, productCheck.invalid.length, minOrderErrors, deliveryRadiusErrors, repayMode])
 
   const payModes: Array<{ key: PayMode; icon: string; label: string; color: string; desc: string; disabled?: boolean }> = [
-    { key: 'wxpay', icon: '💬', label: '微信支付', color: '#07C160', desc: `¥${totalAmount.toFixed(2)}` },
+    { key: 'wxpay', icon: '💬', label: '微信支付', color: '#07C160', desc: `¥${orderTotal.toFixed(2)}` },
     { key: 'hybrid', icon: '⚡', label: '健康豆+微信混合', color: 'hsl(var(--primary))', desc: `健康豆抵 ¥${deductYuan.toFixed(2)}，余付 ¥${wxpayAmount.toFixed(2)}`, disabled: balance <= 0 },
-    { key: 'pure_gold', icon: '★', label: '纯健康豆支付', color: '#6B4423', desc: balance >= fullGoldNeeded ? `健康豆 ${balance}` : `健康豆不足，还需 ${pureGoldShort} 健康豆`, disabled: balance < fullGoldNeeded },
+    { key: 'pure_gold', icon: '★', label: '纯健康豆支付', color: '#333333', desc: balance >= fullGoldNeeded ? `健康豆 ${balance}` : `健康豆不足，还需 ${pureGoldShort} 健康豆`, disabled: balance < fullGoldNeeded },
   ]
 
   return (<RouteGuard>
@@ -918,9 +1049,21 @@ function PaymentPage() {
       {/* 金额汇总卡 */}
       <View className="mx-4 mt-4 p-4 rounded-2xl bg-card border-2 border-primary">
         <View className="flex items-center justify-between">
-          <Text className="text-xl font-bold text-foreground">订单金额</Text>
+          <Text className="text-xl font-bold text-foreground">商品金额</Text>
           <Text className="text-2xl font-bold text-foreground">¥{totalAmount.toFixed(2)}</Text>
         </View>
+        {deliveryFee > 0 && (
+          <View className="flex items-center justify-between mt-2">
+            <Text className="text-xl text-muted-foreground">配送费</Text>
+            <Text className="text-xl font-bold text-foreground">¥{deliveryFee.toFixed(2)}</Text>
+          </View>
+        )}
+        {serviceType === 'delivery' && deliveryFee === 0 && (
+          <View className="flex items-center justify-between mt-2">
+            <Text className="text-xl text-muted-foreground">配送费</Text>
+            <Text className="text-xl font-bold text-primary">已免配送费</Text>
+          </View>
+        )}
         {deductYuan > 0 && (
           <View className="flex items-center justify-between mt-2">
             <Text className="text-xl text-muted-foreground">健康豆抵扣（{actualGoldBeansUsed}健康豆）</Text>
@@ -960,25 +1103,90 @@ function PaymentPage() {
         </View>
       )}
 
-      {/* 服务方式选择 */}
-      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
-        <View className="px-4 py-3 border-b border-border">
-          <Text className="text-xl font-bold text-foreground">用餐方式</Text>
-        </View>
-        <View className="flex gap-0">
-          {([
-            { key: 'dine_in', label: '堂食', icon: '🍴' },
-            { key: 'delivery', label: '配送', icon: '🛵' },
-          ] as const).map((m, i, arr) => (
-            <View key={m.key}
-              className={`flex-1 flex flex-col items-center gap-1 py-4 ${i < arr.length - 1 ? 'border-r border-border' : ''} ${serviceType === m.key ? 'bg-primary/5' : ''}`}
-              onClick={() => { if (repayMode) return; setServiceType(m.key) }}>
-              <View className={`${m.icon} text-3xl ${serviceType === m.key ? 'text-primary' : 'text-muted-foreground'}`} />
-              <Text className={`text-xl font-bold ${serviceType === m.key ? 'text-primary' : 'text-muted-foreground'}`}>{m.label}</Text>
-              {serviceType === m.key && <View className="w-5 h-1 rounded-full bg-primary" />}
+      {/* 起送价校验警示（每店独立校验，任一家不达标则拦截） */}
+      {minOrderErrors.length > 0 && !repayMode && (
+        <View className="mx-4 mt-4 p-4 rounded-2xl border-2 border-destructive/40 bg-destructive/5">
+          <View className="flex items-center gap-2 mb-2">
+            <Icon name="alert-circle" size={24} className="text-red-500" />
+            <Text className="text-xl font-bold text-red-500">未达门店起送价</Text>
+          </View>
+          {minOrderErrors.map((e, idx) => (
+            <View key={idx} className="flex items-center gap-2 py-1">
+              <Text className="text-base text-red-500/70">•</Text>
+              <Text className="text-base text-foreground flex-shrink-0">{e.storeName}</Text>
+              <Text className="text-base text-red-500 flex-1 text-right">还差 ¥{e.shortfall.toFixed(2)}（起送 ¥{e.min.toFixed(2)}）</Text>
             </View>
           ))}
+          <Text className="text-base text-muted-foreground mt-2">请增加该门店商品或分开结算</Text>
         </View>
+      )}
+
+      {/* 配送半径硬校验警示（收货地址超出门店配送范围则拦截） */}
+      {deliveryRadiusErrors.length > 0 && !repayMode && (
+        <View className="mx-4 mt-4 p-4 rounded-2xl border-2 border-destructive/40 bg-destructive/5">
+          <View className="flex items-center gap-2 mb-2">
+            <Icon name="alert-circle" size={24} className="text-red-500" />
+            <Text className="text-xl font-bold text-red-500">超出门店配送范围</Text>
+          </View>
+          {deliveryRadiusErrors.map((e, idx) => (
+            <View key={idx} className="flex items-center gap-2 py-1">
+              <Text className="text-base text-red-500/70">•</Text>
+              <Text className="text-base text-foreground flex-shrink-0">{e.storeName}</Text>
+              <Text className="text-base text-red-500 flex-1 text-right">距店约 {e.distance.toFixed(1)}km（限 {e.radius}km）</Text>
+            </View>
+          ))}
+          <Text className="text-base text-muted-foreground mt-2">请重选配送范围内的收货地址</Text>
+        </View>
+      )}
+
+      {/* 服务方式选择（Phase 2：按门店能力交集动态渲染） */}
+      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+        <View className="px-4 py-3 border-b border-border">
+          <Text className="text-xl font-bold text-foreground">取货方式</Text>
+        </View>
+        <View className="flex gap-0">
+          {availableServiceTypes.map((key, i, arr) => {
+            const m = SERVICE_META[key]
+            const isSel = serviceType === key
+            return (
+              <View key={key}
+                className={`flex-1 flex flex-col items-center gap-1 py-4 ${i < arr.length - 1 ? 'border-r border-border' : ''} ${isSel ? 'bg-primary/5' : ''}`}
+                onClick={() => { if (repayMode) return; setServiceType(key) }}>
+                <View className={`${m.icon} text-3xl ${isSel ? 'text-primary' : 'text-muted-foreground'}`} />
+                <Text className={`text-xl font-bold ${isSel ? 'text-primary' : 'text-muted-foreground'}`}>{m.label}</Text>
+                {isSel && <View className="w-5 h-1 rounded-full bg-primary" />}
+              </View>
+            )
+          })}
+        </View>
+        {/* 配送半径实况（按收货地址坐标硬校验） */}
+        {serviceType === 'delivery' && (() => {
+          const radii = Object.values(storeFulfillment).map(s => s.delivery_radius).filter((r): r is number => typeof r === 'number' && r > 0)
+          if (radii.length === 0) return null
+          // 收货地址无坐标：提示重选带定位的地址
+          if (!selectedAddress?.lat || !selectedAddress?.lng) {
+            return (
+              <View className="px-4 py-2 border-t border-border flex items-center gap-2">
+                <Icon name="info" size={16} className="text-amber-500" />
+                <Text className="text-base text-muted-foreground">请选择带地图定位的收货地址以确认配送范围</Text>
+              </View>
+            )
+          }
+          const maxD = Math.max(...Object.values(storeFulfillment).map(f => {
+            if (!f.lat || !f.lng) return 0
+            return haversineKm(selectedAddress.lat, selectedAddress.lng, f.lat, f.lng)
+          }))
+          const limit = Math.max(...radii)
+          const ok = maxD <= limit
+          return (
+            <View className="px-4 py-2 border-t border-border flex items-center gap-2">
+              <Icon name={ok ? 'check-circle' : 'alert-circle'} size={16} className={ok ? 'text-primary' : 'text-amber-500'} />
+              <Text className="text-base text-muted-foreground">
+                {ok ? `收货地址在配送范围内（门店限 ${limit} 公里）` : `收货地址超出配送范围（最近门店约 ${maxD.toFixed(1)} 公里）`}
+              </Text>
+            </View>
+          )
+        })()}
       </View>
 
       {/* 地址选择（配送时显示） */}
@@ -1083,7 +1291,7 @@ function PaymentPage() {
         className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t-2 border-border px-4 pt-3 flex flex-col gap-3"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
         <View
-          className={`w-full flex items-center justify-center leading-none rounded-2xl ${productCheck.loading || productCheck.invalid.length > 0 ? 'bg-muted opacity-50' : (paying ? 'bg-primary/50' : 'bg-primary')}`}
+          className={`w-full flex items-center justify-center leading-none rounded-2xl ${productCheck.loading || productCheck.invalid.length > 0 || (!repayMode && (minOrderErrors.length > 0 || deliveryRadiusErrors.length > 0)) ? 'bg-muted opacity-50' : (paying ? 'bg-primary/50' : 'bg-primary')}`}
           onClick={handlePay}>
           <View className="py-4 text-2xl font-bold text-white">{payBtnText}</View>
         </View>
@@ -1095,7 +1303,7 @@ function PaymentPage() {
         <View
           className="flex items-center justify-center py-1"
           onClick={() => Taro.navigateTo({ url: '/pages/agreement/trade-rules/index' })}>
-          <Text className="text-base text-muted-foreground text-center">支付即视为同意<Text className="text-primary">《来电有喜交易规则》</Text></Text>
+          <Text className="text-base text-muted-foreground text-center">支付即视为同意<Text className="text-primary">《来店有喜交易规则》</Text></Text>
         </View>
       </View>
 
@@ -1110,7 +1318,7 @@ function PaymentPage() {
                 <View key={idx} className="p-3 rounded-2xl border" style={{ background: c.level === 'danger' ? '#FEE2E2' : '#FEF3C7', borderColor: c.level === 'danger' ? '#FCA5A5' : '#FDE68A' }}>
                   <View className="flex items-center gap-2 mb-1">
                     <Text className="text-xl">{c.level === 'danger' ? '⚠️' : '🟡'}</Text>
-                    <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#9A8070' }}>
+                    <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#666666' }}>
                       {c.type === 'warm_overlap' ? '温性叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
                     </Text>
                   </View>
