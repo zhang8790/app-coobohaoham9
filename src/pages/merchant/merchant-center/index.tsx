@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { View, Text, Button, Image, Input } from '@tarojs/components'
-import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMerchantOrderStats, getMyMerchantApplication, generateQrcode, getMerchantSettlement, getNearExpiryProducts, getMerchantVehicles, createMerchantVehicle, setMerchantVehicleStatus, getMerchantStores, setCurrentMerchantStore } from '@/db/api'
+import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMerchantOrderStats, getMyMerchantApplication, generateQrcode, getMerchantSettlement, getNearExpiryProducts, getMerchantVehicles, createMerchantVehicle, setMerchantVehicleStatus, getMerchantStores, setCurrentMerchantStore, selfOpenStore } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
@@ -36,6 +36,26 @@ function MerchantCenterPage() {
   const [loading, setLoading] = useState(true)
   // 手动重载触发器：门店刚建好/刚绑定后，清缓存并重跑加载，避免停留在空态
   const [reloadTick, setReloadTick] = useState(0)
+  // 「已通过但无门店」孤儿态的自助开通（fn_self_open_store，幂等）
+  const [opening, setOpening] = useState(false)
+
+  const handleSelfOpenStore = async () => {
+    if (opening) return
+    setOpening(true)
+    try {
+      const r = await selfOpenStore()
+      if (!r.ok) {
+        Taro.showToast({ title: r.message || '开通失败，请稍后重试', icon: 'none' })
+        return
+      }
+      Taro.showToast({ title: `已开通「${r.storeName || '门店'}」`, icon: 'success' })
+      setReloadTick(t => t + 1)
+    } catch (e: any) {
+      Taro.showToast({ title: e?.message || '开通失败', icon: 'none' })
+    } finally {
+      setOpening(false)
+    }
+  }
 
   // 临期预警摘要（按本店 store.id 过滤）
   const [expiryStats, setExpiryStats] = useState<{ total: number; red: number; orange: number; amber: number } | null>(null)
@@ -319,17 +339,25 @@ function MerchantCenterPage() {
       )
     }
 
-    // ② 已通过但无门店：建店应已发生，属异常态——引导重新加载 / 联系总部，不显示空仪表盘
+    // ② 已通过但无门店：正确流程的末段断在这里（历史审核实现建店失败留下的孤儿态）。
+    //    给「立即开通我的店铺」自助物化（fn_self_open_store：按本人已通过申请建店/认领同名无主店
+    //    + 写 store_staff(owner)，幂等），免跑 SQL、免等总部；仍保留「重新加载」兜底。
     if (merchantAppStatus === 'approved') {
       return (
         <RouteGuard>
           <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
-            <Icon name="store-off" size={64} className="text-muted-foreground" />
-            <Text className="text-2xl font-bold text-foreground text-center">店铺开通中</Text>
-            <Text className="text-base text-muted-foreground text-center">您的申请已通过，总部正在为您开通门店，请稍候刷新。</Text>
+            <View className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+              <Icon name="store-plus" size={40} className="text-primary" />
+            </View>
+            <Text className="text-2xl font-bold text-foreground text-center">店铺待开通</Text>
+            <Text className="text-base text-muted-foreground text-center">您的开店申请已通过。点击下方按钮即可立即开通店铺，随后进入管理后台。</Text>
             <Button className="!bg-primary !border-none !rounded-2xl !px-8 !py-3"
+              onClick={handleSelfOpenStore}>
+              <Text className="text-base font-bold text-white">{opening ? '开通中…' : '立即开通我的店铺'}</Text>
+            </Button>
+            <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
               onClick={() => { clearRequestCache(); setReloadTick(t => t + 1) }}>
-              <Text className="text-base font-bold text-white">重新加载</Text>
+              <Text className="text-base text-muted-foreground">重新加载</Text>
             </Button>
             <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
               onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>

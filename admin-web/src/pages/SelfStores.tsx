@@ -84,6 +84,11 @@ export default function SelfStores() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [managing, setManaging] = useState<StoreRow | null>(null)
+  // 列表层直接绑定店长：无需先进详情页。
+  // 背景：门店未绑定店长（owner_id 为空）时，该账号在小程序「自营门店管理中心」
+  // 会被 getMerchantStore() 判为「无门店」→ 卡在「已通过但无门店」页进不去。
+  // 之前「绑定店长」只藏在门店详情里，是「进不了管理后台」的首要原因。
+  const [bindTarget, setBindTarget] = useState<StoreRow | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -121,6 +126,22 @@ export default function SelfStores() {
             <span style={{ marginLeft: 'auto', color: C.dim, fontSize: 13, display: 'flex', alignItems: 'center' }}>共 {total} 家</span>
           </div>
 
+          {/* 未绑定店长告警：无主店的账号在小程序商家中心会被判为「无门店」而进不去 */}
+          {!loading && list.some(r => !r.owner_id) && (
+            <div style={{ background: 'rgba(217,119,6,0.10)', border: `1px solid ${C.gold}`, borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ color: C.gold, fontSize: 16, flexShrink: 0 }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: C.text, fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
+                  {list.filter(r => !r.owner_id).length} 家门店未绑定店长
+                </div>
+                <div style={{ color: C.sub, fontSize: 12, lineHeight: 1.7 }}>
+                  未绑定店长的门店，其运营账号在小程序「自营门店管理中心」会被判定为「无门店」而进不去。
+                  点右侧<b>「绑定店长」</b>搜索账号并绑定即可开通。
+                </div>
+              </div>
+            </div>
+          )}
+
           <div style={cardStyle}>
             {loading ? (
               <div style={{ padding: 40, textAlign: 'center', color: C.dim }}>加载中...</div>
@@ -130,7 +151,7 @@ export default function SelfStores() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: C.bg }}>
-                    {['店名', '类目', '让利率', '营业时间', '状态', '定位', '自营', '操作'].map(h => (
+                    {['店名', '类目', '让利率', '营业时间', '状态', '定位', '店长', '自营', '操作'].map(h => (
                       <th key={h} style={thStyle}>{h}</th>
                     ))}
                   </tr>
@@ -151,6 +172,11 @@ export default function SelfStores() {
                         </span>
                       </td>
                       <td style={tdStyle}>
+                        <span style={badge(r.owner_id ? C.green : C.gold)}>
+                          {r.owner_id ? '已绑定' : '未绑定'}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>
                         <button onClick={() => updateSelfStore(r.id, { is_platform: !r.is_platform }).then(() => load())}
                           style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid', cursor: 'pointer', fontSize: 12, fontWeight: 600,
                             background: r.is_platform ? 'rgba(194,65,12,0.15)' : 'transparent',
@@ -159,10 +185,17 @@ export default function SelfStores() {
                         </button>
                       </td>
                       <td style={tdStyle}>
-                        <button onClick={() => setManaging(r)}
-                          style={{ padding: '5px 14px', background: C.accent, border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                          管理
-                        </button>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => setBindTarget(r)}
+                            style={{ padding: '5px 14px', background: r.owner_id ? C.card : C.gold, border: `1px solid ${r.owner_id ? C.border : C.gold}`, borderRadius: 6,
+                              color: r.owner_id ? C.text : '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                            {r.owner_id ? '更换店长' : '绑定店长'}
+                          </button>
+                          <button onClick={() => setManaging(r)}
+                            style={{ padding: '5px 14px', background: C.accent, border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                            管理
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -181,6 +214,16 @@ export default function SelfStores() {
               </div>
             )}
           </div>
+
+          {bindTarget && (
+            <BindManagerModal
+              storeId={bindTarget.id}
+              storeName={bindTarget.name}
+              current={bindTarget.owner_id ? { id: bindTarget.owner_id, nickname: '当前店长', phone: null } : null}
+              onClose={() => setBindTarget(null)}
+              onDone={() => { setBindTarget(null); load() }}
+            />
+          )}
         </>
       )}
     </div>

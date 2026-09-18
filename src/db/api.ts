@@ -3092,6 +3092,45 @@ export async function claimStoreOwnership(): Promise<{ ok: boolean; claimed: num
   }
 }
 
+/**
+ * 自助开通门店（迁移 00142 的 fn_self_open_store RPC）。
+ *
+ * 场景（2026-09-18 实测）：申请 status 已是 approved、profiles.merchant_status 也是 approved，
+ * 但 stores 里没有以本人为 owner_id 的门店 —— 这是历史审核实现留下的「已通过 + 无门店」孤儿态
+ * （旧实现先置状态再建店，且 store_type='self' 触发 CHECK 23514，建店必然失败且无法回滚）。
+ * 客户端无建店权限（stores 的写策略只放给 owner_id=auth.uid() / admin），故必须走 SECURITY DEFINER RPC。
+ *
+ * 语义：按本人「已通过」的申请物化门店 —— 同名无主店优先认领，否则新建；随后写 store_staff(owner)
+ * 并把 merchant_status 对齐为 approved。幂等，可重复调用。
+ */
+export async function selfOpenStore(): Promise<{ ok: boolean; storeId?: string; storeName?: string; message?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('fn_self_open_store')
+    if (error) {
+      const msg = error.message || ''
+      // 迁移未部署时 PostgREST 返回 PGRST202 / function does not exist
+      if (/PGRST202|does not exist|Could not find the function/i.test(msg)) {
+        return { ok: false, message: '开店服务尚未就绪，请联系总部核验开通' }
+      }
+      console.warn('[selfOpenStore]', msg)
+      return { ok: false, message: msg }
+    }
+    const res = (data ?? {}) as any
+    if (!res.ok) {
+      const map: Record<string, string> = {
+        not_authenticated: '登录状态已失效，请重新登录',
+        no_target_user: '登录状态已失效，请重新登录',
+        no_approved_application: '未找到已通过的开店申请，请先提交申请',
+      }
+      return { ok: false, message: map[res.error] || '开通失败，请稍后重试' }
+    }
+    clearRequestCache()   // 身份/归属已变化，清掉 gms 缓存，避免仍读到 null
+    return { ok: true, storeId: res.store_id, storeName: res.store_name }
+  } catch (e: any) {
+    return { ok: false, message: e?.message || String(e) }
+  }
+}
+
 // P3 门店联动：本店流动车（随统一 RBAC 按门店隔离，RLS 已落地）
 export async function getMerchantVehicles(storeId: string): Promise<{
   id: string; store_id: string; name: string; status: 'active' | 'offline'; created_at: string
