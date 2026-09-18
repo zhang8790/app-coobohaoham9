@@ -3453,7 +3453,28 @@ export async function adminApproveApplication(id: string): Promise<boolean> {
   const { data: existed } = await supabase.from('stores').select('id')
     .eq('owner_id', app.data.user_id).limit(1).maybeSingle()
 
-  if (!existed) {
+  // ★ 同名无主店优先认领（2026-09-18）：线上存在 owner_id 为 null 的「无主店」
+  //   （历史遗留 / 后台预建，如「杭州礼品店」）。旧实现无条件新建 → 重名两家、
+  //   商家进的是空壳新店、老店永远无主谁也认领不了。先认领同名无主店，认领不到才新建。
+  let storeId: string | null = (existed as any)?.id ?? null
+
+  if (!storeId) {
+    const { data: orphan } = await supabase.from('stores').select('id')
+      .eq('name', app.data.store_name).is('owner_id', null).limit(1).maybeSingle()
+
+    if (orphan?.id) {
+      const { data: claimed, error: claimErr } = await supabase.from('stores')
+        .update({ owner_id: app.data.user_id, is_active: true })
+        .eq('id', orphan.id).select('id')
+      if (claimErr || !claimed || claimed.length === 0) {
+        console.error('[adminApproveApplication] 认领同名无主店失败:', claimErr)
+      } else {
+        storeId = orphan.id
+      }
+    }
+  }
+
+  if (!storeId) {
     // store_type 合法值仅 branch/hub/transfer/truck；「自营」身份由 is_platform 标识，
     // 不靠 store_type。写 'branch'（普通门店）与 admin-web / admin-create-store EF 对齐。
     const { error: storeError } = await supabase.from('stores').insert({
@@ -3472,6 +3493,15 @@ export async function adminApproveApplication(id: string): Promise<boolean> {
       console.error('[adminApproveApplication] 创建门店失败，已中止审核（申请仍为 pending）:', storeError)
       return false
     }
+  }
+
+  // 补运营成员行（best-effort）：owner_id 已足以进后台并读写，store_staff 只影响
+  // 多店切换 / is_store_manager 等增强能力，失败不阻断审核。
+  if (storeId) {
+    const { error: staffErr } = await supabase.from('store_staff').upsert(
+      { store_id: storeId, user_id: app.data.user_id, role: 'owner', is_active: true },
+      { onConflict: 'store_id,user_id' })
+    if (staffErr) console.warn('[adminApproveApplication] store_staff 写入失败（不影响进后台）:', staffErr.message)
   }
 
   // 1. 建店成功后，更新申请状态

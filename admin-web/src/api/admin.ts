@@ -182,7 +182,39 @@ export async function approveApplication(id: string, assignToExplore: boolean = 
         .limit(1)
         .maybeSingle()
 
-      if (!existed) {
+      // 3.5 ★ 同名无主店优先认领（2026-09-18）
+      //     线上存在「无主店」（owner_id 为 null 的历史遗留/后台预建店，如 杭州礼品店）。
+      //     旧实现无条件新建，会导致：① 重名门店出现两家；② 商家进的是刚建的空壳新店，
+      //     老店的商品/订单/坐标全都看不到；③ 老店永远没有 owner，谁也认领不了。
+      //     这里先把同名且无主的店认领给申请人，认领不到才新建。
+      let storeId: string | null = (existed as any)?.id ?? null
+
+      if (!storeId) {
+        const { data: orphan } = await supabase
+          .from('stores')
+          .select('id')
+          .eq('name', app.store_name)
+          .is('owner_id', null)
+          .limit(1)
+          .maybeSingle()
+
+        if (orphan?.id) {
+          const { data: claimed, error: claimErr } = await supabase
+            .from('stores')
+            .update({ owner_id: app.user_id, is_active: true })
+            .eq('id', orphan.id)
+            .select('id')
+
+          if (claimErr || !claimed || claimed.length === 0) {
+            console.error('[approveApplication] 认领同名无主店失败:', claimErr)
+          } else {
+            storeId = orphan.id
+            console.log('[approveApplication] 已认领同名无主店:', orphan.id)
+          }
+        }
+      }
+
+      if (!storeId) {
         const { error: storeError } = await supabase
           .from('stores')
           .insert({
@@ -208,6 +240,18 @@ export async function approveApplication(id: string, assignToExplore: boolean = 
       }
 
       console.log(`[approveApplication] 门店就绪，short_code: ${shortCode}`)
+
+      // 3.6 补运营成员行（best-effort）：owner_id 已足以进后台并读写，
+      //     store_staff 只影响多店切换 / is_store_manager 等增强能力，失败不阻断审核。
+      if (storeId) {
+        const staffWrite = await supabase.from('store_staff').upsert(
+          { store_id: storeId, user_id: app.user_id, role: 'owner', is_active: true },
+          { onConflict: 'store_id,user_id' },
+        )
+        if (staffWrite.error) {
+          console.warn('[approveApplication] store_staff 写入失败（owner_id 已就绪，不影响进后台）:', staffWrite.error.message)
+        }
+      }
 
       // 4. 更新申请状态
       const { error: appErr } = await supabase
