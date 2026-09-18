@@ -6,7 +6,6 @@ import { getMerchantStore, getMerchantProducts, getMerchantOrders, getMerchantOr
 import { supabase } from '@/client/supabase'
 import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
-import { NAV } from '@/config/nav-registry'
 import { clearRequestCache } from '@/db/requestCache'
 import Icon from '@/components/Icon'
 import { useAuth } from '@/contexts/AuthContext'
@@ -300,14 +299,73 @@ function MerchantCenterPage() {
     </View>
   )
 
-  // 2026-09-17：取消「未绑定/无门店」三堵全屏拦截墙（邀请码绑定/开通门店/审核中），
-  // 无门店也直接进入管理后台本体 —— 数据区按空态渲染，原引导降级为后台内的「未关联门店」卡片。
-  // 安全性：所有数据查询按账号归属（RLS）过滤，未关联账号只看到零值/空列表，不会泄露他人数据。
+  // 业务流程闸门：用户申请 → 总后台审核通过 → 开通店铺 → 进入管理后台。
+  // 无门店时按申请状态给出正确引导，不再直接透出空壳仪表盘（既避免"流程错误"，也避免误显示他人数据）。
+  if (!store) {
+    // ① 审核中：等待总部核验（正确流程的中段）
+    if (merchantAppStatus === 'pending') {
+      return (
+        <RouteGuard>
+          <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
+            <Icon name="clock-outline" size={64} className="text-muted-foreground" />
+            <Text className="text-2xl font-bold text-foreground text-center">自营门店申请审核中</Text>
+            <Text className="text-base text-muted-foreground text-center">您的开店申请已提交，总部核验通过后会自动为您开通店铺，届时即可进入管理后台。</Text>
+            <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
+              onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
+              <Text className="text-base text-muted-foreground">返回个人中心</Text>
+            </Button>
+          </View>
+        </RouteGuard>
+      )
+    }
+
+    // ② 已通过但无门店：建店应已发生，属异常态——引导重新加载 / 联系总部，不显示空仪表盘
+    if (merchantAppStatus === 'approved') {
+      return (
+        <RouteGuard>
+          <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
+            <Icon name="store-off" size={64} className="text-muted-foreground" />
+            <Text className="text-2xl font-bold text-foreground text-center">店铺开通中</Text>
+            <Text className="text-base text-muted-foreground text-center">您的申请已通过，总部正在为您开通门店，请稍候刷新。</Text>
+            <Button className="!bg-primary !border-none !rounded-2xl !px-8 !py-3"
+              onClick={() => { clearRequestCache(); setReloadTick(t => t + 1) }}>
+              <Text className="text-base font-bold text-white">重新加载</Text>
+            </Button>
+            <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
+              onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
+              <Text className="text-base text-muted-foreground">返回个人中心</Text>
+            </Button>
+          </View>
+        </RouteGuard>
+      )
+    }
+
+    // ③ 未申请：主通道——申请开通门店（启动正确流程）
+    return (
+      <RouteGuard>
+        <View className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-8">
+          <View className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <Icon name="store-plus" size={40} className="text-primary" />
+          </View>
+          <Text className="text-2xl font-bold text-foreground text-center">申请开通自营门店</Text>
+          <Text className="text-base text-muted-foreground text-center">提交开店申请后由总部核验，审核通过后自动开通店铺，您即可进入管理后台。</Text>
+          <Button className="!bg-primary !border-none !rounded-2xl !px-8 !py-3"
+            onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-apply/index' })}>
+            <Text className="text-base font-bold text-white">申请开通门店</Text>
+          </Button>
+          <Button className="!bg-transparent !border-none !rounded-2xl !px-8 !py-2"
+            onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
+            <Text className="text-base text-muted-foreground">返回个人中心</Text>
+          </Button>
+        </View>
+      </RouteGuard>
+    )
+  }
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
-      {/* 门店信息卡（未关联门店时降级为「开通/绑定」引导卡，不再全屏拦截） */}
-      {store ? (
+      {/* 门店信息卡 */}
+      {store && (
       <View className="mx-4 mt-2 p-4 rounded-2xl bg-card border border-border">
         <View className="flex items-center gap-3">
           <View className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -340,32 +398,6 @@ function MerchantCenterPage() {
             <View className="py-2 flex items-center justify-center gap-1">
               <Icon name="qrcode" size={28} className="text-primary" />
               <Text className="text-base font-bold text-primary">门店二维码</Text>
-            </View>
-          </Button>
-        </View>
-      </View>
-      ) : (
-      <View className="mx-4 mt-2 p-4 rounded-2xl bg-card border border-border">
-        <View className="flex items-center gap-3">
-          <View className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
-            <Icon name="store-plus" size={24} className="text-muted-foreground" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-xl font-bold text-foreground">尚未关联门店</Text>
-            <Text className="text-sm text-muted-foreground mt-0.5">可先浏览管理后台，关联门店后即可管理商品/订单</Text>
-          </View>
-        </View>
-        <View className="flex gap-2 mt-3">
-          <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-xl"
-            onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-apply/index' })}>
-            <View className="py-2 flex items-center justify-center">
-              <Text className="text-base font-bold text-white">开通门店</Text>
-            </View>
-          </Button>
-          <Button className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-border !rounded-xl"
-            onClick={() => { clearRequestCache(); setReloadTick(t => t + 1); Taro.navigateTo({ url: NAV.merchantBind.url! }) }}>
-            <View className="py-2 flex items-center justify-center">
-              <Text className="text-base font-bold text-foreground">绑定门店</Text>
             </View>
           </Button>
         </View>
