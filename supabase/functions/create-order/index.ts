@@ -5,15 +5,11 @@
  * 跨门店结算：自动按 store_id 拆分成多个子订单，共享同一 parent_order_no
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { toFixed4, mapPayModeToPaymentMethod, computeWeightedRate, beanUsedForSubOrder } from '../_shared/money.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-// 万分位精度：所有金额运算
-function toFixed4(n: number): number {
-  return Math.round(n * 10000) / 10000
 }
 
 // 健康豆换算比例：与前端 api.ts / payment 页保持一致，1 健康豆 = 1 元（人民币 1:1 锚定，tb_balance 单位即元）
@@ -21,23 +17,34 @@ const GOLD_BEAN_RATE = 1
 
 type PayMode = 'pure_gold' | 'hybrid' | 'wxpay'
 
-Deno.serve(async (req: Request) => {
+export interface CreateOrderDeps {
+  supabase?: any
+  getUser?: () => Promise<{ id: string } | null>
+}
+
+export async function handleCreateOrder(req: Request, deps?: CreateOrderDeps): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  const supabase = createClient(
+  const supabase = deps?.supabase ?? createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   )
 
   // 鉴权
   const authHeader = req.headers.get('Authorization')
-  if (!authHeader) return Response.json({ error: '未授权' }, { status: 401, headers: corsHeaders })
-  const { data: { user }, error: authErr } = await createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } }
-  ).auth.getUser()
-  if (authErr || !user) return Response.json({ error: '未授权' }, { status: 401, headers: corsHeaders })
+  if (!authHeader && !deps?.getUser) return Response.json({ error: '未授权' }, { status: 401, headers: corsHeaders })
+  let user: { id: string } | null
+  if (deps?.getUser) {
+    user = await deps.getUser()
+  } else {
+    const { data: { user: u }, error: authErr } = await createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader! } } }
+    ).auth.getUser()
+    if (authErr || !u) return Response.json({ error: '未授权' }, { status: 401, headers: corsHeaders })
+    user = u
+  }
 
   try {
     const body = await req.json() as {
@@ -137,13 +144,15 @@ Deno.serve(async (req: Request) => {
     const createdOrders: Array<{ id: string; order_no: string; status: string; store_id: string; total_amount: number }> = []
 
     try {
-      for (const [storeId, storeItems] of storeGroups.entries()) {
+      const storeEntries = Array.from(storeGroups.entries())
+      for (let si = 0; si < storeEntries.length; si++) {
+        const [storeId, storeItems] = storeEntries[si]
         // 计算该门店的金额（基于目录价）
         const storeAmount = toFixed4(storeItems.reduce((s, i) => s + toFixed4(i.price * i.quantity), 0))
-        
+
         // 生成订单号
-        const orderNo = isMultiStore 
-          ? `${parentOrderNo}-${Array.from(storeGroups.keys()).indexOf(storeId) + 1}`
+        const orderNo = isMultiStore
+          ? `${parentOrderNo}-${si + 1}`
           : `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
 
         // 创建订单
@@ -152,8 +161,9 @@ Deno.serve(async (req: Request) => {
           user_id: user.id,
           store_id: storeId,
           total_amount: storeAmount,
-          payment_method: pay_mode === 'wxpay' ? 'wxpay' : pay_mode === 'pure_gold' ? 'emotion_beans' : 'wxpay',
-          tb_used: isMultiStore ? 0 : goldBeansUsed, // 健康豆只扣一次，记在第一个订单
+          payment_method: mapPayModeToPaymentMethod(pay_mode),
+          // 健康豆只扣一次：跨门店拆单时记在第一个子单，其余为 0（beanUsedForSubOrder 单一事实源）
+          tb_used: isMultiStore ? beanUsedForSubOrder(si === 0, goldBeansUsed) : goldBeansUsed,
           status: pay_mode === 'pure_gold' ? 'pending_ship' : 'pending_pay',
           referrer_id: referrer_id ?? null,
           parent_order_no: parentOrderNo,
@@ -223,17 +233,7 @@ Deno.serve(async (req: Request) => {
                 if (p?.id) rateMap[p.id] = Number(p.discount_rate ?? 0)
               }
             }
-            let totalAmt = 0, weightedSum = 0
-            for (const it of items) {
-              const amt = (Number(it.price) || 0) * (Number(it.quantity) || 0)
-              const pid = String(it?.product_id)
-              const pRate = (typeof rateMap[pid] === 'number' && rateMap[pid] > 0)
-                ? rateMap[pid] / 100
-                : storeFallback
-              totalAmt += amt
-              weightedSum += amt * pRate
-            }
-            if (totalAmt > 0) effectiveRate = weightedSum / totalAmt
+            effectiveRate = computeWeightedRate(items, rateMap, storeFallback)
           } catch (e) { console.warn('[create-order] 读商品让利点失败，回退店铺率', e) }
 
           // 3) 落库整单加权率（便于展示/追溯）
@@ -295,4 +295,8 @@ Deno.serve(async (req: Request) => {
     console.error('[create-order]', err)
     return Response.json({ error: err?.message ?? '内部错误' }, { status: 500, headers: corsHeaders })
   }
-})
+}
+
+if (import.meta.main) {
+  Deno.serve(handleCreateOrder)
+}

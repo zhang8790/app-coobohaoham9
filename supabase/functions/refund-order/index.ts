@@ -11,6 +11,13 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import Wechatpay from 'npm:wechatpay-axios-plugin@0.9.4'
 import ShortUniqueId from 'npm:short-unique-id'
+import {
+  isRefundableStatus,
+  computeRefundableAmount,
+  computeWechatRefundTotalCents,
+  computeWxRefundAmount,
+  computeBeanPortion,
+} from '../_shared/money.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,17 +27,28 @@ const corsHeaders = {
 const generateRefundNo = () =>
   `REF-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}-${new ShortUniqueId({ length: 8 }).rnd()}`
 
-Deno.serve(async (req: Request) => {
+export interface RefundDeps {
+  supabase?: any
+  getUser?: () => Promise<{ id: string } | null>
+}
+
+export async function handleRefundOrder(req: Request, deps?: RefundDeps): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-  const supabase = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+  const supabase = deps?.supabase ?? createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
   // 鉴权
   const authHeader = req.headers.get('Authorization')
-  if (!authHeader) return Response.json({ error: '未授权' }, { status: 401, headers: corsHeaders })
-  const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } })
-  const { data: { user } } = await userClient.auth.getUser()
+  if (!authHeader && !deps?.getUser) return Response.json({ error: '未授权' }, { status: 401, headers: corsHeaders })
+  let user: { id: string } | null
+  if (deps?.getUser) {
+    user = await deps.getUser()
+  } else {
+    const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader! } } })
+    const { data: { user: u } } = await userClient.auth.getUser()
+    user = u
+  }
   if (!user) return Response.json({ error: '未授权' }, { status: 401, headers: corsHeaders })
 
   try {
@@ -53,14 +71,14 @@ Deno.serve(async (req: Request) => {
     // pending_review = 已付款且已收货/到店消费待评价（纯健康豆堂食订单建单即此状态），
     // 属合法已付款状态，必须可退——此前遗漏导致所有堂食订单申请退款必然 400。
     // 排除：pending_pay(未付款)、cancelled(已取消)、after_sale(退款流程中)。
-    if (!['pending_ship', 'pending_receive', 'pending_review', 'completed', 'pending_pickup'].includes(order.status)) {
+    if (!isRefundableStatus(order.status)) {
       return Response.json({ success: false, error: `订单状态(${order.status})不支持退款` }, { status: 400, headers: corsHeaders })
     }
 
     // 2. 计算可退金额（原 get_refundable_amount RPC 已随 schema 变更移除，此处内联）
     //    当前 orders 累计退款记在 refund_amount（numeric，默认 0）
     const alreadyRefunded = Number(order.refund_amount ?? 0)
-    const refundable = Math.max(0, Math.round((Number(order.total_amount) - alreadyRefunded) * 100) / 100)
+    const refundable = computeRefundableAmount(order.total_amount, alreadyRefunded)
     if (refund_amount > refundable + 0.0001) {
       return Response.json({ success: false, error: `退款金额(¥${refund_amount})超过可退金额(¥${refundable.toFixed(2)})` }, { status: 400, headers: corsHeaders })
     }
@@ -80,13 +98,9 @@ Deno.serve(async (req: Request) => {
 
     // 4. 发起微信退款（如有微信支付部分）
     // 注意：00096 后 tb_used 已统一为「元」口径（1 健康豆 = 1 元），直接按比例扣减，勿再 ×0.01
-    const wxRefundAmount = Math.max(
-      0,
-      Math.round((refund_amount - (Number(order.tb_used ?? 0) * (refund_amount / Number(order.total_amount)))) * 100)
-    )
+    const wxRefundAmount = computeWxRefundAmount(refund_amount, order.tb_used, order.total_amount)
     // 退款占比 & 应返还健康豆（健康豆抵扣部分，所有退款路径通用，下面统一退还）
-    const ratio = Number(order.total_amount) > 0 ? refund_amount / Number(order.total_amount) : 1
-    const beanPortion = Math.max(0, Math.round(Number(order.tb_used ?? 0) * ratio * 100) / 100)
+    const beanPortion = computeBeanPortion(order.tb_used, refund_amount, order.total_amount)
 
     const MERCHANT_ID = Deno.env.get('MERCHANT_ID') ?? ''
     const MCH_CERT_SERIAL_NO = Deno.env.get('MCH_CERT_SERIAL_NO') ?? ''
@@ -117,7 +131,7 @@ Deno.serve(async (req: Request) => {
             // （create-wechat-payment 下单时正是按此口径报的 wxAmount）。
             // 原先误传 total_amount*100（含健康豆部分），口径大于原交易额，
             // 微信以「订单金额不一致」拒绝 → 所有混合支付订单退款必然失败。
-            total: Math.round((Number(order.total_amount) - Number(order.tb_used ?? 0)) * 100),
+            total: computeWechatRefundTotalCents(order.total_amount, order.tb_used),
             currency: 'CNY',
           },
         }, { headers: { 'Wechatpay-Serial': WECHAT_PAY_PUBLIC_KEY_ID } })
@@ -200,7 +214,11 @@ Deno.serve(async (req: Request) => {
     console.error('[refund-order] error:', err)
     return Response.json({ success: false, error: err?.message ?? '内部错误' }, { status: 500, headers: corsHeaders })
   }
-})
+}
+
+if (import.meta.main) {
+  Deno.serve(handleRefundOrder)
+}
 
 /** 扣回佣金 & 积分 */
 async function triggerClawback(

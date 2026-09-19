@@ -13,6 +13,17 @@
  * 推广收益自 2026-07-29 起按「一半可提现佣金(commission_balance) + 一半健康豆(tb_balance)」发放。
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import {
+  MIN_PLATFORM_RATE_V5,
+  ACTIVE_ORDER_STATUSES,
+  calculateDynamicScore,
+  getRankByScore,
+  getActiveMultiplier,
+  getRecruitMultiplier,
+  calcWithholdingTax,
+  allocCommission,
+  toFixed4,
+} from '../_shared/commission.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,18 +32,7 @@ const corsHeaders = {
 
 // ============ V5算法配置 ============
 
-/** V5 段位配置（与前端 commission-calculator-v5.ts 完全一致，保证前后端分佣比例统一；已收敛上限） */
-const RANK_TABLE = [
-  { rank: '无心境',     minScore: 20000, l1: 0.50, l2: 0.20, points: 0.30 },
-  { rank: '悟心',       minScore: 6000,  l1: 0.48, l2: 0.19, points: 0.32 },
-  { rank: '静心',       minScore: 2000,  l1: 0.46, l2: 0.18, points: 0.34 },
-  { rank: '明心',       minScore: 800,   l1: 0.44, l2: 0.17, points: 0.34 },
-  { rank: '初心',       minScore: 200,   l1: 0.42, l2: 0.16, points: 0.32 },
-  { rank: '凡心',       minScore: 0,     l1: 0.40, l2: 0.15, points: 0.30 },
-]
-
-/** V5 平台最低抽成（与前端 PLATFORM_CONFIG.MIN_PLATFORM_RATE 一致） */
-const MIN_PLATFORM_RATE_V5 = 0.10
+/** V5 段位配置 / 平台最低抽成 / 段位系数算法见 _shared/commission.ts（单一事实源，已被单测覆盖） */
 
 /** 支付通道费率（微信收单成本，默认0.6%；可由环境变量 CHANNEL_FEE_RATE 覆盖） */
 const CHANNEL_FEE_RATE = Number(Deno.env.get('CHANNEL_FEE_RATE') ?? '0.006')
@@ -44,68 +44,12 @@ const TAX_THRESHOLD = Number(Deno.env.get('COMMISSION_TAX_THRESHOLD') ?? '800')
 /** 推广收益净额拆分比例：50% 进可提现佣金账户(commission_balance)，50% 进健康豆账户(tb_balance)。可由环境变量 COMMISSION_CASH_RATIO 覆盖。 */
 const COMMISSION_CASH_RATIO = Number(Deno.env.get('COMMISSION_CASH_RATIO') ?? '0.5')
 
-/** 视为「有效成交」的订单状态
- *  ⚠️ 必须与 public.order_status 枚举的真实值一致（00001 定义：
- *  pending_pay, pending_ship, pending_receive, pending_review, completed, after_sale, cancelled；
- *  00061 追加 pending_pickup）。原写法含 'paid'/'used' 会触发 22P02 枚举越界，
- *  导致整个分佣函数失败、所有订单不分佣。已修正为仅保留真实存在且代表「已成交」的状态。 */
-const ACTIVE_ORDER_STATUSES = ['completed', 'pending_ship', 'pending_receive', 'pending_review', 'pending_pickup']
+// ACTIVE_ORDER_STATUSES 见 _shared/commission.ts（单一事实源，已排除 'paid'/'used' 防 22P02 枚举越界）
 
 // ============ V5算法核心函数 ============
+// 段位/系数/个税/分摊纯函数见 _shared/commission.ts（单一事实源，已被单测覆盖）
 
-/** 计算动态分数（近6月滚动消费，1:1） */
-function calculateDynamicScore(rollingConsumption: number): number {
-  return Math.round((rollingConsumption || 0) * 100) / 100
-}
-
-/** 根据动态分数判定段位（RANK_TABLE 高→低，返回首个满足门槛的最高段位） */
-function getRankByScore(score: number): typeof RANK_TABLE[0] {
-  for (const rank of RANK_TABLE) {
-    if (score >= rank.minScore) return rank
-  }
-  return RANK_TABLE[RANK_TABLE.length - 1]  // 默认凡心
-}
-
-/** 活跃系数：近 30 天有推荐成交=1.0；30~60 天有=0.5（宽限）；连续 60 天无=0（暂停） */
-function getActiveMultiplier(recent30dReferredOrders: number, prev30dReferredOrders: number): number {
-  if (recent30dReferredOrders > 0) return 1.0
-  if (prev30dReferredOrders > 0) return 0.5
-  return 0
-}
-
-/** 拓新衰减：距上次拓新 ≤90 天=1.0；>90 天=0.4；从未拓新(NULL)=1.0（不惩罚新推广员） */
-function getRecruitMultiplier(daysSinceLastRecruit: number | null): number {
-  if (daysSinceLastRecruit == null) return 1.0
-  if (daysSinceLastRecruit > 90) return 0.4
-  return 1.0
-}
-
-/** 精确计算（万分位） */
-function toFixed4(n: number): number {
-  return Math.round(n * 10000) / 10000
-}
-
-/** 代扣个税（劳务报酬/佣金所得）——由用户承担，从佣金扣除。计税规则同税法 */
-function calcWithholdingTax(income: number): number {
-  const base = Math.max(0, income)
-  if (base <= TAX_THRESHOLD) return 0
-  if (base <= 4000) return toFixed4((base - 800) * TAX_RATE)
-  return toFixed4(base * 0.8 * TAX_RATE)  // = base * 0.16
-}
-
-/** 将订单级通道费/代扣税按金额比例分摊到各佣金行，返回每行应扣项与净额 */
-function allocCommission(
-  rowAmt: number,
-  cashTotal: number,
-  channelFee: number,
-  taxWithheld: number,
-): { channelFee: number; taxWithheld: number; net: number } {
-  if (cashTotal <= 0 || rowAmt <= 0) return { channelFee: 0, taxWithheld: 0, net: rowAmt }
-  const cf = toFixed4(channelFee * rowAmt / cashTotal)
-  const tx = toFixed4(taxWithheld * rowAmt / cashTotal)
-  const net = toFixed4(rowAmt - cf - tx)
-  return { channelFee: cf, taxWithheld: tx, net }
-}
+// allocCommission 见 _shared/commission.ts（单一事实源）
 
 /** ISO 时间字符串：当前往前 N 天 */
 function isoDaysAgo(days: number): string {
@@ -445,7 +389,7 @@ Deno.serve(async (req: Request) => {
       // 用户侧：支付通道费 + 代扣个税均从佣金扣除（**由用户承担**，商家/平台不承担）
       userGrossCommission = toFixed4(l1Commission + l2Commission)
       const afterChannel = Math.max(0, userGrossCommission - channelFee)
-      taxWithheld = toFixed4(calcWithholdingTax(afterChannel))
+      taxWithheld = toFixed4(calcWithholdingTax(afterChannel, TAX_RATE, TAX_THRESHOLD))
       userNetCommission = toFixed4(afterChannel - taxWithheld)
 
       console.log('[V5] 分佣结果:', {
