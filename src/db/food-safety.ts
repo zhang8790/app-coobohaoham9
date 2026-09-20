@@ -66,6 +66,7 @@ export interface FoodAnalysisReport {
   main_conclusion: { general: string; children: string; fit_people: string; unfit_people: string; audience_advice?: AudienceAdvice[] | null } | null
   health_shortboard_tip: string | null
   created_by: string | null
+  homology?: HomologyResult | null
   created_at: string
 }
 
@@ -98,6 +99,7 @@ export interface StandardFoodReport {
   parsed_ingredients?: string[]
   matched_additives?: string[]
   match_score?: { score: number; tier: 'recommend' | 'caution' | 'avoid'; reasons: string[]; tags: string[] } | null
+  homology?: HomologyResult
   error?: string
 }
 

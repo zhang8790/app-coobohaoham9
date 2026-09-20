@@ -327,6 +327,7 @@ Deno.serve(async (req: Request) => {
     // 日常饮食关注 —— 这是「竞品抄不到」的私有数据层。仅输出衍生洞察，绝不回传原始目录表。
     // 注意：此处只用 age_group（内联调用前端直传，不暴露过敏/慢病等敏感画像）做差异化。
     let catalogInsight: any = null
+    let homology: any = null
     {
       const { data: mfcRows, error: mfcErr } = await supabase
         .from('medicinal_food_catalog')
@@ -454,6 +455,7 @@ Deno.serve(async (req: Request) => {
       audience_advice: audienceAdvice,
       health_shortboard_tip: healthShortboardTip,
       catalog_insight: catalogInsight,
+      homology,
       match_score: matchScore,
       additive_list: additiveList,
       crowd_tips: Array.from(crowdCodes),
