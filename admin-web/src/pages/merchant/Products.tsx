@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Product, StoreCategory } from '@/types'
 import { supabase } from '@/lib/supabase'
@@ -7,7 +7,7 @@ import { getCategories, createStoreCategory, updateStoreCategory, deleteStoreCat
 import { getMerchantProductSales, getMyMerchantStore } from '@/api/merchant'
 import { localCompileEmotion, recommendDimensions } from '@/utils/emotion'
 import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/utils/shiyang'
-import { NATURE_SCALE, CROWD_OPTIONS, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
+import { NATURE_SCALE, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
 import { analyzeDish } from '@/utils/dish-analyzer'
 import { encodeEAN13 } from '@/utils/barcode'
 import { uploadProductAsset } from '@/utils/storage'
@@ -29,6 +29,106 @@ function calcMargin(price: number, cost?: number): string {
 function calcRangLi(price: number, original?: number): string {
   if (!original || original <= price) return '-'
   return '¥' + (original - price).toFixed(1)
+}
+
+// 可折叠分区：把近 50 个商品字段收进分区，运营按需展开，长表单不再一屏刷屏
+function Section({ title, open, onToggle, hint, danger, children }: {
+  title: string
+  open: boolean
+  onToggle: () => void
+  hint?: string
+  danger?: boolean
+  children: ReactNode
+}) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <button type="button" onClick={onToggle}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 10, cursor: 'pointer', color: 'var(--text)', fontSize: 15, fontWeight: 700 }}>
+        <span>{title}{hint ? <span style={{ color: 'var(--text-dim)', fontSize: 11, fontWeight: 400, marginLeft: 8 }}>{hint}</span> : null}</span>
+        <span style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s', color: danger ? 'var(--danger)' : 'var(--text-dim)', fontSize: 13 }}>{danger ? '⚠' : '▾'}</span>
+      </button>
+      {open && <div style={{ marginTop: 12 }}>{children}</div>}
+    </div>
+  )
+}
+
+// 结构化食材项（与小程序端 IngredientItem 保持一致）：原料成分分析升级为 占比/烹饪方式/辅料
+type IngredientItem = {
+  id: string
+  name: string
+  nature: string
+  base_effect: string | null
+  caution_crowds: string | null
+  allergens: string[]
+  chronic_tags: string[]
+  neutralize: string | null
+  ratio: number
+  cooking: string
+  aux: string[]
+}
+const COOKING_METHODS = ['清炒', '少油', '重油', '红烧', '水煮', '凉拌']
+const AUX_OPTIONS = ['盐', '糖', '食用油', '酱油', '味精']
+
+// 由食材库 key 构建一个结构化 IngredientItem。
+// 注：web 端 INGREDIENT_DICT 仅含 性味/功效/人群/场景，缺少 base_effect / caution_crowds /
+// allergens / chronic_tags / neutralize（这些在小程序端来自 food_ingredients 表行）。
+// 这里用 benefits 推导 base_effect，其余保留默认空值，保证 IngredientItem 形状一致。
+const dictKeyToItem = (key: string): IngredientItem | null => {
+  const e = INGREDIENT_DICT[key]
+  if (!e) return null
+  return {
+    id: key,
+    name: e.zh,
+    nature: e.nature,
+    base_effect: e.benefits && e.benefits.length ? e.benefits.join('、') : null,
+    caution_crowds: null,
+    allergens: [],
+    chronic_tags: [],
+    neutralize: null,
+    ratio: 50,
+    cooking: '清炒',
+    aux: [],
+  }
+}
+
+// 中文名/别名 → 食材库 key（用于把已存储的 ingredients 名称还原为结构化项）
+const nameToDictKey = (zh: string): string | null => {
+  if (!zh) return null
+  for (const [key, e] of Object.entries(INGREDIENT_DICT)) {
+    if (e.zh === zh || (e.aliases || []).includes(zh)) return key
+  }
+  return null
+}
+
+// 把 DB 存储的 ingredients 还原为结构化 IngredientItem[]（兼容两种历史形状：
+// 新 = 结构化 IngredientItem 数组（占比/烹饪/辅料）；旧 = 食材中文名字符串数组）
+const namesToItems = (names: any[]): IngredientItem[] => {
+  return (names ?? []).map(raw => {
+    if (raw && typeof raw === 'object') {
+      const o = raw as Partial<IngredientItem>
+      return {
+        id: String(o.id ?? o.name ?? ''),
+        name: String(o.name ?? o.id ?? ''),
+        nature: o.nature || '平性',
+        base_effect: o.base_effect ?? null,
+        caution_crowds: o.caution_crowds ?? null,
+        allergens: o.allergens ?? [],
+        chronic_tags: o.chronic_tags ?? [],
+        neutralize: o.neutralize ?? null,
+        ratio: typeof o.ratio === 'number' ? o.ratio : 50,
+        cooking: o.cooking || '清炒',
+        aux: o.aux ?? [],
+      }
+    }
+    const zh = String(raw ?? '')
+    const key = nameToDictKey(zh)
+    const it = key ? dictKeyToItem(key) : null
+    if (it) return it
+    return {
+      id: zh, name: zh, nature: '平性', base_effect: null, caution_crowds: null,
+      allergens: [], chronic_tags: [], neutralize: null, ratio: 50, cooking: '清炒', aux: [],
+    }
+  })
 }
 
 const MOCK_PRODUCTS: ProductWithExt[] = [
@@ -104,7 +204,7 @@ export default function MerchantProducts() {
     name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', barcode: '',
     main_image: '', sub_images: [] as string[], detail_images: [] as string[], video_url: '',
     discount_rate: '',
-    ingredients: [] as string[],
+    ingredients: [] as IngredientItem[],
     // 食材食疗智能导购属性
     overall_nature: '',
     health_tag: [] as string[],
@@ -129,6 +229,15 @@ export default function MerchantProducts() {
     taboo_warning: '',
     category_id: '',
     food_stage: '',
+    // 商品类型化 + 礼品/手作 + 辨证适配（对齐小程序端 merchant-products）
+    product_kind: 'food',
+    is_active: true,
+    fit_people_override: '',
+    materials: [] as string[],
+    gift_meaning: '',
+    gift_craft: '',
+    gift_scene: '',
+    gift_care: '',
   })
   const mainImgRef   = useRef<HTMLInputElement>(null)
   const subImgRef    = useRef<HTMLInputElement>(null)
@@ -139,12 +248,27 @@ export default function MerchantProducts() {
   const isMerchantUser = profile?.merchant_status === 'approved' || profile?.role === 'merchant'
   const [customScene, setCustomScene] = useState('')
 
+  // 实时食疗安全分析结果（P1-8）：点「实时安全分析」后写入，供商家直观看到系统判定
+  const [liveSafety, setLiveSafety] = useState<{
+    overall_nature: string
+    risks: { red: string[]; orange: string[]; blue: string[] }
+    note: string
+  } | null>(null)
+
   // —— 商品分类（store_categories：本店 + 平台全局）——
   const [categories, setCategories] = useState<StoreCategory[]>([])
   const [showCatModal, setShowCatModal] = useState(false)
   const [newCatName, setNewCatName] = useState('')
   const [editingCatId, setEditingCatId] = useState<string | null>(null)
   const [editingCatName, setEditingCatName] = useState('')
+
+  // 商品编辑表单分区折叠状态（默认展开基础/价格/食疗，媒体/分类/原料/营销收起，降低一眼复杂度）
+  const [sections, setSections] = useState<Record<string, boolean>>({
+    media: false, base: true, price: true, category: false, ingredients: false, therapy: true, marketing: false,
+  })
+  const toggleSection = (k: string) => setSections(s => ({ ...s, [k]: !s[k] }))
+  // 专家微调：默认关闭；引擎计算的食疗字段只读展示，开启后可手动覆盖（适合人群/性味/阶段/提示）
+  const [expertMode, setExpertMode] = useState(false)
 
   // 加载本店分类（含平台全局），仅在真实模式且已拿到 storeId 时
   useEffect(() => {
@@ -239,12 +363,15 @@ export default function MerchantProducts() {
 
   const openCreate = () => {
     setEditing(null)
+    setLiveSafety(null)
     setForm({ name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', barcode: '', main_image: '', sub_images: [], detail_images: [], video_url: '', discount_rate: '', ingredients: [],
       overall_nature: '', health_tag: [], emotion_tag: [], match_goods: [], conflict_goods: [], aux_remind: '',
       food_category: '', positive_effect: '', risk_warning: '', emotion_copy: '', scenes: [],
       rec_crowds: [], cautious_crowds: [], cautious_notes: '', forbidden_crowds: [], forbidden_reasons: '',
       combo_product_ids: [], guide_sentence: '', moments_copy: '', taboo_warning: '', category_id: '',
-      food_stage: '' })
+      food_stage: '',
+      product_kind: 'food', is_active: true, fit_people_override: '', materials: [],
+      gift_meaning: '', gift_craft: '', gift_scene: '', gift_care: '' })
     setShowModal(true)
   }
 
@@ -263,7 +390,7 @@ export default function MerchantProducts() {
       detail_images: p.detail_images ? [...p.detail_images] : [],
       video_url: p.video_url || '',
       discount_rate: p.discount_rate != null ? String(p.discount_rate) : '',
-      ingredients: p.ingredients ?? [],
+      ingredients: namesToItems(p.ingredients ?? []),
       overall_nature: p.overall_nature ?? '',
       health_tag: p.health_tag ?? [],
       emotion_tag: p.emotion_tag ?? [],
@@ -286,6 +413,14 @@ export default function MerchantProducts() {
       taboo_warning: (p as any).taboo_warning ?? '',
       category_id: (p as any).category_id ?? '',
       food_stage: (p as any).food_stage ?? '',
+      product_kind: (p as any).product_kind ?? 'food',
+      is_active: (p as any).is_active ?? true,
+      fit_people_override: (p as any).fit_people_override ?? '',
+      materials: (p as any).materials ?? [],
+      gift_meaning: (p as any).gift_meaning ?? '',
+      gift_craft: (p as any).gift_craft ?? '',
+      gift_scene: (p as any).gift_scene ?? '',
+      gift_care: (p as any).gift_care ?? '',
     })
     setShowModal(true)
   }
@@ -423,35 +558,49 @@ export default function MerchantProducts() {
     setForm(f => ({ ...f, sub_images: f.sub_images.filter((_, i) => i !== idx) }))
   }
 
-  // 原料成分：勾选 / 取消某个食材 key
+  // 原料成分：勾选 / 取消某个食材 key（结构化 IngredientItem）
   const toggleIngredient = (key: string) => {
     setForm(f => {
-      const has = f.ingredients.includes(key)
-      return { ...f, ingredients: has ? f.ingredients.filter(k => k !== key) : [...f.ingredients, key] }
+      const has = f.ingredients.some(it => it.id === key)
+      if (has) return { ...f, ingredients: f.ingredients.filter(it => it.id !== key) }
+      const item = dictKeyToItem(key)
+      if (!item) return f
+      return { ...f, ingredients: [...f.ingredients, item] }
     })
   }
-  // 智能识别：按商品名匹配食材 key
+  // 智能识别：按商品名匹配食材 key，补全为结构化项（保留已配置项）
   const autoDetectIngredients = () => {
     const keys = matchIngredientKeys(form.name)
-    setForm(f => ({ ...f, ingredients: Array.from(new Set([...f.ingredients, ...keys])) }))
+    setForm(f => {
+      const existing = new Set(f.ingredients.map(it => it.id))
+      const add = keys.filter(k => !existing.has(k)).map(k => dictKeyToItem(k)).filter(Boolean) as IngredientItem[]
+      return { ...f, ingredients: [...f.ingredients, ...add] }
+    })
   }
   // 食疗分析：按菜名系统拆解食材并组合生成全部食养字段（回填表单）
   const handleAnalyzeDish = () => {
     if (!form.name) return
-    const r = analyzeDish(form.name, form.ingredients)
-    setForm(f => ({
-      ...f,
-      ingredients: r.ingredients,
-      food_category: r.food_category || f.food_category,
-      overall_nature: r.overall_nature || f.overall_nature,
-      health_tag: r.health_tag.length ? r.health_tag : f.health_tag,
-      positive_effect: r.positive_effect || f.positive_effect,
-      risk_warning: r.risk_warning || f.risk_warning,
-      scenes: r.scenes.length ? r.scenes : f.scenes,
-      rec_crowds: r.rec_crowds.length ? r.rec_crowds : f.rec_crowds,
-      cautious_crowds: Array.from(new Set([...f.cautious_crowds, ...r.cautious_crowds])),
-      forbidden_crowds: r.forbidden_crowds.length ? r.forbidden_crowds : f.forbidden_crowds,
-    }))
+    const r = analyzeDish(form.name, form.ingredients.map(i => i.id))
+    setForm(f => {
+      // 已识别食材转为结构化项；保留已有项的 占比/烹饪/辅料 配置
+      const prevById = new Map(f.ingredients.map(it => [it.id, it]))
+      const items: IngredientItem[] = r.ingredients
+        .map(k => prevById.get(k) ?? dictKeyToItem(k))
+        .filter(Boolean) as IngredientItem[]
+      return {
+        ...f,
+        ingredients: items,
+        food_category: r.food_category || f.food_category,
+        overall_nature: r.overall_nature || f.overall_nature,
+        health_tag: r.health_tag.length ? r.health_tag : f.health_tag,
+        positive_effect: r.positive_effect || f.positive_effect,
+        risk_warning: r.risk_warning || f.risk_warning,
+        scenes: r.scenes.length ? r.scenes : f.scenes,
+        rec_crowds: r.rec_crowds.length ? r.rec_crowds : f.rec_crowds,
+        cautious_crowds: Array.from(new Set([...f.cautious_crowds, ...r.cautious_crowds])),
+        forbidden_crowds: r.forbidden_crowds.length ? r.forbidden_crowds : f.forbidden_crowds,
+      }
+    })
   }
   // 通用多选数组 toggle（场景 / 三类人群 / 升单套餐）
   const toggleArr = (key: 'scenes' | 'rec_crowds' | 'cautious_crowds' | 'forbidden_crowds' | 'combo_product_ids', val: string) => {
@@ -553,6 +702,72 @@ export default function MerchantProducts() {
     }
   }
 
+  // 一键智能填充：识别食材 → 食疗分析 → 文案生成，一条龙跑完（用最新值，避免 state 滞后）
+  // 运营只需填「商品名称 + 售价 + 库存」，点此即自动产出食疗字段与导购文案
+  const handleSmartFill = async () => {
+    if (!form.name) { window.alert('请先填写商品名称'); return }
+    setGenerating(true)
+    // 1) 食材识别（合并已有 + 按名匹配）
+    const keys = matchIngredientKeys(form.name)
+    const existing = new Set(form.ingredients.map(it => it.id))
+    const added = keys.filter(k => !existing.has(k)).map(k => dictKeyToItem(k)).filter(Boolean) as IngredientItem[]
+    const mergedIngredients = [...form.ingredients, ...added]
+    // 2) 食疗分析
+    const r = analyzeDish(form.name, mergedIngredients.map(i => i.id))
+    const prevById = new Map(form.ingredients.map(it => [it.id, it]))
+    const items: IngredientItem[] = r.ingredients.map(k => prevById.get(k) ?? dictKeyToItem(k)).filter(Boolean) as IngredientItem[]
+    const merged = {
+      ...form,
+      ingredients: items,
+      food_category: r.food_category || form.food_category,
+      overall_nature: r.overall_nature || form.overall_nature,
+      health_tag: r.health_tag.length ? r.health_tag : form.health_tag,
+      positive_effect: r.positive_effect || form.positive_effect,
+      risk_warning: r.risk_warning || form.risk_warning,
+      scenes: r.scenes.length ? r.scenes : form.scenes,
+      rec_crowds: r.rec_crowds.length ? r.rec_crowds : form.rec_crowds,
+      cautious_crowds: Array.from(new Set([...form.cautious_crowds, ...r.cautious_crowds])),
+      forbidden_crowds: r.forbidden_crowds.length ? r.forbidden_crowds : form.forbidden_crowds,
+    }
+    setForm(merged)
+    // 3) 文案（本地规则 + 云端润色，用最新值）
+    const rule = buildRuleCopy(merged)
+    try {
+      const { data, error } = await supabase.functions.invoke('food-therapy-ai', {
+        body: {
+          mode: 'copy',
+          name: merged.name,
+          nature: merged.overall_nature || '',
+          health_tags: merged.health_tag,
+          emotion_tags: merged.emotion_tag,
+          short_sales_word: rule.guide_sentence,
+          detail_desc: rule.emotion_copy,
+          circle_copy: rule.moments_copy,
+          risk_tip: rule.taboo_warning,
+        },
+      })
+      if (!error && data) {
+        setForm(f => ({
+          ...f,
+          guide_sentence: data.short_sales_word || f.guide_sentence,
+          moments_copy: data.circle_copy || f.moments_copy,
+          emotion_copy: data.detail_desc || f.emotion_copy,
+          taboo_warning: data.risk_tip || f.taboo_warning,
+        }))
+        setEmotionFlash(`已智能填充（分析+文案，来源：${data.source === 'llm' ? '大模型润色' : '本地规则兜底'}）\n系统已自动产出食疗字段，可展开「商品食疗系统」核对，或点「专家微调」手动修正`)
+      } else {
+        setForm(f => ({ ...f, ...rule }))
+        setEmotionFlash('⚠️ 云端润色未响应，已用本地规则生成文案，可直接微调')
+      }
+    } catch (e: any) {
+      setForm(f => ({ ...f, ...rule }))
+      setEmotionFlash('生成异常，已用本地规则兜底：' + String(e?.message || e))
+    } finally {
+      setGenerating(false)
+      setTimeout(() => setEmotionFlash(null), 7000)
+    }
+  }
+
   const handleSubmit = async () => {
     const cost = Number(form.cost_price) || 0
     const dr = Number(form.discount_rate) || 0
@@ -598,6 +813,15 @@ export default function MerchantProducts() {
       moments_copy: form.moments_copy || null,
       taboo_warning: form.taboo_warning || null,
       food_stage: form.food_stage || null,
+      // 商品类型 + 礼品详情 + 适合人群覆盖（对齐小程序 merchant-products/index.tsx payload）
+      is_active: !!form.is_active,
+      product_kind: form.product_kind || 'food',
+      fit_people_override: form.fit_people_override || null,
+      materials: form.materials.length ? form.materials : null,
+      gift_meaning: form.gift_meaning || null,
+      gift_craft: form.gift_craft || null,
+      gift_scene: form.gift_scene || null,
+      gift_care: form.gift_care || null,
     }
     let inserted: any = null  // 新建商品插入后取真实 id（用于本地 state 同步）
     // 合规巡检：营销/食疗文案不得含医疗宣称词或违规广告词（命中则提示运营确认）
@@ -627,8 +851,9 @@ export default function MerchantProducts() {
           : supabase.from('products').insert({
               ...b,
               store_id: storeId,
+              // 对齐小程序口径：review_status 恒为 pending，is_active 由「立即上架」开关决定（保存即上架）
               review_status: 'pending',
-              is_active: false,
+              is_active: !!form.is_active,
               created_at: new Date().toISOString().slice(0, 10),
             }).select().single()
       try {
@@ -639,11 +864,11 @@ export default function MerchantProducts() {
         const msg = e?.message || ''
         // 软降级：若 products 表尚未加导购相关列（迁移 00090 / 00100 / 00104 未执行），
         // 或部分核心列缺失，剥离后重试，保证保存不失败（与小程序端 api.ts 一致）
-        if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scenes|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|combo_product_ids|guide_sentence|moments_copy|taboo_warning/.test(msg)) {
+        if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scenes|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|combo_product_ids|guide_sentence|moments_copy|taboo_warning|product_kind|fit_people_override|materials|gift_meaning|gift_craft|gift_scene|gift_care/.test(msg)) {
           const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind,
             food_category, positive_effect, risk_warning, emotion_copy, scenes, rec_crowds, cautious_crowds,
             cautious_notes, forbidden_crowds, forbidden_reasons, combo_product_ids, guide_sentence, moments_copy,
-            taboo_warning, ...rest } = body
+            taboo_warning, product_kind, fit_people_override, materials, gift_meaning, gift_craft, gift_scene, gift_care, ...rest } = body
           const res2: any = await persist(rest)
           if (res2?.error) {
             window.alert(`保存失败（已尝试剥离可选列仍失败）：\n${res2.error.message}${res2.error.hint ? '\n提示：' + res2.error.hint : ''}`)
@@ -664,11 +889,11 @@ export default function MerchantProducts() {
       const newP: ProductWithExt = {
         id: inserted?.id || `new-${Date.now()}`, store_id: storeId || 'store-1', ...body,
         image_url: null,
-        category_id: '',
-        status: 'offline',
+        category_id: body.category_id || '',
+        status: (body.is_active ? 'online' : 'offline') as 'online' | 'offline',
         review_status: 'pending',
         sales: 0,
-        is_active: false,
+        is_active: !!body.is_active,
         created_at: new Date().toISOString().slice(0, 10),
         barcode: inserted?.barcode || body.barcode,
       }
@@ -803,7 +1028,7 @@ export default function MerchantProducts() {
         {/* table header */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '80px 1fr 90px 90px 80px 80px 70px 70px 70px 160px',
+          gridTemplateColumns: '80px 1fr 90px 90px 80px 80px 70px 70px 70px 70px 160px',
           padding: '10px 16px', background: 'var(--bg)', borderBottom: '1px solid var(--border)',
           fontSize: 12, color: 'var(--text-dim)', fontWeight: 600,
         }}>
@@ -814,6 +1039,7 @@ export default function MerchantProducts() {
           <span style={{ textAlign: 'right' }}>毛利率</span>
           <span style={{ textAlign: 'right' }}>让利</span>
           <span style={{ textAlign: 'right' }}>让利%</span>
+          <span style={{ textAlign: 'center' }}>库存</span>
           <span style={{ textAlign: 'center' }}>销量</span>
           <span style={{ textAlign: 'center' }}>状态</span>
           <span style={{ textAlign: 'center' }}>操作</span>
@@ -828,7 +1054,7 @@ export default function MerchantProducts() {
           return (
             <div key={p.id} style={{
               display: 'grid',
-              gridTemplateColumns: '80px 1fr 90px 90px 80px 80px 70px 70px 70px 160px',
+              gridTemplateColumns: '80px 1fr 90px 90px 80px 80px 70px 70px 70px 70px 160px',
               padding: '12px 16px', alignItems: 'center',
               borderBottom: '1px solid var(--border)', fontSize: 13, color: 'var(--text-muted)',
             }}>
@@ -901,6 +1127,10 @@ export default function MerchantProducts() {
               {/* discount rate % */}
               <div style={{ textAlign: 'right', fontWeight: 600, color: p.discount_rate && p.discount_rate > 0 ? 'var(--accent)' : '#4B5563' }}>
                 {p.discount_rate != null && p.discount_rate > 0 ? p.discount_rate + '%' : '-'}
+              </div>
+              {/* stock */}
+              <div style={{ textAlign: 'center', color: p.stock > 0 ? 'var(--text-muted)' : 'var(--danger)' }}>
+                {p.stock ?? 0}{p.stock <= 0 && <span style={{ marginLeft: 2, fontSize: 10 }}>缺</span>}
               </div>
               {/* sales */}
               <div style={{ textAlign: 'center' }}>{(p as any).sales_count ?? p.sales}</div>
@@ -1050,7 +1280,7 @@ export default function MerchantProducts() {
                 </div>
               </div>
 
-              {/* ===== 商品信息表单 ===== */}
+              <Section title="基础信息" open={sections.base} onToggle={() => toggleSection('base')} hint="名称 / 描述 / 类型">
               <label>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>商品名称 *</span>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="请输入商品名称" style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />
@@ -1059,6 +1289,65 @@ export default function MerchantProducts() {
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>商品描述</span>
                 <textarea value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} placeholder="请输入商品描述" rows={3} style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
               </label>
+
+              {/* ===== 商品类型（食养食品 / 礼品 / 手作 / 护理） ===== */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>商品类型</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                  {([
+                    { k: 'food', label: '食养食品' },
+                    { k: 'gift', label: '药膳手串礼品' },
+                    { k: 'craft', label: '手作' },
+                    { k: 'care', label: '护理' },
+                  ] as const).map(opt => {
+                    const sel = (form.product_kind || 'food') === opt.k
+                    return (
+                      <button key={opt.k} type="button" onClick={() => setForm(f => ({ ...f, product_kind: opt.k }))}
+                        style={{ padding: '6px 14px', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                          background: sel ? 'var(--success-strong)' : 'var(--bg)',
+                          border: `1px solid ${sel ? 'var(--success-strong)' : 'var(--border-soft)'}`,
+                          color: sel ? '#ECFDF5' : 'var(--text-muted)' }}>{opt.label}</button>
+                    )
+                  })}
+                </div>
+                <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>礼品 / 手作 / 护理 不进入食疗引擎，请填写下方「寓意 / 材质」等说明</span>
+              </div>
+
+              {/* 礼品 / 手作 / 护理：材质与寓意详情（product_kind !== 'food' 时显示） */}
+              {form.product_kind !== 'food' && (
+                <div style={{ marginBottom: 14, padding: 14, background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 10 }}>
+                  <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>礼品 / 手作 / 护理 详情</span>
+                  <div style={{ marginTop: 10 }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>寓意文化（gift_meaning）</span>
+                    <textarea value={form.gift_meaning} onChange={e => setForm(f => ({ ...f, gift_meaning: e.target.value }))} maxLength={200} placeholder="如：平安顺遂、福气满满" rows={2}
+                      style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>材质 / 草本成分（materials，逗号分隔）</span>
+                    <textarea value={form.materials.join('、')} onChange={e => setForm(f => ({ ...f, materials: e.target.value.split(/[、，,\s]+/).filter(Boolean) }))} maxLength={200} placeholder="如：天然木珠、艾草、亚麻；绝不填食用食材" rows={2}
+                      style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                    <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>注意：此处仅填材质 / 草本成分，绝不填食用食材（避免误触食疗引擎）</span>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>材质工艺说明（gift_craft）</span>
+                    <textarea value={form.gift_craft} onChange={e => setForm(f => ({ ...f, gift_craft: e.target.value }))} maxLength={200} placeholder="如：手工打磨、植物染" rows={2}
+                      style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>送礼场景（gift_scene）</span>
+                    <textarea value={form.gift_scene} onChange={e => setForm(f => ({ ...f, gift_scene: e.target.value }))} maxLength={200} placeholder="如：生日、乔迁、节日馈赠" rows={2}
+                      style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>保养与使用注意（gift_care）</span>
+                    <textarea value={form.gift_care} onChange={e => setForm(f => ({ ...f, gift_care: e.target.value }))} maxLength={200} placeholder="如：避免暴晒、定期擦拭" rows={2}
+                      style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+              )}
+              </Section>
+
+              <Section title="价格与库存" open={sections.price} onToggle={() => toggleSection('price')} hint="售价 / 成本价 / 库存 / 上架">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <label>
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>售价 *</span>
@@ -1079,6 +1368,19 @@ export default function MerchantProducts() {
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>库存 *</span>
                   <input value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} type="number" placeholder="0" style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />
                 </label>
+              </div>
+
+              {/* 立即上架开关（P0-4） */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 10 }}>
+                <div>
+                  <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>立即上架</span>
+                  <p style={{ color: 'var(--text-dim)', fontSize: 11, margin: '2px 0 0' }}>开启后保存即对外可见；关闭则保存为下架（待后端审核）</p>
+                </div>
+                <button type="button" onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}
+                  style={{ width: 46, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 3,
+                    background: form.is_active ? 'var(--success-strong)' : 'var(--border-soft)' }}>
+                  <span style={{ display: 'block', width: 20, height: 20, borderRadius: '50%', background: '#fff', marginLeft: form.is_active ? 20 : 0, transition: 'margin-left .2s' }} />
+                </button>
               </div>
 
               {/* 条码（EAN-13 店内码，超市同款）：生成 / 预览 / 打印 */}
@@ -1123,7 +1425,10 @@ export default function MerchantProducts() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <label>
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>商品让利 %</span>
-                  <input value={form.discount_rate} onChange={e => setForm(f => ({ ...f, discount_rate: e.target.value }))} type="number" placeholder="0" min={0} max={100} style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />
+                  <input value={form.discount_rate} onChange={e => setForm(f => ({ ...f, discount_rate: e.target.value }))} onBlur={e => {
+                    const v = Number(e.target.value)
+                    if (v > 30) setForm(f => ({ ...f, discount_rate: '30' }))
+                  }} type="number" placeholder="0" min={0} max={100} style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />
                   <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>用户端显示让利标签（如"立减33%"）</span>
                   {Number(form.discount_rate) > 0 && (
                     <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, fontSize: 12,
@@ -1161,8 +1466,9 @@ export default function MerchantProducts() {
                   )}
                 </div>
               )}
-            </div>
+            </Section>
 
+            <Section title="商品分类" open={sections.category} onToggle={() => toggleSection('category')} hint="预设 / 自定义">
             {/* 商品分类（spec 基础信息区） */}
             <div style={{ marginBottom: 14 }}>
               <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>商品分类</span>
@@ -1192,7 +1498,9 @@ export default function MerchantProducts() {
               </select>
               <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>可新建店内分类；🌐 为平台全局分类，对所有门店生效</span>
             </div>
+            </Section>
 
+            <Section title="原料成分" open={sections.ingredients} onToggle={() => toggleSection('ingredients')} hint="可选 · 自动识别">
             {/*  原料成分分析（可选） */}
             <div style={{ marginTop: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -1212,22 +1520,55 @@ export default function MerchantProducts() {
               {form.ingredients.length === 0 ? (
                 <div style={{ color: 'var(--text-dim)', fontSize: 13, padding: '12px', background: 'var(--bg)', border: '1px dashed var(--border-soft)', borderRadius: 8 }}>尚未选择原料，可点「自动识别」或下方手动勾选。</div>
               ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-                  {form.ingredients.map((key: string) => {
-                    const e = INGREDIENT_DICT[key]
-                    if (!e) return null
-                    return (
-                      <span key={key} onClick={() => toggleIngredient(key)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 999, cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
-                        <span>{e.icon} {e.zh}</span>
-                        <span style={{ color: 'var(--text-dim)' }}>×</span>
-                      </span>
-                    )
-                  })}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+                  {form.ingredients.map((it) => (
+                    <div key={it.id} style={{ background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 10, padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>{it.name}</span>
+                          <span style={{ fontSize: 11, color: '#fff', background: 'var(--success-strong)', padding: '1px 8px', borderRadius: 10 }}>{it.nature}</span>
+                        </div>
+                        <button type="button" onClick={() => setForm(f => ({ ...f, ingredients: f.ingredients.filter(x => x.id !== it.id) }))}
+                          style={{ padding: '2px 10px', background: 'transparent', border: '1px solid var(--danger)', borderRadius: 6, color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>✕ 移除</button>
+                      </div>
+                      {/* 占比 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>占比 %</span>
+                        <input type="number" min={0} max={100} value={it.ratio} onChange={e => {
+                          const v = Math.max(0, Math.min(100, Number(e.target.value) || 0))
+                          setForm(f => ({ ...f, ingredients: f.ingredients.map(x => x.id === it.id ? { ...x, ratio: v } : x) }))
+                        }} style={{ width: 70, padding: '6px 8px', background: 'var(--surface-2)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
+                        <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>（越高该食材在配方中占比越大）</span>
+                      </div>
+                      {/* 烹饪方式 */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 13, alignSelf: 'center' }}>烹饪方式</span>
+                        {COOKING_METHODS.map(m => {
+                          const sel = it.cooking === m
+                          return (
+                            <button key={m} type="button" onClick={() => setForm(f => ({ ...f, ingredients: f.ingredients.map(x => x.id === it.id ? { ...x, cooking: m } : x) }))}
+                              style={{ padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 12, background: sel ? 'var(--success-strong)' : 'var(--surface-2)', border: `1px solid ${sel ? 'var(--success-strong)' : 'var(--border-soft)'}`, color: sel ? '#ECFDF5' : 'var(--text-muted)' }}>{m}</button>
+                          )
+                        })}
+                      </div>
+                      {/* 辅料 */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 13, alignSelf: 'center' }}>辅料</span>
+                        {AUX_OPTIONS.map(a => {
+                          const sel = it.aux.includes(a)
+                          return (
+                            <button key={a} type="button" onClick={() => setForm(f => ({ ...f, ingredients: f.ingredients.map(x => x.id === it.id ? { ...x, aux: sel ? x.aux.filter(y => y !== a) : [...x.aux, a] } : x) }))}
+                              style={{ padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 12, background: sel ? '#FDE68A' : 'var(--surface-2)', border: '1px solid #E5C07B', color: sel ? '#1F9D6B' : 'var(--text-muted)' }}>{a}</button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {Object.entries(INGREDIENT_DICT).map(([key, e]) => {
-                  const active = form.ingredients.includes(key)
+                  const active = form.ingredients.some(it => it.id === key)
                   return (
                     <button key={key} type="button" onClick={() => toggleIngredient(key)}
                       style={{ padding: '4px 10px', background: active ? '#065F46' : 'var(--bg)', border: `1px solid ${active ? 'var(--success-strong)' : 'var(--border-soft)'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#ECFDF5' : 'var(--text-muted)' }}>
@@ -1239,54 +1580,129 @@ export default function MerchantProducts() {
               <p style={{ color: '#4B5563', fontSize: 11, margin: '8px 0 0' }}>{SHIYANG_DISCLAIMER}</p>
             </div>
 
+            </Section>
+
+            <Section title="商品食疗系统" open={sections.therapy} onToggle={() => toggleSection('therapy')} hint="系统自动计算 · 可一键填充">
             {/*  商品食疗智能系统 · 完整录入（商家一次录入，前端自动匹配） */}
-            <div style={{ marginTop: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}> 商品食疗系统（录入后前端自动匹配）</span>
-                <button type="button" onClick={handleAIGenerate} disabled={generating || !form.name}
-                  style={{ padding: '6px 14px', background: (generating || !form.name) ? 'var(--border-soft)' : 'linear-gradient(135deg,#10B981,#059669)', border: 'none', borderRadius: 8, color: '#fff', cursor: (generating || !form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
-                  {generating ? '生成中…' : '一键生成食疗文案'}
-                </button>
+                <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}> 商品食疗系统（系统自动计算）</span>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={handleSmartFill} disabled={generating || !form.name}
+                    style={{ padding: '6px 14px', background: (generating || !form.name) ? 'var(--border-soft)' : 'var(--primary)', border: 'none', borderRadius: 8, color: (generating || !form.name) ? 'var(--text-dim)' : '#fff', cursor: (generating || !form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 700 }}>
+                    {generating ? '填充中…' : '⚡ 一键智能填充'}
+                  </button>
+                  <button type="button" onClick={handleAIGenerate} disabled={generating || !form.name}
+                    style={{ padding: '6px 14px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 8, color: (generating || !form.name) ? 'var(--text-dim)' : 'var(--text)', cursor: (generating || !form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                    {generating ? '生成中…' : '重新生成文案'}
+                  </button>
+                  <button type="button" onClick={() => setExpertMode(v => !v)}
+                    style={{ padding: '6px 14px', background: expertMode ? 'rgba(194,65,12,0.12)' : 'var(--bg)', border: `1px solid ${expertMode ? 'var(--primary)' : 'var(--border-soft)'}`, borderRadius: 8, color: expertMode ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>
+                    {expertMode ? '✓ 专家微调开' : '专家微调'}
+                  </button>
+                </div>
               </div>
-              <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>填全后前端自动匹配；点上方按钮可基于已填字段一键产出导购短句 / 朋友圈 / 情绪文案 / 忌口提示（云端大模型润色，未配置时本地规则兜底）。</p>
+              <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>点「一键智能填充」即按商品名自动识别食材、计算性味 / 人群 / 安全分析并生成导购文案；下方字段由系统产出，默认只读，仅少数场景需点「专家微调」手动覆盖。</p>
 
-              {/* 整体性味（系统自动计算适配逻辑用） */}
-              <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>整体性味</span>
-                <select value={form.overall_nature} onChange={e => setForm(f => ({ ...f, overall_nature: e.target.value }))}
-                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
-                  <option value="">未设置（将按原料自动聚合）</option>
-                  {NATURE_SCALE.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>由凉到热：大寒 / 寒凉 / 平性 / 微温 / 温热 / 大热（系统据此绑定场景/人群）</span>
+              {/* 实时食疗安全分析（P1-8）：复用 analyzeDish 对当前名称+食材做系统判定 */}
+              <div style={{ marginBottom: 14, padding: 14, background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>实时食疗安全分析</span>
+                  <button type="button" disabled={!form.name && form.ingredients.length === 0}
+                    onClick={() => {
+                      const r = analyzeDish(form.name, form.ingredients.map(i => i.id))
+                      const allergens = Array.from(new Set(form.ingredients.flatMap(i => i.allergens || [])))
+                      const chronic = Array.from(new Set(form.ingredients.flatMap(i => i.chronic_tags || [])))
+                      const note = [
+                        r.overall_nature ? `整体性味：${r.overall_nature}。` : '',
+                        r.risk_warning ? `食用参考：${r.risk_warning}。` : '',
+                        r.forbidden_crowds.length ? `禁忌人群：${r.forbidden_crowds.join('、')}。` : '',
+                        r.cautious_crowds.length ? `谨慎人群：${r.cautious_crowds.join('、')}。` : '',
+                      ].filter(Boolean).join('')
+                      setLiveSafety({
+                        overall_nature: r.overall_nature,
+                        risks: { red: [...allergens, ...r.forbidden_crowds], orange: r.cautious_crowds, blue: chronic },
+                        note,
+                      })
+                    }}
+                    style={{ padding: '6px 14px', background: (!form.name && form.ingredients.length === 0) ? 'var(--border-soft)' : 'var(--info)', border: 'none', borderRadius: 8, color: (!form.name && form.ingredients.length === 0) ? 'var(--text-dim)' : '#fff', cursor: (!form.name && form.ingredients.length === 0) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                    实时安全分析
+                  </button>
+                </div>
+                {liveSafety && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 150, padding: '8px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.1)', border: '1px solid var(--danger)' }}>
+                        <span style={{ color: 'var(--danger)', fontSize: 12, fontWeight: 700 }}>🔴 过敏 / 禁忌</span>
+                        <div style={{ marginTop: 4, color: 'var(--danger)', fontSize: 12 }}>{liveSafety.risks.red.length ? liveSafety.risks.red.join('、') : '无'}</div>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 150, padding: '8px 10px', borderRadius: 8, background: 'rgba(249,115,22,0.1)', border: '1px solid var(--warning)' }}>
+                        <span style={{ color: 'var(--warning)', fontSize: 12, fontWeight: 700 }}>🟠 体质慎食</span>
+                        <div style={{ marginTop: 4, color: '#C2410C', fontSize: 12 }}>{liveSafety.risks.orange.length ? liveSafety.risks.orange.join('、') : '无'}</div>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 150, padding: '8px 10px', borderRadius: 8, background: 'rgba(59,130,246,0.1)', border: '1px solid var(--info)' }}>
+                        <span style={{ color: 'var(--info)', fontSize: 12, fontWeight: 700 }}>🔵 慢病适配</span>
+                        <div style={{ marginTop: 4, color: '#1D4ED8', fontSize: 12 }}>{liveSafety.risks.blue.length ? liveSafety.risks.blue.join('、') : '无'}</div>
+                      </div>
+                    </div>
+                    {liveSafety.note && (
+                      <div style={{ marginTop: 10 }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>商家提示文案（可一键套用至商品描述）</span>
+                        <textarea value={liveSafety.note} readOnly rows={3}
+                          style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
+                        <button type="button" onClick={() => setForm(f => ({ ...f, desc: liveSafety.note }))}
+                          style={{ marginTop: 6, padding: '6px 14px', background: 'var(--success-strong)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>一键套用</button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* 食养阶段（清通调补固，系统自动派生，支持人工微调覆盖） */}
+              {/* 整体性味（系统自动计算，专家微调可覆盖） */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食养阶段（清通调补固）</span>
-                <select value={form.food_stage} onChange={e => setForm(f => ({ ...f, food_stage: e.target.value }))}
-                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
-                  <option value="">未设置（按核心食材主导功效自动判定）</option>
-                  <option value="清">清阶 · 清火润燥</option>
-                  <option value="通">通阶 · 通肠益菌</option>
-                  <option value="调">调阶 · 健脾养胃</option>
-                  <option value="补">补阶 · 补钙增营</option>
-                  <option value="固">固阶 · 固本均衡</option>
-                </select>
-                <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>留空则由小程序端按核心食材自动判定；在此手动选择可覆盖自动结果</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>整体性味（系统自动）</span>
+                <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: form.overall_nature ? 'var(--text)' : 'var(--text-dim)', fontSize: 14 }}>
+                  {form.overall_nature || '点「一键智能填充」后自动判定'}
+                </div>
+                {expertMode && (
+                  <select value={form.overall_nature} onChange={e => setForm(f => ({ ...f, overall_nature: e.target.value }))}
+                    style={{ width: '100%', marginTop: 8, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
+                    <option value="">未设置（将按原料自动聚合）</option>
+                    {NATURE_SCALE.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                )}
               </div>
 
-              {/* 食疗滋养效果：正向 + 风险 分离 */}
+              {/* 食养阶段（清通调补固，系统自动派生，专家微调可覆盖） */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>正向调理作用</span>
-                <textarea value={form.positive_effect} onChange={e => setForm(f => ({ ...f, positive_effect: e.target.value }))} placeholder="如：补气养血、改善气虚乏力；温热滋补" rows={2}
-                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食养阶段（系统自动）</span>
+                <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: form.food_stage ? 'var(--text)' : 'var(--text-dim)', fontSize: 14 }}>
+                  {form.food_stage ? ({ 清: '清阶 · 清火润燥', 通: '通阶 · 通肠益菌', 调: '调阶 · 健脾养胃', 补: '补阶 · 补钙增营', 固: '固阶 · 固本均衡' } as Record<string, string>)[form.food_stage] : '点「一键智能填充」后自动判定'}
+                </div>
+                {expertMode && (
+                  <select value={form.food_stage} onChange={e => setForm(f => ({ ...f, food_stage: e.target.value }))}
+                    style={{ width: '100%', marginTop: 8, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
+                    <option value="">未设置（按核心食材主导功效自动判定）</option>
+                    <option value="清">清阶 · 清火润燥</option>
+                    <option value="通">通阶 · 通肠益菌</option>
+                    <option value="调">调阶 · 健脾养胃</option>
+                    <option value="补">补阶 · 补钙增营</option>
+                    <option value="固">固阶 · 固本均衡</option>
+                  </select>
+                )}
+              </div>
+
+              {/* 食疗滋养效果：正向 + 风险（系统自动，只读） */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>正向调理作用（系统自动）</span>
+                <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: form.positive_effect ? 'var(--text)' : 'var(--text-dim)', fontSize: 14, minHeight: 38, whiteSpace: 'pre-wrap' }}>
+                  {form.positive_effect || '点「一键智能填充」后自动产出'}
+                </div>
               </div>
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食用参考（特定人群注意点）</span>
-                <textarea value={form.risk_warning} onChange={e => setForm(f => ({ ...f, risk_warning: e.target.value }))} placeholder="如：经期量大人群建议少量品尝" rows={2}
-                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
-                <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>仅供参考，详情页以正向展示为主</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食用参考（系统自动）</span>
+                <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: form.risk_warning ? 'var(--text)' : 'var(--text-dim)', fontSize: 14, minHeight: 38, whiteSpace: 'pre-wrap' }}>
+                  {form.risk_warning || '点「一键智能填充」后自动产出'}
+                </div>
               </div>
 
               {/* 情绪价值文案（固定三段式模板填空） */}
@@ -1321,54 +1737,53 @@ export default function MerchantProducts() {
                 )}
               </div>
 
-              {/* 人群标签配置：①五星推荐 ②谨慎+说明 ③禁止+原因 */}
+              {/* 人群标签（系统自动判定，只读；专家微调可改说明/覆盖） */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>① 五星推荐人群（多选）</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>① 五星推荐人群（系统自动）</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                  {CROWD_OPTIONS.map(c => {
-                    const active = form.rec_crowds.includes(c)
-                    return (
-                      <button key={c} type="button" onClick={() => toggleArr('rec_crowds', c)}
-                        style={{ padding: '4px 10px', background: active ? '#065F46' : 'var(--bg)', border: `1px solid ${active ? 'var(--success-strong)' : 'var(--border-soft)'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#ECFDF5' : 'var(--text-muted)' }}>
-                        {c}
-                      </button>
-                    )
-                  })}
+                  {form.rec_crowds.length ? form.rec_crowds.map(c => (
+                    <span key={c} style={{ padding: '4px 10px', background: '#065F46', border: '1px solid var(--success-strong)', borderRadius: 999, fontSize: 12, color: '#ECFDF5' }}>{c}</span>
+                  )) : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>点「一键智能填充」后自动判定</span>}
                 </div>
               </div>
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>② 少量品鉴人群（多选）+ 温馨提醒</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>② 少量品鉴人群（系统自动）</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                  {CROWD_OPTIONS.map(c => {
-                    const active = form.cautious_crowds.includes(c)
-                    return (
-                      <button key={c} type="button" onClick={() => toggleArr('cautious_crowds', c)}
-                        style={{ padding: '4px 10px', background: active ? 'var(--warning)' : 'var(--bg)', border: `1px solid ${active ? 'var(--warning)' : 'var(--border-soft)'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#FEF3C7' : 'var(--text-muted)' }}>
-                        {c}
-                      </button>
-                    )
-                  })}
+                  {form.cautious_crowds.length ? form.cautious_crowds.map(c => (
+                    <span key={c} style={{ padding: '4px 10px', background: 'var(--warning)', border: '1px solid var(--warning)', borderRadius: 999, fontSize: 12, color: '#FEF3C7' }}>{c}</span>
+                  )) : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>无</span>}
                 </div>
-                <textarea value={form.cautious_notes} onChange={e => setForm(f => ({ ...f, cautious_notes: e.target.value }))} placeholder="如：少量饮用、去辣减油" rows={2}
-                  style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                {expertMode && (
+                  <textarea value={form.cautious_notes} onChange={e => setForm(f => ({ ...f, cautious_notes: e.target.value }))} placeholder="如：少量饮用、去辣减油" rows={2}
+                    style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                )}
               </div>
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>③ 建议回避人群（多选）+ 参考原因</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>③ 建议回避人群（系统自动）</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                  {CROWD_OPTIONS.map(c => {
-                    const active = form.forbidden_crowds.includes(c)
-                    return (
-                      <button key={c} type="button" onClick={() => toggleArr('forbidden_crowds', c)}
-                        style={{ padding: '4px 10px', background: active ? '#7F1D1D' : 'var(--bg)', border: `1px solid ${active ? 'var(--danger)' : 'var(--border-soft)'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#FECACA' : 'var(--text-muted)' }}>
-                        {c}
-                      </button>
-                    )
-                  })}
+                  {form.forbidden_crowds.length ? form.forbidden_crowds.map(c => (
+                    <span key={c} style={{ padding: '4px 10px', background: '#7F1D1D', border: '1px solid var(--danger)', borderRadius: 999, fontSize: 12, color: '#FECACA' }}>{c}</span>
+                  )) : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>无</span>}
                 </div>
-                <textarea value={form.forbidden_reasons} onChange={e => setForm(f => ({ ...f, forbidden_reasons: e.target.value }))} placeholder="如：特殊体质建议回避、建议少量尝试" rows={2}
-                  style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                {expertMode && (
+                  <textarea value={form.forbidden_reasons} onChange={e => setForm(f => ({ ...f, forbidden_reasons: e.target.value }))} placeholder="如：特殊体质建议回避、建议少量尝试" rows={2}
+                    style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                )}
               </div>
 
+              {/* 适合人群覆盖（仅专家微调） */}
+              {expertMode && (
+                <div style={{ marginBottom: 14 }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>适合人群（fit_people_override）</span>
+                  <textarea value={form.fit_people_override} onChange={e => setForm(f => ({ ...f, fit_people_override: e.target.value }))} placeholder="留空则由食疗引擎辨证推导；手填则直接作为「适合人群」展示" rows={2}
+                    style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                  <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>若填写，将覆盖系统自动判定的适合人群（辨证增强迁移 00237）</span>
+                </div>
+              )}
+
+              </Section>
+
+              <Section title="门店营销配套" open={sections.marketing} onToggle={() => toggleSection('marketing')} hint="导购 / 朋友圈 / 忌口（可选）">
               {/* 门店营销配套录入区 */}
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 4 }}>
                 <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}> 门店营销配套（自动同步前端 / 海报 / 导购）</span>
@@ -1403,6 +1818,44 @@ export default function MerchantProducts() {
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>忌口红字警示语</span>
                 <input value={form.taboo_warning} onChange={e => setForm(f => ({ ...f, taboo_warning: e.target.value }))} placeholder="如：经期量大、痛风人群慎点" style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />
               </div>
+            </Section>
+
+            {/* 顾客视角预览（P0-3）：实时从当前表单渲染商品卡 */}
+            <div style={{ marginTop: 24 }}>
+              <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>顾客视角预览</span>
+              <div style={{ marginTop: 8, display: 'flex', gap: 12, background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 12, padding: 12 }}>
+                <div style={{ width: 96, height: 96, borderRadius: 8, overflow: 'hidden', background: 'var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {form.main_image ? (
+                    <img src={form.main_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>无主图</span>
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600 }}>{form.name || '商品名称'}</span>
+                    {form.overall_nature && (
+                      <span style={{ fontSize: 11, color: '#fff', background: 'var(--success-strong)', padding: '1px 8px', borderRadius: 10 }}>{form.overall_nature}</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
+                    <span style={{ color: 'var(--danger)', fontSize: 18, fontWeight: 700 }}>¥{form.price || '0'}</span>
+                    {form.original_price && Number(form.original_price) > Number(form.price) && (
+                      <span style={{ color: 'var(--text-dim)', fontSize: 12, textDecoration: 'line-through' }}>¥{form.original_price}</span>
+                    )}
+                  </div>
+                  {form.rec_crowds.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                      {form.rec_crowds.map(c => (
+                        <span key={c} style={{ fontSize: 11, color: 'var(--success-strong)', background: 'rgba(16,185,129,0.12)', padding: '1px 8px', borderRadius: 999 }}>{c}</span>
+                      ))}
+                    </div>
+                  )}
+                  {form.desc && (
+                    <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: '8px 0 0', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{form.desc}</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
@@ -1417,6 +1870,7 @@ export default function MerchantProducts() {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* 商品分类管理弹窗 */}
