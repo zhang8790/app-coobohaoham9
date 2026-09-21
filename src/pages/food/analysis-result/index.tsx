@@ -14,8 +14,9 @@ import {
   type CatalogInsight,
   type HomologyResult,
 } from '@/db/food-safety'
-import { getProducts, type Product } from '@/db/api'
+import { getProducts, getProductById, type Product } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { FOOD_SCAN_DISCLAIMER, shieldCopy } from '@/utils/compliance/shield'
 
 // 4 档评级 → 分数 + 主题色
 const LEVEL_META: Record<string, { score: number; label: string; bg: string; fg: string; border: string; ring: string }> = {
@@ -24,6 +25,9 @@ const LEVEL_META: Record<string, { score: number; label: string; bg: string; fg:
  B_caution: { score: 55, label: 'B 慎选', bg: 'rgba(249,115,22,0.10)', fg: '#ea580c', border: 'rgba(249,115,22,0.35)', ring: '#f97316' },
  C_avoid: { score: 28, label: 'C 不推荐', bg: 'rgba(239,68,68,0.10)', fg: '#dc2626', border: 'rgba(239,68,68,0.35)', ring: '#ef4444' },
 }
+
+// 无评级数据时的中性兜底：避免空 safe_level_code 被 || 误判成绿色「优选」
+const NEUTRAL_META = { score: 0, label: '待评估', bg: 'rgba(100,116,139,0.08)', fg: '#64748b', border: 'rgba(100,116,139,0.30)', ring: '#cbd5e1' }
 
 const ADDITIVE_LEVEL: Record<string, { label: string; color: string; bg: string }> = {
  safe: { label: '安全', color: '#16a34a', bg: 'rgba(34,197,94,0.08)' },
@@ -76,6 +80,22 @@ function normalize(row: FoodAnalysisReport): RenderReport {
 // 安全分转环偏移：0→180deg(红), 100→0deg(绿)
 function scoreToDeg(score: number) {
  return 180 - (score / 100) * 180
+}
+
+// 引擎回传文案统一过合规护栏，避免医疗宣称词直接落地
+function safeText(s?: string | null): string {
+ return s ? shieldCopy(s).safe : ''
+}
+
+// 用商品已有配料/过敏原拼出分析文本（商品详情「查看配料表」入口兜底）
+function buildIngredientText(p?: Product | null): string {
+ if (!p) return ''
+ const parts: string[] = []
+ const ings = (p as any).ingredients
+ const algs = (p as any).allergens
+ if (Array.isArray(ings)) parts.push(...ings.filter(Boolean))
+ if (Array.isArray(algs)) parts.push(...algs.filter(Boolean))
+ return parts.join('、')
 }
 
 export default function AnalysisResult() {
@@ -137,7 +157,7 @@ export default function AnalysisResult() {
  const filtered = products
  .filter(p => p.is_active)
  .sort((a, b) => {
- // 暂用价格作为简单信号（低价=更纯净），未来可接 food_analysis_reports
+ // 暂按价格升序展示同类好货（非安全评级信号），后续可接 food_analysis_reports
  return (a.price || 0) - (b.price || 0)
  })
  .slice(0, 3)
@@ -162,13 +182,21 @@ export default function AnalysisResult() {
  return (
  <View style={pageStyle}>
  <View style={cardStyle}>
- <Text style={{ color: '#64748b' }}>未找到安全分析报告。请先在「配料识别」中分析配料或绑定商品。</Text>
+ <Text style={{ fontSize: 15, color: '#64748b', lineHeight: '24px' }}>未找到对应安全分析报告。</Text>
+ <Text style={{ fontSize: 13, color: '#94a3b8', marginTop: 6, lineHeight: '22px', display: 'block' }}>可前往「配料识别」手动录入或拍照识别配料，即时生成评估报告。</Text>
+ <View style={{
+ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 14,
+ paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#16a34a', borderStyle: 'dashed',
+ background: 'rgba(22,163,74,0.05)',
+ }} onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}>
+ <Text style={{ fontSize: 14, fontWeight: '700', color: '#15803d' }}>去配料识别页分析</Text>
+ </View>
  </View>
  </View>
  )
  }
 
- const meta = LEVEL_META[report.safe_level_code] || LEVEL_META.A_preferred
+ const meta = (report.safe_level_code && LEVEL_META[report.safe_level_code]) ? LEVEL_META[report.safe_level_code] : NEUTRAL_META
  const deg = scoreToDeg(meta.score)
  const crowdLabels = (report.crowd_tips || [])
  .map((c) => tipsMap[c]?.label || c)
@@ -180,11 +208,11 @@ export default function AnalysisResult() {
  <View style={{ ...scoreCardStyle, background: meta.bg, borderColor: meta.border }}>
  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
  <View style={{ flex: 1 }}>
- <Text style={{ fontSize: 13, color: meta.fg, fontWeight: '600', letterSpacing: 1 }}>配料安全评分</Text>
- <Text style={{ fontSize: 48, fontWeight: '800', color: meta.fg, lineHeight: '56px', marginTop: 4 }}>
- {meta.score}
- </Text>
- <Text style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>满分 100</Text>
+    <Text style={{ fontSize: 13, color: meta.fg, fontWeight: '600', letterSpacing: 1 }}>配料选购参考分</Text>
+    <Text style={{ fontSize: 48, fontWeight: '800', color: meta.fg, lineHeight: '56px', marginTop: 4 }}>
+    {meta.score > 0 ? meta.score : '—'}
+    </Text>
+    <Text style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{meta.score > 0 ? '满分 100' : '暂无评级数据'}</Text>
  </View>
  {/* 安全色环 */}
  <View style={{ width: 76, height: 76, position: 'relative' }}>
@@ -203,9 +231,15 @@ export default function AnalysisResult() {
  </View>
  <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
  <Text style={{ fontSize: 14, color: '#334155', lineHeight: '22px' }}>
- {report.main_conclusion?.general || ''}
+ {safeText(report.main_conclusion?.general)}
  </Text>
  </View>
+ </View>
+
+ {/* ──── 评估说明（数据源 + 算法局限，信任透明） ──── */}
+ <View style={{ ...cardStyle, background: 'rgba(99,102,241,0.06)', borderColor: 'rgba(99,102,241,0.25)' }}>
+ <Text style={{ fontSize: 13, color: '#6366f1', fontWeight: '600' }}>评估说明</Text>
+ <Text style={{ fontSize: 12, color: '#475569', marginTop: 4, lineHeight: '20px', display: 'block' }}>{FOOD_SCAN_DISCLAIMER}</Text>
  </View>
 
  {/* ──── 人群适配强提醒（婴幼儿/孕产妇/病人，severity 分级，信任度核心） ──── */}
@@ -228,7 +262,7 @@ export default function AnalysisResult() {
  }}>{sm.tag}</Text>
  <Text style={{ fontSize: 14, fontWeight: '700', color: sm.fg }}>{adv.label}</Text>
  </View>
- <Text style={{ fontSize: 13, color: '#334155', lineHeight: '20px' }}>{adv.text}</Text>
+ <Text style={{ fontSize: 13, color: '#334155', lineHeight: '20px' }}>{safeText(adv.text)}</Text>
  </View>
  </View>
  )
@@ -246,12 +280,12 @@ export default function AnalysisResult() {
  </View>
  )}
 
- {/* ──── 健康短板提示 ──── */}
+ {/* ──── 食养关注提示 ──── */}
  {report.health_shortboard_tip && (
  <View style={{ ...cardStyle, background: 'rgba(99,102,241,0.06)', borderColor: 'rgba(99,102,241,0.25)' }}>
- <Text style={{ fontSize: 13, color: '#6366f1', fontWeight: '600' }}> 健康短板提示</Text>
+ <Text style={{ fontSize: 13, color: '#6366f1', fontWeight: '600' }}> 食养关注提示</Text>
  <Text style={{ fontSize: 14, color: '#334155', marginTop: 4, lineHeight: '22px' }}>
- {report.health_shortboard_tip}
+ {safeText(report.health_shortboard_tip)}
  </Text>
  </View>
  )}
@@ -338,7 +372,7 @@ export default function AnalysisResult() {
  </View>
  {a.desc ? (
  <Text style={{ fontSize: 13, color: '#475569', marginTop: 8, lineHeight: '20px', paddingLeft: 48 }}>
- {a.desc}
+ {safeText(a.desc)}
  </Text>
  ) : null}
  </View>
@@ -353,7 +387,7 @@ export default function AnalysisResult() {
  <Text style={sectionTitle}>食养人群提示</Text>
  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
  {crowdLabels.map((l, i) => (
- <Text key={i} style={tagStyle}>{l}</Text>
+ <Text key={i} style={tagStyle}>{safeText(l)}</Text>
  ))}
  </View>
  </View>
@@ -374,9 +408,9 @@ export default function AnalysisResult() {
  {/* ──── 推荐替代商品（识→买闭环） ──── */}
  {recProducts.length > 0 && (
  <View style={cardStyle}>
- <Text style={sectionTitle}>
- {report.safe_level_code === 'A_preferred' ? '此商品已是最优选择，看看同类好货' : ' 为你找到更安心的替代选择'}
- </Text>
+      <Text style={sectionTitle}>
+        {report.safe_level_code === 'A_preferred' ? '此商品配料评估较好，看看同类好货' : '为你找到同类好货（按价格排序，仅供参考）'}
+      </Text>
  {recProducts.map((p) => (
  <View key={p.id} style={recItemStyle}
  onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}

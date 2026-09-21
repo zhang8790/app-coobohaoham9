@@ -11,7 +11,7 @@
 
 import { matchAllergens, type AllergenInfo } from './allergen-dictionary'
 import { parseNutritionFromText, analyzeStructuredNutrition, type NutritionResult } from './nutrition-rules'
-import { matchAdditiveKeys, ADDITIVE_DICT } from './additive-dictionary'
+import { matchAdditiveKeys, ADDITIVE_DICT, normalizeAdditiveRisk } from './additive-dictionary'
 
 export type SafetyGrade = 'S' | 'A' | 'C' | 'D'
 
@@ -40,7 +40,7 @@ export interface LabelCompleteness {
 
 export interface SafetyAnalysisInput {
   text?: string                                  // 原标签/配料文本（扫描过敏原/营养/合规）
-  additives?: { name: string; risk_level?: 'white' | 'yellow' | 'black' }[]  // 已匹配安全库条目
+  additives?: { name: string; risk_level?: string }[]  // 已匹配安全库条目（DB 为 L1-L4，经 normalizeAdditiveRisk 规范）
   matchedAdditiveNames?: string[]                // 文本命中的添加剂标准名（含库未收录）
   allergensDeclared?: string[] | null            // 商品已声明过敏原 key（来自 DB）
   nutrition?: {                                  // 结构化营养（来自 DB，每 100g）
@@ -108,9 +108,9 @@ function summarizeAdditives(
   matchedNames: string[] = [],
 ): AdditiveRiskSummary | null {
   if (!additives || (!additives.length && !matchedNames.length)) return null
-  const white = additives.filter((a) => a.risk_level === 'white').length
-  const yellow = additives.filter((a) => a.risk_level === 'yellow').length
-  const black = additives.filter((a) => a.risk_level === 'black').length
+  const white = additives.filter((a) => normalizeAdditiveRisk(a.risk_level) === 'white').length
+  const yellow = additives.filter((a) => normalizeAdditiveRisk(a.risk_level) === 'yellow').length
+  const black = additives.filter((a) => normalizeAdditiveRisk(a.risk_level) === 'black').length
   const knownNames = new Set(additives.map((a) => a.name))
   const unmatched = matchedNames.filter((n) => !knownNames.has(n)).length
   const worst: 'white' | 'yellow' | 'black' = black ? 'black' : yellow ? 'yellow' : 'white'

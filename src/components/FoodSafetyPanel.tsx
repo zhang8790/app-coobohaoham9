@@ -8,131 +8,133 @@ import { View, Text } from '@tarojs/components'
 import type { FoodAdditive } from '@/db/types'
 import type { IngredientEntry } from '@/utils/shiyang-dictionary'
 import { SHIYANG_DISCLAIMER } from '@/utils/ingredient-analysis'
+import { normalizeAdditiveRisk } from '@/utils/additive-dictionary'
+import { shieldCopy } from '@/utils/compliance/shield'
 
 const RISK_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  white: { label: '安全', color: '#16A34A', bg: 'rgba(34,197,94,0.10)', icon: '✓' },
-  yellow: { label: '限量', color: '#D97706', bg: 'rgba(245,158,11,0.10)', icon: '⚠' },
-  black: { label: '慎用', color: '#DC2626', bg: 'rgba(239,68,68,0.10)', icon: '✕' },
+ white: { label: '安全', color: '#16A34A', bg: 'rgba(34,197,94,0.10)', icon: '✓' },
+ yellow: { label: '限量', color: '#D97706', bg: 'rgba(245,158,11,0.10)', icon: '' },
+ black: { label: '慎用', color: '#DC2626', bg: 'rgba(239,68,68,0.10)', icon: '✕' },
 }
 
 // 配料安全段免责声明：基于国标整理、仅供选购参考，不替代专业判断
 const ADDITIVE_DISCLAIMER =
-  '以上配料安全信息依据国家食品添加剂使用标准（GB）整理，仅供选购参考，实际请以产品包装标识为准。'
+ '以上配料安全信息依据国家食品添加剂使用标准（GB）整理，仅供选购参考，实际请以产品包装标识为准。'
 
 export default function FoodSafetyPanel({
-  foodAdditives,
-  shiyangEntries,
-  showShiyang = true,
+ foodAdditives,
+ shiyangEntries,
+ showShiyang = true,
 }: {
-  foodAdditives: FoodAdditive[]
-  shiyangEntries: IngredientEntry[]
-  /** 详情页已用合规中性化的「核心食材表」单独承载食材清单，故此处仅保留添加剂安全分级；扫码页仍传 true 展示完整食养成分 */
-  showShiyang?: boolean
+ foodAdditives: FoodAdditive[]
+ shiyangEntries: IngredientEntry[]
+ /** 详情页已用合规中性化的「核心食材表」单独承载食材清单，故此处仅保留添加剂安全分级；扫码页仍传 true 展示完整食养成分 */
+ showShiyang?: boolean
 }) {
-  const hasAdditives = foodAdditives?.length > 0
-  const hasShiyang = showShiyang && shiyangEntries?.length > 0
-  if (!hasAdditives && !hasShiyang) return null
-  return (
-    <View className="mx-4 mt-4 rounded-2xl border border-black/5 p-4" style={{ background: '#fff' }}>
-      {foodAdditives?.length > 0 && (
-        <View>
-          <Text className="text-base font-bold text-foreground" style={{ display: 'block', marginBottom: 8 }}>
-            🍱 配料安全
-          </Text>
-          {foodAdditives.map((a) => {
-            const m = RISK_META[a.risk_level] || RISK_META.white
-            return (
-              <View
-                key={a.id}
-                style={{ marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text className="text-sm font-semibold text-foreground">{a.name}</Text>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      color: m.color,
-                      backgroundColor: m.bg,
-                      padding: '2px 8px',
-                      borderRadius: 999,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {m.icon} {m.label}
-                  </Text>
-                </View>
-                <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 3 }}>
-                  {a.category ? `${a.category} · ` : ''}
-                  {a.gb_std ? `国标 ${a.gb_std}` : '暂无国标依据'}
-                </Text>
-                {a.risk_desc && (
-                  <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 4, lineHeight: 1.6 }}>
-                    {a.risk_desc}
-                  </Text>
-                )}
-                {a.age_limit ? (
-                  <Text className="text-xs" style={{ display: 'block', marginTop: 3, color: m.color }}>
-                    适用年龄：{a.age_limit} 个月及以上
-                  </Text>
-                ) : null}
-              </View>
-            )
-          })}
-          <Text
-            className="text-[11px] text-muted-foreground"
-            style={{ display: 'block', marginTop: 4, lineHeight: 1.6, opacity: 0.8 }}
-          >
-            {ADDITIVE_DISCLAIMER}
-          </Text>
-        </View>
-      )}
+ const hasAdditives = foodAdditives?.length > 0
+ const hasShiyang = showShiyang && shiyangEntries?.length > 0
+ if (!hasAdditives && !hasShiyang) return null
+ return (
+ <View className="mx-4 mt-4 rounded-2xl border border-black/5 p-4" style={{ background: '#fff' }}>
+ {foodAdditives?.length > 0 && (
+ <View>
+ <Text className="text-base font-bold text-foreground" style={{ display: 'block', marginBottom: 8 }}>
+ 配料安全
+ </Text>
+ {foodAdditives.map((a) => {
+ const m = RISK_META[a.risk_level] || RISK_META.white
+ return (
+ <View
+ key={a.id}
+ style={{ marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}
+ >
+ <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+ <Text className="text-sm font-semibold text-foreground">{a.name}</Text>
+ <Text
+ style={{
+ fontSize: 11,
+ color: m.color,
+ backgroundColor: m.bg,
+ padding: '2px 8px',
+ borderRadius: 999,
+ overflow: 'hidden',
+ }}
+ >
+ {m.icon} {m.label}
+ </Text>
+ </View>
+ <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 3 }}>
+ {a.category ? `${a.category} · ` : ''}
+ {a.gb_std ? `国标 ${a.gb_std}` : '暂无国标依据'}
+ </Text>
+ {a.risk_desc && (
+ <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 4, lineHeight: 1.6 }}>
+ {a.risk_desc}
+ </Text>
+ )}
+ {a.age_limit ? (
+ <Text className="text-xs" style={{ display: 'block', marginTop: 3, color: m.color }}>
+ 适用年龄：{a.age_limit} 个月及以上
+ </Text>
+ ) : null}
+ </View>
+ )
+ })}
+ <Text
+ className="text-[11px] text-muted-foreground"
+ style={{ display: 'block', marginTop: 4, lineHeight: 1.6, opacity: 0.8 }}
+ >
+ {ADDITIVE_DISCLAIMER}
+ </Text>
+ </View>
+ )}
 
-      {showShiyang && shiyangEntries?.length > 0 && (
-        <View style={{ marginTop: foodAdditives?.length ? 12 : 0 }}>
-          <Text className="text-base font-bold text-foreground" style={{ display: 'block', marginBottom: 8 }}>
-            🌿 食材食养
-          </Text>
-          {shiyangEntries.map((e) => (
-            <View key={e.zh} style={{ marginBottom: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 16 }}>{e.icon}</Text>
-                <Text className="text-sm font-semibold text-foreground" style={{ marginLeft: 6 }}>
-                  {e.zh}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: e.color || '#999',
-                    borderWidth: 1,
-                    borderColor: e.color || '#999',
-                    borderRadius: 999,
-                    padding: '1px 8px',
-                    marginLeft: 6,
-                    overflow: 'hidden',
-                  }}
-                >
-                  性{e.nature}
-                </Text>
-              </View>
-              <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 3, lineHeight: 1.6 }}>
-                功效：{(e.benefits || []).join('、')}
-              </Text>
-              <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 2, lineHeight: 1.6 }}>
-                适合：{(e.audiences || []).join('、')}
-              </Text>
-              <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 2, lineHeight: 1.6 }}>
-                场景：{(e.scenarios || []).join('、')}
-              </Text>
-            </View>
-          ))}
-          <Text
-            className="text-[11px] text-muted-foreground"
-            style={{ display: 'block', marginTop: 4, lineHeight: 1.6, opacity: 0.8 }}
-          >
-            {SHIYANG_DISCLAIMER}
-          </Text>
-        </View>
-      )}
-    </View>
-  )
+ {showShiyang && shiyangEntries?.length > 0 && (
+ <View style={{ marginTop: foodAdditives?.length ? 12 : 0 }}>
+ <Text className="text-base font-bold text-foreground" style={{ display: 'block', marginBottom: 8 }}>
+ 食材食养
+ </Text>
+ {shiyangEntries.map((e) => (
+ <View key={e.zh} style={{ marginBottom: 10 }}>
+ <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+ <Text style={{ fontSize: 16 }}>{e.icon}</Text>
+ <Text className="text-sm font-semibold text-foreground" style={{ marginLeft: 6 }}>
+ {e.zh}
+ </Text>
+ <Text
+ style={{
+ fontSize: 11,
+ color: e.color || '#999',
+ borderWidth: 1,
+ borderColor: e.color || '#999',
+ borderRadius: 999,
+ padding: '1px 8px',
+ marginLeft: 6,
+ overflow: 'hidden',
+ }}
+ >
+ 性{e.nature}
+ </Text>
+ </View>
+ <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 3, lineHeight: 1.6 }}>
+ 功效：{safe((e.benefits || []).join('、'))}
+ </Text>
+ <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 2, lineHeight: 1.6 }}>
+ 适合：{safe((e.audiences || []).join('、'))}
+ </Text>
+ <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 2, lineHeight: 1.6 }}>
+ 场景：{safe((e.scenarios || []).join('、'))}
+ </Text>
+ </View>
+ ))}
+ <Text
+ className="text-[11px] text-muted-foreground"
+ style={{ display: 'block', marginTop: 4, lineHeight: 1.6, opacity: 0.8 }}
+ >
+ {SHIYANG_DISCLAIMER}
+ </Text>
+ </View>
+ )}
+ </View>
+ )
 }

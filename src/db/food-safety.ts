@@ -237,6 +237,7 @@ export async function callIngredientAnalyze(payload: {
   user_id?: string
   user_tags?: string[]
   age_group?: string
+  unsuitable_crowds?: string[]
   persist?: boolean
   source?: 'manual' | 'ocr' | 'llm'
 }): Promise<StandardFoodReport> {

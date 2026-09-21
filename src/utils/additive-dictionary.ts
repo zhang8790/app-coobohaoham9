@@ -5,13 +5,26 @@
 // 与 shiyang-dictionary（食材食养字典）分开：本字典只收「食品添加剂」，
 //       不含普通食材（小麦粉/椰子油等），避免把食材误判为添加剂。
 //
-// risk_level 取值严格对应 food_additives.risk_level：
+// 本字典是「文本解析无 DB 命中」时的本地降级词表，risk_level 沿用 white/yellow/black 语义：
 //   white  = 公认安全（按量使用）
 //   yellow = 限量/部分人群敏感，需关注
 //   black  = 应避免（反式脂肪/高风险护色剂等）
-// 数据库 food_additives 的对应种子由迁移 00203 补齐，与本字典保持一致。
+// 注意：线上 food_additives 库已迁移为 L1/L2/L3/L4（迁移 00224）。DB 读取到的 risk_level 可能是 L1-L4，
+// 消费端一律用 normalizeAdditiveRisk() 规范化为 white/yellow/black 再渲染，避免「L4 被当成 white」的误判。
 
 export type AdditiveRisk = 'white' | 'yellow' | 'black'
+
+/**
+ * 将 DB 的 L1-L4 风险码规范化为本地 white/yellow/black（兼容 legacy 值）。
+ * L4/black→black(慎用)；L3/yellow→yellow(限量)；其余(L1/L2/white)→white(安全)。
+ */
+export function normalizeAdditiveRisk(r?: string | null): 'white' | 'yellow' | 'black' {
+  if (!r) return 'white'
+  const s = String(r).toUpperCase()
+  if (s === 'L4' || s === 'BLACK') return 'black'
+  if (s === 'L3' || s === 'YELLOW') return 'yellow'
+  return 'white' // L1 / L2 / WHITE
+}
 
 export interface AdditiveInfo {
   category: string

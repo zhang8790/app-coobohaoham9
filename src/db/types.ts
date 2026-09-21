@@ -334,12 +334,14 @@ export interface IngredientOcrTask {
 
 // 配料安全库（food_additives 表）—— 添加剂安全壁垒资产：白/黄/黑风险 + 国标依据
 // 注意：与「食养成分 Ingredient（性味温凉平）」是两个独立概念，互不冲突。
-export type AdditiveRiskLevel = 'white' | 'yellow' | 'black'
+// 风险码：本地展示沿用 white(安全)/yellow(限量)/black(慎用)；线上库已迁移为 L1(纯天然)/L2(常规合规)/L3(敏感控量)/L4(老幼弱少吃)。
+// 两套编码通过 additive-dictionary.ts 的 normalizeAdditiveRisk 互转，消费端统一按 white/yellow/black 渲染，避免「L4 被当成 white」误判。
+export type AdditiveRiskLevel = 'white' | 'yellow' | 'black' | 'L1' | 'L2' | 'L3' | 'L4'
 export interface FoodAdditive {
   id: string
   name: string                  // 标准名，如「山梨酸钾」
   category: string | null       // 防腐剂/色素/增稠剂/甜味剂/香精/营养强化剂/其他
-  risk_level: AdditiveRiskLevel // 白(安全)/黄(限量)/黑(禁用)
+  risk_level: AdditiveRiskLevel // 白(安全)/黄(限量)/黑(慎用) 或 DB 的 L1-L4
   age_limit: number | null      // 最小适用年龄（月），NULL=全龄
   gb_std: string | null         // 国标依据，如 GB2760
   risk_desc: string | null      // 风险说明文案

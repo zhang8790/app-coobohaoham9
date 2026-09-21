@@ -158,7 +158,8 @@ Deno.serve(async (req: Request) => {
       let hit: Additive | undefined = addByName.get(c)
       if (!hit) {
         for (const a of addList) {
-          if (c.includes(a.name) || a.name.includes(c)) { hit = a; break }
+          // 正向包含（候选含添加剂名）最可靠；反向包含仅在候选≥3字时启用，避免"乳酸"等2字片段误挂到长添加剂名
+          if (c.includes(a.name) || (c.length >= 3 && a.name.includes(c))) { hit = a; break }
         }
       }
       if (!hit && aliasToId.has(c)) {

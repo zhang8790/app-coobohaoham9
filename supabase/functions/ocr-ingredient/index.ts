@@ -118,6 +118,15 @@ async function matchAdditives(
   const hitLevels: string[] = []
   const riskFlags: string[] = []
 
+  // DB food_additives 已迁移 L1-L4；规范化为 white/yellow/black 以兼容评级逻辑
+  const normalizeRisk = (r?: string | null): string => {
+    if (!r) return 'white'
+    const s = String(r).toUpperCase()
+    if (s === 'L4' || s === 'BLACK') return 'black'
+    if (s === 'L3' || s === 'YELLOW') return 'yellow'
+    return 'white'
+  }
+
   for (const c of candidates) {
     let hit: Additive | undefined = byName.get(c)
     // 包含关系（如「山梨酸钾」命中「山梨酸钾防腐剂」或反之）
@@ -136,9 +145,10 @@ async function matchAdditives(
     }
     if (hit) {
       matched.add(hit.name)
-      hitLevels.push(hit.risk_level)
-      if (hit.risk_level === 'black') riskFlags.push(`${hit.name}(婴幼儿禁用/严控)`)
-      else if (hit.risk_level === 'yellow') riskFlags.push(`${hit.name}(限量使用)`)
+      const lvl = normalizeRisk(hit.risk_level)
+      hitLevels.push(lvl)
+      if (lvl === 'black') riskFlags.push(`${hit.name}(婴幼儿禁用/严控)`)
+      else if (lvl === 'yellow') riskFlags.push(`${hit.name}(限量使用)`)
     }
   }
 
