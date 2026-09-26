@@ -30,14 +30,31 @@ writeFileSync(join(out, '404.html'), html)
 writeFileSync(join(out, '200.html'), html)
 
 // 从 App.tsx 里抽取路由，避免手工维护漏项
+// ⚠️ 必须还原「父子嵌套」关系：子路由写的是相对 path（如 path="products"），
+// 若直接按字面预渲染，会生成顶层 /products 而真正需要的 /merchant/products 缺失 ——
+// 静态托管对没有实体目录的路径不回落到 404.html，于是「复制商家后台子页链接打开」直接 404。
+// 这里用一个轻量栈还原完整路径：遇到绝对路径重置栈，遇到自闭合标签不入栈。
 const appSrc = readFileSync(join(root, 'src', 'App.tsx'), 'utf8')
-const routes = [
-  ...new Set(
-    [...appSrc.matchAll(/path="([^"*]+)"/g)]
-      .map((m) => m[1].replace(/^\/+/, ''))
-      .filter((p) => p && !p.includes(':')),
-  ),
-]
+const routes = (() => {
+  const out = new Set()
+  const stack = []
+  const tagRe = /<Route\b([^>]*?)(\/?)>|<\/Route>/g
+  let m
+  while ((m = tagRe.exec(appSrc)) !== null) {
+    if (m[0] === '</Route>') { stack.pop(); continue }
+    const attrs = m[1] || ''
+    const selfClosing = m[2] === '/'
+    const pm = attrs.match(/\bpath="([^"*]+)"/)
+    if (!pm) continue
+    const raw = pm[1]
+    if (raw.includes(':')) { if (!selfClosing) stack.push(''); continue }
+    if (raw.startsWith('/')) stack.length = 0
+    stack.push(raw)
+    out.add(stack.join('/').replace(/^\/+/, '').replace(/\/{2,}/g, '/'))
+    if (selfClosing) stack.pop()
+  }
+  return [...out].filter(Boolean)
+})()
 
 for (const r of routes) {
   const dir = join(out, r)
