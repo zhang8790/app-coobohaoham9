@@ -38,7 +38,9 @@ TXT_SUB = (102, 102, 102)
 TXT_MUTED = (153, 153, 153)
 BORDER = (230, 230, 230)
 
-# ---- 免责声明（原文取自 src/utils/compliance/shield.ts，禁止改写）----
+# ---- 免责声明原文（取自 src/utils/compliance/shield.ts，禁止改写）----
+# 注：免责声明统一由「商品详情页」渲染（src/pages/product/index.tsx 底部免责卡），
+#     详情长图不再烤入免责卡，避免长图底部与页面底部出现两遍「食用提示」。此处仅留档备查。
 PRODUCT_DISCLAIMER = ('【食用温馨提示】本品为普通食品，不是药品、保健食品，不具备调理疾病功效。'
                       '每个人体质不同，请结合自身情况选择食用；特殊身体状态请遵从专业人员建议。')
 FOOD_REFERENCE_DISCLAIMER = ('提示：内容仅为传统饮食文化参考，不构成膳食指导，不可替代医师诊疗建议。'
@@ -232,10 +234,9 @@ def build_detail_images(rows, assign):
             for ln in ls:
                 body.extend(wrap(probe, ln, f_body, iw - 52))
             hei += 52 + (f_title.size + 6) + 18 + len(body) * (f_body.size + 12)
-        # 免责声明高度
-        disc = wrap(probe, PRODUCT_DISCLAIMER, f_tiny, iw - 52)
-        ref = wrap(probe, FOOD_REFERENCE_DISCLAIMER, f_tiny, iw - 52)
-        H = 230 + iw + 120 + hei + 40 + (52 + len(disc) * 30 + len(ref) * 30 + 40) + 120
+        # 画布高度：顶栏(176) + 主图(iw+22) + 卖点(62+34) + 内容区 + 页脚 + 底边距
+        # 免责卡已移除（改由详情页渲染），仅保留单行品牌签名页脚
+        H = iw + hei + 470
 
         img = Image.new('RGB', (W, H), BG)
         d = ImageDraw.Draw(img)
@@ -262,14 +263,8 @@ def build_detail_images(rows, assign):
         for t, ls in blocks:
             y = draw_block(d, M, y, iw, t, ls, f_title, f_body) + 22
 
-        # 免责声明
-        y += 8
-        y = draw_block(d, M, y, iw, '食用提示', [PRODUCT_DISCLAIMER, FOOD_REFERENCE_DISCLAIMER],
-                       f_title, f_tiny, body_color=TXT_SUB) + 22
-
-        # 页脚
-        d.text((M, y + 6), '来店有喜 · 食养零食', font=f_tiny, fill=TXT_MUTED)
-        d.text((M, y + 40), '传统饮食文化参考 · 不构成膳食指导', font=f_tiny, fill=TXT_MUTED)
+        # 页脚：仅品牌签名。免责声明统一由商品详情页渲染，长图不再烤入，避免与页面重复
+        d.text((M, y + 10), '来店有喜 · 食养零食', font=f_tiny, fill=TXT_MUTED)
 
         img.save(os.path.join(DETAIL_DIR, '%s.png' % sku), 'PNG', optimize=True)
         print('   详情图 %s %s (%dx%d)' % (sku, r['name'], W, H))

@@ -44,10 +44,12 @@ def env():
     return e['TARO_APP_SUPABASE_URL'], e['TARO_APP_SUPABASE_ANON_KEY']
 
 
-def req(method, url, key, token=None, body=None, raw=None, ctype='application/json', prefer=None):
+def req(method, url, key, token=None, body=None, raw=None, ctype='application/json', prefer=None, upsert=False):
     h = {'apikey': key}
     if token:
         h['Authorization'] = 'Bearer ' + token
+    if upsert:
+        h['x-upsert'] = 'true'      # Supabase Storage 覆盖上传必需，否则已存在对象返回 409 Duplicate
     if raw is not None:
         data = raw
         h['Content-Type'] = ctype
@@ -136,7 +138,7 @@ def main():
                 ('%s/%s.jpg' % (PREFIX, sku), open(main, 'rb').read(), 'image/jpeg'),
                 ('%s/%s-detail.jpg' % (PREFIX, sku), detail_bytes[sku], 'image/jpeg')):
             u = '%s/storage/v1/object/%s/%s' % (url, BUCKET, obj)
-            st, res = req('POST', u, key, tok, raw=data, ctype=ctype)
+            st, res = req('POST', u, key, tok, raw=data, ctype=ctype, upsert=True)
             if st not in (200, 201):
                 fail.append((sku, obj, st, res))
                 break
