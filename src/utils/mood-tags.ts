@@ -65,7 +65,7 @@ export const MOOD_TAGS: Record<string, MoodTag[]> = {
     { zh: '放松', en: 'Relaxed', icon: '😌', color: '#98FB98' },
     { zh: '舒适', en: 'Comfortable', icon: '🛋️', color: '#DEB887' },
     { zh: '安逸', en: 'Leisure', icon: '☕', color: '#D2B48C' },
-    { zh: '慢生活', en: 'Slow Life', icon: '🐌', color: '#A0522D' },
+    { zh: '慢生活', en: 'Slow Life', icon: '🐌', color: 'hsl(var(--primary))' },
   ],
 }
 

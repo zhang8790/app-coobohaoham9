@@ -12,323 +12,322 @@ import FloatingActionBar from '@/components/FloatingActionBar'
 import type { CartItem, Product } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { checkCartConflicts, toFoodTherapyInput, type CartConflict } from '@/utils/food-therapy'
+import StateView from '@/components/StateView'
 
 function CartPage() {
-  const { user } = useAuth()
-  const [items, setItems] = useState<CartItem[]>([])
-  const [conflictModal, setConflictModal] = useState<CartConflict[] | null>(null)
-  // 临期特惠：购物车项的批次 → 真实 effective_price 映射，用于列表/合计展示（与支付页实付价一致）
-  const [effMap, setEffMap] = useState<Record<string, number>>({})
+ const { user } = useAuth()
+ const [items, setItems] = useState<CartItem[]>([])
+ const [conflictModal, setConflictModal] = useState<CartConflict[] | null>(null)
+ // 临期特惠：购物车项的批次 → 真实 effective_price 映射，用于列表/合计展示（与支付页实付价一致）
+ const [effMap, setEffMap] = useState<Record<string, number>>({})
 
-  // 防重入：同一时间只跑一次 loadCart；并发的回调直接复用 in-flight promise
-  // （避免 useDidShow + subscribeCartCount 立即回调 + AuthContext 重发导致的多次 fetch 闪烁）
-  const inflightRef = useRef<Promise<void> | null>(null)
-  // 自触发抑制：自己 +/-/删除时已乐观更新 items，跳过紧接一次订阅回流
-  // （否则 bumpCartCount → 整页 setLoading(true) → 闪烁）
-  const ignoreNextReloadRef = useRef(false)
+ // 防重入：同一时间只跑一次 loadCart；并发的回调直接复用 in-flight promise
+ // （避免 useDidShow + subscribeCartCount 立即回调 + AuthContext 重发导致的多次 fetch 闪烁）
+ const inflightRef = useRef<Promise<void> | null>(null)
+ // 自触发抑制：自己 +/-/删除时已乐观更新 items，跳过紧接一次订阅回流
+ // （否则 bumpCartCount → 整页 setLoading(true) → 闪烁）
+ const ignoreNextReloadRef = useRef(false)
 
-  const loadCart = useCallback(async () => {
-    if (!user) return
-    if (inflightRef.current) return inflightRef.current
-    inflightRef.current = (async () => {
-      try {
-        const data = await getCartItems()
-        // 临期特惠：按 batch_id 查真实 effective_price，让购物车展示价与支付页实付价一致
-        const batchIds = data.map(i => i.batch_id).filter(Boolean) as string[]
-        const nextEff: Record<string, number> = {}
-        if (batchIds.length) {
-          const { data: effRows } = await supabase
-            .from('v_near_expiry_products')
-            .select('batch_id, effective_price')
-            .in('batch_id', batchIds)
-          ;(effRows || []).forEach((r: any) => { if (r.batch_id != null) nextEff[r.batch_id] = r.effective_price })
-        }
-        setEffMap(nextEff)
-        // 默认全选：历史购物车项可能 selected=false（在 addToCart 加 selected:true 之前入车），
-        // 导致点「去结算」因无选中项而进不去结算页。进入购物车即统一置为选中，确保结算入口可达。
-        setItems(data.map(i => ({ ...i, selected: true })))
-      } finally {
-        inflightRef.current = null
-      }
-    })()
-    return inflightRef.current
-  }, [user])
+ const loadCart = useCallback(async () => {
+ if (!user) return
+ if (inflightRef.current) return inflightRef.current
+ inflightRef.current = (async () => {
+ try {
+ const data = await getCartItems()
+ // 临期特惠：按 batch_id 查真实 effective_price，让购物车展示价与支付页实付价一致
+ const batchIds = data.map(i => i.batch_id).filter(Boolean) as string[]
+ const nextEff: Record<string, number> = {}
+ if (batchIds.length) {
+ const { data: effRows } = await supabase
+ .from('v_near_expiry_products')
+ .select('batch_id, effective_price')
+ .in('batch_id', batchIds)
+ ;(effRows || []).forEach((r: any) => { if (r.batch_id != null) nextEff[r.batch_id] = r.effective_price })
+ }
+ setEffMap(nextEff)
+ // 默认全选：历史购物车项可能 selected=false（在 addToCart 加 selected:true 之前入车），
+ // 导致点「去结算」因无选中项而进不去结算页。进入购物车即统一置为选中，确保结算入口可达。
+ setItems(data.map(i => ({ ...i, selected: true })))
+ } finally {
+ inflightRef.current = null
+ }
+ })()
+ return inflightRef.current
+ }, [user])
 
-  // 仅在页面显示时拉取（mount + 切回 tab 都覆盖）
-  useDidShow(() => { loadCart() })
-  // 实时联动：购物车总件数变化（其他端加购/删除）时立即重载；
-  // 自触发场景通过 ignoreNextReloadRef 抑制，避免整页重 fetch 闪烁
-  useEffect(() => subscribeCartCount(() => {
-    if (ignoreNextReloadRef.current) {
-      ignoreNextReloadRef.current = false
-      return
-    }
-    loadCart()
-  }), [loadCart])
+ // 仅在页面显示时拉取（mount + 切回 tab 都覆盖）
+ useDidShow(() => { loadCart() })
+ // 实时联动：购物车总件数变化（其他端加购/删除）时立即重载；
+ // 自触发场景通过 ignoreNextReloadRef 抑制，避免整页重 fetch 闪烁
+ useEffect(() => subscribeCartCount(() => {
+ if (ignoreNextReloadRef.current) {
+ ignoreNextReloadRef.current = false
+ return
+ }
+ loadCart()
+ }), [loadCart])
 
-  // 临期特惠：取展示价（批次特惠价优先，否则目录价）
-  const getDisplayPrice = (i: CartItem) =>
-    i.batch_id && effMap[i.batch_id] != null ? effMap[i.batch_id] : (i.products?.price || 0)
+ // 临期特惠：取展示价（批次特惠价优先，否则目录价）
+ const getDisplayPrice = (i: CartItem) =>
+ i.batch_id && effMap[i.batch_id] != null ? effMap[i.batch_id] : (i.products?.price || 0)
 
-  // 按门店分组
-  const grouped = items.reduce((acc: Record<string, { storeName: string; storeId: string; items: CartItem[] }>, item) => {
-    const sid = item.store_id
-    if (!acc[sid]) acc[sid] = { storeName: item.stores?.name || '未知门店', storeId: sid, items: [] }
-    acc[sid].items.push(item)
-    return acc
-  }, {})
+ // 按门店分组
+ const grouped = items.reduce((acc: Record<string, { storeName: string; storeId: string; items: CartItem[] }>, item) => {
+ const sid = item.store_id
+ if (!acc[sid]) acc[sid] = { storeName: item.stores?.name || '未知门店', storeId: sid, items: [] }
+ acc[sid].items.push(item)
+ return acc
+ }, {})
 
-  const allSelected = items.length > 0 && items.every(i => i.selected)
+ const allSelected = items.length > 0 && items.every(i => i.selected)
 
-  const toggleAll = async (val: boolean) => {
-    await Promise.all(items.map(i => updateCartSelected(i.id, val)))
-    setItems(prev => prev.map(i => ({ ...i, selected: val })))
-  }
+ const toggleAll = async (val: boolean) => {
+ await Promise.all(items.map(i => updateCartSelected(i.id, val)))
+ setItems(prev => prev.map(i => ({ ...i, selected: val })))
+ }
 
-  const toggleStore = async (storeId: string, val: boolean) => {
-    const storeItems = items.filter(i => i.store_id === storeId)
-    await Promise.all(storeItems.map(i => updateCartSelected(i.id, val)))
-    setItems(prev => prev.map(i => i.store_id === storeId ? { ...i, selected: val } : i))
-  }
+ const toggleStore = async (storeId: string, val: boolean) => {
+ const storeItems = items.filter(i => i.store_id === storeId)
+ await Promise.all(storeItems.map(i => updateCartSelected(i.id, val)))
+ setItems(prev => prev.map(i => i.store_id === storeId ? { ...i, selected: val } : i))
+ }
 
-  const toggleItem = async (id: string, val: boolean) => {
-    await updateCartSelected(id, val)
-    setItems(prev => prev.map(i => i.id === id ? { ...i, selected: val } : i))
-  }
+ const toggleItem = async (id: string, val: boolean) => {
+ await updateCartSelected(id, val)
+ setItems(prev => prev.map(i => i.id === id ? { ...i, selected: val } : i))
+ }
 
-  const changeQty = async (id: string, delta: number, current: number) => {
-    const newQty = current + delta
-    if (newQty <= 0) {
-      await removeCartItem(id)
-      ignoreNextReloadRef.current = true // 移除当前件数，徽标实时 -current；跳过订阅回流，整页不闪
-      bumpCartCount(-current) // 移除当前件数，徽标实时 -current
-      setItems(prev => prev.filter(i => i.id !== id))
-    } else {
-      await updateCartQty(id, newQty)
-      ignoreNextReloadRef.current = true // 件数变化，徽标实时 ±delta；跳过订阅回流，整页不闪
-      bumpCartCount(delta) // 件数变化，徽标实时 ±delta
-      setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: newQty } : i))
-    }
-  }
+ const changeQty = async (id: string, delta: number, current: number) => {
+ const newQty = current + delta
+ if (newQty <= 0) {
+ await removeCartItem(id)
+ ignoreNextReloadRef.current = true // 移除当前件数，徽标实时 -current；跳过订阅回流，整页不闪
+ bumpCartCount(-current) // 移除当前件数，徽标实时 -current
+ setItems(prev => prev.filter(i => i.id !== id))
+ } else {
+ await updateCartQty(id, newQty)
+ ignoreNextReloadRef.current = true // 件数变化，徽标实时 ±delta；跳过订阅回流，整页不闪
+ bumpCartCount(delta) // 件数变化，徽标实时 ±delta
+ setItems(prev => prev.map(i => i.id === id ? { ...i, quantity: newQty } : i))
+ }
+ }
 
-  const handleRemove = async (id: string) => {
-    const target = items.find(i => i.id === id)
-    const q = target?.quantity || 0
-    Taro.showModal({ title: '确认删除', content: '确认从购物车中移除此商品？', success: async (res) => {
-      if (res.confirm) {
-        await removeCartItem(id)
-        ignoreNextReloadRef.current = true // 删除整行，徽标实时 -件数；跳过订阅回流，整页不闪
-        bumpCartCount(-q) // 删除整行，徽标实时 -件数
-        setItems(prev => prev.filter(i => i.id !== id))
-      }
-    }})
-  }
+ const handleRemove = async (id: string) => {
+ const target = items.find(i => i.id === id)
+ const q = target?.quantity || 0
+ Taro.showModal({ title: '确认删除', content: '确认从购物车中移除此商品？', success: async (res) => {
+ if (res.confirm) {
+ await removeCartItem(id)
+ ignoreNextReloadRef.current = true // 删除整行，徽标实时 -件数；跳过订阅回流，整页不闪
+ bumpCartCount(-q) // 删除整行，徽标实时 -件数
+ setItems(prev => prev.filter(i => i.id !== id))
+ }
+ }})
+ }
 
-  // 结算前：食疗冲突校验（有冲突弹窗提示，否则直接结算）
-  const proceedCheckout = (selectedItems: CartItem[]) => {
-    const total = selectedItems.reduce((s, i) => s + getDisplayPrice(i) * i.quantity, 0)
-    const ids = selectedItems.map(i => i.id).join(',')
-    // 写入待结算缓存：覆盖冷启动/热重载停在支付页时 router.params 为空的情况
-    setPendingCheckout({ cartIds: ids ? ids.split(',') : [], total })
-    Taro.navigateTo({ url: `/pages/payment/index?cartIds=${encodeURIComponent(ids)}&total=${total.toFixed(2)}` })
-  }
+ // 结算前：食疗冲突校验（有冲突弹窗提示，否则直接结算）
+ const proceedCheckout = (selectedItems: CartItem[]) => {
+ const total = selectedItems.reduce((s, i) => s + getDisplayPrice(i) * i.quantity, 0)
+ const ids = selectedItems.map(i => i.id).join(',')
+ // 写入待结算缓存：覆盖冷启动/热重载停在支付页时 router.params 为空的情况
+ setPendingCheckout({ cartIds: ids ? ids.split(',') : [], total })
+ Taro.navigateTo({ url: `/pages/payment/index?cartIds=${encodeURIComponent(ids)}&total=${total.toFixed(2)}` })
+ }
 
-  const goCheckoutAll = () => {
-    // 默认全选后通常都有选中项；若用户手动全部取消，兜底用全部商品，确保结算入口永远可达
-    let selectedItems = items.filter(i => i.selected)
-    if (selectedItems.length === 0 && items.length > 0) selectedItems = items
-    if (selectedItems.length === 0) {
-      Taro.showToast({ title: '购物车为空', icon: 'none' }); return
-    }
-    const valid = selectedItems.filter(i => i.products) as CartItem[]
-    const conflicts = checkCartConflicts(valid.map(i => toFoodTherapyInput(i.products as Product)))
-    if (conflicts.length > 0) {
-      setConflictModal(conflicts)
-      return
-    }
-    proceedCheckout(valid)
-  }
+ const goCheckoutAll = () => {
+ // 默认全选后通常都有选中项；若用户手动全部取消，兜底用全部商品，确保结算入口永远可达
+ let selectedItems = items.filter(i => i.selected)
+ if (selectedItems.length === 0 && items.length > 0) selectedItems = items
+ if (selectedItems.length === 0) {
+ Taro.showToast({ title: '购物车为空', icon: 'none' }); return
+ }
+ const valid = selectedItems.filter(i => i.products) as CartItem[]
+ const conflicts = checkCartConflicts(valid.map(i => toFoodTherapyInput(i.products as Product)))
+ if (conflicts.length > 0) {
+ setConflictModal(conflicts)
+ return
+ }
+ proceedCheckout(valid)
+ }
 
-  // 计算已选商品的总金额和数量
-  const selectedItems = items.filter(i => i.selected)
-  const selectedTotal = selectedItems.reduce((s, i) => s + getDisplayPrice(i) * i.quantity, 0)
-  const selectedCount = selectedItems.reduce((s, i) => s + i.quantity, 0)
+ // 计算已选商品的总金额和数量
+ const selectedItems = items.filter(i => i.selected)
+ const selectedTotal = selectedItems.reduce((s, i) => s + getDisplayPrice(i) * i.quantity, 0)
+ const selectedCount = selectedItems.reduce((s, i) => s + i.quantity, 0)
 
-  // 访客（未登录）也可浏览购物车空态/本地购物车；结算等动作会按需引导登录。
-  // 不再整体强制跳转登录，避免登录页返回键回到本页被再次拦截（微信审核"返回无效"根因）。
+ // 访客（未登录）也可浏览购物车空态/本地购物车；结算等动作会按需引导登录。
+ // 不再整体强制跳转登录，避免登录页返回键回到本页被再次拦截（微信审核"返回无效"根因）。
 
-  return (
-    <>
-    <View className="h-screen flex flex-col bg-background tabbar-pad">
-      {/* 顶部全选栏 */}
-      {items.length > 0 && (
-        <View className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-card border-b border-border">
-          <View className="flex items-center gap-2" onClick={() => toggleAll(!allSelected)}>
-            <View className={`w-5 h-5 rounded flex items-center justify-center border-2 ${allSelected ? 'bg-primary border-primary' : 'border-border'}`}>
-              {allSelected && <Icon name="check" size={12} className="text-white" />}
-            </View>
-            <Text className="text-xl text-foreground">全选</Text>
-          </View>
-          <Text className="text-xl text-muted-foreground ml-auto">
-            共 <Text className="font-bold text-foreground">{items.reduce((s, i) => s + i.quantity, 0)}</Text> 件
-          </Text>
-        </View>
-      )}
+ return (
+ <>
+ <View className="h-screen flex flex-col bg-background tabbar-pad" aria-label="购物车">
+ {/* 顶部全选栏 */}
+ {items.length > 0 && (
+ <View className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-card border-b border-border" aria-label="全选栏">
+ <View className="flex items-center gap-2" onClick={() => toggleAll(!allSelected)}>
+ <View className={`w-5 h-5 rounded flex items-center justify-center border-2 ${allSelected ? 'bg-primary border-primary' : 'border-border'}`} aria-role="button" aria-label="全选切换">
+ {allSelected && <Icon name="check" size={12} className="text-white" />}
+ </View>
+ <Text className="text-xl text-foreground">全选</Text>
+ </View>
+ <Text className="text-xl text-muted-foreground ml-auto">
+ 共 <Text className="font-bold text-foreground">{items.reduce((s, i) => s + i.quantity, 0)}</Text> 件
+ </Text>
+ </View>
+ )}
 
-      {/* 内容区 */}
-      <View className="flex-1 overflow-y-auto pb-4">
-        {items.length === 0 ? (
-          <View className="flex flex-col items-center justify-center pt-32 gap-4">
-            <View className="text-muted-foreground"><Icon name="bag" size={64} /></View>
-            <Text className="text-2xl text-muted-foreground">购物车空空如也</Text>
-            <View
-              className="flex items-center justify-center leading-none rounded-2xl bg-primary"
-              onClick={() => Taro.switchTab({ url: '/pages/explore/index' })}>
-              <View className="py-3 px-8 text-xl text-white font-bold">去逛逛</View>
-            </View>
-          </View>
-        ) : (
-          <View className="px-4 pt-4">
-            {Object.entries(grouped).map(([storeId, group]) => {
-              const allStoreSelected = group.items.every(i => i.selected)
-              const selectedStoreItems = group.items.filter(i => i.selected)
-              const storeTotal = selectedStoreItems.reduce((s, i) => s + getDisplayPrice(i) * i.quantity, 0)
-              const storeTotalQty = group.items.reduce((s, i) => s + i.quantity, 0)
-              return (
-                <View key={storeId} className="bg-card rounded-2xl mb-4 border border-border overflow-hidden">
-                  {/* 门店头 */}
-                  <View className="flex items-center gap-3 px-4 py-3 bg-primary/5 border-b border-border">
-                    <View className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${allStoreSelected ? 'bg-primary border-primary' : 'border-border'}`}
-                      onClick={() => toggleStore(storeId, !allStoreSelected)}>
-                      {allStoreSelected && <Icon name="check" size={12} className="text-white" />}
-                    </View>
-                    <Icon name="store" size={20} className="text-primary" />
-                    <Text className="text-xl font-bold text-foreground flex-1">{group.storeName}</Text>
-                    <Text className="text-base text-muted-foreground">{storeTotalQty}件</Text>
-                  </View>
+ {/* 内容区 */}
+ <View className="flex-1 overflow-y-auto pb-4" aria-label="购物车商品列表">
+ {items.length === 0 ? (
+ <StateView
+ type="empty"
+ title="购物车空空如也"
+ description="挑些食养好物，为自己而定"
+ actionText="去逛逛"
+ onAction={() => Taro.switchTab({ url: '/pages/explore/index' })}
+ />
+ ) : (
+ <View className="px-4 pt-4">
+ {Object.entries(grouped).map(([storeId, group]) => {
+ const allStoreSelected = group.items.every(i => i.selected)
+ const selectedStoreItems = group.items.filter(i => i.selected)
+ const storeTotal = selectedStoreItems.reduce((s, i) => s + getDisplayPrice(i) * i.quantity, 0)
+ const storeTotalQty = group.items.reduce((s, i) => s + i.quantity, 0)
+ return (
+ <View key={storeId} className="bg-card rounded-2xl mb-4 border border-border overflow-hidden">
+ {/* 门店头 */}
+ <View className="flex items-center gap-3 px-4 py-3 bg-primary/5 border-b border-border">
+ <View className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${allStoreSelected ? 'bg-primary border-primary' : 'border-border'}`} aria-role="button" aria-label="选择门店"
+ onClick={() => toggleStore(storeId, !allStoreSelected)}>
+ {allStoreSelected && <Icon name="check" size={12} className="text-white" />}
+ </View>
+ <Icon name="store" size={20} className="text-primary" />
+ <Text className="text-xl font-bold text-foreground flex-1">{group.storeName}</Text>
+ <Text className="text-base text-muted-foreground">{storeTotalQty}件</Text>
+ </View>
 
-                  {/* 商品列表 */}
-                  {group.items.map(item => (
-                    <View key={item.id} className="flex items-center gap-3 px-4 py-4 border-b border-border last:border-0">
-                      <View className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${item.selected ? 'bg-primary border-primary' : 'border-border'}`}
-                        onClick={() => toggleItem(item.id, !item.selected)}>
-                        {item.selected && <Icon name="check" size={12} className="text-white" />}
-                      </View>
-                      <Image src={item.products?.main_image || item.products?.image_url || ''} mode="aspectFill"
-                        style={{ width: '72px', height: '72px', borderRadius: '8px', flexShrink: 0 }}
-                        onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${item.product_id}` })} />
-                      <View className="flex-1">
-                        <Text className="text-xl text-foreground font-bold line-clamp-2">{item.products?.name}</Text>
-                        <Text className="text-xl font-bold text-primary mt-1">¥{getDisplayPrice(item)}</Text>
-                        <View className="flex items-center justify-between mt-2">
-                          <View className="flex items-center gap-3">
-                            <View
-                              className="w-8 h-8 rounded-full border-2 border-border bg-card flex items-center justify-center leading-none"
-                              onClick={() => changeQty(item.id, -1, item.quantity)}>
-                              <Icon name="minus" size={20} className="text-foreground" />
-                            </View>
-                            <Text className="text-xl text-foreground font-bold w-6 text-center">{item.quantity}</Text>
-                            <View
-                              className="w-8 h-8 rounded-full bg-primary flex items-center justify-center leading-none"
-                              onClick={() => changeQty(item.id, 1, item.quantity)}>
-                              <Icon name="plus" size={20} className="text-white" />
-                            </View>
-                          </View>
-                          <View
-                            className="w-8 h-8 flex items-center justify-center"
-                            onClick={() => handleRemove(item.id)}>
-                            <Icon name="delete-outline" size={24} className="text-muted-foreground" />
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
+ {/* 商品列表 */}
+ {group.items.map(item => (
+ <View key={item.id} className="flex items-center gap-3 px-4 py-4 border-b border-border last:border-0">
+ <View className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${item.selected ? 'bg-primary border-primary' : 'border-border'}`} aria-role="button" aria-label={item.selected ? '取消选择商品' : '选择商品'}
+ onClick={() => toggleItem(item.id, !item.selected)}>
+ {item.selected && <Icon name="check" size={12} className="text-white" />}
+ </View>
+ <Image src={item.products?.main_image || item.products?.image_url || ''} mode="aspectFill"
+ style={{ width: '72px', height: '72px', borderRadius: '8px', flexShrink: 0 }}
+ onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${item.product_id}` })} />
+ <View className="flex-1">
+ <Text className="text-xl text-foreground font-bold line-clamp-2">{item.products?.name}</Text>
+ <Text className="text-xl font-bold text-primary mt-1">¥{getDisplayPrice(item)}</Text>
+ <View className="flex items-center justify-between mt-2">
+ <View className="flex items-center gap-3">
+ <View
+ className="w-8 h-8 rounded-full border-2 border-border bg-card flex items-center justify-center leading-none" aria-role="button" aria-label="减少数量"
+ onClick={() => changeQty(item.id, -1, item.quantity)}>
+ <Icon name="minus" size={20} className="text-foreground" />
+ </View>
+ <Text className="text-xl text-foreground font-bold w-6 text-center">{item.quantity}</Text>
+ <View
+ className="w-8 h-8 rounded-full bg-primary flex items-center justify-center leading-none" aria-role="button" aria-label="增加数量"
+ onClick={() => changeQty(item.id, 1, item.quantity)}>
+ <Icon name="plus" size={20} className="text-white" />
+ </View>
+ </View>
+ <View
+ className="w-8 h-8 flex items-center justify-center" aria-role="button" aria-label="删除商品"
+ onClick={() => handleRemove(item.id)}>
+ <Icon name="delete-outline" size={24} className="text-muted-foreground" />
+ </View>
+ </View>
+ </View>
+ </View>
+ ))}
 
-                  {/* 门店小计（仅展示，不提供结算按钮）+ 门店履约能力标签 */}
-                  {selectedStoreItems.length > 0 && (
-                    <View className="flex items-center justify-between px-4 py-2 bg-primary/5">
-                      <Text className="text-base text-muted-foreground">
-                        {group.storeName} 小计：<Text className="font-bold text-primary">¥{storeTotal.toFixed(2)}</Text>
-                      </Text>
-                      {(() => {
-                        const st = group.items[0]?.stores as any
-                        if (!st) return null
-                        const tags: string[] = []
-                        if (st.delivery_enabled) tags.push('配送')
-                        if (st.min_order_amount) tags.push(`起送¥${st.min_order_amount}`)
-                        if (tags.length === 0) return null
-                        return (
-                          <Text className="text-base text-muted-foreground ml-2">
-                            {tags.map((t, i) => (
-                              <Text key={i} className="text-primary/80">{i > 0 ? ` · ${t}` : t}</Text>
-                            ))}
-                          </Text>
-                        )
-                      })()}
-                    </View>
-                  )}
-                </View>
-              )
-            })}
-          </View>
-        )}
-      </View>
+ {/* 门店小计（仅展示，不提供结算按钮）+ 门店履约能力标签 */}
+ {selectedStoreItems.length > 0 && (
+ <View className="flex items-center justify-between px-4 py-2 bg-primary/5">
+ <Text className="text-base text-muted-foreground">
+ {group.storeName} 小计：<Text className="font-bold text-primary">¥{storeTotal.toFixed(2)}</Text>
+ </Text>
+ {(() => {
+ const st = group.items[0]?.stores as any
+ if (!st) return null
+ const tags: string[] = []
+ if (st.delivery_enabled) tags.push('配送')
+ if (st.min_order_amount) tags.push(`起送¥${st.min_order_amount}`)
+ if (tags.length === 0) return null
+ return (
+ <Text className="text-base text-muted-foreground ml-2">
+ {tags.map((t, i) => (
+ <Text key={i} className="text-primary/80">{i > 0 ? ` · ${t}` : t}</Text>
+ ))}
+ </Text>
+ )
+ })()}
+ </View>
+ )}
+ </View>
+ )
+ })}
+ </View>
+ )}
+ </View>
 
-      {/* 底部统一结算栏 */}
-      {items.length > 0 && (
-        <View className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-card border-t-2 border-primary shadow-lg">
-          <View className="flex-1">
-            <Text className="text-xl text-foreground">
-              已选 <Text className="font-bold text-primary">{selectedCount}</Text> 件
-            </Text>
-            <View className="flex items-center mt-1">
-              <Text className="text-base text-muted-foreground">合计：</Text>
-              <Text className="text-2xl font-bold text-primary">¥{selectedTotal.toFixed(2)}</Text>
-            </View>
-          </View>
-          <View
-            className={`flex items-center justify-center leading-none rounded-2xl ${selectedItems.length === 0 ? 'bg-primary/40' : 'bg-primary'}`}
-            onClick={goCheckoutAll}>
-            <View className="py-3 px-6 text-xl text-white font-bold">
-              去结算
-            </View>
-          </View>
-        </View>
-      )}
+ {/* 底部统一结算栏 */}
+ {items.length > 0 && (
+ <View className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-card border-t-2 border-primary shadow-lg" aria-label="结算栏">
+ <View className="flex-1">
+ <Text className="text-xl text-foreground">
+ 已选 <Text className="font-bold text-primary">{selectedCount}</Text> 件
+ </Text>
+ <View className="flex items-center mt-1">
+ <Text className="text-base text-muted-foreground">合计：</Text>
+ <Text className="text-2xl font-bold text-primary">¥{selectedTotal.toFixed(2)}</Text>
+ </View>
+ </View>
+ <View
+ className={`flex items-center justify-center leading-none rounded-2xl ${selectedItems.length === 0 ? 'bg-primary/40' : 'bg-primary'}`} aria-role="button" aria-label="去结算"
+ onClick={goCheckoutAll}>
+ <View className="py-3 px-6 text-xl text-white font-bold">
+ 去结算
+ </View>
+ </View>
+ </View>
+ )}
 
-      {/* 食疗冲突校验弹窗 */}
-      {conflictModal && (
-        <View className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="w-10/12 max-h-4/5 bg-card rounded-3xl p-6 overflow-y-auto">
-            <Text className="text-2xl font-bold text-foreground text-center block mb-1">🍲 搭配小贴士</Text>
-            <Text className="text-base text-muted-foreground text-center block mb-4">结算前为你做了食疗冲突检测</Text>
-            <View className="gap-3 mb-6">
-              {conflictModal.map((c, idx) => (
-                <View key={idx} className="p-3 rounded-2xl border"
-                  style={{ background: c.level === 'danger' ? '#FEE2E2' : '#FEF3C7', borderColor: c.level === 'danger' ? '#FCA5A5' : '#FDE68A' }}>
-                  <View className="flex items-center gap-2 mb-1">
-                    <Text className="text-xl">{c.level === 'danger' ? '⚠️' : '🟡'}</Text>
-                    <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#666666' }}>
-                      {c.type === 'warm_overlap' ? '温性叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
-                    </Text>
-                  </View>
-                  <Text className="text-base text-muted-foreground" style={{ display: 'block', lineHeight: '1.5' }}>{c.message}</Text>
-                </View>
-              ))}
-            </View>
-            <View className="flex gap-3">
-              <View className="flex-1 py-3 rounded-2xl bg-muted text-muted-foreground text-center text-xl font-bold" onClick={() => setConflictModal(null)}>去调整</View>
-              <View className="flex-1 py-3 rounded-2xl bg-primary text-white text-center text-xl font-bold"
-                onClick={() => { const sel = items.filter(i => i.selected && i.products) as CartItem[]; setConflictModal(null); proceedCheckout(sel) }}>仍要结算</View>
-            </View>
-          </View>
-        </View>
-      )}
-    </View>
-    <FloatingActionBar />
-    <CustomTabBar />
-    </>
-  )
+ {/* 食疗冲突校验弹窗 */}
+ {conflictModal && (
+ <View className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }} catchMove>
+ <View className="w-10/12 max-h-4/5 bg-card rounded-3xl p-6 overflow-y-auto">
+ <Text className="text-2xl font-bold text-foreground text-center block mb-1"> 搭配小贴士</Text>
+ <Text className="text-base text-muted-foreground text-center block mb-4">结算前为你做了食疗冲突检测</Text>
+ <View className="gap-3 mb-6">
+ {conflictModal.map((c, idx) => (
+ <View key={idx} className="p-3 rounded-2xl border"
+ style={{ background: c.level === 'danger' ? '#FEE2E2' : '#FEF3C7', borderColor: c.level === 'danger' ? '#FCA5A5' : '#FDE68A' }}>
+ <View className="flex items-center gap-2 mb-1">
+ <Text className="text-xl">{c.level === 'danger' ? '' : ''}</Text>
+ <Text className="text-base font-bold" style={{ color: c.level === 'danger' ? '#B91C1C' : '#666666' }}>
+ {c.type === 'warm_overlap' ? '温性叠加' : c.type === 'cold_hot_clash' ? '寒热对冲' : c.type === 'same_attr_overload' ? '同属性过量' : '相克慎搭'}
+ </Text>
+ </View>
+ <Text className="text-base text-muted-foreground" style={{ display: 'block', lineHeight: '1.5' }}>{c.message}</Text>
+ </View>
+ ))}
+ </View>
+ <View className="flex gap-3">
+ <View className="flex-1 py-3 rounded-2xl bg-muted text-muted-foreground text-center text-xl font-bold" onClick={() => setConflictModal(null)}>去调整</View>
+ <View className="flex-1 py-3 rounded-2xl bg-primary text-white text-center text-xl font-bold"
+ onClick={() => { const sel = items.filter(i => i.selected && i.products) as CartItem[]; setConflictModal(null); proceedCheckout(sel) }}>仍要结算</View>
+ </View>
+ </View>
+ </View>
+ )}
+ </View>
+ <FloatingActionBar />
+ <CustomTabBar />
+ </>
+ )
 }
 
 /* wrapped by RouteGuard - see render */

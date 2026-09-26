@@ -1,6 +1,7 @@
 const pages = [
   'pages/index/index',
   'pages/explore/index',
+  'pages/explore/list/index',
   'pages/cart/index',
   'pages/user/index',
   'pages/login/index',
@@ -13,7 +14,6 @@ const pages = [
   'pages/message-center/index',
   'pages/search/index',
   'pages/food-detective/index',
-  'pages/brand-story/index',
 ]
 
 // 分包：按业务域拆分，降低主包体积（目标 < 1.5MB）
@@ -37,13 +37,13 @@ const subPackages = [
   {
     root: 'pages/mine',
     pages: [
-      'my-badges/index',
       'my-promotion/index',
       'address/index',
       'favorites/index',
       'footprint/index',
       'coupon/index',
       'settings/index',
+      'bind-phone/index',
       'review/index',
       'my-referrals/index',
       'city-select/index',
@@ -52,19 +52,7 @@ const subPackages = [
   },
   {
     root: 'pages/trade',
-    pages: ['withdraw/index', 'refund-apply/index', 'commission-detail/index', 'goldbean-ledger/index', 'partner-center/index', 'bean-exchange/index'],
-  },
-  {
-    root: 'pages/admin',
-    pages: [
-      'admin/index',
-      'admin-merchants/index',
-      'admin-products/index',
-      'admin-withdrawals/index',
-      'admin-users/index',
-      'admin-refunds/index',
-      'admin-announcements/index',
-    ],
+    pages: ['withdraw/index', 'refund-apply/index', 'goldbean-ledger/index'],
   },
   {
     root: 'pages/agreement',
@@ -83,11 +71,13 @@ const subPackages = [
   },
   {
     root: 'pages/food',
-    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'knowledge-atlas/index', 'seasonal-box/index', 'constitution-test/index', 'today-food-therapy/index', 'ingredient-pairing/index', 'consult/index', 'tracker/index', 'bmi/index', 'family/index', 'need-find/index', 'food-match/index'],
+    // 已下线孤儿页：seasonal-box / today-food-therapy / ingredient-pairing（食养中心收敛后失去全部入口）
+    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'constitution-test/index', 'consult/index', 'tracker/index', 'family/index', 'need-find/index', 'food-match/index'],
   },
   {
     root: 'pages/ext',
-    pages: ['employee/index'],
+    // webview：首页广告位配置 http(s) 外链时的通用承载页（站内广告请优先配 /pages/... 内页）
+    pages: ['employee/index', 'webview/index'],
   },
 ]
 
@@ -96,9 +86,9 @@ export default defineAppConfig({
   subPackages,
   tabBar: {
     custom: true,           // 使用 custom-tabbar 内联手绘 SVG，去 AI 化
-    color: '#9A8070',
+    color: '#666666',
     selectedColor: '#1A1A1A',
-    backgroundColor: '#FFFBF7',
+    backgroundColor: '#F8F8F8',
     borderStyle: 'white',
     list: [
       { pagePath: 'pages/index/index',     text: '首页' },
@@ -109,12 +99,19 @@ export default defineAppConfig({
   },
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#FFFBF7',
-    navigationBarTitleText: '来电有喜',
+    navigationBarBackgroundColor: '#F8F8F8',
+    navigationBarTitleText: '来店有喜',
     navigationBarTextStyle: 'black',
   },
   // 组件按需注入：仅加载页面/组件实际用到的自定义组件，减小启动体积
   lazyCodeLoading: 'requiredComponents',
+  // 分包预下载：进入触发页即后台拉取分包，消除「点进子菜单白屏等下载」
+  // merchant 274KB / food 274KB / mine 150KB / trade 50KB —— wifi 下提前备好
+  preloadRule: {
+    'pages/user/index': { network: 'wifi', packages: ['pages/merchant', 'pages/mine', 'pages/trade'] },
+    'pages/index/index': { network: 'wifi', packages: ['pages/food'] },
+    'pages/explore/index': { network: 'wifi', packages: ['pages/food'] },
+  },
   // 微信小程序隐私权限声明（基础库 3.7.0+ 要求）
   requiredPrivateInfos: ['getLocation'],
   // 微信小程序权限声明

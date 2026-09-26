@@ -9,19 +9,18 @@ import { RouteGuard } from '@/components/RouteGuard'
 import { clearRequestCache } from '@/db/requestCache'
 import Icon from '@/components/Icon'
 import { useAuth } from '@/contexts/AuthContext'
-
-// 仪表盘导航项（统一主题清新绿淡底，消除多色彩虹网格）
-const NAV_ITEMS = [
-  { to: '/pages/merchant/merchant-products/index', icon: 'box', label: '商品管理', color: 'bg-primary/10', key: 'products' },
-  { to: '/pages/merchant/merchant-orders/index', icon: 'order', label: '订单管理', color: 'bg-primary/10', key: 'orders' },
-  { to: '/pages/merchant/merchant-members/index', icon: 'user', label: '会员管理', color: 'bg-primary/10', key: 'members' },
-  { to: '/pages/merchant/merchant-coupons/index', icon: 'ticket', label: '优惠券', color: 'bg-primary/10', key: 'coupons' },
-  { to: '/pages/merchant/merchant-analytics/index', icon: 'chart', label: '数据分析', color: 'bg-primary/10', key: 'analytics' },
-  { to: '/pages/merchant/merchant-settings/index', icon: 'shop', label: '店铺设置', color: 'bg-primary/10', key: 'settings' },
-  { to: '/pages/trade/withdraw/index', icon: 'coin', label: '货款提现', color: 'bg-primary/10', key: 'withdraw' },
-  { to: '/pages/merchant/merchant-expiry/index', icon: 'bell-outline', label: '临期预警', color: 'bg-primary/10', key: 'expiry' },
-  { to: '/pages/merchant/food-therapy-copy/index', icon: 'video', label: '食疗文案', color: 'bg-primary/10', key: 'copy' },
-]
+import StatCards from './StatCards'
+import NavGrid from './NavGrid'
+import QuickActions from './QuickActions'
+import ExpiryCard from './ExpiryCard'
+import CrossSummaryCard from './CrossSummaryCard'
+import RecentOrders from './RecentOrders'
+import StoreInfoCard from './StoreInfoCard'
+import SettlementCard from './SettlementCard'
+import VehiclesCard from './VehiclesCard'
+import StoreQrModal from './StoreQrModal'
+import VehicleManageModal from './VehicleManageModal'
+import StoreSwitchSheet from './StoreSwitchSheet'
 
 function MerchantCenterPage() {
   const [store, setStore] = useState<Store | null>(null)
@@ -392,464 +391,64 @@ function MerchantCenterPage() {
 
   return (<RouteGuard>
     <View className="min-h-screen bg-background pb-8">
-      {/* 门店信息卡 */}
-      {store && (
-      <View className="mx-4 mt-2 p-4 rounded-2xl bg-card border border-border">
-        <View className="flex items-center gap-3">
-          <View className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Icon name="store" size={24} className="text-primary" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-2xl font-bold text-foreground">{store.name}</Text>
-            <Text className="text-base text-muted-foreground">{store.address || '暂无地址'}</Text>
-          </View>
-          {stores.length > 1 && (
-            <View
-              className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary/5"
-              onClick={() => setShowStoreSwitch(true)}>
-              <Text className="text-sm font-bold text-primary">切换</Text>
-              <Text className="text-primary" style={{ fontSize: '14px' }}>▾</Text>
-            </View>
-          )}
-        </View>
-        {/* 操作按钮行：查看 + 二维码 */}
-        <View className="flex gap-2 mt-3">
-          <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-xl"
-            onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${store.id}` })}>
-            <View className="py-2 flex items-center justify-center gap-1">
-              <Icon name="eye" size={28} className="text-white" />
-              <Text className="text-base font-bold text-white">查看门店</Text>
-            </View>
-          </Button>
-          <Button className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-primary !rounded-xl"
-            onClick={handleShowStoreQr}>
-            <View className="py-2 flex items-center justify-center gap-1">
-              <Icon name="qrcode" size={28} className="text-primary" />
-              <Text className="text-base font-bold text-primary">门店二维码</Text>
-            </View>
-          </Button>
-        </View>
-      </View>
-      )}
+      <StoreInfoCard
+        store={store}
+        storeCount={stores.length}
+        onViewStore={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${store.id}` })}
+        onShowQr={handleShowStoreQr}
+        onSwitch={() => setShowStoreSwitch(true)}
+      />
 
-      {/* Phase 4 跨店总览：仅在多门店时展示聚合 */}
-      {stores.length > 1 && crossSummary && (
-        <View className="mx-4 mt-3 p-4 rounded-2xl border border-primary/30"
-          style={{ background: 'linear-gradient(135deg, rgba(31,157,107,0.08), rgba(31,157,107,0.03))' }}>
-          <View className="flex items-center justify-between">
-            <View className="flex items-center gap-2">
-              <Text className="text-xl" style={{ fontSize: '20px' }}>🏬</Text>
-              <Text className="text-lg font-bold text-foreground">全门店总览</Text>
-            </View>
-            <Text className="text-base text-primary font-bold">{stores.length} 家门店</Text>
-          </View>
-          <View className="flex gap-3 mt-3">
-            <View className="flex-1 bg-background/60 rounded-xl py-2 text-center">
-              <Text className="text-2xl font-bold text-foreground">{crossSummary.products}</Text>
-              <Text className="text-base text-muted-foreground">总商品</Text>
-            </View>
-            <View className="flex-1 bg-background/60 rounded-xl py-2 text-center">
-              <Text className="text-2xl font-bold text-foreground">{crossSummary.orders}</Text>
-              <Text className="text-base text-muted-foreground">总订单</Text>
-            </View>
-            <View className="flex-1 bg-background/60 rounded-xl py-2 text-center">
-              <Text className="text-2xl font-bold text-success">¥{crossSummary.balance.toFixed(2)}</Text>
-              <Text className="text-base text-muted-foreground">总货款</Text>
-            </View>
-          </View>
-        </View>
-      )}
+      <CrossSummaryCard storeCount={stores.length} crossSummary={crossSummary} />
 
-      {/* 统计卡片 */}
-      <View className="flex gap-3 px-4 mt-3">
-        {[
-          { label: '商品', value: stats.products, sub: `${stats.online}在售`, color: 'text-primary' },
-          { label: '订单', value: stats.orders, sub: `今日${stats.todayOrders}`, color: 'text-primary' },
-          { label: '会员', value: stats.members, sub: `${stats.crossStore}跨店`, color: 'text-primary' },
-        ].map(s => (
-          <View key={s.label} className="flex-1 bg-card rounded-2xl border border-border p-3 text-center">
-            <Text className={`text-3xl font-bold ${s.color}`}>{s.value}</Text>
-            <Text className="text-base text-muted-foreground">{s.label}</Text>
-            <Text className="text-base text-muted-foreground">{s.sub}</Text>
-          </View>
-        ))}
-      </View>
+      <StatCards stats={stats} />
 
-      {/* ============ 商家货款结算卡（迁移 00120） ============ */}
-      <View className="mx-4 mt-3 p-4 rounded-2xl border border-success/30"
-        style={{ background: 'linear-gradient(135deg, rgba(46,125,91,0.10), rgba(46,125,91,0.04))' }}>
-        <View className="flex items-center justify-between">
-          <View className="flex items-center gap-2">
-            <View className="w-9 h-9 rounded-xl bg-success/15 flex items-center justify-center">
-              <View className="text-success text-xl"><Icon name="coin" size={20} /></View>
-            </View>
-            <Text className="text-lg font-bold text-foreground">可结算货款</Text>
-          </View>
-          <Text className="text-base text-muted-foreground">已结算 {settlement?.settlement_count ?? 0} 笔</Text>
-        </View>
-        <View className="flex items-end justify-between mt-3">
-          <View>
-            <Text className="text-base text-muted-foreground">当前可提现</Text>
-            <Text className="text-4xl font-bold text-success">¥{((settlement?.merchant_balance ?? 0)).toFixed(2)}</Text>
-          </View>
-          <Button
-            className="!m-0 !p-0 !bg-success !border-none !rounded-2xl !leading-none"
-            onClick={() => {
-              if (!store) { Taro.showToast({ title: '请先关联门店', icon: 'none' }); return }
-              Taro.navigateTo({ url: `/pages/trade/withdraw/index?kind=settlement&storeId=${store.id}` })
-            }}>
-            <View className="px-5 py-2.5 flex items-center gap-1">
-              <Text className="text-base font-bold text-white">货款提现</Text>
-            </View>
-          </Button>
-        </View>
-        <Text className="text-sm text-muted-foreground mt-2">
-          货款以人民币结算（含健康豆支付等值部分，由总部统一结算），由微信直接打款到您的账户，可提现。
-        </Text>
-      </View>
+      <SettlementCard
+        settlement={settlement}
+        onWithdraw={() => Taro.navigateTo({ url: `/pages/trade/withdraw/index?kind=settlement&storeId=${store.id}` })}
+      />
 
-      {/* ============ 临期预警摘要卡（按本店过滤） ============ */}
-      {expiryStats && expiryStats.total > 0 && (
-        <View
-          className="mx-4 mt-3 p-4 rounded-2xl border border-destructive/30"
-          style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.10), rgba(249,115,22,0.06))' }}
-          onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-expiry/index' })}>
-          <View className="flex items-center justify-between">
-            <View className="flex items-center gap-2">
-              <View className="w-9 h-9 rounded-xl bg-destructive/15 flex items-center justify-center">
-                <Icon name="bell-outline" size={20} className="text-destructive" />
-              </View>
-              <Text className="text-lg font-bold text-foreground">临期预警</Text>
-            </View>
-            <Text className="text-base text-destructive font-bold">{expiryStats.total} 件 →</Text>
-          </View>
-          <View className="flex gap-4 mt-3">
-            <View className="flex items-center gap-1.5">
-              <View style={{ width: 10, height: 10, borderRadius: 5, background: '#DC2626' }} />
-              <Text className="text-base text-foreground">紧急 {expiryStats.red}</Text>
-            </View>
-            <View className="flex items-center gap-1.5">
-              <View style={{ width: 10, height: 10, borderRadius: 5, background: '#EA580C' }} />
-              <Text className="text-base text-foreground">紧迫 {expiryStats.orange}</Text>
-            </View>
-            <View className="flex items-center gap-1.5">
-              <View style={{ width: 10, height: 10, borderRadius: 5, background: '#D97706' }} />
-              <Text className="text-base text-foreground">临期 {expiryStats.amber}</Text>
-            </View>
-          </View>
-          <Text className="text-sm text-muted-foreground mt-2">引擎已自动写入折扣，点此查看/调整</Text>
-        </View>
-      )}
+      <ExpiryCard expiryStats={expiryStats} />
 
-      {/* ============ P3 门店联动：流动车摘要卡 ============ */}
-      <View
-        className="mx-4 mt-3 p-4 rounded-2xl border border-primary/30"
-        style={{ background: 'linear-gradient(135deg, rgba(31,157,107,0.10), rgba(31,157,107,0.04))' }}
-        onClick={() => {
-          if (!store) { Taro.showToast({ title: '请先关联门店', icon: 'none' }); return }
-          setShowVehicleModal(true)
-        }}>
-        <View className="flex items-center justify-between">
-          <View className="flex items-center gap-2">
-            <View className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
-              <Text className="text-xl">🚚</Text>
-            </View>
-            <Text className="text-lg font-bold text-foreground">流动车</Text>
-          </View>
-          <Text className="text-base text-primary font-bold">{vehicles.length} 辆 →</Text>
-        </View>
-        {vehicles.length === 0 ? (
-          <Text className="text-sm text-muted-foreground mt-2">点击添加本店流动车（随统一运营身份按店隔离）</Text>
-        ) : (
-          <View className="mt-3 flex flex-col gap-2">
-            {vehicles.slice(0, 3).map(v => (
-              <View key={v.id} className="flex items-center justify-between"
-                onClick={(e) => { e.stopPropagation(); handleToggleVehicle(v) }}>
-                <Text className="text-base text-foreground">{v.name}</Text>
-                <View className="flex items-center gap-1.5">
-                  <View style={{ width: 8, height: 8, borderRadius: 4, background: v.status === 'active' ? '#2E9E5B' : '#94A3B8' }} />
-                  <Text className="text-base" style={{ color: v.status === 'active' ? '#2E9E5B' : '#94A3B8' }}>
-                    {v.status === 'active' ? '运营中' : '已停驶'}
-                  </Text>
-                </View>
-              </View>
-            ))}
-            {vehicles.length > 3 && (
-              <Text className="text-sm text-muted-foreground">还有 {vehicles.length - 3} 辆…</Text>
-            )}
-          </View>
-        )}
-      </View>
+      <VehiclesCard
+        vehicles={vehicles}
+        onOpenModal={() => setShowVehicleModal(true)}
+        onToggle={handleToggleVehicle}
+      />
 
-      {/* 功能导航网格 */}
-      <View className="grid grid-cols-4 gap-3 px-4 mt-4">
-        {NAV_ITEMS.map(item => (
-          <View key={item.key} className="flex flex-col items-center gap-2 py-4 px-1 bg-card rounded-2xl border border-border"
-            onClick={() => Taro.navigateTo({ url: item.to })}>
-            <View className={`w-11 h-11 rounded-2xl ${item.color} flex items-center justify-center`}>
-              <Icon name={item.icon} size={22} className="text-primary" />
-            </View>
-            <Text className="text-base text-foreground text-center font-bold whitespace-nowrap">{item.label}</Text>
-          </View>
-        ))}
-      </View>
+      <NavGrid />
 
-      {/* 快捷操作 */}
-      <View className="px-4 mt-4">
-        <Text className="text-lg font-bold text-foreground mb-2">快捷操作</Text>
-        <View className="flex gap-3">
-          <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-2xl !leading-none"
-            onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-products/index?action=add' })}>
-            <View className="py-3 flex items-center gap-1">
-              <Icon name="plus" size={20} className="text-white" />
-              <Text className="text-base font-bold text-white">新增商品</Text>
-            </View>
-          </Button>
-          <Button className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-primary !rounded-2xl !leading-none"
-            onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-products/index?action=scan' })}>
-            <View className="py-3 flex items-center gap-1">
-              <Icon name="barcode-scan" size={20} className="text-primary" />
-              <Text className="text-base font-bold text-primary">扫码上架</Text>
-            </View>
-          </Button>
-        </View>
-      </View>
+      <QuickActions />
 
-      {/* 最近订单预览 */}
-      <View className="px-4 mt-4">
-        <View className="flex items-center justify-between mb-2">
-          <Text className="text-lg font-bold text-foreground">最近订单</Text>
-          <Button className="!p-0 !bg-transparent !border-none" onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-orders/index' })}>
-            <Text className="text-base text-primary">查看全部 →</Text>
-          </Button>
-        </View>
-        <View className="bg-card rounded-2xl border border-border p-4">
-          {!statsLoaded ? (
-            <Text className="text-base text-muted-foreground">加载中…</Text>
-          ) : recentOrders.length === 0 ? (
-            <Text className="text-base text-muted-foreground">暂无订单</Text>
-          ) : (
-            recentOrders.map((it, idx) => {
-              const o = it.orders || {}
-              const statusMap: Record<string, string> = {
-                pending_pay: '待付款', paid: '已付款', pending: '待发货',
-                pending_receive: '待收货', pending_review: '待评价', done: '已完成', completed: '已完成', cancelled: '已取消',
-              }
-              const statusText = statusMap[o.status] || o.status || '未知'
-              const amt = o.total_amount ?? 0
-              const time = (o.created_at || '').replace('T', ' ').slice(0, 16)
-              return (
-                <View
-                  key={o.order_no || idx}
-                  className="flex items-center justify-between py-2.5"
-                  style={idx > 0 ? { borderTop: '1px solid rgba(148,163,184,0.15)' } : undefined}>
-                  <View className="flex-1 mr-3">
-                    <Text className="text-base text-foreground">订单 {String(o.order_no || '').slice(-6)}</Text>
-                    <Text className="text-base text-muted-foreground mt-0.5">{time || '—'}</Text>
-                  </View>
-                  <View className="flex items-center gap-2">
-                    <Text className="text-base text-muted-foreground">{statusText}</Text>
-                    <Text className="text-base font-bold text-foreground">¥{amt}</Text>
-                  </View>
-                </View>
-              )
-            })
-          )}
-        </View>
-      </View>
+      <RecentOrders statsLoaded={statsLoaded} recentOrders={recentOrders} />
 
-      {/* ========== 门店二维码弹窗 ========== */}
-      {showQrModal && (
-        <View
-          className="fixed inset-0 z-50 flex items-end justify-center"
-          style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
-          onClick={() => setShowQrModal(false)}>
-          <View
-            className="w-full rounded-t-3xl bg-card px-6 pt-6 pb-10"
-            style={{ maxHeight: '80vh' }}
-            onClick={(e) => e.stopPropagation()}>
+      <StoreQrModal
+        visible={showQrModal}
+        storeName={store.name}
+        storeQrUrl={storeQrUrl}
+        qrLoading={qrLoading}
+        onClose={() => setShowQrModal(false)}
+        onSave={handleSaveStoreQr}
+      />
 
-            {/* 标题栏 */}
-            <View className="flex items-center justify-between mb-5">
-              <Text className="text-xl font-bold text-foreground">门店二维码</Text>
-              <View
-                onClick={() => setShowQrModal(false)}
-                style={{
-                  width: '32px', height: '32px', borderRadius: '16px',
-                  backgroundColor: '#F5F5F5', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                <Text style={{ fontSize: '18px', color: '#999' }}>✕</Text>
-              </View>
-            </View>
+      <VehicleManageModal
+        visible={showVehicleModal}
+        vehicles={vehicles}
+        vehicleName={vehicleName}
+        vehicleSubmitting={vehicleSubmitting}
+        onVehicleNameChange={setVehicleName}
+        onAdd={handleAddVehicle}
+        onToggle={handleToggleVehicle}
+        onClose={() => setShowVehicleModal(false)}
+      />
 
-            {/* 二维码主体 */}
-            <View className="flex flex-col items-center py-3">
-              {/* 门店名称 */}
-              <Text className="text-lg font-bold text-foreground">{store?.name}</Text>
-              <Text className="text-sm text-muted-foreground mt-1">用户扫码即可进店购物</Text>
-
-              {/* 二维码图片 */}
-              <View
-                style={{
-                  width: '240px', height: '240px', borderRadius: '16px',
-                  border: '2px solid rgba(31,157,107,0.15)',
-                  backgroundColor: '#FFF', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  marginTop: '20px', overflow: 'hidden',
-                }}>
-                {qrLoading ? (
-                  <View className="flex flex-col items-center gap-3">
-                    <Icon name="loading" size={48} className="text-primary animate-spin" />
-                    <Text className="text-base text-muted-foreground">生成中...</Text>
-                  </View>
-                ) : storeQrUrl ? (
-                  <Image src={storeQrUrl} mode="aspectFit" style={{ width: '224px', height: '224px' }} />
-                ) : (
-                  <View className="flex flex-col items-center gap-2">
-                    <Icon name="qrcode-scan" size={48} className="text-muted-foreground/30" />
-                    <Text className="text-base text-muted-foreground/50">加载失败</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* 提示文字 */}
-              <Text className="text-sm text-muted-foreground text-center mt-5 leading-relaxed"
-                style={{ maxWidth: '280px' }}>
-                扫码自动进入「{store?.name}」，新用户注册即建立本店推荐关系
-              </Text>
-            </View>
-
-            {/* 操作按钮 */}
-            <View className="flex gap-3 mt-4">
-              {storeQrUrl && (
-                <Button
-                  className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-border !rounded-2xl"
-                  onClick={handleSaveStoreQr}>
-                  <View className="py-3 flex items-center justify-center gap-2">
-                    <Icon name="download" size={20} className="text-muted-foreground" />
-                    <Text className="text-lg font-bold text-muted-foreground">保存图片</Text>
-                  </View>
-                </Button>
-              )}
-              <Button
-                openType="share"
-                className="!flex-1 !m-0 !p-0 !rounded-2xl"
-                style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)))', border: 'none' }}>
-                <View className="py-3 flex items-center justify-center gap-2">
-                  <Icon name="share-variant" size={20} className="text-white" />
-                  <Text className="text-lg font-bold text-white">分享二维码</Text>
-                </View>
-              </Button>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* ========== P3 门店联动：流动车管理弹窗 ========== */}
-      {showVehicleModal && (
-        <View
-          className="fixed inset-0 z-50 flex items-end justify-center"
-          style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
-          onClick={() => setShowVehicleModal(false)}>
-          <View
-            className="w-full rounded-t-3xl bg-card px-6 pt-6 pb-10"
-            style={{ maxHeight: '80vh' }}
-            onClick={(e) => e.stopPropagation()}>
-
-            <View className="flex items-center justify-between mb-5">
-              <Text className="text-xl font-bold text-foreground">流动车管理</Text>
-              <View onClick={() => setShowVehicleModal(false)} style={{ width: '32px', height: '32px', borderRadius: '16px', backgroundColor: '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: '18px', color: '#999' }}>✕</Text>
-              </View>
-            </View>
-
-            {/* 列表 + 启停 */}
-            <View className="flex flex-col gap-2 mb-4">
-              {vehicles.length === 0 && (
-                <Text className="text-base text-muted-foreground text-center py-4">暂无流动车，在下方添加</Text>
-              )}
-              {vehicles.map(v => (
-                <View key={v.id} className="flex items-center justify-between bg-background rounded-2xl border border-border px-4 py-3">
-                  <Text className="text-base text-foreground font-bold">{v.name}</Text>
-                  <Button
-                    className="!m-0 !p-0 !rounded-xl"
-                    style={{ background: v.status === 'active' ? '#2E9E5B' : '#94A3B8', border: 'none' }}
-                    onClick={() => handleToggleVehicle(v)}>
-                    <View className="px-4 py-1.5 flex items-center gap-1">
-                      <Text className="text-base font-bold text-white">{v.status === 'active' ? '运营中' : '已停驶'}</Text>
-                    </View>
-                  </Button>
-                </View>
-              ))}
-            </View>
-
-            {/* 新增 */}
-            <Text className="text-base text-muted-foreground mb-2">新增流动车（归属本店）</Text>
-            <View className="flex gap-2">
-              <View className="flex-1 bg-background rounded-2xl border border-border px-4 py-3">
-                <Input
-                  value={vehicleName}
-                  onInput={(e: any) => setVehicleName(e.detail.value)}
-                  placeholder="如：城西夜市流动车"
-                  style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: '#1F2937', fontSize: '16px' }}
-                />
-              </View>
-              <Button
-                className="!m-0 !p-0 !rounded-2xl"
-                style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)))', border: 'none' }}
-                disabled={vehicleSubmitting}
-                onClick={handleAddVehicle}>
-                <View className="px-5 py-3 flex items-center justify-center">
-                  <Text className="text-base font-bold text-white">{vehicleSubmitting ? '添加中…' : '添加'}</Text>
-                </View>
-              </Button>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* ========== Phase 4 门店切换弹层 ========== */}
-      {showStoreSwitch && (
-        <View
-          className="fixed inset-0 z-50 flex items-end justify-center"
-          style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
-          onClick={() => setShowStoreSwitch(false)}>
-          <View
-            className="w-full rounded-t-3xl bg-card px-6 pt-6 pb-10"
-            style={{ maxHeight: '80vh' }}
-            onClick={(e) => e.stopPropagation()}>
-            <View className="flex items-center justify-between mb-5">
-              <Text className="text-xl font-bold text-foreground">切换管理门店</Text>
-              <View onClick={() => setShowStoreSwitch(false)} style={{ width: '32px', height: '32px', borderRadius: '16px', backgroundColor: '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: '18px', color: '#999' }}>✕</Text>
-              </View>
-            </View>
-            <View className="flex flex-col gap-2" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-              {stores.map(s => (
-                <View key={s.id}
-                  className={`flex items-center justify-between px-4 py-3 rounded-2xl border ${s.id === store?.id ? 'border-primary bg-primary/5' : 'border-border bg-background'}`}
-                  onClick={() => {
-                    if (!authUser) return
-                    setCurrentMerchantStore(authUser.id, s.id, s)
-                    setStore(s)
-                    setShowStoreSwitch(false)
-                  }}>
-                  <View className="flex-1 mr-3">
-                    <Text className={`text-base font-bold ${s.id === store?.id ? 'text-primary' : 'text-foreground'}`}>{s.name}</Text>
-                    <Text className="text-base text-muted-foreground mt-0.5">{s.address || '暂无地址'}</Text>
-                  </View>
-                  {s.id === store?.id && (
-                    <View className="px-3 py-1 rounded-full bg-primary/10">
-                      <Text className="text-sm font-bold text-primary">当前</Text>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-      )}
+      <StoreSwitchSheet
+        visible={showStoreSwitch}
+        stores={stores}
+        currentStore={store}
+        onSwitch={(s) => { setCurrentMerchantStore(authUser.id, s.id, s); setStore(s); setShowStoreSwitch(false) }}
+        onClose={() => setShowStoreSwitch(false)}
+      />
 
      </View>
    </RouteGuard>

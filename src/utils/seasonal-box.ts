@@ -309,7 +309,7 @@ export const SEASONAL_TERMS_2026: SeasonalTerm[] = [
     boxTheme: '初秋时令食盒',
     boxCopy: '夏秋交替的润养小食',
     emoji: '🍂',
-    color: '#FEF9EF',
+    color: '#FBF3DD',
     colorEnd: '#FDE68A',
   },
   {
@@ -369,7 +369,7 @@ export const SEASONAL_TERMS_2026: SeasonalTerm[] = [
     boxTheme: '秋分时令食盒',
     boxCopy: '平分秋色的膳食搭配',
     emoji: '🍃',
-    color: '#FEF9EF',
+    color: '#FBF3DD',
     colorEnd: '#FED7AA',
   },
   {

@@ -146,7 +146,7 @@ function MerchantApplyPage() {
           <Icon name="store" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">开通自营门店</Text>
         </View>
-        <Text className="text-xl text-secondary leading-relaxed">
+        <Text className="text-xl text-secondary-foreground leading-relaxed">
           开通后您将作为「来店有喜」品牌自营门店店主，享有本店商品/订单/会员独立管理权限。
         </Text>
         <Text className="text-base text-muted-foreground mt-2">

@@ -6,7 +6,7 @@ function WithdrawRules() {
   return (
     <View className="min-h-screen bg-background pb-10">
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4 text-muted-foreground text-sm leading-loose">
-        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜提现规则</Text>
+        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来店有喜提现规则</Text>
         <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月20日\n生效日期：2026年7月20日'}</Text>
 
         <View className="mb-3 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
@@ -48,7 +48,7 @@ function WithdrawRules() {
         </View>
 
         <Text className="block text-muted-foreground text-xs mt-5 pt-3" style={{ borderTop: '1px solid hsl(var(--border))' }}>
-          如有疑问，请在「我的」-「联系客服」中咨询。
+          如有疑问，请在「我的」-「帮助中心」中咨询。
         </Text>
       </View>
     </View>

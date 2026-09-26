@@ -136,13 +136,13 @@ export default function LoginPage() {
   return (
     <View className="min-h-screen flex flex-col bg-background">
       {/* 顶部装饰 */}
-      <View className="relative px-6 pt-16 pb-10" style={{ background: 'linear-gradient(160deg,#F5EEDF 0%,#FFFBF7 100%)' }}>
+      <View className="relative px-6 pt-16 pb-10" style={{ background: 'linear-gradient(160deg,#F2F2F2 0%,#F8F8F8 100%)' }}>
         <View className="flex items-center gap-3 mt-2">
           <View className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
             <Text className="text-white font-bold text-xl">喜</Text>
           </View>
           <View>
-            <Text className="text-3xl font-bold text-foreground">来电有喜</Text>
+            <Text className="text-3xl font-bold text-foreground">来店有喜</Text>
             <Text className="text-xl text-muted-foreground mt-1">有喜相逢</Text>
           </View>
         </View>
@@ -194,7 +194,7 @@ export default function LoginPage() {
                 <View
                   className={`w-full flex items-center justify-center leading-none rounded-xl ${loading ? 'bg-primary/50' : 'bg-primary'}`}
                   onClick={handleSendCode}>
-                  <View className="py-4 text-xl text-white font-bold">
+                  <View className="py-4 text-base text-white font-bold">
                     {loading ? '发送中...' : '获取验证码'}
                   </View>
                 </View>
@@ -215,7 +215,7 @@ export default function LoginPage() {
                 <View className="flex items-center gap-3 mb-4">
                   <View className="flex-1 flex items-center justify-center leading-none rounded-xl bg-primary"
                     onClick={handleVerify}>
-                    <View className="py-4 text-xl text-white font-bold">{loading ? '验证中...' : '登录'}</View>
+                    <View className="py-4 text-base text-white font-bold">{loading ? '验证中...' : '登录'}</View>
                   </View>
                   <View
                     className={`flex items-center justify-center leading-none rounded-xl border-2 border-border ${countdown > 0 ? 'bg-muted' : 'bg-card'}`}
@@ -245,7 +245,7 @@ export default function LoginPage() {
               onClick={handleWechatLogin}>
               <View className="py-4 flex items-center gap-2">
                 <Icon name="wechat" size={24} />
-                <Text className="text-xl text-foreground">微信一键登录</Text>
+                <Text className="text-base font-bold text-foreground">微信一键登录</Text>
               </View>
             </View>
 
@@ -280,7 +280,7 @@ export default function LoginPage() {
               <View
                 className={`w-full flex items-center justify-center leading-none rounded-xl ${loading ? 'bg-primary/50' : 'bg-primary'}`}
                 onClick={handlePasswordLogin}>
-                <View className="py-4 text-xl text-white font-bold">
+                <View className="py-4 text-base text-white font-bold">
                   {loading ? '登录中...' : '登录'}
                 </View>
               </View>

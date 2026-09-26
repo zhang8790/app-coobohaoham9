@@ -24,13 +24,13 @@ const TYPE_LABEL: Record<string, string> = {
 
 const TYPE_COLOR: Record<string, string> = {
   purchase_spend: '#EF4444',
-  refund_return: '#10B981',
+  refund_return: '#15803D',
   recharge: '#3B82F6',
-  admin_grant: '#10B981',
+  admin_grant: '#15803D',
   admin_deduct: '#EF4444',
   purchase_earn: '#F59E0B',
   refund_deduct: '#EF4444',
-  commission_earn: '#10B981',
+  commission_earn: '#15803D',
 }
 
 
@@ -83,7 +83,7 @@ function TongbaoLedgerPage() {
 
   useEffect(() => { load(true) }, [load])
   useDidShow(() => { load(true) })
-  usePullDownRefresh(() => { load(true).then(() => Taro.stopPullDownRefresh()) })
+  usePullDownRefresh(() => { load(true).then(() => Taro.stopPullDownRefresh()).catch(() => Taro.stopPullDownRefresh()) })
 
   const filtered = useMemo(() => {
     if (tab === 'all') return items
@@ -107,15 +107,15 @@ function TongbaoLedgerPage() {
         <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)))' }}>
           <View className="px-4 pt-5 pb-3">
             <Text className="text-white/80 text-base">当前健康豆余额</Text>
-            <Text className="text-white text-4xl font-black mt-1">{balance.toFixed(2)}</Text>
+            <Text className="text-white text-4xl font-bold mt-1">{balance.toFixed(2)}</Text>
           </View>
           <View className="grid grid-cols-2 py-4 border-t border-white/20">
             <View className="flex flex-col items-center gap-1 border-r border-white/20">
-              <Text className="text-2xl font-black text-white">+{incomeTotal.toFixed(2)}</Text>
+              <Text className="text-2xl font-bold text-white">+{incomeTotal.toFixed(2)}</Text>
               <Text className="text-base text-white/80">累计收益</Text>
             </View>
             <View className="flex flex-col items-center gap-1">
-              <Text className="text-2xl font-black text-white">{expenseTotal.toFixed(2)}</Text>
+              <Text className="text-2xl font-bold text-white">{expenseTotal.toFixed(2)}</Text>
               <Text className="text-base text-white/80">累计支出</Text>
             </View>
           </View>
@@ -160,7 +160,7 @@ function TongbaoLedgerPage() {
                         </View>
                       </View>
                       <View className="text-right">
-                        <Text className="text-xl font-black" style={{ color: isIncome ? '#10B981' : '#EF4444' }}>{sign}{it.delta.toFixed(2)}</Text>
+                        <Text className="text-xl font-bold" style={{ color: isIncome ? '#15803D' : '#EF4444' }}>{sign}{it.delta.toFixed(2)}</Text>
                         {it.balance_after != null && (
                           <Text className="text-xs text-muted-foreground mt-0.5">余额 {it.balance_after.toFixed(2)}</Text>
                         )}

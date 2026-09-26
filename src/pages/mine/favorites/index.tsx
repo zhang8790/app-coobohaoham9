@@ -55,11 +55,11 @@ function FavoritesPage() {
               return (
                 <View key={fav.id} className="bg-card rounded-2xl border border-border overflow-hidden"
                   onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${encodeURIComponent(p.id)}` })}>
-                  <View className="relative" style={{ height: '160px' }}>
+                  <View className="relative" style={{ height: '320rpx' }}>
                     <LazyImage
                       src={p.main_image || p.image_url || ''}
                       mode="aspectFill"
-                      style={{ width: '100%', height: '160px' }} />
+                      style={{ width: '100%', height: '320rpx' }} />
                     <View type="button"
                       className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center"
                       onClick={e => { e.stopPropagation(); handleRemove(fav) }}>

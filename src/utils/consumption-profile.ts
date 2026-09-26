@@ -69,10 +69,30 @@ export function analyzeConsumption(products: Product[]): ConsumptionProfile {
 }
 
 /**
+ * 单品消费偏好打分（供「适合我」筛选与推荐流复用）：
+ * - 食养功效命中：排名越靠前权重越高（topHealthTags.length - idx）
+ * - 性味偏好命中：+1
+ * - 无消费数据 / 无命中 → 0
+ */
+export function scoreByConsumption(
+  p: Product | null | undefined,
+  profile: ConsumptionProfile | null | undefined,
+): number {
+  if (!p || !profile?.hasData) return 0
+  let score = 0
+  profile.topHealthTags.forEach((ht, idx) => {
+    if ((p.health_tag || []).includes(ht.tag)) {
+      score += profile.topHealthTags.length - idx
+    }
+  })
+  if (profile.naturePref && p.overall_nature === profile.naturePref) score += 1
+  return score
+}
+
+/**
  * 基于消费画像从候选池推荐。
  * - 排除已购商品（boughtIds）
- * - 食养功效命中：排名越靠前权重越高（3 - idx）
- * - 性味偏好命中：+1
+ * - 打分复用 scoreByConsumption
  * - 无信号或无命中返回 []
  */
 export function recommendByConsumption(
@@ -85,16 +105,7 @@ export function recommendByConsumption(
 
   return pool
     .filter((p) => p && p.id && !boughtIds.has(p.id))
-    .map((p) => {
-      let score = 0
-      profile.topHealthTags.forEach((ht, idx) => {
-        if ((p.health_tag || []).includes(ht.tag)) {
-          score += profile.topHealthTags.length - idx
-        }
-      })
-      if (profile.naturePref && p.overall_nature === profile.naturePref) score += 1
-      return { p, score }
-    })
+    .map((p) => ({ p, score: scoreByConsumption(p, profile) }))
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score || b.p.price - a.p.price)
     .slice(0, limit)

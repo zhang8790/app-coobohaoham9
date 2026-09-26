@@ -6,7 +6,7 @@ function AssetRules() {
   return (
     <View className="min-h-screen bg-background pb-10">
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4 text-muted-foreground text-sm leading-loose">
-        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜 · 资产规则</Text>
+        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来店有喜 · 资产规则</Text>
         <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月13日\n生效日期：2026年7月13日'}</Text>
 
         <View className="mb-4">

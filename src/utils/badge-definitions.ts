@@ -83,7 +83,7 @@ export const BADGE_DEFINITIONS: Record<string, BadgeDisplay> = {
     icon: '🔍',
     rarity: 'rare',
     rarityLabel: '稀有',
-    rarityColor: '#10B981',
+    rarityColor: '#15803D',
     condition: '扫描10种不同食品',
     hint: '配料表上的每一个名字你都认识，吃得明白才是真正的自律',
     borderColor: '#6EE7B7',

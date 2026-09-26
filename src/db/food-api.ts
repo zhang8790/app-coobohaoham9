@@ -5,7 +5,7 @@
 //   supabase.from('table').select(...).eq(...) 链式调用
 //   + 类型化返回 + console.error 兜底（不阻断主流程）
 // 覆盖范围（按「食品域 V1.0」规划，异业共享会员联盟不在此实现；
-// 二级分销复用来电有喜既有模型，不重复造）：
+// 二级分销复用来店有喜既有模型，不重复造）：
 //   1) 配料安全库        food_additives          （白/黄/黑风险 + 国标，壁垒资产）
 //   2) 别名表            food_additive_aliases    （提升 OCR 匹配率）
 //   3) 商品-配料关联      product_food_additives   + 商品食养字段持久化

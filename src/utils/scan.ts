@@ -8,6 +8,33 @@ interface ScanOptions {
 const RESULT_PAGE = '/pages/food/scan-result/index'
 
 /**
+ * 通用「取扫码原始结果」：统一封装 Taro.scanCode 调用，
+ * 屏蔽各业务页逐字复制的 scanType / fail 样板，并归一「用户取消 / 异常」为返回 null。
+ * 注意：只负责「拿到字符串」，不决定路由/业务——路由与后续处理由各调用方自行实现，
+ * 因此 merchant-orders（扫小票码查单）与 merchant-products（扫条码建/查商品）可安全共用。
+ * @param opts.scanType 扫码类型，默认条码+二维码
+ * @param opts.onlyFromCamera 是否仅相机（如商家建商品扫条形码防误触相册）
+ */
+export async function scanRaw(opts: {
+ scanType?: ('barCode' | 'qrCode')[]
+ onlyFromCamera?: boolean
+} = {}): Promise<string | null> {
+ const { scanType = ['barCode', 'qrCode'], onlyFromCamera = false } = opts
+ try {
+ const res: any = await Taro.scanCode({
+ scanType,
+ onlyFromCamera,
+ fail: () => {},
+ } as any)
+ const raw = String(res?.result || '').trim()
+ return raw || null
+ } catch {
+ // 用户取消扫码或异常，统一返回 null
+ return null
+ }
+}
+
+/**
  * 判断扫码结果是否为「门店二维码」（小程序码 / 链接形式均可识别）
  * - 小程序码被 wx.scanCode 识别时，path 会带 store-home，result/query 含 scene=s=短码
  * - 兼容旧版 ?store= 链接形式
@@ -64,26 +91,6 @@ export async function scanAndRoute(opts: ScanOptions = {}): Promise<void> {
     }
 
     // 否则走原食材/商品扫码流程
-    const url = `${RESULT_PAGE}?code=${encodeURIComponent(res.result)}`
-    if (redirect) Taro.redirectTo({ url })
-    else Taro.navigateTo({ url })
-  } catch {
-    // 用户取消扫码或异常，静默处理
-  }
-}
-
-/**
- * 仅食材/商品扫码（保持旧行为，供明确只扫商品/食材的入口使用）
- * 取代 index / food-scan / explore / scan-result 四处逐字复制的 scanCode 样板。
- */
-export async function scanToProduct(opts: ScanOptions = {}): Promise<void> {
-  const { scanType = ['barCode', 'qrCode'], redirect = false } = opts
-  try {
-    const res = await Taro.scanCode({
-      scanType,
-      fail: () => {},
-    } as any)
-    if (!res?.result) return
     const url = `${RESULT_PAGE}?code=${encodeURIComponent(res.result)}`
     if (redirect) Taro.redirectTo({ url })
     else Taro.navigateTo({ url })

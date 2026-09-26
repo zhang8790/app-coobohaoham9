@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import { ICON_INK, ICON_PRIMARY, ICON_WHITE } from './iconBase64'
 
 /**
- * 墨韵手绘图标库（去 Material / 去 AI 化）
+ * 线性图标库（中性灰阶 · 去 Material / 去 AI 化）
  *
  * 重要：微信小程序 WXML 不支持 <svg> 标签，Taro 编译时会丢弃 <svg>，
  * 因此原「返回 <svg>」的实现在真机完全不显示。
@@ -30,7 +30,7 @@ export interface IconProps {
 function pickColorKey(color?: string, className?: string): 'INK' | 'PRIMARY' | 'WHITE' {
   const s = `${color || ''} ${className || ''}`
   if (/white|#fff|#FFF/i.test(s)) return 'WHITE'
-  if (/primary|A8552E|赭/i.test(s)) return 'PRIMARY'
+  if (/primary|#333|A8552E|赭/i.test(s)) return 'PRIMARY'
   return 'INK'
 }
 

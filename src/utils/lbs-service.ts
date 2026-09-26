@@ -220,6 +220,31 @@ export async function reverseGeocode(lat: number, lng: number): Promise<{ city?:
   }
 }
 
+/**
+ * 腾讯位置服务正向地理编码（地址文本 → 经纬度）。
+ * 返回的 location 即为 GCJ-02 坐标系，与本项目门店表默认坐标系一致，零转换直接写入。
+ * 失败时回退 null，调用方需自行提示。
+ * 注意：真机需在微信后台配置 request 合法域名 https://apis.map.qq.com
+ * （开发者工具可临时勾选「不校验合法域名」调试）。
+ */
+export async function forwardGeocode(address: string): Promise<{ lat: number; lng: number } | null> {
+  const addr = (address || '').trim()
+  if (!addr) return null
+  try {
+    const url = `${TENCENT_MAP_API_BASE}/ws/geocoder/v1/?address=${encodeURIComponent(addr)}&key=${TENCENT_MAP_KEY}`
+    const res = await Taro.request({ url, method: 'GET' })
+    const result = res.data as any
+    if (result?.status === 0 && result?.result?.location) {
+      return { lat: Number(result.result.location.lat), lng: Number(result.result.location.lng) }
+    }
+    console.warn('[LBS] 正向地理编码未返回坐标', result?.status, result?.message)
+    return null
+  } catch (err) {
+    console.warn('[LBS] 正向地理编码请求异常', err)
+    return null
+  }
+}
+
 /** 距城市中心 ≤ 该距离，直接采信坐标匹配结果（省一次逆地址解析网络请求） */
 const CITY_TRUST_KM = 40
 /** 坐标匹配的最大可信半径：超出则认为该城市未被城市库覆盖，交由上层兜底 */

@@ -123,7 +123,7 @@ function EmployeePage() {
     <RouteGuard>
       <View className="min-h-screen bg-background flex items-center justify-center px-6">
         <View className="text-center w-full" style={{ maxWidth: 340 }}>
-          <Icon name="user" size={56} color="#9CA3AF" className="mb-4" />
+          <Icon name="user" size={56} color="var(--muted-foreground)" className="mb-4" />
           <Text className="text-xl text-muted-foreground block mb-2">未绑定门店身份</Text>
           <Text className="text-base text-muted-foreground/60 block mb-6">
             未绑定也可以进入管理后台（管理中心会按本账号实际归属展示）。
@@ -192,10 +192,10 @@ function EmployeePage() {
         {/* 功能入口 */}
         <View className="mx-4 mt-4 grid grid-cols-2 gap-3">
           {[
-            { icon: 'scan', label: '扫码推荐', desc: '让客户扫您的码', color: '#1F9D6B' },
-            { icon: 'chart', label: '业绩统计', desc: '查看推荐业绩', color: '#0EA5E9' },
-            { icon: 'user', label: '我的客户', desc: '查看归属客户', color: '#1F9D6B' },
-            { icon: 'coin', label: '奖励明细', desc: '查看推荐奖励记录', color: '#B8923A' },
+            { icon: 'scan', label: '扫码推荐', desc: '让客户扫您的码', color: 'hsl(var(--primary))' },
+            { icon: 'chart', label: '业绩统计', desc: '查看推荐业绩', color: '#0369A1' },
+            { icon: 'user', label: '我的客户', desc: '查看归属客户', color: 'hsl(var(--primary))' },
+            { icon: 'coin', label: '奖励明细', desc: '查看推荐奖励记录', color: '#8A6B22' },
           ].map(btn => (
             <View key={btn.label} className="p-4 rounded-2xl bg-card border border-border">
               <Icon name={btn.icon} size={32} color={btn.color} className="mb-2" />

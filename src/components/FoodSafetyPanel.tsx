@@ -6,14 +6,14 @@
  */
 import { View, Text } from '@tarojs/components'
 import type { FoodAdditive } from '@/db/types'
-import type { IngredientEntry } from '@/utils/shiyang-dictionary'
+import { type IngredientEntry, analyzeConstitutionFit } from '@/utils/shiyang-dictionary'
 import { SHIYANG_DISCLAIMER } from '@/utils/ingredient-analysis'
 import { normalizeAdditiveRisk } from '@/utils/additive-dictionary'
 import { shieldCopy } from '@/utils/compliance/shield'
 
 const RISK_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
- white: { label: '安全', color: '#16A34A', bg: 'rgba(34,197,94,0.10)', icon: '✓' },
- yellow: { label: '限量', color: '#D97706', bg: 'rgba(245,158,11,0.10)', icon: '' },
+ white: { label: '安全', color: '#15803D', bg: 'rgba(34,197,94,0.10)', icon: '✓' },
+ yellow: { label: '限量', color: '#B45309', bg: 'rgba(245,158,11,0.10)', icon: '' },
  black: { label: '慎用', color: '#DC2626', bg: 'rgba(239,68,68,0.10)', icon: '✕' },
 }
 
@@ -41,8 +41,10 @@ export default function FoodSafetyPanel({
  <Text className="text-base font-bold text-foreground" style={{ display: 'block', marginBottom: 8 }}>
  配料安全
  </Text>
- {foodAdditives.map((a) => {
- const m = RISK_META[a.risk_level] || RISK_META.white
+{foodAdditives.map((a) => {
+// DB 风险码已迁移为 L1-L4（迁移 00224），必须经 normalizeAdditiveRisk 归一到 white/yellow/black，
+// 否则 L4（反式脂肪/亚硝酸盐/明矾）会落到 RISK_META['L4']=undefined → 回退 white → 误显「安全/绿」。
+const m = RISK_META[normalizeAdditiveRisk(a.risk_level)] || RISK_META.white
  return (
  <View
  key={a.id}
@@ -52,7 +54,7 @@ export default function FoodSafetyPanel({
  <Text className="text-sm font-semibold text-foreground">{a.name}</Text>
  <Text
  style={{
- fontSize: 11,
+ fontSize: '22rpx',
  color: m.color,
  backgroundColor: m.bg,
  padding: '2px 8px',
@@ -94,16 +96,16 @@ export default function FoodSafetyPanel({
  <Text className="text-base font-bold text-foreground" style={{ display: 'block', marginBottom: 8 }}>
  食材食养
  </Text>
- {shiyangEntries.map((e) => (
+{shiyangEntries.map((e) => (
  <View key={e.zh} style={{ marginBottom: 10 }}>
  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
- <Text style={{ fontSize: 16 }}>{e.icon}</Text>
+ <Text style={{ fontSize: '32rpx' }}>{e.icon}</Text>
  <Text className="text-sm font-semibold text-foreground" style={{ marginLeft: 6 }}>
  {e.zh}
  </Text>
  <Text
  style={{
- fontSize: 11,
+ fontSize: '22rpx',
  color: e.color || '#999',
  borderWidth: 1,
  borderColor: e.color || '#999',
@@ -117,16 +119,41 @@ export default function FoodSafetyPanel({
  </Text>
  </View>
  <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 3, lineHeight: 1.6 }}>
- 功效：{safe((e.benefits || []).join('、'))}
+ 功效：{shieldCopy((e.benefits || []).join('、')).safe}
  </Text>
  <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 2, lineHeight: 1.6 }}>
- 适合：{safe((e.audiences || []).join('、'))}
- </Text>
- <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 2, lineHeight: 1.6 }}>
- 场景：{safe((e.scenarios || []).join('、'))}
+ 场景：{shieldCopy((e.scenarios || []).join('、')).safe}
  </Text>
  </View>
- ))}
+))}
+{shiyangEntries.length > 1 && (() => {
+ const fit = analyzeConstitutionFit(shiyangEntries)
+ if (!fit) return null
+ return (
+ <View
+ style={{
+ marginTop: 4,
+ padding: 10,
+ borderRadius: 10,
+ background: 'rgba(232,121,100,0.06)',
+ borderWidth: 1,
+ borderColor: 'rgba(232,121,100,0.18)',
+ }}
+ >
+ <Text style={{ fontSize: '24rpx', fontWeight: 600, color: 'hsl(var(--primary-deep))', display: 'block' }}>
+ 综合食养建议
+ </Text>
+ <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 4, lineHeight: 1.7 }}>
+ 共识别 {fit.total} 种食养食材，性以「{fit.dominant}」为主（{fit.dominantCount}/{fit.total}），更适合 {fit.suitable.join('、')}。
+ </Text>
+ {fit.avoid.length > 0 && (
+ <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 3, lineHeight: 1.7 }}>
+ 其中 {fit.avoid.join('、')} 人群建议适量、少食。
+ </Text>
+ )}
+ </View>
+ )
+})()}
  <Text
  className="text-[11px] text-muted-foreground"
  style={{ display: 'block', marginTop: 4, lineHeight: 1.6, opacity: 0.8 }}

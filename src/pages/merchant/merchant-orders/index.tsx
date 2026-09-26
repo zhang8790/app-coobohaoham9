@@ -1,6 +1,7 @@
 // @title 订单管理（商家端）
 import { useState, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
+import { scanRaw } from '@/utils/scan'
 import { View, Text, Image } from '@tarojs/components'
 import { getMerchantStore, getMerchantOrders, getMerchantOrderSummary, merchantShipOrder, merchantCompleteOrder, printOrderReceipt } from '@/db/api'
 import { RouteGuard } from '@/components/RouteGuard'
@@ -100,10 +101,15 @@ function MerchantOrdersPage() {
       success: async (res) => {
         if (!res.confirm) return
         Taro.showLoading({ title: '发货中' })
-        const ok = await merchantShipOrder(order.id)
-        Taro.hideLoading()
-        if (ok) { Taro.showToast({ title: '已发货', icon: 'success' }); load() }
-        else Taro.showToast({ title: '操作失败', icon: 'none' })
+        try {
+          const ok = await merchantShipOrder(order.id)
+          if (ok) { Taro.showToast({ title: '已发货', icon: 'success' }); load() }
+          else Taro.showToast({ title: '操作失败', icon: 'none' })
+        } catch (e) {
+          Taro.showToast({ title: '操作失败' })
+        } finally {
+          Taro.hideLoading()
+        }
       }
     })
   }
@@ -114,9 +120,9 @@ function MerchantOrdersPage() {
       success: async (res) => {
         if (!res.confirm) return
         Taro.showLoading({ title: '处理中' })
-        const ok = await merchantCompleteOrder(order.id)
-        Taro.hideLoading()
-        if (ok) {
+        try {
+          const ok = await merchantCompleteOrder(order.id)
+          if (ok) {
           Taro.showToast({ title: '已完成，货款已结算', icon: 'success' }); load()
           // 订单完成后自动推送小票（延时避免覆盖结算提示）
           setTimeout(() => {
@@ -126,6 +132,11 @@ function MerchantOrdersPage() {
             }).catch(() => {})
           }, 1200)
         } else Taro.showToast({ title: '操作失败', icon: 'none' })
+        } catch (e) {
+          Taro.showToast({ title: '操作失败' })
+        } finally {
+          Taro.hideLoading()
+        }
       }
     })
   }
@@ -181,22 +192,17 @@ function MerchantOrdersPage() {
    * 不必手抄一长串订单号，打印侧零改动。
    */
   const handleScanReceipt = async () => {
-    try {
-      const res: any = await Taro.scanCode({ scanType: ['barCode', 'qrCode'], fail: () => {} } as any)
-      const raw = String(res?.result || '').trim()
-      if (!raw) return
-      // 容错：若将来二维码换成链接形式，取最后一段即为订单号
-      const no = raw.includes('/') ? (raw.split('/').filter(Boolean).pop() || raw) : raw
-      const hit = orderGroups.find((g: any) => String(g.order_no) === no)
-      if (!hit) {
-        Taro.showToast({ title: `本店未找到订单 ${no}`, icon: 'none' })
-        return
-      }
-      setScanNo(no)
-      Taro.showToast({ title: '已定位订单', icon: 'success' })
-    } catch {
-      // 用户取消扫码或异常，静默处理
+    const raw = await scanRaw()
+    if (!raw) return
+    // 容错：若将来二维码换成链接形式，取最后一段即为订单号
+    const no = raw.includes('/') ? (raw.split('/').filter(Boolean).pop() || raw) : raw
+    const hit = orderGroups.find((g: any) => String(g.order_no) === no)
+    if (!hit) {
+      Taro.showToast({ title: `本店未找到订单 ${no}`, icon: 'none' })
+      return
     }
+    setScanNo(no)
+    Taro.showToast({ title: '已定位订单', icon: 'success' })
   }
 
   return (<RouteGuard>

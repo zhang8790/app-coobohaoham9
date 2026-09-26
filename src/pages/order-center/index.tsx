@@ -46,13 +46,18 @@ function OrderCenterPage() {
 
   const handleConfirmReceipt = async (order: Order) => {
     Taro.showLoading({ title: '确认中' })
-    const ok = await confirmReceipt(order.id)
-    Taro.hideLoading()
-    if (ok) {
-      Taro.showToast({ title: '已确认收货', icon: 'success' })
-      loadOrders(activeTab)
+    try {
+      const ok = await confirmReceipt(order.id)
+      if (ok) {
+        Taro.showToast({ title: '已确认收货', icon: 'success' })
+        loadOrders(activeTab)
+      }
+      else Taro.showToast({ title: '操作失败，稍后重试', icon: 'none' })
+    } catch (e) {
+      Taro.showToast({ title: '操作失败' })
+    } finally {
+      Taro.hideLoading()
     }
-    else Taro.showToast({ title: '操作失败，稍后重试', icon: 'none' })
   }
 
   const handleDeleteOrder = async (order: Order) => {
@@ -62,13 +67,18 @@ function OrderCenterPage() {
       success: async (res) => {
         if (!res.confirm) return
         Taro.showLoading({ title: '删除中' })
-        const ok = await deleteOrder(order.id)
-        Taro.hideLoading()
-        if (ok) {
+        try {
+          const ok = await deleteOrder(order.id)
+          if (ok) {
           Taro.showToast({ title: '已删除', icon: 'success' })
           loadOrders(activeTab)
         } else {
           Taro.showToast({ title: '删除失败，请稍后重试', icon: 'none' })
+        }
+        } catch (e) {
+          Taro.showToast({ title: '操作失败' })
+        } finally {
+          Taro.hideLoading()
         }
       }
     })

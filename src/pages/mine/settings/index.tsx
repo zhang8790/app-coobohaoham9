@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { View, Text, Image, Input } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { updateUserProfile, deleteUserAccount } from '@/db/api'
+import { NAV } from '@/config/nav-registry'
 import { RouteGuard } from '@/components/RouteGuard'
 import Icon from '@/components/Icon'
 
@@ -72,15 +73,20 @@ function SettingsPage() {
       success: async (r) => {
         if (r.confirm) {
           Taro.showLoading({ title: '注销中…' })
-          const ok = await deleteUserAccount()
-          Taro.hideLoading()
-          if (ok) {
+          try {
+            const ok = await deleteUserAccount()
+            if (ok) {
             Taro.showToast({ title: '账号已注销', icon: 'success' })
             await signOut()
             // 用 navigateTo 而非 reLaunch：保留上一页栈，微信胶囊才能显示返回箭头
             Taro.navigateTo({ url: '/pages/login/index' })
           } else {
             Taro.showToast({ title: '注销失败，请联系客服', icon: 'none' })
+          }
+          } catch (e) {
+            Taro.showToast({ title: '操作失败' })
+          } finally {
+            Taro.hideLoading()
           }
         }
       },
@@ -201,7 +207,7 @@ function SettingsPage() {
                 <View
                   className="w-6 h-6 rounded-full bg-white"
                   style={{
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
                     alignSelf: isOn ? 'flex-end' : 'flex-start',
                     transition: 'all 0.2s',
                   }} />
@@ -229,7 +235,7 @@ function SettingsPage() {
             <View
               className="w-6 h-6 rounded-full bg-white"
               style={{
-                boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
                 alignSelf: allowBehaviorAnalysis ? 'flex-end' : 'flex-start',
                 transition: 'all 0.2s',
               }} />
@@ -265,8 +271,8 @@ function SettingsPage() {
           <Icon name="chevron-right" size={24} className="text-muted-foreground" />
         </View>
         <View className="flex items-center justify-between px-4 py-4 border-b border-border"
-          onClick={() => Taro.showToast({ title: '请通过微信修改绑定手机号', icon: 'none' })}>
-          <Text className="text-xl text-foreground">修改手机号</Text>
+          onClick={() => Taro.navigateTo({ url: NAV.bindPhone.url! })}>
+          <Text className="text-xl text-foreground">{ctxProfile?.phone || user?.phone ? '更换手机号' : '绑定手机号'}</Text>
           <Icon name="chevron-right" size={24} className="text-muted-foreground" />
         </View>
         <View className="flex items-center justify-between px-4 py-4"
@@ -291,7 +297,7 @@ function SettingsPage() {
           { label: '段位规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/rank-rules/index' }) },
           { label: '资产规则', handler: () => Taro.navigateTo({ url: '/pages/agreement/points-rules/index' }) },
           { label: '自营门店协议', handler: () => Taro.navigateTo({ url: '/pages/agreement/merchant-agreement/index' }) },
-          { label: '版本信息', handler: () => Taro.showToast({ title: 'v1.0.0 来电有喜', icon: 'none' }) },
+          { label: '版本信息', handler: () => Taro.showToast({ title: 'v1.0.0 来店有喜', icon: 'none' }) },
         ].map(item => (
           <View key={item.label} className="flex items-center justify-between px-4 py-4 border-b border-border last:border-0"
             onClick={item.handler}>

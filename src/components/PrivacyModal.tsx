@@ -63,7 +63,7 @@ export default function PrivacyModal() {
   if (!visible) return null
 
   return (
-    <View className="fixed inset-0 z-50 flex items-center justify-center">
+    <View className="fixed inset-0 z-[1001] flex items-center justify-center" catchMove>
       {/* 遮罩 */}
       <View
         className="absolute inset-0"
@@ -101,13 +101,13 @@ export default function PrivacyModal() {
         {/* 按钮 */}
         <View className="px-6 pb-8 flex flex-col gap-3">
           <Button
-            className="w-full rounded-xl bg-primary text-white text-xl font-bold leading-none"
+            className="w-full rounded-xl bg-primary text-white text-base font-bold leading-none"
             onClick={handleAgree}
           >
             <View className="py-3">同意并继续</View>
           </Button>
           <Button
-            className="w-full rounded-xl bg-muted text-muted-foreground text-base leading-none"
+            className="w-full rounded-xl bg-muted text-muted-foreground text-base font-bold leading-none"
             onClick={handleDisagree}
           >
             <View className="py-3">不同意</View>

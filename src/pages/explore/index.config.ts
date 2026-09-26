@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '来电有喜',
+  navigationBarTitleText: '来店有喜',
   enableShareAppMessage: true,
   enableShareTimeline: true,
 })

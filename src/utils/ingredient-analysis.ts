@@ -61,6 +61,22 @@ export function getIngredientEntries(keys: string[] | null | undefined): Ingredi
   return (keys || []).map(k => INGREDIENT_DICT[k]).filter(Boolean)
 }
 
+// 严格过滤：仅保留「配料表文本」中真实出现的食材。
+// 剔除仅靠极短别名(如「奶」「蛋」「姜」)误匹配的条目——这些单字别名会过匹配
+// 酸奶/奶酪、蛋黄粉、老姜 等并非该食材本身的文本。要求食材全名或长度>=2 的别名命中。
+export function filterShiyangByIngredientList(entries: IngredientEntry[], sourceText: string): IngredientEntry[] {
+  const t = (sourceText || '').toLowerCase()
+  if (!t) return entries // 无来源文本则保底全展示，不静默吞数据
+  return entries.filter((e) => {
+    const zh = (e.zh || '').toLowerCase()
+    if (zh && t.includes(zh)) return true
+    const strongAliases = (e.aliases || [])
+      .filter((a) => a.length >= 2)
+      .map((a) => a.toLowerCase())
+    return strongAliases.some((a) => t.includes(a))
+  })
+}
+
 // 优先用商家持久化的 ingredients（编辑页勾选、DB 列存在时），
 // 否则按商品名称自动匹配（保证迁移 00090 未执行也能展示原料分析）
 export function resolveIngredientEntries(

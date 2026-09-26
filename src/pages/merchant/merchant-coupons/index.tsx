@@ -174,7 +174,7 @@ function MerchantCouponsPage() {
       </View>
 
       {showForm && (
-        <View className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowForm(false)}>
+        <View className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowForm(false)} catchMove>
           <View className="w-full bg-card rounded-t-3xl px-4 pt-5 pb-8" onClick={e => e.stopPropagation()}>
             <View className="flex items-center justify-between mb-4">
               <Text className="text-xl font-bold text-foreground">创建优惠券</Text>

@@ -86,6 +86,8 @@ export interface StoreCategory {
   scope: 'global' | 'store'
   /** 是否上架：false=下架（前端入口隐藏，"全部"仍可见） */
   is_active: boolean
+  /** 场景图标（emoji 文本）：金刚区/落地页读取，后台可编辑；库内为空时前端回退 🌿 */
+  icon: string | null
 }
 
 /** 科目化分类（食养科目）：C 端浏览主分类，替代传统物理品类。
@@ -147,6 +149,8 @@ export interface Product {
   is_active: boolean
   review_status: 'pending' | 'approved' | 'rejected'
   created_at: string
+  // 商品规格展示文案（迁移 20260924）：如 30g / 100g × 2 袋，商品卡在名下方渲染
+  spec?: string | null
   // joined
   stores?: Store
   product_emotion?: ProductEmotion

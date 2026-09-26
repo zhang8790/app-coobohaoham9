@@ -79,13 +79,16 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // 根据定位解析最近的直营门店（升序前 20）
+  // includeUnknown：无坐标的门店也要带回来（否则「有几家店却只显示一家」），它们排在末尾、距离为 null
   const resolveNearestStore = useCallback(async (lat: number, lng: number) => {
     try {
-      const stores = await getNearestStores(lat, lng, 20)
+      const stores = await getNearestStores(lat, lng, 20, { includeUnknown: true })
       if (stores && stores.length) {
         setNearbyStores(stores)
         Taro.setStorageSync('nearbyStores', stores)
-        const nearest = stores[0]
+        // 自动选店只认「算得出距离」的最近门店——无坐标门店 distance 为 null，
+        // 若全城门店都没坐标，才退而选第一个，保证首页一定有店可用
+        const nearest = stores.find((s) => typeof s.distance_km === 'number') || stores[0]
         setCurrentStore(nearest)
         Taro.setStorageSync('currentStore', nearest)
       }

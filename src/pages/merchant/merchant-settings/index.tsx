@@ -12,11 +12,17 @@ import type { Store } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import { clearRequestCache } from '@/db/requestCache'
 import Icon from '@/components/Icon'
+import ToggleSwitch from './ToggleSwitch'
+import SceneTags from './SceneTags'
+import StoreBanner from './StoreBanner'
+import BasicInfo from './BasicInfo'
+import ContactInfo from './ContactInfo'
+import StoreLocation from './StoreLocation'
+import BusinessHours from './BusinessHours'
+import ReferralConfig from './ReferralConfig'
+import DeliveryConfig from './DeliveryConfig'
+import Announcement from './Announcement'
 
-// 场景标签选项
-const SCENE_OPTIONS = ['堂食', '配送']
-// 类目选项
-const CATEGORY_OPTIONS = ['餐饮', '零售', '水果', '服务', '娱乐', '其他']
 // 建店时写入的地址占位符：商家不填真地址就一直在，禁止原样保存回去
 const ADDRESS_PLACEHOLDER = '待补充'
 
@@ -397,326 +403,29 @@ function MerchantSettingsPage() {
         </View>
       )}
 
-      {/* ===== 1. 店铺形象：顶部图片 ===== */}
-      <View className="px-4 mt-3">
-        <Text className="text-base font-bold text-foreground mb-2 block">店铺形象</Text>
-        <View
-          className="w-full rounded-2xl overflow-hidden flex items-center justify-center"
-          style={{ backgroundColor: '#F5F5F5', height: '176px' }}
-          onClick={handleChooseBanner}
-        >
-          {previewPath ? (
-            <Image
-              src={previewPath}
-              mode="aspectFill"
-              style={{ width: '100%', height: '176px', display: 'block' }}
-              onLoad={() => {}}
-              onError={(e: any) => {
-                console.error('[banner] 预览图加载失败:', previewPath.slice(0, 80), e)
-                // 加载失败时清除预览，显示占位符（避免空白区域）
-                setPreviewPath('')
-                Taro.showToast({ title: '图片加载失败', icon: 'none' })
-              }} />
-          ) : (
-            <View className="flex flex-col items-center gap-2">
-              <Icon name="image-plus" size={48} className="text-muted-foreground/40" />
-              <Text className="text-sm text-muted-foreground">点击上传店铺顶部图片</Text>
-            </View>
-          )}
-        </View>
-        {previewPath && (
-          <Button size="mini" className="!mt-2 !bg-transparent !text-red-500 !border-none !p-0"
-            onClick={() => {
-              setPreviewPath('')
-              updateField('banner_url', null)
-              updateField('image_url', null)
-            }}>
-            移除图片
-          </Button>
-        )}
-      </View>
+      <StoreBanner
+        previewPath={previewPath}
+        onChoose={handleChooseBanner}
+        onRemove={() => { setPreviewPath(''); updateField('banner_url', null); updateField('image_url', null) }}
+        onError={() => setPreviewPath('')}
+      />
 
       {/* ===== 2. 场景配置（堂食/配送）===== */}
-      <View className="px-4 mt-4">
-        <Text className="text-base font-bold text-foreground mb-2 block">服务场景</Text>
-        <View className="flex gap-2">
-          {SCENE_OPTIONS.map(tag => {
-            const active = form.scene_tags.includes(tag)
-            return (
-              <View
-                key={tag}
-                className={`px-4 py-2 rounded-full border text-sm font-bold ${active
-                  ? '!bg-primary !border-primary'
-                  : '!bg-white !border-gray-300'}`}
-                onClick={() => toggleSceneTag(tag)}
-              >
-                <Text className={active ? 'text-white' : 'text-gray-600'}>{tag}</Text>
-              </View>
-            )
-          })}
-        </View>
-      </View>
+      <SceneTags sceneTags={form.scene_tags} onToggle={toggleSceneTag} />
 
-      {/* ===== 3. 基本信息 ===== */}
-      <View className="px-4 mt-4 p-4 rounded-2xl bg-white border border-gray-100">
-        <Text className="text-base font-bold text-foreground mb-3 block">基本信息</Text>
+      <BasicInfo form={form} updateField={updateField} />
 
-        {/* 店铺名称 */}
-        <View className="mb-3">
-          <Text className="text-sm text-gray-500 mb-1 block">店铺名称 *</Text>
-          <Input
-            className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base"
-            value={form.name}
-            placeholder="请输入店铺名称"
-            onInput={e => updateField('name', (e.detail?.value as string) ?? '')} />
-        </View>
+      <ContactInfo form={form} updateField={updateField} />
 
-        {/* 店铺简介 */}
-        <View className="mb-3">
-          <Text className="text-sm text-gray-500 mb-1 block">店铺简介</Text>
-          <Textarea
-            className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base min-h-[80px]"
-            placeholder="简述店铺特色..."
-            value={form.description}
-            onInput={e => updateField('description', (e.detail?.value as string) ?? '')} />
-        </View>
+      <StoreLocation form={form} updateField={updateField} />
 
-        {/* 主营类目 */}
-        <View className="mb-3">
-          <Text className="text-sm text-gray-500 mb-1 block">主营类目 *</Text>
-          <View className="flex gap-2 flex-wrap">
-            {CATEGORY_OPTIONS.map(cat => (
-              <View key={cat}
-                className={`px-3 py-1.5 rounded-lg text-sm ${form.category === cat
-                  ? 'bg-primary' : 'bg-muted'}`}
-                onClick={() => updateField('category', cat)}
-              >
-                <Text className={form.category === cat ? 'text-white' : 'text-gray-600'}>{cat}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </View>
+      <BusinessHours form={form} updateField={updateField} />
 
-      {/* ===== 4. 联系信息 ===== */}
-      <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
-        <Text className="text-base font-bold text-foreground mb-3 block">联系信息</Text>
+      <ReferralConfig form={form} updateField={updateField} rateInput={rateInput} setRateInput={setRateInput} />
 
-        <View className="mb-3">
-          <Text className="text-sm text-gray-500 mb-1 block">联系电话 *</Text>
-          <Input
-            className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base"
-            type="number"
-            maxlength={11}
-            value={form.phone}
-            placeholder="客服电话"
-            onInput={e => updateField('phone', (e.detail?.value as string) ?? '')} />
-        </View>
+      <DeliveryConfig form={form} updateField={updateField} />
 
-        <View className="mb-3">
-          <Text className="text-sm text-gray-500 mb-1 block">联系人</Text>
-          <Input
-            className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base"
-            value={form.contact}
-            placeholder="联系人姓名"
-            onInput={e => updateField('contact', (e.detail?.value as string) ?? '')} />
-        </View>
-
-        <View>
-          <Text className="text-sm text-gray-500 mb-1 block">店铺地址</Text>
-          <Input
-            className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base"
-            value={form.address}
-            placeholder="详细地址，如：杭州市西湖区文三路 100 号"
-            onInput={e => updateField('address', (e.detail?.value as string) ?? '')} />
-          <Text className="text-xs text-gray-400 mt-1 block">顾客端「门店详情」会展示此地址；留空则不展示。</Text>
-        </View>
-      </View>
-
-      {/* ===== 4.5 门店定位（坐标）===== */}
-      <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
-        <Text className="text-base font-bold text-foreground mb-1 block">门店定位</Text>
-        <Text className="text-xs text-gray-400 mb-3 block">
-          填写经纬度后，顾客在「附近门店」里才能按距离正确排序并看到距离。留空的门店会排在列表末尾。
-        </Text>
-        <View className="flex items-center gap-3">
-          <View className="flex-1">
-            <Text className="text-xs text-gray-500 mb-1 block">纬度 (lat)</Text>
-            <Input
-              className="w-full px-3 py-2 rounded-xl bg-gray-50 text-sm"
-              type="digit"
-              value={form.lat}
-              placeholder="如 30.2930"
-              onInput={e => updateField('lat', (e.detail?.value as string) ?? '')} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-xs text-gray-500 mb-1 block">经度 (lng)</Text>
-            <Input
-              className="w-full px-3 py-2 rounded-xl bg-gray-50 text-sm"
-              type="digit"
-              value={form.lng}
-              placeholder="如 120.1300"
-              onInput={e => updateField('lng', (e.detail?.value as string) ?? '')} />
-          </View>
-        </View>
-        <Text className="text-xs text-gray-400 mt-2 block">
-          小提示：在高德/腾讯地图上长按门店位置即可看到「纬度, 经度」，按上表顺序填入。
-        </Text>
-      </View>
-
-      {/* ===== 5. 营业设置 ===== */}
-      <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
-        <Text className="text-base font-bold text-foreground mb-3 block">营业设置</Text>
-
-        {/* 营业状态开关 */}
-        <View className="flex items-center justify-between py-2 border-b border-gray-100">
-          <Text className="text-base text-foreground">营业状态</Text>
-          <View
-            className={`w-12 h-7 rounded-full relative ${form.is_open ? 'bg-success' : 'bg-muted'}`}
-            onClick={() => updateField('is_open', !form.is_open)}
-          >
-            <View className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${form.is_open ? 'right-0.5' : 'left-0.5'}`} />
-          </View>
-        </View>
-
-        {/* 营业时间（时间选择器，避免手输非法格式）*/}
-        <View className="flex items-center gap-3 mt-3">
-          <View className="flex-1">
-            <Text className="text-xs text-gray-500 mb-1 block">开始时间</Text>
-            <Picker mode="time" value={form.open_time} onChange={e => updateField('open_time', e.detail.value)}>
-              <View className="w-full px-3 py-2 rounded-xl bg-gray-50 text-sm text-foreground">
-                {form.open_time || '08:00'}
-              </View>
-            </Picker>
-          </View>
-          <Text className="pt-5 text-gray-400">至</Text>
-          <View className="flex-1">
-            <Text className="text-xs text-gray-500 mb-1 block">结束时间</Text>
-            <Picker mode="time" value={form.close_time} onChange={e => updateField('close_time', e.detail.value)}>
-              <View className="w-full px-3 py-2 rounded-xl bg-gray-50 text-sm text-foreground">
-                {form.close_time || '20:00'}
-              </View>
-            </Picker>
-          </View>
-        </View>
-      </View>
-
-      {/* ===== 5.5 让利（推广）配置 ===== */}
-      <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
-        <Text className="text-base font-bold text-foreground mb-1 block">让利（推荐）配置</Text>
-        <Text className="text-xs text-gray-400 mb-3 block">设置订单金额中让利的比例，用于消费者推荐奖励和健康豆返还</Text>
-
-        <View className="flex items-center justify-between">
-          <Text className="text-sm text-gray-600">让利率</Text>
-          <Text className="text-xl font-bold text-primary">{Math.round(form.referral_rate * 100)}%</Text>
-        </View>
-        <View className="mt-2">
-          <Input
-            type="number"
-            className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base text-center"
-            value={rateInput}
-            onInput={e => {
-              // 输入过程不做 clamp：否则输入「10」时第一下「1」会被抬到 3，
-              // 光标内容被改写，用户永远打不出 10/30（历史 bug）。
-              const raw = (e.detail?.value as string) ?? ''
-              setRateInput(raw.replace(/[^\d]/g, '').slice(0, 2))
-            }}
-            onBlur={() => {
-              const v = Number(rateInput)
-              const safe = !Number.isFinite(v) || v <= 0 ? 9 : Math.min(30, Math.max(3, v))
-              setRateInput(String(safe))
-              updateField('referral_rate', safe / 100)
-            }}
-            placeholder="3~30" />
-          <Text className="text-xs text-gray-400 mt-1 block text-center">输入 3~30 之间的整数（表示 3%~30%）</Text>
-        </View>
-        <View className="mt-2 p-2 rounded-lg bg-primary/10">
-          <Text className="text-xs text-primary">
-            示例：让利率 10%，订单 100 元 → 品牌让利 10 元，用于消费者推荐奖励 + 健康豆返还 + 品牌收入
-          </Text>
-        </View>
-        {/* 店铺整体让利开关 */}
-        <View className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-          <View className="flex-1 pr-3">
-            <Text className="text-sm text-gray-700 font-medium">店铺整体让利</Text>
-            <Text className="text-xs text-gray-400 mt-0.5 block">
-              {form.referral_rate_enabled
-                ? '开启：商品未单独设让利时，按此门店率参与推荐奖励'
-                : '关闭：仅商品级让利生效，整店不被统一让利吃掉利润'}
-            </Text>
-          </View>
-          <View
-            className={`w-12 h-7 rounded-full relative ${form.referral_rate_enabled ? 'bg-success' : 'bg-muted'}`}
-            onClick={() => updateField('referral_rate_enabled', !form.referral_rate_enabled)}
-          >
-            <View className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${form.referral_rate_enabled ? 'right-0.5' : 'left-0.5'}`} />
-          </View>
-        </View>
-      </View>
-
-      {/* ===== 6. 配送配置 ===== */}
-      <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
-        <Text className="text-base font-bold text-foreground mb-3 block">配送配置</Text>
-
-        <View className="p-3 rounded-xl bg-gray-50">
-          <View className="flex items-center justify-between">
-            <View className="flex-1 pr-3">
-              <Text className="text-base font-semibold text-foreground">配送</Text>
-              <Text className="text-xs text-gray-400 mt-0.5 block">支持送到客户地址</Text>
-            </View>
-            <View
-              className={`w-12 h-7 rounded-full relative ${form.delivery_enabled ? 'bg-success' : 'bg-muted'}`}
-              onClick={() => updateField('delivery_enabled', !form.delivery_enabled)}
-            >
-              <View className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${form.delivery_enabled ? 'right-0.5' : 'left-0.5'}`} />
-            </View>
-          </View>
-
-          {form.delivery_enabled && (
-            <View className="grid grid-cols-2 gap-2 mt-3">
-              <View>
-                <Text className="text-xs text-gray-500 mb-1 block">配送范围(km)</Text>
-                <Input className="w-full px-2 py-1.5 rounded-lg bg-white text-sm"
-                  type="digit" value={String(form.delivery_radius)}
-                  placeholder="3"
-                  onInput={e => updateField('delivery_radius', Number(e.detail?.value) || 0)} />
-              </View>
-              <View>
-                <Text className="text-xs text-gray-500 mb-1 block">配送费(元)</Text>
-                <Input className="w-full px-2 py-1.5 rounded-lg bg-white text-sm"
-                  type="digit" value={String(form.delivery_fee)}
-                  placeholder="2"
-                  onInput={e => updateField('delivery_fee', Number(e.detail?.value) || 0)} />
-              </View>
-              <View>
-                <Text className="text-xs text-gray-500 mb-1 block">满额免运费(元)</Text>
-                <Input className="w-full px-2 py-1.5 rounded-lg bg-white text-sm"
-                  type="digit" value={String(form.free_delivery_threshold)}
-                  placeholder="30"
-                  onInput={e => updateField('free_delivery_threshold', Number(e.detail?.value) || 0)} />
-              </View>
-              <View>
-                <Text className="text-xs text-gray-500 mb-1 block">起送价(元)</Text>
-                <Input className="w-full px-2 py-1.5 rounded-lg bg-white text-sm"
-                  type="digit" value={String(form.min_order_amount)}
-                  placeholder="20"
-                  onInput={e => updateField('min_order_amount', Number(e.detail?.value) || 0)} />
-              </View>
-            </View>
-          )}
-        </View>
-
-      </View>
-
-      {/* ===== 7. 店铺公告 ===== */}
-      <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
-        <Text className="text-base font-bold text-foreground mb-3 block">店铺公告</Text>
-        <Textarea
-          className="w-full px-3 py-2 rounded-xl bg-gray-50 text-base min-h-[100px]"
-          placeholder="输入店铺公告内容，顾客可在门店首页看到..."
-          value={form.announcement}
-          onInput={e => updateField('announcement', (e.detail?.value as string) ?? '')} />
-      </View>
+      <Announcement form={form} updateField={updateField} />
 
       {/* ===== 8. 小票打印机（一店一台，店里自服务配置）===== */}
       <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
@@ -783,12 +492,7 @@ function MerchantSettingsPage() {
         {/* 启用开关 */}
         <View className="flex items-center justify-between py-2 border-b border-gray-100">
           <Text className="text-base text-foreground">启用打印机</Text>
-          <View
-            className={`w-12 h-7 rounded-full relative ${printerForm.enabled ? 'bg-success' : 'bg-muted'}`}
-            onClick={() => updatePrinterField('enabled', !printerForm.enabled)}
-          >
-            <View className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${printerForm.enabled ? 'right-0.5' : 'left-0.5'}`} />
-          </View>
+          <ToggleSwitch value={printerForm.enabled} onChange={(v) => updatePrinterField('enabled', v)} />
         </View>
 
         {/* 支付后自动打印 */}
@@ -797,12 +501,7 @@ function MerchantSettingsPage() {
             <Text className="text-base text-foreground">支付后自动打印</Text>
             <Text className="text-xs text-gray-400 mt-0.5 block">开启后，订单完成即自动推送小票</Text>
           </View>
-          <View
-            className={`w-12 h-7 rounded-full relative ${printerForm.auto_print_on_paid ? 'bg-success' : 'bg-muted'}`}
-            onClick={() => updatePrinterField('auto_print_on_paid', !printerForm.auto_print_on_paid)}
-          >
-            <View className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${printerForm.auto_print_on_paid ? 'right-0.5' : 'left-0.5'}`} />
-          </View>
+          <ToggleSwitch value={printerForm.auto_print_on_paid} onChange={(v) => updatePrinterField('auto_print_on_paid', v)} />
         </View>
 
         {/* 已知偏差提示：触发器目前不读此开关 */}

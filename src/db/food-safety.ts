@@ -208,10 +208,12 @@ export interface FoodIngredientRow {
   is_active: boolean
 }
 
-let _ingredientsCache: FoodIngredientRow[] | null = null
+let _ingredientsCache: { data: FoodIngredientRow[]; ts: number } | null = null
 
 export async function getFoodIngredients(force = false): Promise<FoodIngredientRow[]> {
-  if (_ingredientsCache && !force) return _ingredientsCache
+  if (_ingredientsCache && !force && Date.now() - _ingredientsCache.ts < 5 * 60 * 1000) {
+    return _ingredientsCache.data
+  }
   const { data, error } = await supabase
     .from('food_ingredients')
     .select('*')
@@ -219,10 +221,11 @@ export async function getFoodIngredients(force = false): Promise<FoodIngredientR
     .order('sort_order')
   if (error) {
     console.error('[getFoodIngredients] 查询失败:', error.message)
-    return _ingredientsCache ?? []
+    return _ingredientsCache?.data ?? []
   }
-  _ingredientsCache = (data as FoodIngredientRow[]) ?? []
-  return _ingredientsCache
+  const rows = (data as FoodIngredientRow[]) ?? []
+  _ingredientsCache = { data: rows, ts: Date.now() }
+  return rows
 }
 
 // ============================================================

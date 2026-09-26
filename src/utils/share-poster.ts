@@ -83,7 +83,7 @@ export async function generateArticleSharePoster(
       // ═══ 背景：暖橙 → 琥珀金渐变（品牌主色系） ═══
       const bgGrad = ctx.createLinearGradient(0, 0, W, H)
       bgGrad.addColorStop(0, '#FF6B35')
-      bgGrad.addColorStop(0.5, '#F7931E')
+      bgGrad.addColorStop(0.5, 'hsl(var(--primary))')
       bgGrad.addColorStop(1, '#C77B30')
       ctx.fillStyle = bgGrad
       roundRect(ctx, 0, 0, W, H, 24)
@@ -139,7 +139,7 @@ export async function generateArticleSharePoster(
         ctx.fill()
         ctx.fillStyle = '#ffffff'
         ctx.font = 'bold 21px sans-serif'
-        ctx.fillText('✦ 来电有喜', pad + 16, by)
+        ctx.fillText('✦ 来店有喜', pad + 16, by)
         ctx.fillStyle = 'rgba(255,255,255,0.75)'
         ctx.font = '15px sans-serif'
         ctx.fillText('好物推荐 · 日常膳食搭配', pad + 16, by + 22)
@@ -172,9 +172,9 @@ export async function generateArticleSharePoster(
 
         // 图片左侧微渐变遮罩（让文字区自然过渡）
         const blend = ctx.createLinearGradient(cX - 30, 0, cX + 60, 0)
-        blend.addColorStop(0, 'rgba(199,123,48,0)')
-        blend.addColorStop(0.5, 'rgba(199,123,48,0.15)')
-        blend.addColorStop(1, 'rgba(199,123,48,0)')
+        blend.addColorStop(0, 'rgba(232,121,100,0)')
+        blend.addColorStop(0.5, 'rgba(232,121,100,0.15)')
+        blend.addColorStop(1, 'rgba(232,121,100,0)')
         ctx.fillStyle = blend
         ctx.fillRect(cX - 30, 0, 90, H)
 
@@ -213,12 +213,12 @@ export async function generateArticleCodePoster(
       ctx.fillRect(0, 0, W, H)
 
       // 顶部装饰弧形
-      ctx.fillStyle = '#F7931E'
+      ctx.fillStyle = 'hsl(var(--primary))'
       ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(W, 0, W, 120); ctx.lineTo(0, 120); ctx.closePath(); ctx.fill()
       // 弧内文字
       ctx.fillStyle = '#ffffff'
       ctx.font = 'bold 22px sans-serif'
-      ctx.fillText('来电有喜', 32, 52)
+      ctx.fillText('来店有喜', 32, 52)
       ctx.font = '15px sans-serif'
       ctx.fillStyle = 'rgba(255,255,255,0.8)'
       ctx.fillText('好物推荐', 32, 76)
@@ -229,7 +229,7 @@ export async function generateArticleCodePoster(
         .replace(/[\s]*测试[\s]*$/gi, '')
 
       roundRect(ctx, 24, 140, W - 48, 10, 5)
-      ctx.fillStyle = '#F7931E'
+      ctx.fillStyle = 'hsl(var(--primary))'
       ctx.fill()
 
       ctx.fillStyle = '#2D1810'
@@ -295,9 +295,9 @@ export async function generateArticleCodePoster(
         ctx.fillStyle = barGrad; ctx.fill()
 
         // 品牌名
-        ctx.fillStyle = '#F7931E'
+        ctx.fillStyle = 'hsl(var(--primary))'
         ctx.font = 'bold 26px sans-serif'
-        ctx.fillText('✦ 来电有喜', 32, barY + 44)
+        ctx.fillText('✦ 来店有喜', 32, barY + 44)
         ctx.fillStyle = '#C4A98E'
         ctx.font = '17px sans-serif'
         ctx.fillText('好物推荐 · 日常膳食搭配参考', 32, barY + 72)
@@ -405,7 +405,7 @@ export async function generateVideoSharePoster(
         ctx.fillRect(pad, by - 14, W - pad * 2, 2)
         ctx.fillStyle = '#ffffff'
         ctx.font = 'bold 20px sans-serif'
-        ctx.fillText('✦ 来电有喜', pad + 14, by)
+        ctx.fillText('✦ 来店有喜', pad + 14, by)
         ctx.fillStyle = 'rgba(196,181,253,0.6)'
         ctx.font = '14px sans-serif'
         ctx.fillText('好物推荐', pad + 14, by + 20)

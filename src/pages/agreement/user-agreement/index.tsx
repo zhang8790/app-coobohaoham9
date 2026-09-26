@@ -7,12 +7,12 @@ function UserAgreement() {
     <View className="min-h-screen bg-background pb-10">
 
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4 text-muted-foreground text-sm leading-loose">
-        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜用户服务协议</Text>
+        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来店有喜用户服务协议</Text>
         <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月1日\n生效日期：2026年7月1日'}</Text>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">一、协议范围</Text>
-          <Text className="block">本协议是您与来电有喜（以下简称「我们」）之间关于使用来电有喜小程序服务所订立的协议。</Text>
+          <Text className="block">本协议是您与来店有喜（以下简称「我们」）之间关于使用来店有喜小程序服务所订立的协议。</Text>
           <Text className="block">使用本小程序前，请您仔细阅读本协议。一旦您完成登录，即视为您已阅读并同意本协议的全部内容。</Text>
         </View>
 
@@ -26,7 +26,7 @@ function UserAgreement() {
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">三、服务内容</Text>
-          <Text className="block">1. 来电有喜是品牌自营商城，由各地连锁门店统一提供商品与到店消费服务。</Text>
+          <Text className="block">1. 来店有喜是品牌自营商城，由各地连锁门店统一提供商品与到店消费服务。</Text>
           <Text className="block">2. 我们尽力确保商品信息的真实性，但不对门店提供的商品或服务质量承担保证责任。</Text>
           <Text className="block">3. 您通过本小程序购买的商品或服务由各连锁门店统一自营提供，相关售后由对应门店负责。</Text>
         </View>
@@ -70,7 +70,7 @@ function UserAgreement() {
         </View>
 
         <Text className="block text-muted-foreground text-xs mt-5 pt-3" style={{ borderTop: '1px solid hsl(var(--border))' }}>
-          如有任何疑问，请在「我的」-「联系客服」中咨询。
+          如有任何疑问，请在「我的」-「帮助中心」中咨询。
         </Text>
       </View>
     </View>

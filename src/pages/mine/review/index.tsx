@@ -125,7 +125,7 @@ function ReviewPage() {
             <View className="flex items-center gap-3 mb-4">
               <View className="w-16 h-16 rounded-xl bg-muted overflow-hidden flex-shrink-0">
                 {rev.product_image
-                  ? <Image src={rev.product_image} mode="aspectFill" style={{ width: '64px', height: '64px' }} />
+                  ? <Image src={rev.product_image} mode="aspectFill" style={{ width: '128rpx', height: '128rpx' }} />
                   : <View className="w-full h-full flex items-center justify-center">
                       <View className="text-muted-foreground/40"><Icon name="box" size={24} /></View>
                     </View>}
@@ -152,7 +152,7 @@ function ReviewPage() {
               <View className="border-2 border-input rounded-xl px-4 py-3 bg-background overflow-hidden" style={{ minHeight: '100px' }}>
                 <Textarea
                   className="w-full text-xl text-foreground bg-transparent outline-none"
-                  style={{ height: '90px', display: 'block' }}
+                  style={{ height: '180rpx', display: 'block' }}
                   placeholder="说说你的使用感受，帮助更多人做决策…"
                   value={rev.content}
                   onInput={e => { const ev = e as any; setContent(idx, ev.detail?.value ?? ev.target?.value ?? '') }} />

@@ -54,7 +54,7 @@ export default function MessageCenter() {
     <View className="min-h-screen bg-background flex flex-col">
       <PageHeader
         title="消息中心"
-        left={<Text style={{ fontSize: 24, lineHeight: '48px', color: 'hsl(var(--foreground))', paddingRight: 8 }} onClick={goBack}>‹</Text>}
+        left={<Text style={{ fontSize: '48rpx', lineHeight: '48px', color: 'hsl(var(--foreground))', paddingRight: 8 }} onClick={goBack}>‹</Text>}
       />
 
       {/* 双 Tab：公告 / 订单 */}
@@ -76,7 +76,7 @@ export default function MessageCenter() {
         ))}
       </View>
 
-      <ScrollView scrollY className="flex-1 px-4 py-3" style={{ height: 'calc(100vh - 96px)' }}>
+      <ScrollView scrollY className="flex-1 px-4 py-3" style={{ height: 'calc(100vh - 144px)' }}>
         {loading ? (
           <Text className="text-sm text-muted-foreground">加载中…</Text>
         ) : tab === 'announcement' ? (

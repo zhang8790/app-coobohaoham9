@@ -9,7 +9,7 @@
   border-bottom: 1px solid hsl(var(--border));
 }
 
-/* 当前门店信息条：primary 软底（替代硬编码 #FFF8F0） */
+/* 当前门店信息条：primary 软底（替代硬编码 #F2F2F2） */
 .ex-store-bar {
   background: hsl(var(--primary) / 0.06);
   border-bottom: 1px solid hsl(var(--border) / 0.6);
@@ -57,7 +57,7 @@
   max-height: 70vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 -4px 24px rgba(20, 15, 11, 0.12);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
 }
 
 /* 门店项（替代内联 #F5F5F5 / #FDEFE0） */

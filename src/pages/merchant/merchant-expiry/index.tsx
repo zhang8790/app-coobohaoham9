@@ -19,9 +19,9 @@ const STAGE_LABEL: Record<string, string> = {
 }
 const STAGE_COLOR: Record<string, string> = {
   red: '#DC2626',
-  orange: '#EA580C',
-  amber: '#D97706',
-  normal: '#16A34A',
+  orange: '#B45309',
+  amber: '#B45309',
+  normal: '#15803D',
   expired: '#6B7280',
 }
 
@@ -192,7 +192,7 @@ function MerchantExpiryPage() {
                               width: '60px', textAlign: 'center',
                               padding: '4px 8px', borderRadius: 8,
                               border: '1px solid rgba(148,163,184,0.3)',
-                              fontSize: '14px', color: 'var(--foreground, #1e293b)',
+                              fontSize: '28rpx', color: 'var(--foreground, #1e293b)',
                             }}
                           />
                           <Text className="text-sm text-muted-foreground">%</Text>

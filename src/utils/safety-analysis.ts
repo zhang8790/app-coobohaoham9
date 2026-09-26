@@ -68,8 +68,8 @@ export interface ComprehensiveSafetyReport {
 }
 
 const GRADE_META: Record<SafetyGrade, { label: string; color: string }> = {
-  S: { label: '较安全', color: '#16A34A' },
-  A: { label: '需注意', color: '#D97706' },
+  S: { label: '较安全', color: '#15803D' },
+  A: { label: '需注意', color: '#B45309' },
   C: { label: '含风险', color: '#DC2626' },
   D: { label: '高风险', color: '#991B1B' },
 }

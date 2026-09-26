@@ -1,5 +1,5 @@
 // 消费偏好雷达图 · 零依赖 Canvas 2D 六边形组件（守主包 <1.5MB，不引图表库）
-// 墨韵国潮风：赭红半透明填充 + 古金顶点 + 墨线网格。
+// 中性灰白风：深炭灰半透明填充 + 中灰顶点 + 浅灰网格（与主题 #333/#666/#999 层级统一）。
 import { useEffect, useRef } from 'react'
 import Taro from '@tarojs/taro'
 import { Canvas, View, Text } from '@tarojs/components'
@@ -10,12 +10,12 @@ interface Props {
   size?: number
 }
 
-const INK = 'rgba(120,53,15,0.16)' // 网格墨线
-const AXIS = 'rgba(120,53,15,0.28)' // 轴线
-const FILL = 'rgba(154,51,36,0.22)' // 赭红半透明
-const STROKE = '#9A3324' // 赭红描边
-const GOLD = '#C8A45C' // 古金顶点
-const LABEL = '#5B4636' // 标签墨色
+const INK = 'rgba(0,0,0,0.08)' // 网格线·浅灰
+const AXIS = 'rgba(0,0,0,0.16)' // 轴线·中灰
+const FILL = 'rgba(51,51,51,0.14)' // 深炭灰半透明填充
+const STROKE = '#333333' // 深炭灰描边
+const GOLD = '#999999' // 顶点·浅灰
+const LABEL = '#666666' // 标签·中灰
 
 export default function RadarChart({ dims, size = 260 }: Props) {
   const canvasId = useRef(`radar-${Math.random().toString(36).slice(2, 8)}`).current

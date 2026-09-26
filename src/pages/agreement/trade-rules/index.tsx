@@ -6,12 +6,12 @@ function TradeRules() {
   return (
     <View className="min-h-screen bg-background pb-10">
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4 text-muted-foreground text-sm leading-loose">
-        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜交易规则</Text>
+        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来店有喜交易规则</Text>
         <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月1日\n生效日期：2026年7月1日'}</Text>
 
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">一、适用范围</Text>
-          <Text className="block">本规则适用于来电有喜小程序内的一切商品/服务交易行为，包括用户下单、支付、核销、退款、评价等环节。</Text>
+          <Text className="block">本规则适用于来店有喜小程序内的一切商品/服务交易行为，包括用户下单、支付、核销、退款、评价等环节。</Text>
         </View>
 
         <View className="mb-4">

@@ -7,8 +7,8 @@ import type { UserAddress } from '@/db/types'
 import { withRouteGuard } from '@/components/RouteGuard'
 import Icon from '@/components/Icon'
 
-type AddrForm = { name: string; phone: string; province: string; city: string; district: string; detail: string; is_default: boolean }
-const emptyForm = (): AddrForm => ({ name: '', phone: '', province: '', city: '', district: '', detail: '', is_default: false })
+type AddrForm = { name: string; phone: string; province: string; city: string; district: string; detail: string; lat?: number | null; lng?: number | null; is_default: boolean }
+const emptyForm = (): AddrForm => ({ name: '', phone: '', province: '', city: '', district: '', detail: '', lat: null, lng: null, is_default: false })
 
 function AddressPage() {
   const [addresses, setAddresses] = useState<UserAddress[]>([])
@@ -117,6 +117,8 @@ function AddressPage() {
                 city,
                 district,
                 detail: detail || name || '',
+                lat: latitude,
+                lng: longitude,
               }))
               Taro.showToast({ title: '地址已自动填写', icon: 'success', duration: 1500 })
             }
@@ -135,7 +137,7 @@ function AddressPage() {
     }
   }
   const openEdit = (a: UserAddress) => {
-    setForm({ name: a.name, phone: a.phone, province: a.province ?? '', city: a.city ?? '', district: a.district ?? '', detail: a.detail, is_default: a.is_default })
+    setForm({ name: a.name, phone: a.phone, province: a.province ?? '', city: a.city ?? '', district: a.district ?? '', detail: a.detail, lat: a.lat ?? null, lng: a.lng ?? null, is_default: a.is_default })
     setEditId(a.id); setShowForm(true)
   }
 
@@ -234,7 +236,7 @@ function AddressPage() {
       {/* 地址表单弹窗 */}
       {showForm && (
         <View className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.5)' }}
-          onClick={() => setShowForm(false)}>
+          onClick={() => setShowForm(false)} catchMove>
           <View className="w-full bg-card rounded-t-3xl px-4 pt-5 pb-8 max-h-[85vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}>
             <View className="flex items-center justify-between mb-4">
@@ -269,7 +271,7 @@ function AddressPage() {
                 className={`w-12 h-7 rounded-full flex items-center transition ${form.is_default ? 'bg-primary justify-end' : 'bg-muted justify-start'}`}
                 style={{ padding: '2px' }}
                 onClick={() => setField('is_default', !form.is_default)}>
-                <View className="w-6 h-6 rounded-full bg-white" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+                <View className="w-6 h-6 rounded-full bg-white" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }} />
               </View>
             </View>
 

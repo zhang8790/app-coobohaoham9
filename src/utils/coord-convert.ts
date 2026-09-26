@@ -80,6 +80,17 @@ export function gcj02ToBd09(lat: number, lng: number): { lat: number; lng: numbe
 
 export type CoordSystem = 'gcj02' | 'bd09' | 'wgs84'
 
+/** 球面距离（公里）。lat/lng 须同坐标系（本项目统一 GCJ-02），门店配送半径硬校验用。 */
+export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371 // 地球半径 km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 /** 把任意坐标系的点统一转到 GCJ-02（用户定位所用坐标系） */
 export function toGcj02(lat: number, lng: number, from: CoordSystem): { lat: number; lng: number } {
   if (from === 'bd09') return bd09ToGcj02(lat, lng)

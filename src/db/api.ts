@@ -58,7 +58,12 @@ export async function getSiteConfig<T = Record<string, unknown>>(key: string): P
 export async function getMyProfile(): Promise<Profile | null> {
   const { data: { user } } = await getLocalUser()
   if (!user) return null
+  // 性能：user 页每次 didShow 都拉 profile → 60s 内存缓存（updateProfile 写后主动失效）
+  const ck = cacheMakeKey('profile', user.id)
+  const hit = cacheGet<Profile | null>(ck)
+  if (hit !== undefined) return hit
   const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+  cacheSet(ck, data, 60_000)
   return data
 }
 
@@ -66,6 +71,7 @@ export async function updateProfile(updates: Partial<Pick<Profile, 'nickname' | 
   const uid = (await getLocalUser()).data.user?.id
   if (!uid) return
   await supabase.from('profiles').update(updates).eq('id', uid)
+  clearRequestCache() // 写后失效 profile 缓存，头像/昵称立即生效
 }
 
 // 注销账号：调用 delete-account 云函数（service_role）彻底删除账号及其关联数据，
@@ -209,8 +215,8 @@ export async function createPendingReferral(params: {
       return false
     }
     
-    // 同时保存到本地缓存（注册时备用）
-    Taro.setStorageSync('pending_referral_code', params.referral_code)
+    // 同时保存到本地缓存（注册时备用），统一使用 camel 键 pendingReferralCode（与 login/share.ts 对齐）
+    Taro.setStorageSync('pendingReferralCode', params.referral_code)
     if (params.store_id) Taro.setStorageSync('pending_store_id', params.store_id)
     if (params.campaign_id) Taro.setStorageSync('pending_campaign_id', params.campaign_id)
     
@@ -237,7 +243,8 @@ export async function convertPendingReferral(userId: string): Promise<boolean> {
       return false
     }
     
-    // 清除本地缓存
+    // 清除本地缓存（camel 键为主，snake 键兼容历史残留）
+    Taro.removeStorageSync('pendingReferralCode')
     Taro.removeStorageSync('pending_referral_code')
     Taro.removeStorageSync('pending_store_id')
     Taro.removeStorageSync('pending_campaign_id')
@@ -245,41 +252,6 @@ export async function convertPendingReferral(userId: string): Promise<boolean> {
     return true
   } catch (e) {
     console.error('[convertPendingReferral] 异常:', e)
-    return false
-  }
-}
-
-// 检查并绑定本地缓存的推广码（注册时调用）
-export async function checkAndBindReferralCode(userId: string): Promise<boolean> {
-  try {
-    const referralCode = Taro.getStorageSync('pending_referral_code')
-    if (!referralCode) return false
-
-    // 通过 invite_code / referral_code 找到推荐人，并把 referrer_id 设为其用户 ID
-    const { data: referrer } = await supabase
-      .from('profiles')
-      .select('id')
-      .or(`invite_code.eq.${referralCode},referral_code.eq.${referralCode}`)
-      .maybeSingle()
-    if (!referrer) {
-      console.warn('[checkAndBindReferralCode] 未找到推广码:', referralCode)
-      return false
-    }
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ referrer_id: referrer.id })
-      .eq('id', userId)
-      .is('referrer_id', null)
-
-    if (error) {
-      console.error('[checkAndBindReferralCode] 失败:', error.message)
-      return false
-    }
-
-    return true
-  } catch (e) {
-    console.error('[checkAndBindReferralCode] 异常:', e)
     return false
   }
 }
@@ -343,6 +315,7 @@ export interface NearestStore {
   /** 距离（km）。null = 门店未填经纬度，无法计算距离（仍会出现在门店选择器中，显示「距离未知」） */
   distance_km: number | null
   is_open: boolean
+  rating?: number | null
   lat: number
   lng: number
 }
@@ -370,7 +343,7 @@ const HZ_CENTER = { lat: 30.2741, lng: 120.1551 }
  */
 // 候选门店缓存（位置无关，可跨调用共享）：TTL 5 分钟 → 扛高并发，
 // 避免每次定位/每次切 tab 都直击 stores 全表。距离排序仍在客户端做。
-const STORE_CANDIDATE_TTL = 5 * 60 * 1000
+const STORE_CANDIDATE_TTL = 120_000
 const STORE_CANDIDATE_KEY = 'nearest:candidates'
 
 async function getCandidateStores(): Promise<any[]> {
@@ -424,6 +397,7 @@ export async function getNearestStores(
             lat: 0,
             lng: 0,
             is_open: s.is_open,
+            rating: s.rating,
             distance_km: null,
           })
           noCoordRating.set(s.id, Number(s.rating) || 0)
@@ -441,6 +415,7 @@ export async function getNearestStores(
         lat: g.lat,
         lng: g.lng,
         is_open: s.is_open,
+        rating: s.rating,
         distance_km: Math.round(calculateDistance(lat, lng, g.lat, g.lng) * 100) / 100,
       })
     }
@@ -459,8 +434,14 @@ export async function getNearestStores(
 }
 
 export async function getStoreCategories(storeId: string): Promise<StoreCategory[]> {
+  // 性能：store_categories 是低频变更配置表，加 5min 内存缓存（写函数 clearRequestCache 已统一失效）
+  const ck = cacheMakeKey('storeCats', storeId)
+  const hit = cacheGet<StoreCategory[]>(ck)
+  if (hit) return hit
   const { data } = await supabase.from('store_categories').select('*').eq('store_id', storeId).order('sort_order')
-  return Array.isArray(data) ? data : []
+  const out = Array.isArray(data) ? (data as StoreCategory[]) : []
+  cacheSet(ck, out, 120_000)
+  return out
 }
 
 /**
@@ -470,6 +451,10 @@ export async function getStoreCategories(storeId: string): Promise<StoreCategory
  */
 export async function getCategories(opts: { storeId?: string | null; includeGlobal?: boolean; isActive?: boolean } = {}): Promise<StoreCategory[]> {
   const { storeId, includeGlobal = true, isActive } = opts
+  // 性能：同上 5min TTL，避免 explore/merchant-products 每次进页直击 Supabase
+  const ck = cacheMakeKey('cats', storeId ?? '', includeGlobal, isActive ?? '')
+  const hit = cacheGet<StoreCategory[]>(ck)
+  if (hit) return hit
   let q = supabase.from('store_categories').select('*')
   if (typeof isActive === 'boolean') q = q.eq('is_active', isActive)
   if (storeId) {
@@ -483,7 +468,9 @@ export async function getCategories(opts: { storeId?: string | null; includeGlob
   }
   const { data, error } = await q.order('sort_order', { ascending: true })
   if (error) { console.warn('[getCategories]', error); return [] }
-  return (data as StoreCategory[]) ?? []
+  const out = (data as StoreCategory[]) ?? []
+  cacheSet(ck, out, 120_000)
+  return out
 }
 
 // ============================================
@@ -558,12 +545,14 @@ export async function createStoreCategory(input: {
     scope,
   }).select().single()
   if (error) { console.warn('[createStoreCategory]', error); return null }
+  clearRequestCache() // 写后失效分类 5min 缓存，新建分类立即可见
   return data as StoreCategory
 }
 
 export async function updateStoreCategory(id: string, patch: { name?: string; sort_order?: number }): Promise<boolean> {
   const { error } = await supabase.from('store_categories').update(patch).eq('id', id)
   if (error) { console.warn('[updateStoreCategory]', error); return false }
+  clearRequestCache()
   return true
 }
 
@@ -571,6 +560,7 @@ export async function updateStoreCategory(id: string, patch: { name?: string; so
 export async function deleteStoreCategory(id: string): Promise<boolean> {
   const { error } = await supabase.from('store_categories').delete().eq('id', id)
   if (error) { console.warn('[deleteStoreCategory]', error); return false }
+  clearRequestCache()
   return true
 }
 
@@ -611,9 +601,11 @@ export async function getProducts(opts: {
   if (cached) return cached
 
   const { storeId, categoryId, categoryName, search, moodTag, moodTags, sceneTag, page = 0, limit = 20, subjectKeys, productKind, platformFilter, cityId } = opts
+  // 平台过滤（'only'）时，DB 层先放大抓取量，再在 JS 层 isPlatformProduct 过滤，保证当页有效条数充足
+  const fetchLimit = platformFilter === 'only' ? limit * 5 : limit
   // 基础查询：所有活跃商品（带上 stores 信息用于 JS 过滤；现仅自营门店，partner_brand 已归并）
   let q = supabase.from('products').select('*, stores(id,name,image_url,is_platform)').not('is_active', 'eq', false)
-    .order('created_at', { ascending: false }).range(page * limit, (page + 1) * limit - 1)
+    .order('created_at', { ascending: false }).range(page * fetchLimit, (page + 1) * fetchLimit - 1)
   if (storeId) q = q.eq('store_id', storeId)
   if (categoryId) q = q.eq('category_id', categoryId)
   // products 表无 category 文本列，只有 category_id(uuid)→store_categories(id)。
@@ -1122,20 +1114,6 @@ export async function getCartCount(): Promise<number> {
 // =====================
 // Orders
 // =====================
-export async function createOrder(items: Array<{
-  product_id: string, store_id: string, store_name: string,
-  product_name: string, product_image: string | null, price: number, quantity: number
-}>, totalAmount: number, paymentMethod: 'wxpay' | 'emotion_beans'): Promise<Order | null> {
-  const { data: order } = await supabase.from('orders')
-    .insert({ order_no: '', total_amount: totalAmount, payment_method: paymentMethod })
-    .select().maybeSingle()
-  if (!order) return null
-  await supabase.from('order_items').insert(
-    items.map(i => ({ order_id: order.id, ...i }))
-  )
-  return order
-}
-
 export async function getOrders(status?: OrderStatus, page = 0, limit = 20): Promise<Order[]> {
   let q = supabase.from('orders').select('*, order_items(*)')
     .order('created_at', { ascending: false }).range(page * limit, (page + 1) * limit - 1)
@@ -1154,12 +1132,19 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 }
 
 export async function getOrderCounts(): Promise<Record<string, number>> {
+  // 性能：user 页每次 didShow 都调用（原实现全表拉 status 前端 reduce）→ 60s 内存缓存；
+  // 订单角标允许 1 分钟陈旧，下单/支付后页面自行刷新即可接受
+  const ck = cacheMakeKey('orderCounts')
+  const hit = cacheGet<Record<string, number>>(ck)
+  if (hit) return hit
   const { data } = await supabase.from('orders').select('status')
   if (!Array.isArray(data)) return {}
-  return data.reduce((acc: Record<string, number>, o) => {
+  const out = data.reduce((acc: Record<string, number>, o) => {
     acc[o.status] = (acc[o.status] || 0) + 1
     return acc
   }, {})
+  cacheSet(ck, out, 60_000)
+  return out
 }
 
 // 删除未支付订单（pending_pay 才允许）：无资金/分佣/健康豆流水，可安全硬删。
@@ -1177,9 +1162,14 @@ export async function deleteOrder(orderId: string): Promise<boolean> {
 export async function getMyMerchantApplication(): Promise<MerchantApplication | null> {
   const { data: { user } } = await getLocalUser()
   if (!user) return null
+  // 性能：user/merchant-center 每次进页都拉申请状态 → 60s 内存缓存（提交申请后 clearRequestCache 失效）
+  const ck = cacheMakeKey('merchantApp', user.id)
+  const hit = cacheGet<MerchantApplication | null>(ck)
+  if (hit !== undefined) return hit
   const { data } = await supabase.from('merchant_applications').select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false }).limit(1).maybeSingle()
+  cacheSet(ck, data, 60_000)
   return data
 }
 
@@ -1206,6 +1196,7 @@ export async function submitMerchantApplication(info: {
     console.error('[submitMerchantApplication] 插入失败:', error.message, error.code, error.details)
     throw new Error(`提交失败: ${error.message}`)
   }
+  clearRequestCache() // 申请已提交，失效 merchantApp 缓存让状态立即可见
 }
 
 // =====================
@@ -1238,7 +1229,7 @@ export async function searchProducts(keyword: string, page = 0): Promise<Product
 // Payment / Commission / Points
 // =====================
 
-/** 直接创建订单（绕过 Edge Function，RLS 已关闭） */
+/** 直接创建订单（客户端 RLS 安全路径：insert 带 user_id 并生成唯一 order_no，满足 orders 的 rls81_orders_owner WITH CHECK）。旧 createOrder 已删除——它写 order_no='' 触发唯一冲突、且缺 user_id 被 RLS 拦截。 */
 export async function createOrderV2(params: {
   items: Array<{ product_id: string; store_id: string; store_name: string; product_name: string; product_image: string | null; price: number; quantity: number; batch_id?: string }>
   total_amount: number
@@ -3043,13 +3034,17 @@ export async function getMerchantStores(): Promise<import('./types').Store[]> {
   const { data: { user } } = await getLocalUser()
   if (!user) return []
   try {
-    const { data: owned } = await supabase.from('stores').select('*')
-      .eq('owner_id', user.id).order('created_at', { ascending: false })
-    const { data: staffLinks } = await supabase
-      .from('store_staff')
-      .select('stores(*)')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
+    // 性能：owner 直营与 store_staff 关联两查询互相独立 → 并行（原串行=两次往返）
+    const [ownedRes, staffRes] = await Promise.all([
+      supabase.from('stores').select('*')
+        .eq('owner_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('store_staff')
+        .select('stores(*)')
+        .eq('user_id', user.id)
+        .eq('is_active', true),
+    ])
+    const owned = ownedRes.data
+    const staffLinks = staffRes.data
     const staffStores = (staffLinks ?? [])
       .map((s: any) => s.stores)
       .filter(Boolean) as import('./types').Store[]
@@ -3993,7 +3988,7 @@ export async function merchantRedeemCoupon(code: string, storeId: string): Promi
 // =====================
 // 用户设置
 // =====================
-export async function updateUserProfile(params: { nickname?: string; avatar_url?: string; allow_behavior_analysis?: boolean }): Promise<boolean> {
+export async function updateUserProfile(params: { nickname?: string; avatar_url?: string; allow_behavior_analysis?: boolean; phone?: string }): Promise<boolean> {
   const { data: { user } } = await getLocalUser()
   if (!user) return false
   const { error } = await supabase.from('profiles').update(params).eq('id', user.id)

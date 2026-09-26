@@ -36,7 +36,7 @@ function MyPromotionPage() {
   const [error, setError] = useState<string>('')  // 添加错误状态
 
   // 分享配置
-  const shareTitle = `我在"来电有喜"找到了好东西，用我的推荐码${referralCode}注册，享首单优惠！`
+  const shareTitle = `我在"来店有喜"找到了好东西，用我的推荐码${referralCode}注册，享首单优惠！`
   const sharePath = `/pages/index/index?ref=${referralCode}`
   useShareAppMessage(() => ({ title: shareTitle, path: sharePath }))
   useShareTimeline(() => ({ title: shareTitle }))
@@ -182,7 +182,7 @@ function MyPromotionPage() {
   }
 
   const handleShareLink = () => {
-    const link = `来电有喜，专属推荐码：${referralCode}，下载并使用我的推荐码注册享优惠！`
+    const link = `来店有喜，专属推荐码：${referralCode}，下载并使用我的推荐码注册享优惠！`
     Taro.setClipboardData({ data: link, success: () =>
       Taro.showToast({ title: '推荐链接已复制', icon: 'success' })
     })
@@ -231,7 +231,7 @@ function MyPromotionPage() {
         {/* 二维码大图居中 */}
         <View className="flex flex-col items-center py-4">
           <View className="w-56 h-56 rounded-2xl border-2 border-primary/30 bg-background flex items-center justify-center overflow-hidden"
-            style={{ boxShadow: '0 8px 24px rgba(194,65,12,0.12)' }}>
+            style={{ boxShadow: '0 8px 24px rgba(232,121,100,0.12)' }}>
             {qrLoading ? (
               <View className="flex flex-col items-center gap-3">
                 <Icon name="loading" size={48} className="text-primary animate-spin" />
@@ -263,23 +263,17 @@ function MyPromotionPage() {
           </Button>
         </View>
       </View>
-      {/* 佣金统计 */}
-      <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
-        <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <View className="text-primary"><Icon name="coin" size={24} /></View>
-          <Text className="text-xl font-bold text-foreground">推荐奖励概览</Text>
-          <View className="flex-1" />
-          <View className="flex items-center gap-1 text-primary text-xl"
-            onClick={() => Taro.navigateTo({ url: '/pages/trade/commission-detail/index' })}>
-            <Text>明细</Text>
-            <Icon name="chevron-right" size={20} />
+        {/* 推荐奖励概览（仅展示，不下钻；推荐奖励已以健康豆形式发放，可在小程序内消费，不再单独开放明细页） */}
+        <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+          <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
+            <View className="text-primary"><Icon name="coin" size={24} /></View>
+            <Text className="text-xl font-bold text-foreground">推荐奖励概览</Text>
           </View>
-        </View>
         <View className="grid grid-cols-3 py-4">
           {[
             { label: '待结算', value: `¥${Number(commSummary?.total_pending || 0).toFixed(2)}`, color: 'hsl(var(--primary))' },
             { label: '已结算', value: `¥${Number(commSummary?.total_settled || 0).toFixed(2)}`, color: '#2E7D5B' },
-            { label: '总笔数', value: `${commSummary?.total_count || 0}笔`, color: '#3B5B7A' },
+            { label: '总笔数', value: `${commSummary?.total_count || 0}笔`, color: '#0369A1' },
           ].map(item => (
             <View key={item.label} className="flex flex-col items-center gap-1">
               <Text className="text-2xl font-bold" style={{ color: item.color }}>{item.value}</Text>
@@ -289,19 +283,13 @@ function MyPromotionPage() {
         </View>
       </View>
 
-        {/* 余额与推荐奖励（推荐奖励已以健康豆发放，可在小程序内直接消费支付） */}
-        <View className="mx-4 mt-4 grid grid-cols-2 gap-3">
+        {/* 我的健康豆（平台币，可作支付抵扣，非折扣；推荐奖励已以健康豆形式发放，可在此消费） */}
+        <View className="mx-4 mt-4">
           <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
             onClick={() => Taro.navigateTo({ url: '/pages/trade/goldbean-ledger/index' })}>
             <Icon name="wallet" size={30} className="text-primary" />
             <Text className="text-2xl font-bold text-foreground">{Number(rankData?.balance || 0).toFixed(2)}</Text>
             <Text className="text-base text-muted-foreground">我的健康豆</Text>
-          </View>
-          <View className="bg-card rounded-2xl border border-border p-4 flex flex-col items-center gap-2"
-            onClick={() => Taro.navigateTo({ url: '/pages/trade/commission-detail/index' })}>
-            <View className="text-primary"><Icon name="coin" size={28} /></View>
-            <Text className="text-2xl font-bold text-foreground">{Number(commSummary?.total_earned || 0).toFixed(2)}</Text>
-            <Text className="text-base text-muted-foreground">累计推荐奖励(健康豆)</Text>
           </View>
         </View>
 

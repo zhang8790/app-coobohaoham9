@@ -7,7 +7,7 @@ function PrivacyPolicy() {
     <View className="min-h-screen bg-background pb-10">
 
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border p-4 text-muted-foreground text-sm leading-loose">
-        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来电有喜隐私政策</Text>
+        <Text className="block text-foreground text-base font-bold mb-3 leading-snug">来店有喜隐私政策</Text>
         <Text className="block text-muted-foreground text-xs mb-4">{'最近更新日期：2026年7月1日\n生效日期：2026年7月1日'}</Text>
 
         <View className="mb-4">
@@ -61,12 +61,12 @@ function PrivacyPolicy() {
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">六、联系我们</Text>
           <Text className="block">如对本隐私政策有任何疑问，请联系我们：</Text>
-          <Text className="block">客服电话：请在「我的」-「联系客服」中查看</Text>
+          <Text className="block">客服电话：请在「我的」-「帮助中心」中查看</Text>
           <Text className="block">我们将在15个工作日内回复您的请求。</Text>
         </View>
 
         <Text className="block text-muted-foreground text-xs mt-5 pt-3" style={{ borderTop: '1px solid hsl(var(--border))' }}>
-          来电有喜可能根据法律法规或业务调整修订本隐私政策，修订后的政策将在小程序内公布。涉及个人信息处理目的、方式或共享范围的重大变更，我们将重新征得您的同意；一般性修订自公布之日起满30日生效。
+          来店有喜可能根据法律法规或业务调整修订本隐私政策，修订后的政策将在小程序内公布。涉及个人信息处理目的、方式或共享范围的重大变更，我们将重新征得您的同意；一般性修订自公布之日起满30日生效。
         </Text>
       </View>
     </View>

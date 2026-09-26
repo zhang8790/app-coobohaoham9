@@ -143,7 +143,7 @@ export const CONSTITUTION_TYPES: Record<string, ConstitutionType> = {
     key: 'pinghe',
     name: '平和质',
     emoji: '☯️',
-    color: '#16A34A',
+    color: '#15803D',
     colorLight: '#F0FDF4',
     description: '身体状态较好，饮食睡眠正常',
     characteristics: ['睡眠质量不错', '胃口正常', '情绪相对稳定', '换季少生病'],
