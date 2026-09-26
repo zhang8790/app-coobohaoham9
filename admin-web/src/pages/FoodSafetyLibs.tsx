@@ -1,4 +1,4 @@
-// 来电有喜 · 管理后台「食品配料安全 · 三库维护」
+// 来店有喜 · 管理后台「食品配料安全 · 三库维护」
 // 数据来源：food_additives(添加剂安全库) / food_allergens(过敏原库) /
 //          food_crowd_triggers(人群触发词) / food_crowd_tips(人群文案)
 // 这四个基础表后台可维护、无需改代码（对应小程序配料安全分析引擎 ingredient-analyze）。
@@ -113,12 +113,12 @@ export default function FoodSafetyLibs() {
         </button>
       </div>
 
-      {msg && <div style={{ padding: '10px 14px', background: 'var(--primary-soft)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--primary)', fontSize: 13, marginBottom: 12 }}>{msg}</div>}
+      {msg && <div style={{ padding: '10px 14px', background: 'var(--primary-soft)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--primary-strong)', fontSize: 13, marginBottom: 12 }}>{msg}</div>}
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
         {TABS.map(([k, label]) => (
           <button key={k} onClick={() => { setTab(k); setEditing(null) }}
-            style={{ padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, color: tab === k ? 'var(--primary)' : 'var(--text-muted)', borderBottom: tab === k ? '2px solid var(--primary)' : '2px solid transparent', fontWeight: tab === k ? 600 : 400, marginBottom: -1 }}>
+            style={{ padding: '10px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, color: tab === k ? 'var(--primary-strong)' : 'var(--text-muted)', borderBottom: tab === k ? '2px solid var(--primary)' : '2px solid transparent', fontWeight: tab === k ? 600 : 400, marginBottom: -1 }}>
             {label}
           </button>
         ))}
@@ -128,7 +128,7 @@ export default function FoodSafetyLibs() {
         <>
           {/* 新增按钮 */}
           <button onClick={() => setEditing(blank(tab))}
-            style={{ marginBottom: 12, padding: '8px 16px', background: 'var(--primary)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13 }}>
+            style={{ marginBottom: 12, padding: '8px 16px', background: 'var(--primary-strong)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13 }}>
             + 新增
           </button>
 
@@ -182,7 +182,7 @@ export default function FoodSafetyLibs() {
                 </>
               )}
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <button onClick={save} style={{ padding: '8px 18px', background: 'var(--primary)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>保存</button>
+                <button onClick={save} style={{ padding: '8px 18px', background: 'var(--primary-strong)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>保存</button>
                 <button onClick={() => setEditing(null)} style={{ padding: '8px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>取消</button>
               </div>
             </div>
@@ -231,7 +231,7 @@ function listFor(tab: Tab, a: any[], al: any[], tr: any[], ti: any[]) {
   return tab === 'additives' ? a : tab === 'allergens' ? al : tab === 'triggers' ? tr : ti
 }
 
-const btnSm: CSSProperties = { padding: '4px 10px', background: 'var(--primary)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12 }
+const btnSm: CSSProperties = { padding: '4px 10px', background: 'var(--primary-strong)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

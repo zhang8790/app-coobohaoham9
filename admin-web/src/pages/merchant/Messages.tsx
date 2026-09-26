@@ -1,6 +1,7 @@
 // @title 自营门店中心 - 消息通知（真实数据）
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore, getMerchantMessages } from '@/api/merchant'
 import type { MerchantMessage } from '@/types'
 
@@ -9,6 +10,7 @@ const TYPE_LABEL: Record<string, string> = { order: '订单消息', system: '系
 
 export default function MerchantMessages() {
   const { profile } = useAuth()
+  const { selectedStoreId } = useStore()
   const [messages, setMessages] = useState<MerchantMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [storeId, setStoreId] = useState<string | null>(null)
@@ -19,7 +21,7 @@ export default function MerchantMessages() {
     if (!profile) return
     let cancelled = false
     ;(async () => {
-      const store = await getMyMerchantStore(profile.id)
+      const store = await getMyMerchantStore(profile.id, selectedStoreId)
       if (cancelled) return
       if (!store) { setLoading(false); return }
       setStoreId(store.id)
@@ -27,7 +29,7 @@ export default function MerchantMessages() {
       if (!cancelled) { setMessages(list); setLoading(false) }
     })()
     return () => { cancelled = true }
-  }, [profile])
+  }, [profile, selectedStoreId])
 
   const filtered = filter === 'all' ? messages : messages.filter(m => m.type === filter)
   const unreadCount = messages.filter(m => !m.read).length
@@ -51,7 +53,7 @@ export default function MerchantMessages() {
             {[{ key: 'all', label: '全部' }, { key: 'order', label: '订单' }, { key: 'system', label: '系统' }, { key: 'commission', label: '佣金' }].map(tab => (
               <button key={tab.key} onClick={() => setFilter(tab.key as any)} style={{
                 padding: '6px 14px',
-                background: filter === tab.key ? 'var(--primary)' : 'var(--surface-2)',
+                background: filter === tab.key ? 'var(--primary-strong)' : 'var(--surface-2)',
                 border: `1px solid ${filter === tab.key ? 'var(--primary)' : 'var(--border)'}`,
                 borderRadius: 6,
                 color: filter === tab.key ? 'white' : 'var(--text-muted)',
@@ -80,7 +82,7 @@ export default function MerchantMessages() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 18 }}>{TYPE_ICON[msg.type]}</span>
                     <span style={{ color: msg.read ? 'var(--text)' : 'var(--primary)', fontSize: 15, fontWeight: msg.read ? 600 : 700 }}>{msg.title}</span>
-                    {!msg.read && <span style={{ width: 8, height: 8, background: 'var(--primary)', borderRadius: '50%' }} />}
+                    {!msg.read && <span style={{ width: 8, height: 8, background: 'var(--primary-strong)', borderRadius: '50%' }} />}
                   </div>
                   <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>{msg.time}</span>
                 </div>
@@ -105,7 +107,7 @@ export default function MerchantMessages() {
               <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>{detailMsg.time}</span>
             </div>
             <p style={{ color: 'var(--text)', fontSize: 15, lineHeight: 1.6 }}>{detailMsg.content}</p>
-            <button onClick={() => setDetailMsg(null)} style={{ width: '100%', marginTop: 20, padding: '10px', background: 'var(--primary)', border: 'none', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>关闭</button>
+            <button onClick={() => setDetailMsg(null)} style={{ width: '100%', marginTop: 20, padding: '10px', background: 'var(--primary-strong)', border: 'none', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>关闭</button>
           </div>
         </div>
       )}

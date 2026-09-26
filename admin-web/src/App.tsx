@@ -27,7 +27,9 @@ import Expiry from '@/pages/Expiry'
 import FoodSafetyLibs from '@/pages/FoodSafetyLibs'
 import FoodIngredients from '@/pages/FoodIngredients'
 import FoodTagRules from '@/pages/FoodTagRules'
+import OcrDebug from '@/pages/OcrDebug'
 import HomeBranding from '@/pages/HomeBranding'
+import HomeAds from '@/pages/HomeAds'
 // 商家管理页面
 import MerchantDashboard from '@/pages/merchant/Index'
 import MerchantProducts from '@/pages/merchant/Products'
@@ -42,6 +44,7 @@ import MerchantSettings from '@/pages/merchant/Settings'
 import MerchantVehicles from '@/pages/merchant/Vehicles'
 import MerchantStaffInvites from '@/pages/merchant/StaffInvites'
 import MerchantPrinters from '@/pages/merchant/Printers'
+import { StoreProvider } from '@/contexts/StoreContext'
 
 // ============ 路由守卫 ============
 
@@ -140,13 +143,16 @@ export default function App() {
             <Route path="food-safety-libs" element={<FoodSafetyLibs />} />
             <Route path="food-ingredients" element={<FoodIngredients />} />
             <Route path="food-tag-rules" element={<FoodTagRules />} />
+            <Route path="ocr-debug" element={<OcrDebug />} />
             <Route path="home-branding" element={<HomeBranding />} />
+            <Route path="home-ads" element={<HomeAds />} />
             <Route path="risk" element={<Risk />} />
             <Route path="settings" element={<Settings />} />
             </Route>
 
           {/* ===== 自营门店管理后台（merchant 专属）===== */}
-          <Route path="/merchant" element={<RequireAuth requireMerchant><MerchantLayout /></RequireAuth>}>
+          {/* StoreProvider 包裹：让门店切换器 + 所有 merchant 页面共享「当前所选门店」 */}
+          <Route path="/merchant" element={<RequireAuth requireMerchant><StoreProvider><MerchantLayout /></StoreProvider></RequireAuth>}>
             <Route index element={<MerchantDashboard />} />
             <Route path="products" element={<MerchantProducts />} />
             <Route path="orders" element={<MerchantOrders />} />

@@ -15,25 +15,38 @@ function checkIllegalWords(text: string | undefined | null): string[] {
 // ── 门店解析（统一身份：owner_id 或 store_staff 活跃成员）──────────────────
 // 总后台「建店+建登陆」会把运营账号写成 store_staff(role=owner)，
 // 此处同时覆盖两种身份，使网页端运营账号与小程序端直达同一家店（三端通）。
-export async function getMyMerchantStore(userId: string): Promise<{ id: string; name: string } | null> {
-  // 主路径：owner_id（现有商家模型）
-  const { data: owner } = await supabase
-    .from('stores')
-    .select('id, name')
-    .eq('owner_id', userId)
-    .maybeSingle()
-  if (owner?.id) return owner as any
-
-  // 统一运营身份：store_staff 活跃成员
+//
+// 多门店支持（2026-09-24）：新增 preferredStoreId 参数——若传入且属于该账号可管理的门店，
+// 优先返回它（门店切换器切换后据此落到对应店）；否则回退到「第一家」（owner 优先于 staff）。
+// 不改变任何调用方的返回结构，向后兼容。
+export async function getMyMerchantStore(
+  userId: string,
+  preferredStoreId?: string | null,
+): Promise<{ id: string; name: string } | null> {
+  // 1) 取该账号可管理的全部门店 id（owner ∪ 活跃 staff）
+  const { data: owned } = await supabase
+    .from('stores').select('id').eq('owner_id', userId)
   const { data: staff } = await supabase
-    .from('store_staff')
-    .select('stores(id, name)')
-    .eq('user_id', userId)
-    .eq('is_active', true)
-    .limit(1)
-    .maybeSingle()
-  const s = (staff as any)?.stores
-  return s ? { id: s.id, name: s.name } : null
+    .from('store_staff').select('store_id').eq('user_id', userId).eq('is_active', true)
+
+  const ids = Array.from(new Set<string>([
+    ...(owned ?? []).map((r: any) => r.id),
+    ...(staff ?? []).map((r: any) => r.store_id).filter(Boolean),
+  ]))
+  if (!ids.length) return null
+
+  const { data: rows } = await supabase
+    .from('stores').select('id, name').in('id', ids)
+  const list = (rows ?? []).map((s: any) => ({ id: s.id, name: s.name }))
+  if (!list.length) return null
+
+  // 2) 优先返回所选门店（切换器选中的那家）
+  if (preferredStoreId) {
+    const hit = list.find(s => s.id === preferredStoreId)
+    if (hit) return hit
+  }
+  // 3) 回退：第一家（默认视角）
+  return list[0]
 }
 
 // ── 优惠券 ─────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { getMyMerchantStore } from '@/api/merchant'
+import { useStore } from '@/contexts/StoreContext'
 
 // ============ 类型 ============
 interface Member {
@@ -208,6 +209,7 @@ function demoFallback(_memberId: string): FoodProfileResp {
 
 function FoodProfilePanel({ memberId, memberName }: { memberId: string; memberName: string }) {
   const { profile } = useAuth()
+  const { selectedStoreId } = useStore()
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<FoodProfileResp | null>(null)
   const [isDemo, setIsDemo] = useState(false)
@@ -222,7 +224,7 @@ function FoodProfilePanel({ memberId, memberName }: { memberId: string; memberNa
         // 本店 store_id：统一身份解析（owner_id 或 store_staff 活跃成员）
         let storeId: string | null = null
         if (profile?.id) {
-          const st = await getMyMerchantStore(profile.id)
+          const st = await getMyMerchantStore(profile.id, selectedStoreId)
           storeId = st?.id ?? null
         }
         let real: FoodProfileResp | null = null
@@ -250,7 +252,7 @@ function FoodProfilePanel({ memberId, memberName }: { memberId: string; memberNa
     }
     run()
     return () => { cancelled = true }
-  }, [memberId, profile?.id])
+  }, [memberId, profile?.id, selectedStoreId])
 
   return (
     <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden', marginTop: 16 }}>

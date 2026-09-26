@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getUsers, updateUserRole, createUserAccount } from '@/api/admin'
+import { getUsers, updateUserRole, createUserAccount, searchUsers, adminUpdateUserIdentity } from '@/api/admin'
 import { adminRechargeGoldBean } from '@/api/finance'
 import type { Profile } from '@/types'
 import { maskPhone } from '@/utils/mask'
@@ -32,6 +32,35 @@ export default function Users() {
   const [cRole, setCRole] = useState<'admin' | 'user'>('admin')
   const [cBusy, setCBusy] = useState(false)
   const [cMsg, setCMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  // 补 / 改登录身份弹窗状态
+  const [idTarget, setIdTarget] = useState<Profile | null>(null)
+  const [idPhone, setIdPhone] = useState('')
+  const [idPwd, setIdPwd] = useState('')
+  const [idNick, setIdNick] = useState('')
+  const [idBusy, setIdBusy] = useState(false)
+  const [idMsg, setIdMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  // 搜索：支持 UUID 精确 / 昵称 / 手机号。
+  // 平台不采集手机号（全仓无 getPhoneNumber），profiles.phone 多为空，
+  // 昵称又易重复，UUID 是唯一能 100% 锁定账号的标识 —— 这里必须能查到并复制。
+  const [kw, setKw] = useState('')
+  const [searching, setSearching] = useState(false)
+  const [searched, setSearched] = useState(false)
+  const doSearch = async () => {
+    const k = kw.trim()
+    if (!k) { setSearched(false); setPage(0); return }
+    setSearching(true); setSearched(true)
+    setList(await searchUsers(k, 50) as Profile[])
+    setTotal(0); setSearching(false)
+  }
+  const resetSearch = () => { setKw(''); setSearched(false); setPage(0) }
+  const copyId = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(id)
+      alert('已复制账号 ID：\n' + id + '\n\n可到「自营门店 → 设置店长」粘贴该 ID 精确绑定，避免昵称重复绑错人。')
+    } catch { prompt('复制失败，请手动复制该账号 ID：', id) }
+  }
 
   const openCreate = () => {
     setCEmail(''); setCPwd(''); setCNick(''); setCPhone(''); setCRole('admin'); setCMsg(null)
@@ -106,6 +135,37 @@ export default function Users() {
     }
   }
 
+  const openIdentity = (u: Profile) => {
+    setIdTarget(u); setIdPhone(u.phone || ''); setIdPwd(''); setIdNick(''); setIdMsg(null)
+  }
+  const closeIdentity = () => {
+    if (idBusy) return
+    setIdTarget(null); setIdPhone(''); setIdPwd(''); setIdNick(''); setIdMsg(null)
+  }
+  const doUpdateIdentity = async () => {
+    if (!idTarget) return
+    const phone = idPhone.trim()
+    const nick = idNick.trim()
+    if (!phone && !idPwd && !nick) { setIdMsg({ ok: false, text: '请至少填写 手机号 / 新密码 / 昵称 之一' }); return }
+    if (phone && !/^\d{6,20}$/.test(phone)) { setIdMsg({ ok: false, text: '手机号格式不正确' }); return }
+    if (idPwd && idPwd.length < 6) { setIdMsg({ ok: false, text: '密码至少 6 位' }); return }
+    setIdBusy(true); setIdMsg(null)
+    const res = await adminUpdateUserIdentity({
+      user_id: idTarget.id,
+      phone: phone || undefined,
+      password: idPwd || undefined,
+      nickname: nick || undefined,
+    })
+    setIdBusy(false)
+    if (res.ok) {
+      const parts = [phone && '手机号', idPwd && '密码', nick && '昵称'].filter(Boolean).join('、')
+      setIdMsg({ ok: true, text: `✅ 已更新：${parts}` })
+      if (phone) setList(prev => prev.map(u => u.id === idTarget.id ? { ...u, phone } : u))
+    } else {
+      setIdMsg({ ok: false, text: res.error || '更新失败' })
+    }
+  }
+
   const totalPages = Math.ceil(total / PAGE_SIZE)
   const S = {
     card: { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12 } as React.CSSProperties,
@@ -122,11 +182,38 @@ export default function Users() {
             <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>平台用户管理 · 共 {total} 名用户</p>
           </div>
           <button onClick={openCreate}
-            style={{ padding: '9px 16px', background: 'var(--primary)', color: '#fff', border: 'none',
+            style={{ padding: '9px 16px', background: 'var(--primary-strong)', color: '#fff', border: 'none',
               borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap' }}>
             + 新建账号
           </button>
         </div>
+
+        {/* 搜索：UUID 精确 / 昵称 / 手机号 */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+          <input value={kw}
+            onChange={e => setKw(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') doSearch() }}
+            placeholder="搜索：账号 ID（UUID 精确）/ 昵称 / 手机号"
+            style={{ flex: 1, minWidth: 240, boxSizing: 'border-box', background: 'var(--surface)',
+              border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', padding: '9px 12px', fontSize: 13 }} />
+          <button onClick={doSearch} disabled={searching}
+            style={{ padding: '9px 16px', background: 'var(--primary-strong)', color: '#fff', border: 'none',
+              borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: searching ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+            {searching ? '搜索中…' : '搜索'}
+          </button>
+          {searched && (
+            <button onClick={resetSearch}
+              style={{ padding: '9px 16px', background: 'transparent', border: '1px solid var(--border)',
+                borderRadius: 8, color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              清除
+            </button>
+          )}
+        </div>
+        {searched && (
+          <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 8 }}>
+            已按「{kw.trim()}」搜索到 {list.length} 条。绑定门店店长时请复制<b style={{ color: 'var(--text-muted)' }}>账号 ID</b>粘贴，避免昵称重复绑错人。
+          </p>
+        )}
       </div>
 
       <div style={S.card}>
@@ -138,7 +225,7 @@ export default function Users() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['昵称', '手机号', '段位', '买家健康豆', '健康豆', '角色', '注册时间', '操作'].map(h => (
+                {['昵称', '账号 ID', '手机号', '段位', '买家健康豆', '健康豆', '角色', '注册时间', '操作'].map(h => (
                   <th key={h} style={S.th}>{h}</th>
                 ))}
               </tr>
@@ -149,6 +236,15 @@ export default function Users() {
                 return (
                   <tr key={u.id}>
                     <td style={{ ...S.td, color: 'var(--text)', fontWeight: 600 }}>{u.nickname || '侠客'}</td>
+                    {/* 账号 ID：绑定门店店长时的唯一可靠标识（昵称可重复、手机号多为空） */}
+                    <td style={S.td}>
+                      <button onClick={() => copyId(u.id)} title="点击复制完整账号 ID"
+                        style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11,
+                          padding: '3px 8px', background: 'var(--surface)', border: '1px solid var(--border)',
+                          borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer' }}>
+                        {u.id.slice(0, 8)}… 复制
+                      </button>
+                    </td>
                     <td style={{ ...S.td, color: 'var(--text-muted)' }}>{maskPhone(u.phone)}</td>
                     <td style={S.td}>
                       <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600,
@@ -160,7 +256,7 @@ export default function Users() {
                     <td style={{ ...S.td, color: 'var(--text-muted)' }}>健康豆 {Number(u.tb_balance || 0).toFixed(2)}</td>
                     <td style={S.td}>
                       <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                        background: u.role === 'admin' ? 'var(--primary-soft)' : 'var(--border)', color: u.role === 'admin' ? 'var(--primary)' : 'var(--text-muted)' }}>
+                        background: u.role === 'admin' ? 'var(--primary-soft)' : 'var(--border)', color: u.role === 'admin' ? 'var(--primary-strong)' : 'var(--text-muted)' }}>
                         {u.role === 'admin' ? '管理员' : '普通用户'}
                       </span>
                     </td>
@@ -180,6 +276,11 @@ export default function Users() {
                              充值
                           </button>
                         )}
+                        <button disabled={processing === u.id} onClick={() => openIdentity(u)}
+                          style={{ padding: '5px 12px', background: 'transparent', border: '1px solid var(--border)',
+                            borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, whiteSpace: 'nowrap' }}>
+                          补身份
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -193,7 +294,7 @@ export default function Users() {
             {Array.from({ length: totalPages }, (_, i) => (
               <button key={i} onClick={() => setPage(i)}
                 style={{ width: 32, height: 32, borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
-                  background: page === i ? 'var(--primary)' : 'var(--border)', color: page === i ? '#fff' : 'var(--text-muted)' }}>
+                  background: page === i ? 'var(--primary-strong)' : 'var(--border)', color: page === i ? '#fff' : 'var(--text-muted)' }}>
                 {i + 1}
               </button>
             ))}
@@ -230,6 +331,49 @@ export default function Users() {
               <p style={{ fontSize: 13, marginTop: 12, color: rcMsg.ok ? 'var(--success-strong)' : 'var(--danger-text)' }}>{rcMsg.text}</p>
             )}
             <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 10 }}>充值不可逆，请核对金额。</p>
+          </div>
+        </div>
+      )}
+
+      {/* 补 / 改登录身份弹窗 */}
+      {idTarget && (
+        <div onClick={closeIdentity}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: 440, maxWidth: '92vw', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>补 / 改登录身份</h2>
+              <button onClick={closeIdentity} disabled={idBusy}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: 22, lineHeight: 1, cursor: idBusy ? 'not-allowed' : 'pointer' }}>×</button>
+            </div>
+            <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 16, lineHeight: 1.6 }}>
+              账号：<b style={{ color: 'var(--text-muted)' }}>{idTarget.nickname || '侠客'}</b>（{idTarget.id.slice(0, 8)}…）
+              <br />填手机号后，该账号即可用「手机号 + 密码」登录网页版后台（小程序端支持手机号 + 验证码登录）；留空项不变更。
+            </p>
+
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>手机号（补身份，可选）</label>
+            <input value={idPhone} onChange={e => setIdPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} inputMode="numeric"
+              placeholder="如 13800138000"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, marginBottom: 12 }} />
+
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>重置密码（可选，至少 6 位）</label>
+            <input value={idPwd} onChange={e => setIdPwd(e.target.value)} type="password"
+              placeholder="留空则不修改"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, marginBottom: 12 }} />
+
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>昵称（可选）</label>
+            <input value={idNick} onChange={e => setIdNick(e.target.value)}
+              placeholder="留空则不修改"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', padding: '10px 12px', fontSize: 14, marginBottom: 16 }} />
+
+            <button onClick={doUpdateIdentity} disabled={idBusy}
+              style={{ width: '100%', background: 'var(--primary-strong)', color: '#fff', fontWeight: 700, borderRadius: 8, padding: '11px 0', fontSize: 14, cursor: idBusy ? 'not-allowed' : 'pointer', opacity: idBusy ? 0.6 : 1 }}>
+              {idBusy ? '提交中…' : '确认更新'}
+            </button>
+            {idMsg && (
+              <p style={{ fontSize: 13, marginTop: 12, color: idMsg.ok ? 'var(--success-strong)' : 'var(--danger-text)' }}>{idMsg.text}</p>
+            )}
+            <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 10 }}>操作经服务端 Edge Function 执行，前端不暴露任何密钥。</p>
           </div>
         </div>
       )}
@@ -283,7 +427,7 @@ export default function Users() {
             </div>
 
             <button onClick={doCreate} disabled={cBusy}
-              style={{ width: '100%', background: 'var(--primary)', color: '#fff', fontWeight: 700, borderRadius: 8, padding: '11px 0', fontSize: 14, cursor: cBusy ? 'not-allowed' : 'pointer', opacity: cBusy ? 0.6 : 1 }}>
+              style={{ width: '100%', background: 'var(--primary-strong)', color: '#fff', fontWeight: 700, borderRadius: 8, padding: '11px 0', fontSize: 14, cursor: cBusy ? 'not-allowed' : 'pointer', opacity: cBusy ? 0.6 : 1 }}>
               {cBusy ? '创建中…' : '确认创建'}
             </button>
             {cMsg && (

@@ -74,6 +74,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Auth 错误中文化：GoTrue 的原始报错是英文（如 "Phone logins are disabled"），
+  // 直接透给用户等于没说。这里只映射「管理员/用户能据此采取动作」的几类。
+  const humanizeAuthError = (raw: string | undefined | null, fallback: string): string => {
+    const m = (raw || '').toLowerCase()
+    if (m.includes('phone logins are disabled') || m.includes('phone_provider_disabled')) {
+      return '手机号登录尚未开通：需在 Supabase 后台 Authentication → Providers 启用 Phone'
+    }
+    if (m.includes('sms provider') || m.includes('error sending') || m.includes('sms_send_failed')) {
+      return '短信服务未配置，验证码发不出去：请改用邮箱登录'
+    }
+    if (m.includes('phone number not confirmed')) return '该手机号未完成验证，请联系管理员'
+    if (m.includes('invalid login credentials')) return fallback
+    if (m.includes('rate limit') || m.includes('too many')) return '操作过于频繁，请稍后再试'
+    return raw || fallback
+  }
+
   const signInWithEmail = async (email: string, _password: string): Promise<string | null> => {
     // 始终尝试真实登录
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: _password })
@@ -92,21 +108,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return null
   }
 
-  // 手机号 + 密码登录
+  // 手机号 + 密码登录（原生 Supabase phone+password，不再依赖 service_role / admin API）
+  // 前置：账号的 auth.users.phone 已写入（见 scripts/backfill-merchant-phone-identity.sql），
+  // 且 Supabase 后台 Authentication → Providers → Phone 已启用、允许 phone+password 登录。
   const signInWithPhonePassword = async (phone: string, password: string): Promise<string | null> => {
-    // 真实流程
+    const e164 = '+86' + phone.replace(/\D/g, '').replace(/^86/, '')
     try {
-      const { data: prof } = await supabase.from('profiles').select('id').eq('phone', phone).maybeSingle()
-      if (!prof?.id) return '该手机号未注册'
-      const { data: userData, error: userErr } = await supabase.auth.admin.listUsers({ perPage: 1000 })
-      let targetUser
-      if (userErr || !userData) {
-        return '请联系管理员开通密码登录，或使用验证码登录'
-      }
-      targetUser = (userData as any).users.find(u => u.id === prof.id)
-      if (!targetUser?.email) return '该账号未绑定邮箱，请使用验证码登录'
-      const { data, error } = await supabase.auth.signInWithPassword({ email: targetUser.email, password })
-      if (error) return error.message || '密码错误'
+      const { data, error } = await supabase.auth.signInWithPassword({ phone: e164, password })
+      if (error) return humanizeAuthError(error.message, '手机号或密码错误')
       if (!data.user) return '登录失败'
       await loadProfile(data.user.id)
       setUseMock(false)
@@ -155,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const sendOtpCode = async (phone: string): Promise<string | null> => {
     try {
       const { error } = await supabase.auth.signInWithOtp({ phone })
-      return error?.message ?? null
+      return error ? humanizeAuthError(error.message, '短信发送失败，请检查手机号') : null
     } catch (e: unknown) {
       console.warn('[Auth] sendOtpCode 失败:', e)
       return '短信发送失败，请检查手机号'
@@ -193,7 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {/* 演示模式提示条 */}
       {useMock && (
         <div style={{
-          background: 'linear-gradient(90deg, var(--primary), var(--primary-hover))',
+          background: 'linear-gradient(90deg, var(--primary-strong), var(--primary-hover))',
           color: '#fff', textAlign: 'center', padding: '8px 0',
           fontSize: 13, fontWeight: 500, letterSpacing: 0.5,
         }}>

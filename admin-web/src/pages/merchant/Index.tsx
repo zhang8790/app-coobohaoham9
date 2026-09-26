@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '@/contexts/StoreContext'
 import { getMerchantSettlementBalance, getStoreProducts, getMyMerchantStore } from '@/api/merchant'
 
 // Mock 数据（演示模式 fallback）
@@ -49,6 +50,7 @@ const isMerchantUser = (profile: any): boolean => {
 export default function MerchantDashboard() {
   const nav = useNavigate()
   const { profile, useMock } = useAuth()
+  const { selectedStoreId } = useStore()
   const [stats, setStats] = useState({ todayRevenue: 0, monthRevenue: 0, todayOrders: 0, totalCustomers: 0, pendingOrders: 0, pendingWithdraw: 0 })
   const [recentOrders, setRecentOrders] = useState<typeof MOCK_RECENT_ORDERS>([])
   const [storeId, setStoreId] = useState<string | null>(null)
@@ -60,13 +62,13 @@ export default function MerchantDashboard() {
   useEffect(() => {
     if (!profile || !isMerchantUser(profile)) return
     const fetchStore = async () => {
-      const st = await getMyMerchantStore(profile.id)
+      const st = await getMyMerchantStore(profile.id, selectedStoreId)
       setStoreId(st?.id ?? null)
     }
     if (!useMock) {
       fetchStore()
     }
-  }, [profile, useMock])
+  }, [profile, useMock, selectedStoreId])
 
   // 加载真实数据
   useEffect(() => {
@@ -163,7 +165,7 @@ export default function MerchantDashboard() {
               <span style={{ fontSize: 24 }}>{c.icon}</span>
               <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>{c.label}</span>
             </div>
-            <p style={{ color: c.color, fontSize: 28, fontWeight: 800 }}>{c.value}</p>
+            <p style={{ color: c.color, fontSize: 28, fontWeight: 700 }}>{c.value}</p>
             {c.sub && <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 4 }}>{c.sub}</p>}
           </div>
         ))}
@@ -199,11 +201,11 @@ export default function MerchantDashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>待发货订单</span>
-              <span style={{ color: 'var(--primary)', fontSize: 20, fontWeight: 800 }}>{stats.pendingOrders}</span>
+              <span style={{ color: 'var(--primary)', fontSize: 20, fontWeight: 700 }}>{stats.pendingOrders}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>已结算货款</span>
-              <span style={{ color: 'var(--success-strong)', fontSize: 20, fontWeight: 800 }}>¥{(settlement?.total_settled ?? 0).toFixed(2)}</span>
+              <span style={{ color: 'var(--success-strong)', fontSize: 20, fontWeight: 700 }}>¥{(settlement?.total_settled ?? 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -213,7 +215,7 @@ export default function MerchantDashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>当前可结算</span>
-              <span style={{ color: 'var(--success-strong)', fontSize: 20, fontWeight: 800 }}>¥{(settlement?.merchant_balance ?? 0).toFixed(2)}</span>
+              <span style={{ color: 'var(--success-strong)', fontSize: 20, fontWeight: 700 }}>¥{(settlement?.merchant_balance ?? 0).toFixed(2)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>冻结中</span>

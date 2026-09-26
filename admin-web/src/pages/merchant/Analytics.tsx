@@ -1,6 +1,7 @@
 // @title 自营门店中心 - 数据分析（真实数据）
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore, getMerchantAnalytics } from '@/api/merchant'
 import type { MerchantAnalytics } from '@/types'
 
@@ -54,6 +55,7 @@ function PieChart({ data }: { data: { name: string; value: number }[] }) {
 
 export default function MerchantAnalytics() {
   const { profile } = useAuth()
+  const { selectedStoreId } = useStore()
   const [period, setPeriod] = useState<'7d' | '30d'>('7d')
   const [data, setData] = useState<MerchantAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
@@ -63,7 +65,7 @@ export default function MerchantAnalytics() {
     if (!profile) return
     let cancelled = false
     ;(async () => {
-      const store = await getMyMerchantStore(profile.id)
+      const store = await getMyMerchantStore(profile.id, selectedStoreId)
       if (cancelled) return
       if (!store) { setLoading(false); return }
       setStoreId(store.id)
@@ -71,7 +73,7 @@ export default function MerchantAnalytics() {
       if (!cancelled) { setData(d); setLoading(false) }
     })()
     return () => { cancelled = true }
-  }, [profile])
+  }, [profile, selectedStoreId])
 
   return (
     <div>
@@ -114,7 +116,7 @@ export default function MerchantAnalytics() {
                   <span style={{ fontSize: 20 }}>{stat.icon}</span>
                 </div>
                 <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 4 }}>{stat.label}</p>
-                <p style={{ color: stat.color, fontSize: 24, fontWeight: 800 }}>{stat.value}</p>
+                <p style={{ color: stat.color, fontSize: 24, fontWeight: 700 }}>{stat.value}</p>
               </div>
             ))}
           </div>

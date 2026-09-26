@@ -4,6 +4,7 @@
 // 严禁在此页接入任何「用户佣金/健康豆」口径。
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore, getMerchantWithdrawals, getMerchantSettlementBalance, applyMerchantSettlementWithdrawal } from '@/api/merchant'
 import { supabase } from '@/lib/supabase'
 import type { WithdrawalRecord, SavedWithdrawalAccount } from '@/types'
@@ -13,6 +14,7 @@ const STATUS_COLOR: Record<string, string> = { pending: 'var(--warning)', approv
 
 export default function MerchantWithdraw() {
   const { profile } = useAuth()
+  const { selectedStoreId } = useStore()
   const [activeTab, setActiveTab] = useState<'balance' | 'record'>('balance')
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState<'bank' | 'alipay'>('alipay')
@@ -57,7 +59,7 @@ export default function MerchantWithdraw() {
     if (!profile) return
     let cancelled = false
     ;(async () => {
-      const store = await getMyMerchantStore(profile.id)
+      const store = await getMyMerchantStore(profile.id, selectedStoreId)
       if (cancelled) return
       setStoreId(store?.id || null)
       const [wds, bal] = await Promise.all([
@@ -78,7 +80,7 @@ export default function MerchantWithdraw() {
       if (store?.id) await loadSavedAccounts(store.id)
     })()
     return () => { cancelled = true }
-  }, [profile])
+  }, [profile, selectedStoreId])
 
   const available = balance?.merchant_balance ?? 0
   // 已提现（货款通道：已通过/已打款）
@@ -151,7 +153,7 @@ export default function MerchantWithdraw() {
             {[{ key: 'balance', label: '申请提现' }, { key: 'record', label: '提现记录' }].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as any)} style={{
                 padding: '8px 20px',
-                background: activeTab === tab.key ? 'var(--primary)' : 'var(--surface-2)',
+                background: activeTab === tab.key ? 'var(--primary-strong)' : 'var(--surface-2)',
                 border: `1px solid ${activeTab === tab.key ? 'var(--primary)' : 'var(--border)'}`,
                 borderRadius: 8,
                 color: activeTab === tab.key ? 'white' : 'var(--text-muted)',
@@ -172,7 +174,7 @@ export default function MerchantWithdraw() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>可结算货款</span>
-                      <span style={{ color: 'var(--success-strong)', fontSize: 24, fontWeight: 800 }}>¥{balance ? balance.merchant_balance.toFixed(2) : '0.00'}</span>
+                      <span style={{ color: 'var(--success-strong)', fontSize: 24, fontWeight: 700 }}>¥{balance ? balance.merchant_balance.toFixed(2) : '0.00'}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>冻结中货款</span>
@@ -227,7 +229,7 @@ export default function MerchantWithdraw() {
                             <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                               <div onClick={() => applySavedAccount(a)} style={{
                                 padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 13,
-                                background: active ? 'var(--primary)' : 'var(--bg)',
+                                background: active ? 'var(--primary-strong)' : 'var(--bg)',
                                 color: active ? 'white' : 'var(--text-muted)',
                                 border: `1px solid ${active ? 'var(--primary)' : 'var(--border-soft)'}`,
                               }}>
@@ -285,7 +287,7 @@ export default function MerchantWithdraw() {
                     <label style={{ color: 'var(--text-muted)', fontSize: 13, display: 'block', marginBottom: 8 }}>{method === 'alipay' ? '支付宝账号' : '银行卡号'} <span style={{ color: 'var(--danger)' }}>*</span></label>
                     <input value={account} onChange={e => setAccount(e.target.value)} placeholder={method === 'alipay' ? '请输入支付宝账号' : '请输入银行卡号'} style={{ width: '100%', padding: '12px 16px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                   </div>
-                  <button onClick={handleSubmit} disabled={submitting} style={{ width: '100%', padding: '14px', background: submitting ? 'var(--border-soft)' : 'var(--primary)', border: 'none', borderRadius: 8, color: 'white', fontSize: 16, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', marginTop: 8 }}>{submitting ? '提交中...' : `确认提现 ¥${amount || '0'}`}</button>
+                  <button onClick={handleSubmit} disabled={submitting} style={{ width: '100%', padding: '14px', background: submitting ? 'var(--border-soft)' : 'var(--primary-strong)', border: 'none', borderRadius: 8, color: 'white', fontSize: 16, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer', marginTop: 8 }}>{submitting ? '提交中...' : `确认提现 ¥${amount || '0'}`}</button>
                 </div>
               </div>
             </div>
@@ -305,7 +307,7 @@ export default function MerchantWithdraw() {
                       {record.transferred_at && <p style={{ color: 'var(--success-strong)', fontSize: 13, marginTop: 4 }}>到账时间：{record.transferred_at}</p>}
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <p style={{ color: 'var(--primary)', fontSize: 24, fontWeight: 800 }}>¥{Number(record.amount || 0).toFixed(2)}</p>
+                      <p style={{ color: 'var(--primary)', fontSize: 24, fontWeight: 700 }}>¥{Number(record.amount || 0).toFixed(2)}</p>
                     </div>
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-// 来电有喜 · 管理后台「食疗人群匹配标签规则 · 权重微调面板」
+// 来店有喜 · 管理后台「食疗人群匹配标签规则 · 权重微调面板」
 // 对应 food_tag_rules：运营可改每个用户标签的优先/规避配料与权重，无需改代码。
 import { useState, useEffect, useCallback, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -17,7 +17,7 @@ type TagRow = {
 const th: CSSProperties = { textAlign: 'left', padding: '10px 12px', color: 'var(--text-dim)', fontSize: 12, fontWeight: 600, borderBottom: '1px solid var(--border)' }
 const td: CSSProperties = { padding: '10px 12px', color: 'var(--text)', fontSize: 13, borderBottom: '1px solid var(--border)', verticalAlign: 'top' }
 const inputStyle: CSSProperties = { width: '100%', padding: '7px 9px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }
-const btnSm: CSSProperties = { padding: '4px 10px', background: 'var(--primary)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12 }
+const btnSm: CSSProperties = { padding: '4px 10px', background: 'var(--primary-strong)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12 }
 
 export default function FoodTagRules() {
   const [loading, setLoading] = useState(true)
@@ -70,9 +70,9 @@ export default function FoodTagRules() {
         </div>
         <button onClick={load} style={{ padding: '8px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>刷新</button>
       </div>
-      {msg && <div style={{ padding: '10px 14px', background: 'var(--primary-soft)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--primary)', fontSize: 13, marginBottom: 12 }}>{msg}</div>}
+      {msg && <div style={{ padding: '10px 14px', background: 'var(--primary-soft)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--primary-strong)', fontSize: 13, marginBottom: 12 }}>{msg}</div>}
 
-      <button onClick={() => setEditing(blank())} style={{ marginBottom: 12, padding: '8px 16px', background: 'var(--primary)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13 }}>+ 新增标签</button>
+      <button onClick={() => setEditing(blank())} style={{ marginBottom: 12, padding: '8px 16px', background: 'var(--primary-strong)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13 }}>+ 新增标签</button>
 
       {editing && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
@@ -93,7 +93,7 @@ export default function FoodTagRules() {
             </Field>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button onClick={save} style={{ padding: '8px 18px', background: 'var(--primary)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>保存</button>
+            <button onClick={save} style={{ padding: '8px 18px', background: 'var(--primary-strong)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>保存</button>
             <button onClick={() => setEditing(null)} style={{ padding: '8px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>取消</button>
           </div>
         </div>

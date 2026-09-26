@@ -100,6 +100,35 @@ export async function getAdminStats(): Promise<AdminStats> {
   }, MOCK_ADMIN_STATS)
 }
 
+// ── 待办聚合（仪表盘）──────────────────────────────────────────────────
+// 每项独立容错：任一查询失败(RLS/网络)只让该项归 0，不影响其余项。
+export interface TodoCounts {
+  merchantApps: number   // 待审商家入驻申请
+  products: number       // 待审商品
+  withdrawals: number    // 待付佣金提现
+  refunds: number        // 待处理退款
+  expiry: number         // 临期预警批次
+}
+
+export async function getTodoCounts(): Promise<TodoCounts> {
+  const cnt = async (q: any): Promise<number> => {
+    try {
+      const { count } = await q
+      return count ?? 0
+    } catch {
+      return 0
+    }
+  }
+  const [merchantApps, products, withdrawals, refunds, expiry] = await Promise.all([
+    cnt(supabase.from('merchant_applications').select('*', { count: 'exact', head: true }).eq('status', 'pending')),
+    cnt(supabase.from('products').select('*', { count: 'exact', head: true }).eq('review_status', 'pending')),
+    cnt(supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('status', 'pending')),
+    cnt(supabase.from('refunds').select('*', { count: 'exact', head: true }).eq('status', 'pending')),
+    cnt(supabase.from('v_near_expiry_products').select('*', { count: 'exact', head: true })),
+  ])
+  return { merchantApps, products, withdrawals, refunds, expiry }
+}
+
 export async function getRecentMerchants(limit = 5): Promise<MerchantApplication[]> {
   return safeQuery(
     async () => {
@@ -268,6 +297,21 @@ export async function approveApplication(id: string, assignToExplore: boolean = 
         .from('profiles')
         .update({ merchant_status: 'approved' })
         .eq('id', app.user_id)
+
+      // 5.5 ★ 审核通过即补齐网页版登录身份（2026-09-22 修复「审核通过却网页版登不上」）
+      //   小程序商家多经微信 / 手机号+验证码创建，auth.users 无 password、phone 可能未确认；
+      //   此处把申请里的 contact_phone 写入 auth.users.phone（确认态），商家即可用网页版
+      //   「验证码登录(OTP)」直接登（无需密码）；如要密码登录，管理员/商家再用「补身份」设密码。
+      //   best-effort：失败仅告警，不阻断审核（建店 + 状态已落库）。依赖已部署的
+      //   Edge Function admin-update-user-identity（service_role 在服务端，前端不持密钥）。
+      if (app.contact_phone) {
+        const idRes = await adminUpdateUserIdentity({ user_id: app.user_id, phone: app.contact_phone })
+        if (!idRes.ok) {
+          console.warn('[approveApplication] 补登录身份失败（不影响进后台，可事后用「补身份」）:', idRes.error)
+        } else {
+          console.log('[approveApplication] 已补登录身份 phone=', app.contact_phone)
+        }
+      }
 
       return true
     },
@@ -593,6 +637,26 @@ export async function createUserAccount(payload: CreateUserPayload): Promise<{ o
   }
 }
 
+// ── 补 / 改已有账号登录身份（手机号 / 密码 / 昵称）────────────────────
+// 经 Edge Function admin-update-user-identity（service_role 在服务端，前端不持密钥）。
+// 用途：给历史账号补齐 auth.users.phone 身份列，使其可用「手机号+密码」登录网页版。
+export interface UpdateUserIdentityPayload {
+  user_id: string
+  phone?: string
+  password?: string
+  nickname?: string
+}
+export async function adminUpdateUserIdentity(payload: UpdateUserIdentityPayload): Promise<{ ok: boolean; error?: string; data?: any }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('admin-update-user-identity', { body: payload })
+    if (error) return { ok: false, error: error.message }
+    if (data && (data as any).error) return { ok: false, error: (data as any).error }
+    return { ok: true, data }
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? '调用失败' }
+  }
+}
+
 // ── 公告管理 ──────────────────────────────────────────────────────────
 export async function getAnnouncements(): Promise<Announcement[]> {
   return safeQuery(async () => {
@@ -685,10 +749,19 @@ export async function bindStoreManager(storeId: string, userId: string): Promise
     if (staffWrite.error) {
       // 门店已绑定成功，成员行失败只影响多店切换等增强能力，故降级为提示而非整体失败
       console.warn('[bindStoreManager] store_staff 写入失败（门店 owner 已保存）:', staffWrite.error.message)
+    }
+
+    // ⚠️ merchant_status 必须写：小程序「我的」页闸门优先读 profile.merchant_status
+    //    （src/pages/user/index.tsx:216 `profile?.merchant_status || application?.status || 'none'`）。
+    //    只写 owner_id/role 而不写它 → 用户端仍判定为「未申请」，显示「申请开通自营门店」，
+    //    表现为「绑定成功但进不去管理后台」。这是四写而非三写。
+    const profWrite = await supabase.from('profiles')
+      .update({ role: 'merchant', merchant_status: 'approved' }).eq('id', userId)
+    if (profWrite.error) console.warn('[bindStoreManager] profiles 更新失败:', profWrite.error.message)
+
+    if (staffWrite.error) {
       return { ok: true, error: '门店已绑定，但运营成员记录写入失败：' + staffWrite.error.message }
     }
-    const profWrite = await supabase.from('profiles').update({ role: 'merchant' }).eq('id', userId)
-    if (profWrite.error) console.warn('[bindStoreManager] profiles.role 更新失败:', profWrite.error.message)
     return { ok: true }
   }, { ok: true })
 }
@@ -737,9 +810,24 @@ export async function createSelfStore(input: {
       banner_url: input.banner_url || null,
     })
     if (error) { console.error('[createSelfStore] 失败:', error); return false }
-    // 指定了店长 -> 自动赋予 merchant 角色，使其可登录小程序自营门店中心 + admin-web 商家后台管理本店
+
+    // 指定了店长 -> 补 store_staff(owner) + merchant 角色，与 bindStoreManager 的三写保持一致。
+    // 旧实现只写 stores.owner_id，漏了这两处：owner_id 虽足以进后台改数据，
+    // 但 store_staff 缺失会让「员工/多店长」等依赖成员表的后续功能失效，且与另两条建店路径不一致。
     if (input.owner_id) {
-      await supabase.from('profiles').update({ role: 'merchant' }).eq('id', input.owner_id)
+      const { data: newStore } = await supabase
+        .from('stores').select('id').eq('short_code', shortCode).maybeSingle()
+      if (newStore?.id) {
+        const { error: staffErr } = await supabase.from('store_staff')
+          .upsert({ store_id: newStore.id, user_id: input.owner_id, role: 'owner', is_active: true },
+                  { onConflict: 'store_id,user_id' })
+        if (staffErr) console.warn('[createSelfStore] store_staff 补写失败（非阻断）:', staffErr)
+      }
+      // merchant_status 同样必写：小程序「我的」页闸门优先读它，缺了会显示「申请开通自营门店」
+      const { error: roleErr } = await supabase.from('profiles')
+        .update({ role: 'merchant', merchant_status: 'approved' }).eq('id', input.owner_id)
+      // user_role 枚举若缺 merchant 值（00142 未部署）会报 22P02，属可降级项，不影响进店
+      if (roleErr) console.warn('[createSelfStore] profiles 更新失败（非阻断，多为枚举缺 merchant）:', roleErr)
     }
     return true
   }, true)
@@ -773,16 +861,29 @@ export async function adminCreateStoreWithLogin(input: {
   }
 }
 
-/** 搜索用户（按手机号/昵称），用于自营店绑定店长 */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * 搜索用户（UUID 精确 / 昵称 / 手机号），用于自营店绑定店长。
+ *
+ * 为什么要支持 UUID：平台全仓无 getPhoneNumber 采集（已确认），profiles.phone 基本为空，
+ * 手机号分支实际恒失效；只剩昵称时又极易撞车（如昵称 "123" 会模糊匹配出 1234/abc123）。
+ * 昵称模糊匹配存在绑错人的风险，UUID 是唯一能 100% 锁定账号的标识，必须可直达。
+ * 输入合法 UUID 时走 .eq('id') 精确查询，直接返回唯一结果。
+ */
 export async function searchUsers(keyword: string, limit = 20): Promise<Profile[]> {
   const kw = (keyword || '').trim()
   if (!kw) return []
   return safeQuery(async () => {
-    const { data, error } = await supabase
+    let q = supabase
       .from('profiles')
       .select('id, nickname, phone, avatar_url, role')
-      .or(`nickname.ilike.%${kw}%,phone.ilike.%${kw}%`)
-      .limit(limit)
+
+    q = UUID_RE.test(kw)
+      ? q.eq('id', kw)                                    // UUID：精确锁定，唯一结果
+      : q.or(`nickname.ilike.%${kw}%,phone.ilike.%${kw}%`) // 其余：昵称/手机号模糊
+
+    const { data, error } = await q.limit(limit)
     if (error) { console.error('[searchUsers]', error); return [] }
     return (data as Profile[]) || []
   }, [])

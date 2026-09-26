@@ -1,6 +1,7 @@
 // @title 自营门店中心 - 优惠券管理（真实数据）
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '@/contexts/StoreContext'
 import {
   getMyMerchantStore, getMerchantCoupons, createMerchantCoupon, updateCouponStatus, deleteCoupon,
 } from '@/api/merchant'
@@ -11,6 +12,7 @@ const STATUS_COLOR: Record<string, string> = { active: 'var(--success-strong)', 
 
 export default function MerchantCoupons() {
   const { profile } = useAuth()
+  const { selectedStoreId } = useStore()
   const [coupons, setCoupons] = useState<MerchantCoupon[]>([])
   const [loading, setLoading] = useState(true)
   const [storeId, setStoreId] = useState<string | null>(null)
@@ -25,7 +27,7 @@ export default function MerchantCoupons() {
     if (!profile) return
     let cancelled = false
     ;(async () => {
-      const store = await getMyMerchantStore(profile.id)
+      const store = await getMyMerchantStore(profile.id, selectedStoreId)
       if (cancelled) return
       if (!store) { setLoading(false); return }
       setStoreId(store.id)
@@ -33,7 +35,7 @@ export default function MerchantCoupons() {
       if (!cancelled) { setCoupons(list); setLoading(false) }
     })()
     return () => { cancelled = true }
-  }, [profile])
+  }, [profile, selectedStoreId])
 
   const filtered = filter === 'all' ? coupons : coupons.filter(c => c.status === filter)
 
@@ -152,13 +154,13 @@ export default function MerchantCoupons() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
                     <div style={{
                       width: 80, height: 80,
-                      background: coupon.status === 'active' ? 'linear-gradient(135deg, var(--primary), var(--primary-hover))' : 'var(--border)',
+                      background: coupon.status === 'active' ? 'linear-gradient(135deg, var(--primary-strong), var(--primary-hover))' : 'var(--border)',
                       borderRadius: 12,
                       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                       flexShrink: 0,
                     }}>
                       <span style={{ color: 'white', fontSize: 10, fontWeight: 600 }}>¥</span>
-                      <span style={{ color: 'white', fontSize: 28, fontWeight: 800 }}>{coupon.discount_value}</span>
+                      <span style={{ color: 'white', fontSize: 28, fontWeight: 700 }}>{coupon.discount_value}</span>
                     </div>
                     <div>
                       <p style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700 }}>{coupon.title}</p>

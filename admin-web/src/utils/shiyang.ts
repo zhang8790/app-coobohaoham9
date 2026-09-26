@@ -220,8 +220,13 @@ export function getIngredientEntries(keys: string[]): IngredientEntry[] {
 
 // 解析商品原料条目：优先持久化 ingredients，否则按名称临时匹配
 // 与小程序端 src/utils/ingredient-analysis.ts resolveIngredientEntries 语义保持一致
-export function resolveIngredientEntries(product: { ingredients?: string[] | null; name?: string }): IngredientEntry[] {
-  const persisted = product.ingredients && product.ingredients.length > 0 ? product.ingredients : null
+// 兼容两种历史形状：结构化 IngredientItem[]（取 id 作 key）与 string[]
+export function resolveIngredientEntries(product: { ingredients?: any[] | null; name?: string }): IngredientEntry[] {
+  const persisted = product.ingredients && product.ingredients.length > 0
+    ? product.ingredients
+        .map((x: any) => (typeof x === 'string' ? x : (x && (x.id || x.name)) || null))
+        .filter((x): x is string => !!x)
+    : null
   const keys = persisted ?? matchIngredientKeys(product.name || '')
   return getIngredientEntries(keys)
 }

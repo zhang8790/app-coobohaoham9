@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { getCategories, createStoreCategory, updateStoreCategory, deleteStoreCategory } from '@/api/categories'
 import { getMerchantProductSales, getMyMerchantStore } from '@/api/merchant'
+import { useStore } from '@/contexts/StoreContext'
 import { localCompileEmotion, recommendDimensions } from '@/utils/emotion'
 import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/utils/shiyang'
 import { NATURE_SCALE, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
@@ -186,6 +187,7 @@ const MOCK_PRODUCTS: ProductWithExt[] = [
 
 export default function MerchantProducts() {
   const { profile, useMock } = useAuth()
+  const { selectedStoreId } = useStore()
   const [list, setList] = useState<ProductWithExt[]>([])
   const [storeId, setStoreId] = useState<string | null>(null)
   const [storeCategory, setStoreCategory] = useState<string | null>(null)
@@ -285,7 +287,7 @@ export default function MerchantProducts() {
     if (!profile || !isMerchantUser) return
     if (useMock) { setStoreId(null); return }
     const fetchStore = async () => {
-      const st = await getMyMerchantStore(profile.id)
+      const st = await getMyMerchantStore(profile.id, selectedStoreId)
       setStoreId(st?.id ?? null)
       if (st?.id) {
         const { data } = await supabase
@@ -298,7 +300,7 @@ export default function MerchantProducts() {
       }
     }
     fetchStore()
-  }, [profile, useMock])
+  }, [profile, useMock, selectedStoreId])
 
   // 加载商品列表
   useEffect(() => {
@@ -1394,7 +1396,7 @@ export default function MerchantProducts() {
                   </button>
                   {form.barcode && (
                     <button type="button" onClick={onPrintBarcode} disabled={printingBarcode}
-                      style={{ padding: '6px 14px', background: printingBarcode ? 'var(--border-soft)' : 'var(--primary)', border: '1px solid ' + (printingBarcode ? 'var(--border-soft)' : 'var(--primary)'), borderRadius: 8, color: printingBarcode ? 'var(--text-dim)' : '#fff', cursor: printingBarcode ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                      style={{ padding: '6px 14px', background: printingBarcode ? 'var(--border-soft)' : 'var(--primary-strong)', border: '1px solid ' + (printingBarcode ? 'var(--border-soft)' : 'var(--primary)'), borderRadius: 8, color: printingBarcode ? 'var(--text-dim)' : '#fff', cursor: printingBarcode ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
                       {printingBarcode ? '打印中…' : '🖨 打印标签'}
                     </button>
                   )}
@@ -1485,7 +1487,7 @@ export default function MerchantProducts() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>商品分类（自定义）</span>
                 <button type="button" onClick={() => setShowCatModal(true)}
-                  style={{ padding: '4px 12px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--primary)', cursor: 'pointer', fontSize: 12 }}>
+                  style={{ padding: '4px 12px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--primary-strong)', cursor: 'pointer', fontSize: 12 }}>
                   管理分类
                 </button>
               </div>
@@ -1588,7 +1590,7 @@ export default function MerchantProducts() {
                 <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}> 商品食疗系统（系统自动计算）</span>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button type="button" onClick={handleSmartFill} disabled={generating || !form.name}
-                    style={{ padding: '6px 14px', background: (generating || !form.name) ? 'var(--border-soft)' : 'var(--primary)', border: 'none', borderRadius: 8, color: (generating || !form.name) ? 'var(--text-dim)' : '#fff', cursor: (generating || !form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 700 }}>
+                    style={{ padding: '6px 14px', background: (generating || !form.name) ? 'var(--border-soft)' : 'var(--primary-strong)', border: 'none', borderRadius: 8, color: (generating || !form.name) ? 'var(--text-dim)' : '#fff', cursor: (generating || !form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 700 }}>
                     {generating ? '填充中…' : '⚡ 一键智能填充'}
                   </button>
                   <button type="button" onClick={handleAIGenerate} disabled={generating || !form.name}
@@ -1637,7 +1639,7 @@ export default function MerchantProducts() {
                       </div>
                       <div style={{ flex: 1, minWidth: 150, padding: '8px 10px', borderRadius: 8, background: 'rgba(249,115,22,0.1)', border: '1px solid var(--warning)' }}>
                         <span style={{ color: 'var(--warning)', fontSize: 12, fontWeight: 700 }}>🟠 体质慎食</span>
-                        <div style={{ marginTop: 4, color: '#C2410C', fontSize: 12 }}>{liveSafety.risks.orange.length ? liveSafety.risks.orange.join('、') : '无'}</div>
+                        <div style={{ marginTop: 4, color: 'var(--status-orange)', fontSize: 12 }}>{liveSafety.risks.orange.length ? liveSafety.risks.orange.join('、') : '无'}</div>
                       </div>
                       <div style={{ flex: 1, minWidth: 150, padding: '8px 10px', borderRadius: 8, background: 'rgba(59,130,246,0.1)', border: '1px solid var(--info)' }}>
                         <span style={{ color: 'var(--info)', fontSize: 12, fontWeight: 700 }}>🔵 慢病适配</span>
@@ -1886,7 +1888,7 @@ export default function MerchantProducts() {
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
               <input value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="输入新分类名称"
                 style={{ flex: 1, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 14, outline: 'none' }} />
-              <button onClick={handleAddCategory} style={{ padding: '8px 16px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}>新建</button>
+              <button onClick={handleAddCategory} style={{ padding: '8px 16px', background: 'var(--primary-strong)', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}>新建</button>
             </div>
 
             {/* 列表 */}

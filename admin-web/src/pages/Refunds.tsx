@@ -49,7 +49,7 @@ export default function Refunds() {
     card: { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12 } as React.CSSProperties,
     th: { color: 'var(--text-dim)', fontSize: 12, fontWeight: 500, padding: '10px 16px', textAlign: 'left' as const, background: 'var(--bg)' },
     td: { padding: '14px 16px', fontSize: 14, borderBottom: '1px solid var(--border)' } as React.CSSProperties,
-    tab: (active: boolean) => ({ padding: '8px 16px', background: active ? 'var(--primary-soft)' : 'transparent', color: active ? 'var(--primary)' : 'var(--text-muted)', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }),
+    tab: (active: boolean) => ({ padding: '8px 16px', background: active ? 'var(--primary-soft)' : 'transparent', color: active ? 'var(--primary-strong)' : 'var(--text-muted)', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }),
     btn: (bg: string) => ({ padding: '5px 12px', background: bg, color: 'white', border: 'none', borderRadius: 5, fontSize: 12, cursor: 'pointer', marginRight: 6 }),
   }
 

@@ -1,6 +1,7 @@
 // @title 自营门店中心 - 营销活动管理（真实数据）
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore, getMerchantCampaigns, createCampaign, updateCampaignStatus } from '@/api/merchant'
 import type { MarketingCampaign } from '@/types'
 
@@ -10,6 +11,7 @@ const TYPE_LABEL: Record<string, string> = { redpacket: '现金红包', physical
 
 export default function MerchantAds() {
   const { profile } = useAuth()
+  const { selectedStoreId } = useStore()
   const [ads, setAds] = useState<MarketingCampaign[]>([])
   const [loading, setLoading] = useState(true)
   const [storeId, setStoreId] = useState<string | null>(null)
@@ -25,7 +27,7 @@ export default function MerchantAds() {
     if (!profile) return
     let cancelled = false
     ;(async () => {
-      const store = await getMyMerchantStore(profile.id)
+      const store = await getMyMerchantStore(profile.id, selectedStoreId)
       if (cancelled) return
       if (!store) { setLoading(false); return }
       setStoreId(store.id)
@@ -33,7 +35,7 @@ export default function MerchantAds() {
       if (!cancelled) { setAds(list); setLoading(false) }
     })()
     return () => { cancelled = true }
-  }, [profile])
+  }, [profile, selectedStoreId])
 
   const filtered = filter === 'all' ? ads : ads.filter(a => a.status === filter)
   const runningCount = ads.filter(a => a.status === 'active').length
@@ -77,7 +79,7 @@ export default function MerchantAds() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h2 style={{ color: 'var(--text)', fontSize: 24, fontWeight: 700 }}>营销活动</h2>
-        <button onClick={() => setShowCreate(true)} disabled={!storeId} style={{ padding: '10px 20px', background: storeId ? 'var(--primary)' : 'var(--border-soft)', border: 'none', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, cursor: storeId ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 6 }}><span>+</span> 新建活动</button>
+        <button onClick={() => setShowCreate(true)} disabled={!storeId} style={{ padding: '10px 20px', background: storeId ? 'var(--primary-strong)' : 'var(--border-soft)', border: 'none', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, cursor: storeId ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 6 }}><span>+</span> 新建活动</button>
       </div>
 
       {!storeId && !loading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)', fontSize: 14 }}>未找到关联门店</div>}
@@ -88,15 +90,15 @@ export default function MerchantAds() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
               <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>进行中活动</p>
-              <p style={{ color: 'var(--success-strong)', fontSize: 28, fontWeight: 800 }}>{runningCount}</p>
+              <p style={{ color: 'var(--success-strong)', fontSize: 28, fontWeight: 700 }}>{runningCount}</p>
             </div>
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
               <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>累计已领取</p>
-              <p style={{ color: 'var(--primary)', fontSize: 28, fontWeight: 800 }}>{totalClaimed}</p>
+              <p style={{ color: 'var(--primary)', fontSize: 28, fontWeight: 700 }}>{totalClaimed}</p>
             </div>
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
               <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>活动总数</p>
-              <p style={{ color: 'var(--info)', fontSize: 28, fontWeight: 800 }}>{ads.length}</p>
+              <p style={{ color: 'var(--info)', fontSize: 28, fontWeight: 700 }}>{ads.length}</p>
             </div>
           </div>
 
@@ -104,7 +106,7 @@ export default function MerchantAds() {
             {[{ key: 'all', label: '全部' }, { key: 'active', label: '进行中' }, { key: 'paused', label: '已暂停' }, { key: 'ended', label: '已结束' }].map(tab => (
               <button key={tab.key} onClick={() => setFilter(tab.key as any)} style={{
                 padding: '6px 14px',
-                background: filter === tab.key ? 'var(--primary)' : 'var(--surface-2)',
+                background: filter === tab.key ? 'var(--primary-strong)' : 'var(--surface-2)',
                 border: `1px solid ${filter === tab.key ? 'var(--primary)' : 'var(--border)'}`,
                 borderRadius: 6,
                 color: filter === tab.key ? 'white' : 'var(--text-muted)',
@@ -213,7 +215,7 @@ export default function MerchantAds() {
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={() => setShowCreate(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text-muted)', fontSize: 14, cursor: 'pointer' }}>取消</button>
-              <button onClick={handleCreate} disabled={submitting} style={{ flex: 1, padding: '10px', background: submitting ? 'var(--border-soft)' : 'var(--primary)', border: 'none', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}>{submitting ? '提交中…' : '创建'}</button>
+              <button onClick={handleCreate} disabled={submitting} style={{ flex: 1, padding: '10px', background: submitting ? 'var(--border-soft)' : 'var(--primary-strong)', border: 'none', borderRadius: 8, color: 'white', fontSize: 14, fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer' }}>{submitting ? '提交中…' : '创建'}</button>
             </div>
           </div>
         </div>

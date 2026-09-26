@@ -157,7 +157,7 @@ export default function Settings() {
         <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
           <button
             onClick={handleSave} disabled={saving}
-            style={{ padding: '10px 20px', borderRadius: 8, border: 'none', background: 'var(--primary)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+            style={{ padding: '10px 20px', borderRadius: 8, border: 'none', background: 'var(--primary-strong)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
           >{saving ? '保存中…' : '保存配置'}</button>
           <button
             onClick={handleTest} disabled={testing || !apiKey}
@@ -231,7 +231,7 @@ export default function Settings() {
                           <span style={{ color: 'var(--text-dim)' }}>{m.tokens.toLocaleString()} · {m.calls}次</span>
                         </div>
                         <div style={{ height: 8, background: 'var(--bg)', borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${Math.max(4, (m.tokens / max) * 100)}%`, background: 'var(--primary)', borderRadius: 4 }} />
+                          <div style={{ height: '100%', width: `${Math.max(4, (m.tokens / max) * 100)}%`, background: 'var(--primary-strong)', borderRadius: 4 }} />
                         </div>
                       </div>
                     ))

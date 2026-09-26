@@ -53,7 +53,8 @@ export interface Product {
   is_active: boolean
   review_status: ReviewStatus
   created_at: string
-  ingredients?: string[] | null   // 原料成分分析：关联食材 key（与小程序端 products.ingredients 同列）
+  // 原料成分：结构化 IngredientItem[]（name/nature/占比/烹饪方式/辅料，与小程序端 products.ingredients 同列同形）；历史行为 string[]
+  ingredients?: any[] | null
   // 食材食疗智能导购属性（与小程序端迁移 00100_food_therapy_fields.sql 一致）
   overall_nature?: string | null   // 商品整体性味 6 档：大寒/寒凉/平性/微温/温热/大热
   health_tag?: string[] | null     // 固定食疗标签库 9 项
@@ -73,6 +74,8 @@ export interface StoreCategory {
   scope: 'global' | 'store'
   /** 是否上架：false=下架（前端自营页入口隐藏，"全部"仍可见） */
   is_active: boolean
+  /** 场景图标（emoji 文本）：金刚区/落地页读取，后台可编辑；库内为空时前端回退 🌿 */
+  icon: string | null
 }
 
 // 商品情绪编译结果（与小程序端共用 product_emotion 同一张表）

@@ -7,6 +7,7 @@ import {
   getStoreManager, bindStoreManager, unbindStoreManager,
   type SelfStoreProduct, type SelfStoreOrder, type SelfStoreStats,
 } from '@/api/admin'
+import { geocodeAddress } from '@/utils/geocode'
 
 const PAGE_SIZE = 10
 const CATEGORIES = ['图书', '美食', '饮品', '零食', '日用', '礼品', '生鲜', '其他']
@@ -126,17 +127,20 @@ export default function SelfStores() {
             <span style={{ marginLeft: 'auto', color: C.dim, fontSize: 13, display: 'flex', alignItems: 'center' }}>共 {total} 家</span>
           </div>
 
-          {/* 未绑定店长告警：无主店的账号在小程序商家中心会被判为「无门店」而进不去 */}
-          {!loading && list.some(r => !r.owner_id) && (
+          {/* 仅「商户门店（非平台自营）且 owner 为空」才需补归属；平台自营店（来店有喜官方店等）
+              由总部直接管理，本就不绑定个人账号，无需告警。
+              正常新申请在总后台审核通过时会自动把门店 owner 设为申请人，整条链路不需要手动绑定。 */}
+          {!loading && list.some(r => !r.owner_id && !r.is_platform) && (
             <div style={{ background: 'rgba(217,119,6,0.10)', border: `1px solid ${C.gold}`, borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ color: C.gold, fontSize: 16, flexShrink: 0 }}>⚠️</span>
               <div style={{ flex: 1 }}>
                 <div style={{ color: C.text, fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
-                  {list.filter(r => !r.owner_id).length} 家门店未绑定店长
+                  {list.filter(r => !r.owner_id && !r.is_platform).length} 家商户门店未设置店长账号
                 </div>
                 <div style={{ color: C.sub, fontSize: 12, lineHeight: 1.7 }}>
-                  未绑定店长的门店，其运营账号在小程序「自营门店管理中心」会被判定为「无门店」而进不去。
-                  点右侧<b>「绑定店长」</b>搜索账号并绑定即可开通。
+                  这类门店是<b>历史遗留（旧流程建店失败）或系统补建时丢失了归属</b>，对应商家账号登录小程序后无法进入管理后台。
+                  点右侧<b>「设置店长」</b>按手机号/昵称搜到该商家账号绑定一次即可，之后他便能直接进店后台，无需再绑定。
+                  正常新申请在总后台审核通过时会自动归属到申请人，不会出现在此列表。
                 </div>
               </div>
             </div>
@@ -186,11 +190,20 @@ export default function SelfStores() {
                       </td>
                       <td style={tdStyle}>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <button onClick={() => setBindTarget(r)}
-                            style={{ padding: '5px 14px', background: r.owner_id ? C.card : C.gold, border: `1px solid ${r.owner_id ? C.border : C.gold}`, borderRadius: 6,
-                              color: r.owner_id ? C.text : '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                            {r.owner_id ? '更换店长' : '绑定店长'}
-                          </button>
+                          {(() => {
+                            const needsOwnerFix = !r.owner_id && !r.is_platform
+                            return (
+                              <button onClick={() => setBindTarget(r)}
+                                style={{ padding: '5px 14px',
+                                  background: r.owner_id ? C.card : (needsOwnerFix ? C.gold : 'transparent'),
+                                  border: `1px solid ${r.owner_id ? C.border : (needsOwnerFix ? C.gold : C.border)}`,
+                                  borderRadius: 6,
+                                  color: r.owner_id ? C.text : (needsOwnerFix ? '#fff' : C.sub),
+                                  cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                                {r.owner_id ? '店长管理' : '设置店长'}
+                              </button>
+                            )
+                          })()}
                           <button onClick={() => setManaging(r)}
                             style={{ padding: '5px 14px', background: C.accent, border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                             管理
@@ -296,15 +309,15 @@ function StoreDetail({ store, onBack }: { store: StoreRow; onBack: () => void })
         <span style={badge(store.is_open ? C.green : C.dim)}>{store.is_open ? '营业中' : '打烊'}</span>
         {/* 定位状态：未定位的门店在小程序门店选择器里显示「距离未知」，这里一眼看出哪家缺坐标 */}
         <span style={badge(hasGeo ? C.green : C.gold)}>{hasGeo ? '已定位' : '未定位'}</span>
-        {/* 店长状态：未绑定店长 = 无主店，商家在小程序里保存任何设置都会被权限策略静默拦下 */}
+        {/* 店长状态：未设置店长 = 无归属商户店（多为历史遗留），对应商家账号登录小程序后无法进入管理后台 */}
         {managerLoaded && (
           <span style={badge(manager ? C.green : C.gold)}>
-            {manager ? `店长：${manager.nickname}` : '未绑定店长'}
+            {manager ? `店长：${manager.nickname}` : '未设置店长'}
           </span>
         )}
         <button onClick={() => setShowBind(true)}
           style={{ marginLeft: 'auto', padding: '7px 16px', background: manager ? C.card : C.gold, border: `1px solid ${C.border}`, borderRadius: 8, color: manager ? C.text : '#fff', cursor: 'pointer', fontSize: 13 }}>
-          {manager ? '更换店长' : '绑定店长'}
+          {manager ? '店长管理' : '设置店长'}
         </button>
         <button onClick={openEdit}
           style={{ padding: '7px 16px', background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, cursor: 'pointer', fontSize: 13 }}>
@@ -394,9 +407,9 @@ function BindManagerModal({ storeId, storeName, current, onClose, onDone }: {
   return (
     <div style={overlayStyle}>
       <div style={modalStyle}>
-        <h3 style={{ color: C.text, fontSize: 18, fontWeight: 700, marginBottom: 6 }}>绑定店长</h3>
+        <h3 style={{ color: C.text, fontSize: 18, fontWeight: 700, marginBottom: 6 }}>设置店长</h3>
         <p style={{ color: C.dim, fontSize: 12, marginBottom: 16 }}>
-          未绑定店长的门店 = 无主店：商家即使能打开小程序管理中心，修改门店信息也会被权限策略静默拦下（保存地址没反应）。
+          仅历史遗留、归属丢失的商户门店需要此操作：设置后该商家账号即可在小程序进入本店管理后台。正常新申请在总后台审核通过时已自动归属，无需在此设置。
         </p>
 
         {current && (
@@ -701,7 +714,7 @@ function NewStoreButton({ onCreated }: { onCreated: () => void }) {
           onCancel={() => setShow(false)} onSave={save}
           saving={saving}
           showManager
-          hint="新建将自动标记为「自营」（探索页可见）。可绑定店长：店长将获得自营门店身份，登录小程序自营门店中心与后台即可管理本店；不绑定则归平台主账号代管。"
+          hint="新建将自动标记为「自营」（探索页可见）。可指定店长：该账号将获得自营门店身份，登录小程序自营门店中心与后台即可管理本店；不指定则归平台主账号代管。"
         />
       )}
     </>
@@ -714,6 +727,23 @@ function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSav
   const [mResults, setMResults] = useState<any[]>([])
   const [mSearching, setMSearching] = useState(false)
   const pickManager = (u: any) => { setForm({ ...form, manager_uid: u.id, manager_nickname: u.nickname, manager_phone: u.phone || '' }); setMResults([]) }
+  const [geocoding, setGeocoding] = useState(false)
+  const handleGeocode = async () => {
+    const addr = (form.address || '').trim()
+    if (!addr) { alert('请先填写门店地址，再点「获取坐标」'); return }
+    setGeocoding(true)
+    try {
+      const pt = await geocodeAddress(addr)
+      if (pt) {
+        setForm({ ...form, lat: String(pt.lat), lng: String(pt.lng) })
+        alert(`已自动填充坐标（GCJ-02，可直接保存）：\n纬度 ${pt.lat}\n经度 ${pt.lng}`)
+      } else {
+        alert('地址解析失败。建议地址写全「城市+区+道路+门牌」（如 杭州市西湖区甲来路122号），或手动填写经纬度。')
+      }
+    } finally {
+      setGeocoding(false)
+    }
+  }
   const searchManager = async () => {
     setMSearching(true)
     const r = await searchUsers(form.manager_keyword || '')
@@ -732,7 +762,30 @@ function StoreEditModal({ title = '编辑门店', form, setForm, onCancel, onSav
         {showGeo && (
           <>
             <Field label="门店地址">
-              <input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inputStyle} placeholder="如 杭州市西湖区文三路 100 号" />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={form.address}
+                  onChange={e => setForm({ ...form, address: e.target.value })}
+                  style={{ ...inputStyle, flex: 1 }}
+                  placeholder="如 杭州市西湖区文三路 100 号"
+                />
+                <button
+                  type="button"
+                  disabled={geocoding}
+                  onClick={handleGeocode}
+                  style={{
+                    flexShrink: 0,
+                    padding: '0 12px',
+                    borderRadius: 8,
+                    border: `1px solid ${C.accent}`,
+                    color: C.accent,
+                    background: 'transparent',
+                    cursor: geocoding ? 'not-allowed' : 'pointer',
+                    fontSize: 13,
+                    whiteSpace: 'nowrap',
+                  }}
+                >{geocoding ? '解析中…' : '📍 获取坐标'}</button>
+              </div>
             </Field>
             <div style={{ display: 'flex', gap: 14 }}>
               <Field label="纬度 lat" flex>

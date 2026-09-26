@@ -41,7 +41,7 @@ export async function createStoreCategory(input: {
   return data as StoreCategory
 }
 
-export async function updateStoreCategory(id: string, patch: { name?: string; sort_order?: number; is_active?: boolean }): Promise<boolean> {
+export async function updateStoreCategory(id: string, patch: { name?: string; sort_order?: number; is_active?: boolean; icon?: string | null }): Promise<boolean> {
   const { error } = await supabase.from('store_categories').update(patch).eq('id', id)
   if (error) { console.warn('[updateStoreCategory]', error); return false }
   return true

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { getMyMerchantStore } from '@/api/merchant'
+import { useStore } from '@/contexts/StoreContext'
 
 interface OrderRow {
   id: string
@@ -70,6 +71,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function MerchantOrders() {
   const { profile, useMock } = useAuth()
+  const { selectedStoreId } = useStore()
   const [activeTab, setActiveTab] = useState('all')
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -90,7 +92,7 @@ export default function MerchantOrders() {
     }
     try {
       // 解析当前商家店铺（统一身份：owner_id 或 store_staff）
-      const st = await getMyMerchantStore(profile.id)
+      const st = await getMyMerchantStore(profile.id, selectedStoreId)
       const storeId = st?.id
       if (!storeId) { setOrders([]); setLoading(false); return }
 
@@ -132,7 +134,7 @@ export default function MerchantOrders() {
     }
   }
 
-  useEffect(() => { loadOrders() }, [profile, useMock])
+  useEffect(() => { loadOrders() }, [profile, useMock, selectedStoreId])
 
   const filtered = activeTab === 'all' ? orders
     : activeTab === 'unprinted' ? orders.filter(o => !o.printed_at)

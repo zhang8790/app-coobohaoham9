@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 
 const card = { background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }
 const primaryBtn = {
-  background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8,
+  background: 'var(--primary-strong)', color: '#fff', border: 'none', borderRadius: 8,
   padding: '9px 18px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
 }
 const ghostBtn = {
@@ -154,8 +154,8 @@ export default function HomeBranding() {
                 }}
               >
                 <span style={{ fontSize: 12, letterSpacing: 2, opacity: 0.9 }}>顺时而食 · 智慧食养零售</span>
-                <span style={{ fontSize: 22, fontWeight: 800, marginTop: 6, lineHeight: 1.25 }}>不只是零食</span>
-                <span style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.25 }}>是懂你身体的好物</span>
+                <span style={{ fontSize: 22, fontWeight: 700, marginTop: 6, lineHeight: 1.25 }}>不只是零食</span>
+                <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.25 }}>是懂你身体的好物</span>
                 <span style={{ fontSize: 12, opacity: 0.9, marginTop: 8, maxWidth: 280, lineHeight: 1.5 }}>
                   用食养引擎解读每一口成分，把"吃什么对身体好"变成可执行的日常选择。
                 </span>

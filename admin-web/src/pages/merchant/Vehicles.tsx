@@ -1,6 +1,7 @@
 // @title 自营门店中心 - 流动车管理（P3 门店联动，真实数据）
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '@/contexts/StoreContext'
 import {
   getMyMerchantStore, getMerchantVehicles, createVehicle, updateVehicleName, setVehicleStatus,
   getVehicleTransfers, type MerchantVehicle, type VehicleTransferRow,
@@ -12,6 +13,7 @@ const TRANSFER_LABEL: Record<string, string> = { out: '出库', return: '回库'
 
 export default function MerchantVehicles() {
   const { profile } = useAuth()
+  const { selectedStoreId } = useStore()
   const [vehicles, setVehicles] = useState<MerchantVehicle[]>([])
   const [loading, setLoading] = useState(true)
   const [storeId, setStoreId] = useState<string | null>(null)
@@ -32,7 +34,7 @@ export default function MerchantVehicles() {
     if (!profile) return
     let cancelled = false
     ;(async () => {
-      const store = await getMyMerchantStore(profile.id)
+      const store = await getMyMerchantStore(profile.id, selectedStoreId)
       if (cancelled) return
       if (!store) { setLoading(false); return }
       setStoreId(store.id)
@@ -40,7 +42,7 @@ export default function MerchantVehicles() {
       if (!cancelled) { setVehicles(list); setLoading(false) }
     })()
     return () => { cancelled = true }
-  }, [profile])
+  }, [profile, selectedStoreId])
 
   const reload = async () => {
     if (!storeId) return
@@ -129,7 +131,7 @@ export default function MerchantVehicles() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-                  <div style={{ width: 52, height: 52, background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div style={{ width: 52, height: 52, background: 'linear-gradient(135deg, var(--primary-strong), var(--primary-hover))', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <span style={{ fontSize: 24 }}>🚚</span>
                   </div>
                   <div>
@@ -145,7 +147,7 @@ export default function MerchantVehicles() {
                   <button onClick={() => { setRenameId(v.id); setRenameValue(v.name) }} style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--border-soft)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer' }}>
                     改名
                   </button>
-                  <button onClick={() => openTransfers(v)} style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--primary)', borderRadius: 6, color: 'var(--primary)', fontSize: 13, cursor: 'pointer' }}>
+                  <button onClick={() => openTransfers(v)} style={{ flex: 1, padding: '8px', background: 'transparent', border: '1px solid var(--primary)', borderRadius: 6, color: 'var(--primary-strong)', fontSize: 13, cursor: 'pointer' }}>
                     调拨记录
                   </button>
                 </div>
@@ -201,7 +203,7 @@ export default function MerchantVehicles() {
                 {transfers.map(t => (
                   <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8 }}>
                     <div>
-                      <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, background: 'var(--surface)', color: 'var(--primary)', fontSize: 12, fontWeight: 600, marginRight: 8 }}>{TRANSFER_LABEL[t.type] || t.type}</span>
+                      <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, background: 'var(--surface)', color: 'var(--primary-strong)', fontSize: 12, fontWeight: 600, marginRight: 8 }}>{TRANSFER_LABEL[t.type] || t.type}</span>
                       <span style={{ color: 'var(--text)', fontSize: 14 }}>数量 {t.qty}</span>
                     </div>
                     <div style={{ textAlign: 'right' }}>

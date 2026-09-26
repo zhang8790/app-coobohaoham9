@@ -190,7 +190,7 @@ export default function Withdrawals() {
         {KIND_TABS.map(k => (
           <button key={k.key} onClick={() => { setPage(0); setKind(k.key) }}
             style={{ padding: '8px 18px', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
-              background: kind === k.key ? (k.key === 'settlement' ? 'var(--success-strong)' : 'var(--primary)') : 'var(--surface-2)',
+              background: kind === k.key ? (k.key === 'settlement' ? 'var(--success-strong)' : 'var(--primary-strong)') : 'var(--surface-2)',
               color: kind === k.key ? '#fff' : 'var(--text-muted)',
               border: `1px solid ${kind === k.key ? (k.key === 'settlement' ? 'var(--success-strong)' : 'var(--primary)') : 'var(--border)'}` }}>
             {k.label}
@@ -203,7 +203,7 @@ export default function Withdrawals() {
         {FILTERS.map(f => (
           <button key={f.key} onClick={() => { setPage(0); setStatus(f.key) }}
             style={{ padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              background: status === f.key ? 'var(--primary)' : 'var(--surface-2)', color: status === f.key ? '#fff' : 'var(--text-muted)',
+              background: status === f.key ? 'var(--primary-strong)' : 'var(--surface-2)', color: status === f.key ? '#fff' : 'var(--text-muted)',
               border: `1px solid ${status === f.key ? 'var(--primary)' : 'var(--border)'}` }}>
             {f.label}
           </button>
@@ -299,7 +299,7 @@ export default function Withdrawals() {
             {Array.from({ length: totalPages }, (_, i) => (
               <button key={i} onClick={() => setPage(i)}
                 style={{ width: 32, height: 32, borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
-                  background: page === i ? 'var(--primary)' : 'var(--border)', color: page === i ? '#fff' : 'var(--text-muted)' }}>
+                  background: page === i ? 'var(--primary-strong)' : 'var(--border)', color: page === i ? '#fff' : 'var(--text-muted)' }}>
                 {i + 1}
               </button>
             ))}

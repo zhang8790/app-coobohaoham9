@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 
 const card = { background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }
 const primaryBtn = {
-  background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8,
+  background: 'var(--primary-strong)', color: '#fff', border: 'none', borderRadius: 8,
   padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
 }
 const ghostBtn = {

@@ -1,4 +1,4 @@
-// 来电有喜 · 管理后台「临期预警看板」
+// 来店有喜 · 管理后台「临期预警看板」
 // 数据来源：v_near_expiry_products（自动折扣视图）/ stock_batches（手动覆盖）/ expiry_alert_log（审计）/ system_config(key='expiry' 阈值)
 // 注：stock_batches 已 DISABLE RLS（anon 可写）；expiry_alert_log / system_config 可能受 RLS 拦截 → 均做容错
 import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react'
@@ -175,7 +175,7 @@ export default function Expiry() {
       </div>
 
       {msg && (
-        <div style={{ padding: '10px 14px', background: 'var(--primary-soft)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--primary)', fontSize: 13, marginBottom: 12 }}>
+        <div style={{ padding: '10px 14px', background: 'var(--primary-soft)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--primary-strong)', fontSize: 13, marginBottom: 12 }}>
           {msg}
         </div>
       )}
@@ -250,7 +250,7 @@ export default function Expiry() {
                             />
                             <button
                               onClick={() => saveDiscount(r.batch_id, r.days_left)}
-                              style={{ padding: '4px 10px', background: 'var(--primary)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12 }}
+                              style={{ padding: '4px 10px', background: 'var(--primary-strong)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12 }}
                             >
                               保存
                             </button>
@@ -353,7 +353,7 @@ export default function Expiry() {
 
               <button
                 onClick={saveCfg}
-                style={{ marginTop: 8, padding: '10px 20px', background: 'var(--primary)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                style={{ marginTop: 8, padding: '10px 20px', background: 'var(--primary-strong)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
               >
                 保存阈值配置
               </button>

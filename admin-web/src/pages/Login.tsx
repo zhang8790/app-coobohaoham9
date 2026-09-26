@@ -118,7 +118,7 @@ export default function Login() {
             marginBottom: 16,
           }}>
             <div style={{
-              width: 42, height: 42, background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+              width: 42, height: 42, background: 'linear-gradient(135deg, var(--primary-strong), var(--primary-hover))',
               borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 18px rgba(194,65,12,0.35)',
             }}>
@@ -128,7 +128,7 @@ export default function Login() {
                 />
               </svg>
             </div>
-            <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 20 }}>来电有喜</span>
+            <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 20 }}>来店有喜</span>
           </div>
           <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, margin: 0 }}>欢迎回来</h1>
           <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>管理后台登录</p>
@@ -147,7 +147,7 @@ export default function Login() {
           ]).map(m => (
             <button key={m.key} type="button" onClick={() => { setMethod(m.key); setErr('') }} style={{
               flex: 1, padding: '9px 0', borderRadius: 8,
-              background: method === m.key ? 'var(--primary)' : 'transparent',
+              background: method === m.key ? 'var(--primary-strong)' : 'transparent',
               border: 'none', color: method === m.key ? '#fff' : 'var(--text-dim)',
               fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
             }}>{m.label}</button>
@@ -182,7 +182,7 @@ export default function Login() {
 
             <button type="submit" disabled={loading} style={{
               width: '100%', padding: '13px',
-              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary-strong), var(--primary-hover))',
               border: 'none', borderRadius: 10, color: '#fff', fontSize: 15,
               fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s', boxShadow: loading ? 'none' : '0 4px 20px rgba(194,65,12,0.3)',
@@ -237,7 +237,7 @@ export default function Login() {
 
             <button type="submit" disabled={loading} style={{
               width: '100%', padding: '13px',
-              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary-strong), var(--primary-hover))',
               border: 'none', borderRadius: 10, color: '#fff', fontSize: 15,
               fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s', boxShadow: loading ? 'none' : '0 4px 20px rgba(194,65,12,0.3)',
@@ -275,7 +275,7 @@ export default function Login() {
 
             <button type="submit" disabled={loading} style={{
               width: '100%', padding: '13px',
-              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary-strong), var(--primary-hover))',
               border: 'none', borderRadius: 10, color: '#fff', fontSize: 15,
               fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s', boxShadow: loading ? 'none' : '0 4px 20px rgba(194,65,12,0.3)',

@@ -63,7 +63,7 @@ export default function CommissionGuide() {
 
   return (
     <div style={{ maxWidth: 980, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>佣金规则说明</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>佣金规则说明</h1>
       <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 24 }}>平台让利从哪来、分给谁、谁先锁客谁先拿 · 最后更新 {now}</p>
 
       {/* ① 平台让利 */}

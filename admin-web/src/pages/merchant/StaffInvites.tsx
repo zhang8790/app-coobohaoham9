@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore } from '@/api/merchant'
 
 interface Invite {
@@ -30,6 +31,7 @@ const ROLE_COLOR: Record<string, string> = {
 
 export default function StaffInvites() {
   const { profile } = useAuth()
+  const { selectedStoreId } = useStore()
   const [storeId, setStoreId] = useState<string | null>(null)
   const [invites, setInvites] = useState<Invite[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,7 +45,7 @@ export default function StaffInvites() {
       setLoading(true)
       try {
         if (profile?.id) {
-          const st = await getMyMerchantStore(profile.id)
+          const st = await getMyMerchantStore(profile.id, selectedStoreId)
           if (cancelled) return
           setStoreId(st?.id ?? null)
           if (st?.id) await loadInvites(st.id)
@@ -54,7 +56,7 @@ export default function StaffInvites() {
     }
     run()
     return () => { cancelled = true }
-  }, [profile?.id])
+  }, [profile?.id, selectedStoreId])
 
   const loadInvites = async (sid: string) => {
     const { data, error } = await supabase
@@ -126,7 +128,7 @@ export default function StaffInvites() {
           <div style={{ marginTop: 16, background: 'rgba(5,150,105,0.08)', border: '1px solid rgba(5,150,105,0.3)', borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ flex: 1 }}>
               <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 4px' }}>新邀请码（7 天内有效，一次性使用）</p>
-              <p style={{ color: 'var(--success-strong)', fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: 2 }}>{generated}</p>
+              <p style={{ color: 'var(--success-strong)', fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: 2 }}>{generated}</p>
             </div>
             <button
               onClick={() => copyCode(generated)}

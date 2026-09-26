@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getAdminStats, getRecentMerchants, testConnection } from '@/api/admin'
+import { getAdminStats, getRecentMerchants, getTodoCounts, testConnection, type TodoCounts } from '@/api/admin'
 import { useAuth } from '@/contexts/AuthContext'
 import type { AdminStats, MerchantApplication } from '@/types'
 import { NavIcon } from '@/components/icons'
@@ -34,6 +34,7 @@ export default function Dashboard() {
   const nav = useNavigate()
   const { useMock } = useAuth()
   const [stats, setStats] = useState<AdminStats | null>(null)
+  const [todo, setTodo] = useState<TodoCounts | null>(null)
   const [recent, setRecent] = useState<MerchantApplication[]>([])
   const [connStatus, setConnStatus] = useState<ConnStatus>('testing')
   const [connMsg, setConnMsg] = useState('')
@@ -66,16 +67,25 @@ export default function Dashboard() {
     if (useMock) {
       setStats(MOCK_STATS)
       setRecent(MOCK_RECENT)
+      setTodo({ merchantApps: 2, products: 3, withdrawals: 1, refunds: 0, expiry: 4 })
       return
     }
     getAdminStats().then(setStats).catch(() => setStats(MOCK_STATS))
     getRecentMerchants(5).then(setRecent).catch(() => setRecent(MOCK_RECENT))
+    getTodoCounts().then(setTodo).catch(() => setTodo(null))
   }, [useMock])
 
-  const CARDS = [
-    { label: '待审自营门店', key: 'merchants', color: 'var(--warning)', to: '/merchants', icon: 'store' },
+  // 待办事项：可点击直达处理页；数量 >0 时用告警色高亮
+  const TODO_CARDS = [
+    { label: '待审商家申请', key: 'merchantApps', color: 'var(--warning)', to: '/merchants', icon: 'store' },
     { label: '待审商品', key: 'products', color: 'var(--info)', to: '/products', icon: 'box' },
-    { label: '待审提现', key: 'withdrawals', color: 'var(--primary)', to: '/withdrawals', icon: 'dollar' },
+    { label: '待付佣金提现', key: 'withdrawals', color: 'var(--primary)', to: '/withdrawals', icon: 'dollar' },
+    { label: '待处理退款', key: 'refunds', color: 'var(--danger)', to: '/refunds', icon: 'refund' },
+    { label: '临期预警', key: 'expiry', color: 'var(--warning)', to: '/expiry', icon: 'alert' },
+  ] as const
+
+  // 数据总览：非待办的基础计数
+  const STAT_CARDS = [
     { label: '用户总数', key: 'users', color: 'var(--success-strong)', to: '/users', icon: 'user' },
     { label: '订单总数', key: 'orders', color: 'var(--text-dim)', to: '/dashboard', icon: 'document' },
   ]
@@ -127,23 +137,58 @@ export default function Dashboard() {
         <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>平台关键数据总览</p>
       </div>
 
-      {/* 数据卡片 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
-        {CARDS.map(c => (
-          <div key={c.key} style={{ ...S.card, cursor: 'pointer', transition: 'border-color 0.15s' }}
-            onClick={() => nav(c.to)}
-            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = c.color)}
-            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--border)')}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <NavIcon name={c.icon} size={22} style={{ color: c.color }} />
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
+      {/* 待办事项：一屏聚合所有待处理项，点击直达 */}
+      <div>
+        <h2 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+          待办事项
+          {todo && Object.values(todo).reduce((s, v) => s + v, 0) > 0 && (
+            <span style={{ marginLeft: 10, color: 'var(--danger)', fontSize: 13, fontWeight: 600 }}>
+              共 {Object.values(todo).reduce((s, v) => s + v, 0)} 项待处理
+            </span>
+          )}
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+          {TODO_CARDS.map(c => {
+            const n = todo ? (todo as unknown as Record<string, number>)[c.key] : null
+            const hot = (n ?? 0) > 0
+            return (
+              <div key={c.key} style={{ ...S.card, cursor: 'pointer', transition: 'border-color 0.15s', borderColor: hot ? c.color : 'var(--border)' }}
+                onClick={() => nav(c.to)}
+                onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = c.color)}
+                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = hot ? c.color : 'var(--border)')}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <NavIcon name={c.icon} size={22} style={{ color: c.color }} />
+                  {hot && <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />}
+                </div>
+                <p style={S.label}>{c.label}</p>
+                <p style={{ ...S.val, color: hot ? c.color : 'var(--text-dim)' }}>
+                  {n === null ? '—' : n}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* 数据总览 */}
+      <div>
+        <h2 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 600, marginBottom: 12 }}>数据总览</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+          {STAT_CARDS.map(c => (
+            <div key={c.key} style={{ ...S.card, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => nav(c.to)}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = c.color)}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--border)')}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <NavIcon name={c.icon} size={22} style={{ color: c.color }} />
+              </div>
+              <p style={S.label}>{c.label}</p>
+              <p style={{ ...S.val, color: c.color }}>
+                {stats ? (stats as unknown as Record<string, number>)[c.key] : '—'}
+              </p>
             </div>
-            <p style={S.label}>{c.label}</p>
-            <p style={{ ...S.val, color: c.color }}>
-              {stats ? (stats as unknown as Record<string, number>)[c.key] : '—'}
-            </p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* 最新自营门店申请预览 */}
@@ -151,7 +196,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h2 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 600 }}>最新自营门店申请</h2>
           <button onClick={() => nav('/merchants')}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, cursor: 'pointer' }}>
+            style={{ background: 'none', border: 'none', color: 'var(--primary-strong)', fontSize: 13, cursor: 'pointer' }}>
             查看全部 →
           </button>
         </div>

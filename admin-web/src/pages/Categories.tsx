@@ -10,6 +10,10 @@ export default function Categories() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [busy, setBusy] = useState(false)
+  // 图标编辑器：每行可改 icon（emoji 文本），预设快捷选择 + 自定义输入
+  const [editingIconId, setEditingIconId] = useState<string | null>(null)
+  const [iconInput, setIconInput] = useState('')
+  const PRESET_EMOJIS = ['🍼', '🥕', '👵', '🌙', '🥣', '💪', '🛡️', '⚡', '🌿', '🍎', '🥗', '🍵', '💊', '🌾', '☕', '🍯']
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -77,6 +81,20 @@ export default function Categories() {
     load()
   }
 
+  const startEditIcon = (c: StoreCategory) => {
+    setEditingIconId(c.id)
+    setIconInput(c.icon || '')
+  }
+  const handleSaveIcon = async (c: StoreCategory) => {
+    setBusy(true)
+    const ok = await updateStoreCategory(c.id, { icon: iconInput.trim() || null })
+    setBusy(false)
+    if (!ok) { alert('图标保存失败，请重试'); return }
+    setEditingIconId(null)
+    setIconInput('')
+    load()
+  }
+
   const S = {
     card: { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px' } as React.CSSProperties,
     th: { color: 'var(--text-dim)', fontSize: 12, fontWeight: 500, padding: '10px 16px', textAlign: 'left' as const, background: 'var(--bg)' },
@@ -119,6 +137,7 @@ export default function Categories() {
             <tr>
               <th style={S.th}>排序</th>
               <th style={S.th}>分类名称</th>
+              <th style={S.th}>图标</th>
               <th style={S.th}>范围</th>
               <th style={S.th}>创建时间</th>
               <th style={S.th}>操作</th>
@@ -126,9 +145,9 @@ export default function Categories() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ ...S.td, textAlign: 'center', color: 'var(--text-dim)' }}>加载中...</td></tr>
+              <tr><td colSpan={6} style={{ ...S.td, textAlign: 'center', color: 'var(--text-dim)' }}>加载中...</td></tr>
             ) : list.length === 0 ? (
-              <tr><td colSpan={5} style={{ ...S.td, textAlign: 'center', color: 'var(--text-dim)' }}>暂无全局分类</td></tr>
+              <tr><td colSpan={6} style={{ ...S.td, textAlign: 'center', color: 'var(--text-dim)' }}>暂无全局分类</td></tr>
             ) : [...list].sort((a, b) => a.sort_order - b.sort_order).map(c => (
               <tr key={c.id}>
                 <td style={S.td}>{c.sort_order}</td>
@@ -143,6 +162,33 @@ export default function Categories() {
                     />
                   ) : (
                     <span>{c.name}</span>
+                  )}
+                </td>
+                <td style={S.td}>
+                  {editingIconId === c.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <input
+                        autoFocus
+                        value={iconInput}
+                        maxLength={4}
+                        placeholder="粘贴 emoji"
+                        onChange={e => setIconInput(e.target.value)}
+                        style={{ padding: '4px 8px', width: 110, background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 6, color: 'var(--text)', fontSize: 16, outline: 'none' }}
+                      />
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 180 }}>
+                        {PRESET_EMOJIS.map(e => (
+                          <button key={e} onClick={() => setIconInput(e)} style={{ fontSize: 18, lineHeight: 1, padding: '2px 4px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' }}>{e}</button>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => handleSaveIcon(c)} style={{ ...S.btn('var(--success-strong)') }}>保存</button>
+                        <button onClick={() => { setEditingIconId(null); setIconInput('') }} style={S.btn('var(--border-soft)')}>取消</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => startEditIcon(c)} style={{ background: 'transparent', border: '1px dashed var(--border-soft)', borderRadius: 8, padding: '4px 8px', fontSize: 22, lineHeight: 1, cursor: 'pointer' }}>
+                      {c.icon || '🌿'}
+                    </button>
                   )}
                 </td>
                 <td style={S.td}>

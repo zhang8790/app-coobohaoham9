@@ -52,8 +52,14 @@ export default function Merchants() {
   const handleApprove = async (id: string) => {
     if (!confirm('确认通过该自营门店申请？')) return
     setProcessing(id)
-    await approveApplication(id, assignMap[id] ?? false)
-    setProcessing(null); load()
+    // 必须判返回值：approveApplication 在建店失败时会 return false 并保持申请为 pending。
+    // 旧实现丢弃返回值，导致「建店失败但列表看起来已通过」的假成功，商家进不了后台还查不到原因。
+    const ok = await approveApplication(id, assignMap[id] ?? false)
+    setProcessing(null)
+    if (!ok) {
+      alert('审核未通过：创建门店失败。\n\n申请已保持「待审核」状态，可修复后重试。\n常见原因：store_type 非法值 / 缺少写权限（RLS）/ 必填列缺失。\n详情见浏览器控制台日志。')
+    }
+    load()
   }
 
   const handleReject = async () => {
@@ -83,7 +89,7 @@ export default function Merchants() {
         {STATUS_TABS.map(t => (
           <button key={t.key} onClick={() => setFilter(t.key)}
             style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-              background: filter === t.key ? 'var(--primary)' : 'var(--card)',
+              background: filter === t.key ? 'var(--primary-strong)' : 'var(--card)',
               color: filter === t.key ? '#fff' : 'var(--text-muted)' }}>
             {t.label}
           </button>
@@ -159,7 +165,7 @@ export default function Merchants() {
             {Array.from({ length: totalPages }, (_, i) => (
               <button key={i} onClick={() => setPage(i)}
                 style={{ width: 32, height: 32, borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
-                  background: page === i ? 'var(--primary)' : 'var(--border)', color: page === i ? '#fff' : 'var(--text-muted)' }}>
+                  background: page === i ? 'var(--primary-strong)' : 'var(--border)', color: page === i ? '#fff' : 'var(--text-muted)' }}>
                 {i + 1}
               </button>
             ))}
