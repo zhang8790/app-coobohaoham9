@@ -43,6 +43,7 @@ import MerchantSettings from '@/pages/merchant/Settings'
 import MerchantVehicles from '@/pages/merchant/Vehicles'
 import MerchantStaffInvites from '@/pages/merchant/StaffInvites'
 import MerchantPrinters from '@/pages/merchant/Printers'
+import MerchantBarcodeMaker from '@/pages/merchant/BarcodeMaker'
 import { StoreProvider } from '@/contexts/StoreContext'
 
 // ============ 路由守卫 ============
@@ -164,6 +165,7 @@ export default function App() {
             <Route path="vehicles" element={<MerchantVehicles />} />
             <Route path="staff" element={<MerchantStaffInvites />} />
             <Route path="printers" element={<MerchantPrinters />} />
+            <Route path="barcode-maker" element={<MerchantBarcodeMaker />} />
           </Route>
 
           {/* 兜底：未匹配路由 → 按角色跳转 */}

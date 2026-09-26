@@ -3349,18 +3349,26 @@ export async function updateProduct(id: string, params: Partial<{
 
 // 为无条码商品自动分配 EAN-13 店内码（调用 product-mutate 的 auto_barcode 逻辑）
 // 仅编辑已有商品时可用（需商品 id）；返回更新后的商品（含 barcode）
-export async function generateProductBarcode(id: string): Promise<import('./types').Product | null> {
+// 返回 ok/error 而非裸 null：此前失败只返回 null，调用方只能弹「生成失败，请重试」，
+// 用户无从判断是权限不足（product-mutate 只认门店 owner）还是门店没配条码前缀。
+export async function generateProductBarcode(id: string): Promise<{
+  ok: boolean
+  product?: import('./types').Product
+  error?: string
+}> {
   try {
     const { data, error } = await supabase.functions.invoke('product-mutate', { body: { id, auto_barcode: true } })
     if (!error && data?.success) {
       clearRequestCache()
-      return (data as any).product as import('./types').Product
+      return { ok: true, product: (data as any).product as import('./types').Product }
     }
-    console.warn('[generateProductBarcode]', error?.message || data?.error)
-    return null
+    const msg = String(error?.message || (data as any)?.error || '未知错误')
+    console.warn('[generateProductBarcode]', msg)
+    return { ok: false, error: msg }
   } catch (e: any) {
-    console.warn('[generateProductBarcode]', e?.message || e)
-    return null
+    const msg = String(e?.message || e)
+    console.warn('[generateProductBarcode]', msg)
+    return { ok: false, error: msg }
   }
 }
 
@@ -4146,6 +4154,39 @@ export async function allocStoreBarcode(storeId: string): Promise<string | null>
   } catch (e: any) {
     console.warn('[allocStoreBarcode]', e?.message || e)
     return null
+  }
+}
+
+// 本店店内码台账（store_barcodes）：出码即留痕，可查询历史码并补打标签。
+// 背景：此前裸码只存在前端 state，刷新即永久丢失；且码分配成功但回写商品被 RLS
+// 静默拒绝时，用户看到「已生成」却打印失败，无从排查。台账让「出了哪些码」可追溯。
+// 表由迁移 20260926_store_barcodes_ledger.sql 创建；表不存在时返回空数组，不影响主流程。
+export interface StoreBarcodeRow {
+  id: string
+  store_id: string
+  barcode: string
+  barcode_type: string
+  product_id: string | null
+  status: 'pending' | 'bound'
+  created_at: string
+}
+
+export async function listStoreBarcodes(storeId: string, limit = 30): Promise<StoreBarcodeRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from('store_barcodes')
+      .select('id,store_id,barcode,barcode_type,product_id,status,created_at')
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (error) {
+      console.warn('[listStoreBarcodes]', error.message)
+      return []
+    }
+    return (data || []) as StoreBarcodeRow[]
+  } catch (e: any) {
+    console.warn('[listStoreBarcodes]', e?.message || e)
+    return []
   }
 }
 

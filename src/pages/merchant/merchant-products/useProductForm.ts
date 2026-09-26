@@ -330,12 +330,20 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
         Taro.showToast({ title: '已保存并自动分配店内码', icon: 'success' })
         return
       }
-      const prod = await generateProductBarcode(pid)
-      if (prod && prod.barcode) {
-        setForm(f => ({ ...f, barcode: prod.barcode! }))
+      const res = await generateProductBarcode(pid)
+      if (res.ok && res.product?.barcode) {
+        setForm(f => ({ ...f, barcode: res.product!.barcode! }))
         Taro.showToast({ title: '已生成店内码', icon: 'success' })
       } else {
-        Taro.showToast({ title: '生成失败，请重试', icon: 'none' })
+        // 出真因：权限不足 / 门店缺前缀 / 网络异常，别再让用户对着「请重试」干瞪眼
+        const msg = res.error || '未知错误'
+        Taro.showModal({
+          title: '生成店内码失败',
+          content: /owner|权限|403|not allowed|policy/i.test(msg)
+            ? '当前账号不是该门店负责人，无法写入商品条码。请用门店负责人账号登录，或到网页管理后台操作。'
+            : msg,
+          showCancel: false,
+        })
       }
     } finally {
       setGeneratingBarcode(false)
@@ -344,16 +352,33 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
 
   // 打印条码标签（需该门店已配置易联云打印机）
   const onPrintBarcode = async () => {
-    if (!form.barcode || !editId) return
+    // 原实现在这两个前置不满足时直接 return，点击「打印标签」毫无反应 —— 静默失败，
+    // 用户只会以为按钮坏了。改为明确告知原因 + 给出下一步。
+    if (!editId) {
+      Taro.showModal({ title: '暂不能打印', content: '请先保存商品，保存后即可打印条码标签。', showCancel: false })
+      return
+    }
+    if (!form.barcode) {
+      Taro.showModal({ title: '暂不能打印', content: '该商品还没有店内码，请先点「一键生成店内码」。', showCancel: false })
+      return
+    }
     setPrintingBarcode(true)
     try {
       const r = await callPrintBarcode({ productId: editId, storeId: store?.id })
       if (r.success) {
         Taro.showToast({ title: '已推送打印', icon: 'success' })
       } else if (r.need_config) {
-        Taro.showModal({ title: '未配置打印机', content: '该门店尚未配置易联云打印机，请先到「设置」配置打印机后再打印标签。', showCancel: false })
+        Taro.showModal({ title: '未配置打印机', content: '该门店尚未配置已启用的云打印机，请先到「设置—小票打印」配置。', showCancel: false })
       } else {
-        Taro.showToast({ title: r.error || '打印失败', icon: 'none' })
+        // 最常见真因：码只在前端 state 里、没落库 → 服务端读到空条码。给出可判断的提示。
+        const err = r.error || '未知错误'
+        Taro.showModal({
+          title: '打印失败',
+          content: /无条码/.test(err)
+            ? '该商品的店内码没能写入数据库（通常是权限不足被安全策略拒绝）。请用门店负责人账号重试，或到网页管理后台生成。'
+            : err,
+          showCancel: false,
+        })
       }
     } finally {
       setPrintingBarcode(false)

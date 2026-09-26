@@ -15,6 +15,7 @@ const MERCHANT_NAV_GROUPS = [
       { to: '/merchant/messages', icon: '🔔', label: '消息通知' },
       { to: '/merchant/withdraw', icon: '💰', label: '货款提现' },
       { to: '/merchant/printers', icon: '🖨️', label: '小票打印' },
+      { to: '/merchant/barcode-maker', icon: '🏷️', label: '条形码制作' },
     ],
   },
   {

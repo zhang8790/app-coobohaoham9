@@ -443,8 +443,23 @@ export default function MerchantProducts() {
       }
       const code = (data[0] as any).barcode as string
       const type = (data[0] as any).barcode_type as string
-      const { error: upErr } = await supabase.from('products').update({ barcode: code, barcode_type: type }).eq('id', editing.id)
+      // ⚠️ 关键：必须 .select() 回读并按「返回行数」判定是否真的落库。
+      // PostgREST 对被 RLS 拒绝的 UPDATE **不报错**，只返回 0 行；此前正是靠 upErr 判定，
+      // 于是出现「界面提示已生成 → 打印报该商品无条码」的假成功。
+      const { data: updated, error: upErr } = await supabase
+        .from('products')
+        .update({ barcode: code, barcode_type: type })
+        .eq('id', editing.id)
+        .select('id,barcode')
       if (upErr) { window.alert('回写条码失败：' + upErr.message); return }
+      if (!updated || updated.length === 0) {
+        window.alert(
+          '条码已分配但未能写入商品（安全策略拒绝了本次修改）。\n' +
+          '常见原因：当前账号不是该门店负责人。\n' +
+          '请用门店负责人账号操作，或前往「条形码制作」页处理。'
+        )
+        return
+      }
       setForm(f => ({ ...f, barcode: code }))
       setList(prev => prev.map(p => p.id === editing.id ? { ...p, barcode: code } : p))
       window.alert('已生成店内码：' + code)
@@ -455,15 +470,26 @@ export default function MerchantProducts() {
 
   // 打印条码标签（易联云 EAN-13 店内码）：依赖门店已配置打印机
   const onPrintBarcode = async () => {
-    if (!form.barcode || !editing) return
+    // 原实现在这两个前置不满足时直接 return —— 点击「打印标签」完全没反应，
+    // 用户只会以为按钮坏了。改为明确告知原因与下一步。
+    if (!editing) { window.alert('请先打开一个商品进行编辑'); return }
+    if (!form.barcode) { window.alert('该商品还没有店内码，请先点「一键生成店内码」。'); return }
     setPrintingBarcode(true)
     try {
       const { data, error } = await supabase.functions.invoke('print-receipt', { body: { mode: 'barcode', product_id: editing.id } })
       if (error) { window.alert('打印失败：' + error.message); return }
       const d = (data ?? {}) as any
-      if (d.need_config) { window.alert('该门店尚未配置易联云打印机，请先到「设置」配置打印机后再打印标签。'); return }
+      if (d.need_config) { window.alert('该门店尚未配置已启用的云打印机，请先到「小票打印」配置打印机后再打印标签。'); return }
       if (d.success) { window.alert('已推送打印'); }
-      else { window.alert('打印失败：' + (d.error || '未知错误')); }
+      else {
+        // 最常见真因：码只在前端 state 里、没落库 → 服务端读到空条码
+        const err = String(d.error || '未知错误')
+        window.alert(
+          /无条码/.test(err)
+            ? '打印失败：该商品的店内码没能写入数据库（通常是权限不足被安全策略拒绝）。\n请用门店负责人账号重试，或前往「条形码制作」页处理。'
+            : '打印失败：' + err
+        )
+      }
     } finally {
       setPrintingBarcode(false)
     }
@@ -964,7 +990,7 @@ export default function MerchantProducts() {
           <span style={{ color: '#10B981', fontSize: 11, fontWeight: 700, border: '1px solid #10B981', borderRadius: 6, padding: '2px 8px' }}>快捷入口</span>
         </div>
         <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12, margin: '8px 0 0', lineHeight: 1.7 }}>生成 EAN-13 店内码、打印空白标签、扫码上架，统一在「条形码制作」独立页面操作。</p>
-        <button onClick={() => navigate('/barcode-maker')} style={{ marginTop: 12, width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+        <button onClick={() => navigate('/merchant/barcode-maker')} style={{ marginTop: 12, width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#10B981,#059669)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
           前往条形码制作 →
         </button>
       </div>
