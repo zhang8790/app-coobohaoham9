@@ -22,10 +22,9 @@ import ComprehensiveSafetyReport from '@/components/ComprehensiveSafetyReport'
 import GiftSections from '@/pages/product/GiftSections'
 import { getFoodBenefit } from '@/data/foodBenefits'
 import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
-import { PRODUCT_DISCLAIMER, shieldCopy, cleanAudienceTags } from '@/utils/compliance/shield'
+import { shieldCopy, cleanAudienceTags } from '@/utils/compliance/shield'
 import { buildTherapyReport, buildTherapyHeadline, isFoodProduct, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
-import { analyzeForProfile } from '@/utils/food-therapy/profile-analysis'
-import { getFoodIngredients, callIngredientAnalyze, type FoodIngredientRow, type CatalogInsight } from '@/db/food-safety'
+import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 
 // 模块级缓存：食材字典（食养引擎基础数据）仅拉一次，跨商品跳转不再重复请求（PRD 4.1）
 let ingredientDictPromise: Promise<FoodIngredientRow[]> | null = null
@@ -51,7 +50,7 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
 
 export default function ProductPage() {
  const { user } = useAuth()
- const { classifyProduct, activeProfile, familyMembers, selectedMemberId } = useFoodTherapy()
+ const { classifyProduct, familyMembers, selectedMemberId } = useFoodTherapy()
  const { id, expiryEp, expiryBatch } = useMemo(() => {
  const params = Taro.getCurrentInstance().router?.params
  const rawId = params?.id ? decodeURIComponent(params.id) : ''
@@ -116,17 +115,14 @@ const [adding, setAdding] = useState(false)
  return list
  }, [product])
 
- // 统一食疗引擎：拉取食材字典 + 实时计算三色预警（C 端详情页复用商家端同一套算法）
- const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
- // 资产化①闭环：EF 私有目录表层「药食同源专属洞察」（服务端匹配，客户端读不到，竞品抄不到）
- const [catalogInsight, setCatalogInsight] = useState<CatalogInsight | null>(null)
- const [catalogLoading, setCatalogLoading] = useState(false)
- useEffect(() => {
- if (!ingredientDictPromise) {
- ingredientDictPromise = getFoodIngredients().catch(() => [] as FoodIngredientRow[])
- }
- ingredientDictPromise.then(setIngredientDict).catch(() => setIngredientDict([]))
- }, [])
+// 统一食疗引擎：拉取食材字典 + 实时计算三色预警（C 端详情页复用商家端同一套算法）
+const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
+useEffect(() => {
+if (!ingredientDictPromise) {
+ingredientDictPromise = getFoodIngredients().catch(() => [] as FoodIngredientRow[])
+}
+ingredientDictPromise.then(setIngredientDict).catch(() => setIngredientDict([]))
+}, [])
 
  // 生产日期 / 保质期展示计算（来自在售批次）
  const batchDisplay = useMemo(() => {
@@ -281,48 +277,10 @@ const [adding, setAdding] = useState(false)
  })
  }, [product, foodAdditives])
 
- // 菜品级食养作用：原材料食材组合的现代营养 + 中医食疗（演示用，按 id/名称匹配）
- const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
+// 菜品级食养作用：原材料食材组合的现代营养 + 中医食疗（演示用，按 id/名称匹配）
+const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
 
- // 资产化①升级：千人千面专属报告（核心壁垒·升首屏）
- // 基于用户完整结构化画像（含 age_group 分群维度），本品对「你个人」的食养参考。
- // 差异由过敏原 + 性味宜忌 + 人群标签自然产生，走中性食养话术，规避医疗宣称。
- const personalReport = useMemo<ReturnType<typeof analyzeForProfile> | null>(() => {
- if (!product || !activeProfile) return null
- return analyzeForProfile(product, activeProfile)
- }, [product, activeProfile])
-// 资产化①闭环：调 ingredient-analyze EF 拿「药食同源专属洞察」
- // EF 用 service_role 读 medicinal_food_catalog（客户端 RLS 拒绝），按用户年龄段做差异化；
- // 仅回传衍生洞察，竞品无法复刻。persist:false 避免商品页内联调用刷 food_analysis_reports。
- useEffect(() => {
- let cancelled = false
- const ageGroup = activeProfile?.age_group
- const ingredients = (product?.ingredients || []) as string[]
- if (!product || !ageGroup || !ingredients.length) {
- setCatalogInsight(null)
- return
- }
- setCatalogLoading(true)
- callIngredientAnalyze({
- text: ingredients.join('，'),
- age_group: ageGroup,
- product_id: product.id,
- persist: false,
- source: 'manual',
- })
- .then((r) => {
- if (cancelled) return
- setCatalogInsight(r.success ? (r.catalog_insight ?? null) : null)
- })
- .finally(() => {
- if (!cancelled) setCatalogLoading(false)
- })
- return () => {
- cancelled = true
- }
- }, [product, activeProfile])
-
- // 商品卡分享：一定是产品（商品主图 + 商品详情路径），并注入食疗分档
+// 商品卡分享：一定是产品（商品主图 + 商品详情路径），并注入食疗分档
  useShareAppMessage(() => {
  if (!product) return { title: '来店有喜', path: '/pages/product/index' }
  const s = buildProductShare(product, myCode)
@@ -521,67 +479,6 @@ const [adding, setAdding] = useState(false)
  </View>
  </View>
 
-{/* 分区① 食养安全提示：过敏原 / 参考留意 / 药食同源专属参考（中性食安硬信息，去除个性化情绪外壳） */}
-{isFood && (
-<View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
-<SectionTitle iconName="shield" title="食养安全提示" />
- {isFood && personalReport && (
-<View className="mt-3" style={{ padding: '14px 16px', borderRadius: '16px', background: 'linear-gradient(135deg,hsl(var(--primary-soft)),#F3E5DF)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
-
-{/* 过敏原强预警（最高优先级） */}
- {personalReport.allergenHits.length > 0 && (
- <View style={{ marginTop: 10, padding: '8px 10px', borderRadius: '10px', background: '#FEF2F2', border: '1px solid #FECACA' }}>
- <Text style={{ fontSize: '24rpx', color: '#DC2626', fontWeight: '700', display: 'block', marginBottom: 4 }}> 过敏原提醒</Text>
- {personalReport.allergenHits.map((a) => (
- <Text key={a.key} style={{ fontSize: '26rpx', color: '#7F1D1D', display: 'block', lineHeight: '1.6' }}>· 您对{a.name}过敏{a.severity ? `（${a.severity}）` : ''}，本品含相关成分，请谨慎</Text>
- ))}
- </View>
- )}
-
- {/* 体质 / 慢病参考留意（中性食养话术） */}
- {personalReport.contraindications.length > 0 && (
- <View style={{ marginTop: 8, padding: '8px 10px', borderRadius: '10px', background: '#FFF7ED', border: '1px solid #FED7AA' }}>
- <Text style={{ fontSize: '24rpx', color: '#B45309', fontWeight: '700', display: 'block', marginBottom: 4 }}> 参考留意</Text>
- {personalReport.contraindications.map((c, i) => (
- <Text key={i} style={{ fontSize: '26rpx', color: '#666666', display: 'block', lineHeight: '1.6' }}>· {c}</Text>
- ))}
- </View>
- )}
-
- {/* 药食同源专属参考（依你的年龄段）· 核心壁垒：私有目录表服务端匹配，竞品抄不到 */}
- {catalogInsight && (
-<View style={{ marginTop: 10, padding: '10px 12px', borderRadius: '12px', background: 'var(--color-herb-50)', border: '1px solid var(--color-herb-100)' }}>
-<Text style={{ fontSize: '26rpx', color: 'var(--color-herb-600)', fontWeight: '700', display: 'block', marginBottom: 6 }}> 食养专属参考 · 依你的年龄段</Text>
- {catalogInsight.age_caution_hits.length > 0 && (
- <View style={{ marginBottom: 6 }}>
- <Text style={{ fontSize: '24rpx', color: '#B91C1C', fontWeight: '700', display: 'block', marginBottom: 3 }}> 年龄段留意</Text>
- {catalogInsight.age_caution_hits.map((h) => (
- <Text key={h.ingredient} style={{ fontSize: '26rpx', color: '#7F1D1D', display: 'block', lineHeight: '1.6' }}>
- · {h.ingredient}：{h.cautions.join('、')}
- </Text>
- ))}
- </View>
- )}
- {catalogInsight.nature_summary ? (
- <Text style={{ fontSize: '26rpx', color: 'var(--color-herb-600)', display: 'block', lineHeight: '1.6', marginBottom: 6 }}>{catalogInsight.nature_summary}</Text>
- ) : null}
- {catalogInsight.compatibility_notes.length > 0 && (
- <View>
- <Text style={{ fontSize: '24rpx', color: 'var(--color-herb-600)', fontWeight: '700', display: 'block', marginBottom: 3 }}> 性味配伍</Text>
- {catalogInsight.compatibility_notes.map((n, i) => (
- <Text key={i} style={{ fontSize: '24rpx', color: 'var(--color-herb-600)', display: 'block', lineHeight: '1.6' }}>· {n}</Text>
- ))}
- </View>
- )}
- </View>
- )}
- {catalogLoading ? (
- <Text style={{ fontSize: '24rpx', color: '#4B7A6A', display: 'block', marginTop: 10 }}>食养参考分析中…</Text>
-) : null}
-</View>
-)}
-</View>
-)}
 
       {/* 分区②+③ 合并：食安与食养（配方安全 + 食养参考，同属「吃进去什么 / 安不安全」，合并为单卡减少顶层分区标题） */}
       {isFood && (
@@ -590,9 +487,8 @@ const [adding, setAdding] = useState(false)
 
           {/* —— 配方安全（原② 配料表） —— */}
           <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} showShiyang={false} />
-          {safetyReport && <ComprehensiveSafetyReport report={safetyReport} fullLabel />}
-          <View className="mt-3 flex items-center justify-between" style={{ paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
-            <Text style={{ fontSize: '24rpx', color: '#64748b' }}>已通过配料安全引擎分析，可查看完整检测报告</Text>
+          {safetyReport && <ComprehensiveSafetyReport report={safetyReport} fullLabel showDisclaimer={false} />}
+          <View className="mt-3 flex items-center justify-end" style={{ paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
             <Text style={{ fontSize: '24rpx', color: 'hsl(var(--primary))', fontWeight: '600', borderBottomWidth: 1, borderBottomColor: 'hsl(var(--primary))' }}
               onClick={() => Taro.navigateTo({ url: `/pages/food/analysis-result/index?product_id=${encodeURIComponent(product.id)}` })}>
               查看检测报告 ›
@@ -789,13 +685,6 @@ const [adding, setAdding] = useState(false)
  lazyLoad />
  ))}
  </View>
- </View>
- )}
-
- {/* 食养食品通用食用温馨提示（普通食品，无医疗调理作用；礼品不展示） */}
- {isFood && (
- <View className="mx-4 mt-3 mb-2 px-3 py-3 rounded-xl" style={{ background: '#F8FAF9', border: '1px solid #E3EDEC' }}>
- <Text style={{ fontSize: '22rpx', color: '#6B7280', display: 'block', lineHeight: '1.6' }}>{PRODUCT_DISCLAIMER}</Text>
  </View>
  )}
 

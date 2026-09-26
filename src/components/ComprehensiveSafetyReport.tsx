@@ -19,11 +19,14 @@ const FLAG_COLOR: Record<string, string> = {
 }
 
 export default function ComprehensiveSafetyReport({
- report,
- fullLabel = false,
+  report,
+  fullLabel = false,
+  showDisclaimer = true,
 }: {
- report: ComprehensiveSafetyReport
- fullLabel?: boolean
+  report: ComprehensiveSafetyReport
+  fullLabel?: boolean
+  /** 是否在卡底展示「以上为食养参考，不替代专业医疗…」强制免责声明；商品详情页为去冗传 false（扫码页默认展示） */
+  showDisclaimer?: boolean
 }) {
  if (!report?.hasContent) return null
 
@@ -163,10 +166,12 @@ export default function ComprehensiveSafetyReport({
  </View>
  ) : null}
 
- {/* 免责声明（合规红线，全站分析卡强制展示，禁止硬编码） */}
- <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 14, lineHeight: 1.7 }}>
- {FOOD_THERAPY_DISCLAIMER}
- </Text>
+{/* 免责声明（合规红线，分析卡默认强制展示，禁止硬编码；商品详情页为去冗可传 showDisclaimer=false） */}
+{showDisclaimer && (
+<Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 14, lineHeight: 1.7 }}>
+{FOOD_THERAPY_DISCLAIMER}
+</Text>
+)}
  </View>
  )
 }
