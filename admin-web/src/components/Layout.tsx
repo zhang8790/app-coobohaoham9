@@ -47,7 +47,6 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/food-ingredients', icon: 'book', label: '食材库' },
       { to: '/food-tag-rules', icon: 'check', label: '人群标签规则' },
       { to: '/ocr-debug', icon: 'image', label: '配料识别调试' },
-      { to: '/marketing-templates', icon: 'chat', label: '导购话术库' },
       { to: '/categories', icon: 'tag', label: '商品分类' },
     ],
   },

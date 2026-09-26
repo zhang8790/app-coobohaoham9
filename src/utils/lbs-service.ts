@@ -75,43 +75,6 @@ export async function getUserLocation(): Promise<UserLocation> {
 }
 
 /**
- * 查找就近门店（调用后端RPC函数）
- */
-export async function findNearestStores(
-  lat: number,
-  lng: number,
-  cityId?: string,
-  maxDistance: number = 5,
-  limit: number = 20
-): Promise<StoreInfo[]> {
-  try {
-    const { data, error } = await supabase.rpc('find_nearest_stores', {
-      p_lat: lat,
-      p_lng: lng,
-      p_city_id: cityId || null,
-      p_max_distance_km: maxDistance,
-      p_limit: limit,
-    })
-
-    if (error) {
-      console.error('[LBS] 查找就近门店失败', error)
-      return []
-    }
-
-    return (data || []).map((store: any) => ({
-      id: store.store_id,
-      store_name: store.store_name,
-      address: store.address,
-      distance_km: Math.round(store.distance_km * 100) / 100,
-      is_open: store.is_open,
-    }))
-  } catch (err) {
-    console.error('[LBS] 查找就近门店异常', err)
-    return []
-  }
-}
-
-/**
  * 计算两点距离（半正矢公式，前端备用）
  */
 export function calculateDistance(

@@ -17,7 +17,6 @@ import Ledgers from '@/pages/Ledgers'
 import MerchantSettlements from '@/pages/MerchantSettlements'
 import BehaviorAnalytics from '@/pages/BehaviorAnalytics'
 import SymptomRules from '@/pages/SymptomRules'
-import MarketingTemplates from '@/pages/MarketingTemplates'
 import SelfStores from '@/pages/SelfStores'
 import CommissionGuide from '@/pages/CommissionGuide'
 import Categories from '@/pages/Categories'
@@ -135,7 +134,6 @@ export default function App() {
           <Route path="merchant-settlements" element={<MerchantSettlements />} />
           <Route path="behavior" element={<BehaviorAnalytics />} />
           <Route path="symptom-rules" element={<SymptomRules />} />
-          <Route path="marketing-templates" element={<MarketingTemplates />} />
           <Route path="self-stores" element={<SelfStores />} />
           <Route path="commission-guide" element={<CommissionGuide />} />
             <Route path="categories" element={<Categories />} />

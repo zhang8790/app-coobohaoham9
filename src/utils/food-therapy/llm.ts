@@ -2,8 +2,7 @@
 // 通过 supabase Edge Function food-therapy-ai 调用；未配置 LLM_API_KEY 或调用失败时
 // 自动回退规则引擎结果，系统照常可用，零外部依赖。
 
-import type { FitRule, FoodTherapyInput, MarketingCopy } from './types'
-import { generateMarketingCopy } from './marketing'
+import type { FitRule, FoodTherapyInput } from './types'
 import { resolveSymptomRule } from './symptom-rules'
 
 // 惰性加载 supabase 客户端：避免在非 Taro 运行环境（如引擎自测脚本）于模块顶层加载
@@ -87,45 +86,6 @@ export async function nluParseSymptoms(text: string): Promise<NluResult> {
     food_type: foodType,
     source: 'rule',
   }
-}
-
-// 规则文案 → 自然润色（ai-copy）。失败/未配置时回退规则文案。
-export async function generateMarketingCopyLLM(
-  input: FoodTherapyInput,
-  rule?: FitRule | null,
-): Promise<{ copy: MarketingCopy; source: 'llm' | 'rule' }> {
-  const base = generateMarketingCopy(input, rule)
-  try {
-    const supabase = await getSupabase()
-    const { data, error } = await supabase.functions.invoke('food-therapy-ai', {
-      body: {
-        mode: 'copy',
-        name: input.name,
-        nature: input.overall_nature ?? '',
-        health_tags: input.health_tag ?? [],
-        emotion_tags: input.emotion_tag ?? [],
-        short_sales_word: base.short_sales_word,
-        detail_desc: base.detail_desc,
-        circle_copy: base.circle_copy,
-        risk_tip: base.risk_tip,
-      },
-    })
-    if (!error && data?.success && data.source === 'llm') {
-      return {
-        copy: {
-          short_sales_word: data.short_sales_word || base.short_sales_word,
-          detail_desc: data.detail_desc || base.detail_desc,
-          circle_copy: data.circle_copy || base.circle_copy,
-          risk_tip: data.risk_tip || base.risk_tip,
-          poster_template: base.poster_template,
-        },
-        source: 'llm',
-      }
-    }
-  } catch (e) {
-    console.warn('[generateMarketingCopyLLM] 回退规则文案', e)
-  }
-  return { copy: base, source: 'rule' }
 }
 
 // ── 推荐大脑调用（LLM 直接排序候选商品）──

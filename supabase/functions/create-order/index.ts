@@ -3,6 +3,14 @@
  * 三种支付模式：pure_gold（纯健康豆）| hybrid（混合）| wxpay（纯微信）
  * 健康豆优先扣减，防重复提交（order_no 幂等）
  * 跨门店结算：自动按 store_id 拆分成多个子订单，共享同一 parent_order_no
+ *
+ * ⚠️ 当前状态：未被 C 端调用，处于「已实现但未接线」状态。
+ * 小程序实际下单走 src/db/api.ts 的 createOrderV2（客户端直插 orders，带 user_id 以满足 RLS
+ * WITH CHECK，并由服务端目录价覆盖防压价）。因此本 EF 的跨门店拆单 + 健康豆混合扣减逻辑
+ * 目前不会执行。
+ * 保留原因：_shared/flow.test.ts 依赖 handleCreateOrder 做资金安全回归（防压价下单、
+ * 纯健康豆建单扣豆 + 触发分佣），删除会连带丢失这些测试。
+ * 若将来要启用跨门店拆单：把 createOrderV2 改为调用本 EF，并回归下单/支付/分佣全链路。
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { toFixed4, mapPayModeToPaymentMethod, computeWeightedRate, beanUsedForSubOrder } from '../_shared/money.ts'
