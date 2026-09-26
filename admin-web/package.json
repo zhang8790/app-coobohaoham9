@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint:style": "node scripts/style-discipline.web.mjs",
+    "lint:style:ci": "node scripts/style-discipline.web.mjs --ci",
+    "lint": "npm run lint:style"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.1",

@@ -1,38 +1,102 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
 
-/* ===== 来电有喜 管理后台 · 设计 token（暗色国潮，品牌色对齐小程序 --primary 赤陶橙） ===== */
+/* ===== 来店有喜 设计 token · 双端同源（暗色国潮主题层） =====
+   与小程序端（暖珊瑚设计系统）共享同一套语义 token 名称与品牌值：
+   · --primary      = 暖珊瑚 #E87964（C 端小程序品牌主色，后台同源）
+   · --color-herb-* = 食养语义绿（对齐小程序 #16A34A / #15803D）
+   · radius / 字重 / 排版 / 动效 token 命名与小程序完全一致
+     （--radius-sm/md/lg/xl、--fw-bold:700、--text-*、--motion-*）
+   暗色仅作用于 surface/bg 层，品牌语义与 C 端完全一致 → 跨端一致性达标。
+   历史：原 --primary 为赤陶橙 #C2410C（已废弃，由 CI 卡口 R1 拦截）。
+*/
 :root {
+  /* 表面 / 背景（暗色国潮层，B 端专属，不影响品牌语义） */
   --bg: #0B0F19;
   --surface: #080C14;
   --surface-2: #111827;
   --border: #1F2937;
   --border-soft: #374151;
-  --primary: #C2410C;
-  --primary-hover: #EA580C;
-  --primary-soft: rgba(194, 65, 12, 0.15);
+
+  /* 品牌主色 · 与小程序同源（暖珊瑚） */
+  --primary: #E87964;
+  --primary-strong: #C0533D;   /* 加深珊瑚：珊瑚底白字按钮达 AA（4.6:1），与 C 端同源治理 2026-09-26 */
+  --primary-hover: #D9694F;
+  --primary-deep: #D9694F;
+  --primary-soft: rgba(232, 121, 100, 0.15);
+  --primary-disabled: #B07A6B;
+
+  /* 文字（已按 WCAG AA 调校：--text-dim 提亮至 ≈5.8:1） */
   --text: #E5E7EB;
-  --text-muted: #9CA3AF;
-  --text-dim: #6B7280;
-  --success: #22C55E;
-  --success-strong: #10B981;
-  --success-soft: rgba(34, 197, 94, 0.15);
+  --text-muted: #9CA3AF;   /* ≈7:1 on --bg */
+  --text-dim: #8A94A6;     /* 提亮前 #6B7280 ≈3.8:1 不达标 → 现 ≈5.8:1 达标 */
+
+  /* 语义色 · 与小程序对齐 */
+  --success: #16A34A;            /* 对齐小程序 --color-herb-500 */
+  --success-strong: #15803D;     /* 对齐小程序 --color-herb-600 */
+  --success-soft: rgba(22, 163, 74, 0.15);
   --warning: #F59E0B;
   --warning-soft: rgba(245, 158, 11, 0.15);
   --danger: #EF4444;
   --danger-soft: rgba(239, 68, 68, 0.15);
   --danger-bg: rgba(239, 68, 68, 0.07);
   --danger-text: #FCA5A5;
-  --primary-disabled: #7A2508;
   --info: #3B82F6;
   --info-text: #93C5FD;
   --info-soft: rgba(59, 130, 246, 0.15);
+
+  /* 食养语义绿族（对齐小程序 --color-herb-*） */
+  --color-herb-50: #F0FDF4;
+  --color-herb-100: #DCFCE7;
+  --color-herb-200: #BBF7D0;
+  --color-herb-500: #16A34A;
+  --color-herb-600: #15803D;
+
+  /* 状态语义色（临期 / 风险 红橙琥珀，独立于品牌，避免与珊瑚主色混淆） */
+  --status-red: #DC2626;        --status-red-soft: rgba(220, 38, 38, 0.13);
+  --status-orange: #EA580C;     --status-orange-soft: rgba(234, 88, 12, 0.13);
+  --status-amber: #D97706;      --status-amber-soft: rgba(217, 119, 6, 0.13);
+
+  /* 强调（B 端功能辅助色，非品牌分歧） */
   --accent: #8B5CF6;
   --accent-text: #A5B4FC;
   --accent-soft: rgba(139, 92, 246, 0.15);
+
+  /* 卡片 / 悬浮 */
   --card: #0F172A;
   --hover-bg: #141B2D;
-  --radius: 8px;
+
+  /* 圆角 · 与小程序同名（--radius-sm/md/lg/xl） */
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius: 8px;        /* 兼容别名 = md */
   --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* 字重 · 最高 --fw-bold:700（越界 800 由 CI 卡口拦截） */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* 排版 token（替代裸 fontSize，统一层级） */
+  --text-caption: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --leading-tight: 1.3;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.8;
+
+  /* 动效 token（替代裸 transition 时长） */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
   --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   --font-sans: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
 }
@@ -50,3 +114,38 @@ body {
 a { text-decoration: none; color: inherit; }
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; }
+
+/* ===== 交互态基线（按钮 / 卡片 / 表格行） ===== */
+button, .lx-btn, [role="button"] {
+  transition: background var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+button:focus-visible, .lx-btn:focus-visible, a:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.lx-btn:active, button:not(:disabled):active { transform: translateY(1px); }
+button:disabled, .lx-btn:disabled, [aria-disabled="true"] {
+  opacity: 0.55; cursor: not-allowed;
+}
+.lx-card {
+  transition: border-color var(--motion-base) var(--ease-out),
+              box-shadow var(--motion-base) var(--ease-out);
+}
+.lx-card:hover { border-color: var(--primary); }
+.lx-row { transition: background var(--motion-fast) var(--ease-out); }
+.lx-row:hover { background: var(--hover-bg); }
+
+/* ===== 无障碍基线 ===== */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -1,6 +1,7 @@
 // @title 自营门店中心 - 小票打印机配置（云打印对接）
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore } from '@/api/merchant'
 import {
   getPrinterConfig, upsertPrinterConfig, callPrintReceipt,
@@ -8,6 +9,7 @@ import {
 
 export default function MerchantPrinters() {
   const { profile } = useAuth()
+  const { selectedStoreId } = useStore()
   const [storeId, setStoreId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -28,7 +30,7 @@ export default function MerchantPrinters() {
     if (!profile) return
     let cancelled = false
     ;(async () => {
-      const store = await getMyMerchantStore(profile.id)
+      const store = await getMyMerchantStore(profile.id, selectedStoreId)
       if (cancelled) return
       if (!store) { setLoading(false); return }
       setStoreId(store.id)
@@ -48,7 +50,7 @@ export default function MerchantPrinters() {
       setLoading(false)
     })()
     return () => { cancelled = true }
-  }, [profile])
+  }, [profile, selectedStoreId])
 
   const showToast = (type: 'ok' | 'err', msg: string) => {
     setToast({ type, msg })
@@ -162,8 +164,19 @@ export default function MerchantPrinters() {
               <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} style={{ width: 16, height: 16 }} /> 启用打印机
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--text)' }}>
-              <input type="checkbox" checked={autoPrint} onChange={e => setAutoPrint(e.target.checked)} style={{ width: 16, height: 16 }} /> 订单完成后自动打印
+              <input type="checkbox" checked={autoPrint} onChange={e => setAutoPrint(e.target.checked)} style={{ width: 16, height: 16 }} /> 支付后自动打印
             </label>
+          </div>
+
+          {/* 已知偏差提示：与小程序端 merchant-settings 保持一致（触发器不读该开关） */}
+          <div style={{
+            background: 'var(--warning-soft, #FEF3C7)', border: '1px solid var(--warning, #D97706)',
+            borderRadius: 8, padding: '10px 12px', marginBottom: 16,
+          }}>
+            <p style={{ color: '#92400E', fontSize: 12, lineHeight: 1.7, margin: 0 }}>
+              注意：自动打印由数据库触发器驱动，当前版本<b>不判断</b>上面的「支付后自动打印」开关。
+              只要「启用打印机」为开，本店已支付订单都会自动出单；若不想出纸，请把「启用打印机」关闭。
+            </p>
           </div>
 
           {printCount > 0 && (
@@ -180,13 +193,13 @@ export default function MerchantPrinters() {
             }}>{saving ? '保存中…' : '保存配置'}</button>
             <button onClick={handleTest} disabled={testing} style={{
               flex: 1, padding: '12px', background: 'transparent', border: '1px solid var(--primary)',
-              borderRadius: 8, color: 'var(--primary)', fontSize: 14, fontWeight: 600,
+              borderRadius: 8, color: 'var(--primary-strong)', fontSize: 14, fontWeight: 600,
               cursor: testing ? 'not-allowed' : 'pointer',
             }}>{testing ? '打印中…' : '测试打印'}</button>
           </div>
 
           <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 16, lineHeight: 1.6 }}>
-            提示：测试打印会向该设备推送一张示例小票，用于验证设备联网与凭证是否正确。「订单完成后自动打印」开启后，商家在订单页确认完成时将自动出小票。
+            提示：测试打印会向该设备推送一张示例小票，用于验证设备联网与凭证是否正确。订单支付完成后由服务端自动推送小票（见上方说明），本页「打印小票 / 重打小票 / 批量打印」用于补打。
           </p>
         </div>
       )}

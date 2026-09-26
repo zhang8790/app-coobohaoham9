@@ -17,12 +17,13 @@ import {
 import { getProducts, getProductById, type Product } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { FOOD_SCAN_DISCLAIMER, shieldCopy } from '@/utils/compliance/shield'
+import SectionTitle from '@/components/SectionTitle'
 
 // 4 档评级 → 分数 + 主题色
 const LEVEL_META: Record<string, { score: number; label: string; bg: string; fg: string; border: string; ring: string }> = {
- A_preferred: { score: 92, label: 'A 优选', bg: 'rgba(34,197,94,0.10)', fg: '#16a34a', border: 'rgba(34,197,94,0.35)', ring: '#22c55e' },
+ A_preferred: { score: 92, label: 'A 优选', bg: 'rgba(34,197,94,0.10)', fg: '#15803D', border: 'rgba(34,197,94,0.35)', ring: '#22c55e' },
  A_limit: { score: 78, label: 'A 含限量', bg: 'rgba(132,204,22,0.10)', fg: '#65a30d', border: 'rgba(132,204,22,0.35)', ring: '#84cc16' },
- B_caution: { score: 55, label: 'B 慎选', bg: 'rgba(249,115,22,0.10)', fg: '#ea580c', border: 'rgba(249,115,22,0.35)', ring: '#f97316' },
+ B_caution: { score: 55, label: 'B 慎选', bg: 'rgba(249,115,22,0.10)', fg: '#B45309', border: 'rgba(249,115,22,0.35)', ring: '#B45309' },
  C_avoid: { score: 28, label: 'C 不推荐', bg: 'rgba(239,68,68,0.10)', fg: '#dc2626', border: 'rgba(239,68,68,0.35)', ring: '#ef4444' },
 }
 
@@ -30,14 +31,14 @@ const LEVEL_META: Record<string, { score: number; label: string; bg: string; fg:
 const NEUTRAL_META = { score: 0, label: '待评估', bg: 'rgba(100,116,139,0.08)', fg: '#64748b', border: 'rgba(100,116,139,0.30)', ring: '#cbd5e1' }
 
 const ADDITIVE_LEVEL: Record<string, { label: string; color: string; bg: string }> = {
- safe: { label: '安全', color: '#16a34a', bg: 'rgba(34,197,94,0.08)' },
+ safe: { label: '安全', color: '#15803D', bg: 'rgba(34,197,94,0.08)' },
  limit: { label: '限量', color: '#ca8a04', bg: 'rgba(234,179,8,0.08)' },
  high_risk: { label: '高风险', color: '#dc2626', bg: 'rgba(239,68,68,0.08)' },
 }
 
 // 添加剂风险分级 L1-L4（模块二核心壁垒，PRD 2.1）
 const RISK_TIER: Record<string, { label: string; color: string; bg: string }> = {
- L1: { label: 'L1 纯天然', color: '#16a34a', bg: 'rgba(34,197,94,0.12)' },
+ L1: { label: 'L1 纯天然', color: '#15803D', bg: 'rgba(34,197,94,0.12)' },
  L2: { label: 'L2 常规合规', color: '#0891b2', bg: 'rgba(8,145,178,0.12)' },
  L3: { label: 'L3 敏感控量', color: '#ca8a04', bg: 'rgba(234,179,8,0.12)' },
  L4: { label: 'L4 老幼弱少吃', color: '#dc2626', bg: 'rgba(239,68,68,0.12)' },
@@ -46,9 +47,9 @@ const RISK_TIER: Record<string, { label: string; color: string; bg: string }> = 
 // 人群 severity → 提醒配色（莫兰迪合规色：禁用红 / 不建议橙 / 慎用黄 / 可适量绿）
 const SEV_META: Record<string, { icon: string; tag: string; fg: string; bg: string; border: string; chipBg: string }> = {
  forbidden: { icon: '', tag: '禁用', fg: '#dc2626', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.45)', chipBg: 'rgba(239,68,68,0.20)' },
- advise_against: { icon: '', tag: '不建议', fg: '#ea580c', bg: 'rgba(249,115,22,0.10)', border: 'rgba(249,115,22,0.40)', chipBg: 'rgba(249,115,22,0.18)' },
+ advise_against: { icon: '', tag: '不建议', fg: '#B45309', bg: 'rgba(249,115,22,0.10)', border: 'rgba(249,115,22,0.40)', chipBg: 'rgba(249,115,22,0.18)' },
  caution: { icon: '', tag: '慎用', fg: '#ca8a04', bg: 'rgba(234,179,8,0.10)', border: 'rgba(234,179,8,0.38)', chipBg: 'rgba(234,179,8,0.18)' },
- ok: { icon: '', tag: '可适量', fg: '#16a34a', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.30)', chipBg: 'rgba(34,197,94,0.16)' },
+ ok: { icon: '', tag: '可适量', fg: '#15803D', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.30)', chipBg: 'rgba(34,197,94,0.16)' },
 }
 
 interface RenderReport {
@@ -182,14 +183,14 @@ export default function AnalysisResult() {
  return (
  <View style={pageStyle}>
  <View style={cardStyle}>
- <Text style={{ fontSize: 15, color: '#64748b', lineHeight: '24px' }}>未找到对应安全分析报告。</Text>
- <Text style={{ fontSize: 13, color: '#94a3b8', marginTop: 6, lineHeight: '22px', display: 'block' }}>可前往「配料识别」手动录入或拍照识别配料，即时生成评估报告。</Text>
+ <Text style={{ fontSize: '30rpx', color: '#64748b', lineHeight: '24px' }}>未找到对应安全分析报告。</Text>
+ <Text style={{ fontSize: '26rpx', color: '#94a3b8', marginTop: 6, lineHeight: '22px', display: 'block' }}>可前往「配料识别」手动录入或拍照识别配料，即时生成评估报告。</Text>
  <View style={{
  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 14,
- paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#16a34a', borderStyle: 'dashed',
+ paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#15803D', borderStyle: 'dashed',
  background: 'rgba(22,163,74,0.05)',
  }} onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}>
- <Text style={{ fontSize: 14, fontWeight: '700', color: '#15803d' }}>去配料识别页分析</Text>
+ <Text style={{ fontSize: '28rpx', fontWeight: '700', color: '#15803d' }}>去配料识别页分析</Text>
  </View>
  </View>
  </View>
@@ -208,11 +209,11 @@ export default function AnalysisResult() {
  <View style={{ ...scoreCardStyle, background: meta.bg, borderColor: meta.border }}>
  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
  <View style={{ flex: 1 }}>
-    <Text style={{ fontSize: 13, color: meta.fg, fontWeight: '600', letterSpacing: 1 }}>配料选购参考分</Text>
-    <Text style={{ fontSize: 48, fontWeight: '800', color: meta.fg, lineHeight: '56px', marginTop: 4 }}>
+    <Text style={{ fontSize: '26rpx', color: meta.fg, fontWeight: '600', letterSpacing: 1 }}>配料选购参考分</Text>
+    <Text style={{ fontSize: '96rpx', fontWeight: '700', color: meta.fg, lineHeight: '56px', marginTop: 4 }}>
     {meta.score > 0 ? meta.score : '—'}
     </Text>
-    <Text style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{meta.score > 0 ? '满分 100' : '暂无评级数据'}</Text>
+    <Text style={{ fontSize: '24rpx', color: '#64748b', marginTop: 2 }}>{meta.score > 0 ? '满分 100' : '暂无评级数据'}</Text>
  </View>
  {/* 安全色环 */}
  <View style={{ width: 76, height: 76, position: 'relative' }}>
@@ -225,12 +226,12 @@ export default function AnalysisResult() {
  borderRadius: 26, background: '#fff', display: 'flex',
  alignItems: 'center', justifyContent: 'center',
  }}>
- <Text style={{ fontSize: 16, fontWeight: '800', color: meta.fg }}>{meta.label}</Text>
+ <Text style={{ fontSize: '32rpx', fontWeight: '700', color: meta.fg }}>{meta.label}</Text>
  </View>
  </View>
  </View>
  <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
- <Text style={{ fontSize: 14, color: '#334155', lineHeight: '22px' }}>
+ <Text style={{ fontSize: '28rpx', color: '#334155', lineHeight: '22px' }}>
  {safeText(report.main_conclusion?.general)}
  </Text>
  </View>
@@ -238,8 +239,8 @@ export default function AnalysisResult() {
 
  {/* ──── 评估说明（数据源 + 算法局限，信任透明） ──── */}
  <View style={{ ...cardStyle, background: 'rgba(99,102,241,0.06)', borderColor: 'rgba(99,102,241,0.25)' }}>
- <Text style={{ fontSize: 13, color: '#6366f1', fontWeight: '600' }}>评估说明</Text>
- <Text style={{ fontSize: 12, color: '#475569', marginTop: 4, lineHeight: '20px', display: 'block' }}>{FOOD_SCAN_DISCLAIMER}</Text>
+ <Text style={{ fontSize: '26rpx', color: '#6366f1', fontWeight: '600' }}>评估说明</Text>
+ <Text style={{ fontSize: '24rpx', color: '#475569', marginTop: 4, lineHeight: '20px', display: 'block' }}>{FOOD_SCAN_DISCLAIMER}</Text>
  </View>
 
  {/* ──── 人群适配强提醒（婴幼儿/孕产妇/病人，severity 分级，信任度核心） ──── */}
@@ -253,16 +254,16 @@ export default function AnalysisResult() {
  background: sm.bg, borderWidth: 1, borderColor: sm.border,
  flexDirection: 'row', alignItems: 'flex-start',
  }}>
- <Text style={{ fontSize: 18, marginTop: 1, marginRight: 10 }}>{sm.icon}</Text>
+ <Text style={{ fontSize: '36rpx', marginTop: 1, marginRight: 10 }}>{sm.icon}</Text>
  <View style={{ flex: 1 }}>
  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
  <Text style={{
- fontSize: 11, fontWeight: '700', color: sm.fg,
+ fontSize: '22rpx', fontWeight: '700', color: sm.fg,
  background: sm.chipBg, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 7, marginRight: 6,
  }}>{sm.tag}</Text>
- <Text style={{ fontSize: 14, fontWeight: '700', color: sm.fg }}>{adv.label}</Text>
+ <Text style={{ fontSize: '28rpx', fontWeight: '700', color: sm.fg }}>{adv.label}</Text>
  </View>
- <Text style={{ fontSize: 13, color: '#334155', lineHeight: '20px' }}>{safeText(adv.text)}</Text>
+ <Text style={{ fontSize: '26rpx', color: '#334155', lineHeight: '20px' }}>{safeText(adv.text)}</Text>
  </View>
  </View>
  )
@@ -273,7 +274,7 @@ export default function AnalysisResult() {
  {/* ──── 核心结论 ──── */}
  {report.main_conclusion && (
  <View style={cardStyle}>
- <Text style={sectionTitle}>核心结论</Text>
+ <SectionTitle accent="herb" title="核心结论" />
  <Row label="儿童" value={report.main_conclusion.children} />
  <Row label="适宜人群" value={report.main_conclusion.fit_people} />
  <Row label="需谨慎/不宜" value={report.main_conclusion.unfit_people} />
@@ -283,8 +284,8 @@ export default function AnalysisResult() {
  {/* ──── 食养关注提示 ──── */}
  {report.health_shortboard_tip && (
  <View style={{ ...cardStyle, background: 'rgba(99,102,241,0.06)', borderColor: 'rgba(99,102,241,0.25)' }}>
- <Text style={{ fontSize: 13, color: '#6366f1', fontWeight: '600' }}> 食养关注提示</Text>
- <Text style={{ fontSize: 14, color: '#334155', marginTop: 4, lineHeight: '22px' }}>
+ <Text style={{ fontSize: '26rpx', color: '#6366f1', fontWeight: '600' }}> 食养关注提示</Text>
+ <Text style={{ fontSize: '28rpx', color: '#334155', marginTop: 4, lineHeight: '22px' }}>
  {safeText(report.health_shortboard_tip)}
  </Text>
  </View>
@@ -292,13 +293,7 @@ export default function AnalysisResult() {
 
  {/* ──── 自定义关注（成分偏好设置） ──── */}
  <View style={cardStyle}>
- <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
- <Text style={sectionTitle}> 我的关注设置</Text>
- <Text style={{ fontSize: 12, color: '#B8923A', fontWeight: '600' }}
- onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}>
- 设置 ›
- </Text>
- </View>
+ <SectionTitle accent="herb" title="我的关注设置" action={{ label: '设置 ›', onClick: () => Taro.navigateTo({ url: '/pages/food/food-scan/index' }) }} />
  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
  {[
  { label: '色素类', active: false }, { label: '防腐剂', active: true },
@@ -308,37 +303,34 @@ export default function AnalysisResult() {
  <View key={item.label} style={{
  borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10,
  background: item.active ? 'rgba(212,165,55,0.12)' : '#f8fafc',
- borderWidth: 1, borderColor: item.active ? '#B8923A' : 'rgba(0,0,0,0.06)',
+ borderWidth: 1, borderColor: item.active ? '#8A6B22' : 'rgba(0,0,0,0.06)',
  }}>
  <Text style={{
- fontSize: 12, fontWeight: item.active ? '700' : '400',
+ fontSize: '24rpx', fontWeight: item.active ? '700' : '400',
  color: item.active ? '#9A7B2E' : '#94a3b8',
  }}>{item.label}</Text>
  </View>
  ))}
  </View>
- <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 6, display: 'block' }}>
+ <Text style={{ fontSize: '22rpx', color: '#94a3b8', marginTop: 6, display: 'block' }}>
  扫描配料时重点关注已选的成分类型
  </Text>
  <View style={{
  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12,
- paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#16a34a', borderStyle: 'dashed',
+ paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#15803D', borderStyle: 'dashed',
  background: 'rgba(22,163,74,0.05)',
  }}
  onClick={() => Taro.navigateTo({ url: '/pages/food/food-match/index' })}
  >
- <Text style={{ fontSize: 16, marginRight: 8 }}></Text>
- <Text style={{ fontSize: 14, fontWeight: '700', color: '#15803d' }}>进入个性化食疗推荐专区</Text>
+ <Text style={{ fontSize: '32rpx', marginRight: 8 }}></Text>
+ <Text style={{ fontSize: '28rpx', fontWeight: '700', color: '#15803d' }}>进入个性化食疗推荐专区</Text>
  </View>
  </View>
 
  {/* ──── 添加剂明细（卡片式） ──── */}
  {report.additive_list && report.additive_list.length > 0 && (
  <View style={cardStyle}>
- <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
- <Text style={sectionTitle}>添加剂明细</Text>
- <Text style={{ fontSize: 12, color: '#94a3b8' }}>{report.additive_list.length} 项</Text>
- </View>
+ <SectionTitle accent="herb" title="添加剂明细" action={{ label: `${report.additive_list.length} 项`, onClick: () => {} }} />
  {report.additive_list.map((a, i) => {
  const lv = ADDITIVE_LEVEL[a.level] || ADDITIVE_LEVEL.safe
  return (
@@ -346,24 +338,24 @@ export default function AnalysisResult() {
  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
  <View style={{ width: 36, height: 36, borderRadius: 18, background: lv.bg, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
- <Text style={{ fontSize: 16 }}>{a.level === 'safe' ? '' : a.level === 'limit' ? '' : ''}</Text>
+ <Text style={{ fontSize: '32rpx' }}>{a.level === 'safe' ? '' : a.level === 'limit' ? '' : ''}</Text>
  </View>
  <View style={{ flex: 1 }}>
- <Text style={{ fontSize: 15, fontWeight: '700', color: '#1e293b' }}>{a.name}</Text>
- <Text style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>{a.type}</Text>
+ <Text style={{ fontSize: '30rpx', fontWeight: '700', color: '#1e293b' }}>{a.name}</Text>
+ <Text style={{ fontSize: '24rpx', color: '#64748b', marginTop: 1 }}>{a.type}</Text>
  </View>
  </View>
  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
  {a.risk_tier && RISK_TIER[a.risk_tier] ? (
  <Text style={{
- fontSize: 10, fontWeight: '700', color: RISK_TIER[a.risk_tier].color,
+ fontSize: '20rpx', fontWeight: '700', color: RISK_TIER[a.risk_tier].color,
  background: RISK_TIER[a.risk_tier].bg, borderRadius: 6, paddingVertical: 3, paddingHorizontal: 7,
  }}>
  {RISK_TIER[a.risk_tier].label}
  </Text>
  ) : null}
  <Text style={{
- fontSize: 11, fontWeight: '600', color: lv.color, background: lv.bg,
+ fontSize: '22rpx', fontWeight: '600', color: lv.color, background: lv.bg,
  borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8,
  }}>
  {lv.label}
@@ -371,7 +363,7 @@ export default function AnalysisResult() {
  </View>
  </View>
  {a.desc ? (
- <Text style={{ fontSize: 13, color: '#475569', marginTop: 8, lineHeight: '20px', paddingLeft: 48 }}>
+ <Text style={{ fontSize: '26rpx', color: '#475569', marginTop: 8, lineHeight: '20px', paddingLeft: 48 }}>
  {safeText(a.desc)}
  </Text>
  ) : null}
@@ -384,7 +376,7 @@ export default function AnalysisResult() {
  {/* ──── 人群提示标签 ──── */}
  {crowdLabels.length > 0 && (
  <View style={cardStyle}>
- <Text style={sectionTitle}>食养人群提示</Text>
+ <SectionTitle accent="herb" title="食养人群提示" />
  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
  {crowdLabels.map((l, i) => (
  <Text key={i} style={tagStyle}>{safeText(l)}</Text>
@@ -396,7 +388,7 @@ export default function AnalysisResult() {
  {/* ──── 命中配料 ──── */}
  {report.parsed_ingredients && report.parsed_ingredients.length > 0 && (
  <View style={cardStyle}>
- <Text style={sectionTitle}>解析配料</Text>
+ <SectionTitle accent="herb" title="解析配料" />
  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
  {report.parsed_ingredients.map((p, i) => (
  <Text key={i} style={chipStyle}>{p}</Text>
@@ -408,9 +400,7 @@ export default function AnalysisResult() {
  {/* ──── 推荐替代商品（识→买闭环） ──── */}
  {recProducts.length > 0 && (
  <View style={cardStyle}>
-      <Text style={sectionTitle}>
-        {report.safe_level_code === 'A_preferred' ? '此商品配料评估较好，看看同类好货' : '为你找到同类好货（按价格排序，仅供参考）'}
-      </Text>
+      <SectionTitle accent="herb" title={report.safe_level_code === 'A_preferred' ? '此商品配料评估较好，看看同类好货' : '为你找到同类好货（按价格排序，仅供参考）'} />
  {recProducts.map((p) => (
  <View key={p.id} style={recItemStyle}
  onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}
@@ -421,12 +411,12 @@ export default function AnalysisResult() {
  mode="aspectFill"
  />
  <View style={{ flex: 1, marginLeft: 12 }}>
- <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b', lineHeight: '20px' }}
+ <Text style={{ fontSize: '28rpx', fontWeight: '600', color: '#1e293b', lineHeight: '20px' }}
  numberOfLines={2}>{p.name}</Text>
  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
- <Text style={{ fontSize: 16, fontWeight: '700', color: '#dc2626' }}>¥{p.price || '—'}</Text>
+ <Text style={{ fontSize: '32rpx', fontWeight: '700', color: '#dc2626' }}>¥{p.price || '—'}</Text>
  {p.original_price && p.original_price > (p.price || 0) && (
- <Text style={{ fontSize: 12, color: '#94a3b8', textDecoration: 'line-through', marginLeft: 6 }}>
+ <Text style={{ fontSize: '24rpx', color: '#94a3b8', textDecoration: 'line-through', marginLeft: 6 }}>
  ¥{p.original_price}
  </Text>
  )}
@@ -436,7 +426,7 @@ export default function AnalysisResult() {
  background: meta.bg, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12,
  borderWidth: 1, borderColor: meta.border, flexShrink: 0,
  }}>
- <Text style={{ fontSize: 12, fontWeight: '700', color: meta.fg }}>去看看</Text>
+ <Text style={{ fontSize: '24rpx', fontWeight: '700', color: meta.fg }}>去看看</Text>
  </View>
  </View>
  ))}
@@ -445,26 +435,31 @@ export default function AnalysisResult() {
 
  {/* ──── 对比其他产品 ──── */}
  <View style={cardStyle}>
- <Text style={sectionTitle}> 对比其他产品</Text>
- <Text style={{ fontSize: 13, color: '#64748b', marginBottom: 10, display: 'block' }}>
- 再扫一款商品，对比配料安全差异
- </Text>
+ <SectionTitle accent="herb" title="对比其他产品" subtitle="再扫一款商品，对比配料安全差异" />
  <View style={{
  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
- paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#B8923A',
+ paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#8A6B22',
  borderStyle: 'dashed', background: 'rgba(212,165,55,0.04)',
  }}
  onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}
  >
- <Text style={{ fontSize: 18, marginRight: 8 }}></Text>
- <Text style={{ fontSize: 14, fontWeight: '700', color: '#9A7B2E' }}>扫描另一款配料表</Text>
+ <Text style={{ fontSize: '36rpx', marginRight: 8 }}></Text>
+ <Text style={{ fontSize: '28rpx', fontWeight: '700', color: '#9A7B2E' }}>扫描另一款配料表</Text>
  </View>
  </View>
 
  <View style={{ height: 24 }} />
- <Text style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8', paddingBottom: 20 }}>
- 以上为食养/膳食参考，不替代医嘱
+ <View style={{ paddingHorizontal: 24, paddingBottom: 20 }}>
+ <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#94a3b8', lineHeight: '18px' }}>
+ 数据来源：食品配料安全库（基于 GB 2760 等国家标准的添加剂安全评级）与食养资料库
  </Text>
+ <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#94a3b8', lineHeight: '18px', marginTop: 4 }}>
+ 局限性：安全库未覆盖全部物质，匹配存在近似误差，不构成医学诊断
+ </Text>
+ <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#94a3b8', lineHeight: '18px', marginTop: 4 }}>
+ 以上内容不替代医师、营养师等专业建议，特殊人群请遵医嘱
+ </Text>
+ </View>
  </ScrollView>
  )
 }
@@ -472,8 +467,8 @@ export default function AnalysisResult() {
 function Row({ label, value }: { label: string; value?: string }) {
  return (
  <View style={{ flexDirection: 'row', marginTop: 8 }}>
- <Text style={{ fontSize: 13, color: '#94a3b8', width: 84 }}>{label}</Text>
- <Text style={{ fontSize: 13, color: '#334155', flex: 1, lineHeight: '20px' }}>{value || '—'}</Text>
+ <Text style={{ fontSize: '26rpx', color: '#94a3b8', width: 84 }}>{label}</Text>
+ <Text style={{ fontSize: '26rpx', color: '#334155', flex: 1, lineHeight: '20px' }}>{value || '—'}</Text>
  </View>
  )
 }
@@ -481,7 +476,7 @@ function Row({ label, value }: { label: string; value?: string }) {
 // ==================== 样式 ====================
 const pageStyle: React.CSSProperties = {
  minHeight: '100vh',
- background: 'linear-gradient(180deg,#f0fdf4 0%,#f8fafc 40%)',
+ background: 'linear-gradient(180deg, var(--color-herb-50) 0%, #f8fafc 40%)',
  padding: '16px',
  boxSizing: 'border-box',
 }
@@ -504,12 +499,7 @@ const cardStyle: React.CSSProperties = {
  boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
 }
 
-const sectionTitle: React.CSSProperties = {
- fontSize: 14,
- fontWeight: '700',
- color: '#0f172a',
- marginBottom: 6,
-}
+// 分区标题已统一改用全局 SectionTitle（accent="herb" 草本绿竖线）
 
 const additiveCardStyle = (bg: string): React.CSSProperties => ({
  background: '#fff',
@@ -523,7 +513,7 @@ const additiveCardStyle = (bg: string): React.CSSProperties => ({
 })
 
 const tagStyle: React.CSSProperties = {
- fontSize: 12,
+ fontSize: '24rpx',
  color: '#0369a1',
  background: 'rgba(3,105,161,0.08)',
  borderRadius: 8,
@@ -534,7 +524,7 @@ const tagStyle: React.CSSProperties = {
 }
 
 const chipStyle: React.CSSProperties = {
-  fontSize: 12,
+  fontSize: '24rpx',
   color: '#475569',
   background: '#f1f5f9',
   borderRadius: 8,
@@ -545,7 +535,7 @@ const chipStyle: React.CSSProperties = {
 }
 
 const homoChipStyle: React.CSSProperties = {
-  fontSize: 12,
+  fontSize: '24rpx',
   color: '#15803d',
   background: 'rgba(22,163,74,0.10)',
   borderRadius: 8,

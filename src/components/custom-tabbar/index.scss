@@ -1,4 +1,4 @@
-/* CustomTabBar - 去 AI 化的手绘风底部导航 */
+/* CustomTabBar - 中性灰白底 + 主题绿选中态（#F8F8F8 底 / #333·#666 文字 / hsl(var(--primary)) 强调） */
 
 .ctb {
   position: fixed;
@@ -7,9 +7,9 @@
   bottom: 0;
   display: flex;
   flex-direction: row;
-  background: rgba(241, 233, 217, 0.96); /* 墨韵米底毛玻璃 */
+  background: rgba(255, 252, 250, 0.96); /* 纯净暖白毛玻璃，与页面底 #FFFCFA 同色系 */
   backdrop-filter: blur(8px);
-  border-top: 1px solid rgba(44, 36, 32, 0.10);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 999;
 }
@@ -21,12 +21,12 @@
   align-items: center;
   justify-content: center;
   padding: 6px 0 8px;
-  color: hsl(var(--muted-foreground));  /* 未选：淡墨 */
+  color: hsl(var(--muted-foreground));  /* 未选：中灰 #666 */
   transition: color 0.15s ease;
 }
 
 .ctb-item--active {
-  color: hsl(var(--primary));            /* 选中：赭红 */
+  color: hsl(var(--primary));            /* 选中：深炭灰 #333 */
 }
 
 .ctb-item--hover {
@@ -47,7 +47,7 @@
   display: block;
 }
 
-/* 购物车实时件数徽标：右上角赭红圆点，与国潮墨韵风统一 */
+/* 购物车实时件数徽标：右上角深炭灰圆点，与中性主题统一 */
 .ctb-badge {
   position: absolute;
   top: -4px;
@@ -62,7 +62,7 @@
   line-height: 16px;
   text-align: center;
   font-weight: 700;
-  border: 1.5px solid rgba(241, 233, 217, 0.96); /* 与 tabBar 毛玻璃底同色描边，避免贴边糊成一团 */
+  border: 1.5px solid rgba(255, 252, 250, 0.96); /* 与 tabBar 底同色描边，避免贴边糊成一团 */
   box-sizing: border-box;
   z-index: 2;
 }
@@ -81,7 +81,7 @@
   color: hsl(var(--primary));
 }
 
-/* 居中「创作」凸起按钮：赭红圆钮上浮凸出 bar 上沿 */
+/* 居中「扫码购物」凸起按钮：主题绿圆钮上浮，凸出 bar 上沿（白相机图标，绿底对比度充足） */
 .ctb-center {
   justify-content: flex-end;
   padding-bottom: 10px;
@@ -92,12 +92,12 @@
   height: 50px;
   margin-top: -28px;            /* 上浮，凸出 bar 上沿 */
   border-radius: 999px;
-  background: hsl(var(--primary));
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-deep)) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 20px rgba(168, 85, 46, 0.45), 0 0 0 4px rgba(241, 233, 217, 0.92);
-  border: 2px solid #FFF7F1;
+  box-shadow: 0 8px 20px hsl(var(--primary) / 0.32), 0 0 0 4px rgba(248, 248, 248, 0.92);
+  border: 2px solid #FFFFFF;
 }
 
 .ctb-center-icon {
@@ -118,7 +118,7 @@
   right: 0;
   top: 0;
   bottom: 0;
-  background: rgba(28, 22, 18, 0.45);
+  background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(2px);
   z-index: 1000;
   display: flex;
@@ -133,11 +133,11 @@
 
 .ctb-hub-sheet {
   width: 100%;
-  background: #FFFDFA;
+  background: #FFFFFF;
   border-top-left-radius: 28px;
   border-top-right-radius: 28px;
   padding: 10px 20px calc(22px + env(safe-area-inset-bottom));
-  box-shadow: 0 -10px 40px rgba(44, 36, 32, 0.18);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.12);
   animation: ctb-hub-up 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -150,7 +150,7 @@
   width: 40px;
   height: 4px;
   border-radius: 999px;
-  background: rgba(44, 36, 32, 0.15);
+  background: rgba(0, 0, 0, 0.12);
   margin: 0 auto 10px;
 }
 
@@ -164,7 +164,7 @@
 .ctb-hub-title {
   font-size: 22px;
   font-weight: 700;
-  color: #2C2420;
+  color: #333333;
   letter-spacing: 1px;
 }
 
@@ -172,7 +172,7 @@
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  background: rgba(44, 36, 32, 0.06);
+  background: rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -190,8 +190,8 @@
   gap: 14px;
   padding: 16px;
   border-radius: 20px;
-  background: linear-gradient(120deg, #A8552E 0%, #C2703F 100%);
-  box-shadow: 0 8px 22px rgba(168, 85, 46, 0.35);
+  background: linear-gradient(120deg, hsl(var(--primary)) 0%, hsl(var(--primary-deep)) 100%);
+  box-shadow: 0 8px 22px hsl(var(--primary) / 0.26);
 }
 
 .ctb-hub-primary-ic {
@@ -238,7 +238,7 @@
 .ctb-hub-sub {
   display: block;
   font-size: 14px;
-  color: #9A8070;
+  color: #666666;
   margin: 18px 0 10px;
   letter-spacing: 0.5px;
 }
@@ -252,13 +252,13 @@
 .ctb-hub-chip {
   padding: 10px 16px;
   border-radius: 999px;
-  background: #F4ECE0;
-  border: 1px solid rgba(168, 85, 46, 0.18);
+  background: #F5F5F5;
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .ctb-hub-chip-t {
   font-size: 15px;
-  color: #A8552E;
+  color: #333333;
   font-weight: 600;
 }
 
@@ -269,7 +269,7 @@
   margin-top: 18px;
   padding: 14px 16px;
   border-radius: 16px;
-  background: #F7F1E8;
+  background: #F7F7F7;
 }
 
 .ctb-hub-row-ic {
@@ -282,17 +282,17 @@
 .ctb-hub-row-t {
   font-size: 17px;
   font-weight: 700;
-  color: #2C2420;
+  color: #333333;
 }
 
 .ctb-hub-row-s {
   font-size: 13px;
-  color: #9A8070;
+  color: #666666;
   margin-left: 2px;
 }
 
 .ctb-hub-row-arrow {
   margin-left: auto;
   font-size: 24px;
-  color: #9A8070;
+  color: #666666;
 }

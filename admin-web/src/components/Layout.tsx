@@ -12,7 +12,8 @@ const NAV_SECTIONS: NavSection[] = [
       items: [
         { to: '/dashboard', icon: 'grid', label: '仪表盘' },
         { to: '/home-branding', icon: 'image', label: '首页品牌' },
-        { to: '/merchants', icon: 'store', label: '自营门店申请' },
+        { to: '/home-ads', icon: 'megaphone', label: '首页广告位' },
+        { to: '/merchants', icon: 'store', label: '商家入驻审核' },
         { to: '/products', icon: 'box', label: '商品审阅' },
         { to: '/users', icon: 'user', label: '用户管理' },
         { to: '/refunds', icon: 'refund', label: '退款管理' },
@@ -42,6 +43,10 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/members', icon: 'users', label: '会员明细' },
       { to: '/behavior', icon: 'trending', label: '行为分析' },
       { to: '/symptom-rules', icon: 'tea', label: '食疗规则库' },
+      { to: '/food-safety-libs', icon: 'shield', label: '食品安全库' },
+      { to: '/food-ingredients', icon: 'book', label: '食材库' },
+      { to: '/food-tag-rules', icon: 'check', label: '人群标签规则' },
+      { to: '/ocr-debug', icon: 'image', label: '配料识别调试' },
       { to: '/marketing-templates', icon: 'chat', label: '导购话术库' },
       { to: '/categories', icon: 'tag', label: '商品分类' },
     ],
@@ -49,7 +54,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: '帮助',
     items: [
-      { to: '/self-stores', icon: 'building', label: '自营门店' },
+      { to: '/self-stores', icon: 'building', label: '门店与店长管理' },
       { to: '/commission-guide', icon: 'calculator', label: '佣金说明' },
     ],
   },
@@ -83,14 +88,14 @@ export default function Layout() {
       }}>
         {/* Logo */}
         <div style={{ padding: collapsed ? '20px 16px' : '20px 20px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)', minHeight: 64 }}>
-          <div style={{ width: 32, height: 32, background: 'var(--primary)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{ width: 32, height: 32, background: 'var(--primary-strong)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
           </div>
           {!collapsed && (
             <div>
-              <p style={{ color: 'var(--text)', fontWeight: 700, fontSize: 14, lineHeight: 1 }}>来电有喜</p>
+              <p style={{ color: 'var(--text)', fontWeight: 700, fontSize: 14, lineHeight: 1 }}>来店有喜</p>
               <p style={{ color: 'var(--primary)', fontSize: 11, marginTop: 2, fontWeight: 600 }}>管理后台</p>
             </div>
           )}
@@ -112,7 +117,7 @@ export default function Layout() {
                     padding: collapsed ? '10px 14px' : '10px 12px',
                     borderRadius: 8,
                     background: isActive ? 'var(--primary-soft)' : 'transparent',
-                    color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                    color: isActive ? 'var(--primary-strong)' : 'var(--text-muted)',
                     textDecoration: 'none', fontSize: 14, fontWeight: isActive ? 600 : 400,
                     transition: 'all 0.15s',
                     borderLeft: isActive ? '2px solid var(--primary)' : '2px solid transparent',
@@ -137,7 +142,7 @@ export default function Layout() {
               padding: collapsed ? '10px 14px' : '10px 12px',
               borderRadius: 8,
               background: isActive ? 'var(--primary-soft)' : 'transparent',
-              color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+              color: isActive ? 'var(--primary-strong)' : 'var(--text-muted)',
               textDecoration: 'none', fontSize: 14, fontWeight: isActive ? 600 : 500,
               transition: 'all 0.15s',
               borderLeft: isActive ? '2px solid var(--primary)' : '2px solid transparent',
@@ -175,11 +180,6 @@ export default function Layout() {
             }}>
               {useMock ? 'Mock 模式' : '真实后端'}
             </span>
-            {!useMock && (
-              <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-                需要禁用 RLS 才能访问数据
-              </span>
-            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

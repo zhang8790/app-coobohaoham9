@@ -1,50 +1,120 @@
 @use 'tailwindcss/base';
 @use 'tailwindcss/components';
 @use 'tailwindcss/utilities';
-
 @layer base {
   :root {
-    /* 来电有喜 × 慢酝手作：中式暖调简约（米杏底·深棕主·大圆角留白） */
-    --background: 41 38% 90%;      /* 米杏 #F2EAD9 风护眼底 */
-    --foreground: 0 0% 20%;        /* 深灰正文 #333 */
-    --card: 42 40% 95%;            /* 米杏卡 */
+    /* 来店有喜 · 暖珊瑚设计系统（#FFFCFA 暖白底·#FFF 卡·#2A2A2A 文字·柔珊瑚 hsl(var(--primary)) 强调） */
+    --background: 24 60% 99%;      /* 纯净暖白 #FFFCFA 页面底 */
+    --foreground: 0 0% 16%;        /* 深炭灰 #2A2A2A 标题/主文字 */
+    --card: 0 0% 100%;            /* 纯白 #FFFFFF 卡/左栏 */
     --card-foreground: 0 0% 20%;
-    --popover: 42 40% 95%;
+    --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
-    --primary: 28 51% 28%;         /* 深棕 #6B4423 主色（按钮/标题/选中态） */
-    --primary-foreground: 42 42% 96%; /* 米杏白字 */
-    --secondary: 30 30% 38%;       /* 深褐副色 */
-    --secondary-foreground: 42 42% 96%;
-    --muted: 36 20% 85%;           /* 淡米灰 */
-    --muted-foreground: 0 0% 40%;  /* 浅灰 #888 风 */
-    --accent: 30 36% 34%;          /* 深棕 accent */
-    --accent-foreground: 42 42% 96%;
-    --destructive: 0 60% 45%;      /* 错误红：降饱和，语义保留 */
-    --destructive-foreground: 0 0% 98%;
-    --border: 32 22% 80%;          /* 淡描边 */
-    --input: 32 22% 80%;
-    --ring: 28 51% 28%;
-    --radius: 1rem;                /* 大圆角（慢酝：留白充足·弱化厚重） */
-    --chart-1: 28 51% 28%;         /* 深棕 */
-    --chart-2: 40 42% 52%;         /* 古金（价格/段位高光点缀，慢酝同款） */
-    --chart-3: 152 24% 42%;        /* 松绿点缀 */
-    --chart-4: 212 24% 42%;        /* 黛蓝点缀 */
-    --chart-5: 340 45% 52%;        /* 胭脂点缀 */
-    /* 中式辅色：多入口/图标统一色系 */
-    --brand-jade: 152 24% 42%;     /* 松绿 */
-    --brand-navy: 212 24% 42%;     /* 黛蓝 */
-    --brand-bronze: 32 22% 50%;    /* 古铜 */
-    --brand-ochre: 38 30% 45%;     /* 赭石 */
-    --brand-ink: 0 0% 20%;         /* 墨=深灰 */
-    --brand-gold: 40 42% 52%;      /* 古金（价格/会员等级点缀） */
-    --brand-gold-soft: 42 38% 62%; /* 古金浅 */
+    /* 主色 = 品牌行动色「柔珊瑚」hsl(var(--primary))（暖珊瑚设计系统，2026-09-25 全局落地）
+       职责划分：正文/标题层级一律走 --foreground #2A2A2A；凡是「行动/强调面」（CTA 按钮、角标、
+       选中态、进度条、强调图标）一律走 --primary。二者分离，杜绝整屏黑色块与主题脱节。 */
+    --primary: 10 74% 65%;          /* 柔珊瑚 hsl(var(--primary)) */
+    --primary-deep: 11 64% 58%;     /* 深珊瑚 hsl(var(--primary-deep))（渐变收尾 / 按压态） */
+    --primary-soft: 14 59% 94%;     /* 淡桃粉 hsl(var(--primary-soft))（选中浅底 / 标签底 / 图标容器） */
+    --primary-soft-deep: 14 56% 89%; /* 深桃粉 hsl(var(--primary-soft-deep))（渐变收尾 / 装饰底） */
+    --primary-foreground: 0 0% 100%; /* 白字 */
+    --secondary: 0 0% 94%;       /* 淡灰副底 */
+    --secondary-foreground: 0 0% 20%;
+    --muted: 0 0% 96%;           /* 浅灰 */
+    --muted-foreground: 0 0% 33%;  /* 中性灰 #555 正文/辅助文字 */
+    --accent: 0 0% 94%;          /* 淡灰 accent */
+    --accent-foreground: 0 0% 20%;
+    --destructive: 0 72% 51%;      /* 错误红：语义保留 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 93%;          /* 极浅灰 #EEEEEE 分割线/描边 */
+    --input: 0 0% 93%;
+    --ring: 10 74% 65%;          /* 焦点环 = 柔珊瑚（与 --primary 同步） */
+    /* 全局字体族（单一事实源）：iOS/微信走 PingFang SC，Android 回退系统无衬线；
+       组件未显式设置 font-family 时统一继承此基线，杜绝各页面字体回退链不一致 */
+    --font-sans: "PingFang SC", -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+    /* ===== 字重层级（单一事实源）：层级靠「字号 + 颜色 + 留白」建立，字重只做强调开关 =====
+       常规 400 = 正文/列表（之前误用 600 导致全屏发闷）；中 500 = 次级标签；
+       强 600 = 区块标题/选中态；重 700 = 页面主标题/数字强调（仅在展示级用，杜绝遍地加粗）。 */
+    --fw-regular: 400;
+    --fw-medium: 500;
+    --fw-semibold: 600;
+    --fw-bold: 700;
+    /* ===== 柔和阴影（单一事实源）：收敛"描边+重阴影"双重装饰，统一为低透明度大弥散 =====
+       静息卡贴地、悬浮微抬、弹层轻浮；配合 1px 极浅描边即干净有层次，不靠重阴影堆立体。 */
+    --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.04);     /* 静息卡片：极淡、贴地 */
+    --shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.05);     /* 轻微悬浮 */
+    --shadow-float: 0 12px 32px rgba(0, 0, 0, 0.09);    /* 强悬浮/弹层/凸起按钮 */
+    --radius-sm: 8px;              /* 小圆角：标签/药丸/小卡 */
+    --radius-md: 12px;             /* 中圆角：输入/按钮/中等卡 */
+    --radius-lg: 16px;             /* 大圆角：卡片/弹层（留白充足） */
+    --radius: 1rem;                /* 兼容别名 = lg */
+    --chart-1: 0 0% 20%;         /* 图表灰阶 1（最深） */
+    --chart-2: 0 0% 40%;         /* 图表灰阶 2（价格/段位高光） */
+    --chart-3: 0 0% 55%;        /* 图表灰阶 3 */
+    --chart-4: 0 0% 70%;        /* 图表灰阶 4 */
+    --chart-5: 0 0% 82%;        /* 图表灰阶 5（最浅） */
+    /* 中性辅色：多入口/图标统一灰阶 */
+    --brand-jade: 0 0% 45%;     /* 灰阶辅色 1 */
+    --brand-navy: 0 0% 35%;     /* 灰阶辅色 2 */
+    --brand-bronze: 0 0% 50%;    /* 灰阶辅色 3 */
+    --brand-ochre: 0 0% 40%;     /* 灰阶辅色 4 */
+    --brand-ink: 0 0% 20%;         /* 墨=深灰 #333 */
+    --brand-gold: 0 0% 40%;      /* 灰阶点缀（价格/会员等级） */
+    --brand-gold-soft: 0 0% 55%; /* 灰阶点缀·浅 */
     /* 状态语义色 */
-    --success: 152 28% 40%;        /* 成功·松绿 */
-    --warning: 30 52% 42%;         /* 警告·赭橙 */
-    --info: 212 28% 42%;           /* 信息·黛蓝 */
+    --success: 142 71% 45%;        /* 成功·草本绿（与 --color-herb-500 同色，全站单一绿） */
+    --warning: 38 92% 50%;         /* 警告·赭橙 */
+    --info: 210 70% 50%;           /* 信息·黛蓝 */
+    /* ===== 草本/食养/安全 语义绿（单一事实源）：全站「自然·健康·安全·适配」统一走此族，
+       收敛散落的 #16A34A/#15803D/#166534/#2F5D3A/#DCFCE7/#E3F2E5/#F0FBF4/#EAF6EC/#BBE9CC 等近绿裸值；
+       与安全红绿灯（amber/red）共用一套绿，保证全站只有「一种绿」。 */
+    --color-herb-50:  #F0FBF4;   /* 最浅草本底（内容卡/页底） */
+    --color-herb-100: #E3F2E5;   /* 浅草本底/描边 */
+    --color-herb-200: #DCFCE7;   /* 草本 chip 底 */
+    --color-herb-500: #16A34A;   /* 草本文字/安全绿 */
+    --color-herb-600: #15803D;   /* 深草本文字 */
+    /* ===== 统一强调色系统（单一事实源：全站功能模块引用此套，禁止再出现赭红/古金遗老色） ===== */
+    --accent-coral: hsl(var(--primary));        /* 主强调·柔珊瑚：按钮/选中态/CTA/会员入口/食性·平 */
+    --accent-coral-deep: hsl(var(--primary-deep));   /* 深珊瑚：渐变收尾/深底 */
+    --accent-coral-light: hsl(var(--primary-soft));  /* 淡桃粉浅底：卡片/选中浅底/图标容器 */
+    --accent-sand: #D4B89C;         /* 浅砂金：Banner 按钮/价格装饰（小面积点缀，不泛滥） */
+    --accent-sand-soft: #F5ECE3;    /* 砂金浅底 */
+    --accent-gold: #B8923A;         /* 精炼香槟金：会员/VIP/年度专属（保留，与珊瑚区分） */
+    --accent-gold-deep: #9A7B2E;    /* 深金 */
+    --accent-gold-light: #FBF3DD;   /* 金浅底 */
+    --accent-amber: #D97706;        /* 干净琥珀：警告/食性·温/慎选/临期/超范围 */
+    --accent-amber-light: #FEF3C7;  /* 琥珀浅底 */
+    --accent-blue: #0EA5E9;         /* 信息蓝：业绩/处理中/链接 */
+    /* ===== 承字强色（对比度治理 2026-09-26）：亮珊瑚/蓝/琥珀/金仅在「大面积装饰 / 浅底」使用；
+       凡「承载文字 / 按钮底 + 浅色字」一律引用下方加深版，统一达 WCAG AA（4.5:1）===== */
+    --primary-strong: 11 54% 49%;   /* 加深珊瑚 #C0533D：珊瑚按钮底/珊瑚承字，白字 4.6:1（P0） */
+    --accent-blue-strong: #0369A1;  /* 信息蓝承字（2.8→5.9:1） */
+    --accent-amber-strong: #B45309; /* 琥珀/警示承字（3.2→5.0:1） */
+    --accent-gold-strong: #8A6B22;  /* 香槟金承字（2.9→4.9:1） */
+    /* ===== 动效 Token（单一事实源）：时长 + 缓动统一，消除页面动效杂乱 =====
+       所有 transition/animation 的 duration 与 timing-function 一律引用此组，
+       禁止在业务里手写 0.3s / ease-in-out 等散值。 */
+    --motion-duration-fast: 150ms;   /* 微反馈：按压/开关 */
+    --motion-duration-base: 250ms;   /* 常规：悬浮/展开 */
+    --motion-duration-slow: 400ms;   /* 强调：弹层/路由转场 */
+    --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);   /* 通用标准缓出 */
+    --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);     /* 强调缓动（有重量感） */
+    /* ===== 间距 Token（8px 栅格，单一事实源）：间距全部引用，杜绝散落 padding/margin =====
+       1=4 2=8 3=12 4=16 5=20 6=24 8=32 10=40，全站间距只在 4 的倍数上取值。 */
+    --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+    --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+    /* ===== 排版 Token（字号/行高，单一事实源）：文本层级固定，不准自定义字号行高 =====
+       caption 辅助说明 / base 正文 / lg 区块标题 / 2xl 页面主标题；行高按阅读节奏分档。 */
+    --text-caption: 11px; --text-xs: 12px; --text-sm: 13px; --text-base: 14px;
+    --text-lg: 16px;   --text-xl: 18px;  --text-2xl: 20px; --text-3xl: 24px;
+    --leading-tight: 1.25; --leading-snug: 1.35; --leading-normal: 1.5; --leading-relaxed: 1.65;
+  }
+  /* 全局字体族落地：page 为微信小程序根容器，统一基线字体（组件未显式设置时继承）。
+     .cn-serif 宋体标题 / 各组件内联 fontFamily 均以其更高优先级覆盖，互不冲突。 */
+  page {
+    font-family: var(--font-sans);
   }
 }
-
 @layer utilities {
   .ink-dot::after {
     content: '';
@@ -57,20 +127,19 @@
     vertical-align: middle;
   }
   .emotion-bg {
-    background-color: #F5EEDF;
+    background-color: #F2F2F2;
   }
-
-  /* ===== 高级商品卡：软 elevate + 图层感 ===== */
+  /* ===== 高级商品卡：软 elevate + 图层感（阴影收敛为柔和弥散，靠留白与描边立层次） ===== */
   .pg-card {
     background: hsl(var(--card));
     border-radius: 16px;
     border: 1px solid hsl(var(--border) / 0.7);
-    box-shadow: 0 6px 22px rgba(20, 15, 11, 0.07);
+    box-shadow: var(--shadow-soft);
     transition: box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
                 transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .pg-hover {
-    box-shadow: 0 12px 32px rgba(20, 15, 11, 0.13);
+    box-shadow: var(--shadow-float);
     transform: translateY(-2px);
   }
   .pg-img {
@@ -80,15 +149,20 @@
     width: 100%;
     height: 100%;
     transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+    /* 图片纯展示：点击统一走卡片 onClick，禁止原生拖拽/选中/长按菜单（H5 预览下防拖影，真机也去原生交互） */
+    pointer-events: none;
+    -webkit-user-drag: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
   .pg-hover .pg-img {
     transform: scale(1.07);
   }
-  /* 加购胶囊（墨韵赭红渐变 + 磁吸按压） */
+  /* 加购胶囊（主题绿渐变 + 磁吸按压） */
   .pg-add {
-    background: linear-gradient(135deg, hsl(var(--brand-bronze)) 0%, hsl(var(--primary)) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary-strong)) 0%, hsl(var(--primary-deep)) 100%);
     color: #fff;
-    box-shadow: 0 4px 12px rgba(107, 68, 35, 0.30);
+    box-shadow: 0 4px 12px hsl(var(--primary-strong) / 0.28);
     transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .pg-add-press {
@@ -97,7 +171,7 @@
   /* 玻璃角标 */
   .pg-badge {
     backdrop-filter: blur(4px);
-    box-shadow: 0 2px 8px rgba(20, 15, 11, 0.18);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
   }
   /* 商品关怀层 · 关怀度进度条（游戏化） */
   .care-bar {
@@ -116,7 +190,7 @@
   }
   .scene-tile-hover {
     transform: translateY(-3px);
-    box-shadow: 0 10px 24px rgba(20, 15, 11, 0.12);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.09);
   }
   /* 分区标题装饰点 */
   .section-accent {
@@ -125,8 +199,7 @@
     border-radius: 999px;
     background: hsl(var(--primary));
   }
-
-  /* ===== 墨韵国潮·手绘装饰工具类（加法，不改动现有） ===== */
+  /* ===== 手绘装饰工具类（中性灰阶，加法·不改动现有） ===== */
   /* 手绘风分隔线：不规则断续墨线 */
   .ink-rule {
     height: 1px;
@@ -145,13 +218,13 @@
     padding: 2px 10px;
     border-radius: 999px;
     border: 1px solid hsl(var(--primary) / 0.55);
-    color: hsl(var(--primary));
+    color: hsl(var(--primary-strong));
     background: hsl(var(--primary) / 0.08);
     font-weight: 600;
   }
-  /* 健康豆高光字 */
+  /* 健康豆高光字（精炼香槟金） */
   .gold-text {
-    color: hsl(var(--brand-gold));
+    color: var(--accent-gold);
   }
   /* 情绪/体质药丸标签 */
   .symptom-tag {
@@ -170,7 +243,7 @@
   }
   .symptom-tag-active {
     border-color: transparent;
-    background: hsl(var(--primary));
+    background: hsl(var(--primary-strong));
     color: #fff;
     font-weight: bold;
   }
@@ -195,7 +268,7 @@
   }
   .scene-grid-card-hover {
     transform: translateY(-3px);
-    box-shadow: 0 10px 24px rgba(20, 15, 11, 0.12);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.09);
   }
   /* 会员资产条：健康豆 / 佣金 两列（积分已并入健康豆）*/
   .bean-hud {
@@ -204,7 +277,7 @@
     border-radius: 16px;
     padding: 14px;
     border: 1px solid hsl(var(--border));
-    box-shadow: 0 6px 20px rgba(28, 22, 16, 0.06);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
   }
   .bean-hud-row {
     display: flex;
@@ -226,14 +299,14 @@
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #E8C66B, hsl(var(--brand-gold)));
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-deep));
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 6px rgba(190, 154, 78, 0.25);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   }
   .bean-val {
-    font-weight: 800;
+    font-weight: 700;
     color: hsl(var(--foreground));
     font-size: 16px;
   }
@@ -247,16 +320,17 @@
     height: 28px;
     background: hsl(var(--border));
   }
-  /* 段位成长 hero 卡：赭红渐变（对齐墨韵原型） */
+  /* 段位成长卡：白卡 + 主题绿进度（原深炭灰底与浅色主题突兀，已改浅卡） */
   .rank-card {
     position: relative;
     overflow: hidden;
     margin: 10px 16px 0;
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(28 55% 22%) 100%);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.8);
     border-radius: 18px;
     padding: 14px 16px;
-    color: #fff;
-    box-shadow: 0 6px 20px rgba(28, 22, 16, 0.10);
+    color: hsl(var(--foreground));
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.06);
   }
   .rank-card::after {
     content: "";
@@ -266,7 +340,7 @@
     width: 110px;
     height: 110px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
+    background: hsl(var(--primary) / 0.07);
     pointer-events: none;
   }
   .rank-top {
@@ -279,12 +353,14 @@
   }
   .rank-title {
     font-size: 15px;
-    font-weight: 700;
+    font-weight: 600;
+    color: hsl(var(--foreground));
   }
   .rank-name {
     font-size: 12px;
-    opacity: 0.9;
-    background: rgba(255, 255, 255, 0.15);
+    font-weight: 600;
+    color: hsl(var(--primary-strong));
+    background: hsl(var(--primary) / 0.10);
     padding: 2px 8px;
     border-radius: 999px;
   }
@@ -292,13 +368,13 @@
     position: relative;
     z-index: 1;
     height: 8px;
-    background: rgba(255, 255, 255, 0.2);
+    background: hsl(var(--primary-soft));
     border-radius: 999px;
     overflow: hidden;
   }
   .rank-fill {
     height: 100%;
-    background: linear-gradient(90deg, hsl(var(--brand-gold-soft)), hsl(var(--brand-gold)));
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary-deep)));
     border-radius: 999px;
   }
   .rank-foot {
@@ -307,7 +383,7 @@
     display: flex;
     justify-content: space-between;
     font-size: 11px;
-    opacity: 0.85;
+    color: hsl(var(--muted-foreground));
     margin-top: 8px;
   }
   /* 宋体标题（中式感）：品牌/大标题用，无宋体平台回退系统衬线 */
@@ -315,7 +391,6 @@
     font-family: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
   }
 }
-
 @keyframes bean-burst-float {
   0% { opacity: 0; transform: translate(-50%, 0) scale(0.8); }
   20% { opacity: 1; }
@@ -325,7 +400,6 @@
   animation: bean-burst-float 1.2s ease-out forwards;
   pointer-events: none;
 }
-
 /* 广告位轮播淡入（key=idx 切换时整卡重挂载触发） */
 @keyframes ad-fade-in {
   0% { opacity: 0.25; }
@@ -334,12 +408,49 @@
 .ad-fade {
   animation: ad-fade-in 0.45s ease-out;
 }
-
+/* 门店选择底部弹层：遮罩淡入 + 卡片上滑 */
+@keyframes sheet-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes sheet-slide-up {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+.sheet-overlay {
+  animation: sheet-fade-in 0.2s ease-out;
+}
+.sheet-panel {
+  animation: sheet-slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
 /* 固定底部自定义 TabBar（.ctb ≈ 56px + 安全区，z-999）预留底部空间，
    避免 tab 页的内容/操作栏被 TabBar 遮挡（如购物车「去结算」栏） */
 .tabbar-pad {
   padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }
-
 /* 微信原生客服按钮（open-type="contact"）：去掉默认 ::after 描边 */
 .wx-contact-btn::after { border: none !important; }
+
+/* ============ 场景分类字体（单一事实源） ============
+   首页「按场景挑好物」金刚区 与 好物页左侧分类栏 必须共用同一套字号/字重，
+   否则同是「分类」这一级导航，两屏看起来像两个产品。
+   改这里 = 两处同时生效；禁止在页面里各自硬写 text-xs / text-base。 */
+.cat-eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  color: hsl(var(--muted-foreground));
+}
+.cat-name {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: hsl(var(--foreground));
+}
+/* 左栏选中态：白底 + 珊瑚字 + 左侧珊瑚竖条（内联实现，不再依赖未被 import 的页面 scss） */
+.cat-name-active {
+  font-weight: 600;
+  color: hsl(var(--primary-strong));
+}
+

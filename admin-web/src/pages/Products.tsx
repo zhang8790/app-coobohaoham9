@@ -5,6 +5,7 @@ import type { Product } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { resolveIngredientEntries, SHIYANG_DISCLAIMER } from '@/utils/shiyang'
 import { analyzeDish } from '@/utils/dish-analyzer'
+import SectionTitle from '@/components/SectionTitle'
 
 const PAGE_SIZE = 10
 
@@ -107,10 +108,7 @@ export default function Products() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div>
-        <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>商品审阅</h1>
-        <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>待上架商品审核 · 共 {total} 件待审</p>
-      </div>
+      <SectionTitle title="商品审阅" subtitle={`待上架商品审核 · 共 ${total} 件待审`} />
 
       <div style={S.card}>
         {loading ? (
@@ -145,11 +143,15 @@ export default function Products() {
                         )}
                         {expiryMap[p.id] && (() => {
                           const s = expiryMap[p.id]
-                          const map: Record<string, { c: string; t: string }> = { red: { c: '#DC2626', t: '紧急' }, orange: { c: '#EA580C', t: '紧迫' }, amber: { c: '#D97706', t: '临期' } }
+                          const map: Record<string, { c: string; s: string; t: string }> = {
+                            red: { c: 'var(--status-red)', s: 'var(--status-red-soft)', t: '紧急' },
+                            orange: { c: 'var(--status-orange)', s: 'var(--status-orange-soft)', t: '紧迫' },
+                            amber: { c: 'var(--status-amber)', s: 'var(--status-amber-soft)', t: '临期' },
+                          }
                           const info = map[s] || map.amber
                           return (
                             <button onClick={() => navigate('/expiry')}
-                              style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 6, marginTop: 6, padding: '2px 8px', background: `${info.c}22`, border: `1px solid ${info.c}`, borderRadius: 999, color: info.c, fontSize: 11, cursor: 'pointer' }}>
+                              style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 6, marginTop: 6, padding: '2px 8px', background: info.s, border: `1px solid ${info.c}`, borderRadius: 999, color: info.c, fontSize: 11, cursor: 'pointer' }}>
                               临期·{info.t}
                             </button>
                           )
@@ -189,7 +191,7 @@ export default function Products() {
             {Array.from({ length: totalPages }, (_, i) => (
               <button key={i} onClick={() => setPage(i)}
                 style={{ width: 32, height: 32, borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
-                  background: page === i ? 'var(--primary)' : 'var(--border)', color: page === i ? '#fff' : 'var(--text-muted)' }}>
+                  background: page === i ? 'var(--primary-strong)' : 'var(--border)', color: page === i ? '#fff' : 'var(--text-muted)' }}>
                 {i + 1}
               </button>
             ))}

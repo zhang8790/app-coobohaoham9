@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 
-// 来电有喜 管理后台 · 内联 SVG 图标库（feather 风格，stroke=currentColor）
+// 来店有喜 管理后台 · 内联 SVG 图标库（feather 风格，stroke=currentColor）
 export const ICON_PATHS: Record<string, string> = {
   grid: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
   store: 'M3 9l1-5h16l1 5M5 9v11h14V9M9 20v-6h6v6',

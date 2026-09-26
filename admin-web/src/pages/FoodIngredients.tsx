@@ -1,4 +1,4 @@
-// 来电有喜 · 管理后台「食疗食材字典维护」
+// 来店有喜 · 管理后台「食疗食材字典维护」
 // 数据来源：food_ingredients（食疗引擎统一食材库，驱动商家端编辑页 + 商品详情页引擎）
 // 后台可维护、无需改代码，新增食材后小程序端引擎自动生效。
 import { useState, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react'
@@ -25,7 +25,7 @@ interface IngredientRow {
 const th: CSSProperties = { textAlign: 'left', padding: '10px 12px', color: 'var(--text-dim)', fontSize: 12, fontWeight: 600, borderBottom: '1px solid var(--border)' }
 const td: CSSProperties = { padding: '10px 12px', color: 'var(--text)', fontSize: 13, borderBottom: '1px solid var(--border)', verticalAlign: 'top' }
 const inputStyle: CSSProperties = { width: '100%', padding: '7px 9px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }
-const btnSm: CSSProperties = { padding: '4px 10px', background: 'var(--primary)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12 }
+const btnSm: CSSProperties = { padding: '4px 10px', background: 'var(--primary-strong)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 12 }
 
 export default function FoodIngredients() {
   const [loading, setLoading] = useState(true)
@@ -120,11 +120,11 @@ export default function FoodIngredients() {
         </button>
       </div>
 
-      {msg && <div style={{ padding: '10px 14px', background: 'var(--primary-soft)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--primary)', fontSize: 13, marginBottom: 12 }}>{msg}</div>}
+      {msg && <div style={{ padding: '10px 14px', background: 'var(--primary-soft)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--primary-strong)', fontSize: 13, marginBottom: 12 }}>{msg}</div>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <button onClick={() => setEditing(blank())}
-          style={{ padding: '8px 16px', background: 'var(--primary)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13 }}>
+          style={{ padding: '8px 16px', background: 'var(--primary-strong)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13 }}>
           + 新增食材
         </button>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer' }}>
@@ -167,7 +167,7 @@ export default function FoodIngredients() {
           </Field>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button onClick={save} style={{ padding: '8px 18px', background: 'var(--primary)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>保存</button>
+            <button onClick={save} style={{ padding: '8px 18px', background: 'var(--primary-strong)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>保存</button>
             <button onClick={() => setEditing(null)} style={{ padding: '8px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>取消</button>
           </div>
         </div>
@@ -234,7 +234,7 @@ function ChipGroup({ options, selected, onToggle }: { options: string[]; selecte
               padding: '5px 12px', borderRadius: 999, border: '1px solid', fontSize: 12, cursor: 'pointer',
               borderColor: on ? 'var(--primary)' : 'var(--border)',
               background: on ? 'var(--primary-soft)' : 'var(--surface)',
-              color: on ? 'var(--primary)' : 'var(--text-muted)',
+              color: on ? 'var(--primary-strong)' : 'var(--text-muted)',
             }}>
             {o}
           </button>

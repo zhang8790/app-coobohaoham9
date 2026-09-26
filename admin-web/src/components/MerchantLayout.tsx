@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { useStore } from '@/contexts/StoreContext'
 
 const MERCHANT_NAV_GROUPS = [
   {
@@ -10,7 +11,6 @@ const MERCHANT_NAV_GROUPS = [
       { to: '/merchant/products', icon: '📦', label: '商品管理' },
       { to: '/merchant/orders', icon: '📋', label: '订单管理' },
       { to: '/merchant/members', icon: '👥', label: '会员管理' },
-      { to: '/merchant/coupons', icon: '🎟️', label: '优惠券' },
       { to: '/merchant/analytics', icon: '📊', label: '数据分析' },
       { to: '/merchant/messages', icon: '🔔', label: '消息通知' },
       { to: '/merchant/withdraw', icon: '💰', label: '货款提现' },
@@ -20,13 +20,75 @@ const MERCHANT_NAV_GROUPS = [
   {
     title: '进阶设置',
     items: [
-      { to: '/merchant/ads', icon: '📢', label: '营销活动' },
       { to: '/merchant/vehicles', icon: '🚚', label: '流动车' },
       { to: '/merchant/staff', icon: '🤝', label: '运营成员' },
       { to: '/merchant/settings', icon: '⚙️', label: '店铺设置' },
     ],
   },
 ]
+
+// ── 门店切换器（顶部 Header）──────────────────────────────────────────
+// 一个账号可管多家门店时，在此切换当前操作的门店；所有 merchant 页面跟随此选择。
+function StoreSwitcher() {
+  const { stores, selectedStoreId, setSelectedStore, loading } = useStore()
+  const [open, setOpen] = useState(false)
+  if (loading) {
+    return <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>门店加载中…</span>
+  }
+  if (!stores.length) {
+    return <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>未关联门店</span>
+  }
+  const current = stores.find(s => s.id === selectedStoreId) ?? stores[0]
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '7px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-soft)',
+          borderRadius: 8, color: 'var(--text)', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+        }}
+      >
+        <span style={{ fontSize: 15 }}>🏪</span>
+        <span style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current?.name}</span>
+        {stores.length > 1 && <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>▾</span>}
+      </button>
+      {open && stores.length > 1 && (
+        <div style={{
+          position: 'absolute', top: 44, right: 0, zIndex: 60, minWidth: 220, maxHeight: 320, overflowY: 'auto',
+          background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 6,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+        }}>
+          <div style={{ padding: '6px 10px', fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: 1 }}>
+            切换门店（{stores.length}）
+          </div>
+          {stores.map(s => {
+            const active = s.id === selectedStoreId
+            return (
+              <div
+                key={s.id}
+                onMouseDown={() => { setSelectedStore(s.id); setOpen(false) }}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                  padding: '9px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 14,
+                  background: active ? 'rgba(5,150,105,0.15)' : 'transparent',
+                  color: active ? 'var(--success-strong)' : 'var(--text)', fontWeight: active ? 600 : 400,
+                }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                <span style={{ flexShrink: 0, fontSize: 11, color: s.is_platform ? 'var(--warning)' : 'var(--text-dim)' }}>
+                  {s.is_platform ? '自营' : '门店'}{active ? ' ✓' : ''}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function MerchantLayout() {
   const { profile, signOut } = useAuth()
@@ -59,7 +121,7 @@ export default function MerchantLayout() {
           {!collapsed && (
             <div>
               <p style={{ color: 'var(--text)', fontWeight: 700, fontSize: 14, lineHeight: 1 }}>自营门店中心</p>
-              <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 2 }}>来电有喜</p>
+              <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 2 }}>来店有喜</p>
             </div>
           )}
         </div>
@@ -115,6 +177,7 @@ export default function MerchantLayout() {
           padding: '0 24px', position: 'sticky', top: 0, zIndex: 30,
         }}>
           <h1 style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>自营门店管理后台</h1>
+          <StoreSwitcher />
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 32, height: 32, background: 'var(--border)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

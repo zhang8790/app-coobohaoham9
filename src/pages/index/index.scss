@@ -19,7 +19,7 @@
     hsl(var(--primary) / 0.06);
   border: 1px solid hsl(var(--primary) / 0.20);
   border-radius: 20px;
-  box-shadow: 0 8px 28px rgba(194, 65, 12, 0.08);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.06);
 }
 /* Hero 装饰：古金印章圆环（右上） */
 .pg-hero-seal {
@@ -53,19 +53,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(168, 85, 46, 0.28);
-  flex-shrink: 0;
-}
-
-/* 首页统一区块标题：emoji 圆标（与墨韵辅色同源，建立目录式标题语言） */
-.section-emoji {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: hsl(var(--primary) / 0.10);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   flex-shrink: 0;
 }

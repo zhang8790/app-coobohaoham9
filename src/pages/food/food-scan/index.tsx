@@ -1,11 +1,11 @@
 // @title 食品配料安全
-import { useState, useMemo, useEffect } from 'react'
-import Taro from '@tarojs/taro'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import Taro, { useRouter } from '@tarojs/taro'
 import { View, Text, Textarea, Button, Image, ScrollView } from '@tarojs/components'
 import { resolveFoodAdditivesByText, createIngredientOcrTask, getFoodAdditivesByNames, getUserHealthProfile } from '@/db/food-api'
 import { getProducts } from '@/db/api'
 import { supabase, callEdgeFunction } from '@/client/supabase'
-import { matchIngredientKeys, resolveIngredientEntries } from '@/utils/ingredient-analysis'
+import { matchIngredientKeys, resolveIngredientEntries, filterShiyangByIngredientList } from '@/utils/ingredient-analysis'
 import { normalizeAdditiveRisk } from '@/utils/additive-dictionary'
 import type { IngredientEntry } from '@/utils/shiyang-dictionary'
 import FoodSafetyPanel from '@/components/FoodSafetyPanel'
@@ -14,17 +14,22 @@ import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '
 import { getProductCareInfo } from '@/utils/product-care'
 import { analyzeForProfile, profileToCrowds } from '@/utils/food-therapy'
 import { buildHealthShortfalls, evaluateShortfall } from '@/utils/food-therapy/health-shortfall'
-import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
+import { FOOD_THERAPY_DISCLAIMER, FOOD_SCAN_DISCLAIMER } from '@/utils/compliance/shield'
 import { useLocation } from '@/contexts/LocationContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { uploadToStorage } from '@/utils/upload'
+import { withTimeout } from '@/utils/withTimeout'
 import type { FoodAdditive, Product, UserHealthProfile } from '@/db/types'
 import { scanAndRoute } from '@/utils/scan'
 import { useFoodKnowledgeStore } from '@/store/foodKnowledgeStore'
 
+/** 安全字符串化：渲染健康短板文案时防止 null/undefined 直接进 JSX */
+const safeShort = (s: unknown): string => (s == null ? '' : String(s))
+
 export default function FoodScanPage() {
  const { currentStore } = useLocation()
  const { profile: authProfile } = useAuth()
+ const router = useRouter()
  const discoverFragment = useFoodKnowledgeStore((s) => s.discoverFragment)
  const [userProfile, setUserProfile] = useState<UserHealthProfile | null>(null)
  const [text, setText] = useState('')
@@ -92,11 +97,13 @@ export default function FoodScanPage() {
  }, [analyzed, userProfile])
 
  // 安全评级汇总：命中配料风险等级 → S(全白) / A(含黄) / C(含黑)
+ // 注意：food_additives 库风险码已迁移为 L1-L4（迁移 00224），DB 取回的是 L4 而非 'black'，
+ // 必须用 normalizeAdditiveRisk 归一后判等，否则 L4 会被漏判、误显「配料较安全/绿」。
  const grade = useMemo(() => {
  if (!additives.length) return null
- if (additives.some((a) => a.risk_level === 'black')) return { g: 'C', label: '含慎用成分', color: '#DC2626' }
- if (additives.some((a) => a.risk_level === 'yellow')) return { g: 'A', label: '含限量成分', color: '#D97706' }
- return { g: 'S', label: '配料较安全', color: '#16A34A' }
+ if (additives.some((a) => normalizeAdditiveRisk(a.risk_level) === 'black')) return { g: 'C', label: '含慎用成分', color: '#DC2626' }
+ if (additives.some((a) => normalizeAdditiveRisk(a.risk_level) === 'yellow')) return { g: 'A', label: '含限量成分', color: '#B45309' }
+ return { g: 'S', label: '配料较安全', color: '#15803D' }
  }, [additives])
 
  // P4 结论层：把评级/年龄/过敏聚合为「能买吗 / 能给孩子吃吗 / 适合谁」的直接判断
@@ -106,15 +113,15 @@ export default function FoodScanPage() {
  // 能买吗（结合用户过敏原命中）
  let buy: { emoji: string; text: string; color: string }
  if (g === 'A' || g === 'D' || g === 'C') {
- buy = { emoji: '', text: '一般人群可适量选购', color: '#D97706' }
+ buy = { emoji: '', text: '一般人群可适量选购', color: '#B45309' }
  } else {
- buy = { emoji: '', text: '可放心选购', color: '#16A34A' }
+ buy = { emoji: '', text: '可放心选购', color: '#15803D' }
  }
  // 能给孩子吃吗（复用引擎 ageSuitability.infantSafe）
  const childSafe = report.ageSuitability.infantSafe
  const child: { emoji: string; text: string; color: string } = childSafe
- ? { emoji: '', text: '儿童可食用（建议适量、家长酌情）', color: '#16A34A' }
- : { emoji: '', text: '婴幼儿/儿童需家长酌情判断', color: '#D97706' }
+ ? { emoji: '', text: '儿童可食用（建议适量、家长酌情）', color: '#15803D' }
+ : { emoji: '', text: '婴幼儿/儿童需家长酌情判断', color: '#B45309' }
  // 适合人群（只展示正向「适合谁」，不展示不适合人群）
  const suitable: string[] = ['一般人群均可食用']
  if (g === 'S') suitable.push('可作日常选择')
@@ -147,7 +154,7 @@ export default function FoodScanPage() {
  setAdditives(res.additives)
  setMatchedKeys(res.matchedNames) // 添加剂标准名（即便库未扩也记录）
  setShiyangKeys(keys) // 食材命中 key
- setShiyang(resolveIngredientEntries({ ingredients: keys }))
+ setShiyang(filterShiyangByIngredientList(resolveIngredientEntries({ ingredients: keys }), text))
  setReport(
  analyzeFoodLabel({
  text,
@@ -171,33 +178,56 @@ export default function FoodScanPage() {
 
  const chooseImage = async () => {
  try {
- const res = await Taro.chooseImage({ count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'] })
- const tp = res.tempFilePaths[0]
- setImgPreview(tp)
- setOcrLoading(true)
- setOcrMsg('正在上传并提交识别...')
+    const res = await Taro.chooseImage({ count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'] })
+    const tp0 = res.tempFilePaths[0]
+    // 前端再压缩一层：降低体积既规避百度云端拦截、又加速上传（修复大图「转圈」）
+    let tp = tp0
+    try {
+      const comp = await Taro.compressImage({ src: tp0, quality: 70, compressedWidth: 2000 } as any)
+      if (comp && comp.tempFilePath) tp = comp.tempFilePath
+    } catch (ce) {
+      console.warn('[OCR] 压缩失败，回退原图', ce)
+    }
+    setImgPreview(tp)
+    setOcrLoading(true)
+    console.log('[OCR] 流程开始：上传图片', new Date().toISOString())
+    setOcrMsg('正在上传并提交识别...')
  try {
- const url = await uploadToStorage(tp, { bucket: 'product-images' })
- if (!url) {
+ // 每一步都加硬超时：即便网络请求不返回，也能在超时后给出明确文案并复位 loading（修复「转圈无反应」）
+ const url = await withTimeout(
+ uploadToStorage(tp, { bucket: 'product-images' }),
+ 25000,
+      '图片上传超时了：请检查网络后重试，或改用下方「粘贴配料文字」立即分析',
+    )
+    console.log('[OCR] 上传完成 ->', (url || '').slice(0, 60))
+    if (!url) {
  setOcrMsg('存储桶未配置，无法上传图片（请在 Supabase 控制台创建 product-images 存储桶）')
  return
  }
- const task = await createIngredientOcrTask({ image_url: url, store_id: currentStore?.id || null })
- if (!task) {
+ const task = await withTimeout(
+ createIngredientOcrTask({ image_url: url, store_id: currentStore?.id || null }),
+ 15000,
+      '创建识别任务超时了：请重试，或改用「粘贴配料文字」',
+    )
+    console.log('[OCR] 任务已建 ->', task?.id)
+    if (!task) {
  setOcrMsg('云端识别暂不可用（任务表权限未配置或网络异常）。请直接在上方「粘贴配料文字」框输入配料，本地即可立即分析，效果一致。')
  return
  }
- setOcrMsg('正在识别配料表...')
- // 直连 Edge Function（auth:false 跳过 403 登录态前戏，公开函数无需 token）
- const { data: ef, error: efErr } = await callEdgeFunction(
- 'ocr-ingredient',
- { task_id: task.id },
- { auth: false },
+    setOcrMsg('正在识别配料表...')
+    console.log('[OCR] 开始调 EF ocr-ingredient', new Date().toISOString())
+    // 直连 Edge Function（auth:false 跳过 403 登录态前戏，公开函数无需 token）
+    const { data: ef, error: efErr } = await withTimeout(
+ callEdgeFunction('ocr-ingredient', { task_id: task.id }, { auth: false }),
+ 40000,
+ '识别服务响应超时了：请重试，或改用「粘贴配料文字」',
  )
  if (efErr || !ef?.success) {
  const msg: string = ef?.error || efErr?.message || '识别服务异常'
  if (msg.includes('百度OCR未配置') || msg.includes('BAIDU_OCR')) {
  setOcrMsg('OCR 识别服务未配置，请改用「粘贴配料文字」方式分析')
+ } else if (ef?.code === 'ocr_friendly' || ef?.code === 'ocr_oversize') {
+ setOcrMsg(msg) // 已是用户友好文案，原样展示，不再叠加「识别失败：」前缀
  } else {
  console.error('[OCR] 识别失败:', msg)
  setOcrMsg('识别失败：' + msg)
@@ -210,7 +240,7 @@ export default function FoodScanPage() {
  setMatchedKeys(ef.matched_additives || [])
  const keys = matchIngredientKeys((ef.parsed_ingredients || []).join(','))
  setShiyangKeys(keys)
- setShiyang(resolveIngredientEntries({ ingredients: keys }))
+ setShiyang(filterShiyangByIngredientList(resolveIngredientEntries({ ingredients: keys }), (ef.parsed_ingredients || []).join(',')))
  setReport(
  analyzeFoodLabel({
  text: ef.raw_text || text,
@@ -227,7 +257,14 @@ export default function FoodScanPage() {
  name: e?.name,
  stack: e?.stack?.slice(0, 500),
  })
- setOcrMsg('识别失败：' + (e?.message || '网络异常'))
+ const m: string = e?.message || '网络异常'
+ if (m.includes('超时')) {
+ setOcrMsg(m) // 超时文案本身已是用户友好的，原样展示
+ } else if (m.includes('百度OCR未配置') || m.includes('BAIDU_OCR')) {
+ setOcrMsg('OCR 识别服务未配置，请改用「粘贴配料文字」方式分析')
+ } else {
+ setOcrMsg('识别失败：' + m)
+ }
  } finally {
  setOcrLoading(false)
  }
@@ -235,6 +272,19 @@ export default function FoodScanPage() {
  /* 用户取消选择，忽略 */
  }
  }
+
+ // 首页「扫码识别」直达：带 auto=1 进入时自动调起拍照，省去再点一次「拍照识别」。
+ // 只在首个 auto=1 进入触发一次；用户取消相机后不重复拉起。
+ const autoFiredRef = useRef(false)
+ useEffect(() => {
+ if (autoFiredRef.current) return
+ if (router?.params?.auto !== '1') return
+ autoFiredRef.current = true
+ // 轻微延迟，等首帧渲染完成后再拉起相机，避免白屏/闪退
+ const t = setTimeout(() => { chooseImage() }, 300)
+ return () => clearTimeout(t)
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [])
 
  return (
  <View className="min-h-screen bg-[#F8F8F8] px-4 pt-4 pb-12">
@@ -250,13 +300,13 @@ export default function FoodScanPage() {
  onInput={(e) => setText(e.detail.value)}
  placeholder="例如：水、白砂糖、山梨酸钾、柠檬黄、食用香精..."
  maxlength={2000}
- style={{ width: '100%', height: 96, fontSize: 14, lineHeight: '1.6' }}
+ style={{ width: '100%', height: 96, fontSize: '28rpx', lineHeight: '1.6' }}
  />
  <Button
  onClick={analyze}
  loading={loading}
  className="mt-2 rounded-full"
- style={{ background: 'hsl(var(--primary))', color: '#fff', fontSize: 14 }}
+ style={{ background: 'hsl(var(--primary))', color: '#fff', fontSize: '28rpx' }}
  >
  解析配料
  </Button>
@@ -268,20 +318,26 @@ export default function FoodScanPage() {
  onClick={chooseImage}
  loading={ocrLoading}
  className="rounded-full"
- style={{ background: '#F0EDE8', color: 'hsl(var(--foreground))', fontSize: 14 }}
+ style={{ background: 'hsl(var(--primary))', color: '#fff', fontSize: '28rpx' }}
  >
  拍照识别
  </Button>
  <Button
  onClick={() => scanAndRoute()}
  className="rounded-full"
- style={{ background: '#EAF2FF', color: 'hsl(var(--foreground))', fontSize: 14 }}
+ style={{ background: 'hsl(var(--primary) / 0.10)', color: 'hsl(var(--primary))', fontSize: '28rpx' }}
  >
  扫条码购买
  </Button>
- {imgPreview && <Image src={imgPreview} style={{ width: 56, height: 56, borderRadius: 10 }} />}
- </View>
- {ocrMsg && (
+ {imgPreview && <Image src={imgPreview} mode="aspectFill" style={{ width: 56, height: 56, borderRadius: 10 }} />}
+</View>
+{/* 联网提示：引导在弱网/无响应时改用本地文本分析（用户视角，不暴露内部基建） */}
+<View className="mt-2 rounded-xl border px-3 py-2" style={{ borderColor: 'rgba(217,119,6,0.35)', background: 'rgba(217,119,6,0.06)' }}>
+ <Text className="text-[11px]" style={{ display: 'block', color: '#B45309', lineHeight: 1.6 }}>
+ 拍照识别需在联网环境下进行。若长时间无响应，可改用上方「粘贴配料文字」即时分析（本地完成，无需等待网络）。
+ </Text>
+</View>
+{ocrMsg && (
  <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 6, lineHeight: 1.6 }}>
  {ocrMsg}
  </Text>
@@ -309,7 +365,7 @@ export default function FoodScanPage() {
 
     {/* 评估说明（数据来源 + 算法局限，信任度核心） */}
     {analyzed && (
-      <View className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'rgba(99,102,241,0.20)', background: 'rgba(99,102,241,0.05)' }}>
+      <View className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'rgba(232,121,100,0.20)', background: 'rgba(232,121,100,0.05)' }}>
         <Text className="text-[11px]" style={{ display: 'block', color: '#475569', lineHeight: 1.7 }}>{FOOD_SCAN_DISCLAIMER}</Text>
       </View>
     )}
@@ -324,13 +380,13 @@ export default function FoodScanPage() {
  一句话结论
  </Text>
  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
- <Text style={{ fontSize: 18, marginRight: 8 }}>{conclusion.buy.emoji}</Text>
+ <Text style={{ fontSize: '36rpx', marginRight: 8 }}>{conclusion.buy.emoji}</Text>
  <Text className="text-sm font-semibold" style={{ color: conclusion.buy.color, flex: 1, lineHeight: 1.5 }}>
  {conclusion.buy.text}
  </Text>
  </View>
  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
- <Text style={{ fontSize: 18, marginRight: 8 }}>{conclusion.child.emoji}</Text>
+ <Text style={{ fontSize: '36rpx', marginRight: 8 }}>{conclusion.child.emoji}</Text>
  <Text className="text-sm font-semibold" style={{ color: conclusion.child.color, flex: 1, lineHeight: 1.5 }}>
  {conclusion.child.text}
  </Text>
@@ -366,7 +422,7 @@ export default function FoodScanPage() {
  )}
  {shortfallEval.hits.filter((h) => h.kind === 'boost').length > 0 && (
  <View className="mt-2">
- <Text className="text-xs font-semibold" style={{ color: '#16A34A', display: 'block', marginBottom: 4 }}>
+ <Text className="text-xs font-semibold" style={{ color: '#15803D', display: 'block', marginBottom: 4 }}>
  正好补短板，可常吃
  </Text>
  <View className="flex flex-wrap gap-2">
@@ -383,7 +439,7 @@ export default function FoodScanPage() {
         当前配料与你的食养关注无明显冲突，可继续看其他维度。
       </Text>
  )}
- <Text className="text-[11px] text-[#9CA3AF] mt-2 block" style={{ lineHeight: 1.6 }}>{FOOD_THERAPY_DISCLAIMER}</Text>
+ <Text className="text-[11px] text-muted-foreground mt-2 block" style={{ lineHeight: 1.6 }}>{FOOD_THERAPY_DISCLAIMER}</Text>
  </View>
  )}
 
@@ -418,7 +474,7 @@ export default function FoodScanPage() {
  >
  <Image src={p.image_url || ''} style={{ width: 140, height: 140, borderRadius: 12 }} mode="aspectFill" />
  <Text className="text-sm text-foreground mt-1" style={{ display: 'block' }} numberOfLines={1}>{p.name}</Text>
- <Text className="text-xs" style={{ display: 'block', color: '#16A34A' }}>
+ <Text className="text-xs" style={{ display: 'block', color: '#15803D' }}>
  {profileToCrowds(userProfile).length > 0 ? `契合度 ${fit}` : `食养关怀 ${getProductCareInfo(p).careScore}`}
  </Text>
  </View>
@@ -433,21 +489,21 @@ export default function FoodScanPage() {
  {/* 命中添加剂名，但安全库尚未收录（需跑 00203 迁移） */}
  {analyzed && !additives.length && matchedKeys.length > 0 && (
  <View className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-3">
- <Text className="text-sm font-bold" style={{ display: 'block', color: '#D97706', marginBottom: 6 }}>
+ <Text className="text-sm font-bold" style={{ display: 'block', color: '#B45309', marginBottom: 6 }}>
  已识别 {matchedKeys.length} 项添加剂名
  </Text>
  <Text className="text-xs text-muted-foreground" style={{ display: 'block', lineHeight: 1.7 }}>
  识别到：{matchedKeys.slice(0, 12).join('、')}{matchedKeys.length > 12 ? '...' : ''}
  </Text>
- <Text className="text-xs" style={{ display: 'block', marginTop: 8, lineHeight: 1.7, color: '#D97706' }}>
- 但安全库尚未收录这些添加剂的完整评级。请在 Supabase SQL Editor 跑迁移 00203（扩种子）后即可显示安全评级。
+ <Text className="text-xs" style={{ display: 'block', marginTop: 8, lineHeight: 1.7, color: '#B45309' }}>
+ 但安全库暂未收录这些添加剂的完整评级，已为你标注名称，待数据更新后即可显示安全评级。
  </Text>
  </View>
  )}
  {/* 命中普通食材（无添加剂） */}
  {analyzed && !additives.length && matchedKeys.length === 0 && shiyangKeys.length > 0 && (
  <View className="mt-4 rounded-2xl border border-black/5 bg-white p-3">
- <Text className="text-sm font-bold" style={{ display: 'block', color: '#16A34A', marginBottom: 6 }}>
+ <Text className="text-sm font-bold" style={{ display: 'block', color: '#15803D', marginBottom: 6 }}>
  文字解析正常，已识别 {shiyangKeys.length} 项原料
  </Text>
  <Text className="text-xs text-muted-foreground" style={{ display: 'block', lineHeight: 1.7 }}>

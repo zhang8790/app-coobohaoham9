@@ -35,8 +35,12 @@ EXIT_CODES+=($?)
 npx oxlint -c .oxlintrc.json src
 EXIT_CODES+=($?)
 
+# 设计纪律卡口：色系统一 + 字重纪律（防回归）
+node scripts/style-discipline.mjs --ci
+EXIT_CODES+=($?)
+
 ALL_PASSED=true
-CHECKS=("scss" "biome" "tsgo" "navigation" "iconpath" "authprovider" "oxlint")
+CHECKS=("scss" "biome" "tsgo" "navigation" "iconpath" "authprovider" "oxlint" "stylediscipline")
 FAILED_CHECKS=()
 for i in "${!EXIT_CODES[@]}"; do
     if [ ${EXIT_CODES[$i]} -ne 0 ]; then

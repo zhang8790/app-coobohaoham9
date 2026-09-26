@@ -32,7 +32,7 @@ const RISK_LABEL: Record<string, { label: string; color: string }> = {
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   pending: { label: '待结算', color: '#2563eb' },
   settled: { label: '已结算', color: '#16a34a' },
-  refunded: { label: '已拒结', color: '#6b7280' },
+  refunded: { label: '已拒结', color: 'var(--text-muted)' },
   frozen: { label: '已冻结', color: '#dc2626' },
 }
 
@@ -248,7 +248,7 @@ export default function Risk() {
                             <button
                               onClick={() => act(r.id, 'pending', true)}
                               disabled={actionId === r.id}
-                              style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--primary)', background: 'var(--primary)', color: '#fff', fontSize: 12, cursor: 'pointer' }}
+                              style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--primary)', background: 'var(--primary-strong)', color: '#fff', fontSize: 12, cursor: 'pointer' }}
                             >放行</button>
                             <button
                               onClick={() => act(r.id, 'refunded', false)}
