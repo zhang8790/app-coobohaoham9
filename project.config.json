@@ -1,7 +1,7 @@
 {
     "miniprogramRoot": "dist_new/",
-    "projectname": "来电有喜",
-    "description": "来电有喜 - 好物生活平台",
+    "projectname": "来店有喜",
+    "description": "来店有喜 - 好物生活平台",
     "appid": "wxb5bdfdbb471a500f",
     "setting": {
         "urlCheck": false,
