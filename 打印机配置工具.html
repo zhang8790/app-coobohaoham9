@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>打印机配置工具 · 杭州礼品店</title>
+<style>
+  :root{
+    --bg:#F8F8F8; --card:#FFFFFF; --fg:#333333; --muted:#666666; --hint:#999999;
+    --border:#E5E5E5; --primary:#1F9D6B; --primary-deep:#157A52; --soft:#EAF6EE;
+    --danger:#D93025; --warn:#D97706;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+    font-size:14px;line-height:1.6;padding:28px 18px 56px}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:19px;margin:0 0 4px;font-weight:600}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+    padding:18px 20px;margin-bottom:16px}
+  .card h2{font-size:14px;font-weight:600;margin:0 0 14px;display:flex;
+    align-items:center;gap:8px;color:var(--fg)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--primary);display:inline-block}
+  label{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+  label .en{color:var(--hint);font-size:12px}
+  input[type=text],input[type=password],select{width:100%;padding:9px 11px;
+    border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--fg);
+    background:#fff;font-family:inherit;outline:none}
+  input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--soft)}
+  .hint{font-size:12px;color:var(--hint);margin-top:4px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:190px}
+  .switch{display:flex;align-items:center;gap:9px;margin-top:16px;font-size:13px;color:var(--fg)}
+  .switch input{width:16px;height:16px;accent-color:var(--primary)}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+  button{border:1px solid var(--border);background:#fff;color:var(--fg);padding:9px 16px;
+    border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;transition:.15s}
+  button:hover{border-color:var(--primary);color:var(--primary-deep)}
+  button.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+  button.primary:hover{background:var(--primary-deep);color:#fff}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td{padding:6px 0;border-bottom:1px solid #F0F0F0;vertical-align:top}
+  td.k{color:var(--muted);width:190px;white-space:nowrap}
+  td.v{word-break:break-all;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+  .badge{display:inline-block;padding:1px 8px;border-radius:20px;font-size:12px}
+  .badge.on{background:var(--soft);color:var(--primary-deep)}
+  .badge.off{background:#F2F2F2;color:var(--muted)}
+  pre{background:#FAFAFA;border:1px solid var(--border);border-radius:8px;padding:12px;
+    overflow:auto;font-size:12.5px;margin:0;white-space:pre-wrap;word-break:break-all;
+    font-family:ui-monospace,Consolas,monospace}
+  .res-ok{border-color:#BFE3CF;background:#F4FBF7}
+  .res-err{border-color:#F3C9C5;background:#FDF5F4}
+  .res-warn{border-color:#F0DCB4;background:#FEFAF2}
+  .note{font-size:12.5px;color:var(--warn);margin-top:10px}
+  .cl{color:var(--hint);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>打印机配置工具</h1>
+  <div class="sub">绑定的门店：<b>杭州礼品店</b> · <span class="cl">70778d6b-d819-41fc-87a3-8766a78eb60d</span></div>
+
+  <div class="card">
+    <h2><span class="dot"></span>当前线上配置</h2>
+    <table id="curTab"><tr><td class="k">加载中…</td><td class="v"></td></tr></table>
+    <div class="btns">
+      <button id="btnReload">重新读取</button>
+      <button id="btnLogs">查看最近打印记录</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>填写凭证</h2>
+    <div class="row">
+      <div>
+        <label>服务商 <span class="en">provider</span></label>
+        <select id="provider">
+          <option value="feie">飞鹅 feie</option>
+          <option value="yilianyun">易联云 yilianyun</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label id="lbUser">账号 <span class="en" id="enUser">api_user</span></label>
+        <input type="text" id="apiUser" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label id="lbKey">密钥 <span class="en" id="enKey">api_key</span></label>
+        <input type="text" id="apiKey" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label id="lbSn">设备编号 <span class="en" id="enSn">device_sn</span></label>
+        <input type="text" id="deviceSn" autocomplete="off" spellcheck="false">
+      </div>
+      <div>
+        <label id="lbPK">打印机密钥 <span class="en">printer_key · 可选</span></label>
+        <input type="text" id="printerKey" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div class="hint" id="tip"></div>
+
+    <div class="switch">
+      <input type="checkbox" id="enabled">
+      <label for="enabled" style="margin:0">启用该打印机（enabled）· 开启后订单支付会自动出单</label>
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="btnSave">保存配置</button>
+      <button id="btnSaveTest">保存并测试打印</button>
+      <button id="btnTest">仅测试打印</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot"></span>执行结果</h2>
+    <pre id="out">等待操作…</pre>
+    <div class="note" id="note"></div>
+  </div>
+</div>
+
+<script>
+const SB     = 'https://pyqgsxcjmijtbstwthbn.supabase.co';
+const ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5cWdzeGNqbWlqdGJzdHd0aGJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NjIxMTIsImV4cCI6MjA5ODUzODExMn0.DQPNwBTPcQXfTixxz6Vfd53nYePuaEt58vzNWpaodWM';
+const ROW_ID = 'ac96ff08-e07b-480c-a333-7d2347310e75';
+const STORE_ID = '70778d6b-d819-41fc-87a3-8766a78eb60d';
+const H = { 'apikey': ANON, 'Authorization': 'Bearer ' + ANON, 'Content-Type': 'application/json' };
+
+const $ = id => document.getElementById(id);
+const out = $('out'), note = $('note');
+
+function say(text, kind){
+  out.textContent = typeof text === 'string' ? text : JSON.stringify(text, null, 2);
+  out.className = 'res-' + (kind || 'ok');
+}
+function warn(t){ note.textContent = t || ''; }
+
+const TIPS = {
+  feie:      '飞鹅：登录 feie.cn 云后台 → 我的设备。账号=USER，密钥=UKEY，设备编号=打印机底部贴纸上的 SN（9 位数字）。',
+  yilianyun: '易联云：应用ID=客户端ID(client_id)，应用密钥=client_secret，设备编号=打印机自检小票上的「终端号」（约 10 位数字，不是账号用户ID）。'
+};
+const LABELS = {
+  feie:      { user:'账号', enUser:'USER',  key:'密钥', enKey:'UKEY',  sn:'设备编号', enSn:'SN' },
+  yilianyun: { user:'应用ID', enUser:'client_id', key:'应用密钥', enKey:'client_secret', sn:'终端号', enSn:'machine_code' }
+};
+
+function applyProvider(p){
+  const L = LABELS[p];
+  $('lbUser').innerHTML = L.user + ' <span class="en">' + L.enUser + '</span>';
+  $('lbKey').innerHTML  = L.key  + ' <span class="en">' + L.enKey  + '</span>';
+  $('lbSn').innerHTML   = L.sn   + ' <span class="en">' + L.enSn   + '</span>';
+  $('tip').textContent  = TIPS[p];
+}
+$('provider').addEventListener('change', e => applyProvider(e.target.value));
+
+function fill(row){
+  if(!row){ say('未找到配置行', 'err'); return; }
+  $('provider').value  = row.provider || 'feie';
+  $('apiUser').value   = row.api_user || '';
+  $('apiKey').value    = row.api_key || '';
+  $('deviceSn').value  = row.device_sn || '';
+  $('printerKey').value= row.printer_key || '';
+  $('enabled').checked = !!row.enabled;
+  applyProvider($('provider').value);
+
+  const rows = [
+    ['id', row.id],
+    ['store_id', row.store_id],
+    ['provider', row.provider],
+    ['device_sn', row.device_sn || '（空）'],
+    ['api_user', row.api_user || '（空）'],
+    ['api_key', row.api_key ? '已设置（' + row.api_key.slice(0,6) + '…' + row.api_key.slice(-4) + '）' : '（空）'],
+    ['printer_key', row.printer_key ? '已设置' : '（空）'],
+    ['enabled', row.enabled ? '是' : '否'],
+    ['print_count', row.print_count],
+    ['last_print_at', row.last_print_at || '从未成功打印'],
+    ['updated_at', row.updated_at]
+  ];
+  $('curTab').innerHTML = rows.map(([k,v]) =>
+    '<tr><td class="k">' + k + '</td><td class="v">' + String(v ?? '') + '</td></tr>').join('');
+}
+
+async function load(){
+  say('读取中…', 'warn');
+  try{
+    const r = await fetch(SB + '/rest/v1/printer_configs?select=*&id=eq.' + ROW_ID, { headers: H });
+    const d = await r.json();
+    if(!r.ok) throw new Error(JSON.stringify(d));
+    fill(Array.isArray(d) ? d[0] : null);
+    say('已读取当前配置。', 'ok');
+  }catch(e){ say('读取失败：' + e.message + '\n（若浏览器提示 CORS/网络，请告诉我）', 'err'); }
+}
+
+async function save(){
+  const body = {
+    provider:    $('provider').value,
+    device_sn:   $('deviceSn').value.trim(),
+    api_user:    $('apiUser').value.trim(),
+    api_key:     $('apiKey').value.trim(),
+    printer_key: $('printerKey').value.trim() || null,
+    enabled:     $('enabled').checked,
+    updated_at:  new Date().toISOString()
+  };
+  if(!body.device_sn){ say('设备编号 / 终端号不能为空。', 'err'); return false; }
+  say('保存中…', 'warn');
+  try{
+    const r = await fetch(SB + '/rest/v1/printer_configs?id=eq.' + ROW_ID, {
+      method:'PATCH',
+      headers: Object.assign({}, H, { 'Prefer':'return=representation' }),
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if(!r.ok) throw new Error(JSON.stringify(d));
+    fill(Array.isArray(d) ? d[0] : null);
+    say({ 结果:'配置已保存', 提交内容: body, 返回: d }, 'ok');
+    return true;
+  }catch(e){ say('保存失败：' + e.message, 'err'); return false; }
+}
+
+async function test(){
+  say('正在测试打印（最多 40 秒）…', 'warn'); warn('');
+  try{
+    const r = await fetch(SB + '/functions/v1/print-receipt', {
+      method:'POST', headers:H, body: JSON.stringify({ test:true, store_id:STORE_ID })
+    });
+    const txt = await r.text();
+    let d; try{ d = JSON.parse(txt); }catch(_){ d = txt; }
+    const ok = d && d.success === true;
+    say({ HTTP: r.status, 返回: d }, ok ? 'ok' : 'err');
+    if(!ok && d && /k1|k2|k3/i.test(String(d.error || ''))){
+      warn('易联云开放平台不支持 K1/K2/K3 机型，需换 K4/K5/K6 或改用飞鹅。');
+    }
+  }catch(e){ say('测试打印请求失败：' + e.message, 'err'); }
+}
+
+async function logs(){
+  say('读取打印记录中…', 'warn');
+  try{
+    const r = await fetch(SB + '/rest/v1/trigger_logs?select=order_no,action,error,created_at&action=like.PRINT*&order=id.desc&limit=20', { headers:H });
+    const d = await r.json();
+    if(!r.ok) throw new Error(JSON.stringify(d));
+    say(d.length ? d.map(x => x.created_at + '  ' + x.action + '  ' + (x.order_no||'') + (x.error ? ('  ERR: ' + x.error) : '')).join('\n') : '暂无打印记录', 'warn');
+  }catch(e){ say('读取失败：' + e.message, 'err'); }
+}
+
+$('btnReload').onclick = load;
+$('btnLogs').onclick   = logs;
+$('btnSave').onclick   = save;
+$('btnSaveTest').onclick = async () => { if(await save()) await test(); };
+$('btnTest').onclick   = test;
+
+load();
+</script>
+</body>
+</html>
