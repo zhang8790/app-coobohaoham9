@@ -136,3 +136,59 @@ _zap_*
 _move_log.txt
 _icacls_log.txt
 _move2_log.txt
+
+# ===== 2026-09-26 清理：本地临时/调试/构建产物/设计预览（非源码，勿提交）=====
+# 根目录一次性调试/配色/扫描脚本（排查会话产生，勿入库）
+/.*.py
+/inspect_mc.py
+/split_*.py
+
+# 根目录临时/结果 JSON（调试输出，勿入库）
+/0
+/od_tmp.json
+/off.json
+/p1.json
+/pc_tmp.json
+/pr.json
+/st.json
+/style.json
+
+# 设计预览 HTML（本地验证用，非交付物）
+/card-density-before-after.html
+/home-layout-comfort.html
+/home-optimization-overview.html
+/home-redesign-preview.html
+/home-ux-ops-report.html
+
+# 运营/设计文档（日期性清单与设计预览，非源码；如需留存可移除本段规则后提交）
+/EF重部署清单_2026-09-17.md
+/SQL待部署清单_2026-09-17.md
+/deployment-checklist.md
+/scan-ingredient-audit.md
+/overview-color-harmony.md
+/overview-color-neutral.md
+/overview-tabbar-neutral.md
+/account-lifecycle-audit.md
+/account-password-fix-runbook.md
+
+# 小程序构建产物（Taro 输出，等同 dist/）
+/dist_new/
+
+# 图床本地副本（线上对象存储，勿入库）
+/product-images/
+
+# 设计运行产物
+/ui-design-runs/
+
+# WorkBuddy 项目数据目录（本地数据，非源码；勿删，仅不入库）
+/.workbuddy/
+
+# 本地临时目录
+/.tmp/
+
+# WorkBuddy 应用产物
+/.wbapp_*.genie
+
+# scripts 目录内的临时结果/调试脚本（勿入库）
+scripts/.upload-food-skus-result.json
+scripts/scan_garbled.py
