@@ -1,7 +1,7 @@
 {
   "name": "laidianyouxi-app",
   "version": "1.0.0",
-  "description": "来电有喜 原生移动端 App（React Native + Expo），复用小程序 Supabase 后端与食疗导购引擎",
+  "description": "来店有喜 原生移动端 App（React Native + Expo），复用小程序 Supabase 后端与食疗导购引擎",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",

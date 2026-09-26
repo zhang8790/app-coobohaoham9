@@ -68,7 +68,7 @@ export const LoginScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.inner}>
-        <Text style={styles.logo}>来电有喜</Text>
+        <Text style={styles.logo}>来店有喜</Text>
         <Text style={styles.subtitle}>食养好物 · 暖心陪伴</Text>
 
         <View style={styles.tabs}>

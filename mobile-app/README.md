@@ -1,6 +1,6 @@
-# 来电有喜 · 移动端 App（React Native + Expo）
+# 来店有喜 · 移动端 App（React Native + Expo）
 
-把现有「来电有喜」微信小程序做成可上架 App Store / 应用商店的**原生 iOS + Android App**。后端直接复用小程序已有的 Supabase（表、RLS、Edge Functions），核心的「食材食疗智能导购引擎」是纯函数，已 1:1 移植，零逻辑重写。
+把现有「来店有喜」微信小程序做成可上架 App Store / 应用商店的**原生 iOS + Android App**。后端直接复用小程序已有的 Supabase（表、RLS、Edge Functions），核心的「食材食疗智能导购引擎」是纯函数，已 1:1 移植，零逻辑重写。
 
 ## 技术栈
 

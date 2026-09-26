@@ -1,4 +1,4 @@
-// 食材食疗 / 来电有喜 —— React Native 版 Supabase 客户端
+// 食材食疗 / 来店有喜 —— React Native 版 Supabase 客户端
 // 与小程序差异：
 //  1. 小程序用 Taro.request 自定义 fetch（无全局 fetch）→ 原生 RN 直接用内置 fetch，无需 customFetch。
 //  2. 小程序用 Taro.getStorageSync 持久化 token → 原生用 @react-native-async-storage/async-storage。
