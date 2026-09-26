@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 来电有喜 · 部署 ocr-ingredient Edge Function 并配置百度 OCR 密钥
+# 来店有喜 · 部署 ocr-ingredient Edge Function 并配置百度 OCR 密钥
 # 用法 (Git Bash):  bash scripts/deploy-ocr-ingredient.sh
 # 前提: 已 `supabase login`（或设置环境变量 SUPABASE_ACCESS_TOKEN）
 # 说明: 百度密钥仅写入云端加密 secrets，不进入代码仓库（.env.ocr 已被 .gitignore 忽略）

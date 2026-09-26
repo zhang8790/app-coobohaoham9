@@ -1,5 +1,5 @@
 // ============================================================================
-// 来电有喜 · 1万会员并发承压压测脚本 (k6)
+// 来店有喜 · 1万会员并发承压压测脚本 (k6)
 // ----------------------------------------------------------------------------
 // ⚠️ 安全红线：禁止在生产高峰直接运行！仅用于【预发/测试环境】做容量评估。
 //    默认 BASE 指向生产项目是为了方便复制修改；正式压测请务必改用预发库：
@@ -18,7 +18,7 @@ import { check, sleep } from 'k6'
 const BASE = __ENV.SUPABASE_URL || 'https://pyqgsxcjmijtbstwthbn.supabase.co'
 // 项目的 anon key(公开发布用，仅 RL 受控读)；写路径需另填测试账号 token
 const ANON = __ENV.ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5cWdzeGNqaWl0YnN0d3RoYm4iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc0MjU2MDc3MywiZXhwIjoyMDU4MTM2NzczfQ.MHdJx4XjIMhSU_OJte0WjG1H2-jYO_0seFGMH0HRHc4'
-const STORE_ID = __ENV.STORE_ID || 'ffffffff-ffff-ffff-ffff-ffffffffffff' // 来电有喜官方店
+const STORE_ID = __ENV.STORE_ID || 'ffffffff-ffff-ffff-ffff-ffffffffffff' // 来店有喜官方店
 const USER_TOKEN = __ENV.USER_TOKEN || '' // 写路径：填一个预发测试账号的 JWT；为空则跳过写压测
 
 const headers = {

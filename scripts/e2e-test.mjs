@@ -270,7 +270,7 @@ async function testNotifications() {
 
 // ============ 主流程 ============
 async function main() {
-  log('🚀 一级测试 · 来电有喜 (武林盟) 全链路')
+  log('🚀 一级测试 · 来店有喜 (武林盟) 全链路')
   log(`📡 Supabase: ${URL}`)
   log(`🔑 Project ref: ${REF}`)
   log(`⏰ ${NOW()}`)
