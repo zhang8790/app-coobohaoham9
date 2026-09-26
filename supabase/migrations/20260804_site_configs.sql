@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS site_configs (
 INSERT INTO site_configs (key, value)
 VALUES (
   'home_brand_hero_bg',
-  jsonb_build_object('image_url', null, 'alt', '来电有喜品牌主张背景', 'updated_by', null)
+  jsonb_build_object('image_url', null, 'alt', '来店有喜品牌主张背景', 'updated_by', null)
 )
 ON CONFLICT (key) DO NOTHING;
 

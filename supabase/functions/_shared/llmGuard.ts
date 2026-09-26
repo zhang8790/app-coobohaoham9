@@ -148,7 +148,10 @@ async function run(o: GuardedChatOpts): Promise<GuardedChatResult> {
         await sleep(backoff(attempt))
         continue
       }
-      await log(o, start, false, `http ${status}`, status)
+      // 关键诊断：把提供商真实响应体（如阿里云 400 的 JSON 错误码/参数说明）写入日志，
+      // 经 fn_llm_recent_logs（SECURITY DEFINER，匿名 key 即可查询）即可定位 400 真因，
+      // 不必再依赖管理员 token。这是排查 qwen-vl-max 自 2026-09-19 起全部 http 400 的关键。
+      await log(o, start, false, `http ${status}: ${text.slice(0, 500)}`, status)
       return { ok: false, data: null, httpStatus: status, error: text.slice(0, 200), latencyMs: Date.now() - start }
     }
   } finally {

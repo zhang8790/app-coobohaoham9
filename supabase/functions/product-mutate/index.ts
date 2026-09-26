@@ -207,8 +207,9 @@ Deno.serve(async (req: Request) => {
       discount_rate: body.discount_rate ?? null,
       mood_tags: body.mood_tags && body.mood_tags.length ? body.mood_tags : [],
       scene_tags: body.scene_tags && body.scene_tags.length ? body.scene_tags : [],
+      // 两步上架：新建商品强制待审核且不可见，仅 admin 审核通过（置 is_active=true）才对客可见
       review_status: 'pending',
-      is_active: body.is_active ?? false,
+      is_active: false,
     }
     if (body.ingredients && body.ingredients.length) insertPayload.ingredients = body.ingredients
     if (body.overall_nature && body.overall_nature.trim()) insertPayload.overall_nature = body.overall_nature.trim()

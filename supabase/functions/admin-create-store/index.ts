@@ -111,6 +111,8 @@ Deno.serve(async (req: Request) => {
     const newUserId = newUser.user.id
 
     // ---- 4. 建店（owner=运营账号, is_platform=true, created_by=admin）----
+    // 注：barcode_prefix 不在此处设置——由 DB 触发器 trg_store_barcode_prefix
+    //     在 INSERT 时自动从 seq_store_barcode_prefix 分配，避免漏配导致店内码生成失败。
     let storeId: string | null = null
     for (let attempt = 0; attempt < 6; attempt++) {
       const shortCode = genShortCode()

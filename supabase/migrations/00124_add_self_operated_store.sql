@@ -28,7 +28,7 @@ BEGIN
     is_open, open_time, close_time, referral_rate, short_code
   ) VALUES (
     v_store_id, v_owner,
-    '来电有喜·生鲜自营馆',                       -- 【改】店名
+    '来店有喜·生鲜自营馆',                       -- 【改】店名
     '平台自营生鲜好货，产地直供，品质保障',         -- 【改】简介
     '侠客总部 1 号',
     '400-888-8888',

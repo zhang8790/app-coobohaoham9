@@ -29,6 +29,29 @@ function json(body: any, status = 200, headers = corsHeaders) {
 const BAIDU_TOKEN_URL = 'https://aip.baidubce.com/oauth/2.0/token'
 const BAIDU_OCR_URL = 'https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic'
 
+// 百度业务错误码 → 用户友好文案。OCR 失败不再只报「识别失败」，而是给出可操作提示。
+class OcrBizError extends Error {
+  code: string
+  constructor(code: string, message: string) {
+    super(message)
+    this.code = code
+  }
+}
+
+function baiduFriendlyError(code: string | number, msg: string): string {
+  const m: Record<string, string> = {
+    '216100': '图片格式不被支持（请使用 JPG/PNG 照片后重试）',
+    '216101': '图片为空或读取失败，请重新拍照',
+    '216102': '图片过大或过小，请重新拍摄清晰的配料表照片',
+    '216201': '图片体积过大，请压缩后重试，或用「粘贴配料文字」方式分析',
+    '216202': '图片格式或体积不被支持，请换 JPG/PNG 或压缩后重试',
+    '216110': '图片下载失败，请重试',
+    '216630': '图片识别失败（可能是图片不清晰或非配料表），请重拍或改用文字输入',
+    '216631': '图片识别失败，请重拍清晰照片或改用文字输入',
+  }
+  return m[String(code)] || `识别失败（百度错误码 ${code}）：${(msg || '').trim()}`
+}
+
 let baiduTokenCache: { token: string; exp: number } | null = null
 let baiduTokenPromise: Promise<string> | null = null
 
@@ -71,7 +94,7 @@ async function ocrImage(base64: string): Promise<string[]> {
   })
   if (!resp.ok) throw new Error(`百度OCR HTTP ${resp.status}`)
   const j = await resp.json()
-  if (j.error_code) throw new Error(`百度OCR错误 ${j.error_code}: ${j.error_msg}`)
+  if (j.error_code) throw new OcrBizError('ocr_friendly', baiduFriendlyError(j.error_code, j.error_msg || ''))
   return (j.words_result || []).map((w: any) => String(w.words || '')).filter(Boolean)
 }
 
@@ -167,34 +190,52 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
     const body = await req.json().catch(() => ({}))
-    const taskId: string | undefined = body.task_id
-    if (!taskId) return json({ success: false, error: '缺少 task_id' }, 400)
+    const taskId: string | undefined = body.task_id || undefined
+    const imageUrl: string | undefined = body.image_url || undefined
 
-    const { data: task, error: taskErr } = await supabase
-      .from('ingredient_ocr_tasks')
-      .select('*')
-      .eq('id', taskId)
-      .maybeSingle()
-    if (taskErr) throw new Error(`读取任务失败: ${taskErr.message}`)
-    if (!task) return json({ success: false, error: '任务不存在' }, 404)
+    if (!taskId && !imageUrl) {
+      return json({ success: false, error: '缺少 task_id 或 image_url' }, 400)
+    }
 
-    // 幂等：已处理过的任务直接返回既有结果，避免重复烧 OCR 额度
-    if (task.status !== 'pending') {
-      return json({
-        success: true,
-        already: true,
-        status: task.status,
-        raw_text: task.raw_text,
-        parsed_ingredients: task.parsed_ingredients,
-        matched_additives: task.matched_additives,
-        safety_grade: task.safety_grade,
-        risk_flags: task.risk_flags,
-      })
+    // task_id 模式：读任务表 + 幂等；image_url 直传模式（总后台调试面板）跳过任务表
+    let task: any = null
+    if (taskId) {
+      const { data, error: taskErr } = await supabase
+        .from('ingredient_ocr_tasks')
+        .select('*')
+        .eq('id', taskId)
+        .maybeSingle()
+      if (taskErr) throw new Error(`读取任务失败: ${taskErr.message}`)
+      if (!data) return json({ success: false, error: '任务不存在' }, 404)
+      task = data
+      // 幂等：已处理过的任务直接返回既有结果，避免重复烧 OCR 额度
+      if (task.status !== 'pending') {
+        return json({
+          success: true,
+          already: true,
+          status: task.status,
+          raw_text: task.raw_text,
+          parsed_ingredients: task.parsed_ingredients,
+          matched_additives: task.matched_additives,
+          safety_grade: task.safety_grade,
+          risk_flags: task.risk_flags,
+        })
+      }
+    }
+
+    // 取实际图片地址：直传 image_url 优先，否则用任务表的 image_url
+    const effectiveUrl = imageUrl || (task ? task.image_url : null)
+    if (!effectiveUrl) {
+      return json({ success: false, error: '任务无图片URL且未提供 image_url' }, 400)
+    }
+    // 基础安全校验：仅允许 http(s) 图片地址，避免被当作任意 URL 抓取器滥用（SSRF 收敛）
+    if (!/^https?:\/\//i.test(effectiveUrl)) {
+      return json({ success: false, error: 'image_url 须为 http(s) 开头的图片地址' }, 400)
     }
 
     // 下载配料表图片（带 service_role 授权头，兼容非公开 bucket；不依赖 bucket 公开设置）
     const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const imgResp = await fetch(task.image_url, {
+    const imgResp = await fetch(effectiveUrl, {
       headers: { Authorization: `Bearer ${serviceRole}` },
     })
     if (!imgResp.ok) throw new Error(`图片下载失败 HTTP ${imgResp.status}`)
@@ -203,11 +244,11 @@ Deno.serve(async (req: Request) => {
     for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i])
     const base64 = btoa(binary)
 
-    // 百度 accurate_basic 硬限原始图片 ≤ 4MB（base64 后约 5.3MB），超限返回 216201。
-    // 提前拦截给出友好降级文案，避免白烧 token 额度。
-    if (buf.length > 4 * 1024 * 1024) {
+    // 百度 accurate_basic 实测可接收最大约 4.84MB / 5000×3000px；
+    // 这里取 8MB 作保守前置拦截，超限给出友好降级文案（code=ocr_oversize），避免白烧 token 额度。
+    if (buf.length > 8 * 1024 * 1024) {
       return json(
-        { success: false, error: '图片过大（超过 4MB），请压缩后重试，或用「粘贴配料文字」方式分析' },
+        { success: false, code: 'ocr_oversize', error: '图片过大（超过 8MB），请压缩后重试，或用「粘贴配料文字」方式分析' },
         400,
       )
     }
@@ -216,22 +257,26 @@ Deno.serve(async (req: Request) => {
     const candidates = parseIngredients(words)
     const { matched, grade, riskFlags } = await matchAdditives(supabase, candidates)
 
-    const { error: updErr } = await supabase
-      .from('ingredient_ocr_tasks')
-      .update({
-        raw_text: words.join('\n'),
-        parsed_ingredients: candidates,
-        matched_additives: matched,
-        safety_grade: grade,
-        risk_flags: riskFlags,
-        status: 'approved',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', taskId)
-    if (updErr) throw new Error(`更新任务失败: ${updErr.message}`)
+    // 仅 task_id 模式回写任务表；纯 image_url 调试模式不落库（结果直接返回，避免污染任务表）
+    if (taskId && task) {
+      const { error: updErr } = await supabase
+        .from('ingredient_ocr_tasks')
+        .update({
+          raw_text: words.join('\n'),
+          parsed_ingredients: candidates,
+          matched_additives: matched,
+          safety_grade: grade,
+          risk_flags: riskFlags,
+          status: 'approved',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', taskId)
+      if (updErr) throw new Error(`更新任务失败: ${updErr.message}`)
+    }
 
     return json({
       success: true,
+      mode: imageUrl ? 'url' : 'task',
       raw_text: words.join('\n'),
       parsed_ingredients: candidates,
       matched_additives: matched,
@@ -240,6 +285,7 @@ Deno.serve(async (req: Request) => {
     })
   } catch (e: any) {
     console.error('[ocr-ingredient] 失败:', e)
-    return json({ success: false, error: e?.message ?? String(e) }, 500)
+    const code = e instanceof OcrBizError ? e.code : 'ocr_error'
+    return json({ success: false, code, error: e?.message ?? String(e) }, 500)
   }
 })

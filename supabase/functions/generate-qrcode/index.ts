@@ -7,7 +7,7 @@
  * - type=store : 门店二维码，scene=s=SHORTCODE&r=REFCODE，落地 pages/store-home/index
  *
  * 说明（关键修复点）：
- *   1) 必须使用「来电有喜」小程序自身的 AppID/Secret（MERCHANT_APP_ID / WX_SECRET）。
+ *   1) 必须使用「来店有喜」小程序自身的 AppID/Secret（MERCHANT_APP_ID / WX_SECRET）。
  *      之前误用 THIRD_PARTY_LOGIN_APP_ID，生成的码属于另一个小程序，
  *      微信扫一扫无法跳转到本小程序门店页 → 表现为「门店二维码不能扫码识别」。
  *   2) bucket 使用迁移 00006 创建的公开 bucket `qrcodes`（原代码误写成中文 `二维码`，
@@ -34,7 +34,7 @@ async function getWxAccessToken(appId: string, appSecret: string): Promise<strin
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  // ⚠️ 关键：使用「来电有喜」小程序 AppID/Secret。
+  // ⚠️ 关键：使用「来店有喜」小程序 AppID/Secret。
   // 经线上实测 MERCHANT_APP_ID/WX_SECRET 被微信判为 invalid appid(40013)，
   // 故回退使用原 generate-qrcode 指定的 THIRD_PARTY_LOGIN_APP_ID/SECRET（实证可用）。
   const APP_ID = Deno.env.get('THIRD_PARTY_LOGIN_APP_ID') ?? ''

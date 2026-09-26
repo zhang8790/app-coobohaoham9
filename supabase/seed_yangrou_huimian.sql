@@ -1,5 +1,5 @@
 -- ============================================================
--- 羊肉烩面 商品 seed 脚本（来电有喜 app-coobohaoham9）
+-- 羊肉烩面 商品 seed 脚本（来店有喜 app-coobohaoham9）
 -- 执行位置：Supabase 控制台 → SQL Editor → Run
 -- 依赖迁移（本地均已存在）：
 --   00009  products.review_status + trg_product_pending 触发器
