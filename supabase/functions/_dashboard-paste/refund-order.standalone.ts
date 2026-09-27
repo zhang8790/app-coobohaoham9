@@ -1,0 +1,391 @@
+/**
+ * refund-order Edge Function —— 自包含单文件版（用于 Supabase Dashboard 网页编辑器粘贴部署）
+ *
+ * ⚠️ 本文件由 `scripts/gen-dashboard-standalone.py` 自动生成，请勿手工编辑。
+ *    源文件：supabase/functions/refund-order/index.ts + 其 import 的 _shared/*.ts
+ *
+ * 为什么需要它：
+ *    Dashboard 的 Deploy function 编辑器只上传单个文件，不打包 `../_shared/`，
+ *    直接粘贴 index.ts 必然报 `Module not found ".../_shared/xxx.ts"`。
+ *    本文件已把被依赖的 _shared 符号原地内联，零外部依赖，可直接粘贴部署。
+ *
+ * 部署方式（二选一）：
+ *   A. Dashboard 网页编辑器：打开 refund-order → 全选粘贴本文件内容 → Deploy
+ *   B. CLI（推荐，保持单一事实源）：
+ *        cd 项目根 && supabase login && supabase functions deploy refund-order
+ *
+ * 重新生成：python scripts/gen-dashboard-standalone.py --fn refund-order
+ */
+
+import { createClient } from 'jsr:@supabase/supabase-js@2'
+import Wechatpay from 'npm:wechatpay-axios-plugin@0.9.4'
+import ShortUniqueId from 'npm:short-unique-id'
+/* ===== 内联自 _shared/money.ts —— 保持公式/常量一字不改 ===== */
+
+/**
+ * 可退款订单状态白名单。
+ * 必须与前端入口（order-center「申请退款」按钮，见 src/pages/trade/refund-apply）保持一致，
+ * 否则会出现「前端能点、后端 400」或反之。
+ * pending_review = 已付款且已收货/到店消费待评价（纯健康豆堂食单建单即此态），必须可退。
+ * 排除：pending_pay(未付款)、cancelled(已取消)、after_sale(退款流程中)、paid(幻状态)。
+ */
+const REFUNDABLE_STATUSES = [
+  'pending_ship',
+  'pending_receive',
+  'pending_review',
+  'completed',
+  'pending_pickup',
+] as const
+
+function isRefundableStatus(status: string | null | undefined): boolean {
+  return status != null && (REFUNDABLE_STATUSES as readonly string[]).includes(status)
+}
+
+/**
+ * 可退金额（元，2 位）= 订单全额 − 已退累计，下限 0。
+ * 原 get_refundable_amount RPC 移除后由 refund-order 内联，此处收口为单一事实源。
+ */
+function computeRefundableAmount(totalAmount: number, alreadyRefunded: number): number {
+  return Math.max(0, Math.round((Number(totalAmount ?? 0) - Number(alreadyRefunded ?? 0)) * 100) / 100)
+}
+
+/**
+ * 🔴 微信退款交易额（分）= (订单全额 − 健康豆抵扣) × 100。
+ *
+ * 这是混合支付退款的「头号资损不变量」：微信只认「原微信实付额」，
+ * 误传 total_amount*100（含健康豆部分）会被微信以「订单金额不一致」拒绝，
+ * 导致所有混合支付订单退款必然失败。create-wechat-payment 下单时正是按此口径报 wxAmount。
+ */
+function computeWechatRefundTotalCents(totalAmount: number, tbUsed: number): number {
+  return Math.round((Number(totalAmount ?? 0) - Number(tbUsed ?? 0)) * 100)
+}
+
+/**
+ * 本次退款的微信退款金额（分）= (本次退款额 − 健康豆抵扣占比部分) × 100，下限 0。
+ * 健康豆抵扣部分（tb_used * 退款占比）不走微信，由账户侧返还。
+ */
+function computeWxRefundAmount(refundAmount: number, tbUsed: number, totalAmount: number): number {
+  const total = Number(totalAmount ?? 0)
+  const portion = Number(tbUsed ?? 0) * (total > 0 ? refundAmount / total : 0)
+  return Math.max(0, Math.round((Number(refundAmount ?? 0) - portion) * 100))
+}
+
+/**
+ * 本次退款应返还的健康豆（元，2 位）= 健康豆抵扣 × 退款占比，下限 0。
+ * 00096 后 tb_used 为「元」口径（1 健康豆 = 1 元），切勿 ×0.01。
+ */
+function computeBeanPortion(tbUsed: number, refundAmount: number, totalAmount: number): number {
+  const total = Number(totalAmount ?? 0)
+  const ratio = total > 0 ? Number(refundAmount ?? 0) / total : 1
+  return Math.max(0, Math.round(Number(tbUsed ?? 0) * ratio * 100) / 100)
+}
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+const generateRefundNo = () =>
+  `REF-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}-${new ShortUniqueId({ length: 8 }).rnd()}`
+
+export interface RefundDeps {
+  supabase?: any
+  getUser?: () => Promise<{ id: string } | null>
+}
+
+export async function handleRefundOrder(req: Request, deps?: RefundDeps): Promise<Response> {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+  const supabase = deps?.supabase ?? createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+
+  // 鉴权
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader && !deps?.getUser) return Response.json({ error: '未授权' }, { status: 401, headers: corsHeaders })
+  let user: { id: string } | null
+  if (deps?.getUser) {
+    user = await deps.getUser()
+  } else {
+    const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader! } } })
+    const { data: { user: u } } = await userClient.auth.getUser()
+    user = u
+  }
+  if (!user) return Response.json({ error: '未授权' }, { status: 401, headers: corsHeaders })
+
+  try {
+    const body = await req.json() as {
+      order_id: string; order_no: string; item_index: number
+      refund_quantity: number; refund_amount: number; reason: string; description?: string
+    }
+    const { order_id, order_no, item_index, refund_quantity, refund_amount, reason, description } = body
+
+    // 1. 查订单 & 权限
+    // 注意：当前 orders 表无 refunded_amount / wechat_transaction_id 列，
+    // 累计退款记在 refund_amount，微信交易号已不再单独落库（微信退款用 out_trade_no=order_no）。
+    const { data: order } = await supabase.from('orders')
+      .select('id,order_no,user_id,status,total_amount,refund_amount,payment_method,tb_used')
+      .eq('id', order_id).maybeSingle()
+
+    if (!order) return Response.json({ success: false, error: '订单不存在' }, { status: 404, headers: corsHeaders })
+    if (order.user_id !== user.id) return Response.json({ success: false, error: '无权操作此订单' }, { status: 403, headers: corsHeaders })
+    // 可退款状态白名单：必须与前端入口(order-center「申请退款」按钮)保持一致。
+    // pending_review = 已付款且已收货/到店消费待评价（纯健康豆堂食订单建单即此状态），
+    // 属合法已付款状态，必须可退——此前遗漏导致所有堂食订单申请退款必然 400。
+    // 排除：pending_pay(未付款)、cancelled(已取消)、after_sale(退款流程中)。
+    if (!isRefundableStatus(order.status)) {
+      return Response.json({ success: false, error: `订单状态(${order.status})不支持退款` }, { status: 400, headers: corsHeaders })
+    }
+
+    // 2. 计算可退金额（原 get_refundable_amount RPC 已随 schema 变更移除，此处内联）
+    //    当前 orders 累计退款记在 refund_amount（numeric，默认 0）
+    const alreadyRefunded = Number(order.refund_amount ?? 0)
+    const refundable = computeRefundableAmount(order.total_amount, alreadyRefunded)
+    if (refund_amount > refundable + 0.0001) {
+      return Response.json({ success: false, error: `退款金额(¥${refund_amount})超过可退金额(¥${refundable.toFixed(2)})` }, { status: 400, headers: corsHeaders })
+    }
+
+    const refundNo = generateRefundNo()
+
+    // 3. 写退款申请记录
+    const { data: refundRecord, error: insertErr } = await supabase.from('refunds').insert({
+      refund_no: refundNo, order_id, order_no, item_index, user_id: user.id,
+      refund_quantity, refund_amount, reason, description: description ?? null,
+      initiated_by: 'user', status: 'processing',
+    }).select().maybeSingle()
+
+    if (insertErr || !refundRecord) {
+      return Response.json({ success: false, error: '创建退款记录失败：' + insertErr?.message }, { status: 500, headers: corsHeaders })
+    }
+
+    // 4. 发起微信退款（如有微信支付部分）
+    // 注意：00096 后 tb_used 已统一为「元」口径（1 健康豆 = 1 元），直接按比例扣减，勿再 ×0.01
+    const wxRefundAmount = computeWxRefundAmount(refund_amount, order.tb_used, order.total_amount)
+    // 退款占比 & 应返还健康豆（健康豆抵扣部分，所有退款路径通用，下面统一退还）
+    const beanPortion = computeBeanPortion(order.tb_used, refund_amount, order.total_amount)
+
+    const MERCHANT_ID = Deno.env.get('MERCHANT_ID') ?? ''
+    const MCH_CERT_SERIAL_NO = Deno.env.get('MCH_CERT_SERIAL_NO') ?? ''
+    const MCH_PRIVATE_KEY = Deno.env.get('MCH_PRIVATE_KEY') ?? ''
+    const WECHAT_PAY_PUBLIC_KEY_ID = Deno.env.get('WECHAT_PAY_PUBLIC_KEY_ID') ?? ''
+    const WECHAT_PAY_PUBLIC_KEY = Deno.env.get('WECHAT_PAY_PUBLIC_KEY') ?? ''
+    const notifyUrl = `${SUPABASE_URL}/functions/v1/wechat-refund-callback`
+
+    let wechatRefundId: string | null = null
+
+    if (wxRefundAmount > 0 && order.payment_method === 'wxpay' && MERCHANT_ID && MCH_CERT_SERIAL_NO && MCH_PRIVATE_KEY) {
+      try {
+        const wxpay = new Wechatpay({
+          mchid: MERCHANT_ID, serial: MCH_CERT_SERIAL_NO,
+          privateKey: MCH_PRIVATE_KEY,
+          certs: { [WECHAT_PAY_PUBLIC_KEY_ID]: WECHAT_PAY_PUBLIC_KEY },
+        })
+        const { data: refundData } = await wxpay.v3.refund.domestic.refunds.post({
+          out_trade_no: order.order_no,
+          out_refund_no: refundNo,
+          reason: reason || '用户申请退款',
+          notify_url: notifyUrl,
+          amount: {
+            refund: wxRefundAmount,
+            // ⚠️ total 必须是「原微信交易金额」，不是订单全额！
+            // 微信规定 amount.total = 该笔微信支付交易的实付金额。
+            // 订单若用过健康豆抵扣，实际微信支付额 = total_amount - tb_used
+            // （create-wechat-payment 下单时正是按此口径报的 wxAmount）。
+            // 原先误传 total_amount*100（含健康豆部分），口径大于原交易额，
+            // 微信以「订单金额不一致」拒绝 → 所有混合支付订单退款必然失败。
+            total: computeWechatRefundTotalCents(order.total_amount, order.tb_used),
+            currency: 'CNY',
+          },
+        }, { headers: { 'Wechatpay-Serial': WECHAT_PAY_PUBLIC_KEY_ID } })
+
+        wechatRefundId = refundData?.refund_id ?? null
+        console.log(`[refund-order] WeChat refund submitted: refund_id=${wechatRefundId}`)
+      } catch (wxErr: any) {
+        // 微信退款失败不阻断流程，更新状态为 abnormal
+        console.error('[refund-order] WeChat refund error:', wxErr?.message)
+        await supabase.from('refunds').update({ status: 'abnormal' }).eq('id', refundRecord.id)
+        return Response.json({ success: false, error: '微信退款发起失败：' + wxErr?.message }, { status: 500, headers: corsHeaders })
+      }
+    }
+
+    // 5. 健康豆部分退还（始终执行：纯健康豆订单=全额，混合订单=健康豆抵扣占比部分）
+    // 00096 后 tb_used 为「元」口径（1 健康豆 = 1 元），按退款占比计算应返还健康豆，切勿 ×0.01。
+    if (beanPortion > 0) {
+      const { data: profile } = await supabase.from('profiles').select('tb_balance').eq('id', user.id).maybeSingle()
+      const newTb = Math.round((Number(profile?.tb_balance ?? 0) + beanPortion) * 100) / 100
+      await supabase.from('profiles').update({ tb_balance: newTb }).eq('id', user.id)
+      // 健康豆返还流水（tb_balance 变动必须留账，便于对账防资损）
+      await supabase.from('tongbao_logs').insert({
+        user_id: user.id, order_id, type: 'refund_return',
+        delta: beanPortion, balance_after: newTb,
+        remark: `订单${order.order_no}退款返还健康豆`,
+      })
+    }
+
+    // 6. 无微信支付（纯健康豆订单）→ 直接完成退款
+    if (wxRefundAmount === 0) {
+      // 直接完成退款
+      await supabase.from('refunds').update({ status: 'completed', wechat_refund_id: null, completed_at: new Date().toISOString() }).eq('id', refundRecord.id)
+      // 累计退款金额（原 update_order_refunded_amount RPC 已移除，改为直写当前列）
+      const newRefundAmount = Math.round((alreadyRefunded + refund_amount) * 100) / 100
+      await supabase.from('orders').update({
+        refund_amount: newRefundAmount,
+        refund_ratio: Number(order.total_amount) > 0 ? Math.round((newRefundAmount / Number(order.total_amount)) * 10000) / 10000 : 0,
+        refund_status: 'refunded',
+      }).eq('id', order_id)
+      // 触发佣金&积分扣回
+      await triggerClawback(supabase, order_id, order.order_no, user.id, refund_amount, Number(order.total_amount))
+      // 更新订单状态
+      await supabase.from('orders').update({ status: 'after_sale' }).eq('id', order_id)
+
+      // 推送「退款成功」通知
+      supabase.functions.invoke('send-notification', {
+        body: {
+          user_id: user.id,
+          type: 'refund_result',
+          title: '退款成功',
+          body: `订单 ${order.order_no} 的退款 ¥${refund_amount.toFixed(2)} 已成功（以健康豆形式到账）`,
+          order_id: order_id,
+          payload: {
+            order_no: order.order_no,
+            refund_amount: refund_amount.toFixed(2),
+            status_label: '退款成功',
+            refunded_at: new Date().toLocaleString('zh-CN'),
+            page: 'pages/order-center/index',
+          },
+        }
+      }).catch(e => console.warn('[refund-order] send-notification error:', e))
+
+      return Response.json({ success: true, refund_id: refundRecord.id, refund_no: refundNo, method: 'emotion_beans' }, { headers: corsHeaders })
+    }
+
+    // 6. 更新退款记录 wechat_refund_id（等待回调完成最终状态）
+    if (wechatRefundId) {
+      await supabase.from('refunds').update({ wechat_refund_id: wechatRefundId }).eq('id', refundRecord.id)
+    }
+
+    return Response.json({
+      success: true,
+      refund_id: refundRecord.id,
+      refund_no: refundNo,
+      wx_refund_amount: wxRefundAmount / 100,
+      method: 'wechat',
+    }, { headers: corsHeaders })
+
+  } catch (err: any) {
+    console.error('[refund-order] error:', err)
+    return Response.json({ success: false, error: err?.message ?? '内部错误' }, { status: 500, headers: corsHeaders })
+  }
+}
+
+Deno.serve(handleRefundOrder)
+/** 扣回佣金 & 积分 */
+async function triggerClawback(
+  supabase: ReturnType<typeof createClient>,
+  orderId: string, orderNo: string,
+  payerId: string, refundAmount: number, totalAmount: number
+) {
+  const ratio = totalAmount > 0 ? refundAmount / totalAmount : 1
+
+  // 佣金扣回：按比例标记，并同步回滚受益人「健康豆账户」(tb_balance) 与「可提现佣金账户」(commission_balance)。
+  // 2026-07-29 起推广收益按「50% 可提现佣金 + 50% 健康豆」拆分发放，故此处须按 commissions 表的
+  // cash_portion/bean_portion 双账户回滚，否则已退款订单的佣金仍留在账户可被消费/提现 = 资损。
+  // 历史遗留（pre-07-29 无拆分列的行）自动按整笔 commission_amount 视为健康豆，兼容回滚。
+  const { data: commissions } = await supabase.from('commissions')
+    .select('id, beneficiary_id, commission_amount, cash_portion, bean_portion, status')
+    .eq('order_id', orderId)
+    .in('status', ['pending', 'settled'])
+
+  for (const c of (commissions ?? [])) {
+    await supabase.from('commissions').update({ status: 'refunded' }).eq('id', c.id)
+    if (!c.beneficiary_id) continue
+    // 拆分回滚：健康豆一半回 tb_balance，现金一半回 commission_balance。
+    // 兼容历史行（pre-07-29 无拆分列，整笔均为健康豆）：cash+bean 均为 0 时按整笔 commission_amount 视为健康豆。
+    const cashPortion = Number(c.cash_portion || 0)
+    const beanPortion = Number(c.bean_portion || 0)
+    const legacy = (cashPortion + beanPortion) === 0
+    const effBean = legacy ? Number(c.commission_amount || 0) : beanPortion
+    const effCash = legacy ? 0 : cashPortion
+    const beanClawback = Math.max(0, Math.round(effBean * ratio * 100) / 100)
+    const cashClawback = Math.max(0, Math.round(effCash * ratio * 100) / 100)
+    if (beanClawback > 0) {
+      const { data: bProf } = await supabase.from('profiles')
+        .select('tb_balance').eq('id', c.beneficiary_id).maybeSingle()
+      if (bProf) {
+        const newTb = Math.round((Number(bProf.tb_balance || 0) - beanClawback) * 100) / 100
+        await supabase.from('profiles').update({ tb_balance: newTb }).eq('id', c.beneficiary_id)
+        await supabase.from('tongbao_logs').insert({
+          user_id: c.beneficiary_id, order_id: orderId,
+          type: 'commission_revoke', delta: -beanClawback, balance_after: newTb,
+          remark: `订单${orderNo}退款佣金回冲(健康豆)`,
+        })
+      }
+    }
+    if (cashClawback > 0) {
+      const { data: bProf } = await supabase.from('profiles')
+        .select('commission_balance').eq('id', c.beneficiary_id).maybeSingle()
+      if (bProf) {
+        const newBal = Math.round((Number(bProf.commission_balance || 0) - cashClawback) * 100) / 100
+        await supabase.from('profiles').update({ commission_balance: newBal }).eq('id', c.beneficiary_id)
+        await supabase.from('commission_balance_logs').insert({
+          user_id: c.beneficiary_id, order_id: orderId, commission_id: c.id,
+          type: 'commission_revoke', delta: -cashClawback, balance_after: newBal,
+          remark: `订单${orderNo}退款佣金回冲(可提现)`,
+        }).catch((e: any) => console.warn('[commission_balance_logs] 回冲失败:', (e as any)?.message))
+      }
+    }
+    console.log(`[clawback] commission ${c.id} marked refunded, bean=${beanClawback}, cash=${cashClawback}`)
+  }
+
+  // 积分扣回（points_logs 真实列：related_order_id/amount/type/source，无 order_id/delta/balance_after）
+  const { data: pointsLogs } = await supabase.from('points_logs')
+    .select('id, user_id, amount').eq('related_order_id', orderId).eq('type', 'purchase_earn')
+  for (const pl of (pointsLogs ?? [])) {
+    const deduct = Math.floor((Number(pl.amount) || 0) * ratio)
+    if (deduct <= 0) continue
+    const { data: profile } = await supabase.from('profiles').select('points').eq('id', pl.user_id).maybeSingle()
+    const newPoints = Math.max(0, (profile?.points ?? 0) - deduct)
+    await supabase.from('profiles').update({ points: newPoints }).eq('id', pl.user_id)
+    await supabase.from('points_logs').insert({
+      user_id: pl.user_id,
+      related_order_id: orderId,
+      type: 'refund_deduct',
+      amount: -deduct,
+      source: 'order_refund',
+    })
+  }
+
+  // 健康豆扣回（买家返利已统一写入 tongbao_logs(purchase_earn)；健康豆=消费币，退款须同步回冲，避免资损）
+  const { data: tbLogs } = await supabase.from('tongbao_logs')
+    .select('id, user_id, delta').eq('order_id', orderId).eq('type', 'purchase_earn')
+  for (const tl of (tbLogs ?? [])) {
+    const deduct = Math.round((Number(tl.delta) || 0) * ratio * 100) / 100
+    if (deduct <= 0) continue
+    const { data: bProfile } = await supabase.from('profiles').select('tb_balance').eq('id', tl.user_id).maybeSingle()
+    const newTb = Math.max(0, Math.round((Number(bProfile?.tb_balance ?? 0) - deduct) * 100) / 100)
+    await supabase.from('profiles').update({ tb_balance: newTb }).eq('id', tl.user_id)
+    await supabase.from('tongbao_logs').insert({
+      user_id: tl.user_id, order_id: orderId,
+      type: 'refund_deduct', delta: -deduct, balance_after: newTb,
+      remark: `订单${orderNo}退款健康豆回冲`,
+    }).catch((e: any) => console.warn('[tongbao_logs] 健康豆回冲流水失败:', (e as any)?.message))
+  }
+
+  // 商品级分佣同步回冲（#48）：按同一订单退款 ratio 累加 order_item_commissions.refund_ratio，
+  // 使 Σ 各行净留存 = (1 - refund_ratio) × 原佣金，与上方 commissions 余额回冲口径一致。
+  // 原始 l1_commission/l2_commission/buyer_points 保留不动（审计用），仅展示层折净。
+  // 无商品明细行的订单（历史未补建）优雅跳过——订单级 commissions 回冲已保障余额正确。
+  if (ratio > 0) {
+    const { data: items } = await supabase.from('order_item_commissions')
+      .select('id, refund_ratio').eq('order_id', orderId)
+    for (const it of (items ?? [])) {
+      const cur = Number(it.refund_ratio ?? 0)
+      const next = Math.min(1, Math.round((cur + ratio) * 10000) / 10000)
+      if (next === cur) continue
+      await supabase.from('order_item_commissions').update({
+        refund_ratio: next,
+        refunded_at: new Date().toISOString(),
+      }).eq('id', it.id)
+    }
+    console.log(`[clawback] order_item_commissions refund_ratio accumulated by ${ratio.toFixed(4)} for order ${orderId}`)
+  }
+}

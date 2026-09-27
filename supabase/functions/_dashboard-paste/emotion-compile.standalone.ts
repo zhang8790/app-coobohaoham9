@@ -1,0 +1,385 @@
+/**
+ * emotion-compile Edge Function —— 自包含单文件版（用于 Supabase Dashboard 网页编辑器粘贴部署）
+ *
+ * ⚠️ 本文件由 `scripts/gen-dashboard-standalone.py` 自动生成，请勿手工编辑。
+ *    源文件：supabase/functions/emotion-compile/index.ts + 其 import 的 _shared/*.ts
+ *
+ * 为什么需要它：
+ *    Dashboard 的 Deploy function 编辑器只上传单个文件，不打包 `../_shared/`，
+ *    直接粘贴 index.ts 必然报 `Module not found ".../_shared/xxx.ts"`。
+ *    本文件已把被依赖的 _shared 符号原地内联，零外部依赖，可直接粘贴部署。
+ *
+ * 部署方式（二选一）：
+ *   A. Dashboard 网页编辑器：打开 emotion-compile → 全选粘贴本文件内容 → Deploy
+ *   B. CLI（推荐，保持单一事实源）：
+ *        cd 项目根 && supabase login && supabase functions deploy emotion-compile
+ *
+ * 重新生成：python scripts/gen-dashboard-standalone.py --fn emotion-compile
+ */
+
+import { createClient } from 'jsr:@supabase/supabase-js@2'
+/* ===== 内联自 _shared/llmConfig.ts —— 保持公式/常量一字不改 ===== */
+
+interface LlmConfig {
+  base: string
+  key: string
+  model: string
+  enabled: boolean
+}
+
+/** 读取 LLM 配置（带缓存）。任何异常都安全回退到 env。 */
+async function getLlmConfig(): Promise<LlmConfig> {
+  // 本地开发模式（LLM_LOCAL_DEV=1）：直接读 env，指向本机 Ollama，
+  // 不读远端 system_config，便于离线 / 零成本自测。
+  if (Deno.env.get('LLM_LOCAL_DEV') === '1') {
+    const env = envConfig()
+    cache = { data: env, ts: Date.now() }
+    return env
+  }
+
+  const now = Date.now()
+  if (cache && now - cache.ts < TTL_MS) return cache.data
+
+  const url = Deno.env.get('SUPABASE_URL')
+  const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (url && service) {
+    try {
+      const sb = createClient(url, service, { auth: { persistSession: false } })
+      const { data, error } = await sb
+        .from('system_config')
+        .select('value')
+        .eq('key', CONFIG_KEY)
+        .maybeSingle()
+      if (!error && data?.value) {
+        const v = data.value as Record<string, any>
+        const cfg: LlmConfig = {
+          base: v.base_url || DEFAULT_BASE,
+          key: v.api_key || '',
+          model: v.model || DEFAULT_MODEL,
+          enabled: v.enabled !== false && !!v.api_key,
+        }
+        cache = { data: cfg, ts: now }
+        return cfg
+      }
+    } catch (e) {
+      console.error('[llmConfig] 读 system_config 失败，回退 env:', e)
+    }
+  }
+
+  const env = envConfig()
+  cache = { data: env, ts: now }
+  return env
+}
+
+/* ===== 内联自 _shared/logLlmCall.ts —— 保持公式/常量一字不改 ===== */
+
+interface LlmUsage {
+  prompt_tokens?: number
+  completion_tokens?: number
+  total_tokens?: number
+}
+
+interface LlmCallLogInput {
+  functionName: string
+  module?: string | null
+  model: string
+  usage?: LlmUsage | null
+  latencyMs?: number | null
+  success?: boolean
+  errorMessage?: string | null
+  userId?: string | null
+  orderNo?: string | null
+  meta?: Record<string, unknown> | null
+}
+
+async function logLlmCall(input: LlmCallLogInput): Promise<void> {
+  try {
+    const url = Deno.env.get('SUPABASE_URL')
+    const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!url || !service) return
+
+    const sb = createClient(url, service, { auth: { persistSession: false } })
+    const u = input.usage || {}
+
+    await sb.from('llm_call_logs').insert({
+      function_name: input.functionName,
+      module: input.module ?? null,
+      model: input.model,
+      prompt_tokens: u.prompt_tokens ?? 0,
+      completion_tokens: u.completion_tokens ?? 0,
+      total_tokens: u.total_tokens ?? 0,
+      latency_ms: input.latencyMs ?? null,
+      success: input.success ?? true,
+      error_message: input.errorMessage ?? null,
+      user_id: input.userId ?? null,
+      order_no: input.orderNo ?? null,
+      meta: input.meta ?? {},
+    })
+  } catch (e) {
+    // 日志写入失败绝不影响主流程
+    console.error('[logLlmCall] 写入失败(已忽略):', e)
+  }
+}
+
+/* ===== 内联自 _shared/llmGuard.ts —— 保持公式/常量一字不改 ===== */
+
+interface GuardedChatOpts {
+  base: string
+  key: string
+  model: string
+  functionName: string
+  module: string
+  system?: string
+  user: string
+  imageUrl?: string
+  temperature?: number
+  maxTokens?: number
+  responseFormat?: { type: 'json_object' }
+  timeoutMs?: number
+  maxRetries?: number
+}
+
+interface GuardedChatResult {
+  ok: boolean
+  data: any | null
+  httpStatus?: number
+  error?: string
+  latencyMs: number
+}
+
+async function guardedChat(o: GuardedChatOpts): Promise<GuardedChatResult> {
+  const key = hashKey(o)
+  const existing = inflight.get(key)
+  if (existing) return existing
+  const p = run(o)
+  inflight.set(key, p)
+  try {
+    return await p
+  } finally {
+    inflight.delete(key)
+  }
+}
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+const INNER_LABELS = [
+  'drained_low', 'lonely_still', 'expressive_high',
+  'peaceful_zen', 'nostalgic_soft', 'eager_forward',
+]
+
+const LABEL_DESC: Record<string, string> = {
+  drained_low: '耗竭态（累、虚脱、需要回血）',
+  lonely_still: '孤独态（一个人、想家、冷清）',
+  expressive_high: '表达驱动态（开心、兴奋、想分享）',
+  peaceful_zen: '平稳态（放松、悠闲、不想吵）',
+  nostalgic_soft: '怀念态（怀旧、旧时光、老友）',
+  eager_forward: '渴望态（向往、想改变、想出发）',
+}
+
+function json(body: any, status = 200, headers = corsHeaders) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  })
+}
+
+// LLM 启用判定改由 getLlmConfig() 在各 handler 内统一处理（读 system_config 表，回退 env）
+
+// OpenAI 兼容调用；返回解析后的 JSON 对象（失败返回 null → 调用方走兜底）
+async function callLLM(system: string, user: string, cfg: LlmConfig): Promise<any | null> {
+  const r = await guardedChat({
+    base: cfg.base,
+    key: cfg.key,
+    model: cfg.model,
+    functionName: 'emotion-compile',
+    module: '情绪编译',
+    system,
+    user,
+    temperature: 0.85,
+    responseFormat: { type: 'json_object' },
+  })
+  if (!r.ok || !r.data) return null
+  const content = r.data?.choices?.[0]?.message?.content || '{}'
+  try {
+    return JSON.parse(content)
+  } catch {
+    return null
+  }
+}
+
+// 解析类目策略（优先 DB，找不到回退通用）
+async function resolveProfile(supabase: any, category?: string) {
+  const c = (category || '').trim()
+  if (c) {
+    const { data } = await supabase
+      .from('category_emotion_profiles')
+      .select('*')
+      .or(`category_key.eq.${c},aliases.cs.{${c}}`)
+      .limit(1)
+      .maybeSingle()
+    if (data) return data
+  }
+  const { data } = await supabase
+    .from('category_emotion_profiles')
+    .select('*')
+    .eq('category_key', '通用')
+    .maybeSingle()
+  return data || null
+}
+
+// 中文标准情绪标签白名单（与前端 EMOTION_KEYWORD_MAP / ALL_MOOD_TAGS 对齐）
+// understand 统一返回中文标准标签，避免与前端 MOOD_TAGS 英文 6 态键割裂。
+const CANONICAL_TAGS = [
+  '治愈', '孤独', '安静', '放松', '愉悦', '快乐', '活泼', '甜蜜', '幸福', '开心',
+  '满足', '品质', '刺激', '创意', '分享', '送礼', '实用', '仪式感', '怀旧', '温暖', '专注',
+  '活力', '用餐时光', '学习空间', '想念', '思念', '陪伴', '清爽', '清新', '自然', '纯净',
+  '奢华', '高端', '精致', '典雅', '尊贵', '有趣', '可爱', '潮流', '个性', '平静', '舒适', '安逸', '慢生活',
+]
+
+// ---------------- 理解侧 ----------------
+async function handleUnderstand(supabase: any, text: string, headers: any) {
+  if (!text || !text.trim()) return json({ success: false, error: 'empty text' }, 400, headers)
+
+  const cfg = await getLlmConfig()
+  if (cfg.key) {
+    const sys = `你是情绪理解引擎。把用户的话归类到唯一一个中文标准情绪标签。
+可选标签（只返回其中之一，不要解释）：
+${CANONICAL_TAGS.join('、')}
+只输出 JSON：{"canonical_tag": "..."}`
+    const res = await callLLM(sys, `用户说：${text}`, cfg)
+    if (res?.canonical_tag && CANONICAL_TAGS.includes(res.canonical_tag)) {
+      return json({ success: true, canonical_tag: res.canonical_tag, inner_label: res.canonical_tag, source: 'llm' }, 200, headers)
+    }
+  }
+
+  // 规则兜底：读 emotion_lexicon 表（与前端 00057 迁移、loadEmotionLexiconFromDb 列名一致）
+  const { data, error } = await supabase
+    .from('emotion_lexicon')
+    .select('raw_expr, canonical_tag, weight')
+    .limit(1000)
+  if (error) console.error('[emotion-compile] lexicon load error', error)
+  const rows = (data || []) as { raw_expr: string; canonical_tag: string; weight: number }[]
+  // 按 raw_expr 长度降序，优先匹配更长、更具体的表达（如先匹配"被绿"再匹配"绿"）
+  rows.sort((a, b) => (b.raw_expr?.length || 0) - (a.raw_expr?.length || 0))
+  const hit = rows.find(r => r.raw_expr && text.includes(r.raw_expr))
+  const canonical_tag = hit?.canonical_tag || '治愈'
+  return json({ success: true, canonical_tag, inner_label: canonical_tag, source: 'rule' }, 200, headers)
+}
+
+// ---------------- 编译侧 ----------------
+// 三阶段翻译模板（与方案 §4.1 对齐）：功能→场景（问句）/ 场景→情绪（状态确认）/ 情绪→身份（身份确认）
+// 保持函数自包含，不跨目录 import；运营迭代可在此扩展，或后续改为从 emotion_compile_rules 表读取。
+const STAGE_BY_CATEGORY: Record<string, { s1: string; s2: string; s3: string }> = {
+  餐饮: { s1: '加班到十点，需要一口暖的？', s2: '明明很累了，又不想随便对付自己？', s3: '你是再忙也会好好照顾自己的人' },
+  饮品: { s1: '下午三点，有点撑不住了？', s2: '不想带脑子，就想发会儿呆？', s3: '你是愿意为美好体验买单的人' },
+  美业: { s1: '忙了一天，想让自己松口气？', s2: '想好好疼自己一回，不为谁？', s3: '你是懂得给自己留呼吸空间的人' },
+  娱乐: { s1: '今天，想彻底放空一下？', s2: '就想痛痛快快玩一场？', s3: '你是会给自己找乐子的人' },
+}
+const STAGE_FALLBACK = STAGE_BY_CATEGORY['餐饮']
+
+function ruleCompile(name: string, description: string, profile: any, moodTags: string[], sceneTags: string[], category?: string) {
+  const metaphors: string[] = profile?.metaphors || []
+  const closers: string[] = profile?.closers || []
+  const metaphor = metaphors[0] || '寻常物件'
+  const closer = closers[0] || '慢慢享用便好。'
+  const mood = (moodTags && moodTags[0]) || (profile?.allowed_mood_tags?.[0]) || '安宁'
+  const label = profile?.label || '心选'
+  const catKey = category || label
+  const stage = STAGE_BY_CATEGORY[catKey] || STAGE_FALLBACK
+  const title = `${name}·${label}`
+  // 三阶段结构化叙事：场景化问句 → 状态确认 → 身份确认
+  const detail = `${stage.s1} ${stage.s2} ${name}便如${metaphor}，${mood}之意漫上心头。${stage.s3}。${closer}`
+  return {
+    emotion_title: title,
+    emotion_detail: detail,
+    scene_tags_compiled: sceneTags && sceneTags.length ? sceneTags.slice(0, 3) : [mood],
+    mood_tags_used: moodTags && moodTags.length ? moodTags.slice(0, 4) : [mood],
+    // 五屏情绪详情页可直接消费的三阶段拆分字段（不写入 product_emotion，避免无列报错）
+    stage1: stage.s1,
+    stage2: stage.s2,
+    stage3: stage.s3,
+  }
+}
+
+async function handleCompile(supabase: any, body: any, headers: any) {
+  const { product_id, name, description, category, mood_tags, scene_tags } = body
+  const profile = await resolveProfile(supabase, category)
+
+  let result: any
+  let compiledBy = 'rule'
+
+  const cfg = await getLlmConfig()
+  if (cfg.key) {
+    const sys = `你是「情绪编译」文案师，为本地生活电商把商品编译成有武侠气韵、无推销腔的情绪化叙事。
+要求：
+- 绝不使用"抢购/手慢无/最佳选择/限时/划算/爆款/必买"等任何带货话术
+- 语气沉静、有画面感，像在讲一个关于这件物事的小故事
+
+【去 AI 感硬约束】
+- 禁止排比句（三段以上结构相同的句子堆叠）
+- 禁止以下罐头句式：在这里/每一口都是/开启你的/让你感受/不只是...更是.../当...遇见.../邂逅一场
+- 禁止感叹号连用（一段最多 1 个）
+- 必须：每段叙事里至少一句口语短句（≤8 字），像朋友随口说话，不像广告文案
+- 推荐：多用具体动作动词（端起、咬下、掂起），少用抽象名词
+- 输出 JSON，字段：emotion_title(8字内意境短句), emotion_detail(40-70字叙事), scene_tags_compiled(≤3个适用心绪短语), mood_tags_used(≤4个情绪标签)`
+    const ctx = `类目策略：${JSON.stringify(profile || {})}
+商品名：${name}
+商品描述：${description || ''}
+情绪标签：${(mood_tags || []).join('、')}
+场景标签：${(scene_tags || []).join('、')}`
+    const res = await callLLM(sys, ctx, cfg)
+    if (res && res.emotion_detail) {
+      result = {
+        emotion_title: res.emotion_title || `${name}·心选`,
+        emotion_detail: res.emotion_detail,
+        scene_tags_compiled: res.scene_tags_compiled || scene_tags || [],
+        mood_tags_used: res.mood_tags_used || mood_tags || [],
+      }
+      compiledBy = 'llm'
+    }
+  }
+
+  if (!result) {
+    result = ruleCompile(name, description || '', profile, mood_tags || [], scene_tags || [], category)
+  }
+
+  // 落库缓存
+  if (product_id) {
+    const row = {
+      product_id,
+      emotion_title: result.emotion_title,
+      emotion_detail: result.emotion_detail,
+      scene_tags_compiled: result.scene_tags_compiled,
+      mood_tags_used: result.mood_tags_used,
+      category_profile_id: profile?.id || null,
+      compiled_by: compiledBy,
+      model: compiledBy === 'llm' ? cfg.model : null,
+      compiled_at: new Date().toISOString(),
+    }
+    const { error } = await supabase
+      .from('product_emotion')
+      .upsert(row, { onConflict: 'product_id' })
+    if (error) console.error('[emotion-compile] upsert failed', error)
+  }
+
+  return json({ success: true, compiled_by: compiledBy, ...result }, 200, headers)
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
+    const body = await req.json().catch(() => ({}))
+    const mode = body.mode || 'compile'
+    if (mode === 'understand') return await handleUnderstand(supabase, body.text || '', corsHeaders)
+    return await handleCompile(supabase, body, corsHeaders)
+  } catch (e) {
+    return json({ success: false, error: String(e) }, 500, corsHeaders)
+  }
+})
