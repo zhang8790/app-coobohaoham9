@@ -23,20 +23,20 @@ EXIT_CODES+=($?)
 npx tsgo -p tsconfig.check.json
 EXIT_CODES+=($?)
 
-./scripts/checkNavigation.sh
+./src/scripts/checkNavigation.sh
 EXIT_CODES+=($?)
 
-./scripts/checkIconPath.sh
+./src/scripts/checkIconPath.sh
 EXIT_CODES+=($?)
 
-./scripts/checkAuthProvider.sh
+./src/scripts/checkAuthProvider.sh
 EXIT_CODES+=($?)
 
 npx oxlint -c .oxlintrc.json src
 EXIT_CODES+=($?)
 
 # 设计纪律卡口：色系统一 + 字重纪律（防回归）
-node scripts/style-discipline.mjs --ci
+node src/scripts/style-discipline.mjs --ci
 EXIT_CODES+=($?)
 
 ALL_PASSED=true

@@ -9,15 +9,15 @@
 #   3) 已 link：supabase link --project-ref pyqgsxcjmijtbstwthbn
 #
 # 用法（Git Bash / WSL / macOS Terminal）：
-#   bash scripts/deploy-all.sh
+#   bash src/scripts/deploy-all.sh
 # ============================================================
 set -euo pipefail
 
 PROJECT_REF="pyqgsxcjmijtbstwthbn"
 
-# 回到项目根目录（本脚本位于 scripts/ 下）
+# 回到项目根目录（本脚本位于 src/scripts/ 下）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.."
+cd "$SCRIPT_DIR/../.."
 
 echo "📍 当前目录: $(pwd)"
 echo "🎯 项目 ref: $PROJECT_REF"
@@ -61,7 +61,7 @@ supabase db push
 # ---- [3] 部署云函数 ----
 echo ""
 echo "===== [3] 部署全部云函数 ====="
-bash scripts/deploy-functions.sh
+bash src/scripts/deploy-functions.sh
 
 # ---- [4] Dashboard 手动收尾（脚本无法自动操作 Web UI）----
 echo ""

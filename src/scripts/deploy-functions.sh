@@ -11,7 +11,7 @@
 #        supabase link --project-ref pyqgsxcjmijtbstwthbn
 #
 # 用法（Git Bash / WSL）：
-#   bash scripts/deploy-functions.sh
+#   bash src/scripts/deploy-functions.sh
 set -e
 
 PROJECT_REF="pyqgsxcjmijtbstwthbn"

@@ -16,10 +16,10 @@
     "build": "bash build-weapp.sh",
     "build:weapp": "bash build-weapp.sh",
     "postinstall": "weapp-tw patch",
-    "lint": "./scripts/runLint.sh",
-    "lint:style": "node scripts/style-discipline.mjs",
-    "lint:style:ci": "node scripts/style-discipline.mjs --ci",
-    "deploy": "bash scripts/deploy-all.sh"
+    "lint": "./src/scripts/runLint.sh",
+    "lint:style": "node src/scripts/style-discipline.mjs",
+    "lint:style:ci": "node src/scripts/style-discipline.mjs --ci",
+    "deploy": "bash src/scripts/deploy-all.sh"
   },
   "browserslist": [
     "last 5 years",
