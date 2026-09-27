@@ -243,7 +243,7 @@ export default function StoreHomePage() {
  }
 
  return (
- <View style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#F8F8F8' }}>
+ <View style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#F7F3E9' }}>
 
  {/* ========== 门店头部 Banner ========== */}
  <View style={{ position: 'relative', height: '360rpx', flexShrink: 0 }}>
@@ -369,7 +369,7 @@ export default function StoreHomePage() {
  <View style={{ display: 'flex', flexDirection: 'row', flex: 1, overflow: 'hidden' }}>
 
  {/* 左侧分类栏 */}
- <ScrollView scrollY style={{ width: '176rpx', height: '100%', backgroundColor: '#F8F8F8' }}>
+ <ScrollView scrollY style={{ width: '176rpx', height: '100%', backgroundColor: '#F7F3E9' }}>
  <View
  onClick={() => setActiveCat('all')}
  style={{

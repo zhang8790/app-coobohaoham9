@@ -87,7 +87,7 @@ export default function FoodTherapyCopyPage() {
 
  return (
  <RouteGuard>
- <View className="min-h-screen bg-bg px-4 pt-4 pb-10" style={{ background: '#F8F8F8' }}>
+ <View className="min-h-screen bg-bg px-4 pt-4 pb-10" style={{ background: '#F7F3E9' }}>
  <Text className="text-xl font-bold" style={{ display: 'block' }}>食疗短视频文案助手</Text>
  <Text className="text-xs text-muted-foreground mt-1" style={{ display: 'block', color: 'var(--muted-foreground)' }}>
  复用商品食疗引擎，一键生成口播脚本 + 视频提示词 + 分镜建议

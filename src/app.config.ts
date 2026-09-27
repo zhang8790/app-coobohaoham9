@@ -88,7 +88,7 @@ export default defineAppConfig({
     custom: true,           // 使用 custom-tabbar 内联手绘 SVG，去 AI 化
     color: '#666666',
     selectedColor: '#1A1A1A',
-    backgroundColor: '#F8F8F8',
+    backgroundColor: '#F7F3E9',
     borderStyle: 'white',
     list: [
       { pagePath: 'pages/index/index',     text: '首页' },
@@ -99,7 +99,7 @@ export default defineAppConfig({
   },
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#F8F8F8',
+    navigationBarBackgroundColor: '#F7F3E9',
     navigationBarTitleText: '来店有喜',
     navigationBarTextStyle: 'black',
   },
