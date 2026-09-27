@@ -81,7 +81,7 @@ export default function CategoryGrid({ storeId }: { storeId?: string }) {
       <View className="flex items-center justify-center gap-3 my-1">
         <View style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, hsl(var(--primary) / 0.35))' }} />
         <View style={{ width: 7, height: 7, background: 'hsl(var(--primary))', transform: 'rotate(45deg)', borderRadius: 1, flex: '0 0 7px' }} />
-        <Text style={{ fontSize: 16, fontWeight: 800, color: 'hsl(var(--foreground))', letterSpacing: 1 }}>按场景选食养</Text>
+        <Text style={{ fontSize: 16, fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: 1 }}>按场景选食养</Text>
         <View style={{ width: 7, height: 7, background: 'hsl(var(--primary))', transform: 'rotate(45deg)', borderRadius: 1, flex: '0 0 7px' }} />
         <View style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, hsl(var(--primary) / 0.35), transparent)' }} />
       </View>

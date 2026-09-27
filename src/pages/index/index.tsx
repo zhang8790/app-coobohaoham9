@@ -635,7 +635,7 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
       <View className="flex items-center gap-2">
         <View style={{ width: 9, height: 9, borderWidth: 2, borderColor: 'hsl(var(--primary))', borderRadius: '50%', flex: '0 0 9px' }} />
         <View className="flex flex-col">
-          <Text style={{ fontSize: 17, fontWeight: 800, color: 'hsl(var(--foreground))', letterSpacing: 0.5 }}>为你甄选</Text>
+          <Text style={{ fontSize: 17, fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: 0.5 }}>为你甄选</Text>
           <Text style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))', marginTop: 2 }}>为你推荐适合的食养好物</Text>
         </View>
       </View>
