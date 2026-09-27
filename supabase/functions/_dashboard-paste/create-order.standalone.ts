@@ -1,7 +1,7 @@
 /**
  * create-order Edge Function —— 自包含单文件版（用于 Supabase Dashboard 网页编辑器粘贴部署）
  *
- * ⚠️ 本文件由 `scripts/gen-dashboard-standalone.py` 自动生成，请勿手工编辑。
+ * ⚠️ 本文件由 `src/scripts/gen-dashboard-standalone.py` 自动生成，请勿手工编辑。
  *    源文件：supabase/functions/create-order/index.ts + 其 import 的 _shared/*.ts
  *
  * 为什么需要它：
@@ -14,7 +14,7 @@
  *   B. CLI（推荐，保持单一事实源）：
  *        cd 项目根 && supabase login && supabase functions deploy create-order
  *
- * 重新生成：python scripts/gen-dashboard-standalone.py --fn create-order
+ * 重新生成：python src/scripts/gen-dashboard-standalone.py --fn create-order
  */
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'

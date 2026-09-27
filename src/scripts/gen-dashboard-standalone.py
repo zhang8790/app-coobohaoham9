@@ -13,13 +13,13 @@ gen-dashboard-standalone.py
 
 用法：
   # 默认处理 refund-order
-  python scripts/gen-dashboard-standalone.py
+  python src/scripts/gen-dashboard-standalone.py
 
   # 处理其它函数（同样把 `_shared` 依赖内联）
-  python scripts/gen-dashboard-standalone.py --fn create-order
+  python src/scripts/gen-dashboard-standalone.py --fn create-order
 
   # 只检查是否与仓库版本同步（CI / 提交前用），不同步则退出码 1
-  python scripts/gen-dashboard-standalone.py --check
+  python src/scripts/gen-dashboard-standalone.py --check
 
 维护约定：
   改动 index.ts 或 _shared/*.ts 后，务必重跑本脚本，否则 Dashboard 版会与 CLI 版
@@ -39,7 +39,7 @@ OUT_DIR = os.path.join(FUNCS_DIR, "_dashboard-paste")  # `_` 前缀目录不会�
 HEADER = """/**
  * {fn} Edge Function —— 自包含单文件版（用于 Supabase Dashboard 网页编辑器粘贴部署）
  *
- * ⚠️ 本文件由 `scripts/gen-dashboard-standalone.py` 自动生成，请勿手工编辑。
+ * ⚠️ 本文件由 `src/scripts/gen-dashboard-standalone.py` 自动生成，请勿手工编辑。
  *    源文件：supabase/functions/{fn}/index.ts + 其 import 的 _shared/*.ts
  *
  * 为什么需要它：
@@ -52,7 +52,7 @@ HEADER = """/**
  *   B. CLI（推荐，保持单一事实源）：
  *        cd 项目根 && supabase login && supabase functions deploy {fn}
  *
- * 重新生成：python scripts/gen-dashboard-standalone.py --fn {fn}
+ * 重新生成：python src/scripts/gen-dashboard-standalone.py --fn {fn}
  */
 
 """

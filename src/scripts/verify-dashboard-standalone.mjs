@@ -3,8 +3,8 @@
  * 校验「Dashboard 单文件版」与仓库真源的一致性 —— 防止两套资金口径漂移（资损风险）。
  *
  * 用法：
- *   node scripts/verify-dashboard-standalone.mjs                 # 默认 refund-order
- *   node scripts/verify-dashboard-standalone.mjs --fn create-order
+ *   node src/scripts/verify-dashboard-standalone.mjs                 # 默认 refund-order
+ *   node src/scripts/verify-dashboard-standalone.mjs --fn create-order
  *
  * 检查项：
  *   1. 单文件版不含任何来自 `../_shared/` 的 import（这是它在 Dashboard 能部署成功的前提）
@@ -35,7 +35,7 @@ const ok = (cond, label, detail) => {
 };
 
 if (!fs.existsSync(STD)) {
-  console.error('❌ 找不到单文件版：' + STD + '\n   先跑：python scripts/gen-dashboard-standalone.py --fn ' + fn);
+  console.error('❌ 找不到单文件版：' + STD + '\n   先跑：python src/scripts/gen-dashboard-standalone.py --fn ' + fn);
   process.exit(1);
 }
 
