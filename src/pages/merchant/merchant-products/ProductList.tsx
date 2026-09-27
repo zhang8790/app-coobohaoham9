@@ -92,7 +92,7 @@ export default function ProductList({
                     <Text style={{ fontSize: '30rpx', fontWeight: 'bold', color: '#333', flex: 1 }}>{p.name}</Text>
                     <View style={{
                       padding: '2px 8px', borderRadius: '10px',
-                      background: p.is_active ? '#DCFCE7' : '#F5F5F5',
+                      background: p.is_active ? '#DCFCE7' : '#FBF7EF',
                     }}>
                       <Text style={{ fontSize: '22rpx', color: p.is_active ? '#15803D' : 'var(--muted-foreground)' }}>{p.is_active ? '在售' : '下架'}</Text>
                       {expiryMap[p.id] && (() => {

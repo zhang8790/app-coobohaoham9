@@ -23,7 +23,7 @@ export default function StoreSwitchSheet({ visible, stores, currentStore, onSwit
           onClick={(e) => e.stopPropagation()}>
           <View className="flex items-center justify-between mb-5">
             <Text className="text-xl font-bold text-foreground">切换管理门店</Text>
-            <View onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '16px', backgroundColor: '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <View onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '16px', backgroundColor: '#FBF7EF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: '36rpx', color: 'var(--muted-foreground)' }}>✕</Text>
             </View>
           </View>

@@ -34,7 +34,7 @@ export default function CategoryManager({
  {/* 标题 */}
  <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
  <Text style={{ fontSize: '36rpx', fontWeight: 'bold', color: '#333' }}>管理商品分类</Text>
- <View onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '16px', background: '#F0F0F0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+ <View onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '16px', background: '#FBF7EF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
  <Text style={{ fontSize: '36rpx', color: 'var(--muted-foreground)' }}>✕</Text>
  </View>
  </View>
@@ -45,7 +45,7 @@ export default function CategoryManager({
  value={newCatName}
  onInput={(e: any) => setNewCatName(e.detail?.value ?? '')}
  placeholder="输入新分类名称"
- style={{ flex: 1, height: '42px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '28rpx', padding: '0 12px', boxSizing: 'border-box' }} />
+ style={{ flex: 1, height: '42px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', padding: '0 12px', boxSizing: 'border-box' }} />
  <View onClick={onAddCategory} style={{ padding: '0 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', background: 'linear-gradient(135deg, #333333, hsl(var(--primary)))' }}>
  <Text style={{ fontSize: '28rpx', color: '#FFF', fontWeight: 'bold' }}>新建</Text>
  </View>
@@ -62,7 +62,7 @@ export default function CategoryManager({
  value={editingCatName}
  focus
  onInput={(e: any) => setEditingCatName(e.detail?.value ?? '')}
- style={{ flex: 1, height: '38px', borderRadius: '8px', background: '#FAFAFA', border: '1px solid hsl(var(--primary))', fontSize: '28rpx', padding: '0 10px' }} />
+ style={{ flex: 1, height: '38px', borderRadius: '8px', background: '#FBF7EF', border: '1px solid hsl(var(--primary))', fontSize: '28rpx', padding: '0 10px' }} />
  ) : (
  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: '6px' }} onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }}>
  <Text style={{ fontSize: '30rpx', color: '#333' }}>{c.name}</Text>

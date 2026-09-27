@@ -474,7 +474,7 @@ export default function FamilyArchivePage() {
  )}
 
  {/* 免责声明 */}
- <View className="mt-5 rounded-2xl bg-[#F8F8F8] p-4" style={{ borderWidth: 1, borderColor: '#EAEAEA' }}>
+ <View className="mt-5 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#EAEAEA' }}>
  <Text className="text-[11px] text-muted-foreground leading-relaxed block">{FOOD_THERAPY_DISCLAIMER}</Text>
  </View>
  </View>

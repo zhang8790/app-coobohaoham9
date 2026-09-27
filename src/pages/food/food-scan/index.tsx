@@ -404,7 +404,7 @@ export default function FoodScanPage() {
 
  {/* 针对用户的健康短板：把扫描配料性味 vs 用户短板 → 补/伤/中性 */}
  {analyzed && shortfalls.length > 0 && (
- <View className="mt-4 rounded-2xl border p-4" style={{ borderColor: '#EAEAEA', background: '#F8F8F8' }}>
+ <View className="mt-4 rounded-2xl border p-4" style={{ borderColor: '#EAEAEA', background: '#FBF7EF' }}>
  <Text className="text-base font-bold text-[#1A1A1A]"> 针对你的健康短板</Text>
  {shortfallEval.hits.filter((h) => h.kind === 'harm').length > 0 && (
  <View className="mt-2">

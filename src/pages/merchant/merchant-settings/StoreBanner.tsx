@@ -19,7 +19,7 @@ export default function StoreBanner({
       <Text className="text-base font-bold text-foreground mb-2 block">店铺形象</Text>
       <View
         className="w-full rounded-2xl overflow-hidden flex items-center justify-center"
-        style={{ backgroundColor: '#F5F5F5', height: '176px' }}
+        style={{ backgroundColor: '#FBF7EF', height: '176px' }}
         onClick={onChoose}
       >
         {previewPath ? (

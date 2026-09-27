@@ -49,7 +49,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  onClick={controller.handleCloseForm}
  style={{
  width: '32px', height: '32px', borderRadius: '16px',
- background: '#F0F0F0',
+ background: '#FBF7EF',
  display: 'flex', alignItems: 'center', justifyContent: 'center',
  }}>
  <Text style={{ fontSize: '36rpx', color: 'var(--muted-foreground)' }}>✕</Text>
@@ -63,7 +63,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  style={{
  width: '100%', height: '44px',
  borderRadius: '10px',
- background: '#FAFAFA',
+ background: '#FBF7EF',
  border: '1.5px solid #EEE',
  fontSize: '30rpx', color: '#333',
  padding: '0 14px',
@@ -79,7 +79,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <View style={{ marginBottom: '14px' }}>
  <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
  <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600' }}>商品分类</Text>
- <View onClick={() => onManageCategory()} style={{ padding: '3px 12px', borderRadius: '9999px', background: '#F2F2F2' }}>
+ <View onClick={() => onManageCategory()} style={{ padding: '3px 12px', borderRadius: '9999px', background: '#FBF7EF' }}>
  <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))' }}>管理分类</Text>
  </View>
  </View>
@@ -156,7 +156,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
- background: '#FAFAFA', border: '1.5px solid #EEE',
+ background: '#FBF7EF', border: '1.5px solid #EEE',
  fontSize: '28rpx', color: '#333', padding: '0 10px', boxSizing: 'border-box',
  }}
  placeholder="0.00" type="digit"
@@ -168,7 +168,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
- background: '#FAFAFA', border: '1.5px solid #EEE',
+ background: '#FBF7EF', border: '1.5px solid #EEE',
  fontSize: '28rpx', color: '#333', padding: '0 10px', boxSizing: 'border-box',
  }}
  placeholder="划线价" type="digit"
@@ -180,7 +180,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
- background: '#FAFAFA', border: '1.5px solid #EEE',
+ background: '#FBF7EF', border: '1.5px solid #EEE',
  fontSize: '28rpx', color: '#333', padding: '0 10px', boxSizing: 'border-box',
  }}
  placeholder="成本" type="digit"
@@ -193,7 +193,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  {(controller.form.cost_price || controller.form.discount_rate) && controller.form.price && (
  <View style={{
  marginBottom: '14px', padding: '8px 12px', borderRadius: '10px',
- background: '#F2F2F2', border: '1px dashed #E0E0E0',
+ background: '#FBF7EF', border: '1px dashed #E0E0E0',
  }}>
  <Text style={{ fontSize: '26rpx', color: '#B45309' }}>
  {controller.form.cost_price && `毛利率：${calcMargin(parseFloat(controller.form.price) || 0, parseFloat(controller.form.cost_price) || 0)}`}
@@ -212,7 +212,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
- background: '#F2F2F2', border: '1.5px solid #E0E0E0',
+ background: '#FBF7EF', border: '1.5px solid #E0E0E0',
  fontSize: '28rpx', color: '#B45309', padding: '0 10px', boxSizing: 'border-box',
  }}
  placeholder="如: 15 表示让利15%（最高30%）"
@@ -236,7 +236,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
- background: '#FAFAFA', border: '1.5px solid #EEE',
+ background: '#FBF7EF', border: '1.5px solid #EEE',
  fontSize: '28rpx', color: '#333', padding: '0 10px', boxSizing: 'border-box',
  }}
  placeholder="0" type="number"
@@ -501,12 +501,12 @@ export default function ProductFormModal({ controller, categories, products, onM
 
  {/* 礼品专属字段（药膳手串 / 手作 / 护理）：与食养模块互斥，仅当类型≠食养食品时展示 */}
  {controller.form.product_kind !== 'food' && (
- <View style={{ marginBottom: '16px', padding: '12px', borderRadius: '12px', background: '#F2F2F2', border: '1px solid #F0D9A8' }}>
+ <View style={{ marginBottom: '16px', padding: '12px', borderRadius: '12px', background: '#FBF7EF', border: '1px solid #F0D9A8' }}>
  <Text style={{ fontSize: '28rpx', color: '#8A6B22', fontWeight: '700', marginBottom: '8px', display: 'block' }}> 礼品详情（与食养模块互斥）</Text>
 
  <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>寓意文化（灵魂文案）</Text>
  <Textarea
- style={{ width: '100%', minHeight: '58px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ width: '100%', minHeight: '58px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
  placeholder="如：合欢解郁、艾草驱秽——串起一腕清欢"
  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
  value={controller.form.gift_meaning}
@@ -514,7 +514,7 @@ export default function ProductFormModal({ controller, categories, products, onM
 
  <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>材质 / 草本成分（逗号分隔，绝不填食用食材）</Text>
  <Textarea
- style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
  placeholder="如：檀香、艾草、合欢皮、925银饰"
  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
  value={(controller.form.materials || []).join('、')}
@@ -522,7 +522,7 @@ export default function ProductFormModal({ controller, categories, products, onM
 
  <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>材质工艺说明</Text>
  <Textarea
- style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
  placeholder="如：天然草木+925银饰，古法编绳，单串手作约40分钟"
  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
  value={controller.form.gift_craft}
@@ -530,7 +530,7 @@ export default function ProductFormModal({ controller, categories, products, onM
 
  <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>送礼场景（每行一个）</Text>
  <Textarea
- style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
  placeholder={'如：送给总熬夜的她\n乔迁新居\n长辈安康'}
  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
  value={controller.form.gift_scene}
@@ -538,7 +538,7 @@ export default function ProductFormModal({ controller, categories, products, onM
 
  <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>保养与使用注意</Text>
  <Textarea
- style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
  placeholder="如：天然草木，佩戴前后以软布轻拭；孕妇及敏感体质请遵医嘱使用"
  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
  value={controller.form.gift_care}
@@ -556,7 +556,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <View style={{ marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#FFF', border: '1.5px solid hsl(var(--primary))' }}>
  <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}>识别（输菜名/传图，自动识别属性）</Text>
  <Input
- style={{ width: '100%', height: '40px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 12px', boxSizing: 'border-box' }}
+ style={{ width: '100%', height: '40px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 12px', boxSizing: 'border-box' }}
  placeholder="输入商品/菜名，如：冰糖雪梨羹、姜枣茶"
  placeholderStyle="color:#BBB;font-size:13px"
  value={controller.dishName}
@@ -627,7 +627,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
- background: '#FAFAFA', border: '1.5px solid #EEE',
+ background: '#FBF7EF', border: '1.5px solid #EEE',
  fontSize: '28rpx', color: '#333', padding: '0 10px', boxSizing: 'border-box',
  }}
  placeholder="扫码或手动输入"
@@ -761,7 +761,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  {/* 适合人群：引擎辨证生成，商家可手填覆盖（迁移 00237） */}
  <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>适合人群（可手改，留空则用系统辨证结果）</Text>
  <Textarea
- style={{ width: '100%', minHeight: '56px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ width: '100%', minHeight: '56px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
  placeholder={controller.therapyReport?.fit_people || '系统会根据食疗标签与配料自动辨证生成，也可在此手改…'}
  placeholderStyle="color:#BBB;font-size:13px"
  value={controller.form.fit_people_override}
@@ -770,7 +770,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  {/* 辅料提醒：过敏/禁忌，让商品更懂用户 */}
  <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>辅料提醒（过敏/禁忌，如"含坚果，过敏慎选"）</Text>
  <Textarea
- style={{ width: '100%', minHeight: '56px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ width: '100%', minHeight: '56px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
  placeholder="填写辅料/过敏提醒，让商品更懂用户…"
  placeholderStyle="color:#BBB;font-size:13px"
  value={controller.form.aux_remind}
@@ -791,7 +791,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  if (isConflict) { controller.toggleArrayField('conflict_goods', p.id); return }
  controller.toggleArrayField('match_goods', p.id)
  }}
- style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '8px', background: isMatch ? 'rgba(22,163,74,0.08)' : isConflict ? 'rgba(220,38,38,0.08)' : '#FAFAFA', border: `1px solid ${isMatch ? 'rgba(22,163,74,0.25)' : isConflict ? 'rgba(220,38,38,0.25)' : '#EEE'}`, marginBottom: '6px' }}>
+ style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '8px', background: isMatch ? 'rgba(22,163,74,0.08)' : isConflict ? 'rgba(220,38,38,0.08)' : '#FBF7EF', border: `1px solid ${isMatch ? 'rgba(22,163,74,0.25)' : isConflict ? 'rgba(220,38,38,0.25)' : '#EEE'}`, marginBottom: '6px' }}>
  <Text style={{ fontSize: '26rpx', color: '#333' }}>{p.name}</Text>
  <Text style={{ fontSize: '24rpx', color: tint, fontWeight: '600' }}>{isMatch ? '宜搭' : isConflict ? '慎搭' : '—'}</Text>
  </View>
@@ -807,7 +807,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <View style={{
  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
  marginBottom: '20px',
- padding: '12px 14px', borderRadius: '12px', background: '#FAFAFA',
+ padding: '12px 14px', borderRadius: '12px', background: '#FBF7EF',
  }}>
  <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '500' }}>立即上架</Text>
  <Switch

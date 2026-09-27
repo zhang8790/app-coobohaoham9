@@ -124,7 +124,7 @@ function MerchantBatchPage() {
  ) : (
  <Picker mode="selector" range={productNames} value={selIdx < 0 ? 0 : selIdx}
  onChange={(e: any) => setSelIdx(e.detail.value)}>
- <View style={{ height: '44px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' }}>
+ <View style={{ height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' }}>
  <Text style={{ fontSize: '30rpx', color: selIdx >= 0 ? '#333' : '#BBB' }}>
  {selIdx >= 0 ? products[selIdx].name : '请选择商品'}
  </Text>
@@ -136,7 +136,7 @@ function MerchantBatchPage() {
  {/* 批次号 */}
  <View style={{ marginBottom: '14px' }}>
  <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>批次号（选填）</Text>
- <Input style={{ width: '100%', height: '44px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 14px', boxSizing: 'border-box' }}
+ <Input style={{ width: '100%', height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 14px', boxSizing: 'border-box' }}
  placeholder="如 20260728-01" value={batchNo} onInput={(e: any) => setBatchNo(e.detail?.value ?? '')} />
  </View>
 
@@ -144,7 +144,7 @@ function MerchantBatchPage() {
  <View style={{ marginBottom: '14px' }}>
  <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>生产日期（选填）</Text>
  <Picker mode="date" value={producedAt} onChange={(e: any) => setProducedAt(e.detail.value)}>
- <View style={{ height: '44px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' }}>
+ <View style={{ height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' }}>
  <Text style={{ fontSize: '30rpx', color: producedAt ? '#333' : '#BBB' }}>{producedAt || '请选择生产日期'}</Text>
  </View>
  </Picker>
@@ -154,7 +154,7 @@ function MerchantBatchPage() {
  <View style={{ marginBottom: '14px' }}>
  <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>过期日期 *（保质期）</Text>
  <Picker mode="date" value={expireAt} onChange={(e: any) => setExpireAt(e.detail.value)}>
- <View style={{ height: '44px', borderRadius: '10px', background: '#F2F2F2', border: '1.5px solid #E0E0E0', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' }}>
+ <View style={{ height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #E0E0E0', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' }}>
  <Text style={{ fontSize: '30rpx', color: expireAt ? '#B45309' : '#BBB' }}>{expireAt || '请选择过期日期'}</Text>
  </View>
  </Picker>
@@ -164,7 +164,7 @@ function MerchantBatchPage() {
  {/* 数量 */}
  <View style={{ marginBottom: '14px' }}>
  <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>数量 *</Text>
- <Input style={{ width: '100%', height: '44px', borderRadius: '10px', background: '#FAFAFA', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 14px', boxSizing: 'border-box' }}
+ <Input style={{ width: '100%', height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 14px', boxSizing: 'border-box' }}
  placeholder="0" type="number" value={qty} onInput={(e: any) => setQty(e.detail?.value ?? '')} />
  </View>
 

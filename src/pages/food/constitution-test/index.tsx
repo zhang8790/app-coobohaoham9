@@ -194,7 +194,7 @@ export default function ConstitutionTestPage() {
  </View>
  </View>
 
- <View className="mt-4 rounded-2xl bg-[#F8F8F8] p-4" style={{ borderWidth: 1, borderColor: '#EAEAEA' }}>
+ <View className="mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#EAEAEA' }}>
  <Text className="text-[11px] text-muted-foreground leading-relaxed block">
  {FOOD_THERAPY_DISCLAIMER}
  </Text>
@@ -351,7 +351,7 @@ export default function ConstitutionTestPage() {
  <View
  key={qq.id}
  className="rounded-xl px-3 py-2.5"
- style={{ background: '#F8F8F8', borderWidth: 1, borderColor: '#EAEAEA' }}
+ style={{ background: '#FBF7EF', borderWidth: 1, borderColor: '#EAEAEA' }}
  >
  <Text className="text-[11px] text-muted-foreground">第 {qi + 1} 题 · {qq.question}</Text>
  <Text className="text-sm text-[#1A1A1A] mt-1 block font-semibold">{opt?.label}</Text>
@@ -403,7 +403,7 @@ export default function ConstitutionTestPage() {
  <View
  key={s.key}
  className="rounded-xl px-3 py-2"
- style={{ background: s.severity === 'low' ? '#F0FDF4' : '#F8F8F8', borderWidth: 1, borderColor: '#EAEAEA' }}
+ style={{ background: s.severity === 'low' ? '#F0FDF4' : '#FBF7EF', borderWidth: 1, borderColor: '#EAEAEA' }}
  >
  <View className="flex items-center gap-1.5">
  <Text className="text-base">{s.emoji}</Text>
@@ -538,7 +538,7 @@ export default function ConstitutionTestPage() {
  </View>
 
  {/* 免责 */}
- <View className="ct-reveal ct-stagger-5 mt-4 rounded-2xl bg-[#F8F8F8] p-4" style={{ borderWidth: 1, borderColor: '#EAEAEA' }}>
+ <View className="ct-reveal ct-stagger-5 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#EAEAEA' }}>
  <Text className="text-[11px] text-muted-foreground leading-relaxed block">
  {FOOD_THERAPY_DISCLAIMER}
  </Text>

@@ -79,7 +79,7 @@ export default function ComprehensiveSafetyReport({
  minWidth: '30%',
  padding: 8,
  borderRadius: 12,
- backgroundColor: it.flag ? c + '0F' : '#F8F8F8',
+ backgroundColor: it.flag ? c + '0F' : '#FBF7EF',
  borderWidth: it.flag ? 1 : 0,
  borderColor: it.flag ? c + '33' : 'transparent',
  }}

@@ -30,7 +30,7 @@ export default function StoreQrModal({ visible, storeName, storeQrUrl, qrLoading
               onClick={onClose}
               style={{
                 width: '32px', height: '32px', borderRadius: '16px',
-                backgroundColor: '#F5F5F5', display: 'flex',
+                backgroundColor: '#FBF7EF', display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
               }}>
               <Text style={{ fontSize: '36rpx', color: 'var(--muted-foreground)' }}>✕</Text>
