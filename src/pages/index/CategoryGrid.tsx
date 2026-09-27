@@ -21,16 +21,26 @@ import type { StoreCategory } from '@/db/types'
  * 类目是后台可维护的动态数据，未命中的类目回退到 leaf，不会显示空白。
  */
 // 金刚区图标：彩色 emoji（贴近截图 3D 风格；小程序真机彩色，开发者工具可能灰显）
-// key 与 store_categories 库内 name 保持一致（已在 Supabase 后台统一为场景名）
+// key 与场景展示名保持一致（DB store_categories.name 经下方 SCENE_ALIAS 桥接为展示名）。
 const CAT_EMOJI: Record<string, string> = {
   '宝宝零食': '🍼',
   '孕产营养': '🥕',
-  '银发呵护': '👵',
-  '睡前安适': '🌙',
-  '肠胃养护': '🥣',
-  '体虚调理': '💪',
+  '老年养生': '👵',
+  '舒心食养': '🌙',
+  '肠胃食养': '🥣',
+  '温润食养': '💪',
   '敏感防护': '🛡️',
-  '熬夜党': '⚡',
+  '熬夜加餐': '⚡',
+}
+
+// 场景展示名桥接：DB 仍为旧名时，首页/落地页立即显示截图（replica）新名；
+// 待执行 20260927_rename_scenes_to_replica.sql 把 DB 改名后，此映射自动失效（旧键查不到→原样）。
+const SCENE_ALIAS: Record<string, string> = {
+  '银发呵护': '老年养生',
+  '睡前安适': '舒心食养',
+  '体虚调理': '温润食养',
+  '肠胃养护': '肠胃食养',
+  '熬夜党': '熬夜加餐',
 }
 
 export default function CategoryGrid({ storeId }: { storeId?: string }) {
@@ -77,18 +87,26 @@ export default function CategoryGrid({ storeId }: { storeId?: string }) {
 
   return (
     <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border" style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
-      <View className="flex items-center mb-1" style={{ borderLeft: '3px solid hsl(var(--primary))', paddingLeft: 8 }}>
-        <Text className="cat-eyebrow">按场景挑好物</Text>
+      {/* 区块标题：菱形 + 双侧渐变线（对齐截图 replica 的「按场景选食养」装饰风格） */}
+      <View className="flex items-center justify-center gap-3 my-1">
+        <View style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, hsl(var(--primary) / 0.35))' }} />
+        <View style={{ width: 7, height: 7, background: 'hsl(var(--primary))', transform: 'rotate(45deg)', borderRadius: 1, flex: '0 0 7px' }} />
+        <Text style={{ fontSize: 16, fontWeight: 800, color: 'hsl(var(--foreground))', letterSpacing: 1 }}>按场景选食养</Text>
+        <View style={{ width: 7, height: 7, background: 'hsl(var(--primary))', transform: 'rotate(45deg)', borderRadius: 1, flex: '0 0 7px' }} />
+        <View style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, hsl(var(--primary) / 0.35), transparent)' }} />
       </View>
+      <Text className="text-center" style={{ fontSize: 11.5, color: 'hsl(var(--muted-foreground))', marginTop: -4, marginBottom: 14 }}>挑选适配日常状态的小食</Text>
       <View className="flex flex-wrap mt-2">
-        {cats.map((c) => (
+        {cats.map((c) => {
+          const label = SCENE_ALIAS[c.name] ?? c.name
+          return (
           <View
             key={c.id}
             style={{ width: '25%' }}
             className="flex flex-col items-center py-2.5 active:opacity-60 transition-opacity"
             hoverClass="none"
             onClick={() => Taro.navigateTo({
-              url: `/pages/explore/list/index?categoryId=${c.id}&name=${encodeURIComponent(c.name)}`,
+              url: `/pages/explore/list/index?categoryId=${c.id}&name=${encodeURIComponent(label)}`,
             })}
           >
             <View
@@ -96,16 +114,19 @@ export default function CategoryGrid({ storeId }: { storeId?: string }) {
               style={{
                 width: '100rpx',
                 height: '100rpx',
-                borderRadius: '30rpx',
+                borderRadius: '50%',
                 background: 'hsl(var(--primary-soft))',
+                borderWidth: 1,
+                borderColor: 'hsl(var(--primary) / 0.25)',
               }}
             >
-              <Text style={{ fontSize: '52rpx' }}>{c.icon || CAT_EMOJI[c.name] || '🌿'}</Text>
+              <Text style={{ fontSize: '52rpx' }}>{c.icon || CAT_EMOJI[label] || CAT_EMOJI[c.name] || '🌿'}</Text>
             </View>
             {/* 分类名：与好物页左栏共用 .cat-name（单一事实源，禁止各自硬写字号） */}
-            <Text className="cat-name mt-2 truncate" style={{ maxWidth: '136rpx' }}>{c.name}</Text>
+            <Text className="cat-name mt-2 truncate" style={{ maxWidth: '136rpx' }}>{label}</Text>
           </View>
-        ))}
+          )
+        })}
       </View>
     </View>
   )

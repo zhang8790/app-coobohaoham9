@@ -279,7 +279,7 @@ export function isKnownCrowd(value: string): value is Crowd {
 // 日常饮食偏好快捷词（合规版：仅日常饮食习惯标签，不含任何病症关键词）
 // 每个标签映射到既有的体质/人群 Crowd 轴，保证「选偏好→自动配对零食」逻辑可继续工作。
 export const QUICK_BODY_PRESETS: Array<{ label: string; emoji: string; crowds: Crowd[] }> = [
-  { label: '熬夜党', emoji: '⚡', crowds: ['免疫力低'] },
+  { label: '熬夜加餐', emoji: '⚡', crowds: ['免疫力低'] },
   { label: '儿童挑食', emoji: '🧒', crowds: ['肠胃虚弱'] },
   { label: '甜食偏好', emoji: '🍬', crowds: ['高血糖'] },
   { label: '低糖饮食', emoji: '🥗', crowds: ['高血脂'] },

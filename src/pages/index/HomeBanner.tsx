@@ -25,38 +25,43 @@ interface AdSlide {
   enabled: boolean
   /** 纯文案卡片的底色渐变（仅内置兜底使用，后台广告一般不填） */
   bg?: string
+  /** 品牌推荐卡标识：内置兜底卡显示「推荐」角标（真实广告仍显示「广告」合规标识） */
+  recommend?: boolean
 }
 
 const FALLBACK_SLIDES: AdSlide[] = [
   {
     id: 'default-1',
-    title: '顺时而食 · 药食同源',
-    sub: '按时令与体质，甄选放心零食。无添加刺激，只给身体需要的。',
+    title: '药食同源食材｜一口安心轻食',
+    sub: '选对原料，吃得明白',
     image_url: null,
     link_url: '',
     sort_order: 0,
     enabled: true,
-    bg: 'linear-gradient(120deg,#FBEDE7,#FDF7F3)',
+    recommend: true,
+    bg: 'linear-gradient(135deg,#E9EEDF 0%, #F6E9D8 100%)',
   },
   {
     id: 'default-2',
-    title: '时令食养 · 当季鲜养',
-    sub: '每一季一盒，把时令装进日常生活',
+    title: '顺时而食 · 本草食养',
+    sub: '按节气与体质，甄选放心零食',
     image_url: null,
     link_url: '',
     sort_order: 1,
     enabled: true,
-    bg: 'linear-gradient(120deg,#F3E9DD,#EFDCC9)',
+    recommend: true,
+    bg: 'linear-gradient(135deg,#E9EEDF 0%, #F1EBDC 100%)',
   },
   {
     id: 'default-3',
-    title: '体质适配 · 九分法甄选',
+    title: '体质适配 · 九分法甄养',
     sub: '按你的体质，挑不踩雷的好物',
     image_url: null,
     link_url: '',
     sort_order: 2,
     enabled: true,
-    bg: 'linear-gradient(120deg,hsl(var(--primary-soft-deep)),#FCEFEC)',
+    recommend: true,
+    bg: 'linear-gradient(135deg,#F6E9D8 0%, #E9EEDF 100%)',
   },
 ]
 
@@ -145,6 +150,12 @@ export default function HomeBanner() {
               {isAd ? (
                 <View style={{ position: 'absolute', top: 8, right: 10, zIndex: 3, background: 'rgba(0,0,0,0.32)', borderRadius: 4, padding: '1px 6px' }}>
                   <Text style={{ color: '#fff', fontSize: '20rpx' }}>广告</Text>
+                </View>
+              ) : null}
+              {/* 品牌推荐角标：内置兜底卡显示「推荐」（对齐截图 replica） */}
+              {!isAd && s.recommend ? (
+                <View style={{ position: 'absolute', top: 8, right: 10, zIndex: 3, background: 'hsl(var(--primary))', borderRadius: 14, padding: '3px 10px' }}>
+                  <Text style={{ color: '#fff', fontSize: '20rpx', fontWeight: 700, letterSpacing: 1 }}>推荐</Text>
                 </View>
               ) : null}
             </View>

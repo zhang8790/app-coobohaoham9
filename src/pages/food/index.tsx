@@ -34,11 +34,11 @@ export default function FoodHubPage() {
 const SCENE_BY_CROWD: Array<{ kw: string[]; scene: string; label: string }> = [
  { kw: ['儿童', '成长', '宝'], scene: 'children', label: '宝宝零食' },
  { kw: ['糖', '血糖'], scene: 'sugar', label: '低糖食养' },
- { kw: ['眠', '安神', '失眠'], scene: 'sleep', label: '睡前安适' },
- { kw: ['老年', '三高', '血压'], scene: 'elderly', label: '银发呵护' },
- { kw: ['免疫', '体虚'], scene: 'immunity', label: '体虚调理' },
+ { kw: ['眠', '安神', '失眠'], scene: 'sleep', label: '舒心食养' },
+ { kw: ['老年', '三高', '血压'], scene: 'elderly', label: '老年养生' },
+ { kw: ['免疫', '体虚'], scene: 'immunity', label: '温润食养' },
  { kw: ['过敏'], scene: 'allergy', label: '敏感防护' },
- { kw: ['消化', '脾胃', '胃'], scene: 'digestion', label: '肠胃养护' },
+ { kw: ['消化', '脾胃', '胃'], scene: 'digestion', label: '肠胃食养' },
  { kw: ['孕', '产'], scene: 'pregnant', label: '孕产营养' },
 ]
  const matchedScenes = useMemo(() => {

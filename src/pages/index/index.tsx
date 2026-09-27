@@ -625,10 +625,23 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
  否则回退 Feed 前若干款并换标题「甄选好物」，保证楼层结构完整、新用户也能看到。 */}
 {(!hasQuery && railItems.length > 0) && (
   <View className="mt-5 px-4">
-    <SectionTitle
-      title={railPersonalized ? '为你而定' : '甄选好物'}
-      subtitle={railPersonalized ? '基于你的体质与购买偏好' : '先挑几款 · 补全体质档案后更懂你'}
-    />
+    {/* 区头：对齐截图 replica —— 圆环点 + 为你甄选 + 副标 + 右侧「咨询食养顾问」描边钮 */}
+    <View className="flex items-center justify-between mb-2" style={{ paddingRight: 2 }}>
+      <View className="flex items-center gap-2">
+        <View style={{ width: 9, height: 9, borderWidth: 2, borderColor: 'hsl(var(--primary))', borderRadius: '50%', flex: '0 0 9px' }} />
+        <View className="flex flex-col">
+          <Text style={{ fontSize: 17, fontWeight: 800, color: 'hsl(var(--foreground))', letterSpacing: 0.5 }}>为你甄选</Text>
+          <Text style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))', marginTop: 2 }}>为你推荐适合的食养好物</Text>
+        </View>
+      </View>
+      <View
+        hoverClass="none"
+        onClick={() => Taro.navigateTo({ url: '/pages/food/consult/index' })}
+        style={{ borderWidth: 1, borderColor: 'hsl(var(--primary) / 0.5)', color: 'hsl(var(--primary))', fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 18, background: 'transparent' }}
+      >
+        <Text style={{ color: 'hsl(var(--primary))', fontSize: 12, fontWeight: 600 }}>咨询食养顾问</Text>
+      </View>
+    </View>
     <ScrollView scrollX style={{ whiteSpace: 'nowrap', marginTop: 4 }} showScrollbar={false}>
       {railItems.slice(0, 8).map((p, idx) => {
         const fit = profileItems.some((x) => x.id === p.id)

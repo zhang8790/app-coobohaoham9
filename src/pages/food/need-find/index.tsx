@@ -55,8 +55,8 @@ const NEED_MAP: Record<SceneKey, NeedDef> = {
  note: '还没设置过敏原？去「家庭食养档案」补充，筛选更精准',
  },
  immunity: {
- key: 'immunity', label: '体虚调理', icon: '',
- title: '体虚调理 · 体质之选', subTitle: '为体质偏虚人群优选温和食养好物',
+ key: 'immunity', label: '温润食养', icon: '',
+ title: '温润食养 · 体质之选', subTitle: '为体质偏虚人群优选温和食养好物',
  crowds: [toCrowd('免疫力低')], preferTags: ['适合体虚'], fallbackTags: ['补气养血'],
  },
  children: {
@@ -78,24 +78,24 @@ const NEED_MAP: Record<SceneKey, NeedDef> = {
  note: '孕期哺乳期食养参考，具体请遵医嘱',
  },
  sleep: {
- key: 'sleep', label: '睡前安适', icon: '',
- title: '睡前安适 · 宁心之选', subTitle: '为关注睡眠作息人群优选舒缓食养好物',
+ key: 'sleep', label: '舒心食养', icon: '',
+ title: '舒心食养 · 宁心之选', subTitle: '为关注睡眠作息人群优选舒缓食养好物',
  crowds: [toCrowd('失眠')], preferTags: ['适合睡前'], fallbackTags: ['舒缓安适'],
  },
  digestion: {
- key: 'digestion', label: '肠胃养护', icon: '',
- title: '肠胃养护 · 温润之选', subTitle: '为肠胃虚弱人群优选温和易消化的好物',
+ key: 'digestion', label: '肠胃食养', icon: '',
+ title: '肠胃食养 · 温润之选', subTitle: '为肠胃虚弱人群优选温和易消化的好物',
  crowds: [toCrowd('肠胃虚弱')], preferTags: ['适合肠胃虚弱'], fallbackTags: ['健脾养胃', '消食化积'],
  },
  elderly: {
- key: 'elderly', label: '银发呵护', icon: '',
- title: '银发呵护 · 舒养之选', subTitle: '为长辈优选温和食养好物',
+ key: 'elderly', label: '老年养生', icon: '',
+ title: '老年养生 · 舒养之选', subTitle: '为长辈优选温和食养好物',
  crowds: [toCrowd('高血压'), toCrowd('高血脂')], preferTags: ['适合银发'], fallbackTags: ['健脾养胃', '补气养血'],
  note: '老年群体食养参考，慢病用药请遵医嘱',
  },
  overtime: {
- key: 'overtime', label: '熬夜党', icon: '',
- title: '熬夜党 · 回血之选', subTitle: '为常熬夜人群优选舒缓食养、缓解疲惫的好物',
+ key: 'overtime', label: '熬夜加餐', icon: '',
+ title: '熬夜加餐 · 回血之选', subTitle: '为常熬夜人群优选舒缓食养、缓解疲惫的好物',
  crowds: [], preferTags: ['适合熬夜'], fallbackTags: ['补气养血', '滋阴润燥', '舒缓安适'],
  note: '熬夜伤身，食养仅供参考，规律作息更重要',
  },
