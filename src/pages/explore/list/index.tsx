@@ -10,6 +10,7 @@ import ProductGridCard from '@/components/ProductGridCard'
 import { getProductCareInfo } from '@/utils/product-care'
 import { useLocation } from '@/contexts/LocationContext'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
+import { sceneLabel } from '@/utils/scene-alias'
 import type { Product, StoreCategory } from '@/db/types'
 
 /**
@@ -23,7 +24,8 @@ export default function CategoryListPage() {
   const router = useRouter()
   const categoryId = String(router.params.categoryId || '')
   // 类目名经 CategoryGrid 用 encodeURIComponent 写入 URL，此处显式解码（与 store-home/index 一致），否则中文类目会显示成 %E5%AE%9D 这类乱码
-  const catName = String(decodeURIComponent(router.params.name || '分类商品'))
+  // 展示名再归一一次：深链/旧入口可能带 DB 旧名（如「熬夜加班」），统一到拍板展示名
+  const catName = sceneLabel(String(decodeURIComponent(router.params.name || '分类商品')))
 
   const { currentCity } = useLocation()
   const { getSuitability } = useFoodTherapy()

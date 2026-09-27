@@ -19,6 +19,8 @@ import { FOOD_REFERENCE_DISCLAIMER, shieldCopy } from '@/utils/compliance/shield
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import type { NearbyProduct } from '@/db/api'
 import type { Product, StoreCategory } from '@/db/types'
+// 场景展示名单例：与首页金刚区同一套名字（DB 里的旧名/变体名在此归一）
+import { sceneLabel } from '@/utils/scene-alias'
 
 // 自营页商品 = 基础商品信息 + 原始 Product（透传给食养引擎，保证关怀层/适合我与首页口径一致）
 type ExploreProduct = NearbyProduct & { raw?: Product }
@@ -262,7 +264,10 @@ export default function ExplorePage() {
  <View className="px-2 pt-3 pb-1">
  <Text className="cat-eyebrow">按场景挑好物</Text>
  </View>
- {[{ id: '__all__', name: '全部', label: '全部' }, ...categories.map(c => ({ id: c.id, name: c.name, label: shieldCopy(c.name).safe }))].map(cat => {
+ // 左栏展示：全部 + 后台动态类目（下架的已被 is_active 过滤不显示）
+ // 🔴 展示名走 sceneLabel 归一（DB 旧名/变体名 → 拍板展示名），与首页金刚区同一套名字；
+ // 但【查询仍用 DB 原名 cat.name】——getProducts 按 name 反查 category_id，改名后立即查得到。
+ {[{ id: '__all__', name: '全部', label: '全部' }, ...categories.map(c => ({ id: c.id, name: c.name, label: shieldCopy(sceneLabel(c.name)).safe }))].map(cat => {
  const active = activeCat === cat.name
  return (
  <View key={cat.id}

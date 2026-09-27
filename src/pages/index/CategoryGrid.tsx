@@ -6,6 +6,8 @@ import { getCategories, getProducts } from '@/db/api'
 import { useLocation } from '@/contexts/LocationContext'
 import type { StoreCategory } from '@/db/types'
 import { SCENE_ICON, BRAND_LINE_ICONS } from '@/components/brandIcons'
+// 场景展示名单例（避免各页面各自维护导致首屏/好物页名字不一致）
+import { sceneLabel } from '@/utils/scene-alias'
 
 /**
  * 首页金刚区（分类导航）
@@ -22,18 +24,6 @@ import { SCENE_ICON, BRAND_LINE_ICONS } from '@/components/brandIcons'
  * 8 个场景命中 SCENE_ICON，其余后台可维护类目回退到品牌 leaf 线性图标，
  * 不再使用任何 emoji，保证全站图标语言统一。
  */
-// 场景展示名桥接：DB 仍为旧名时，首页/落地页立即显示截图（replica）新名；
-// 待执行 20260927_rename_scenes_to_replica.sql 把 DB 改名后，此映射自动失效（旧键查不到→原样）。
-const SCENE_ALIAS: Record<string, string> = {
-  '银发呵护': '老年养生',
-  '睡前安适': '舒心食养',
-  '体虚调理': '温润食养',
-  '肠胃养护': '肠胃食养',
-  '熬夜党': '熬夜加餐',
-  // DB 改名迁移把「熬夜党」写成了「熬夜加班」（笔误），桥接回拍板名「熬夜加餐」；
-  // 待 DB 修正为「熬夜加餐」后此条自动失效。
-  '熬夜加班': '熬夜加餐',
-}
 
 export default function CategoryGrid({ storeId }: { storeId?: string }) {
   const { currentCity } = useLocation()
@@ -91,7 +81,7 @@ export default function CategoryGrid({ storeId }: { storeId?: string }) {
       <Text className="text-center" style={{ fontSize: 11.5, color: 'hsl(var(--muted-foreground))', marginTop: -4, marginBottom: 14 }}>挑选适配日常状态的小食</Text>
       <View className="flex flex-wrap mt-2">
         {cats.map((c) => {
-          const label = SCENE_ALIAS[c.name] ?? c.name
+          const label = sceneLabel(c.name)
           return (
           <View
             key={c.id}
