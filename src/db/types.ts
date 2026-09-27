@@ -129,6 +129,8 @@ export interface Product {
   id: string
   store_id: string
   category_id: string | null
+  // 二级分类（场景内细分，仅筛选维度；一级归类仍为 category_id）
+  sub_category_id: string | null
   name: string
   description: string | null
   price: number

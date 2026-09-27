@@ -40,6 +40,8 @@ export type FormState = {
   fit_people_override: string
   fit_crowd_tags: string[]
   category_id: string
+  // 二级分类（场景内细分，仅筛选维度；一级归类仍为 category_id）
+  sub_category_id: string
   // —— 商品类型化（迁移 20260803）：礼品/手作与食养食品分开 ——
   product_kind: string
   materials: string[]
@@ -66,6 +68,7 @@ export const emptyForm = (): FormState => ({
   fit_people_override: '',
   fit_crowd_tags: [],
   category_id: '',
+  sub_category_id: '',
   product_kind: 'food',
   materials: [],
   gift_meaning: '',
@@ -301,6 +304,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
       fit_people_override: (p as any).fit_people_override ?? '',
       fit_crowd_tags: (p as any).fit_crowd_tags ?? [],
       category_id: p.category_id ?? '',
+      sub_category_id: (p as any).sub_category_id ?? '',
       product_kind: (p as any).product_kind ?? 'food',
       materials: (p as any).materials ?? [],
       gift_meaning: (p as any).gift_meaning ?? '',
@@ -449,6 +453,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
         therapy_pending: isGiftKind ? false : !therapyReport,
         is_active: form.is_active,
         category_id: form.category_id || null,
+        sub_category_id: form.sub_category_id || null,
         // 商品类型化
         product_kind: form.product_kind || 'food',
         materials: isGiftKind && form.materials.length > 0 ? form.materials : undefined,

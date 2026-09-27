@@ -230,6 +230,7 @@ export default function MerchantProducts() {
     moments_copy: '',
     taboo_warning: '',
     category_id: '',
+    sub_category_id: '',
     food_stage: '',
     // 商品类型化 + 礼品/手作 + 辨证适配（对齐小程序端 merchant-products）
     product_kind: 'food',
@@ -370,7 +371,7 @@ export default function MerchantProducts() {
       overall_nature: '', health_tag: [], emotion_tag: [], match_goods: [], conflict_goods: [], aux_remind: '',
       food_category: '', positive_effect: '', risk_warning: '', emotion_copy: '', scenes: [],
       rec_crowds: [], cautious_crowds: [], cautious_notes: '', forbidden_crowds: [], forbidden_reasons: '',
-      combo_product_ids: [], guide_sentence: '', moments_copy: '', taboo_warning: '', category_id: '',
+      combo_product_ids: [], guide_sentence: '', moments_copy: '', taboo_warning: '', category_id: '', sub_category_id: '',
       food_stage: '',
       product_kind: 'food', is_active: true, fit_people_override: '', materials: [],
       gift_meaning: '', gift_craft: '', gift_scene: '', gift_care: '' })
@@ -414,6 +415,7 @@ export default function MerchantProducts() {
       moments_copy: (p as any).moments_copy ?? '',
       taboo_warning: (p as any).taboo_warning ?? '',
       category_id: (p as any).category_id ?? '',
+      sub_category_id: (p as any).sub_category_id ?? '',
       food_stage: (p as any).food_stage ?? '',
       product_kind: (p as any).product_kind ?? 'food',
       is_active: (p as any).is_active ?? true,
@@ -814,6 +816,7 @@ export default function MerchantProducts() {
       video_url: form.video_url,
       discount_rate: dr || null,
       category_id: form.category_id || null,
+      sub_category_id: form.sub_category_id || null,
     }
     const body = {
       ...payload,
@@ -1517,7 +1520,15 @@ export default function MerchantProducts() {
                   管理分类
                 </button>
               </div>
-              <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
+              <select value={form.sub_category_id || form.category_id || ''}
+                onChange={e => {
+                  const v = e.target.value
+                  const cat = categories.find(c => c.id === v)
+                  // 选「整个场景」(一级) → category_id=场景，sub_category_id 清空；
+                  // 选二级子类 → category_id=其一级父，sub_category_id=二级（与小程序端同源：一级归 category_id，二级仅筛选）
+                  if (!v || !cat || !cat.parent_id) setForm(f => ({ ...f, category_id: v, sub_category_id: '' }))
+                  else setForm(f => ({ ...f, category_id: cat.parent_id as string, sub_category_id: v }))
+                }}
                 style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
                 <option value="">未分类</option>
                 {categories.filter(c => !c.parent_id).sort((a, b) => a.sort_order - b.sort_order).map(p => {
@@ -1533,7 +1544,7 @@ export default function MerchantProducts() {
                   )
                 })}
               </select>
-              <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>可新建店内分类；🌐 为平台全局分类，对所有门店生效</span>
+              <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>选二级子类会自动归到对应场景；🌐 为平台全局分类，对所有门店生效</span>
             </div>
             </Section>
 

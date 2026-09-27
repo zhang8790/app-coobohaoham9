@@ -93,20 +93,22 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}>
  <View
- onClick={() => controller.setForm(f => ({ ...f, category_id: '' }))}
+ onClick={() => controller.setForm(f => ({ ...f, category_id: '', sub_category_id: '' }))}
  style={{
  padding: '7px 14px', borderRadius: '9999px',
- background: controller.form.category_id === '' ? 'hsl(var(--primary))' : '#FFF',
- border: controller.form.category_id === '' ? '1px solid hsl(var(--primary))' : '1px solid #EEE',
+ background: (controller.form.sub_category_id || controller.form.category_id) === '' ? 'hsl(var(--primary))' : '#FFF',
+ border: (controller.form.sub_category_id || controller.form.category_id) === '' ? '1px solid hsl(var(--primary))' : '1px solid #EEE',
  }}>
- <Text style={{ fontSize: '26rpx', color: controller.form.category_id === '' ? '#FFF' : '#666' }}>未分类</Text>
+ <Text style={{ fontSize: '26rpx', color: (controller.form.sub_category_id || controller.form.category_id) === '' ? '#FFF' : '#666' }}>未分类</Text>
  </View>
  {orderedCats.map((c: StoreCategory) => {
- const sel = controller.form.category_id === c.id
+ const sel = (controller.form.sub_category_id || controller.form.category_id) === c.id
  return (
  <View
  key={c.id}
- onClick={() => controller.setForm(f => ({ ...f, category_id: c.id }))}
+ onClick={() => controller.setForm(f => c.parent_id
+   ? { ...f, category_id: c.parent_id as string, sub_category_id: c.id }
+   : { ...f, category_id: c.id, sub_category_id: '' })}
  style={{
  padding: '7px 14px', borderRadius: '9999px', flexDirection: 'row', alignItems: 'center', gap: '4px',
  background: sel ? 'hsl(var(--primary))' : '#FFF',

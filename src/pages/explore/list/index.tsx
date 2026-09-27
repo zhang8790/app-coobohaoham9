@@ -1,5 +1,5 @@
 // @title 分类商品
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
 import { View, Text, ScrollView } from '@tarojs/components'
 import { addToCart, getProducts, getCategories } from '@/db/api'
@@ -55,8 +55,9 @@ export default function CategoryListPage() {
         // 口径必须与首页 Feed / 金刚区一致：**城市聚合优先**，全平台兜底。
         // ⚠️ 历史 bug：原先优先用 currentStore（GPS 最近门店 = 官方自营店，37 款无类目老数据），
         // 导致从金刚区点进来必然 0 款（「点进去就空」）。自营店无类目货，不能作为优先口径。
-        // 「全部」= 一级自身 + 全部二级子类（IN 查询），兼容仍挂在一级上的历史商品。
-        const ids = activeSub ? [activeSub] : [categoryId, ...subs.map((s) => s.id)]
+        // 商品的一级归类仍是 category_id（场景），二级仅作筛选维度（sub_category_id）。
+        // 这里拉「场景 + 其全部二级」的商品（IN）；二级 Tab 用 sub_category_id 客户端筛选。
+        const ids = [categoryId, ...subs.map((s) => s.id)]
         const data = currentCity?.id
           ? await getProducts({ categoryIds: ids, cityId: String(currentCity.id), limit: 200 })
           : await getProducts({ categoryIds: ids, platformFilter: 'only', limit: 200 })
@@ -67,7 +68,13 @@ export default function CategoryListPage() {
     }
     load()
     return () => { alive = false }
-  }, [categoryId, activeSub, currentCity?.id])
+  }, [categoryId, currentCity?.id])
+
+  // 二级 Tab 仅做客户端筛选（不重新请求）：「全部」显示场景全部；选二级显示该子类
+  const displayed = useMemo(
+    () => (activeSub ? list.filter((p) => p.sub_category_id === activeSub) : list),
+    [list, activeSub],
+  )
 
   const careOf = (p: Product) => {
     try { return getProductCareInfo(p) } catch { return null }
@@ -91,7 +98,7 @@ export default function CategoryListPage() {
     <View className="min-h-screen bg-background pb-10">
       <View className="px-4 pt-4 pb-2 flex items-end justify-between">
         <Text className="text-xl font-bold text-foreground">{catName}</Text>
-        {!loading && <Text className="text-xs text-muted-foreground">{list.length} 款</Text>}
+        {!loading && <Text className="text-xs text-muted-foreground">{displayed.length} 款</Text>}
       </View>
 
       {/* 二级分类 Tab：该一级场景下有子类才显示（数据与 admin-web 后台同源）。
@@ -129,7 +136,7 @@ export default function CategoryListPage() {
         <View className="flex items-center justify-center py-24">
           <Text className="text-base text-muted-foreground">加载中…</Text>
         </View>
-      ) : list.length === 0 ? (
+      ) : displayed.length === 0 ? (
         <View className="flex flex-col items-center justify-center py-24 gap-3">
           <Icon name="bag" size={48} className="text-muted-foreground/40" />
           <Text className="text-base text-foreground">暂无「{catName}」的在售商品</Text>
@@ -141,7 +148,7 @@ export default function CategoryListPage() {
         </View>
       ) : (
         <View className="flex flex-wrap justify-between px-4">
-          {list.map((p) => (
+          {displayed.map((p) => (
             <ProductGridCard
               key={p.id}
               id={p.id}
