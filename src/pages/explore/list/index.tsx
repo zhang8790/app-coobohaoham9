@@ -1,8 +1,8 @@
 // @title 分类商品
 import { useState, useEffect, useCallback } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
-import { View, Text } from '@tarojs/components'
-import { addToCart, getProducts } from '@/db/api'
+import { View, Text, ScrollView } from '@tarojs/components'
+import { addToCart, getProducts, getCategories } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
 import { refreshCartCount } from '@/utils/cartStore'
 import Icon from '@/components/Icon'
@@ -10,7 +10,7 @@ import ProductGridCard from '@/components/ProductGridCard'
 import { getProductCareInfo } from '@/utils/product-care'
 import { useLocation } from '@/contexts/LocationContext'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
-import type { Product } from '@/db/types'
+import type { Product, StoreCategory } from '@/db/types'
 
 /**
  * 分类商品列表页：首页金刚区 / 探索页类目点选后的落地页。
@@ -31,6 +31,9 @@ export default function CategoryListPage() {
   const [list, setList] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [addingId, setAddingId] = useState('')
+  // 二级分类：当前一级场景下的子类（来自 store_categories.parent_id）；activeSub='' 表示「全部」
+  const [subCats, setSubCats] = useState<StoreCategory[]>([])
+  const [activeSub, setActiveSub] = useState('')
 
   useEffect(() => {
     if (!categoryId) {
@@ -41,12 +44,22 @@ export default function CategoryListPage() {
     setLoading(true)
     const load = async () => {
       try {
+        // 先取一级场景的二级子类（共用 store_categories 真相源，与 admin-web 后台一致）；
+        // 无子类时 subCats 为空，下方 Tab 自动隐藏，行为与升级前完全一致。
+        const all = await getCategories({ isActive: true })
+        if (!alive) return
+        const subs = all
+          .filter((c) => c.parent_id === categoryId)
+          .sort((a, b) => a.sort_order - b.sort_order)
+        setSubCats(subs)
         // 口径必须与首页 Feed / 金刚区一致：**城市聚合优先**，全平台兜底。
         // ⚠️ 历史 bug：原先优先用 currentStore（GPS 最近门店 = 官方自营店，37 款无类目老数据），
         // 导致从金刚区点进来必然 0 款（「点进去就空」）。自营店无类目货，不能作为优先口径。
+        // 「全部」= 一级自身 + 全部二级子类（IN 查询），兼容仍挂在一级上的历史商品。
+        const ids = activeSub ? [activeSub] : [categoryId, ...subs.map((s) => s.id)]
         const data = currentCity?.id
-          ? await getProducts({ categoryId, cityId: String(currentCity.id), limit: 200 })
-          : await getProducts({ categoryId, platformFilter: 'only', limit: 200 })
+          ? await getProducts({ categoryIds: ids, cityId: String(currentCity.id), limit: 200 })
+          : await getProducts({ categoryIds: ids, platformFilter: 'only', limit: 200 })
         if (alive) setList(data)
       } finally {
         if (alive) setLoading(false)
@@ -54,7 +67,7 @@ export default function CategoryListPage() {
     }
     load()
     return () => { alive = false }
-  }, [categoryId, currentCity?.id])
+  }, [categoryId, activeSub, currentCity?.id])
 
   const careOf = (p: Product) => {
     try { return getProductCareInfo(p) } catch { return null }
@@ -80,6 +93,37 @@ export default function CategoryListPage() {
         <Text className="text-xl font-bold text-foreground">{catName}</Text>
         {!loading && <Text className="text-xs text-muted-foreground">{list.length} 款</Text>}
       </View>
+
+      {/* 二级分类 Tab：该一级场景下有子类才显示（数据与 admin-web 后台同源）。
+          「全部」= 一级 + 全部子类商品；点具体子类 = 只看该子类。无子类时整块隐藏。 */}
+      {subCats.length > 0 && (
+        <ScrollView scrollX className="whitespace-nowrap" style={{ width: '100%' }}>
+          <View style={{ display: 'inline-flex', gap: '16rpx', padding: '0 32rpx 16rpx' }}>
+            {[{ id: '', name: '全部' }, ...subCats].map((s) => {
+              const on = activeSub === s.id
+              return (
+                <View
+                  key={s.id || 'all'}
+                  onClick={() => setActiveSub(s.id)}
+                  style={{
+                    flex: '0 0 auto',
+                    padding: '10rpx 28rpx',
+                    borderRadius: '999rpx',
+                    fontSize: '26rpx',
+                    lineHeight: 1.4,
+                    background: on ? 'hsl(var(--primary))' : 'hsl(var(--primary-soft))',
+                    color: on ? '#ffffff' : 'hsl(var(--primary-strong))',
+                    borderWidth: 1,
+                    borderColor: on ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.25)',
+                  }}
+                >
+                  {s.name}
+                </View>
+              )
+            })}
+          </View>
+        </ScrollView>
+      )}
 
       {loading ? (
         <View className="flex items-center justify-center py-24">

@@ -88,6 +88,8 @@ export interface StoreCategory {
   is_active: boolean
   /** 场景图标（emoji 文本）：金刚区/落地页读取，后台可编辑；库内为空时前端回退 🌿 */
   icon: string | null
+  /** 父分类 id：null=一级分类（场景）；非 null=二级分类（见 20260927_add_category_parent.sql） */
+  parent_id?: string | null
 }
 
 /** 科目化分类（食养科目）：C 端浏览主分类，替代传统物理品类。

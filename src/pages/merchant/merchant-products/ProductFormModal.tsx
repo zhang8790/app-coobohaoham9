@@ -17,6 +17,14 @@ type ProductFormModalProps = {
 }
 
 export default function ProductFormModal({ controller, categories, products, onManageCategory }: ProductFormModalProps) {
+  // 分类两级排序：一级在前，其二级子类紧跟其后（兼容未迁移：parent_id 全空时原序不变）
+  const hasHierarchy = categories.some((c) => !!c.parent_id)
+  const orderedCats = hasHierarchy
+    ? categories
+        .filter((c) => !c.parent_id)
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .flatMap((p) => [p, ...categories.filter((c) => c.parent_id === p.id).sort((a, b) => a.sort_order - b.sort_order)])
+    : categories
   return (
     <>
  {controller.showForm && (
@@ -93,7 +101,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  }}>
  <Text style={{ fontSize: '26rpx', color: controller.form.category_id === '' ? '#FFF' : '#666' }}>未分类</Text>
  </View>
- {categories.map((c: StoreCategory) => {
+ {orderedCats.map((c: StoreCategory) => {
  const sel = controller.form.category_id === c.id
  return (
  <View
@@ -104,8 +112,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  background: sel ? 'hsl(var(--primary))' : '#FFF',
  border: sel ? '1px solid hsl(var(--primary))' : '1px solid #EEE',
  }}>
- <Text style={{ fontSize: '26rpx', color: sel ? '#FFF' : '#666' }}>{c.name}</Text>
- {c.scope === 'global' && <Text style={{ fontSize: '20rpx', color: sel ? '#FFE0CC' : '#BBB' }}></Text>}
+ <Text style={{ fontSize: c.parent_id ? '24rpx' : '26rpx', color: sel ? '#FFF' : (c.parent_id ? '#888' : '#666') }}>{c.parent_id ? `└ ${c.name}` : c.name}</Text>
+ {c.scope === 'global' && <Text style={{ fontSize: '20rpx', color: sel ? '#FFE0CC' : '#BBB' }}>🌐</Text>}
  </View>
  )
  })}

@@ -1520,9 +1520,18 @@ export default function MerchantProducts() {
               <select value={form.category_id} onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
                 style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
                 <option value="">未分类</option>
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}{c.scope === 'global' ? ' 🌐' : ''}</option>
-                ))}
+                {categories.filter(c => !c.parent_id).sort((a, b) => a.sort_order - b.sort_order).map(p => {
+                  const kids = categories.filter(c => c.parent_id === p.id).sort((a, b) => a.sort_order - b.sort_order)
+                  const tag = p.scope === 'global' ? ' 🌐' : ''
+                  return kids.length ? (
+                    <optgroup key={p.id} label={`${p.name}${tag}`}>
+                      <option value={p.id}>{p.name}（整个场景）</option>
+                      {kids.map(k => <option key={k.id} value={k.id}>　└ {k.name}</option>)}
+                    </optgroup>
+                  ) : (
+                    <option key={p.id} value={p.id}>{p.name}{tag}</option>
+                  )
+                })}
               </select>
               <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>可新建店内分类；🌐 为平台全局分类，对所有门店生效</span>
             </div>

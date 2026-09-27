@@ -59,7 +59,8 @@ export default function CategoryGrid({ storeId }: { storeId?: string }) {
         }
         setCats(
           catList
-            .filter((c) => c.scope === 'global')
+            // 金刚区只列一级场景（parent_id 为空）；二级分类在类目落地页顶部以 Tab 呈现
+            .filter((c) => c.scope === 'global' && !c.parent_id)
             .sort((a, b) => a.sort_order - b.sort_order)
             .map((c) => ({ ...c, count: counter[c.id] || 0 }))
             .filter((c) => c.count > 0),

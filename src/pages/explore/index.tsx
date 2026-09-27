@@ -188,7 +188,8 @@ export default function ExplorePage() {
  // 加载自营页类目：后台全局类目 + 仅上架
  const loadCategories = useCallback(async () => {
  const cats = await getCategories({ includeGlobal: true, isActive: true })
- setCategories(cats.filter(c => c.scope === 'global').sort((a, b) => a.sort_order - b.sort_order))
+ // 左栏只列一级场景（parent_id 为空）；二级分类在类目落地页顶部以 Tab 呈现
+ setCategories(cats.filter(c => c.scope === 'global' && !c.parent_id).sort((a, b) => a.sort_order - b.sort_order))
  }, [])
 
  useEffect(() => {

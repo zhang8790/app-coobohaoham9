@@ -24,6 +24,8 @@ export default function CategoryManager({
  onClose, onAddCategory, onMoveCategory, onSaveRename, onDeleteCategory,
 }: Props) {
  if (!visible) return null
+ // 只展示「店内分类(全部) + 总部一级分类」：总部二级分类商家无权修改，不在此列
+ const shown = categories.filter((c: StoreCategory) => c.scope !== 'global' || !c.parent_id)
  return (
  <View
  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.55)' }}

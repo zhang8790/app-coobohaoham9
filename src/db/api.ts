@@ -586,6 +586,8 @@ function isPlatformProduct(p: Product): boolean {
 
 export async function getProducts(opts: {
   storeId?: string, categoryId?: string, categoryName?: string, search?: string,
+  /** 分类集合过滤：用于一级场景「全部」= 一级自身 + 全部二级子类的商品（IN 查询） */
+  categoryIds?: string[],
   moodTag?: string, moodTags?: string[], sceneTag?: string, page?: number, limit?: number,
   /** 科目化分类过滤：传入科目 key 数组（如 ['spleen','sleep']），按 subject_keys 求交集（overlaps） */
   subjectKeys?: string[],
@@ -600,14 +602,16 @@ export async function getProducts(opts: {
   const cached = cacheGet<Product[]>(cacheKey)
   if (cached) return cached
 
-  const { storeId, categoryId, categoryName, search, moodTag, moodTags, sceneTag, page = 0, limit = 20, subjectKeys, productKind, platformFilter, cityId } = opts
+  const { storeId, categoryId, categoryName, search, categoryIds, moodTag, moodTags, sceneTag, page = 0, limit = 20, subjectKeys, productKind, platformFilter, cityId } = opts
   // 平台过滤（'only'）时，DB 层先放大抓取量，再在 JS 层 isPlatformProduct 过滤，保证当页有效条数充足
   const fetchLimit = platformFilter === 'only' ? limit * 5 : limit
   // 基础查询：所有活跃商品（带上 stores 信息用于 JS 过滤；现仅自营门店，partner_brand 已归并）
   let q = supabase.from('products').select('*, stores(id,name,image_url,is_platform)').not('is_active', 'eq', false)
     .order('created_at', { ascending: false }).range(page * fetchLimit, (page + 1) * fetchLimit - 1)
   if (storeId) q = q.eq('store_id', storeId)
-  if (categoryId) q = q.eq('category_id', categoryId)
+  // 分类过滤：优先集合（一级「全部」= 一级 + 其二级子类，兼容挂在任一层的商品）；否则单个 category_id
+  if (categoryIds && categoryIds.length) q = q.in('category_id', categoryIds)
+  else if (categoryId) q = q.eq('category_id', categoryId)
   // products 表无 category 文本列，只有 category_id(uuid)→store_categories(id)。
   // 按类目「名」筛选：先查 store_categories 拿 id，再 eq(category_id,...)。查不到则降级不添加过滤，避免 400 整页报错。
   if (categoryName) {

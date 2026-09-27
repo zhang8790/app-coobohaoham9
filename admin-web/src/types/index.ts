@@ -76,6 +76,8 @@ export interface StoreCategory {
   is_active: boolean
   /** 场景图标（emoji 文本）：金刚区/落地页读取，后台可编辑；库内为空时前端回退 🌿 */
   icon: string | null
+  /** 父分类 id：null=一级分类（场景）；非 null=二级分类 */
+  parent_id?: string | null
 }
 
 // 商品情绪编译结果（与小程序端共用 product_emotion 同一张表）
