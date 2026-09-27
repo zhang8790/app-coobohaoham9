@@ -9,6 +9,7 @@ import { supabase } from '@/client/supabase'
 import CustomTabBar from '@/components/custom-tabbar'
 import FloatingActionBar from '@/components/FloatingActionBar'
 import Icon from '@/components/Icon'
+import BrandMark from '@/components/BrandMark'
 import { RANK_COLOR_MAP } from '@/constants/ranks'
 import { buildRadarProfile, type RadarDim } from '@/utils/food-therapy/radar-profile'
 import { getCurrentTerm } from '@/utils/seasonal-box'
@@ -280,9 +281,9 @@ function UserPage() {
 {/* 顶部用户卡（绿沉浸式：与首页 hero 拉齐品牌感） */}
 {/* 顶部用户卡 */}
 <View className="px-4 relative overflow-hidden" style={{ background: 'linear-gradient(160deg,hsl(var(--primary)) 0%,hsl(var(--primary-deep)) 100%)', paddingTop: statusBarH + 14, paddingBottom: 0 }}>
-{/* 超级符号水印：放大镜查配料 —— 品牌视觉锤，降低传播成本（白色水印叠绿底） */}
-<Icon name="brand-detect" size={170} className="text-white"
-  style={{ position: 'absolute', right: -36, top: -28, opacity: 0.1, pointerEvents: 'none' }} />
+{/* 品牌符号水印：福袋 —— 品牌视觉锤，降低传播成本（白色水印叠绿底） */}
+<BrandMark tone="white" size={170}
+  style={{ position: 'absolute', right: -36, top: -28, opacity: 0.12, pointerEvents: 'none' }} />
 {/* 品牌标题行：药食同源 · 食疗零食 / 来店有喜 · 懂身体的好物（与首页 hero 一致） */}
 <View className="flex items-center gap-2.5 relative mb-3" style={{ zIndex: 1 }}>
   <View className="flex flex-col">

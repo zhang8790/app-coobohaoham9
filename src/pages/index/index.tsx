@@ -25,6 +25,7 @@ import { getProductCareInfo } from '@/utils/product-care'
 import { getCurrentTerm } from '@/utils/seasonal-box'
 import CategoryGrid from './CategoryGrid'
 import HomeBanner from './HomeBanner'
+import BrandMark from '@/components/BrandMark'
 
 // 首页 Banner 轮播 = 全站唯一广告位：由总后台「首页广告位」配置驱动（见 HomeBanner.tsx），
 // 未配置时回退内置的品牌价值主张三张。首页不再另设独立的「广告占位」块，避免重复曝光位。
@@ -563,6 +564,7 @@ const canUseFitFilter = selectedCrowds.length > 0 || !!consumptionProfile?.hasDa
 
  {/* 品牌标题行：来店有喜 · 药食同源食疗零食（最顶部，5秒懂你定位） */}
  <View className="flex items-center gap-2.5 relative" style={{ zIndex: 1 }}>
+ <BrandMark size={40} tone="brand" style={{ flexShrink: 0 }} />
  <View className="flex flex-col">
       <Text className="text-xs font-medium tracking-wide" style={{ color: 'hsl(var(--muted-foreground))' }}>药食同源原料｜日常轻养零食</Text>
       <Text className="text-xl font-bold leading-tight" style={{ color: 'hsl(var(--foreground))' }}>来店有喜·本草食养小食</Text>

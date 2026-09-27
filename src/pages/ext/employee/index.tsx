@@ -164,7 +164,7 @@ function EmployeePage() {
     <RouteGuard>
       <View className="min-h-screen bg-background pb-8">
         {/* 顶栏（2026-09-17 去暖色遗老，对齐中性灰白 + 主题绿设计系统） */}
-        <View className="px-4 pb-2" style={{ background: 'linear-gradient(160deg,#F2F2F2 0%,#F8F8F8 100%)' }}>
+        <View className="px-4 pb-2" style={{ background: 'linear-gradient(160deg,hsl(var(--primary-soft)) 0%,hsl(var(--background)) 100%)' }}>
           <Text className="text-2xl font-bold text-foreground">员工中心</Text>
           <Text className="text-base text-muted-foreground mt-1 block">{staffInfo.stores?.name || ownerStore?.name || '未知店铺'}</Text>
         </View>

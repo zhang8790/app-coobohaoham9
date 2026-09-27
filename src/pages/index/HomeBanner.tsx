@@ -123,7 +123,7 @@ export default function HomeBanner() {
                 padding: 18,
                 position: 'relative',
                 overflow: 'hidden',
-                background: s.image_url ? 'hsl(var(--primary-soft))' : (s.bg || 'linear-gradient(120deg,#FBEDE7,#FFFCFA)'),
+                background: s.image_url ? 'hsl(var(--primary-soft))' : (s.bg || 'linear-gradient(120deg,hsl(var(--primary-soft)) 0%,hsl(var(--primary-soft-deep)) 100%)'),
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',

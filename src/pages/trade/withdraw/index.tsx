@@ -229,7 +229,7 @@ function WithdrawPage() {
 
  {/* 余额卡 */}
  {mode === 'settlement' ? (
- <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, #059669, #15803D)' }}>
+ <View className="mx-4 mt-3 p-5 rounded-3xl" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-deep)) 100%)' }}>
  <Text className="text-xl text-white/80 mb-1">可结算货款（元）</Text>
  <Text className="text-4xl font-bold text-white">{merchantBalance.toLocaleString()}<Text className="text-xl ml-1">元</Text></Text>
  <Text className="text-xl text-white/70 mt-2">≈ ¥{availableYuan}（含健康豆支付等值部分，由总部统一结算）</Text>

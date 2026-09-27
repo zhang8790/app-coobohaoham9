@@ -1,0 +1,45 @@
+import { Image } from '@tarojs/components'
+import type { CSSProperties } from 'react'
+
+/**
+ * 来店有喜 · 品牌符号「福袋」
+ * 手绘线性福袋（束口钱袋 + 铜钱纹 + 星光），契合「来店有喜」的东方喜庆/福气调性，
+ * 作为全站统一品牌图腾（品牌区徽标 / 空状态插画 / 页头水印）。
+ * 沿用 iconBase64 体系：base64 SVG 经 <Image> 渲染（微信不支持 WXML 内联 <svg>）。
+ * 描边粗细 2.4、圆角端点，与线性图标族一致。
+ */
+export type BrandMarkTone = 'brand' | 'white' | 'ink' | 'soft'
+
+const DATA: Record<BrandMarkTone, string> = {
+  // 鼠尾草绿（品牌主色，浅底用）
+  brand:
+    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNUU3QTRGIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMzIgMjMgQzIwIDIzIDE0IDMyIDE0IDQxIEMxNCA1MSAyMiA1NiAzMiA1NiBDNDIgNTYgNTAgNTEgNTAgNDEgQzUwIDMyIDQ0IDIzIDMyIDIzIFoiLz48cGF0aCBkPSJNMjAgMjcgUTMyIDMzIDQ0IDI3Ii8+PGNpcmNsZSBjeD0iMzIiIGN5PSIyMSIgcj0iMy40Ii8+PHBhdGggZD0iTTMwIDE4IEMyNyAxMyAyMyAxMyAyMS41IDE2Ii8+PHBhdGggZD0iTTM0IDE4IEMzNyAxMyA0MSAxMyA0Mi41IDE2Ii8+PGNpcmNsZSBjeD0iMzIiIGN5PSIzOSIgcj0iNiIvPjxjaXJjbGUgY3g9IjMyIiBjeT0iMzkiIHI9IjIuNCIgZmlsbD0iIzVFN0E0RiIgc3Ryb2tlPSJub25lIi8+PHBhdGggZD0iTTQ5IDMwIGwxLjQgMi44IDIuOCAxLjQgLTIuOCAxLjQgLTEuNCAyLjggLTEuNCAtMi44IC0yLjggLTEuNCAyLjggLTEuNCB6IiBmaWxsPSIjNUU3QTRGIiBzdHJva2U9Im5vbmUiLz48L3N2Zz4=',
+  // 白色（深绿底水印用）
+  white:
+    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMzIgMjMgQzIwIDIzIDE0IDMyIDE0IDQxIEMxNCA1MSAyMiA1NiAzMiA1NiBDNDIgNTYgNTAgNTEgNTAgNDEgQzUwIDMyIDQ0IDIzIDMyIDIzIFoiLz48cGF0aCBkPSJNMjAgMjcgUTMyIDMzIDQ0IDI3Ii8+PGNpcmNsZSBjeD0iMzIiIGN5PSIyMSIgcj0iMy40Ii8+PHBhdGggZD0iTTMwIDE4IEMyNyAxMyAyMyAxMyAyMS41IDE2Ii8+PHBhdGggZD0iTTM0IDE4IEMzNyAxMyA0MSAxMyA0Mi41IDE2Ii8+PGNpcmNsZSBjeD0iMzIiIGN5PSIzOSIgcj0iNiIvPjxjaXJjbGUgY3g9IjMyIiBjeT0iMzkiIHI9IjIuNCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSJub25lIi8+PHBhdGggZD0iTTQ5IDMwIGwxLjQgMi44IDIuOCAxLjQgLTIuOCAxLjQgLTEuNCAyLjggLTEuNCAtMi44IC0yLjggLTEuNCAyLjggLTEuNCB6IiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9Im5vbmUiLz48L3N2Zz4=',
+  // 墨色（通用中性）
+  ink:
+    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzMzMzMzIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMzIgMjMgQzIwIDIzIDE0IDMyIDE0IDQxIEMxNCA1MSAyMiA1NiAzMiA1NiBDNDIgNTYgNTAgNTEgNTAgNDEgQzUwIDMyIDQ0IDIzIDMyIDIzIFoiLz48cGF0aCBkPSJNMjAgMjcgUTMyIDMzIDQ0IDI3Ii8+PGNpcmNsZSBjeD0iMzIiIGN5PSIyMSIgcj0iMy40Ii8+PHBhdGggZD0iTTMwIDE4IEMyNyAxMyAyMyAxMyAyMS41IDE2Ii8+PHBhdGggZD0iTTM0IDE4IEMzNyAxMyA0MSAxMyA0Mi41IDE2Ii8+PGNpcmNsZSBjeD0iMzIiIGN5PSIzOSIgcj0iNiIvPjxjaXJjbGUgY3g9IjMyIiBjeT0iMzkiIHI9IjIuNCIgZmlsbD0iIzMzMzMzMyIgc3Ryb2tlPSJub25lIi8+PHBhdGggZD0iTTQ5IDMwIGwxLjQgMi44IDIuOCAxLjQgLTIuOCAxLjQgLTEuNCAyLjggLTEuNCAtMi44IC0yLjggLTEuNCAyLjggLTEuNCB6IiBmaWxsPSIjMzMzMzMzIiBzdHJva2U9Im5vbmUiLz48L3N2Zz4=',
+  // 柔绿（空状态/轻装饰）
+  soft:
+    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOEFBMzdDIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMzIgMjMgQzIwIDIzIDE0IDMyIDE0IDQxIEMxNCA1MSAyMiA1NiAzMiA1NiBDNDIgNTYgNTAgNTEgNTAgNDEgQzUwIDMyIDQ0IDIzIDMyIDIzIFoiLz48cGF0aCBkPSJNMjAgMjcgUTMyIDMzIDQ0IDI3Ii8+PGNpcmNsZSBjeD0iMzIiIGN5PSIyMSIgcj0iMy40Ii8+PHBhdGggZD0iTTMwIDE4IEMyNyAxMyAyMyAxMyAyMS41IDE2Ii8+PHBhdGggZD0iTTM0IDE4IEMzNyAxMyA0MSAxMyA0Mi41IDE2Ii8+PGNpcmNsZSBjeD0iMzIiIGN5PSIzOSIgcj0iNiIvPjxjaXJjbGUgY3g9IjMyIiBjeT0iMzkiIHI9IjIuNCIgZmlsbD0iIzhBQTM3QyIgc3Ryb2tlPSJub25lIi8+PHBhdGggZD0iTTQ5IDMwIGwxLjQgMi44IDIuOCAxLjQgLTIuOCAxLjQgLTEuNCAyLjggLTEuNCAtMi44IC0yLjggLTEuNCAyLjggLTEuNCB6IiBmaWxsPSIjOEFBMzdDIiBzdHJva2U9Im5vbmUiLz48L3N2Zz4=',
+}
+
+export interface BrandMarkProps {
+  size?: number
+  tone?: BrandMarkTone
+  className?: string
+  style?: CSSProperties
+}
+
+/** 福袋品牌符号。size 单位 px；tone 控制描边色（brand/white/ink/soft）。 */
+export default function BrandMark({ size = 64, tone = 'brand', className, style }: BrandMarkProps) {
+  return (
+    <Image
+      src={DATA[tone]}
+      className={className}
+      style={{ width: size, height: size, ...style }}
+      mode="aspectFit"
+    />
+  )
+}

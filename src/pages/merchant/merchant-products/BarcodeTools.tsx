@@ -122,7 +122,7 @@ export default function BarcodeTools({ store }: { store: Store | null }) {
         <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: '24rpx', marginTop: '6px', lineHeight: '18px' }}>为无原厂码商品生成合法 EAN-13 店内码，打印空白标签贴商品；再去上方「扫码上架」扫此码即可建档上架。</Text>
         <View
           onClick={genBarcode}
-          style={{ marginTop: '12px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', borderRadius: '12px', background: genLoading ? '#374151' : 'linear-gradient(135deg,#15803D,#059669)' }}>
+          style={{ marginTop: '12px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', borderRadius: '12px', background: genLoading ? '#374151' : 'linear-gradient(135deg,hsl(var(--primary)) 0%,hsl(var(--primary-deep)) 100%)' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {genLoading ? null : <Icon name="qrcode-scan" size={14} className="text-white" />}
             <Text style={{ color: '#FFF', fontSize: '28rpx', fontWeight: 'bold' }}>{genLoading ? '生成中…' : '生成新店内码'}</Text>
