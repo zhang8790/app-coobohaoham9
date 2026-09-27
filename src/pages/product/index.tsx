@@ -435,21 +435,6 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
 
  </View>
 
- {/* 门店卡：电商惯例——价格区之后立刻交代「谁在卖」，建立信任并提供进店出口 */}
- {product.stores && (
- <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border flex items-center gap-3"
- onClick={() => Taro.navigateTo({ url: `/pages/store-home/index?id=${product.store_id}` })}>
- <View className="w-11 h-11 rounded-xl bg-primary_f10 flex-shrink-0 flex items-center justify-center">
- <Icon name="store" size={24} className="text-primary" />
- </View>
- <View className="flex-1">
- <Text className="text-xl font-bold text-foreground block">{(product.stores as any)?.name}</Text>
- <Text className="text-base text-muted-foreground block">点击进入门店</Text>
- </View>
- <Icon name="chevron-right" size={20} className="text-muted-foreground" />
- </View>
- )}
-
  {/* 购买数量：紧随价格/门店，属于下单前的配置区（与底部结算栏呼应） */}
  <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border flex items-center justify-between">
  <View>
