@@ -114,7 +114,7 @@ def build_rows(csv_path, store_id, cat_by_name):
         label = (r.get('category_label') or '').strip() or {
             'children': '宝宝零食', 'pregnant': '孕产营养', 'elderly': '老年养生',
             'sleep': '舒心食养', 'digestion': '肠胃食养', 'immunity': '温润食养',
-            'allergy': '敏感防护', 'overtime': '熬夜加班'}.get(r['category_key'], '')
+            'allergy': '敏感防护', 'overtime': '熬夜加餐'}.get(r['category_key'], '')
 
         ing = [x.strip() for x in r['ingredients_text'].replace('、', ',').split(',') if x.strip()]
         hit_restr = [x for x in RESTRICTED_SHIYAO if any(x in i for i in ing)]

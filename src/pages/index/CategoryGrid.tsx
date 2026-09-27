@@ -30,6 +30,9 @@ const SCENE_ALIAS: Record<string, string> = {
   '体虚调理': '温润食养',
   '肠胃养护': '肠胃食养',
   '熬夜党': '熬夜加餐',
+  // DB 改名迁移把「熬夜党」写成了「熬夜加班」（笔误），桥接回拍板名「熬夜加餐」；
+  // 待 DB 修正为「熬夜加餐」后此条自动失效。
+  '熬夜加班': '熬夜加餐',
 }
 
 export default function CategoryGrid({ storeId }: { storeId?: string }) {

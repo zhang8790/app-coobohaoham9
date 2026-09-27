@@ -8,6 +8,9 @@ UPDATE public.store_categories SET name = '舒心食养' WHERE name = '睡前安
 UPDATE public.store_categories SET name = '温润食养' WHERE name = '体虚调理';
 UPDATE public.store_categories SET name = '肠胃食养' WHERE name = '肠胃养护';
 UPDATE public.store_categories SET name = '熬夜加餐' WHERE name = '熬夜党';
+-- 20260921 种子库直接写入的「熬夜加班」（旧名变体），同样归一到拍板名「熬夜加餐」。
+-- 线上实测 8 个一级场景为 0921 种子名，上面 5 条为 0 行属预期；本条才是关键修正。
+UPDATE public.store_categories SET name = '熬夜加餐' WHERE name = '熬夜加班';
 
 -- 名称已改，按新名补图标（幂等：仅当 icon 为空时写回，避免覆盖后台自定义 emoji）
 UPDATE public.store_categories SET icon = '👵' WHERE name = '老年养生' AND icon IS NULL;
