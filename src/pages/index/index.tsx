@@ -31,9 +31,9 @@ import HomeBanner from './HomeBanner'
 
 // 为你而定横滑卡片的马卡龙渐变底（绿/紫/棕轮换），呼应截图差异卖点的轻快观感
 const MACARON = [
-  'linear-gradient(150deg,hsl(var(--primary-soft-deep)),#F0D6CC)',
-  'linear-gradient(150deg,#E3D5F0,#C9B0E0)',
-  'linear-gradient(150deg,#F3E0C8,#E6C49E)',
+  'linear-gradient(150deg,hsl(var(--primary-soft)),hsl(var(--primary-soft-deep)))',
+  'linear-gradient(150deg,#F6E9D8,#EAD7BC)',
+  'linear-gradient(150deg,#E9EDE2,#D6E0CC)',
 ]
 
 import { readFeedCache, writeFeedCache, readConsumeCache, writeConsumeCache, mergeFeedbackIntoProfile, classifyProductList } from './home-utils'
@@ -564,8 +564,8 @@ const canUseFitFilter = selectedCrowds.length > 0 || !!consumptionProfile?.hasDa
  {/* 品牌标题行：来店有喜 · 药食同源食疗零食（最顶部，5秒懂你定位） */}
  <View className="flex items-center gap-2.5 relative" style={{ zIndex: 1 }}>
  <View className="flex flex-col">
-      <Text className="text-xs font-medium tracking-wide" style={{ color: 'hsl(var(--muted-foreground))' }}>药食同源 · 食疗零食</Text>
-      <Text className="text-xl font-bold leading-tight" style={{ color: 'hsl(var(--foreground))' }}>来店有喜 · 懂身体的好物</Text>
+      <Text className="text-xs font-medium tracking-wide" style={{ color: 'hsl(var(--muted-foreground))' }}>药食同源原料｜日常轻养零食</Text>
+      <Text className="text-xl font-bold leading-tight" style={{ color: 'hsl(var(--foreground))' }}>来店有喜·本草食养小食</Text>
  </View>
  </View>
 
@@ -597,7 +597,7 @@ hoverClass="none"
 onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}
 >
 <Text style={{ fontSize: '30rpx' }}>🔍</Text>
-<Text className="text-sm text-muted-foreground">搜索好物</Text>
+<Text className="text-sm text-muted-foreground">搜食养好物</Text>
 </View>
 {/* 分隔线 */}
 <View style={{ width: 1, height: 18, background: 'hsl(var(--border))', flexShrink: 0 }} />

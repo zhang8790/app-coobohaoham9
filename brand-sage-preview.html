@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>来店有喜 · 鼠尾草绿品牌规范预览</title>
+<style>
+  /* ===== 锁定品牌令牌（张林 2026-09-27 拍板）===== */
+  :root{
+    --rice:#F6F3EA;        /* 米白宣纸底 */
+    --rice-2:#EFEBDD;      /* 宣纸底渐变深 */
+    --card:#FFFDF8;        /* 暖白卡 */
+    --sage:#7C8A6B;        /* 鼠尾草绿（主色） */
+    --sage-deep:#5E6B4C;   /* 深鼠尾草（可达 WCAG AA 承字） */
+    --sage-soft:#E9EDE2;   /* 浅鼠尾草底 */
+    --apricot:#D9A978;     /* 暖杏（辅助） */
+    --apricot-soft:#F6E9D8;/* 浅暖杏底 */
+    --ink:#33352E;         /* 主文字（暖墨） */
+    --ink-soft:#6E6B5F;    /* 辅助文字 */
+    --ink-faint:rgba(51,53,46,.12);
+    --r-lg:22px; --r-md:16px; --r-sm:12px;
+    --shadow-soft:0 16px 40px rgba(60,60,45,.10);
+    --shadow-card:0 8px 24px rgba(60,60,45,.08);
+    --line:1.7px;
+    --sans:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+    --serif:"Songti SC","STSong","SimSun",serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  html,body{height:100%;}
+  body{
+    font-family:var(--sans); color:var(--ink);
+    background:
+      radial-gradient(900px 500px at 12% -8%, #fbf8ef 0%, transparent 60%),
+      radial-gradient(700px 420px at 105% 8%, #efe7d6 0%, transparent 55%),
+      linear-gradient(180deg,#f3efe4 0%, #ece6d7 100%);
+    min-height:100vh; padding:26px 14px 40px;
+  }
+
+  /* ===== 预览页头 ===== */
+  .preview-head{max-width:1080px; margin:0 auto 22px; display:flex; flex-wrap:wrap;
+    align-items:flex-end; justify-content:space-between; gap:14px;}
+  .preview-head h1{font-family:var(--serif); font-size:24px; font-weight:700; letter-spacing:1px;}
+  .preview-head p{font-size:12.5px; color:var(--ink-soft); margin-top:5px; line-height:1.6; max-width:560px;}
+  .badge{display:inline-block; font-size:11px; font-weight:700; color:var(--sage-deep);
+    background:var(--sage-soft); padding:4px 11px; border-radius:20px; margin-left:8px; letter-spacing:.5px;}
+
+  .switcher{display:flex; gap:8px; background:var(--card); padding:6px; border-radius:16px; box-shadow:var(--shadow-card);}
+  .switcher button{border:0; background:transparent; font-family:var(--sans); font-size:13px; font-weight:600;
+    color:var(--ink-soft); padding:9px 18px; border-radius:11px; cursor:pointer; transition:.25s;}
+  .switcher button.on{background:var(--sage); color:#fff; box-shadow:0 6px 14px rgba(124,138,107,.34);}
+
+  /* ===== 布局 ===== */
+  .stage{max-width:1080px; margin:0 auto; display:flex; gap:26px; align-items:flex-start; flex-wrap:wrap; justify-content:center;}
+  .phone-wrap{display:flex; gap:26px; flex-wrap:wrap; justify-content:center;}
+  .hidden{display:none !important;}
+
+  /* ===== 手机外框 ===== */
+  .phone{width:390px; height:840px; background:var(--rice);
+    border-radius:46px; box-shadow:0 40px 90px rgba(50,48,38,.26), 0 0 0 11px #2c2a22, 0 0 0 13px #463f33;
+    overflow:hidden; position:relative; display:flex; flex-direction:column; transition:transform .5s cubic-bezier(.16,1,.3,1);}
+  .notch{position:absolute; top:0; left:50%; transform:translateX(-50%); width:150px; height:30px;
+    background:#2c2a22; border-radius:0 0 18px 18px; z-index:60;}
+  .statusbar{height:50px; display:flex; align-items:center; justify-content:space-between;
+    padding:14px 26px 0; font-size:13px; font-weight:600; color:var(--ink); position:relative; z-index:55;}
+  .statusbar .dots{display:flex; gap:5px; align-items:center;}
+  .statusbar .dots i{width:6px;height:6px;border-radius:50%;background:var(--ink);display:inline-block;opacity:.85;}
+  .battery{width:24px;height:12px;border:1.5px solid var(--ink);border-radius:3px;position:relative;opacity:.85;}
+  .battery::after{content:"";position:absolute;right:-3px;top:3px;width:2px;height:6px;background:var(--ink);border-radius:1px;}
+  .battery::before{content:"";position:absolute;left:1.5px;top:1.5px;bottom:1.5px;width:14px;background:var(--ink);border-radius:1px;}
+
+  .scroll{flex:1; overflow-y:auto; overflow-x:hidden; scroll-behavior:smooth; background:var(--rice);}
+  .scroll::-webkit-scrollbar{width:0;}
+  .pad{padding:0 18px;}
+
+  /* 线性图标通用 */
+  .li{stroke:currentColor; stroke-width:var(--line); fill:none; stroke-linecap:round; stroke-linejoin:round;}
+
+  /* 顶部品牌条（自定义导航） */
+  .topbar{display:flex; align-items:center; justify-content:space-between; padding:8px 20px 6px; position:relative; z-index:5;}
+  .brand{font-family:var(--serif); font-size:21px; font-weight:700; letter-spacing:2px; color:var(--ink);}
+  .brand small{font-family:var(--sans); font-size:10px; letter-spacing:1px; color:var(--ink-soft); display:block; font-weight:500; margin-top:-2px;}
+  .store{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-soft);
+    background:var(--card); padding:7px 11px; border-radius:20px; box-shadow:var(--shadow-card);}
+  .store b{color:var(--sage-deep); font-weight:700;}
+
+  /* HERO（宣纸底 · 鼠尾草绿沉浸） */
+  .hero{position:relative; margin:6px 14px 4px; border-radius:var(--r-lg); overflow:hidden;
+    background:linear-gradient(155deg,var(--sage) 0%, var(--sage-deep) 78%);
+    padding:24px 22px 22px; box-shadow:var(--shadow-soft); min-height:230px; color:#fff;}
+  .hero .leafblob{position:absolute; right:-26px; top:-26px; width:150px;height:150px; border-radius:50%;
+    background:rgba(255,255,255,.10); filter:blur(2px);}
+  .hero .leafblob.b{left:-34px; bottom:-40px; width:120px;height:120px; background:rgba(255,255,255,.07);}
+  .hero-inner{position:relative; z-index:2;}
+  .kicker{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600;
+    color:#fff; background:rgba(255,255,255,.18); padding:5px 11px; border-radius:20px; letter-spacing:.5px;}
+  .hero h1{font-family:var(--serif); font-size:30px; line-height:1.28; font-weight:700; margin:14px 0 8px;}
+  .hero p{font-size:12.5px; line-height:1.6; opacity:.92; max-width:240px;}
+  .trust{margin-top:13px; font-size:11px; opacity:.9; display:flex; align-items:center; gap:6px;}
+
+  /* 搜索 + 扫码 一体卡 */
+  .searchcard{margin:14px 14px 2px; background:var(--card); border-radius:var(--r-md); padding:6px; box-shadow:var(--shadow-card);
+    display:flex; align-items:stretch;}
+  .searchcard .sf{flex:1; display:flex; align-items:center; gap:9px; padding:11px 12px; color:var(--ink-soft); font-size:13px;}
+  .searchcard .sf .li{width:18px;height:18px;color:var(--sage);}
+  .searchcard .divider{width:1px; background:var(--ink-faint); margin:8px 0;}
+  .searchcard .scan{flex:0 0 96px; display:flex; align-items:center; justify-content:center; gap:6px;
+    color:var(--sage-deep); font-size:12.5px; font-weight:600; cursor:pointer;}
+
+  /* 通用区块标题 */
+  section{margin-top:20px;}
+  .sec-head{display:flex; align-items:flex-end; justify-content:space-between; padding:0 18px; margin-bottom:11px;}
+  .sec-head .eyebrow{font-size:11px; font-weight:600; color:var(--sage-deep); letter-spacing:1px;}
+  .sec-head h2{font-family:var(--serif); font-size:18px; font-weight:700; color:var(--ink); letter-spacing:.5px; margin-top:2px;}
+  .sec-head .more{font-size:11px; color:var(--sage); font-weight:600;}
+  .bar{display:inline-block; width:4px; height:15px; background:var(--sage); border-radius:3px; margin-right:7px; vertical-align:-2px;}
+
+  /* 八大场景（线性图标 · 圆角方块底） */
+  .scenes{display:grid; grid-template-columns:repeat(4,1fr); gap:9px; padding:0 14px;}
+  .scene{background:var(--card); border-radius:var(--r-md); padding:13px 4px 11px; text-align:center; box-shadow:var(--shadow-card);
+    transition:transform .3s cubic-bezier(.16,1,.3,1), box-shadow .3s;}
+  .scene:hover{transform:translateY(-3px); box-shadow:0 12px 22px rgba(60,60,45,.12);}
+  .scene .ic{width:38px;height:38px;margin:0 auto 7px;border-radius:12px;display:grid;place-items:center;color:var(--sage);
+    background:var(--sage-soft);}
+  .scene .ic .li{width:21px;height:21px;}
+  .scene span{font-size:11.5px; font-weight:600; color:var(--ink);}
+
+  /* 为你而定 / 甄选好物 横滑 */
+  .rail-head{padding:0 18px; margin-bottom:11px;}
+  .rail{display:flex; gap:12px; overflow-x:auto; padding:0 18px 4px; scroll-snap-type:x mandatory;}
+  .rail::-webkit-scrollbar{height:0;}
+  .railcard{flex:0 0 150px; background:var(--card); border-radius:var(--r-md); overflow:hidden; box-shadow:var(--shadow-card);
+    scroll-snap-align:start; transition:transform .3s;}
+  .railcard:hover{transform:translateY(-4px);}
+  .railcard .img{height:96px; display:grid; place-items:center; font-size:40px; position:relative;}
+  .railcard .tag{position:absolute; top:8px; left:8px; background:rgba(255,253,248,.92); color:var(--sage-deep);
+    font-size:9.5px; font-weight:700; padding:3px 7px; border-radius:20px;}
+  .railcard .body{padding:9px 10px 11px;}
+  .railcard .nm{font-size:12px; font-weight:600; line-height:1.4; margin-bottom:7px; min-height:32px;}
+  .railcard .row{display:flex; align-items:center; justify-content:space-between;}
+  .railcard .price{color:var(--apricot); font-weight:700; font-size:14px;}
+  .railcard .price small{font-size:9px; color:var(--ink-soft); font-weight:500;}
+  .add{width:26px;height:26px;border-radius:50%; background:var(--sage); color:#fff; display:grid; place-items:center;}
+  .add .li{width:15px;height:15px;}
+
+  /* 食养好物双列 */
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:0 14px 8px;}
+  .card{background:var(--card); border-radius:var(--r-md); overflow:hidden; box-shadow:var(--shadow-card); transition:transform .35s;}
+  .card:hover{transform:translateY(-5px); box-shadow:0 16px 30px rgba(60,60,45,.12);}
+  .card .img{height:116px; position:relative; display:grid; place-items:center; font-size:44px;}
+  .card .img .fit{position:absolute; top:9px; right:9px; background:rgba(255,253,248,.92); color:var(--sage-deep);
+    font-size:10px; font-weight:700; padding:4px 8px; border-radius:20px;}
+  .card .body{padding:11px 12px 13px;}
+  .card .nm{font-size:13px; font-weight:600; line-height:1.4; margin-bottom:8px; min-height:34px;}
+  .card .tags{display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;}
+  .card .tag{font-size:10px; padding:3px 8px; border-radius:8px; font-weight:600;}
+  .tag.sage{background:var(--sage-soft); color:var(--sage-deep);}
+  .tag.apr{background:var(--apricot-soft); color:#9a6b35;}
+  .card .price{display:flex; align-items:center; justify-content:space-between;}
+  .card .price .bean{color:var(--apricot); font-weight:700; font-size:15px;}
+  .card .price .bean small{font-size:10px; font-weight:500; color:var(--ink-soft);}
+
+  /* 底部 tabBar（线性图标） */
+  .tabbar{height:66px; background:rgba(246,243,234,.96); backdrop-filter:blur(10px);
+    border-top:1px solid var(--ink-faint); display:flex; align-items:center; justify-content:space-around; padding-bottom:6px;}
+  .tab{display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10px; color:var(--ink-soft);}
+  .tab .li{width:22px;height:22px;}
+  .tab.active{color:var(--sage-deep); font-weight:700;}
+  .tab.active .lic{color:var(--sage);}
+
+  /* ============ 商品详情页 ============ */
+  .pdp-hero{position:relative; background:#fff; }
+  .pdp-swiper{height:300px; position:relative; display:grid; place-items:center; font-size:96px;
+    background:linear-gradient(160deg,var(--sage-soft),var(--apricot-soft));}
+  .pdp-dots{position:absolute; bottom:14px; left:50%; transform:translateX(-50%); display:flex; gap:6px;}
+  .pdp-dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.7);}
+  .pdp-dots i.on{width:18px;background:#fff;}
+  .pdp-back{position:absolute; top:12px; left:14px; width:34px;height:34px;border-radius:50%; background:rgba(255,253,248,.9);
+    display:grid; place-items:center; color:var(--ink); box-shadow:var(--shadow-card);}
+  .pdp-back .li{width:18px;height:18px;}
+
+  .pricecard{margin:-14px 14px 0; background:var(--card); border-radius:var(--r-lg); padding:16px 18px; box-shadow:var(--shadow-soft); position:relative; z-index:3;}
+  .pricecard .nm{font-size:18px; font-weight:700; line-height:1.4;}
+  .pricecard .spec{font-size:11px; color:var(--ink-soft); margin-top:4px;}
+  .pricecard .prow{display:flex; align-items:flex-end; justify-content:space-between; margin-top:12px;}
+  .pricecard .price{color:var(--apricot); font-weight:700; font-size:24px;}
+  .pricecard .price small{font-size:12px; font-weight:500; color:var(--ink-soft);}
+  .pricecard .safe{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:var(--sage-deep);
+    background:var(--sage-soft); padding:6px 11px; border-radius:20px;}
+  .pricecard .safe .li{width:15px;height:15px;}
+
+  .storecard{margin:12px 14px 0; background:var(--card); border-radius:var(--r-md); padding:13px 15px; box-shadow:var(--shadow-card);
+    display:flex; align-items:center; justify-content:space-between;}
+  .storecard .l{display:flex; align-items:center; gap:10px;}
+  .storecard .lic{width:34px;height:34px;border-radius:10px;background:var(--apricot-soft);color:var(--apricot);display:grid;place-items:center;}
+  .storecard .lic .li{width:19px;height:19px;}
+  .storecard .t{font-size:13px; font-weight:600;}
+  .storecard .s{font-size:10.5px; color:var(--ink-soft);}
+  .storecard .go{font-size:12px; color:var(--sage); font-weight:600;}
+
+  .qty{margin:12px 14px 0; background:var(--card); border-radius:var(--r-md); padding:13px 15px; box-shadow:var(--shadow-card);
+    display:flex; align-items:center; justify-content:space-between;}
+  .qty .t{font-size:13px; font-weight:600;}
+  .stepper{display:flex; align-items:center; gap:12px;}
+  .stepper .b{width:28px;height:28px;border-radius:50%; border:1.5px solid var(--ink-faint); color:var(--ink); display:grid; place-items:center;}
+  .stepper .b .li{width:15px;height:15px;}
+  .stepper .n{font-size:15px; font-weight:700; min-width:20px; text-align:center;}
+
+  .block{margin:14px 14px 0; background:var(--card); border-radius:var(--r-md); padding:15px 16px; box-shadow:var(--shadow-card);}
+  .block .bh{display:flex; align-items:center; gap:7px; font-size:14px; font-weight:700; margin-bottom:10px;}
+  .block .bh .lic{width:24px;height:24px;border-radius:8px;background:var(--sage-soft);color:var(--sage-deep);display:grid;place-items:center;}
+  .block .bh .lic .li{width:14px;height:14px;}
+  .block .bh .num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--sage);color:#fff;font-size:11px;font-weight:700;}
+  .ingredient{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;}
+  .ingredient span{font-size:11px; padding:4px 10px; border-radius:8px; background:var(--rice); color:var(--ink); border:1px solid var(--ink-faint);}
+  .copy{font-size:12px; line-height:1.7; color:var(--ink-soft);}
+  .copy b{color:var(--ink); font-weight:600;}
+  .safeline{display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--sage-deep); font-weight:600; margin-top:10px;}
+  .safeline .li{width:15px;height:15px;}
+  .disclaimer{font-size:10.5px; color:var(--ink-soft); line-height:1.6; margin-top:12px; padding-top:10px; border-top:1px dashed var(--ink-faint);}
+  .detail-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px;}
+  .detail-grid .d{background:var(--rice); border-radius:10px; padding:9px 11px;}
+  .detail-grid .d .k{font-size:10px; color:var(--ink-soft);}
+  .detail-grid .d .v{font-size:12.5px; font-weight:600; margin-top:2px;}
+
+  .pdp-foot{height:64px; background:rgba(246,243,234,.97); backdrop-filter:blur(10px); border-top:1px solid var(--ink-faint);
+    display:flex; align-items:center; gap:10px; padding:0 14px 6px;}
+  .pdp-foot .ic{width:34px;height:34px;border-radius:12px;background:var(--rice);display:grid;place-items:center;color:var(--ink-soft);}
+  .pdp-foot .ic .li{width:20px;height:20px;}
+  .pdp-foot .buy{flex:1; height:46px; border-radius:14px; background:var(--sage); color:#fff; font-size:15px; font-weight:700;
+    display:grid; place-items:center; box-shadow:0 10px 22px rgba(124,138,107,.36);}
+
+  /* ===== 令牌面板 ===== */
+  .tokens{flex:1; min-width:300px; max-width:360px; background:var(--card); border-radius:var(--r-lg); padding:22px; box-shadow:var(--shadow-soft);}
+  .tokens h3{font-family:var(--serif); font-size:17px; font-weight:700; margin-bottom:3px;}
+  .tokens .sub{font-size:11px; color:var(--ink-soft); margin-bottom:16px;}
+  .sw{display:flex; align-items:center; gap:12px; margin-bottom:11px;}
+  .sw .chip{width:46px;height:46px;border-radius:12px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.06); flex:0 0 46px;}
+  .sw .meta b{display:block; font-size:13px; font-weight:700;}
+  .sw .meta code{font-size:11px; color:var(--ink-soft);}
+  .sw .meta .v{font-size:11px; color:var(--sage-deep); font-weight:600;}
+  .tline{height:1px; background:var(--ink-faint); margin:16px 0;}
+  .tnote{font-size:11.5px; line-height:1.7; color:var(--ink-soft);}
+  .tnote b{color:var(--ink);}
+  .legend-row{display:flex; align-items:center; gap:9px; font-size:12px; margin-bottom:9px; color:var(--ink-soft);}
+  .legend-row .lic{width:30px;height:30px;border-radius:9px;background:var(--sage-soft);color:var(--sage-deep);display:grid;place-items:center; flex:0 0 30px;}
+  .legend-row .lic .li{width:16px;height:16px;}
+
+  .footpad{height:18px;}
+  .tip{max-width:1080px; margin:22px auto 0; font-size:11.5px; color:var(--ink-soft); line-height:1.7; padding:0 6px;}
+  .tip b{color:var(--ink);}
+</style>
+</head>
+<body>
+
+  <div class="preview-head">
+    <div>
+      <h1>来店有喜 · 品牌规范预览<span class="badge">鼠尾草绿 · 2026-09-27 拍板</span></h1>
+      <p>按你今日锁定的核心规范重做：米白宣纸底 · 鼠尾草绿主色 · 暖杏辅助 · 大圆角轻阴影 · 统一线性图标 · 文案只讲原料/口感/场景（合规红线延伸）。点击下方切换页面。</p>
+    </div>
+    <div class="switcher">
+      <button id="btn-home" class="on" onclick="show('home')">首页</button>
+      <button id="btn-pdp" onclick="show('pdp')">商品详情</button>
+      <button id="btn-token" onclick="show('token')">设计令牌</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="phone-wrap" id="screens">
+      <!-- ============ 首页 ============ -->
+      <div class="phone" id="phone-home">
+        <div class="notch"></div>
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="dots"><i></i><i></i><i></i> &nbsp; 5G &nbsp; <span class="battery"></span></span>
+        </div>
+        <div class="scroll">
+          <div class="topbar">
+            <div class="brand">来店有喜<small>LAIDIAN YOUXI</small></div>
+            <div class="store">📍 <b>三里屯店</b> · 自提</div>
+          </div>
+
+          <!-- HERO -->
+          <div class="hero">
+            <span class="leafblob"></span><span class="leafblob b"></span>
+            <div class="hero-inner">
+              <span class="kicker">
+                <svg class="li" viewBox="0 0 24 24" width="13" height="13"><path d="M12 21c0-6 3-10 8-12-1 7-4 11-8 12Z"/><path d="M12 21C9 16 6 13 3 12c2 5 5 8 9 9Z"/></svg>
+                药食同源 · 食疗零食
+              </span>
+              <h1>看得懂配料<br>吃得也安心</h1>
+              <p>自研配料数据库，每一口都讲得清原料、口感与场景。</p>
+              <div class="trust">
+                <svg class="li" viewBox="0 0 24 24" width="13" height="13"><path d="M4 19V5m0 14h16M8 15l3-4 3 3 4-6"/></svg>
+                已解读 12.8 万款零食配料
+              </div>
+            </div>
+          </div>
+
+          <!-- 搜索 + 扫码 -->
+          <div class="searchcard">
+            <div class="sf">
+              <svg class="li" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              搜原料、口感或场景
+            </div>
+            <div class="divider"></div>
+            <div class="scan" onclick="alert('跳转扫码识别配料')">
+              <svg class="li" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 0 1 1h3M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M4 12h16"/></svg>
+              扫码配料
+            </div>
+          </div>
+
+          <!-- 八大食养场景 -->
+          <section>
+            <div class="sec-head">
+              <div><div class="eyebrow">按场景挑好物</div><h2><span class="bar"></span>八大食养场景</h2></div>
+              <div class="more">全部 ›</div>
+            </div>
+            <div class="scenes">
+              <div class="scene"><div class="ic"><svg class="li" viewBox="0 0 24 24"><path d="M9 4h6v3l-1 2v3a4 4 0 0 1-4 4 4 4 0 0 1-4-4V9L9 7Z"/><path d="M10 17v2a2 2 0 0 0 4 0v-2"/></svg></div><span>宝宝零食</span></div>
+              <div class="scene"><div class="ic"><svg class="li" viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-9a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 4.5-7 9-7 9Z"/></svg></div><span>孕产营养</span></div>
+              <div class="scene"><div class="ic"><svg class="li" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3M6.5 6.5l2 2M15.5 15.5l2 2M17.5 6.5l-2 2M8.5 15.5l-2 2"/></svg></div><span>银发呵护</span></div>
+              <div class="scene"><div class="ic"><svg class="li" viewBox="0 0 24 24"><path d="M20 14a8 8 0 1 1-9-9 6 6 0 0 0 9 9Z"/></svg></div><span>睡前安适</span></div>
+              <div class="scene"><div class="ic"><svg class="li" viewBox="0 0 24 24"><path d="M4 11h16a8 8 0 0 1-16 0Z"/><path d="M7 11a5 5 0 0 0 10 0M12 11v6"/></svg></div><span>肠胃养护</span></div>
+              <div class="scene"><div class="ic"><svg class="li" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6Z"/><path d="M12 8v6M9 11h6"/></svg></div><span>体虚调理</span></div>
+              <div class="scene"><div class="ic"><svg class="li" viewBox="0 0 24 24"><path d="M12 3l2.4 5.3L20 9l-4 4 1 6-5-2.8L7 19l1-6-4-4 5.6-.7Z"/></svg></div><span>熬夜党</span></div>
+              <div class="scene"><div class="ic"><svg class="li" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6Z"/></svg></div><span>敏感防护</span></div>
+            </div>
+          </section>
+
+          <!-- 为你而定 / 甄选好物 -->
+          <section>
+            <div class="rail-head">
+              <div class="eyebrow">为你而定</div>
+              <h2 style="font-family:var(--serif);font-size:18px;font-weight:700;margin-top:2px;"><span class="bar"></span>甄选好物</h2>
+            </div>
+            <div class="rail">
+              <div class="railcard"><div class="img" style="background:linear-gradient(140deg,#e9ede2,#d6e0cc)">🍪<span class="tag">温和食养</span></div>
+                <div class="body"><div class="nm">山药小米酥</div><div class="row"><span class="price">89<small> 金豆</small></span>
+                  <span class="add"><svg class="li" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div></div></div>
+              <div class="railcard"><div class="img" style="background:linear-gradient(140deg,#f6e9d8,#ecd6b8)">🌰<span class="tag">睡前安适</span></div>
+                <div class="body"><div class="nm">莲子百合燕麦羹</div><div class="row"><span class="price">76<small> 金豆</small></span>
+                  <span class="add"><svg class="li" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div></div></div>
+              <div class="railcard"><div class="img" style="background:linear-gradient(140deg,#e9ede2,#d6e0cc)">🫘<span class="tag">低糖轻食</span></div>
+                <div class="body"><div class="nm">鹰嘴豆脆</div><div class="row"><span class="price">65<small> 金豆</small></span>
+                  <span class="add"><svg class="li" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div></div></div>
+              <div class="railcard"><div class="img" style="background:linear-gradient(140deg,#f6e9d8,#ecd6b8)">🍠<span class="tag">成长轻养</span></div>
+                <div class="body"><div class="nm">南瓜籽谷物棒</div><div class="row"><span class="price">72<small> 金豆</small></span>
+                  <span class="add"><svg class="li" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div></div></div>
+            </div>
+          </section>
+
+          <!-- 食养好物双列 -->
+          <section>
+            <div class="sec-head">
+              <div><div class="eyebrow">按食养适配挑选</div><h2><span class="bar"></span>食养好物</h2></div>
+              <div class="more">更多 ›</div>
+            </div>
+            <div class="grid">
+              <div class="card"><div class="img" style="background:linear-gradient(140deg,#e9ede2,#d6e0cc)">🍪<span class="fit">适配 96</span></div>
+                <div class="body"><div class="nm">山药小米酥 · 无添加蔗糖</div>
+                  <div class="tags"><span class="tag sage">温和食养</span><span class="tag apr">米香酥脆</span></div>
+                  <div class="price"><span class="bean">89<small> 金豆</small></span><span class="add"><svg class="li" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div></div></div>
+              <div class="card"><div class="img" style="background:linear-gradient(140deg,#f6e9d8,#ecd6b8)">🌰<span class="fit">适配 93</span></div>
+                <div class="body"><div class="nm">莲子百合燕麦羹</div>
+                  <div class="tags"><span class="tag sage">睡前安适</span><span class="tag apr">温润顺滑</span></div>
+                  <div class="price"><span class="bean">76<small> 金豆</small></span><span class="add"><svg class="li" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div></div></div>
+              <div class="card"><div class="img" style="background:linear-gradient(140deg,#f6e9d8,#ecd6b8)">🫘<span class="fit">适配 91</span></div>
+                <div class="body"><div class="nm">低糖鹰嘴豆脆</div>
+                  <div class="tags"><span class="tag apr">低糖轻食</span><span class="tag sage">咸香酥脆</span></div>
+                  <div class="price"><span class="bean">65<small> 金豆</small></span><span class="add"><svg class="li" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div></div></div>
+              <div class="card"><div class="img" style="background:linear-gradient(140deg,#e9ede2,#d6e0cc)">🍠<span class="fit">适配 89</span></div>
+                <div class="body"><div class="nm">南瓜籽谷物棒</div>
+                  <div class="tags"><span class="tag sage">成长轻养</span><span class="tag apr">坚果焦香</span></div>
+                  <div class="price"><span class="bean">72<small> 金豆</small></span><span class="add"><svg class="li" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></div></div></div>
+            </div>
+            <div class="footpad"></div>
+          </section>
+        </div>
+
+        <!-- tabBar -->
+        <div class="tabbar">
+          <div class="tab active"><span class="lic"><svg class="li" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-5v-5h-4v5H5a1 1 0 0 1-1-1Z"/></svg></span>首页</div>
+          <div class="tab"><span class="lic"><svg class="li" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></span>好物</div>
+          <div class="tab"><span class="lic"><svg class="li" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 0 1 1h3M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M4 12h16"/></svg></span>扫码购物</div>
+          <div class="tab"><span class="lic"><svg class="li" viewBox="0 0 24 24"><path d="M4 5h2l2 11h10l2-7H7"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg></span>购物车</div>
+          <div class="tab"><span class="lic"><svg class="li" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>我的</div>
+        </div>
+      </div>
+
+      <!-- ============ 商品详情 ============ -->
+      <div class="phone hidden" id="phone-pdp">
+        <div class="notch"></div>
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="dots"><i></i><i></i><i></i> &nbsp; 5G &nbsp; <span class="battery"></span></span>
+        </div>
+        <div class="scroll">
+          <!-- 轮播 -->
+          <div class="pdp-hero">
+            <div class="pdp-swiper">🍪
+              <div class="pdp-dots"><i class="on"></i><i></i><i></i></div>
+              <div class="pdp-back"><svg class="li" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></div>
+            </div>
+          </div>
+
+          <!-- 价格卡 -->
+          <div class="pricecard">
+            <div class="nm">山药小米酥 · 无添加蔗糖</div>
+            <div class="spec">净含量 30g · 独立小袋装</div>
+            <div class="prow">
+              <div class="price">89<small> 金豆 / 袋</small></div>
+              <div class="safe">
+                <svg class="li" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6Z"/></svg>
+                配方安全 · A 优选
+              </div>
+            </div>
+          </div>
+
+          <!-- 门店卡 -->
+          <div class="storecard">
+            <div class="l"><div class="lic"><svg class="li" viewBox="0 0 24 24"><path d="M4 9h16v10H4zM4 9l1.5-4h13L20 9M9 19v-5h6v5"/></svg></div>
+              <div><div class="t">三里屯店 · 自提</div><div class="s">今日 09:00 - 22:00 · 距你 320m</div></div></div>
+            <div class="go">切换 ›</div>
+          </div>
+
+          <!-- 数量 -->
+          <div class="qty">
+            <div class="t">购买数量</div>
+            <div class="stepper"><div class="b"><svg class="li" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div><span class="n">1</span><div class="b"><svg class="li" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div></div>
+          </div>
+
+          <!-- ① 食养安全提示（中性 · 红线硬信息） -->
+          <div class="block">
+            <div class="bh"><span class="lic"><svg class="li" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6Z"/><path d="M9 12l2 2 4-4"/></svg></span>食养安全提示</div>
+            <div class="copy">本款含 <b>山药、小米、黑芝麻</b>，对麸质（小麦）不过敏人群可正常食用。配料表未含常见致敏原，详见下方配料表。</div>
+            <div class="safeline"><svg class="li" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6Z"/></svg>过敏原预警：如对芝麻类需留意，请先少量尝试</div>
+          </div>
+
+          <!-- 食安与食养 合并卡 -->
+          <div class="block">
+            <div class="bh"><span class="lic"><svg class="li" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>配方与食养</div>
+
+            <div class="copy" style="font-weight:700;color:var(--ink);font-size:12.5px;">配料表</div>
+            <div class="ingredient">
+              <span>山药粉</span><span>小米</span><span>黑芝麻</span><span>燕麦</span><span>植物油</span>
+            </div>
+
+            <div class="copy" style="margin-top:12px;font-weight:700;color:var(--ink);font-size:12.5px;">食养参考</div>
+            <div class="copy">山药与小米慢火烘焙，米香酥脆、入口不甜腻；可作午后茶点，或佐一杯温豆浆。<b>口感：酥、香、淡</b>；<b>场景：下午茶 / 加班垫肚 / 长辈闲食</b>。</div>
+
+            <div class="safeline"><svg class="li" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6Z"/></svg>这口吃得安心吗：配料干净，无额外加糖，日常食养可常备</div>
+            <div class="disclaimer">食养参考源于药食同源食材特性，供了解原料与口感，不替代专业营养或医疗建议。个体体质不同，请依自身情况选择。</div>
+          </div>
+
+          <!-- 商品详情 -->
+          <div class="block">
+            <div class="bh"><span class="num">④</span>商品详情</div>
+            <div class="detail-grid">
+              <div class="d"><div class="k">净含量</div><div class="v">30g</div></div>
+              <div class="d"><div class="k">保质期</div><div class="v">180 天</div></div>
+              <div class="d"><div class="k">储存方式</div><div class="v">阴凉干燥处</div></div>
+              <div class="d"><div class="k">生产许可</div><div class="v">SC 认证</div></div>
+            </div>
+            <div class="copy" style="margin-top:12px;">独立小袋锁鲜，开袋即食。原料配比以山药、小米为主，不添加蔗糖，保留谷物本香。</div>
+          </div>
+
+          <div class="footpad"></div>
+        </div>
+
+        <!-- 底栏 -->
+        <div class="pdp-foot">
+          <div class="ic"><svg class="li" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2Z"/></svg></div>
+          <div class="ic"><svg class="li" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+          <div class="buy">加入购物车</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 设计令牌面板 ============ -->
+    <div class="tokens hidden" id="panel-token">
+      <h3>设计令牌</h3>
+      <div class="sub">统一事实源 · 替换现状珊瑚体系</div>
+
+      <div class="sw"><div class="chip" style="background:var(--rice)"></div>
+        <div class="meta"><b>米白宣纸底</b><code>--rice #F6F3EA</code><span class="v">页面底，暖白带米调</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--sage)"></div>
+        <div class="meta"><b>鼠尾草绿（主色）</b><code>--sage #7C8A6B</code><span class="v">CTA / 角标 / 选中态 / 加购钮</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--sage-deep)"></div>
+        <div class="meta"><b>深鼠尾草</b><code>--sage-deep #5E6B4C</code><span class="v">白字承色，达 WCAG AA</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--sage-soft)"></div>
+        <div class="meta"><b>浅鼠尾草底</b><code>--sage-soft #E9EDE2</code><span class="v">图标底 / 浅标签</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--apricot)"></div>
+        <div class="meta"><b>暖杏（辅助）</b><code>--apricot #D9A978</code><span class="v">价格 / 口感标签 / 点缀</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--apricot-soft)"></div>
+        <div class="meta"><b>浅暖杏底</b><code>--apricot-soft #F6E9D8</code><span class="v">图标底 / 浅标签</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--card)"></div>
+        <div class="meta"><b>暖白卡</b><code>--card #FFFDF8</code><span class="v">卡片面，非纯白</span></div></div>
+
+      <div class="tline"></div>
+
+      <div class="legend-row"><div class="lic"><svg class="li" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 0 1 1h3M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M4 12h16"/></svg></div>统一线性图标：1.7px 描边、圆角端点，全站一致</div>
+      <div class="legend-row"><div class="lic"><svg class="li" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="6"/></svg></div>大圆角：卡片 16–22px，轻阴影不堆立体</div>
+      <div class="legend-row"><div class="lic"><svg class="li" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6Z"/></svg></div>食养/安全语义：鼠尾草绿，不与主色混用</div>
+
+      <div class="tline"></div>
+      <div class="tnote">
+        <b>文案口径：</b>只讲原料、口感、食用场景。禁用「调理 / 治疗 / 改善 / 增强免疫」等词，与 <code>shield.ts</code> FORBIDDEN_WORDS 同红线。<br><br>
+        <b>待拍板：</b>线上现状 <code>--primary</code> 为柔珊瑚。是否把 C 端主色整体迁移为鼠尾草绿、底调为米白宣纸底？影响所有 CTA / 角标 / 选中态 / 加购钮。或仅新页面启用、旧页保留珊瑚至翻新。
+      </div>
+    </div>
+  </div>
+
+  <div class="tip">
+    <b>说明：</b>本预览为设计语言验证稿（非接代码）。图标已统一为线性 SVG（tabBar、搜索、加购、场景、安全盾牌等），未混用 emoji 实心图标；八大场景沿用数据库真实类目名（宝宝零食 / 孕产营养 / 银发呵护 / 睡前安适 / 肠胃养护 / 体虚调理 / 熬夜党 / 敏感防护）。确认效果后，我可以把令牌写回 <code>src/app.scss</code> 并迁移主色——这一步需你拍板是否全量替换柔珊瑚。
+  </div>
+
+<script>
+  function show(which){
+    document.getElementById('phone-home').classList.toggle('hidden', which!=='home');
+    document.getElementById('phone-pdp').classList.toggle('hidden', which!=='pdp');
+    document.getElementById('panel-token').classList.toggle('hidden', which!=='token');
+    document.getElementById('btn-home').classList.toggle('on', which==='home');
+    document.getElementById('btn-pdp').classList.toggle('on', which==='pdp');
+    document.getElementById('btn-token').classList.toggle('on', which==='token');
+  }
+</script>
+</body>
+</html>

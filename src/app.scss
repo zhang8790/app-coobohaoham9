@@ -3,20 +3,21 @@
 @use 'tailwindcss/utilities';
 @layer base {
   :root {
-    /* 来店有喜 · 暖珊瑚设计系统（#FFFCFA 暖白底·#FFF 卡·#2A2A2A 文字·柔珊瑚 hsl(var(--primary)) 强调） */
-    --background: 24 60% 99%;      /* 纯净暖白 #FFFCFA 页面底 */
+    /* 来店有喜 · 本草食养设计系统（米白宣纸底 #F7F3E9·暖白卡·深墨字·鼠尾草绿主色·暖杏视觉锤） */
+    --background: 42 30% 94%;      /* 米白宣纸底 #F7F3E9 页面底（暖中带米调，非纯白） */
     --foreground: 0 0% 16%;        /* 深炭灰 #2A2A2A 标题/主文字 */
     --card: 0 0% 100%;            /* 纯白 #FFFFFF 卡/左栏 */
     --card-foreground: 0 0% 20%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
-    /* 主色 = 品牌行动色「柔珊瑚」hsl(var(--primary))（暖珊瑚设计系统，2026-09-25 全局落地）
+    /* 主色 = 品牌行动色「鼠尾草绿」hsl(var(--primary))（本草食养设计系统，2026-09-27 全量迁移）
+       鼠尾草绿 = 低饱和灰调绿，承接「本草食养」东方养生氛围；暖杏 --accent-sand 作视觉锤点缀。
        职责划分：正文/标题层级一律走 --foreground #2A2A2A；凡是「行动/强调面」（CTA 按钮、角标、
        选中态、进度条、强调图标）一律走 --primary。二者分离，杜绝整屏黑色块与主题脱节。 */
-    --primary: 10 74% 65%;          /* 柔珊瑚 hsl(var(--primary)) */
-    --primary-deep: 11 64% 58%;     /* 深珊瑚 hsl(var(--primary-deep))（渐变收尾 / 按压态） */
-    --primary-soft: 14 59% 94%;     /* 淡桃粉 hsl(var(--primary-soft))（选中浅底 / 标签底 / 图标容器） */
-    --primary-soft-deep: 14 56% 89%; /* 深桃粉 hsl(var(--primary-soft-deep))（渐变收尾 / 装饰底） */
+    --primary: 120 18% 48%;         /* 鼠尾草绿 hsl(var(--primary)) */
+    --primary-deep: 122 20% 40%;    /* 深鼠尾草 hsl(var(--primary-deep))（渐变收尾 / 按压态） */
+    --primary-soft: 120 20% 93%;    /* 浅鼠尾草底 hsl(var(--primary-soft))（选中浅底 / 标签底 / 图标容器） */
+    --primary-soft-deep: 120 20% 87%; /* 深浅鼠尾草 hsl(var(--primary-soft-deep))（渐变收尾 / 装饰底） */
     --primary-foreground: 0 0% 100%; /* 白字 */
     --secondary: 0 0% 94%;       /* 淡灰副底 */
     --secondary-foreground: 0 0% 20%;
@@ -28,7 +29,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 0 0% 93%;          /* 极浅灰 #EEEEEE 分割线/描边 */
     --input: 0 0% 93%;
-    --ring: 10 74% 65%;          /* 焦点环 = 柔珊瑚（与 --primary 同步） */
+    --ring: 120 18% 48%;         /* 焦点环 = 鼠尾草绿（与 --primary 同步） */
     /* 全局字体族（单一事实源）：iOS/微信走 PingFang SC，Android 回退系统无衬线；
        组件未显式设置 font-family 时统一继承此基线，杜绝各页面字体回退链不一致 */
     --font-sans: "PingFang SC", -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
@@ -44,9 +45,9 @@
     --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.04);     /* 静息卡片：极淡、贴地 */
     --shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.05);     /* 轻微悬浮 */
     --shadow-float: 0 12px 32px rgba(0, 0, 0, 0.09);    /* 强悬浮/弹层/凸起按钮 */
-    --radius-sm: 8px;              /* 小圆角：标签/药丸/小卡 */
-    --radius-md: 12px;             /* 中圆角：输入/按钮/中等卡 */
-    --radius-lg: 16px;             /* 大圆角：卡片/弹层（留白充足） */
+    --radius-sm: 10px;             /* 小圆角：标签/药丸/小卡（大圆角基调） */
+    --radius-md: 16px;             /* 中圆角：输入/按钮/中等卡 */
+    --radius-lg: 20px;             /* 大圆角：卡片/弹层（留白充足，品牌基调） */
     --radius: 1rem;                /* 兼容别名 = lg */
     --chart-1: 0 0% 20%;         /* 图表灰阶 1（最深） */
     --chart-2: 0 0% 40%;         /* 图表灰阶 2（价格/段位高光） */
@@ -74,20 +75,20 @@
     --color-herb-500: #16A34A;   /* 草本文字/安全绿 */
     --color-herb-600: #15803D;   /* 深草本文字 */
     /* ===== 统一强调色系统（单一事实源：全站功能模块引用此套，禁止再出现赭红/古金遗老色） ===== */
-    --accent-coral: hsl(var(--primary));        /* 主强调·柔珊瑚：按钮/选中态/CTA/会员入口/食性·平 */
-    --accent-coral-deep: hsl(var(--primary-deep));   /* 深珊瑚：渐变收尾/深底 */
-    --accent-coral-light: hsl(var(--primary-soft));  /* 淡桃粉浅底：卡片/选中浅底/图标容器 */
-    --accent-sand: #D4B89C;         /* 浅砂金：Banner 按钮/价格装饰（小面积点缀，不泛滥） */
-    --accent-sand-soft: #F5ECE3;    /* 砂金浅底 */
+    --accent-coral: hsl(var(--primary));        /* 主强调·鼠尾草绿：按钮/选中态/CTA/会员入口/食性·平 */
+    --accent-coral-deep: hsl(var(--primary-deep));   /* 深鼠尾草：渐变收尾/深底 */
+    --accent-coral-light: hsl(var(--primary-soft));  /* 浅鼠尾草浅底：卡片/选中浅底/图标容器 */
+    --accent-sand: #D9A978;         /* 暖杏视觉锤：Banner 按钮/价格装饰/重点点缀（小面积，不泛滥） */
+    --accent-sand-soft: #F6E9D8;    /* 暖杏浅底 */
     --accent-gold: #B8923A;         /* 精炼香槟金：会员/VIP/年度专属（保留，与珊瑚区分） */
     --accent-gold-deep: #9A7B2E;    /* 深金 */
     --accent-gold-light: #FBF3DD;   /* 金浅底 */
     --accent-amber: #D97706;        /* 干净琥珀：警告/食性·温/慎选/临期/超范围 */
     --accent-amber-light: #FEF3C7;  /* 琥珀浅底 */
     --accent-blue: #0EA5E9;         /* 信息蓝：业绩/处理中/链接 */
-    /* ===== 承字强色（对比度治理 2026-09-26）：亮珊瑚/蓝/琥珀/金仅在「大面积装饰 / 浅底」使用；
+    /* ===== 承字强色（对比度治理 2026-09-26）：亮鼠尾草/蓝/琥珀/金仅在「大面积装饰 / 浅底」使用；
        凡「承载文字 / 按钮底 + 浅色字」一律引用下方加深版，统一达 WCAG AA（4.5:1）===== */
-    --primary-strong: 11 54% 49%;   /* 加深珊瑚 #C0533D：珊瑚按钮底/珊瑚承字，白字 4.6:1（P0） */
+    --primary-strong: 120 22% 38%;  /* 加深鼠尾草 #455A2E：绿按钮底/绿承字，白字 7:1（P0） */
     --accent-blue-strong: #0369A1;  /* 信息蓝承字（2.8→5.9:1） */
     --accent-amber-strong: #B45309; /* 琥珀/警示承字（3.2→5.0:1） */
     --accent-gold-strong: #8A6B22;  /* 香槟金承字（2.9→4.9:1） */
