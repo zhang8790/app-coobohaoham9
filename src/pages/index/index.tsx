@@ -26,6 +26,7 @@ import { getCurrentTerm } from '@/utils/seasonal-box'
 import CategoryGrid from './CategoryGrid'
 import HomeBanner from './HomeBanner'
 import BrandMark from '@/components/BrandMark'
+import { BRAND_LINE_ICONS } from '@/components/brandIcons'
 
 // 首页 Banner 轮播 = 全站唯一广告位：由总后台「首页广告位」配置驱动（见 HomeBanner.tsx），
 // 未配置时回退内置的品牌价值主张三张。首页不再另设独立的「广告占位」块，避免重复曝光位。
@@ -598,19 +599,21 @@ style={{ paddingLeft: 4 }}
 hoverClass="none"
 onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}
 >
-<Text style={{ fontSize: '30rpx' }}>🔍</Text>
+<Image src={BRAND_LINE_ICONS['search']} style={{ width: 17, height: 17 }} />
 <Text className="text-sm text-muted-foreground">搜食养好物</Text>
 </View>
 {/* 分隔线 */}
 <View style={{ width: 1, height: 18, background: 'hsl(var(--border))', flexShrink: 0 }} />
-{/* 右侧扫码配料（点击进识别页，自动调起拍照） */}
+{/* 右侧扫码配料（点击进识别页，自动调起拍照）：圆角绿底相机钮，对齐 replica */}
 <View
 className="flex items-center gap-1.5 flex-shrink-0 active:opacity-70 transition-opacity"
 style={{ paddingRight: 4 }}
 hoverClass="none"
 onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
 >
-<Text style={{ fontSize: '32rpx' }}>📷</Text>
+<View style={{ width: 34, height: 34, borderRadius: 11, background: 'hsl(var(--primary-soft))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+  <Image src={BRAND_LINE_ICONS['scan']} style={{ width: 18, height: 18 }} />
+</View>
 <Text className="text-sm font-semibold" style={{ color: 'hsl(var(--primary))' }}>扫码配料</Text>
 </View>
 </View>

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image, Swiper, SwiperItem } from '@tarojs/components'
 import { getSiteConfig } from '@/db/api'
+import BrandMark from '@/components/BrandMark'
 
 /**
  * 首页轮播位 = 全站唯一广告位（首页只留这一个曝光位，不另设占位块）。
@@ -146,6 +147,15 @@ export default function HomeBanner() {
                   <Text style={{ fontSize: '24rpx', color: s.image_url ? 'rgba(255,255,255,0.92)' : 'rgba(42,42,42,0.72)', marginTop: 6, lineHeight: '1.45' }}>{s.sub}</Text>
                 ) : null}
               </View>
+              {/* 食材拼贴装饰：仅内置品牌卡（非图片广告）显示，呼应 replica collage + 福袋品牌符号 */}
+              {!s.image_url ? (
+                <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 130, zIndex: 1, pointerEvents: 'none' }}>
+                  <View style={{ position: 'absolute', width: 42, height: 42, borderRadius: '50%', background: 'rgba(255,255,255,0.5)', top: 16, right: 18 }} />
+                  <View style={{ position: 'absolute', width: 22, height: 22, borderRadius: '50%', background: 'hsl(var(--accent-sand))', opacity: 0.55, top: 8, right: 64 }} />
+                  <View style={{ position: 'absolute', width: 30, height: 30, borderRadius: '50%', background: 'rgba(94,122,79,0.2)', bottom: 12, right: 30 }} />
+                  <BrandMark size={44} tone="brand" style={{ position: 'absolute', bottom: 10, right: 56, opacity: 0.92 }} />
+                </View>
+              ) : null}
               {/* 广告合规标识：仅真实广告显示，内置品牌卡不标 */}
               {isAd ? (
                 <View style={{ position: 'absolute', top: 8, right: 10, zIndex: 3, background: 'rgba(0,0,0,0.32)', borderRadius: 4, padding: '1px 6px' }}>
