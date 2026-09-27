@@ -7,7 +7,7 @@
   bottom: 0;
   display: flex;
   flex-direction: row;
-  background: rgba(255, 252, 250, 0.96); /* 纯净暖白毛玻璃，与页面底 #FFFCFA 同色系 */
+  background: hsl(var(--background) / 0.96); /* 米白宣纸底毛玻璃，与页面底一致 */
   backdrop-filter: blur(8px);
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   padding-bottom: env(safe-area-inset-bottom);
@@ -62,7 +62,7 @@
   line-height: 16px;
   text-align: center;
   font-weight: 700;
-  border: 1.5px solid rgba(255, 252, 250, 0.96); /* 与 tabBar 底同色描边，避免贴边糊成一团 */
+  border: 1.5px solid hsl(var(--background) / 0.96); /* 与 tabBar 底同色描边，避免贴边糊成一团 */
   box-sizing: border-box;
   z-index: 2;
 }
@@ -96,7 +96,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 20px hsl(var(--primary) / 0.32), 0 0 0 4px rgba(248, 248, 248, 0.92);
+  box-shadow: 0 8px 20px hsl(var(--primary) / 0.32), 0 0 0 4px hsl(var(--background) / 0.92);
   border: 2px solid #FFFFFF;
 }
 
