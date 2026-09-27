@@ -96,15 +96,40 @@ export default function CategoryListPage() {
 
   return (
     <View className="min-h-screen bg-background pb-10">
-      <View className="px-4 pt-4 pb-2 flex items-end justify-between">
-        <Text className="text-xl font-bold text-foreground">{catName}</Text>
-        {!loading && <Text className="text-xs text-muted-foreground">{displayed.length} 款</Text>}
-      </View>
+      {/* 吸顶头部：搜索栏 + 标题 + 二级分类 Tab。
+          本页走原生页面滚动（min-h-screen，无内层 ScrollView），故用 position:sticky
+          让头部在商品列表滚动时固定不动；背景不透明以遮挡下方滚过的内容。 */}
+      <View
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 20,
+          background: 'hsl(var(--background))',
+          borderBottomWidth: 1,
+          borderBottomColor: 'hsl(var(--border))',
+        }}
+      >
+        {/* 搜索栏：点击进入搜索页（与探索页同一入口） */}
+        <View className="px-4 pt-3 pb-2">
+          <View
+            className="flex items-center gap-2 bg-muted rounded-full px-4 py-2"
+            onClick={() => Taro.navigateTo({ url: '/pages/search/index' })}
+          >
+            <Icon name="search" size={20} className="text-muted-foreground" />
+            <Text className="text-sm text-muted-foreground">搜索好物</Text>
+          </View>
+        </View>
 
-      {/* 二级分类 Tab：该一级场景下有子类才显示（数据与 admin-web 后台同源）。
-          「全部」= 一级 + 全部子类商品；点具体子类 = 只看该子类。无子类时整块隐藏。 */}
-      {subCats.length > 0 && (
-        <ScrollView scrollX className="whitespace-nowrap" style={{ width: '100%' }}>
+        {/* 标题 + 数量 */}
+        <View className="px-4 pb-2 flex items-end justify-between">
+          <Text className="text-xl font-bold text-foreground">{catName}</Text>
+          {!loading && <Text className="text-xs text-muted-foreground">{displayed.length} 款</Text>}
+        </View>
+
+        {/* 二级分类 Tab：该一级场景下有子类才显示（数据与 admin-web 后台同源）。
+            「全部」= 一级 + 全部子类商品；点具体子类 = 只看该子类。无子类时整块隐藏。 */}
+        {subCats.length > 0 && (
+          <ScrollView scrollX className="whitespace-nowrap" style={{ width: '100%' }}>
           <View style={{ display: 'inline-flex', gap: '16rpx', padding: '0 32rpx 16rpx' }}>
             {[{ id: '', name: '全部' }, ...subCats].map((s) => {
               const on = activeSub === s.id
@@ -131,6 +156,8 @@ export default function CategoryListPage() {
           </View>
         </ScrollView>
       )}
+      </View>
+      {/* 吸顶头部结束 */}
 
       {loading ? (
         <View className="flex items-center justify-center py-24">
