@@ -365,7 +365,7 @@ export default function FoodScanPage() {
 
     {/* 评估说明（数据来源 + 算法局限，信任度核心） */}
     {analyzed && (
-      <View className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'rgba(232,121,100,0.20)', background: 'rgba(232,121,100,0.05)' }}>
+      <View className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'rgba(94,122,79,0.20)', background: 'rgba(94,122,79,0.05)' }}>
         <Text className="text-[11px]" style={{ display: 'block', color: '#475569', lineHeight: 1.7 }}>{FOOD_SCAN_DISCLAIMER}</Text>
       </View>
     )}

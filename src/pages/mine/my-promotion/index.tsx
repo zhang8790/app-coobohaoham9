@@ -231,7 +231,7 @@ function MyPromotionPage() {
         {/* 二维码大图居中 */}
         <View className="flex flex-col items-center py-4">
           <View className="w-56 h-56 rounded-2xl border-2 border-primary/30 bg-background flex items-center justify-center overflow-hidden"
-            style={{ boxShadow: '0 8px 24px rgba(232,121,100,0.12)' }}>
+            style={{ boxShadow: '0 8px 24px rgba(94,122,79,0.12)' }}>
             {qrLoading ? (
               <View className="flex flex-col items-center gap-3">
                 <Icon name="loading" size={48} className="text-primary animate-spin" />

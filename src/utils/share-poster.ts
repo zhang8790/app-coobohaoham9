@@ -172,9 +172,9 @@ export async function generateArticleSharePoster(
 
         // 图片左侧微渐变遮罩（让文字区自然过渡）
         const blend = ctx.createLinearGradient(cX - 30, 0, cX + 60, 0)
-        blend.addColorStop(0, 'rgba(232,121,100,0)')
-        blend.addColorStop(0.5, 'rgba(232,121,100,0.15)')
-        blend.addColorStop(1, 'rgba(232,121,100,0)')
+        blend.addColorStop(0, 'rgba(94,122,79,0)')
+        blend.addColorStop(0.5, 'rgba(94,122,79,0.15)')
+        blend.addColorStop(1, 'rgba(94,122,79,0)')
         ctx.fillStyle = blend
         ctx.fillRect(cX - 30, 0, 90, H)
 

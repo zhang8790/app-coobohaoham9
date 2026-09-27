@@ -135,9 +135,9 @@ const m = RISK_META[normalizeAdditiveRisk(a.risk_level)] || RISK_META.white
  marginTop: 4,
  padding: 10,
  borderRadius: 10,
- background: 'rgba(232,121,100,0.06)',
+ background: 'rgba(94,122,79,0.06)',
  borderWidth: 1,
- borderColor: 'rgba(232,121,100,0.18)',
+ borderColor: 'rgba(94,122,79,0.18)',
  }}
  >
  <Text style={{ fontSize: '24rpx', fontWeight: 600, color: 'hsl(var(--primary-deep))', display: 'block' }}>

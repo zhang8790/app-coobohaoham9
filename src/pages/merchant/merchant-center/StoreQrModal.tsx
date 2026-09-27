@@ -47,7 +47,7 @@ export default function StoreQrModal({ visible, storeName, storeQrUrl, qrLoading
             <View
               style={{
                 width: '240px', height: '240px', borderRadius: '16px',
-                border: '2px solid rgba(232,121,100,0.15)',
+                border: '2px solid rgba(94,122,79,0.15)',
                 backgroundColor: '#FFF', display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
                 marginTop: '20px', overflow: 'hidden',

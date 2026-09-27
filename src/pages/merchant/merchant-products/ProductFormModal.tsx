@@ -731,7 +731,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  style={{
  padding: '6px 12px', borderRadius: '9999px',
  background: sel ? 'hsl(var(--brand-ochre))' : '#FFF',
- border: '1px solid rgba(232,121,100,0.18)',
+ border: '1px solid rgba(94,122,79,0.18)',
  }}>
  <Text style={{ fontSize: '26rpx', color: sel ? '#FFF' : 'hsl(var(--primary))', fontWeight: sel ? '700' : '400' }}>{t}</Text>
  </View>

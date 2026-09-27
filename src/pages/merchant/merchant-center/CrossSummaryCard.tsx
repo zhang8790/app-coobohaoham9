@@ -11,7 +11,7 @@ export default function CrossSummaryCard({ storeCount, crossSummary }: { storeCo
   if (!(storeCount > 1 && crossSummary)) return null
   return (
     <View className="mx-4 mt-3 p-4 rounded-2xl border border-primary/30"
-      style={{ background: 'linear-gradient(135deg, rgba(232,121,100,0.08), rgba(232,121,100,0.03))' }}>
+      style={{ background: 'linear-gradient(135deg, rgba(94,122,79,0.08), rgba(94,122,79,0.03))' }}>
       <View className="flex items-center justify-between">
         <View className="flex items-center gap-2">
           <Text className="text-xl" style={{ fontSize: '40rpx' }}></Text>

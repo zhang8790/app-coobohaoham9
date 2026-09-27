@@ -15,7 +15,7 @@ import SectionTitle from '@/components/SectionTitle'
 
 // 适配分档位 → 主题
 const TIER_META: Record<string, { label: string; fg: string; bg: string; border: string }> = {
- recommend: { label: '推荐', fg: 'hsl(var(--primary))', bg: 'rgba(232,121,100,0.10)', border: 'rgba(232,121,100,0.35)' },
+ recommend: { label: '推荐', fg: 'hsl(var(--primary))', bg: 'rgba(94,122,79,0.10)', border: 'rgba(94,122,79,0.35)' },
  caution: { label: '可酌量', fg: '#ca8a04', bg: 'rgba(234,179,8,0.10)', border: 'rgba(234,179,8,0.35)' },
  avoid: { label: '不推荐', fg: '#dc2626', bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.35)' },
 }
@@ -188,7 +188,7 @@ const card: React.CSSProperties = {
 // 分区标题已统一改用全局 SectionTitle（珊瑚竖线 DNA）
 const btnPrimary: React.CSSProperties = { background: 'hsl(var(--primary))', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20 }
 const btnGhost: React.CSSProperties = { background: '#fff', borderWidth: 1, borderColor: 'hsl(var(--primary))', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20 }
-const btnMini: React.CSSProperties = { background: 'rgba(232,121,100,0.08)', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12, flexShrink: 0 }
+const btnMini: React.CSSProperties = { background: 'rgba(94,122,79,0.08)', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12, flexShrink: 0 }
 const itemCard: React.CSSProperties = {
  flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)', marginTop: 6,
  borderLeftWidth: 3, borderLeftColor: 'hsl(var(--primary))', paddingLeft: 10,
