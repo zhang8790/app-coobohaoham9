@@ -19,7 +19,8 @@ import url from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..');
+// 本脚本位于 src/scripts/，项目根在两级之上（2026-09-27 目录迁移后修正）
+const ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..', '..');
 const ts = require(path.join(ROOT, 'node_modules', 'typescript'));
 
 const argv = process.argv.slice(2);
