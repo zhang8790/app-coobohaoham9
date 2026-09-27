@@ -620,28 +620,35 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
 
  </View>
 
-{/* 首页广播栏：公告滚动播报（可见度优先；点击进消息中心查看全部公告） */}
-{announcements.length > 0 && (
-  <View
-    className="mx-4 mt-3 flex items-center gap-2 rounded-xl bg-card border border-border px-3"
-    style={{ height: 44, boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}
-    hoverClass="none"
-    onClick={() => Taro.navigateTo({ url: '/pages/message-center/index?tab=announcement' })}
-  >
-    <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 7, background: 'hsl(var(--primary-soft))', flexShrink: 0 }}>
-      <Icon name="bell-outline" size={16} className="text-primary" />
-    </View>
-    <View className="flex-1 min-w-0 overflow-hidden">
-      {/* 双份内容保证 -50% 平移无缝循环；不支持动画的端表现为静态展示（仍清晰可见） */}
-      <View className="broadcast-track" style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
-        {announcements.concat(announcements).map((a, i) => (
-          <Text key={i} className="text-sm text-foreground" style={{ marginRight: 48 }}>{(a as any).title}</Text>
-        ))}
-      </View>
-    </View>
-    <Icon name="chevron-right" size={18} className="text-muted-foreground" />
+{/* 首页广播栏：公告滚动播报（🔴 始终显示：无公告时回退品牌播报，
+     避免整块不渲染导致「看起来像被删掉」。点击进消息中心查看全部公告） */}
+<View
+  className="mx-4 mt-3 flex items-center gap-2.5 rounded-xl bg-card border border-border px-3"
+  style={{ height: 52, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}
+  hoverClass="none"
+  onClick={() => Taro.navigateTo({ url: '/pages/message-center/index?tab=announcement' })}
+>
+  <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, background: 'hsl(var(--primary-soft))', flexShrink: 0 }}>
+    <Icon name="bell-outline" size={17} className="text-primary" />
   </View>
-)}
+  <View className="flex-1 min-w-0 overflow-hidden">
+    {/* 双份内容保证 -50% 平移无缝循环；无公告时用品牌播报兜底，保证占位始终存在且可见 */}
+    <View className="broadcast-track" style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+      {(() => {
+        const fromAnn = announcements.map((a) => (a as any)?.title ?? '').filter(Boolean) as string[]
+        const items = fromAnn.length > 0 ? fromAnn : [
+          '来店有喜 · 药食同源食养零食',
+          '顺时而食，把配料看得见',
+          '先做九体质食养自测，再选适合你的',
+        ]
+        return items.concat(items).map((t, i) => (
+          <Text key={i} className="text-foreground" style={{ marginRight: 56, fontSize: 15 }}>{t}</Text>
+        ))
+      })()}
+    </View>
+  </View>
+  <Icon name="chevron-right" size={19} className="text-muted-foreground" />
+</View>
 
 {/* 轮播位 = 全站唯一广告位：总后台「首页广告位」配置驱动，热更新；
  未配置广告时回退内置品牌卡，永远不留白。 */}
