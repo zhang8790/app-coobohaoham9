@@ -8,13 +8,9 @@ import { RouteGuard } from '@/components/RouteGuard'
 import type { Order } from '@/db/types'
 import { supabase } from '@/client/supabase'
 
+// 退款原因：按业务要求只保留「不想要了」一项（去除质量问题/不符/错发等易引发纠纷的归因项）
 const REASONS = [
- '商品质量问题',
- '商品与描述不符',
- '门店发货错误',
- '不想要了/冲动消费',
- '长时间未发货',
-  '其他原因',
+ '不想要了',
 ]
 
 // 可退款订单状态白名单（须与订单中心、refund-order EF 严格一致）
@@ -28,7 +24,7 @@ function RefundApplyPage() {
 
  const [order, setOrder] = useState<Order | null>(null)
  const [loading, setLoading] = useState(true)
- const [selectedReason, setSelectedReason] = useState('')
+ const [selectedReason, setSelectedReason] = useState('不想要了')
  const [description, setDescription] = useState('')
  const [submitting, setSubmitting] = useState(false)
  const [refundable, setRefundable] = useState(0)

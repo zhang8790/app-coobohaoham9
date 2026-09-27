@@ -276,8 +276,10 @@ function UserPage() {
  })()
 
  return (
- <>
- <View className="min-h-screen bg-background tabbar-pad">
+    <>
+    {/* 底部留白 = tabbar 预留(56px+安全区) + 额外 56px，把最底部菜单（设置/退出登录）顶到右侧悬浮栏之上，
+       避免悬浮栏把手遮挡右下角导致「很难进入子菜单」。 */}
+    <View className="min-h-screen bg-background" style={{ paddingBottom: 'calc(56px + env(safe-area-inset-bottom) + 56px)' }}>
 {/* 顶部用户卡（绿沉浸式：与首页 hero 拉齐品牌感） */}
 {/* 顶部用户卡 */}
 <View className="px-4 relative overflow-hidden" style={{ background: 'linear-gradient(160deg,hsl(var(--primary)) 0%,hsl(var(--primary-deep)) 100%)', paddingTop: statusBarH + 14, paddingBottom: 0 }}>
@@ -400,14 +402,14 @@ function UserPage() {
  <Text className="text-white text-base">去逛逛</Text>
  </View>
  </View>
- ) : (
- <View className="py-4">
- <RadarChart dims={radarDims} size={260} />
- <Text className="text-base text-muted-foreground text-center px-4 mt-2 block">
- {radarSummary}
- </Text>
- </View>
- )}
+        ) : (
+        <View className="py-2">
+        <RadarChart dims={radarDims} size={200} />
+        <Text className="text-sm text-muted-foreground text-center px-4 mt-1 block">
+        {radarSummary}
+        </Text>
+        </View>
+        )}
  </View>
  )}
 

@@ -271,6 +271,14 @@
     transform: translateY(-3px);
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.09);
   }
+  /* 首页广播栏滚动播报：双份内容 -50% 无缝循环 */
+  .broadcast-track {
+    animation: broadcast-scroll 16s linear infinite;
+  }
+  @keyframes broadcast-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
   /* 会员资产条：健康豆 / 佣金 两列（积分已并入健康豆）*/
   .bean-hud {
     margin: 10px 16px 0;

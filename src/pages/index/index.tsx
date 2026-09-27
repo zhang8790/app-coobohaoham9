@@ -620,6 +620,29 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
 
  </View>
 
+{/* 首页广播栏：公告滚动播报（可见度优先；点击进消息中心查看全部公告） */}
+{announcements.length > 0 && (
+  <View
+    className="mx-4 mt-3 flex items-center gap-2 rounded-xl bg-card border border-border px-3"
+    style={{ height: 44, boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}
+    hoverClass="none"
+    onClick={() => Taro.navigateTo({ url: '/pages/message-center/index?tab=announcement' })}
+  >
+    <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 7, background: 'hsl(var(--primary-soft))', flexShrink: 0 }}>
+      <Icon name="bell-outline" size={16} className="text-primary" />
+    </View>
+    <View className="flex-1 min-w-0 overflow-hidden">
+      {/* 双份内容保证 -50% 平移无缝循环；不支持动画的端表现为静态展示（仍清晰可见） */}
+      <View className="broadcast-track" style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+        {announcements.concat(announcements).map((a, i) => (
+          <Text key={i} className="text-sm text-foreground" style={{ marginRight: 48 }}>{(a as any).title}</Text>
+        ))}
+      </View>
+    </View>
+    <Icon name="chevron-right" size={18} className="text-muted-foreground" />
+  </View>
+)}
+
 {/* 轮播位 = 全站唯一广告位：总后台「首页广告位」配置驱动，热更新；
  未配置广告时回退内置品牌卡，永远不留白。 */}
 <HomeBanner />

@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { View, Text, Image, Input } from '@tarojs/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { updateUserProfile, deleteUserAccount } from '@/db/api'
+import { uploadToStorage } from '@/utils/upload'
 import { NAV } from '@/config/nav-registry'
 import { RouteGuard } from '@/components/RouteGuard'
 import Icon from '@/components/Icon'
@@ -35,10 +36,30 @@ function SettingsPage() {
   const handleSaveProfile = useCallback(async () => {
     if (!nickname.trim()) { Taro.showToast({ title: '昵称不能为空', icon: 'none' }); return }
     setSaving(true)
-    const ok = await updateUserProfile({ nickname: nickname.trim(), avatar_url: avatarUrl || undefined })
-    setSaving(false)
-    if (ok) { Taro.showToast({ title: '保存成功', icon: 'success' }); setEditing(false) }
-    else Taro.showToast({ title: '保存失败', icon: 'none' })
+    try {
+      let finalAvatar = avatarUrl
+      // 头像若是本地临时路径（wxfile://）必须先上传到 Storage 拿到公网 URL 再存库，
+      // 否则刷新后头像丢失（此前只把本地路径直接写库导致无法持久化显示）。
+      if (finalAvatar && finalAvatar.startsWith('wxfile://')) {
+        Taro.showLoading({ title: '上传头像…' })
+        // 优先 avatars 桶，桶不存在则静默回退 images 桶，保证头像上传始终可用
+        let url = await uploadToStorage(finalAvatar, { bucket: 'avatars' })
+        if (!url) url = await uploadToStorage(finalAvatar, { bucket: 'images' })
+        Taro.hideLoading()
+        if (!url) {
+          Taro.showToast({ title: '头像上传失败，请重试', icon: 'none' })
+          setSaving(false)
+          return
+        }
+        finalAvatar = url
+        setAvatarUrl(url)
+      }
+      const ok = await updateUserProfile({ nickname: nickname.trim(), avatar_url: finalAvatar || undefined })
+      if (ok) { Taro.showToast({ title: '保存成功', icon: 'success' }); setEditing(false) }
+      else Taro.showToast({ title: '保存失败', icon: 'none' })
+    } finally {
+      setSaving(false)
+    }
   }, [nickname, avatarUrl])
 
   const handleChangeAvatar = () => {

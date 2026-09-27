@@ -27,7 +27,7 @@ function UserAgreement() {
         <View className="mb-4">
           <Text className="block text-foreground font-semibold mb-1 leading-snug">三、服务内容</Text>
           <Text className="block">1. 来店有喜是品牌自营商城，由各地连锁门店统一提供商品与到店消费服务。</Text>
-          <Text className="block">2. 我们尽力确保商品信息的真实性，但不对门店提供的商品或服务质量承担保证责任。</Text>
+          <Text className="block">2. 我们尽力确保商品信息的真实性，但不对门店提供的商品或服务质量作出承诺。</Text>
           <Text className="block">3. 您通过本小程序购买的商品或服务由各连锁门店统一自营提供，相关售后由对应门店负责。</Text>
         </View>
 
@@ -56,7 +56,7 @@ function UserAgreement() {
           <Text className="block text-foreground font-semibold mb-1 leading-snug">七、免责声明</Text>
           <Text className="block">1. 因不可抗力（如自然灾害、政府行为、网络故障等）导致服务中断或数据丢失，我们不承担责任。</Text>
           <Text className="block">2. 因第三方（如门店、支付机构）原因导致的损失，我们将依法协助您向责任方主张权利；法律法规规定我们应承担责任的情形，我们不以免责条款规避。</Text>
-          <Text className="block">3. 我们尽最大努力保障本小程序安全，但不保证本小程序不会存在漏洞或错误。</Text>
+          <Text className="block">3. 我们尽最大努力保障本小程序安全，但无法承诺本小程序不会存在漏洞或错误。</Text>
         </View>
 
         <View className="mb-4">
