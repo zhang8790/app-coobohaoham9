@@ -167,7 +167,7 @@ export default function ConstitutionTestPage() {
  })
 
  return (
- <View className="min-h-screen bg-[#F8F8F8] px-4 pt-5 pb-16">
+ <View className="min-h-screen bg-[#F7F3E9] px-4 pt-5 pb-16">
  {/* ===== 顶部标题 ===== */}
  <View className="mb-4">
  <Text className="text-2xl font-bold text-[#1A1A1A]"> 食养偏好设置</Text>

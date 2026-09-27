@@ -109,7 +109,7 @@ export default function FoodDetectivePage() {
  // ───────────────────────────────────────────────────────────────────────
  if (screen === 'list') {
  return (
- <View className="min-h-screen bg-[#F8F8F8]">
+ <View className="min-h-screen bg-[#F7F3E9]">
  {/* 侦探档案卡 */}
  <View className="px-5 pt-5 pb-3">
  <View
@@ -206,7 +206,7 @@ export default function FoodDetectivePage() {
  // ───────────────────────────────────────────────────────────────────────
  if (screen === 'case' && activeCase) {
  return (
- <View className="min-h-screen bg-[#F8F8F8]">
+ <View className="min-h-screen bg-[#F7F3E9]">
  {/* 案情 */}
  <View className="px-5 pt-5 pb-3">
  <View
@@ -275,7 +275,7 @@ export default function FoodDetectivePage() {
  <View
  className="fixed bottom-0 left-0 right-0 px-5 py-3"
  style={{
- background: 'linear-gradient(0deg, #F8F8F8 60%, transparent)',
+ background: 'linear-gradient(0deg, #F7F3E9 60%, transparent)',
  paddingBottom: SAFE_AREA_BOTTOM,
  }}
  >
@@ -307,7 +307,7 @@ export default function FoodDetectivePage() {
  const case2 = activeCase
 
  return (
- <View className="min-h-screen bg-[#F8F8F8]">
+ <View className="min-h-screen bg-[#F7F3E9]">
  <ScrollView scrollY className="px-5 pt-5 pb-24" style={{ height: 'calc(100vh - 48px)' }}>
  {/* 结果横幅 */}
  <View
@@ -428,7 +428,7 @@ export default function FoodDetectivePage() {
  <View
  className="fixed bottom-0 left-0 right-0 px-5 py-3"
  style={{
- background: 'linear-gradient(0deg, #F8F8F8 60%, transparent)',
+ background: 'linear-gradient(0deg, #F7F3E9 60%, transparent)',
  paddingBottom: SAFE_AREA_BOTTOM,
  }}
  >

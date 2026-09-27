@@ -208,7 +208,7 @@ export default function FamilyArchivePage() {
  const allergenCount = (m: FamilyMember): number => (m.allergies ?? []).length
 
  return (
- <View className="min-h-screen bg-[#F8F8F8] px-4 pt-5 pb-16">
+ <View className="min-h-screen bg-[#F7F3E9] px-4 pt-5 pb-16">
  {/* 标题 */}
  <Text className="text-2xl font-bold text-[#1A1A1A]"> 家庭食养档案</Text>
  <Text className="text-xs text-[#6B7280] mt-1 block">一户一档 · 全家人的食养参考都留在这里</Text>
