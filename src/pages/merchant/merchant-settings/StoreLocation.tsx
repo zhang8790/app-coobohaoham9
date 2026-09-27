@@ -1,5 +1,6 @@
 // 门店定位（经纬度坐标）—— 纯展示，状态由父页 form 驱动
-import { View, Text, Input } from '@tarojs/components'
+import { View, Text, Input, Image } from '@tarojs/components'
+import { BRAND_LINE_ICONS } from '@/components/brandIcons'
 import Taro from '@tarojs/taro'
 import { useState } from 'react'
 import type { StoreForm } from './index'
@@ -53,8 +54,9 @@ export default function StoreLocation({
         className="mb-3 flex items-center justify-center gap-1 rounded-xl"
         style={{ background: 'hsl(var(--primary))', height: '40px' }}
       >
+        <Image src={BRAND_LINE_ICONS['map-pin']} style={{ width: '20rpx', height: '20rpx' }} />
         <Text style={{ color: '#ffffff', fontSize: '28rpx', fontWeight: '700' }}>
-          {geoLoading ? '解析中...' : '📍 根据地址自动获取坐标'}
+          {geoLoading ? '解析中...' : '根据地址自动获取坐标'}
         </Text>
       </View>
 

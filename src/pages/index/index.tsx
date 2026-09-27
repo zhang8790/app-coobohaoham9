@@ -579,7 +579,7 @@ style={{ zIndex: 1 }}
 hoverClass="none"
 onClick={openStoreSheet}
 >
-<Text style={{ fontSize: '28rpx', color: 'hsl(var(--foreground))' }}>📍</Text>
+<Image src={BRAND_LINE_ICONS['map-pin']} style={{ width: '26rpx', height: '26rpx', flexShrink: 0 }} />
 <Text className="text-sm font-semibold" style={{ color: 'hsl(var(--foreground))' }}>
 {locationLoading ? '定位中…' : (activeStore?.store_name || currentCity?.city_name || '选择门店')}
 </Text>

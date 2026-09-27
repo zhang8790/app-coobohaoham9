@@ -5,7 +5,7 @@ import { View, Text, Image } from '@tarojs/components'
 import { getCategories, getProducts } from '@/db/api'
 import { useLocation } from '@/contexts/LocationContext'
 import type { StoreCategory } from '@/db/types'
-import { SCENE_ICON } from '@/components/brandIcons'
+import { SCENE_ICON, BRAND_LINE_ICONS } from '@/components/brandIcons'
 
 /**
  * 首页金刚区（分类导航）
@@ -18,23 +18,10 @@ import { SCENE_ICON } from '@/components/brandIcons'
  * 所以「点进去有几款」和「格子上写几款」必然一致——不再出现点了就空的入口。
  * 一个类目都没有（例如当前门店尚未铺货）时整块不渲染，不留空壳。
  *
- * 图标取 Base64 白名单内的通用语义图标（见 components/Icon/iconBase64.ts），
- * 类目是后台可维护的动态数据，未命中的类目回退到 leaf，不会显示空白。
+ * 图标统一用品牌专属线性 SVG（见 components/brandIcons.ts）：
+ * 8 个场景命中 SCENE_ICON，其余后台可维护类目回退到品牌 leaf 线性图标，
+ * 不再使用任何 emoji，保证全站图标语言统一。
  */
-// 金刚区图标：默认用品牌专属线性 SVG（SCENE_ICON，对齐 home-ui-replica 场景图标）；
-// 仅当后台 store_categories.icon 填了自定义值、或 SCENE_ICON 未覆盖时，回退 emoji。
-// key 与场景展示名保持一致（DB store_categories.name 经下方 SCENE_ALIAS 桥接为展示名）。
-const CAT_EMOJI: Record<string, string> = {
-  '宝宝零食': '🍼',
-  '孕产营养': '🥕',
-  '老年养生': '👵',
-  '舒心食养': '🌙',
-  '肠胃食养': '🥣',
-  '温润食养': '💪',
-  '敏感防护': '🛡️',
-  '熬夜加餐': '⚡',
-}
-
 // 场景展示名桥接：DB 仍为旧名时，首页/落地页立即显示截图（replica）新名；
 // 待执行 20260927_rename_scenes_to_replica.sql 把 DB 改名后，此映射自动失效（旧键查不到→原样）。
 const SCENE_ALIAS: Record<string, string> = {
@@ -125,7 +112,7 @@ export default function CategoryGrid({ storeId }: { storeId?: string }) {
               {SCENE_ICON[label] ? (
                 <Image src={SCENE_ICON[label]} style={{ width: '56rpx', height: '56rpx' }} />
               ) : (
-                <Text style={{ fontSize: '52rpx' }}>{c.icon || CAT_EMOJI[label] || CAT_EMOJI[c.name] || '🌿'}</Text>
+                <Image src={BRAND_LINE_ICONS['leaf']} style={{ width: '56rpx', height: '56rpx' }} />
               )}
             </View>
             {/* 分类名：与好物页左栏共用 .cat-name（单一事实源，禁止各自硬写字号） */}

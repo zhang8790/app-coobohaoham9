@@ -1,5 +1,6 @@
 // @title P3 门店联动：流动车摘要卡（纯展示）
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
+import { BRAND_LINE_ICONS } from '@/components/brandIcons'
 
 export interface MerchantVehicle {
   id: string
@@ -17,12 +18,12 @@ export default function VehiclesCard({ vehicles, onOpenModal, onToggle }: Props)
   return (
     <View
       className="mx-4 mt-3 p-4 rounded-2xl border border-primary/30"
-      style={{ background: 'linear-gradient(135deg, rgba(232,121,100,0.10), rgba(232,121,100,0.04))' }}
+      style={{ background: 'linear-gradient(135deg, rgba(94,122,79,0.10), rgba(94,122,79,0.04))' }}
       onClick={onOpenModal}>
       <View className="flex items-center justify-between">
         <View className="flex items-center gap-2">
           <View className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
-            <Text className="text-xl">🚚</Text>
+            <Image src={BRAND_LINE_ICONS['truck']} style={{ width: '22rpx', height: '22rpx' }} />
           </View>
           <Text className="text-lg font-bold text-foreground">流动车</Text>
         </View>
