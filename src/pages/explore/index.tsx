@@ -264,9 +264,9 @@ export default function ExplorePage() {
  <View className="px-2 pt-3 pb-1">
  <Text className="cat-eyebrow">按场景挑好物</Text>
  </View>
- // 左栏展示：全部 + 后台动态类目（下架的已被 is_active 过滤不显示）
- // 🔴 展示名走 sceneLabel 归一（DB 旧名/变体名 → 拍板展示名），与首页金刚区同一套名字；
- // 但【查询仍用 DB 原名 cat.name】——getProducts 按 name 反查 category_id，改名后立即查得到。
+ {/* 左栏：全部 + 后台动态类目（下架的已被 is_active 过滤）。
+     展示名走 sceneLabel 归一（DB 旧名/变体名 → 拍板展示名），与首页金刚区同一套名字；
+     但【查询仍用 DB 原名 cat.name】——getProducts 按 name 反查 category_id，改名后立即查得到。 */}
  {[{ id: '__all__', name: '全部', label: '全部' }, ...categories.map(c => ({ id: c.id, name: c.name, label: sceneLabel(c.name) }))].map(cat => {
  const active = activeCat === cat.name
  return (
