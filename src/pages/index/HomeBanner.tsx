@@ -66,6 +66,13 @@ const FALLBACK_SLIDES: AdSlide[] = [
   },
 ]
 
+/**
+ * 轮播位高度（px）——首页唯一广告位。
+ * 用户反馈原 104px 过扁（宽高比约 3.3:1，图被压得很扁），放大到 150px（约 2.3:1）更醒目。
+ * 容器 / Swiper / SwiperItem / 图片四处共用此值，改动只需改这一处。
+ */
+const BANNER_H = 150
+
 export default function HomeBanner() {
   // 先渲染内置兜底，配置回来后若有广告再替换：避免首屏出现「空白 Banner」闪一下
   const [slides, setSlides] = useState<AdSlide[]>(FALLBACK_SLIDES)
@@ -105,9 +112,9 @@ export default function HomeBanner() {
   }
 
   return (
-    <View className="mx-4 mt-3 relative" style={{ height: 104 }}>
+    <View className="mx-4 mt-3 relative" style={{ height: BANNER_H }}>
       <Swiper
-        style={{ height: 104, borderRadius: 16, overflow: 'hidden' }}
+        style={{ height: BANNER_H, borderRadius: 16, overflow: 'hidden' }}
         autoplay
         circular
         interval={4000}
@@ -120,7 +127,7 @@ export default function HomeBanner() {
               hoverClass="none"
               onClick={() => handleTap(s)}
               style={{
-                height: 104,
+                height: BANNER_H,
                 padding: 18,
                 position: 'relative',
                 overflow: 'hidden',
@@ -134,7 +141,7 @@ export default function HomeBanner() {
                 <Image
                   src={s.image_url}
                   mode="aspectFill"
-                  style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: 104, zIndex: 0 }}
+                  style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: BANNER_H, zIndex: 0 }}
                 />
               ) : null}
               {/* 图片广告压暗遮罩：保证白字在任何素材上都可读（纯文案卡不加） */}
