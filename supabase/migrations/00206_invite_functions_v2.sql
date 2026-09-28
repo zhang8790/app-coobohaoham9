@@ -9,7 +9,10 @@
 BEGIN;
 
 -- ---------- D. create_store_invite v2 ----------
+-- 幂等：新老签名都要 DROP。本迁移可能已被执行过（CLI 或 Dashboard 首次成功），
+-- 若只删旧签名，重放时会撞 42723 "already exists with same argument types"。
 DROP FUNCTION IF EXISTS public.create_store_invite(uuid, text);
+DROP FUNCTION IF EXISTS public.create_store_invite(uuid, text, text, int, int);
 
 CREATE FUNCTION public.create_store_invite(
   p_store_id      uuid,
@@ -92,7 +95,9 @@ COMMENT ON FUNCTION public.create_store_invite(uuid, text, text, int, int)
   IS '生成门店邀请码。硬约束：owner 不可发；只能发严格低于自己的角色；多用途码仅限 staff/cashier';
 
 -- ---------- E. redeem_store_invite v2 ----------
+-- 幂等：同上，新老签名都 DROP
 DROP FUNCTION IF EXISTS public.redeem_store_invite(text);
+DROP FUNCTION IF EXISTS public.redeem_store_invite(text, text);
 
 CREATE FUNCTION public.redeem_store_invite(
   p_code   text,
