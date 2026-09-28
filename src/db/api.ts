@@ -451,7 +451,7 @@ export async function getStoreCategories(storeId: string): Promise<StoreCategory
  */
 export async function getCategories(opts: { storeId?: string | null; includeGlobal?: boolean; isActive?: boolean } = {}): Promise<StoreCategory[]> {
   const { storeId, includeGlobal = true, isActive } = opts
-  // 性能：同上 5min TTL，避免 explore/merchant-products 每次进页直击 Supabase
+  // 性能：同上 5min TTL，避免 goods/merchant-products 每次进页直击 Supabase
   const ck = cacheMakeKey('cats', storeId ?? '', includeGlobal, isActive ?? '')
   const hit = cacheGet<StoreCategory[]>(ck)
   if (hit) return hit

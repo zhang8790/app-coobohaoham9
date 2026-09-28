@@ -15,7 +15,7 @@ function PaymentResultPage() {
   const isDelivery = serviceType === 'delivery'
 
   const goOrders = () => Taro.navigateTo({ url: '/pages/order-center/index' })
-  const goHome = () => Taro.switchTab({ url: '/pages/explore/index' })
+  const goHome = () => Taro.switchTab({ url: '/pages/goods/index' })
   const goReview = () => {
     if (orderNo) Taro.navigateTo({ url: `/pages/mine/review/index?orderId=${encodeURIComponent(orderNo)}` })
   }

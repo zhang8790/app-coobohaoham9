@@ -184,7 +184,7 @@ function CartPage() {
  title="购物车空空如也"
  description="挑些食养好物，为自己而定"
  actionText="去逛逛"
- onAction={() => Taro.switchTab({ url: '/pages/explore/index' })}
+ onAction={() => Taro.switchTab({ url: '/pages/goods/index' })}
  />
  ) : (
  <View className="px-4 pt-4">

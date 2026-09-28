@@ -1,7 +1,7 @@
 const pages = [
   'pages/index/index',
-  'pages/explore/index',
-  'pages/explore/list/index',
+  'pages/goods/index',
+  'pages/goods/list/index',
   'pages/cart/index',
   'pages/user/index',
   'pages/login/index',
@@ -92,7 +92,7 @@ export default defineAppConfig({
     borderStyle: 'white',
     list: [
       { pagePath: 'pages/index/index',     text: '首页' },
-      { pagePath: 'pages/explore/index',   text: '好物' },
+      { pagePath: 'pages/goods/index',   text: '好物' },
       { pagePath: 'pages/cart/index',      text: '购物车' },
       { pagePath: 'pages/user/index',      text: '我的' },
     ],
@@ -110,7 +110,7 @@ export default defineAppConfig({
   preloadRule: {
     'pages/user/index': { network: 'wifi', packages: ['pages/merchant', 'pages/mine', 'pages/trade'] },
     'pages/index/index': { network: 'wifi', packages: ['pages/food'] },
-    'pages/explore/index': { network: 'wifi', packages: ['pages/food'] },
+    'pages/goods/index': { network: 'wifi', packages: ['pages/food'] },
   },
   // 微信小程序隐私权限声明（基础库 3.7.0+ 要求）
   requiredPrivateInfos: ['getLocation'],

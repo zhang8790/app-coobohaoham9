@@ -93,7 +93,7 @@ export default function CategoryGrid({ storeId }: { storeId?: string }) {
             className="flex flex-col items-center py-2.5 active:opacity-60 transition-opacity"
             hoverClass="none"
             onClick={() => Taro.navigateTo({
-              url: `/pages/explore/list/index?categoryId=${c.id}&name=${encodeURIComponent(label)}`,
+              url: `/pages/goods/list/index?categoryId=${c.id}&name=${encodeURIComponent(label)}`,
             })}
           >
             <View

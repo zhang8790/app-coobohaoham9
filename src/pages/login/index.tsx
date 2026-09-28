@@ -114,7 +114,7 @@ export default function LoginPage() {
     // 所有角色统一跳转：优先 loginRedirectPath，否则跳 C 端首页
     const redirect = Taro.getStorageSync('loginRedirectPath')
     Taro.removeStorageSync('loginRedirectPath')
-    const tabBarPaths = ['/pages/index/index', '/pages/explore/index', '/pages/cart/index', '/pages/user/index']
+    const tabBarPaths = ['/pages/index/index', '/pages/goods/index', '/pages/cart/index', '/pages/user/index']
     if (redirect && tabBarPaths.includes(redirect)) {
       Taro.switchTab({ url: redirect })
     } else if (redirect) {
