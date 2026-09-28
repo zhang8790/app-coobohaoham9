@@ -20,9 +20,20 @@ import {
   computeBeanPortion,
 } from '../_shared/money.ts'
 
+/**
+ * 🔴 部署版本 beacon（勿删）。
+ * 每个响应都带上 `x-ef-version` 头，用于回答「线上跑的到底是哪一版」——
+ * 部署后用 `curl -i` 看一眼即可，**无需真实订单、零副作用**（含 401 响应也带）。
+ * 背景：多次出现「代码改了、用户以为部署了、线上仍是旧版」的排查黑洞，
+ * 只能靠连猜带试；有此头即可一眼判定。改动 EF 逻辑时同步递增日期后缀。
+ */
+const EF_VERSION = '2026-09-28b'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Expose-Headers': 'x-ef-version',
+  'x-ef-version': EF_VERSION,
 }
 
 const generateRefundNo = () =>
