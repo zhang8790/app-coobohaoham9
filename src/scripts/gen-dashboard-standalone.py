@@ -32,7 +32,8 @@ import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 本脚本位于 src/scripts/，项目根在两级之上（2026-09-27 目录迁移后修正）
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FUNCS_DIR = os.path.join(ROOT, "supabase", "functions")
 OUT_DIR = os.path.join(FUNCS_DIR, "_dashboard-paste")  # `_` 前缀目录不会被 CLI 当函数部署
 

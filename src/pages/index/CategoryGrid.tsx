@@ -70,15 +70,19 @@ export default function CategoryGrid({ storeId }: { storeId?: string }) {
 
   return (
     <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border" style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
-      {/* 区块标题：菱形 + 双侧渐变线（对齐截图 replica 的「按场景选食养」装饰风格） */}
-      <View className="flex items-center justify-center gap-3 my-1">
-        <View style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, hsl(var(--primary) / 0.35))' }} />
-        <View style={{ width: 7, height: 7, background: 'hsl(var(--primary))', transform: 'rotate(45deg)', borderRadius: 1, flex: '0 0 7px' }} />
-        <Text style={{ fontSize: 16, fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: 1 }}>按场景选食养</Text>
-        <View style={{ width: 7, height: 7, background: 'hsl(var(--primary))', transform: 'rotate(45deg)', borderRadius: 1, flex: '0 0 7px' }} />
-        <View style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, hsl(var(--primary) / 0.35), transparent)' }} />
+      {/* 区块标题：菱形 + 双侧渐变线 + 居中主副标题。
+          ⚠️ 两侧渐变线用【固定等宽 44px】而非 flex:1 —— 小程序下 flex:1 的宽度分配在部分
+          场景不稳定，两侧不等长就会把标题挤偏。固定等宽保证标题绝对居中，视觉两侧对称。 */}
+      <View className="flex flex-col items-center">
+        <View className="flex items-center justify-center my-1" style={{ gap: 10 }}>
+          <View style={{ width: 44, height: 1, flex: '0 0 44px', background: 'linear-gradient(90deg, transparent, hsl(var(--primary) / 0.35))' }} />
+          <View style={{ width: 7, height: 7, background: 'hsl(var(--primary))', transform: 'rotate(45deg)', borderRadius: 1, flex: '0 0 7px' }} />
+          <Text style={{ fontSize: 16, fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: 1, textAlign: 'center' }}>按场景选食养</Text>
+          <View style={{ width: 7, height: 7, background: 'hsl(var(--primary))', transform: 'rotate(45deg)', borderRadius: 1, flex: '0 0 7px' }} />
+          <View style={{ width: 44, height: 1, flex: '0 0 44px', background: 'linear-gradient(90deg, hsl(var(--primary) / 0.35), transparent)' }} />
+        </View>
+        <Text style={{ fontSize: 11.5, color: 'hsl(var(--muted-foreground))', textAlign: 'center', marginTop: -2, marginBottom: 14 }}>挑选适配日常状态的小食</Text>
       </View>
-      <Text className="text-center" style={{ fontSize: 11.5, color: 'hsl(var(--muted-foreground))', marginTop: -4, marginBottom: 14 }}>挑选适配日常状态的小食</Text>
       <View className="flex flex-wrap mt-2">
         {cats.map((c) => {
           const label = sceneLabel(c.name)

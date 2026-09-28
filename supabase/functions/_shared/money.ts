@@ -32,8 +32,31 @@ export const REFUNDABLE_STATUSES = [
 
 export type RefundableStatus = (typeof REFUNDABLE_STATUSES)[number]
 
-export function isRefundableStatus(status: string | null | undefined): boolean {
-  return status != null && (REFUNDABLE_STATUSES as readonly string[]).includes(status)
+/**
+ * 是否为「健康豆已扣、但微信尚未支付」的待支付订单。
+ *
+ * 背景（混合支付的资产黑洞）：混合支付订单建单时先扣健康豆、微信款稍后支付，
+ * 在用户没付完/放弃支付前，订单状态停在 `pending_pay`。
+ * 此时用户资产已被占用——既不能继续支付（放弃），也不能退款（原白名单排除 pending_pay）。
+ * 这类订单必须允许退款，但**只能退健康豆**：微信侧根本没有交易记录，
+ * 发起微信退款必然以「订单不存在/金额不一致」失败（见 refund-order 的豁免分支）。
+ */
+export function isBeanOnlyPendingPay(
+  status: string | null | undefined,
+  tbUsed?: number | null,
+): boolean {
+  return status === 'pending_pay' && Number(tbUsed ?? 0) > 0
+}
+
+export function isRefundableStatus(
+  status: string | null | undefined,
+  opts?: { tbUsed?: number | null },
+): boolean {
+  if (status == null) return false
+  if ((REFUNDABLE_STATUSES as readonly string[]).includes(status)) return true
+  // 混合支付已扣健康豆的待支付订单：放行退款，避免形成无法处置的资产黑洞（详见 isBeanOnlyPendingPay）
+  if (isBeanOnlyPendingPay(status, opts?.tbUsed)) return true
+  return false
 }
 
 /**

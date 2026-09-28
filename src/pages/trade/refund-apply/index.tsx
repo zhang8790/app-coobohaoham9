@@ -135,8 +135,12 @@ function RefundApplyPage() {
  </RouteGuard>)
  }
 
-  // 订单状态不在可退款白名单内：直接提示，避免用户填完表单才发现不支持退款
-  if (order && !REFUNDABLE_STATUSES.includes((order as any).status)) {
+  // 订单状态不在可退款白名单内：直接提示，避免用户填完表单才发现不支持退款。
+  // 🔴 例外：混合支付订单在「健康豆已扣、微信还没付」时状态是 pending_pay，
+  // 用户资产已被占用，必须允许退款（只退豆）——与 refund-order EF / _shared/money.ts 严格一致。
+  const tbUsedRaw = Number((order as any)?.tb_used ?? 0)
+  const isBeanOnlyPendingPay = (order as any)?.status === 'pending_pay' && tbUsedRaw > 0
+  if (order && !REFUNDABLE_STATUSES.includes((order as any).status) && !isBeanOnlyPendingPay) {
     return (<RouteGuard>
     <View className="min-h-screen bg-background flex flex-col items-center justify-center px-8">
       <View className="fab-edge-icon"></View>

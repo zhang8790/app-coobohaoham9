@@ -37,8 +37,31 @@ const REFUNDABLE_STATUSES = [
   'pending_pickup',
 ] as const
 
-function isRefundableStatus(status: string | null | undefined): boolean {
-  return status != null && (REFUNDABLE_STATUSES as readonly string[]).includes(status)
+/**
+ * 是否为「健康豆已扣、但微信尚未支付」的待支付订单。
+ *
+ * 背景（混合支付的资产黑洞）：混合支付订单建单时先扣健康豆、微信款稍后支付，
+ * 在用户没付完/放弃支付前，订单状态停在 `pending_pay`。
+ * 此时用户资产已被占用——既不能继续支付（放弃），也不能退款（原白名单排除 pending_pay）。
+ * 这类订单必须允许退款，但**只能退健康豆**：微信侧根本没有交易记录，
+ * 发起微信退款必然以「订单不存在/金额不一致」失败（见 refund-order 的豁免分支）。
+ */
+function isBeanOnlyPendingPay(
+  status: string | null | undefined,
+  tbUsed?: number | null,
+): boolean {
+  return status === 'pending_pay' && Number(tbUsed ?? 0) > 0
+}
+
+function isRefundableStatus(
+  status: string | null | undefined,
+  opts?: { tbUsed?: number | null },
+): boolean {
+  if (status == null) return false
+  if ((REFUNDABLE_STATUSES as readonly string[]).includes(status)) return true
+  // 混合支付已扣健康豆的待支付订单：放行退款，避免形成无法处置的资产黑洞（详见 isBeanOnlyPendingPay）
+  if (isBeanOnlyPendingPay(status, opts?.tbUsed)) return true
+  return false
 }
 
 /**
@@ -131,9 +154,18 @@ export async function handleRefundOrder(req: Request, deps?: RefundDeps): Promis
     // 可退款状态白名单：必须与前端入口(order-center「申请退款」按钮)保持一致。
     // pending_review = 已付款且已收货/到店消费待评价（纯健康豆堂食订单建单即此状态），
     // 属合法已付款状态，必须可退——此前遗漏导致所有堂食订单申请退款必然 400。
-    // 排除：pending_pay(未付款)、cancelled(已取消)、after_sale(退款流程中)。
-    if (!isRefundableStatus(order.status)) {
-      return Response.json({ success: false, error: `订单状态(${order.status})不支持退款` }, { status: 400, headers: corsHeaders })
+    // 排除：pending_pay(未付款，但见下方例外)、cancelled(已取消)、after_sale(退款流程中)。
+    //
+    // 🔴 例外（混合支付资产黑洞）：部分用健康豆抵扣的混合支付订单，钱还没通过微信付完，
+    // 状态停在 pending_pay。此时健康豆已经扣掉却被拒绝退款 = 用户资产凭空被锁，
+    // 故对「pending_pay 且已扣豆」放行，但只退健康豆（微信侧无交易，不能发起微信退款）。
+    const tbUsed = Number(order.tb_used ?? 0)
+    const beanOnlyPendingPay = isBeanOnlyPendingPay(order.status, tbUsed)
+    if (!isRefundableStatus(order.status, { tbUsed })) {
+      return Response.json({
+        success: false,
+        error: `订单状态(${order.status})不支持退款${tbUsed > 0 ? `（已抵扣健康豆 ${tbUsed}）` : ''}`,
+      }, { status: 400, headers: corsHeaders })
     }
 
     // 2. 计算可退金额（原 get_refundable_amount RPC 已随 schema 变更移除，此处内联）
@@ -159,7 +191,11 @@ export async function handleRefundOrder(req: Request, deps?: RefundDeps): Promis
 
     // 4. 发起微信退款（如有微信支付部分）
     // 注意：00096 后 tb_used 已统一为「元」口径（1 健康豆 = 1 元），直接按比例扣减，勿再 ×0.01
-    const wxRefundAmount = computeWxRefundAmount(refund_amount, order.tb_used, order.total_amount)
+    // 🔴 未付完微信款的混合支付订单：微信侧无交易记录，wxRefundAmount 必须按 0 处理，
+    // 否则会对一笔不存在的交易发起退款，微信必然拒绝（表现为「微信退款发起失败」）。
+    const wxRefundAmount = beanOnlyPendingPay
+      ? 0
+      : computeWxRefundAmount(refund_amount, order.tb_used, order.total_amount)
     // 退款占比 & 应返还健康豆（健康豆抵扣部分，所有退款路径通用，下面统一退还）
     const beanPortion = computeBeanPortion(order.tb_used, refund_amount, order.total_amount)
 
@@ -234,8 +270,9 @@ export async function handleRefundOrder(req: Request, deps?: RefundDeps): Promis
       }).eq('id', order_id)
       // 触发佣金&积分扣回
       await triggerClawback(supabase, order_id, order.order_no, user.id, refund_amount, Number(order.total_amount))
-      // 更新订单状态
-      await supabase.from('orders').update({ status: 'after_sale' }).eq('id', order_id)
+      // 更新订单状态：从未真正支付完成的待支付单退完后应回到「已取消」，
+      // 而不是 after_sale（售后）—— 它压根没进入履约流程，标记售后会让统计口径失真。
+      await supabase.from('orders').update({ status: beanOnlyPendingPay ? 'cancelled' : 'after_sale' }).eq('id', order_id)
 
       // 推送「退款成功」通知
       supabase.functions.invoke('send-notification', {
