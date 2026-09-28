@@ -12,6 +12,7 @@ import { showCartToast } from '@/utils/cartToast'
 import type { Store, StoreCategory, Product, UserAddress } from '@/db/types'
 import { supabase, getLocalUser } from '@/client/supabase'
 import Icon from '@/components/Icon'
+import { BRAND_LINE_ICONS } from '@/components/brandIcons'
 import AddToCartButton from '@/components/AddToCartButton'
 import { buildTherapyReport, isFoodProduct, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
@@ -274,7 +275,7 @@ export default function StoreHomePage() {
  alignItems: 'center',
  justifyContent: 'center',
  }}>
- <Text style={{ fontSize: '64rpx' }}></Text>
+ <Icon name="home" size={64} className="text-white" />
  </View>
  </View>
  )
@@ -320,7 +321,7 @@ export default function StoreHomePage() {
  {/* ========== 配送范围提示 ========== */}
  {outOfRange && deliveryDistance != null && (
  <View style={{ margin: '0 32rpx', marginTop: '24rpx', backgroundColor: '#FEF3C7', borderRadius: '24rpx', padding: '20rpx 28rpx', borderWidth: '2rpx', borderColor: '#FCD34D', flexDirection: 'row', alignItems: 'center', gap: '12rpx' }}>
- <Text style={{ fontSize: '28rpx' }}></Text>
+ <Icon name="alert-circle-outline" size={17} />
  <Text style={{ fontSize: '26rpx', color: '#B45309', flex: 1 }}>您当前收货地址距本店约 {deliveryDistance.toFixed(1)} km，超出配送范围（{store?.delivery_radius} km），请重选配送范围内的收货地址</Text>
  </View>
  )}
@@ -335,7 +336,7 @@ export default function StoreHomePage() {
  <Text style={{ fontSize: '26rpx', color: '#475569', lineHeight: '40rpx', width: '100%', display: 'block' }}>{store.description}</Text>
  )}
  <View style={storeInfoTag}>
- <Text style={{ fontSize: '24rpx' }}></Text>
+ <Image src={BRAND_LINE_ICONS['map-pin']} style={{ width: 15, height: 15, flexShrink: 0 }} />
  <Text style={{ fontSize: '24rpx', color: '#475569' }}>{store.address || '查看地图'}</Text>
  </View>
  <View style={storeInfoTag}>
@@ -343,13 +344,13 @@ export default function StoreHomePage() {
  <Text style={{ fontSize: '24rpx', color: '#475569' }}>{bizStatus?.text}{bizStatus?.closingSoon ? ` · 今日营业至 ${bizStatus.closeText}` : ''}</Text>
  </View>
  <View style={storeInfoTag}>
- <Text style={{ fontSize: '24rpx' }}></Text>
+ <Icon name="phone" size={15} />
  <Text style={{ fontSize: '24rpx', color: '#475569' }}>{store.phone || '联系方式待更新'}</Text>
  </View>
  </View>
  {fulfillmentText && (
  <View style={{ marginTop: '20rpx', paddingTop: '20rpx', borderTopWidth: '2rpx', borderTopColor: 'rgba(0,0,0,0.06)', flexDirection: 'row', alignItems: 'center', gap: '12rpx' }}>
- <Text style={{ fontSize: '26rpx' }}></Text>
+ <Icon name="truck" size={16} />
  <Text style={{ fontSize: '26rpx', color: '#666666' }}>{fulfillmentText}</Text>
  </View>
  )}
@@ -358,7 +359,7 @@ export default function StoreHomePage() {
  {/* ========== 门店公告 ========== */}
  {store.announcement && (
  <View style={{ margin: '0 32rpx', marginTop: '24rpx', backgroundColor: '#FFF7ED', borderRadius: '24rpx', padding: '20rpx 28rpx', borderWidth: '2rpx', borderColor: '#FED7AA', flexDirection: 'row', alignItems: 'center', gap: '12rpx' }}>
- <Text style={{ fontSize: '28rpx' }}></Text>
+ <Icon name="bullhorn" size={17} />
  <Text style={{ fontSize: '26rpx', color: '#666666', flex: 1 }}>{store.announcement}</Text>
  </View>
  )}
@@ -429,13 +430,14 @@ export default function StoreHomePage() {
  const img = p.main_image || p.image_url || ''
  if (!img) {
  // 缺图：轻量占位（柔和米底 + emoji + 品名），替代大灰块
+ // 缺图：线性 bag 图标 + 品名（原本是空 Text 占位，会撑出看不见的空洞把视线拉偏）
  return (
- <View style={{ width: '100%', aspectRatio: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F3EF' }}>
- <View style={{ flexDirection: 'column', alignItems: 'center' }}>
- <Text style={{ fontSize: '68rpx' }}></Text>
- <Text style={{ fontSize: '22rpx', color: '#B08D7A', marginTop: '8rpx' }} numberOfLines={1}>{p.name}</Text>
- </View>
- </View>
+<View style={{ width: '100%', aspectRatio: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F3EF' }}>
+<View style={{ flexDirection: 'column', alignItems: 'center' }}>
+<Icon name="bag" size={34} className="text-muted-foreground" />
+<Text style={{ fontSize: '22rpx', color: '#B08D7A', marginTop: '8rpx' }} numberOfLines={1}>{p.name}</Text>
+</View>
+</View>
  )
  }
  // 有图：1:1 标准方图，比例统一、视觉规整
