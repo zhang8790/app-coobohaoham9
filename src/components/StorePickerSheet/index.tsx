@@ -47,11 +47,13 @@ export default function StorePickerSheet({
  const hasStores = stores && stores.length > 0
 
  return (
- <View className="fixed inset-0 z-[1001] sheet-overlay" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }} onClick={onClose} catchMove>
+ // ⚠️ z-[1001] 这类 Tailwind 任意值类在小程序编译中会丢失（dist_new/app.wxss 里查不到），
+ // 所以层级必须写成内联 style，否则本弹层会被首页吸顶 hero(zIndex 900) 盖住。
+ <View className="fixed inset-0 sheet-overlay" style={{ backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 1001 }} onClick={onClose} catchMove>
  {/* 底部面板：点击内容不冒泡关闭 */}
  <View
  className="sheet-panel fixed left-0 right-0 bottom-0 bg-card rounded-t-3xl border-t border-border"
- style={{ maxHeight: '78vh', display: 'flex', flexDirection: 'column' }}
+ style={{ maxHeight: '78vh', display: 'flex', flexDirection: 'column', zIndex: 1002 }}
  onClick={(e) => { e.stopPropagation?.() }}
  >
  {/* 拖拽指示条 */}

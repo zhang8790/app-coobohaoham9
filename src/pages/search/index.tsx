@@ -1,7 +1,7 @@
 // @title 搜索
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
-import { View, Text, Image, Input } from '@tarojs/components'
+import { View, Text, Image, Input, ScrollView } from '@tarojs/components'
 import { searchProducts } from '@/db/api'
 import Icon from '@/components/Icon'
 import type { Product } from '@/db/types'
@@ -21,6 +21,16 @@ export default function SearchPage() {
  try { return JSON.parse(Taro.getStorageSync('search_history') || '[]') } catch { return [] }
  })
  const router = useRouter()
+ // 页面改为「视口分区」布局：顶栏固定 + 内容区内部滚动。
+ // 为什么放弃 position:sticky：原生页面级滚动下 sticky 在部分基础库/机型会失效（头部照样跟着滚走），
+ // 改为外层高度 = windowHeight 的 flex 列，顶栏 flexShrink:0 不参与滚动、下方 ScrollView 独占剩余空间，
+ // 顶栏在布局层面就不可能被滑动带走。
+ const [winH, setWinH] = useState<number>(() => {
+  try {
+  const info = (Taro as any).getWindowInfo?.() ?? (Taro as any).getSystemInfoSync?.()
+  return info?.windowHeight || 600
+  } catch { return 600 }
+ })
 
  const pushHistory = (kw: string) => {
  const newHistory = [kw, ...history.filter(h => h !== kw)].slice(0, 10)
@@ -74,9 +84,9 @@ export default function SearchPage() {
  }, [])
 
  return (
- <View className="min-h-screen bg-background">
- {/* 搜索栏 */}
- <View className="sticky top-0 z-10 bg-background px-4 py-3 flex items-center gap-3" style={{ borderBottom: '1px solid #E6E6E6' }}>
+ <View className="bg-background" style={{ height: winH, display: 'flex', flexDirection: 'column' }}>
+ {/* 顶栏：固定不参与滚动（位于 flex 第一位且不压缩），滚动只发生在下方 ScrollView 内部 */}
+ <View className="bg-background px-4 py-3 flex items-center gap-3" style={{ flexShrink: 0, borderBottom: '1px solid #E6E6E6' }}>
  <View className="flex-1 border-2 border-input rounded-full px-4 py-2 bg-muted flex items-center gap-2">
  <View className="text-muted-foreground"><Icon name="search" size={20} /></View>
  <Input
@@ -94,6 +104,9 @@ export default function SearchPage() {
  <Text className="text-xl text-primary font-bold">{keyword.trim() ? '搜索' : '取消'}</Text>
  </View>
  </View>
+
+ {/* 内容区：唯一滚动容器，顶栏不参与 */}
+ <ScrollView scrollY className="bg-background" style={{ flex: 1, minHeight: 0 }}>
 
  {/* 无搜索状态 */}
  {!searched && (
@@ -200,6 +213,7 @@ export default function SearchPage() {
  )}
  </View>
  )}
+ </ScrollView>
  </View>
  )
 }

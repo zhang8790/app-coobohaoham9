@@ -121,6 +121,28 @@ export default function IndexPage() {
  } catch { /* 取不到则用默认值 20 */ }
  }, [])
 
+ // 🔴 吸顶 Hero（品牌行 + 定位行 + 搜索框）：**滑动内容时绝对不位移**。
+ // 为什么不用 position:sticky：原生页面级滚动下 sticky 在部分基础库/机型会失效（实测「滑动时头部还是会动」），
+ // 而首页是 navigationStyle:'custom'（无原生标题栏），fixed 相对视口 top:0 正好贴在状态栏下方，
+ // 所以这里用 fixed 钉顶 + 下方一个等高占位 View 撑开布局——既保证 hero 不动，又不会把内容压在下面。
+ const PIN_HERO = true
+ // 占位高度：先用估算值兜底（状态栏 + 品牌行 + 定位行 + 搜索框 + 内边距），测得真值后立即校正
+ const [heroH, setHeroH] = useState(statusBarH + 168)
+ useEffect(() => {
+  if (!PIN_HERO) return
+  const measure = () => {
+   Taro.createSelectorQuery()
+   .select('.pg-hero')
+   .boundingClientRect()
+   .exec((res: any) => {
+    const h = Array.isArray(res) && res[0] ? Number(res[0]?.height) : 0
+    if (h > 0) setHeroH(h)
+   })
+  }
+  const t = setTimeout(measure, 60)
+  return () => clearTimeout(t)
+ }, [statusBarH])
+
  // 当前节气名（驱动首页「节气食盒」入口与今日食养副标题）
  const seasonalTerm = getCurrentTerm()
  const termName = seasonalTerm?.name || '当季'
@@ -539,7 +561,9 @@ const canUseFitFilter = selectedCrowds.length > 0 || !!consumptionProfile?.hasDa
  <View className="min-h-screen bg-background tabbar-pad index-page" aria-label="首页">
 
  {/* ===================== L0 主视觉：品牌标题置顶 + 搜索/定位一行 ===================== */}
- <View className="pg-hero" style={{ position: 'relative', overflow: 'hidden', marginTop: 0, marginLeft: 0, marginRight: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderBottomLeftRadius: 22, borderBottomRightRadius: 22, borderWidth: 0, boxShadow: '0 8px 22px rgba(0,0,0,0.06)', background: 'hsl(var(--background))', paddingTop: statusBarH + 14, paddingLeft: 16, paddingRight: 16, paddingBottom: 16 }}>
+{/* Hero 主视觉：PIN_HERO 时固定在视口顶部（不随内容滚动），并铺满左右，
+ 这样 Banner/金刚区/商品流从 hero 下方滚过，搜索入口始终可达。 */}
+ <View className="pg-hero" style={{ position: PIN_HERO ? 'fixed' : 'relative', top: PIN_HERO ? 0 : 0, left: PIN_HERO ? 0 : 0, right: PIN_HERO ? 0 : 0, zIndex: PIN_HERO ? 900 : undefined, overflow: 'hidden', marginTop: 0, marginLeft: 0, marginRight: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderBottomLeftRadius: 22, borderBottomRightRadius: 22, borderWidth: 0, boxShadow: '0 8px 22px rgba(0,0,0,0.06)', background: 'hsl(var(--background))', paddingTop: statusBarH + 14, paddingLeft: 16, paddingRight: 16, paddingBottom: 16 }}>
  {/* 品牌背景图/视频（运营在「首页品牌配置」上传；无配置则回退 CSS 渐变） */}
  {brandMedia?.type === 'image' && (
  <Image
@@ -617,8 +641,11 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
 <Text className="text-sm font-semibold" style={{ color: 'hsl(var(--primary))' }}>扫码配料</Text>
 </View>
 </View>
+</View>
+{/* Hero 容器结束 */}
 
- </View>
+{/* Hero 钉顶后的等高占位：撑出被 fixed 抽走的空间，保证下方内容的起排位置与吸顶前完全一致 */}
+{PIN_HERO && <View style={{ width: '100%', height: heroH }} />}
 
 {/* 轮播位 = 全站唯一广告位：总后台「首页广告位」配置驱动，热更新；
  未配置广告时回退内置品牌卡，永远不留白。 */}
@@ -662,7 +689,7 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
           >
             <View style={{ height: 112, position: 'relative', background: MACARON[idx % MACARON.length], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {(p.main_image || p.image_url) && (
-                <Image src={p.main_image || p.image_url} mode="aspectFill" style={{ width: '100%', height: '100%', opacity: cardImgLoaded[p.id] ? 1 : 0, transition: 'opacity 0.3s ease' }} onLoad={() => setCardImgLoaded(s => ({ ...s, [p.id]: true }))} />
+                <Image src={p.main_image || p.image_url || ''} mode="aspectFill" style={{ width: '100%', height: '100%', opacity: cardImgLoaded[p.id] ? 1 : 0, transition: 'opacity 0.3s ease' }} onLoad={() => setCardImgLoaded(s => ({ ...s, [p.id]: true }))} />
               )}
               {fit && (
                 <View style={{ position: 'absolute', top: 8, left: 8, background: 'hsl(var(--primary-soft))', color: 'hsl(var(--primary))', fontSize: '20rpx', fontWeight: 700, borderRadius: 5, padding: '2px 6px' }}>适合你</View>

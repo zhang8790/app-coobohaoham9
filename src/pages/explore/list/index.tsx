@@ -30,6 +30,15 @@ export default function CategoryListPage() {
   const { currentCity } = useLocation()
   const { getSuitability } = useFoodTherapy()
 
+  // 页面改为「视口分区」：头部（搜索栏 + 标题 + 二级 Tab）固定不参与滚动，商品列表在下方 ScrollView 内滚动。
+  // 替换原 position:sticky 方案：原生页面滚动下 sticky 在部分基础库/机型会失效，导致滑几屏后头部被带走。
+  const [winH, setWinH] = useState<number>(() => {
+    try {
+      const info = (Taro as any).getWindowInfo?.() ?? (Taro as any).getSystemInfoSync?.()
+      return info?.windowHeight || 600
+    } catch { return 600 }
+  })
+
   const [list, setList] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [addingId, setAddingId] = useState('')
@@ -97,15 +106,13 @@ export default function CategoryListPage() {
   }, [addingId])
 
   return (
-    <View className="min-h-screen bg-background pb-10">
-      {/* 吸顶头部：搜索栏 + 标题 + 二级分类 Tab。
-          本页走原生页面滚动（min-h-screen，无内层 ScrollView），故用 position:sticky
-          让头部在商品列表滚动时固定不动；背景不透明以遮挡下方滚过的内容。 */}
+    <View className="bg-background" style={{ height: winH, display: 'flex', flexDirection: 'column' }}>
+      {/* 固定头部：搜索栏 + 标题 + 二级分类 Tab。
+          不再依赖 position:sticky（页面级滚动下不可靠），改为 flex 分区：本区块在布局上
+          就不参与滚动，背景不透明以明确与下方滚动区分界。 */}
       <View
         style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 20,
+          flexShrink: 0,
           background: 'hsl(var(--background))',
           borderBottomWidth: 1,
           borderBottomColor: 'hsl(var(--border))',
@@ -161,6 +168,8 @@ export default function CategoryListPage() {
       </View>
       {/* 吸顶头部结束 */}
 
+      {/* 商品区：唯一滚动容器 */}
+      <ScrollView scrollY className="bg-background" style={{ flex: 1, minHeight: 0 }}>
       {loading ? (
         <View className="flex items-center justify-center py-24">
           <Text className="text-base text-muted-foreground">加载中…</Text>
@@ -193,6 +202,7 @@ export default function CategoryListPage() {
           ))}
         </View>
       )}
+      </ScrollView>
     </View>
   )
 }

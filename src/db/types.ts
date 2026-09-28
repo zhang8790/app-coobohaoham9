@@ -130,7 +130,9 @@ export interface Product {
   store_id: string
   category_id: string | null
   // 二级分类（场景内细分，仅筛选维度；一级归类仍为 category_id）
-  sub_category_id: string | null
+  // 二级分类（场景内筛选维度）：DB 里 nullable —— 未归类的商品、以及历史 mock 数据都没有该字段，
+  // 故类型上必须可选，否则任何不含本字段的字面量对象（如 mockData）都会被类型检查判缺。
+  sub_category_id?: string | null
   name: string
   description: string | null
   price: number
