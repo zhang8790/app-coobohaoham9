@@ -25,6 +25,10 @@ interface AuthContextType {
   signUpWithPhone: (phone: string, password: string) => Promise<{error: Error | null}>
   signInWithPhone: (phone: string) => Promise<{error: Error | null}>
   verifyPhoneOtp: (phone: string, code: string) => Promise<{error: Error | null}>
+  // 账号中心（EF account-center）：注册 / 开通密码登录 / 重置密码
+  registerByPhone: (phone: string, code: string, password: string, nickname?: string) => Promise<{error: Error | null}>
+  enablePasswordLogin: (phone: string, code: string, password: string) => Promise<{error: Error | null}>
+  resetPassword: (phone: string, code: string, password: string) => Promise<{error: Error | null}>
   signInWithWechat: () => Promise<{error: Error | null}>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -132,116 +136,104 @@ export function AuthProvider({children}: {children: ReactNode}) {
     }
   }, [])
 
+  // 账号中心错误码 → 用户可读文案（EF account-center 返回）
+  const ACCOUNT_ERROR_TEXT: Record<string, string> = {
+    invalid_phone: '手机号格式不正确',
+    missing_code: '请填写验证码',
+    weak_password: '密码至少 8 位，建议字母与数字组合',
+    code_invalid_or_expired: '验证码错误或已过期，请重新获取',
+    update_failed: '设置失败，请稍后重试',
+    not_admin: '仅管理员可执行该操作',
+    unknown_action: '未知操作',
+    internal_error: '服务异常，请稍后重试',
+  }
+
+  // 统一调用账号中心 EF：注册 / 开通密码登录 / 重置密码
+  // 密码类写操作必须走服务端（EF 持有 service_role），客户端绝不持有该 key。
+  const callAccountCenter = async (payload: Record<string, unknown>) => {
+    const { data, error } = await supabase.functions.invoke('account-center', { body: payload })
+    if (error) throw new Error(error.message || '服务异常')
+    if (data && (data as any).ok === false) {
+      const code = String((data as any).error || '')
+      throw new Error(ACCOUNT_ERROR_TEXT[code] || (data as any).message || '操作失败')
+    }
+    return data
+  }
+
+  const registerByPhone = async (
+    phone: string,
+    code: string,
+    password: string,
+    nickname?: string,
+  ) => {
+    try {
+      await callAccountCenter({ action: 'register', phone, code, password, nickname, channel: 'miniprogram' })
+      // 注册成功后沿用推荐关系绑定（与验证码登录链路一致）
+      try {
+        const { convertPendingReferral } = await import('@/db/api')
+        await convertPendingReferral()
+      } catch (e) {
+        console.warn('[Auth] 推荐关系绑定跳过:', e)
+      }
+      return { error: null }
+    } catch (error) {
+      return { error: error as Error }
+    }
+  }
+
+  const enablePasswordLogin = async (phone: string, code: string, password: string) => {
+    try {
+      await callAccountCenter({ action: 'enable_password', phone, code, password, channel: 'miniprogram' })
+      return { error: null }
+    } catch (error) {
+      return { error: error as Error }
+    }
+  }
+
+  const resetPassword = async (phone: string, code: string, password: string) => {
+    try {
+      await callAccountCenter({ action: 'reset_password', phone, code, password, channel: 'miniprogram' })
+      return { error: null }
+    } catch (error) {
+      return { error: error as Error }
+    }
+  }
+
   const signInWithUsername = async (username: string, password: string) => {
     try {
-      // 支持：邮箱（含 @）、用户名、手机号
+      // 支持三种形态：邮箱（含 @）、用户名、手机号
       let email = username
       if (!username.includes('@')) {
-      // 手机号格式：支持测试账号直接映射（仅 DEV 构建生效）
-      if (/^1[3-9]\d{9}$/.test(username)) {
-        if (process.env.TARO_APP_LOCAL_DEV === 'true' && username === '18701410500') {
-            email = 'test18701410500@test.com'
-        } else if (username === '18565613635') {
-          // 1856 账号 GoTrue 密码登录损坏（Database error querying schema）
-          // 硬登陆：通过 force-login Edge Function 绕过 GoTrue，
-          // 删除旧坏行 → 用 Admin API 重建同 id 干净账号 → 签发 session token
-          try {
-            const { data: fnData, error: fnError } = await supabase.functions.invoke('force-login', {
-              body: {
-                user_id: '03165ead-8fef-46c4-8f57-bc5a905ac716',
-                email: 'test18565613635@test.com',
-                password: password || '12345678',
-                phone: '+8618565613635',
-              }
-            })
-            if (fnError) throw fnError
-            if (fnData?.error) throw new Error(fnData.error)
-            if (fnData?.sql_cleanup_needed) {
-              throw new Error('登录状态异常，请稍后重试或联系管理员')
-            }
-            if (!fnData?.access_token) throw new Error('force-login 未返回 access_token')
-
-            // 用返回的 token 直接建立登录态
-            const { error: sessionError } = await supabase.auth.setSession({
-              access_token: fnData.access_token,
-              refresh_token: fnData.refresh_token,
-            })
-            if (sessionError) throw sessionError
-
-            return { error: null }
-          } catch (forceLoginErr) {
-            // force-login 也失败（可能函数未部署 404 或其他错误），回退密码登录
-            console.warn('[Auth] force-login 失败，回退密码登录:', (forceLoginErr as Error).message)
-            email = 'test18565613635@test.com'
-            // 继续走下面的 signInWithPassword（大概率也报错，但至少显示原始错误）
+        if (/^1[3-9]\d{9}$/.test(username)) {
+          // 手机号：登录邮箱由服务端映射表 public.user_login_identities 决定，
+          // 客户端不再猜（此前只能对 3 个硬编码测试号开后门，其余手机号一律拒绝）。
+          // resolve_login_email 内部做手机号规范化，裸号 / +86 前缀都能命中。
+          const { data: resolved, error: rpcErr } = await supabase
+            .rpc('resolve_login_email', { p_phone: username })
+          if (rpcErr) {
+            console.warn('[Auth] resolve_login_email 失败:', rpcErr.message)
           }
-        } else if (username === '18701410500') {
-          // 1870 已通过 scripts/fix-1870-password.sql 补好 email+密码，直接账号密码登录（不依赖任何 Edge Function）
-          try {
-            const { error: pwError } = await supabase.auth.signInWithPassword({
-              email: 'test18701410500@test.com',
-              password: password || '12345678',
-            })
-            if (pwError) throw pwError
-            return { error: null }
-          } catch (pwLoginErr) {
-            const msg = (pwLoginErr as Error).message || '未知错误'
-            // 用户友好提示：不暴露内部脚本路径/技术细节
-            if (msg.includes('Invalid login credentials')) {
-              throw new Error('用户名或密码错误')
-            }
-            throw new Error('登录失败，请稍后重试')
+          if (!resolved) {
+            // 未开通密码登录：引导用户去开通，而不是笼统报"不支持"
+            throw new Error('该手机号未开通密码登录，可先在下方"开通密码登录"或用短信验证码登录')
           }
-        } else if (username === '13526245633') {
-          // 后台脚本建号账号（scripts/create_user_with_upline.js）：email 规则 test<裸号>@test.com，走密码登录
-          email = 'test13526245633@test.com'
-          // 落到下方 signInWithPassword
+          email = resolved as string
         } else {
-            // 生产环境：此处应通过 backend API 按手机号查邮箱
-            throw new Error('该手机号未开通密码登录，请使用短信验证码登录')
-          }
-        } else {
-          // 纯用户名：补 @app.example.com 后缀
-          email = `${username}@app.example.com`
+          // 纯用户名：先查映射表，查不到再沿用历史派生规则兜底
+          const { data: byName } = await supabase
+            .from('user_login_identities')
+            .select('login_email')
+            .eq('username', username)
+            .maybeSingle()
+          email = ((byName as any)?.login_email as string) || `${username}@app.example.com`
         }
       }
-      
-      // 先尝试登录
-      let {error} = await supabase.auth.signInWithPassword({
-        email,
-        password
-      })
-      
-      // 如果是测试账号且登录失败（用户不存在），自动创建（仅 DEV 构建生效）
-      if (process.env.TARO_APP_LOCAL_DEV === 'true' && error && email === 'test18701410500@test.com' && error.message.includes('Invalid login credentials')) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { 
-              phone: '18701410500',
-              nickname: '测试用户'
-            }
-          }
-        })
-        
-        if (signUpError) {
-          console.error('[Auth] 自动创建测试账号失败:', signUpError)
-          throw signUpError
-        }
-        
-        // 创建成功，重新登录
-        const { error: reLoginError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        })
-        error = reLoginError
-      }
-      
+
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
-      return {error: null}
+      return { error: null }
     } catch (error) {
-      return {error: error as Error}
+      return { error: error as Error }
     }
   }
 
@@ -308,86 +300,10 @@ export function AuthProvider({children}: {children: ReactNode}) {
 
   const verifyPhoneOtp = async (phone: string, code: string) => {
     try {
-      // 本地测试模式（仅 DEV 构建生效）：测试账号绕过真实短信验证
-      if (process.env.TARO_APP_LOCAL_DEV === 'true' && ((phone === '+8618701410500' || phone === '+8618565613635') && code === '123456')) {
-        // 1856 账号走 force-login 硬登陆（密码登录损坏）
-        if (phone === '+8618565613635') {
-          try {
-            const { data: fnData, error: fnError } = await supabase.functions.invoke('force-login', {
-              body: {
-                user_id: '03165ead-8fef-46c4-8f57-bc5a905ac716',
-                email: 'test18565613635@test.com',
-                password: '12345678',
-                phone: '+8618565613635',
-              }
-            })
-            if (fnError) throw fnError
-            if (fnData?.error) throw new Error(fnData.error)
-            if (fnData?.sql_cleanup_needed) {
-              throw new Error('登录状态异常，请稍后重试或联系管理员')
-            }
-            if (!fnData?.access_token) throw new Error('force-login 未返回 access_token')
-
-            const { error: sessionError } = await supabase.auth.setSession({
-              access_token: fnData.access_token,
-              refresh_token: fnData.refresh_token,
-            })
-            if (sessionError) throw sessionError
-
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-              const { convertPendingReferral } = await import('@/db/api')
-              await convertPendingReferral(user.id)
-            }
-
-            return { error: null }
-          } catch (err) {
-            return { error: err as Error }
-          }
-        }
-        // 其他测试账号：先尝试密码登录
-        let { error } = await supabase.auth.signInWithPassword({
-          email: 'test18701410500@test.com',
-          password: '12345678',
-        })
-        
-        // 如果用户不存在，自动创建
-        if (error && error.message.includes('Invalid login credentials')) {
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email: 'test18701410500@test.com',
-            password: '12345678',
-            options: {
-              data: { 
-                phone: '18701410500',
-                nickname: '测试用户'
-              }
-            }
-          })
-          
-          if (signUpError) {
-            console.error('[Auth] 自动创建测试账号失败:', signUpError)
-            throw signUpError
-          }
-          
-          // 创建成功，重新登录
-          const { error: reLoginError } = await supabase.auth.signInWithPassword({
-            email: 'test18701410500@test.com',
-            password: '12345678',
-          })
-          error = reLoginError
-        }
-        
-        if (error) throw error
-        
-        // 【新增】登录/注册成功后，转化预归属记录
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const { convertPendingReferral } = await import('@/db/api')
-          await convertPendingReferral(user.id)
-        }
-        
-        return { error: null }
-      }
+      // 说明：原先这里有一段「DEV 本地测试模式」——对两个测试手机号放行固定验证码 123456，
+      // 并对 18565613635 走 force-login Edge Function 绕过 GoTrue 直接签发 session。
+      // 该分支属于生产后门（任何人构造这两个手机号+123456 即可登录），已整体移除。
+      // 现在所有手机号一律走 Supabase 原生 SMS OTP 校验，测试也请用真实验证码。
 
       // 生产模式：真实短信验证
       const { data, error } = await supabase.auth.verifyOtp({
@@ -459,6 +375,9 @@ export function AuthProvider({children}: {children: ReactNode}) {
         signUpWithPhone,
         signInWithPhone,
         verifyPhoneOtp,
+        registerByPhone,
+        enablePasswordLogin,
+        resetPassword,
         signInWithWechat,
         signOut,
         refreshProfile

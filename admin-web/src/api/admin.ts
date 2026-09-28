@@ -9,6 +9,41 @@ import {
   MOCK_USERS, MOCK_ANNOUNCEMENTS, MOCK_REFUNDS,
 } from '@/mock/data'
 
+// =========== 密码登录开关 ===========
+// 手机号能否用密码登录，由 public.user_login_identities.password_enabled 决定。
+// 该表只开放 SELECT（防登录邮箱被篡改），写操作必须走 SECURITY DEFINER 函数
+// admin_set_password_enabled（迁移 00213，内部强制 is_admin()）。
+
+/** 批量查询一批用户的「密码登录」开关状态 */
+export async function getPasswordEnabledMap(userIds: string[]): Promise<Record<string, boolean>> {
+  if (!userIds.length) return {}
+  return safeQuery(async () => {
+    const { data } = await supabase
+      .from('user_login_identities')
+      .select('user_id, password_enabled')
+      .in('user_id', userIds)
+    const m: Record<string, boolean> = {}
+    for (const r of (data || []) as any[]) m[String(r.user_id)] = !!r.password_enabled
+    return m
+  }, {})
+}
+
+/** 启用/停用某账号的密码登录（仅管理员，函数内校验 is_admin 并写审计） */
+export async function setPasswordEnabled(
+  userId: string,
+  enabled: boolean,
+): Promise<{ ok: boolean; message?: string }> {
+  return safeQuery(async () => {
+    const { data, error } = await supabase.rpc('admin_set_password_enabled', {
+      p_user_id: userId,
+      p_enabled: enabled,
+    })
+    if (error) throw error
+    const res = data as any
+    return res?.ok ? { ok: true } : { ok: false, message: res?.message || '操作失败' }
+  }, { ok: false, message: '当前为演示数据，无法操作' })
+}
+
 // =========== 模式控制 ===========
 // 可通过环境变量控制是否使用 mock 数据
 // 在 .env.local 中设置 VITE_USE_MOCK=false 来禁用 mock

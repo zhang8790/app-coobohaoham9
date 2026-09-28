@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getUsers, updateUserRole, createUserAccount, searchUsers, adminUpdateUserIdentity } from '@/api/admin'
+import { getUsers, updateUserRole, createUserAccount, searchUsers, adminUpdateUserIdentity,
+  getPasswordEnabledMap, setPasswordEnabled } from '@/api/admin'
 import { adminRechargeGoldBean } from '@/api/finance'
 import type { Profile } from '@/types'
 import { maskPhone } from '@/utils/mask'
@@ -16,6 +17,8 @@ export default function Users() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState<string | null>(null)
+  // 密码登录开关：user_id -> password_enabled
+  const [pwMap, setPwMap] = useState<Record<string, boolean>>({})
   // 充值弹窗状态
   const [rcTarget, setRcTarget] = useState<Profile | null>(null)
   const [rcAmt, setRcAmt] = useState('')
@@ -99,9 +102,28 @@ export default function Users() {
     setLoading(true)
     const { data, total: t } = await getUsers(page, PAGE_SIZE)
     setList(data); setTotal(t); setLoading(false)
+    // 顺带拉取这批用户的「密码登录」开关（失败不阻塞列表展示）
+    try {
+      setPwMap(await getPasswordEnabledMap(data.map(u => u.id)))
+    } catch (e) {
+      console.warn('[Users] 密码登录状态加载失败:', e)
+    }
   }, [page])
 
   useEffect(() => { load() }, [load])
+
+  // 切换密码登录开关：写操作经 SECURITY DEFINER 函数，函数内校验 is_admin 并写审计
+  const handlePwToggle = async (id: string) => {
+    const next = !pwMap[id]
+    if (!confirm(next
+      ? '确认开通该账号的密码登录？开通后可用手机号 + 密码登录。'
+      : '确认关闭该账号的密码登录？关闭后只能用短信验证码登录。')) return
+    setProcessing(id)
+    const res = await setPasswordEnabled(id, next)
+    setProcessing(null)
+    if (!res.ok) { alert(res.message || '操作失败'); return }
+    setPwMap(prev => ({ ...prev, [id]: next }))
+  }
 
   const handleRoleChange = async (id: string, currentRole: string) => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin'
@@ -225,7 +247,7 @@ export default function Users() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['昵称', '账号 ID', '手机号', '段位', '买家健康豆', '健康豆', '角色', '注册时间', '操作'].map(h => (
+                {['昵称', '账号 ID', '手机号', '段位', '买家健康豆', '健康豆', '角色', '密码登录', '注册时间', '操作'].map(h => (
                   <th key={h} style={S.th}>{h}</th>
                 ))}
               </tr>
@@ -259,6 +281,21 @@ export default function Users() {
                         background: u.role === 'admin' ? 'var(--primary-soft)' : 'var(--border)', color: u.role === 'admin' ? 'var(--primary-strong)' : 'var(--text-muted)' }}>
                         {u.role === 'admin' ? '管理员' : '普通用户'}
                       </span>
+                    </td>
+                    {/* 密码登录开关：关闭时该账号只能用短信验证码登录 */}
+                    <td style={S.td}>
+                      <button
+                        disabled={processing === u.id}
+                        onClick={() => handlePwToggle(u.id)}
+                        title={pwMap[u.id] ? '点击关闭密码登录' : '点击开通密码登录'}
+                        style={{
+                          padding: '4px 10px', fontSize: 12, cursor: 'pointer', borderRadius: 12,
+                          border: `1px solid ${pwMap[u.id] ? 'var(--primary)' : 'var(--border)'}`,
+                          background: pwMap[u.id] ? 'var(--primary-soft)' : 'transparent',
+                          color: pwMap[u.id] ? 'var(--primary-strong)' : 'var(--text-dim)',
+                        }}>
+                        {pwMap[u.id] ? '已开通' : '未开通'}
+                      </button>
                     </td>
                     <td style={{ ...S.td, color: 'var(--text-dim)', fontSize: 13 }}>{new Date(u.created_at).toLocaleDateString('zh-CN')}</td>
                     <td style={S.td}>

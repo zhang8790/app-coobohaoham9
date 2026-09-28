@@ -7,13 +7,15 @@ import { supabase } from '@/client/supabase'
 import Icon from '@/components/Icon'
 
 export default function ResetPasswordPage() {
-  const { user, loading, signInWithPhone, verifyPhoneOtp } = useAuth()
+  const { user, loading, signInWithPhone, enablePasswordLogin, resetPassword } = useAuth()
 
-  // mode: 'forgot' (未登录，来自登录页) | 'change' (已登录，来自设置)
+  // mode: 'forgot' (未登录·忘记密码) | 'enable' (未登录·开通密码登录) | 'change' (已登录·修改密码)
   const params = Taro.getCurrentInstance().router?.params as any
   const isChange = params?.mode === 'change'
+  const isEnable = params?.mode === 'enable'
 
-  const [phone, setPhone] = useState('')
+  // 登录页引导跳转时会带 phone=，此处预填，免得用户再输一遍
+  const [phone, setPhone] = useState(params?.phone || '')
   const [code, setCode] = useState('')
   const [countdown, setCountdown] = useState(0)
   const [otpVerified, setOtpVerified] = useState(false)
@@ -45,16 +47,17 @@ export default function ResetPasswordPage() {
 
   const handleVerifyOtp = async () => {
     if (!code || code.length < 4) { Taro.showToast({ title: '请输入验证码', icon: 'none' }); return }
-    setSubmitting(true)
-    const { error } = await verifyPhoneOtp(`+86${phone}`, code)
-    setSubmitting(false)
-    if (error) { Taro.showToast({ title: '验证码错误', icon: 'none' }); return }
+    // 注意：这里**不能**真的调 verifyOtp。
+    // Supabase 的短信验证码是一次性 token，若在本步就被消费，
+    // 提交时 account-center EF 再验同一个 code 必然报「已过期/无效」。
+    // 因此本步只做前端格式校验，真正的验码由 EF 在提交时一次性完成
+    // （验码 + 改密 + 写登录映射，全在服务端一次调用内）。
     setOtpVerified(true)
-    Taro.showToast({ title: '验证成功，请设置新密码', icon: 'success' })
+    Taro.showToast({ title: '请设置新密码', icon: 'success' })
   }
 
   const validatePwd = () => {
-    if (newPwd.length < 6) { Taro.showToast({ title: '密码至少 6 位', icon: 'none' }); return false }
+    if (newPwd.length < 8) { Taro.showToast({ title: '密码至少 8 位', icon: 'none' }); return false }
     if (newPwd !== confirmPwd) { Taro.showToast({ title: '两次密码不一致', icon: 'none' }); return false }
     return true
   }
@@ -62,11 +65,27 @@ export default function ResetPasswordPage() {
   const handleSubmit = async () => {
     if (!validatePwd()) return
     setSubmitting(true)
-    const { error } = await supabase.auth.updateUser({ password: newPwd })
-    setSubmitting(false)
-    if (error) { Taro.showToast({ title: '设置失败：' + error.message, icon: 'none' }); return }
 
-    Taro.showToast({ title: isChange ? '密码已修改' : '密码已重置', icon: 'success' })
+    if (isChange) {
+      // 已登录修改密码：直接调 GoTrue 即可（会话内改密）
+      const { error } = await supabase.auth.updateUser({ password: newPwd })
+      setSubmitting(false)
+      if (error) { Taro.showToast({ title: '设置失败：' + error.message, icon: 'none' }); return }
+    } else {
+      // 未登录：走 account-center EF。
+      // 密码写入 auth.users 必须持有 service_role，客户端无权，
+      // 故由 EF 在一次调用内完成：验码 → 改密 → 写 user_login_identities。
+      const { error } = isEnable
+        ? await enablePasswordLogin(phone, code, newPwd)
+        : await resetPassword(phone, code, newPwd)
+      setSubmitting(false)
+      if (error) { Taro.showToast({ title: error.message || '设置失败', icon: 'none' }); return }
+    }
+
+    Taro.showToast({
+      title: isChange ? '密码已修改' : (isEnable ? '已开通密码登录' : '密码已重置'),
+      icon: 'success',
+    })
     if (!isChange) {
       // 忘记密码：清除临时登录态，回到上一层（登录页），保留栈让微信胶囊能显示返回箭头
       await supabase.auth.signOut().catch(() => {})
@@ -96,7 +115,9 @@ export default function ResetPasswordPage() {
           </View>
           <View>
             <Text className="text-3xl font-bold text-foreground">来店有喜</Text>
-            <Text className="text-xl text-muted-foreground mt-1">{isChange ? '修改密码' : '重置密码'}</Text>
+            <Text className="text-xl text-muted-foreground mt-1">
+              {isChange ? '修改密码' : (isEnable ? '开通密码登录' : '重置密码')}
+            </Text>
           </View>
         </View>
       </View>

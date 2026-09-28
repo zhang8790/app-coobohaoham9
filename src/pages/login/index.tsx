@@ -87,6 +87,24 @@ export default function LoginPage() {
       if (msg.includes('Invalid login credentials')) friendly = '用户名或密码错误'
       else if (msg.includes('Email not confirmed')) friendly = '账号未验证，请检查邮箱'
       else if (msg.includes('Too many requests')) friendly = '操作太频繁，请稍后再试'
+      else if (msg.includes('未开通密码登录')) {
+        // 不再笼统报错：给出两条明确出路（开通密码登录 / 改用短信验证码）
+        Taro.showModal({
+          title: '该手机号未开通密码登录',
+          content: '可以先用短信验证码登录，也可用验证码开通密码登录后再用密码登录。',
+          confirmText: '去开通',
+          cancelText: '用验证码',
+          success: (res) => {
+            if (res.confirm) {
+              Taro.navigateTo({ url: `/pages/reset-password/index?mode=enable&phone=${username.trim()}` })
+            } else {
+              setLoginMode('phone')
+              setStep('phone')
+            }
+          },
+        })
+        return
+      }
       Taro.showToast({ title: friendly, icon: 'none' })
       return
     }
@@ -295,8 +313,8 @@ export default function LoginPage() {
               </Text>
               <Text className="text-xl text-muted-foreground">
                 没有账号？<Text className="text-primary" onClick={() => {
-                  Taro.showToast({ title: '请联系管理员创建账号', icon: 'none' })
-                }}>请联系管理员</Text>
+                  Taro.navigateTo({ url: '/pages/register/index' })
+                }}>去注册</Text>
               </Text>
             </View>
           </>
