@@ -411,9 +411,9 @@ export function resolveCategoryProfile(category?: string | null): CategoryEmotio
 }
 
 // =====================
-// 探索(自营)商品类目 → 本地生活业态 映射
+// 自营商品类目 → 本地生活业态 映射
 // =====================
-// 探索页展示「商品类目」(图书/美食/饮品/零食/日用/礼品)，后端按 products.category exact 匹配；
+// 好物页展示「商品类目」(图书/美食/饮品/零食/日用/礼品)，后端按 products.category exact 匹配；
 // 此处把商品类目对齐到「本地生活业态」(category-emotion 11 业态)。
 export const EXPLORE_PRODUCT_CATEGORY_TO_LOCAL_LIFE: Record<string, string> = {
   '图书': '零售',
@@ -430,7 +430,7 @@ export const LOCAL_LIFE_CATEGORY_KEYS: string[] = Object.keys(CATEGORY_EMOTION_M
 // =====================
 // 统一情绪筛选层（自营门店）
 // =====================
-// 情绪作为自营门店商品体系的统一维度，下方 chips 供探索端点击走本地 moodTag 过滤。
+// 情绪作为自营门店商品体系的统一维度，下方 chips 供好物端点击走本地 moodTag 过滤。
 export const UNIFIED_EMOTION_FILTERS: Array<{ tag: string; icon: string }> = [
   { tag: '快乐', icon: '😊' },
   { tag: '温馨', icon: '🏠' },

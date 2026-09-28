@@ -85,7 +85,7 @@ export default function ProductGridCard({
  style={{ width, marginBottom: compact ? '8px' : '12px' }}
  hoverClass="pg-hover"
  onClick={() => { if (!disabled) onTap?.() }}>
- {/* 图片区：1:1 / 4:3 自适应；自定义 imageSlot（探索页特效图）用 absolute inset-0
+ {/* 图片区：1:1 / 4:3 自适应；自定义 imageSlot（好物页特效图）用 absolute inset-0
  绝对填满比例框，避免「比例框 + slot 各自撑一次高度」导致卡片被拉成 2:1 巨高 */}
  <View className="relative w-full overflow-hidden" style={{ paddingTop: ratioPad }}>
  {imageSlot ? (

@@ -110,8 +110,8 @@ export default function SelfStores() {
         <>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <div style={{ flex: 1 }}>
-              <h1 style={{ color: C.text, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>自营门店（探索）</h1>
-              <p style={{ color: C.dim, fontSize: 14 }}>平台自有旗舰渠道管理 · 探索页靠「自营」标识识别</p>
+              <h1 style={{ color: C.text, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>自营门店</h1>
+              <p style={{ color: C.dim, fontSize: 14 }}>平台自有旗舰渠道管理 · 好物页靠「自营」标识识别</p>
             </div>
             <NewStoreButton onCreated={load} />
           </div>
@@ -714,7 +714,7 @@ function NewStoreButton({ onCreated }: { onCreated: () => void }) {
           onCancel={() => setShow(false)} onSave={save}
           saving={saving}
           showManager
-          hint="新建将自动标记为「自营」（探索页可见）。可指定店长：该账号将获得自营门店身份，登录小程序自营门店中心与后台即可管理本店；不指定则归平台主账号代管。"
+          hint="新建将自动标记为「自营」（好物页可见）。可指定店长：该账号将获得自营门店身份，登录小程序自营门店中心与后台即可管理本店；不指定则归平台主账号代管。"
         />
       )}
     </>

@@ -137,7 +137,7 @@ export default function Merchants() {
                               checked={assignMap[r.id] ?? false}
                               onChange={e => setAssignMap(m => ({ ...m, [r.id]: e.target.checked }))}
                             />
-                            分配至探索（设为平台自营）
+                            设为平台自营
                           </label>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button disabled={processing === r.id} onClick={() => handleApprove(r.id)}

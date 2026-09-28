@@ -15,24 +15,18 @@
 set -e
 
 PROJECT_REF="pyqgsxcjmijtbstwthbn"
-FUNCS=(
-  wechat_miniapp_login
-  emotion-compile
-  create-wechat-payment
-  get-wechat-openid
-  generate-qrcode
-  delete-account
-  send-redpacket
-  article-fetch
-  create-order
-  refund-order
-  distribute-commission
-  wechat-payment-callback
-  wechat-refund-callback
-  force-login
-)
 
-echo "==> 部署 $PROJECT_REF 的 ${#FUNCS[@]} 个云函数"
+# 动态扫描 supabase/functions/ 下的真实函数目录（含 index.ts），排除 _ 开头的共享目录。
+# 历史教训：这里曾硬编码函数名列表，函数删掉后列表没同步，导致全量部署必然失败。
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+FUNCS=($(cd "$ROOT_DIR/supabase/functions" && ls -1 | grep -v '^_' | while read d; do [ -f "$d/index.ts" ] && echo "$d"; done))
+
+if [ ${#FUNCS[@]} -eq 0 ]; then
+  echo "!! 未扫描到任何函数目录，请检查 $ROOT_DIR/supabase/functions"
+  exit 1
+fi
+
+echo "==> 部署 $PROJECT_REF 的 ${#FUNCS[@]} 个云函数：${FUNCS[*]}"
 for fn in "${FUNCS[@]}"; do
   echo "==> deploy: $fn"
   supabase functions deploy "$fn" --project-ref "$PROJECT_REF"

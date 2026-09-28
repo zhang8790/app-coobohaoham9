@@ -14,10 +14,10 @@ import { sceneLabel } from '@/utils/scene-alias'
 import type { Product, StoreCategory } from '@/db/types'
 
 /**
- * 分类商品列表页：首页金刚区 / 探索页类目点选后的落地页。
+ * 分类商品列表页：首页金刚区 / 好物页类目点选后的落地页。
  *
- * 取数口径与探索页完全一致（三分支：门店 → 城市 → 自营兜底），
- * 保证同一个类目在首页金刚区、探索页、本页看到的商品数量一致。
+ * 取数口径与好物页完全一致（三分支：门店 → 城市 → 自营兜底），
+ * 保证同一个类目在首页金刚区、好物页、本页看到的商品数量一致。
  * 传入 categoryId（store_categories.id）而非类目名，避免同名类目命中歧义。
  */
 export default function CategoryListPage() {
@@ -118,7 +118,7 @@ export default function CategoryListPage() {
           borderBottomColor: 'hsl(var(--border))',
         }}
       >
-        {/* 搜索栏：点击进入搜索页（与探索页同一入口） */}
+        {/* 搜索栏：点击进入搜索页（与好物页同一入口） */}
         <View className="px-4 pt-3 pb-2">
           <View
             className="flex items-center gap-2 bg-muted rounded-full px-4 py-2"

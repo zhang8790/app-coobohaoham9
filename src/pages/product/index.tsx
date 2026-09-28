@@ -356,7 +356,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
  )
 
  // 商品类型分流：food=食养走食疗模块；gift/craft/care=走礼品模块（互斥，绝不共用食疗话术）
- // 统一走商品类型闸门（与首页/探索页/门店页同源），避免多处各写一份判断导致漂移
+ // 统一走商品类型闸门（与首页/好物页/门店页同源），避免多处各写一份判断导致漂移
  const isFood = isFoodProduct(product)
  const isGift = !isFood
 

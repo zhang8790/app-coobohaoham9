@@ -300,10 +300,9 @@ export function AuthProvider({children}: {children: ReactNode}) {
 
   const verifyPhoneOtp = async (phone: string, code: string) => {
     try {
-      // 说明：原先这里有一段「DEV 本地测试模式」——对两个测试手机号放行固定验证码 123456，
-      // 并对 18565613635 走 force-login Edge Function 绕过 GoTrue 直接签发 session。
-      // 该分支属于生产后门（任何人构造这两个手机号+123456 即可登录），已整体移除。
-      // 现在所有手机号一律走 Supabase 原生 SMS OTP 校验，测试也请用真实验证码。
+      // 说明：这里原先有一段「DEV 本地测试模式」——对测试手机号放行固定验证码并绕过
+      // GoTrue 直接签发 session。该分支属于生产后门（任何人构造手机号+固定码即可登录），
+      // 已整体移除。现在所有手机号一律走 Supabase 原生 SMS OTP 校验，测试请用真实验证码。
 
       // 生产模式：真实短信验证
       const { data, error } = await supabase.auth.verifyOtp({

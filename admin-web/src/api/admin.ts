@@ -712,8 +712,8 @@ export async function deleteAnnouncement(_id: string): Promise<boolean> {
   return safeQuery(() => supabase.from('announcements').delete().eq('id', _id).then(() => true), true)
 }
 
-// ── 自营门店管理（探索页）──────────────────────────────────────────────
-// 平台自有旗舰渠道（探索页）靠 is_platform=true 识别，不走商家申请流。
+// ── 自营门店管理（好物页）──────────────────────────────────────────────
+// 平台自有旗舰渠道（好物页）靠 is_platform=true 识别，不走商家申请流。
 // 管理员经 admin_all_stores RLS 策略可直接增改 stores 表。
 const PLATFORM_OWNER_ID = 'd6b38349-dded-4879-9eac-3165a646436a'
 
