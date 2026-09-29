@@ -332,10 +332,14 @@ export async function recoverCommission(
   
   // 追回已发放的佣金
   for (const commission of commissions) {
+    // ⚠️ status 必须用 'refunded'：commissions_status_check 只允许
+    //    pending/settled/refunded/frozen，写 'cancelled' 会 23514 约束冲突整条失败；
+    //    且 admin-web finance.ts 用 neq('status','refunded') 把退款佣金剔出平台收入，
+    //    用其它值会导致已退款佣金仍被统计。
     await supabase
       .from('commissions')
       .update({
-        status: 'cancelled',
+        status: 'refunded',
         cancelled_at: new Date().toISOString(),
         cancel_reason: '订单退款，追回佣金',
       })

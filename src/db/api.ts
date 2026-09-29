@@ -70,7 +70,10 @@ export async function getMyProfile(): Promise<Profile | null> {
 export async function updateProfile(updates: Partial<Pick<Profile, 'nickname' | 'avatar_url' | 'constitution_tags'>>): Promise<void> {
   const uid = (await getLocalUser()).data.user?.id
   if (!uid) return
-  await supabase.from('profiles').update(updates).eq('id', uid)
+  // 同 updateUserProfile：.select() 回读，区分「报错」与「0 行未落库」
+  const { data, error } = await supabase.from('profiles').update(updates).eq('id', uid).select('id')
+  if (error) console.error('[updateProfile] 落库失败:', error.code || '', error.message)
+  else if (!data || data.length === 0) console.error('[updateProfile] 更新影响 0 行:', uid)
   clearRequestCache() // 写后失效 profile 缓存，头像/昵称立即生效
 }
 
@@ -1459,7 +1462,10 @@ export async function createOrderV2(params: {
             await supabase.from('user_store_relation').insert({
               user_id: user.id,
               store_id: order.store_id,
-              lock_type: 'order'})
+              // ⚠️ 必须 'first_order'：user_store_relation_lock_type_check 只允许
+              //    first_order/scan/share/invite。原先写 'order' → 23514 约束冲突，
+              //    且此处被 try/catch 静默吞掉，导致「首次下单建门店归属」从未成功过。
+              lock_type: 'first_order'})
           }
         } catch (e) { console.warn('[归属] 失败(不影响)', e) }
       }
@@ -4003,8 +4009,24 @@ export async function merchantRedeemCoupon(code: string, storeId: string): Promi
 export async function updateUserProfile(params: { nickname?: string; avatar_url?: string; allow_behavior_analysis?: boolean; phone?: string }): Promise<boolean> {
   const { data: { user } } = await getLocalUser()
   if (!user) return false
-  const { error } = await supabase.from('profiles').update(params).eq('id', user.id)
-  return !error
+  // ⚠️ 必须 .select('id') 回读：被 RLS 拒绝的 UPDATE 不报错、只返回 0 行，
+  //    只看 error 会把「没落库」误判成成功（本项目铁律）。
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(params)
+    .eq('id', user.id)
+    .select('id')
+  if (error) {
+    // 打印真实错误（如 42703 列不存在 / RLS 校验不通过），便于定位而不是只弹「保存失败」
+    console.error('[updateUserProfile] 落库失败:', error.code || '', error.message, (error as any).details || '')
+    return false
+  }
+  if (!data || data.length === 0) {
+    console.error('[updateUserProfile] 更新影响 0 行（RLS 拦截或 profiles 无该行）:', user.id)
+    return false
+  }
+  clearRequestCache() // 写后失效 profile 缓存，避免「保存成功但头像/昵称没变」
+  return true
 }
 
 // =====================

@@ -38,16 +38,18 @@ function SettingsPage() {
     setSaving(true)
     try {
       let finalAvatar = avatarUrl
-      // 头像若是本地临时路径（wxfile://）必须先上传到 Storage 拿到公网 URL 再存库，
-      // 否则刷新后头像丢失（此前只把本地路径直接写库导致无法持久化显示）。
-      if (finalAvatar && finalAvatar.startsWith('wxfile://')) {
+      // 头像若是本地临时路径必须先上传到 Storage 拿到公网 URL 再存库，否则刷新后头像丢失。
+      // ⚠️ 判据用「不是 http(s) 开头」而非具体前缀：微信 chooseMedia 的 tempFilePath 在不同
+      // 基础库/机型下是 wxfile://tmp_xxx 或 http://tmp/xxx，只匹配 wxfile:// 会漏判 → 本地路径直接写库。
+      if (finalAvatar && !/^https?:\/\//i.test(finalAvatar)) {
         Taro.showLoading({ title: '上传头像…' })
-        // 优先 avatars 桶，桶不存在则静默回退 images 桶，保证头像上传始终可用
-        let url = await uploadToStorage(finalAvatar, { bucket: 'avatars' })
-        if (!url) url = await uploadToStorage(finalAvatar, { bucket: 'images' })
+        // avatars 为专用桶；理论上已建（迁移 00241），仍保留静默回退 images 桶兜底。
+        // 两次都传 silent:true —— 桶缺失属可自愈的降级路径，不该弹「存储桶不存在」误导用户。
+        let url = await uploadToStorage(finalAvatar, { bucket: 'avatars', silent: true })
+        if (!url) url = await uploadToStorage(finalAvatar, { bucket: 'images', silent: true })
         Taro.hideLoading()
         if (!url) {
-          Taro.showToast({ title: '头像上传失败，请重试', icon: 'none' })
+          Taro.showToast({ title: '头像上传失败，请检查网络后重试', icon: 'none' })
           setSaving(false)
           return
         }
