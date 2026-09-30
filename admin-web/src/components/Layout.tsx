@@ -6,13 +6,14 @@ import { NavIcon } from './icons'
 type NavItem = { to: string; icon: string; label: string }
 type NavSection = { title: string; items: NavItem[] }
 
+// 调试页（配料识别调试）仅开发态/显式开启时可见，避免运营在生产菜单看到开发工具
+const SHOW_DEBUG = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEBUG === 'true'
+
 const NAV_SECTIONS: NavSection[] = [
   {
     title: '运营管理',
     items: [
       { to: '/dashboard', icon: 'grid', label: '仪表盘' },
-      { to: '/home-branding', icon: 'image', label: '首页品牌' },
-      { to: '/home-ads', icon: 'megaphone', label: '首页广告位' },
       { to: '/merchants', icon: 'store', label: '商家入驻审核' },
       { to: '/products', icon: 'box', label: '商品审阅' },
       { to: '/users', icon: 'user', label: '用户管理' },
@@ -20,6 +21,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/announcements', icon: 'megaphone', label: '公告管理' },
       { to: '/orders', icon: 'document', label: '成交订单' },
       { to: '/expiry', icon: 'alert', label: '临期预警' },
+      { to: '/members', icon: 'users', label: '会员明细' },
+      { to: '/behavior', icon: 'trending', label: '行为分析' },
     ],
   },
   {
@@ -40,14 +43,18 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: '商品与内容',
     items: [
-      { to: '/members', icon: 'users', label: '会员明细' },
-      { to: '/behavior', icon: 'trending', label: '行为分析' },
       { to: '/symptom-rules', icon: 'tea', label: '食疗规则库' },
       { to: '/food-safety-libs', icon: 'shield', label: '食品安全库' },
       { to: '/food-ingredients', icon: 'book', label: '食材库' },
       { to: '/food-tag-rules', icon: 'check', label: '人群标签规则' },
-      { to: '/ocr-debug', icon: 'image', label: '配料识别调试' },
       { to: '/categories', icon: 'tag', label: '商品分类' },
+    ],
+  },
+  {
+    title: '小程序配置',
+    items: [
+      { to: '/home-branding', icon: 'image', label: '首页品牌' },
+      { to: '/home-ads', icon: 'megaphone', label: '首页广告位' },
     ],
   },
   {
@@ -58,6 +65,14 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
 ]
+
+// 调试工具：仅在开发态或显式开启时挂到「商品与内容」组末尾
+if (SHOW_DEBUG) {
+  const contentGroup = NAV_SECTIONS.find(s => s.title === '商品与内容')
+  if (contentGroup) {
+    contentGroup.items.push({ to: '/ocr-debug', icon: 'image', label: '配料识别调试' })
+  }
+}
 
 // 扁平化：path -> { section, label }，用于顶栏面包屑
 const PATH_MAP: Record<string, { section: string; label: string }> = {}

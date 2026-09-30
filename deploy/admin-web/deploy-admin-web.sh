@@ -116,6 +116,47 @@ server {
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
 }
+
+# ============================================================
+# 【HTTPS 就绪模板 —— 默认关闭，需手动启用】
+# 启用条件（三者齐备）：
+#   1) 一个已备案(ICP)域名，如 admin.laidianyouxi.com，A 记录指向本机 IP；
+#   2) TLS 证书与私钥（腾讯云/Let's Encrypt 申请），放到下面 SSL_CERT/SSL_KEY 路径；
+#   3) 微信小程序后台「业务域名」改为该 HTTPS 域名（否则真机图片白屏）。
+#
+# 启用步骤：
+#   a) 取消下面整段注释；
+#   b) 把 listen 80 的 server 段改成仅做 301 跳转（见下方 redirect 段）；
+#   c) 将 SSL_CERT / SSL_KEY 换成真实路径；
+#   d) 重新跑本脚本部署，nginx -t 通过后即生效。
+#
+# server {
+#     listen 443 ssl default_server;
+#     listen [::]:443 ssl default_server;
+#     server_name admin.laidianyouxi.com;   # 改成你的域名
+#     root $SITE_ROOT;
+#     index index.html;
+#
+#     ssl_certificate     /etc/nginx/ssl/admin.laidianyouxi.com/fullchain.pem;
+#     ssl_certificate_key /etc/nginx/ssl/admin.laidianyouxi.com/privkey.pem;
+#     ssl_protocols TLSv1.2 TLSv1.3;
+#     ssl_ciphers HIGH:!aNULL:!MD5;
+#
+#     sendfile on; tcp_nopush on; keepalive_timeout 65;
+#     gzip on; gzip_static on; gzip_comp_level 6; gzip_vary on;
+#     gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+#
+#     location / { try_files \$uri \$uri/ /index.html; }
+#     location /assets/ { expires 30d; add_header Cache-Control "public, immutable"; }
+# }
+#
+# # 80 端口仅做 301 跳转到 HTTPS（启用 HTTPS 时把上面 listen 80 的 server 段替换为这段）
+# # server {
+# #     listen 80 default_server;
+# #     listen [::]:80 default_server;
+# #     server_name _;
+# #     return 301 https://\$host\$request_uri;
+# # }
 EOF
 
 echo "==> [5/6] 启用站点"
