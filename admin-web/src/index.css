@@ -1,48 +1,51 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
 
-/* ===== 来店有喜 设计 token · 双端同源（暗色国潮主题层） =====
-   与小程序端（暖珊瑚设计系统）共享同一套语义 token 名称与品牌值：
-   · --primary      = 暖珊瑚 #E87964（C 端小程序品牌主色，后台同源）
-   · --color-herb-* = 食养语义绿（对齐小程序 #16A34A / #15803D）
-   · radius / 字重 / 排版 / 动效 token 命名与小程序完全一致
-     （--radius-sm/md/lg/xl、--fw-bold:700、--text-*、--motion-*）
-   暗色仅作用于 surface/bg 层，品牌语义与 C 端完全一致 → 跨端一致性达标。
-   历史：原 --primary 为赤陶橙 #C2410C（已废弃，由 CI 卡口 R1 拦截）。
+/* ===== 来店有喜 设计 token · 双端同源（浅色企业主题层） =====
+   管理端「大厂 SaaS」方向：浅灰底 + 白卡片 + 中性灰层次 + 品牌暖珊瑚点缀。
+   与小程序端共享同一套语义 token 名称与品牌值；本次仅把 surface/bg 由
+   深黑「国潮」切换为浅色企业层，品牌语义与 C 端完全一致 → 跨端一致。
+   设计纪律（scripts/style-discipline.web.mjs）红线：禁 #C2410C/#7A2508、禁 800 字重、禁 #6B7280。
+   本层全量规避，且语义色在浅底下调深以保证 WCAG AA。
 */
 :root {
-  /* 表面 / 背景（暗色国潮层，B 端专属，不影响品牌语义） */
-  --bg: #0B0F19;
-  --surface: #080C14;
-  --surface-2: #111827;
-  --border: #1F2937;
-  --border-soft: #374151;
+  /* 表面 / 背景（浅色企业层） */
+  --bg: #F4F6F9;            /* 页面底色：冷调浅灰（Ant Design Pro 同款） */
+  --surface: #FFFFFF;        /* 侧边栏 / 顶栏：纯白 */
+  --surface-2: #F7F8FA;      /* 次级面板 / 输入框底 */
+  --surface-3: #EEF1F5;      /* 三级（略深，用于嵌套底色） */
+  --border: #E6E9EF;         /* 主分隔线 */
+  --border-soft: #EEF1F5;    /* 次分隔线 */
+  --border-strong: #D7DCE3;  /* 输入框 / 卡片边框（浅底更清晰） */
 
-  /* 品牌主色 · 与小程序同源（暖珊瑚） */
+  /* 品牌主色 · 暖珊瑚（与小程序 / C 端同源；浅色下更克制） */
   --primary: #E87964;
-  --primary-strong: #C0533D;   /* 加深珊瑚：珊瑚底白字按钮达 AA（4.6:1），与 C 端同源治理 2026-09-26 */
+  --primary-strong: #C0533D;   /* 实底按钮（白字 ≈4.6:1，达 AA） */
   --primary-hover: #D9694F;
-  --primary-deep: #D9694F;
-  --primary-soft: rgba(232, 121, 100, 0.15);
-  --primary-disabled: #B07A6B;
+  --primary-deep: #B0432B;     /* hover 加深 */
+  --primary-soft: rgba(232, 121, 100, 0.10);
+  --primary-soft-2: rgba(232, 121, 100, 0.16);
+  --primary-disabled: #EBBDB1;
+  --primary-ring: rgba(232, 121, 100, 0.28);
 
-  /* 文字（已按 WCAG AA 调校：--text-dim 提亮至 ≈5.8:1） */
-  --text: #E5E7EB;
-  --text-muted: #9CA3AF;   /* ≈7:1 on --bg */
-  --text-dim: #8A94A6;     /* 提亮前 #6B7280 ≈3.8:1 不达标 → 现 ≈5.8:1 达标 */
+  /* 文字（浅底，提亮对比） */
+  --text: #1F2733;            /* 主文字：近黑偏冷 */
+  --text-muted: #5B6675;      /* 次文字 ≈5.3:1 on white */
+  --text-dim: #7A8694;        /* 辅助说明 ≈4.2:1（仅用于非必要说明，不用于正文） */
 
-  /* 语义色 · 与小程序对齐 */
-  --success: #16A34A;            /* 对齐小程序 --color-herb-500 */
-  --success-strong: #15803D;     /* 对齐小程序 --color-herb-600 */
-  --success-soft: rgba(22, 163, 74, 0.15);
-  --warning: #F59E0B;
-  --warning-soft: rgba(245, 158, 11, 0.15);
-  --danger: #EF4444;
-  --danger-soft: rgba(239, 68, 68, 0.15);
-  --danger-bg: rgba(239, 68, 68, 0.07);
-  --danger-text: #FCA5A5;
-  --info: #3B82F6;
-  --info-text: #93C5FD;
-  --info-soft: rgba(59, 130, 246, 0.15);
+  /* 语义色（与小程序对齐，浅底下调深保证 AA） */
+  --success: #15A34A;
+  --success-strong: #15803D;
+  --success-soft: rgba(21, 163, 74, 0.10);
+  --warning: #D9870A;
+  --warning-soft: rgba(217, 135, 10, 0.12);
+  --danger: #DC2626;
+  --danger-strong: #B91C1C;
+  --danger-soft: rgba(220, 38, 38, 0.10);
+  --danger-bg: rgba(220, 38, 38, 0.06);
+  --danger-text: #B91C1C;     /* 浅底用深红（原 #FCA5A5 仅适配深底，已弃） */
+  --info: #2563EB;
+  --info-text: #1D4ED8;
+  --info-soft: rgba(37, 99, 235, 0.10);
 
   /* 食养语义绿族（对齐小程序 --color-herb-*） */
   --color-herb-50: #F0FDF4;
@@ -51,34 +54,34 @@
   --color-herb-500: #16A34A;
   --color-herb-600: #15803D;
 
-  /* 状态语义色（临期 / 风险 红橙琥珀，独立于品牌，避免与珊瑚主色混淆） */
-  --status-red: #DC2626;        --status-red-soft: rgba(220, 38, 38, 0.13);
-  --status-orange: #EA580C;     --status-orange-soft: rgba(234, 88, 12, 0.13);
-  --status-amber: #D97706;      --status-amber-soft: rgba(217, 119, 6, 0.13);
+  /* 状态语义色（临期 / 风险 红橙琥珀，独立于品牌） */
+  --status-red: #DC2626;       --status-red-soft: rgba(220, 38, 38, 0.10);
+  --status-orange: #EA580C;    --status-orange-soft: rgba(234, 88, 12, 0.10);
+  --status-amber: #D97706;     --status-amber-soft: rgba(217, 119, 6, 0.10);
 
   /* 强调（B 端功能辅助色，非品牌分歧） */
-  --accent: #8B5CF6;
-  --accent-text: #A5B4FC;
-  --accent-soft: rgba(139, 92, 246, 0.15);
+  --accent: #7C5CFC;
+  --accent-text: #6D28D9;
+  --accent-soft: rgba(124, 92, 252, 0.10);
 
   /* 卡片 / 悬浮 */
-  --card: #0F172A;
-  --hover-bg: #141B2D;
+  --card: #FFFFFF;
+  --hover-bg: #F5F7FA;
 
-  /* 圆角 · 与小程序同名（--radius-sm/md/lg/xl） */
+  /* 圆角（与小程序同名；企业级略增柔和度） */
   --radius-sm: 8px;
-  --radius-md: 8px;
-  --radius: 8px;        /* 兼容别名 = md */
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-md: 10px;
+  --radius: 10px;           /* 兼容别名 = md */
+  --radius-lg: 14px;
+  --radius-xl: 20px;
 
-  /* 字重 · 最高 --fw-bold:700（越界 800 由 CI 卡口拦截） */
+  /* 字重（最高 --fw-bold:700，越界 800 由 CI 卡口拦截） */
   --fw-regular: 400;
   --fw-medium: 500;
   --fw-semibold: 600;
   --fw-bold: 700;
 
-  /* 排版 token（替代裸 fontSize，统一层级） */
+  /* 排版 token（统一层级） */
   --text-caption: 11px;
   --text-xs: 12px;
   --text-sm: 13px;
@@ -90,14 +93,19 @@
   --leading-normal: 1.6;
   --leading-relaxed: 1.8;
 
-  /* 动效 token（替代裸 transition 时长） */
+  /* 动效 token */
   --motion-fast: 120ms;
   --motion-base: 200ms;
   --motion-slow: 320ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 
-  --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  /* 阴影（浅色企业，克制分层） */
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.04);
+  --shadow: 0 4px 16px rgba(16, 24, 40, 0.08);
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12);
+  --shadow-primary: 0 4px 14px rgba(192, 83, 61, 0.22);
+
   --font-sans: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
 }
 
@@ -108,9 +116,10 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 a { text-decoration: none; color: inherit; }
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; }
@@ -119,6 +128,7 @@ input, textarea, select { font-family: inherit; }
 button, .lx-btn, [role="button"] {
   transition: background var(--motion-fast) var(--ease-out),
               border-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out),
               transform var(--motion-fast) var(--ease-out);
 }
 button:focus-visible, .lx-btn:focus-visible, a:focus-visible,
@@ -134,7 +144,10 @@ button:disabled, .lx-btn:disabled, [aria-disabled="true"] {
   transition: border-color var(--motion-base) var(--ease-out),
               box-shadow var(--motion-base) var(--ease-out);
 }
-.lx-card:hover { border-color: var(--primary); }
+.lx-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow);
+}
 .lx-row { transition: background var(--motion-fast) var(--ease-out); }
 .lx-row:hover { background: var(--hover-bg); }
 

@@ -4,6 +4,7 @@ import { getAdminStats, getRecentMerchants, getTodoCounts, testConnection, type 
 import { useAuth } from '@/contexts/AuthContext'
 import type { AdminStats, MerchantApplication } from '@/types'
 import { NavIcon } from '@/components/icons'
+import { Card, PageHeader, StatCard } from '@/components/ui'
 
 // Mock 数据
 const MOCK_STATS: AdminStats = {
@@ -14,13 +15,6 @@ const MOCK_RECENT: MerchantApplication[] = [
   { id: 'm2', user_id: 'u2', store_name: '瑞幸咖啡（科技园店）', contact_name: '李四', contact_phone: '13800138002', business_type: '餐饮', description: '知名连锁咖啡品牌', status: 'approved', reject_reason: null, created_at: new Date(Date.now()-864e5).toISOString() },
   { id: 'm3', user_id: 'u3', store_name: '名创优品（万达店）', contact_name: '王五', contact_phone: '13800138003', business_type: '零售', description: '生活好物集合店', status: 'pending', reject_reason: null, created_at: new Date(Date.now()-2*864e5).toISOString() },
 ]
-
-const S = {
-  card: { background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' } as React.CSSProperties,
-  label: { color: 'var(--text-muted)', fontSize: 13, marginBottom: 6 } as React.CSSProperties,
-  val: { color: 'var(--text)', fontSize: 32, fontWeight: 700 } as React.CSSProperties,
-  badge: (color: string) => ({ display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: `${color}22`, color }),
-}
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: '待审', color: 'var(--warning)' },
@@ -40,7 +34,6 @@ export default function Dashboard() {
   const [connMsg, setConnMsg] = useState('')
 
   useEffect(() => {
-    // 检测后端连接
     if (import.meta.env.VITE_USE_MOCK !== 'false') {
       setConnStatus('mock')
       setConnMsg('')
@@ -48,18 +41,10 @@ export default function Dashboard() {
       setConnStatus('testing')
       testConnection()
         .then(r => {
-          if (r.ok) {
-            setConnStatus('real_ok')
-            setConnMsg(r.message)
-          } else {
-            setConnStatus('real_fail')
-            setConnMsg(r.message)
-          }
+          if (r.ok) { setConnStatus('real_ok'); setConnMsg(r.message) }
+          else { setConnStatus('real_fail'); setConnMsg(r.message) }
         })
-        .catch(e => {
-          setConnStatus('real_fail')
-          setConnMsg(String(e))
-        })
+        .catch(e => { setConnStatus('real_fail'); setConnMsg(String(e)) })
     }
   }, [])
 
@@ -84,150 +69,117 @@ export default function Dashboard() {
     { label: '临期预警', key: 'expiry', color: 'var(--warning)', to: '/expiry', icon: 'alert' },
   ] as const
 
-  // 数据总览：非待办的基础计数
   const STAT_CARDS = [
     { label: '用户总数', key: 'users', color: 'var(--success-strong)', to: '/users', icon: 'user' },
-    { label: '订单总数', key: 'orders', color: 'var(--text-dim)', to: '/dashboard', icon: 'document' },
-  ]
+    { label: '订单总数', key: 'orders', color: 'var(--text-dim)', to: '/orders', icon: 'document' },
+  ] as const
+
+  const todoTotal = todo ? Object.values(todo).reduce((s, v) => s + v, 0) : 0
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* 连接状态提示 */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="仪表盘"
+        subtitle="平台关键数据总览"
+        breadcrumb={<><NavIcon name="grid" size={13} /> 运营管理</>}
+        extra={connStatus === 'mock' ? (
+          <span style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid rgba(217,135,10,0.3)' }}>Mock 模式</span>
+        ) : connStatus === 'real_ok' ? (
+          <span style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: 'var(--success-soft)', color: 'var(--success-strong)', border: '1px solid rgba(21,163,74,0.3)' }}>已连接真实后端</span>
+        ) : connStatus === 'real_fail' ? (
+          <span style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: 'var(--danger-soft)', color: 'var(--danger-text)', border: '1px solid rgba(220,38,38,0.3)' }}>后端连接失败</span>
+        ) : undefined}
+      />
+
+      {/* 后端连接状态条（非 Mock 时展示真实后端返回信息） */}
       {connStatus !== 'mock' && (
         <div style={{
-          padding: '12px 20px',
-          borderRadius: 8,
-          fontSize: 13,
-          display: 'flex', alignItems: 'center', gap: 12,
-          background: connStatus === 'real_ok'
-            ? 'var(--success-soft)' : connStatus === 'real_fail'
-            ? 'var(--danger-soft)' : 'rgba(107,114,128,0.1)',
+          padding: '12px 16px', borderRadius: 'var(--radius-md)', fontSize: 13,
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: connStatus === 'real_ok' ? 'var(--success-soft)' : connStatus === 'real_fail' ? 'var(--danger-soft)' : 'var(--surface-2)',
           border: `1px solid ${
-            connStatus === 'real_ok' ? 'rgba(16,185,129,0.3)' : connStatus === 'real_fail'
-            ? 'rgba(239,68,68,0.3)' : 'rgba(107,114,128,0.3)'
+            connStatus === 'real_ok' ? 'rgba(21,163,74,0.25)' : connStatus === 'real_fail' ? 'rgba(220,38,38,0.25)' : 'var(--border)'
           }`,
         }}>
-          {connStatus !== 'testing' && (
-            <NavIcon name={connStatus === 'real_ok' ? 'check' : 'alert'} size={18} style={{ color: connStatus === 'real_ok' ? 'var(--success-strong)' : 'var(--danger)', flexShrink: 0 }} />
-          )}
-          <div style={{ flex: 1 }}>
-            <p style={{ color: 'var(--text)', fontWeight: 600, marginBottom: 2 }}>
-              {connStatus === 'testing' && '正在检测后端连接...'}
-              {connStatus === 'real_ok' && '已连接真实后端'}
-              {connStatus === 'real_fail' && '真实后端连接失败'}
-            </p>
-            <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-              {connStatus === 'testing' && '请稍候...'}
-              {connStatus === 'real_ok' && connMsg}
-              {connStatus === 'real_fail' && (
-                <>
-                  {connMsg}
-                  {connMsg.includes('RLS') && (
-                    <> — 请在 Supabase Dashboard 执行 <code style={{ background: 'var(--border)', padding: '1px 4px', borderRadius: 3 }}>supabase/disable_rls_dev.sql</code></>
-                  )}
-                </>
-              )}
-            </p>
-          </div>
+          <NavIcon name={connStatus === 'real_ok' ? 'check' : connStatus === 'real_fail' ? 'alert' : 'grid'} size={16}
+            style={{ color: connStatus === 'real_ok' ? 'var(--success-strong)' : connStatus === 'real_fail' ? 'var(--danger-text)' : 'var(--text-dim)', flexShrink: 0 }} />
+          <span style={{ color: 'var(--text)', fontWeight: 'var(--fw-semibold)' }}>
+            {connStatus === 'testing' && '正在检测后端连接...'}
+            {connStatus === 'real_ok' && '已连接真实后端'}
+            {connStatus === 'real_fail' && '真实后端连接失败'}
+          </span>
+          {connMsg && <span style={{ color: 'var(--text-muted)' }}>— {connMsg}</span>}
         </div>
       )}
 
-      <div>
-        <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>仪表盘</h1>
-        <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>平台关键数据总览</p>
-      </div>
-
-      {/* 待办事项：一屏聚合所有待处理项，点击直达 */}
-      <div>
-        <h2 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
-          待办事项
-          {todo && Object.values(todo).reduce((s, v) => s + v, 0) > 0 && (
-            <span style={{ marginLeft: 10, color: 'var(--danger)', fontSize: 13, fontWeight: 600 }}>
-              共 {Object.values(todo).reduce((s, v) => s + v, 0)} 项待处理
+      {/* 待办事项 */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <h2 style={{ color: 'var(--text)', fontSize: 'var(--text-lg)', fontWeight: 'var(--fw-bold)', margin: 0 }}>待办事项</h2>
+          {todoTotal > 0 && (
+            <span style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-semibold)', background: 'var(--danger-soft)', padding: '2px 10px', borderRadius: 999 }}>
+              共 {todoTotal} 项待处理
             </span>
           )}
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 16 }}>
           {TODO_CARDS.map(c => {
             const n = todo ? (todo as unknown as Record<string, number>)[c.key] : null
             const hot = (n ?? 0) > 0
             return (
-              <div key={c.key} style={{ ...S.card, cursor: 'pointer', transition: 'border-color 0.15s', borderColor: hot ? c.color : 'var(--border)' }}
-                onClick={() => nav(c.to)}
-                onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = c.color)}
-                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = hot ? c.color : 'var(--border)')}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <NavIcon name={c.icon} size={22} style={{ color: c.color }} />
-                  {hot && <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />}
-                </div>
-                <p style={S.label}>{c.label}</p>
-                <p style={{ ...S.val, color: hot ? c.color : 'var(--text-dim)' }}>
-                  {n === null ? '—' : n}
-                </p>
-              </div>
+              <StatCard key={c.key} icon={<NavIcon name={c.icon} size={22} />} label={c.label} value={n === null ? '—' : n} color={c.color} hot={hot} onClick={() => nav(c.to)} />
             )
           })}
         </div>
-      </div>
+      </section>
 
       {/* 数据总览 */}
-      <div>
-        <h2 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 600, marginBottom: 12 }}>数据总览</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+      <section>
+        <h2 style={{ color: 'var(--text)', fontSize: 'var(--text-lg)', fontWeight: 'var(--fw-bold)', marginBottom: 12 }}>数据总览</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 16 }}>
           {STAT_CARDS.map(c => (
-            <div key={c.key} style={{ ...S.card, cursor: 'pointer', transition: 'border-color 0.15s' }}
-              onClick={() => nav(c.to)}
-              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.borderColor = c.color)}
-              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.borderColor = 'var(--border)')}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <NavIcon name={c.icon} size={22} style={{ color: c.color }} />
-              </div>
-              <p style={S.label}>{c.label}</p>
-              <p style={{ ...S.val, color: c.color }}>
-                {stats ? (stats as unknown as Record<string, number>)[c.key] : '—'}
-              </p>
-            </div>
+            <StatCard key={c.key} icon={<NavIcon name={c.icon} size={22} />} label={c.label} value={stats ? (stats as unknown as Record<string, number>)[c.key] : '—'} color={c.color} onClick={() => nav(c.to)} />
           ))}
         </div>
-      </div>
+      </section>
 
       {/* 最新自营门店申请预览 */}
-      <div style={S.card}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 600 }}>最新自营门店申请</h2>
-          <button onClick={() => nav('/merchants')}
-            style={{ background: 'none', border: 'none', color: 'var(--primary-strong)', fontSize: 13, cursor: 'pointer' }}>
-            查看全部 →
-          </button>
-        </div>
+      <Card
+        title="最新自营门店申请"
+        action={<button onClick={() => nav('/merchants')} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', color: 'var(--primary-strong)', fontSize: 13, padding: '6px 12px', cursor: 'pointer' }}>查看全部 →</button>}
+      >
         {recent.length === 0 ? (
           <p style={{ color: 'var(--text-dim)', fontSize: 14, textAlign: 'center', padding: '24px 0' }}>暂无待审申请</p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['自营门店名称', '联系人', '类型', '申请时间', '状态'].map(h => (
-                  <th key={h} style={{ color: 'var(--text-dim)', fontSize: 12, fontWeight: 500, padding: '8px 12px', textAlign: 'left' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {recent.map(r => {
-                const st = STATUS_MAP[r.status] ?? { label: r.status, color: 'var(--text-muted)' }
-                return (
-                  <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '12px', color: 'var(--text)', fontSize: 14, fontWeight: 500 }}>{r.store_name}</td>
-                    <td style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 14 }}>{r.contact_name}</td>
-                    <td style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 14 }}>{r.business_type}</td>
-                    <td style={{ padding: '12px', color: 'var(--text-dim)', fontSize: 13 }}>{new Date(r.created_at).toLocaleDateString('zh-CN')}</td>
-                    <td style={{ padding: '12px' }}><span style={S.badge(st.color)}>{st.label}</span></td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  {['自营门店名称', '联系人', '类型', '申请时间', '状态'].map(h => (
+                    <th key={h} style={{ color: 'var(--text-dim)', fontSize: 12, fontWeight: 'var(--fw-semibold)', padding: '10px 12px', textAlign: 'left' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map(r => {
+                  const st = STATUS_MAP[r.status] ?? { label: r.status, color: 'var(--text-muted)' }
+                  return (
+                    <tr key={r.id} className="lx-row" style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '12px', color: 'var(--text)', fontSize: 14, fontWeight: 'var(--fw-medium)' }}>{r.store_name}</td>
+                      <td style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 14 }}>{r.contact_name}</td>
+                      <td style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 14 }}>{r.business_type}</td>
+                      <td style={{ padding: '12px', color: 'var(--text-dim)', fontSize: 13 }}>{new Date(r.created_at).toLocaleDateString('zh-CN')}</td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 'var(--fw-semibold)', background: `${st.color}1A`, color: st.color }}>{st.label}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </Card>
     </div>
   )
 }

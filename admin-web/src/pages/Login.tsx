@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { Segmented, Field, PrimaryButton, inputBase } from '@/components/ui'
 
 type LoginMethod = 'password' | 'otp' | 'email'
 
@@ -18,11 +19,9 @@ export default function Login() {
   const [otpSending, setOtpSending] = useState(false)
   const [countdown, setCountdown] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const pwdRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!profile) return
-    // 登录后统一走根路径，由 RoleRouter 按角色分发
     nav('/', { replace: true })
   }, [profile, nav])
 
@@ -72,220 +71,134 @@ export default function Login() {
     if (errMsg) setErr(errMsg)
   }
 
-  // 统一输入框样式
-  const inputStyle = {
-    width: '100%', padding: '13px 16px', background: 'rgba(15,23,42,0.6)',
-    border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10,
-    color: 'var(--text)', fontSize: 15, outline: 'none',
-    transition: 'all 0.2s', boxSizing: 'border-box' as const,
-  }
   const focusHandler = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.style.borderColor = 'var(--primary)'
-    e.target.style.boxShadow = '0 0 0 2px var(--primary-soft)'
+    e.target.style.boxShadow = '0 0 0 3px var(--primary-ring)'
   }
   const blurHandler = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.target.style.borderColor = 'rgba(255,255,255,0.08)'
+    e.target.style.borderColor = 'var(--border-strong)'
     e.target.style.boxShadow = 'none'
   }
-  const labelStyle = { color: 'var(--text-muted)', fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 8 }
 
   return (
     <div style={{
-      minHeight: '100vh', background: 'var(--bg)',
+      minHeight: '100vh', background:
+        'radial-gradient(1200px 600px at 50% -10%, var(--primary-soft) 0%, transparent 60%), var(--bg)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 24, position: 'relative', overflow: 'hidden',
     }}>
-      {/* 背景装饰 */}
+      {/* 登录卡 */}
       <div style={{
-        position: 'absolute', top: '-20%', left: '50%',
-        transform: 'translateX(-50%)', width: 600, height: 600,
-        borderRadius: '50%', background: 'radial-gradient(circle, rgba(194,65,12,0.08) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* 居中登录卡 */}
-      <div style={{
-        width: '100%', maxWidth: 400,
-        background: 'rgba(17,20,30,0.85)',
-        backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.06)',
-        borderRadius: 20, padding: '48px 36px 36px',
-        boxShadow: '0 25px 60px rgba(0,0,0,0.5), 0 0 100px rgba(194,65,12,0.05)',
+        width: '100%', maxWidth: 408,
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-xl)', padding: '40px 36px 32px',
+        boxShadow: 'var(--shadow-lg)',
       }}>
         {/* Logo + 品牌名 */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            marginBottom: 16,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 48, height: 48, marginBottom: 14,
+            background: 'var(--primary-strong)', borderRadius: 12,
+            boxShadow: 'var(--shadow-primary)',
           }}>
-            <div style={{
-              width: 42, height: 42, background: 'linear-gradient(135deg, var(--primary-strong), var(--primary-hover))',
-              borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 18px rgba(194,65,12,0.35)',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-                  stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
-                />
-              </svg>
-            </div>
-            <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 20 }}>来店有喜</span>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
           </div>
-          <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, margin: 0 }}>欢迎回来</h1>
-          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>管理后台登录</p>
+          <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 'var(--fw-bold)', margin: 0 }}>来店有喜 · 管理后台</h1>
+          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>欢迎回来，请登录您的账户</p>
         </div>
 
         {/* 登录方式切换 */}
-        <div style={{
-          display: 'flex', gap: 0, background: 'rgba(15,23,42,0.6)',
-          borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)',
-          padding: 3, marginBottom: 28,
-        }}>
-          {([
-            { key: 'password' as LoginMethod, label: '密码登录' },
-            { key: 'otp' as LoginMethod, label: '验证码登录' },
-            { key: 'email' as LoginMethod, label: '邮箱登录' },
-          ]).map(m => (
-            <button key={m.key} type="button" onClick={() => { setMethod(m.key); setErr('') }} style={{
-              flex: 1, padding: '9px 0', borderRadius: 8,
-              background: method === m.key ? 'var(--primary-strong)' : 'transparent',
-              border: 'none', color: method === m.key ? '#fff' : 'var(--text-dim)',
-              fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
-            }}>{m.label}</button>
-          ))}
+        <div style={{ marginBottom: 24 }}>
+          <Segmented
+            value={method}
+            onChange={(v) => { setMethod(v); setErr('') }}
+            options={[
+              { key: 'password', label: '密码登录' },
+              { key: 'otp', label: '验证码登录' },
+              { key: 'email', label: '邮箱登录' },
+            ]}
+          />
         </div>
 
         {/* === 密码表单 === */}
         {method === 'password' && (
           <form onSubmit={handlePwdSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              <label style={labelStyle}>手机号码</label>
+            <Field label="手机号码">
               <input type="tel" value={phone}
                 onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
                 placeholder="请输入 11 位手机号" maxLength={11}
-                style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>登录密码</label>
+                style={inputBase} onFocus={focusHandler} onBlur={blurHandler} />
+            </Field>
+            <Field label="登录密码">
               <input type="password" value={password}
                 onChange={e => setPassword(e.target.value)} placeholder="请输入密码"
-                style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}
-              />
-            </div>
-
-            {err && (
-              <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.07)',
-                border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10,
-                color: 'var(--danger-text)', fontSize: 13,
-              }}>{err}</div>
-            )}
-
-            <button type="submit" disabled={loading} style={{
-              width: '100%', padding: '13px',
-              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary-strong), var(--primary-hover))',
-              border: 'none', borderRadius: 10, color: '#fff', fontSize: 15,
-              fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s', boxShadow: loading ? 'none' : '0 4px 20px rgba(194,65,12,0.3)',
-              marginTop: 4,
-            }}>{loading ? '登 录 中 ...' : '登 录'}</button>
+                style={inputBase} onFocus={focusHandler} onBlur={blurHandler} />
+            </Field>
+            {err && <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.18)', borderRadius: 'var(--radius-md)', color: 'var(--danger-text)', fontSize: 13 }}>{err}</div>}
+            <PrimaryButton type="submit" loading={loading} fullWidth>{loading ? '登 录 中 ...' : '登 录'}</PrimaryButton>
           </form>
         )}
 
         {/* === 验证码表单 === */}
         {method === 'otp' && (
           <form onSubmit={handleOtpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              <label style={labelStyle}>手机号码</label>
+            <Field label="手机号码">
               <input type="tel" value={phone}
                 onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
                 placeholder="请输入 11 位手机号" maxLength={11}
-                style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>短信验证码</label>
+                style={inputBase} onFocus={focusHandler} onBlur={blurHandler} />
+            </Field>
+            <Field label="短信验证码">
               <div style={{ display: 'flex', gap: 10 }}>
                 <input type="text" value={otpCode}
                   onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="6 位验证码" maxLength={6}
-                  style={{ ...inputStyle, flex: 1 }}
+                  style={{ ...inputBase, flex: 1 }}
                   onFocus={focusHandler} onBlur={blurHandler}
                 />
                 <button type="button" onClick={handleSendOtp}
                   disabled={otpSending || countdown > 0}
                   style={{
-                    whiteSpace: 'nowrap', padding: '13px 16px',
-                    background: countdown > 0 ? 'rgba(31,41,55,0.6)' : 'var(--primary-soft)',
-                    border: `1px solid ${countdown > 0 ? 'rgba(55,65,81,0.5)' : 'var(--primary)'}`,
-                    borderRadius: 10, color: countdown > 0 ? 'var(--text-dim)' : 'var(--primary)',
-                    fontSize: 13, fontWeight: 600,
-                    cursor: (otpSending || countdown > 0) ? 'not-allowed' : 'pointer',
-                    minWidth: 112, transition: 'all 0.2s',
+                    whiteSpace: 'nowrap', padding: '11px 16px',
+                    background: countdown > 0 ? 'var(--surface-2)' : 'var(--primary-soft)',
+                    border: `1px solid ${countdown > 0 ? 'var(--border)' : 'var(--primary)'}`,
+                    borderRadius: 'var(--radius-md)', color: countdown > 0 ? 'var(--text-dim)' : 'var(--primary-strong)',
+                    fontSize: 13, fontWeight: 'var(--fw-semibold)',
+                    cursor: (otpSending || countdown > 0) ? 'not-allowed' : 'pointer', minWidth: 116,
                   }}
                 >
                   {otpSending ? '发送中...' : countdown > 0 ? `${countdown}s` : '获取验证码'}
                 </button>
               </div>
-            </div>
-
-            {err && (
-              <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.07)',
-                border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10,
-                color: 'var(--danger-text)', fontSize: 13,
-              }}>{err}</div>
-            )}
-
-            <button type="submit" disabled={loading} style={{
-              width: '100%', padding: '13px',
-              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary-strong), var(--primary-hover))',
-              border: 'none', borderRadius: 10, color: '#fff', fontSize: 15,
-              fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s', boxShadow: loading ? 'none' : '0 4px 20px rgba(194,65,12,0.3)',
-              marginTop: 4,
-            }}>{loading ? '登 录 中 ...' : '登 录'}</button>
+            </Field>
+            {err && <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.18)', borderRadius: 'var(--radius-md)', color: 'var(--danger-text)', fontSize: 13 }}>{err}</div>}
+            <PrimaryButton type="submit" loading={loading} fullWidth>{loading ? '登 录 中 ...' : '登 录'}</PrimaryButton>
           </form>
         )}
 
         {/* === 邮箱表单 === */}
         {method === 'email' && (
           <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              <label style={labelStyle}>邮箱地址</label>
+            <Field label="邮箱地址">
               <input type="email" value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="请输入邮箱地址"
-                style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>登录密码</label>
+                style={inputBase} onFocus={focusHandler} onBlur={blurHandler} />
+            </Field>
+            <Field label="登录密码">
               <input type="password" value={emailPassword}
                 onChange={e => setEmailPassword(e.target.value)} placeholder="请输入密码"
-                style={inputStyle} onFocus={focusHandler} onBlur={blurHandler}
-                ref={pwdRef}
-              />
-            </div>
-
-            {err && (
-              <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.07)',
-                border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10,
-                color: 'var(--danger-text)', fontSize: 13,
-              }}>{err}</div>
-            )}
-
-            <button type="submit" disabled={loading} style={{
-              width: '100%', padding: '13px',
-              background: loading ? 'var(--primary-disabled)' : 'linear-gradient(135deg, var(--primary-strong), var(--primary-hover))',
-              border: 'none', borderRadius: 10, color: '#fff', fontSize: 15,
-              fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s', boxShadow: loading ? 'none' : '0 4px 20px rgba(194,65,12,0.3)',
-              marginTop: 4,
-            }}>{loading ? '登 录 中...' : '登 录'}</button>
+                style={inputBase} onFocus={focusHandler} onBlur={blurHandler} />
+            </Field>
+            {err && <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.18)', borderRadius: 'var(--radius-md)', color: 'var(--danger-text)', fontSize: 13 }}>{err}</div>}
+            <PrimaryButton type="submit" loading={loading} fullWidth>{loading ? '登 录 中 ...' : '登 录'}</PrimaryButton>
           </form>
         )}
 
-        {/* 底部提示 */}
-        <p style={{ color: 'var(--border-soft)', fontSize: 11, textAlign: 'center', marginTop: 16 }}>
+        <p style={{ color: 'var(--text-dim)', fontSize: 12, textAlign: 'center', marginTop: 18 }}>
           {method === 'email' ? '请使用管理员账号登录（role=admin）' : '请联系管理员获取账号权限'}
         </p>
       </div>
