@@ -476,10 +476,6 @@ function OverviewTab({ storeId }: { storeId: string }) {
           <p style={{ color: c.color, fontSize: 22, fontWeight: 700 }}>{c.value}</p>
         </div>
       ))}
-      <p style={{ gridColumn: '1 / -1', color: C.dim, fontSize: 12, marginTop: 4 }}>
-        提示：累计消费额 依赖 Supabase 聚合函数（db-aggregates），若显示 ¥0 请在 Dashboard 执行
-        <code style={{ color: C.sub }}> ALTER ROLE authenticator SET pgrst.db_aggregates_enabled='true'; NOTIFY pgrst,'reload config';</code>
-      </p>
     </div>
   )
 }

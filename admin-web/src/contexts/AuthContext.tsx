@@ -199,17 +199,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <Ctx.Provider value={{ profile, loading, useMock, signInWithEmail, signInWithPhonePassword, signInWithPhone, sendOtpCode, signInAsMerchant, signOut }}>
-      {/* 演示模式提示条 */}
-      {useMock && (
-        <div style={{
-          background: 'linear-gradient(90deg, var(--primary-strong), var(--primary-hover))',
-          color: '#fff', textAlign: 'center', padding: '8px 0',
-          fontSize: 13, fontWeight: 500, letterSpacing: 0.5,
-        }}>
-          ⚡ 演示模式：已使用模拟数据，连接 Supabase 后自动切换真实数据
-          （当前身份：{profile?.role === 'admin' ? '超级管理员' : (profile?.nickname || '自营门店')}）
-        </div>
-      )}
       {children}
     </Ctx.Provider>
   )

@@ -691,8 +691,8 @@ export default function MerchantProducts() {
     setForm(f => ({ ...f, detail_images: [...f.detail_images, ...urls].slice(0, 20) }))
   }
 
-  // —— AI 一键生成食疗文案（复用已部署 food-therapy-ai · copy 模式，内置医疗宣称闸门）——
-  const handleAIGenerate = async () => {
+  // —— 规则引擎一键生成食疗文案（复用已部署 food-therapy-ai · copy 模式，内置医疗宣称闸门）——
+  const handleRuleGenerate = async () => {
     if (!form.name) { window.alert('请先填写商品名称'); return }
     setGenerating(true)
     const rule = buildRuleCopy(form)
@@ -1639,7 +1639,7 @@ export default function MerchantProducts() {
                     style={{ padding: '6px 14px', background: (generating || !form.name) ? 'var(--border-soft)' : 'var(--primary-strong)', border: 'none', borderRadius: 8, color: (generating || !form.name) ? 'var(--text-dim)' : '#fff', cursor: (generating || !form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 700 }}>
                     {generating ? '填充中…' : '⚡ 一键智能填充'}
                   </button>
-                  <button type="button" onClick={handleAIGenerate} disabled={generating || !form.name}
+                  <button type="button" onClick={handleRuleGenerate} disabled={generating || !form.name}
                     style={{ padding: '6px 14px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 8, color: (generating || !form.name) ? 'var(--text-dim)' : 'var(--text)', cursor: (generating || !form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
                     {generating ? '生成中…' : '重新生成文案'}
                   </button>

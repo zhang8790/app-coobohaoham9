@@ -46,8 +46,8 @@ export async function setPasswordEnabled(
 
 // =========== 模式控制 ===========
 // 可通过环境变量控制是否使用 mock 数据
-// 在 .env.local 中设置 VITE_USE_MOCK=false 来禁用 mock
-// 注意：当前项目 RLS 已关闭，应直接使用真实 API
+// 在 .env.local 中设置 VITE_USE_MOCK=true 可强制走模拟数据（仅本地调试用）
+// 注意：线上 RLS 已全开并加固，所有请求均受行级安全策略约束
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 // =========== 后端连接检测 ===========
