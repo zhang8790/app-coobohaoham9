@@ -1,9 +1,17 @@
 // @title 商家后台数据 API
 import { supabase, supabaseAuth } from '@/lib/supabase'
 import requestCache from '@/utils/requestCache'
+import { withTimeout } from '@/utils/withTimeout'
 import type {
   Product, MerchantCoupon, MarketingCampaign, MerchantMessage, MerchantAnalytics, WithdrawalRecord,
 } from '@/types'
+
+// ── 取数超时（防「永久转圈」）────────────────────────────────────────────
+// supabase-js 的 fetch 无内置超时：链路 stall 时 Promise 永不 settle，
+// 页面的 loading 终态永远到不了，且 catch 也不触发（无任何线索）。
+// 统一给商家端关键取数加超时，保证 UI 一定能进入「数据 / 空 / 错误」三态之一。
+const STORE_TIMEOUT_MS = 12_000
+const RPC_TIMEOUT_MS = 15_000
 
 // 违禁词库（与 src/utils/compliance-words 保持一致，全站营销文案统一拦截）
 const AD_ILLEGAL_WORDS = ['国家级','最高级','最佳','最好','第一','顶级','极品','万能','100%','绝对','唯一','保本','稳赚','躺赚','零风险','翻倍','升值','资产增值','中奖','开奖','抽奖','必中']
@@ -23,30 +31,32 @@ export async function getMyMerchantStore(
   userId: string,
   preferredStoreId?: string | null,
 ): Promise<{ id: string; name: string } | null> {
-  // 1) 取该账号可管理的全部门店 id（owner ∪ 活跃 staff）
-  const { data: owned } = await supabase
-    .from('stores').select('id').eq('owner_id', userId)
-  const { data: staff } = await supabase
-    .from('store_staff').select('store_id').eq('user_id', userId).eq('is_active', true)
+  return withTimeout(async () => {
+    // 1) 取该账号可管理的全部门店 id（owner ∪ 活跃 staff）
+    const { data: owned } = await supabase
+      .from('stores').select('id').eq('owner_id', userId)
+    const { data: staff } = await supabase
+      .from('store_staff').select('store_id').eq('user_id', userId).eq('is_active', true)
 
-  const ids = Array.from(new Set<string>([
-    ...(owned ?? []).map((r: any) => r.id),
-    ...(staff ?? []).map((r: any) => r.store_id).filter(Boolean),
-  ]))
-  if (!ids.length) return null
+    const ids = Array.from(new Set<string>([
+      ...(owned ?? []).map((r: any) => r.id),
+      ...(staff ?? []).map((r: any) => r.store_id).filter(Boolean),
+    ]))
+    if (!ids.length) return null
 
-  const { data: rows } = await supabase
-    .from('stores').select('id, name').in('id', ids)
-  const list = (rows ?? []).map((s: any) => ({ id: s.id, name: s.name }))
-  if (!list.length) return null
+    const { data: rows } = await supabase
+      .from('stores').select('id, name').in('id', ids)
+    const list = (rows ?? []).map((s: any) => ({ id: s.id, name: s.name }))
+    if (!list.length) return null
 
-  // 2) 优先返回所选门店（切换器选中的那家）
-  if (preferredStoreId) {
-    const hit = list.find(s => s.id === preferredStoreId)
-    if (hit) return hit
-  }
-  // 3) 回退：第一家（默认视角）
-  return list[0]
+    // 2) 优先返回所选门店（切换器选中的那家）
+    if (preferredStoreId) {
+      const hit = list.find(s => s.id === preferredStoreId)
+      if (hit) return hit
+    }
+    // 3) 回退：第一家（默认视角）
+    return list[0]
+  }, STORE_TIMEOUT_MS, '门店信息加载')
 }
 
 // ── 优惠券 ─────────────────────────────────────────────────────────────
@@ -164,7 +174,10 @@ export async function getMerchantProductSales(storeId: string): Promise<Record<s
   const ck = `amps:${storeId}`
   const cached = requestCache.get<Record<string, { sales: number; revenue: number }>>(ck)
   if (cached) return cached
-  const { data, error } = await supabase.rpc('fn_merchant_product_sales', { p_store_id: storeId })
+  const { data, error } = await withTimeout(
+    async () => await supabase.rpc('fn_merchant_product_sales', { p_store_id: storeId }),
+    RPC_TIMEOUT_MS, '商品收益聚合',
+  )
   if (error) throw error
   const m: Record<string, { sales: number; revenue: number }> = {}
   ;(data || []).forEach((r: any) => {
@@ -175,12 +188,16 @@ export async function getMerchantProductSales(storeId: string): Promise<Record<s
 }
 
 // 商家数据分析聚合（服务端 RPC 一次返回，替代前端全量 orders/order_items 拉取）
-export async function getMerchantAnalytics(storeId: string): Promise<MerchantAnalytics> {
-  const ck = `ama:${storeId}`
+// days：统计趋势窗口（7/30），与页面「近7日 / 近30日」切换一一对应。
+export async function getMerchantAnalytics(storeId: string, days: 7 | 30 = 7): Promise<MerchantAnalytics> {
+  const ck = `ama:${storeId}:${days}`
   const cached = requestCache.get<MerchantAnalytics>(ck)
   if (cached) return cached
 
-  const { data, error } = await supabase.rpc('fn_merchant_analytics', { p_store_id: storeId })
+  const { data, error } = await withTimeout(
+    async () => await supabase.rpc('fn_merchant_analytics', { p_store_id: storeId, p_days: days }),
+    RPC_TIMEOUT_MS, '数据分析聚合',
+  )
   if (error) throw error
   const d = (data as any) || {}
 

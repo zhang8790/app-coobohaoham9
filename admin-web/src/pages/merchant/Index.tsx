@@ -57,30 +57,53 @@ export default function MerchantDashboard() {
   const [settlement, setSettlement] = useState<{ merchant_balance: number; settlement_frozen: number; total_settled: number; settlement_count: number } | null>(null)
   const [productStats, setProductStats] = useState<{ total: number; online: number }>({ total: 0, online: 0 })
   const [, setLoading] = useState(true)
+  // 门店是否已解析完成（区分「还在解析」与「确实没有门店」）
+  const [storeReady, setStoreReady] = useState(false)
+  // 取数失败原因：以前失败会静默回退到 MOCK_STATS，等于把假营收喂给商户，必须显式暴露
+  const [err, setErr] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   // 获取当前商家的 store_id
   useEffect(() => {
     if (!profile || !isMerchantUser(profile)) return
-    const fetchStore = async () => {
-      const st = await getMyMerchantStore(profile.id, selectedStoreId)
-      setStoreId(st?.id ?? null)
-    }
-    if (!useMock) {
-      fetchStore()
-    }
-  }, [profile, useMock, selectedStoreId])
+    if (useMock) { setStoreReady(true); return }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const st = await getMyMerchantStore(profile.id, selectedStoreId)
+        if (cancelled) return
+        setStoreId(st?.id ?? null)
+        setStoreReady(true)
+      } catch (e: any) {
+        if (cancelled) return
+        console.error('[MerchantDashboard] 门店解析失败：', e)
+        setStoreId(null)
+        setStoreReady(true)
+        setErr(e?.message || '门店信息加载失败，请重试')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [profile, useMock, selectedStoreId, reloadKey])
 
   // 加载真实数据
   useEffect(() => {
-    if (useMock || !storeId) {
-      // 演示模式：用 Mock 数据
+    if (useMock) {
+      // 仅「显式演示模式」允许使用 Mock 数据
       setStats(MOCK_STATS)
       setRecentOrders(MOCK_RECENT_ORDERS)
       setLoading(false)
       return
     }
+    // 门店尚未解析完：保持原状，绝不用假数据占位
+    if (!storeReady) return
+    if (!storeId) {
+      setLoading(false)
+      setErr((prev) => prev ?? '未找到关联门店')
+      return
+    }
     const load = async () => {
       setLoading(true)
+      setErr(null)
       try {
         // 数据分析聚合（服务端 RPC 一次返回，替代多次全量拉取）
         const { data: ana, error: anaErr } = await supabase.rpc('fn_merchant_analytics', { p_store_id: storeId })
@@ -132,16 +155,18 @@ export default function MerchantDashboard() {
           status: o.status,
           created_at: (o.created_at ?? '').replace('T', ' ').slice(0, 16),
         })))
-      } catch (e) {
-        console.warn('[Dashboard] 加载真实数据失败，使用 Mock:', e)
-        setStats(MOCK_STATS)
-        setRecentOrders(MOCK_RECENT_ORDERS)
+      } catch (e: any) {
+        // 不再静默回退 Mock：向商户展示假营收是危险的，改为显式报错 + 指标归零
+        console.error('[MerchantDashboard] 加载真实数据失败：', e)
+        setStats({ todayRevenue: 0, monthRevenue: 0, todayOrders: 0, totalCustomers: 0, pendingOrders: 0, pendingWithdraw: 0 })
+        setRecentOrders([])
+        setErr(e?.message || '数据加载失败，请重试')
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [useMock, storeId])
+  }, [useMock, storeId, storeReady, reloadKey])
 
   const cards = [
     { label: '今日营收', value: `¥${stats.todayRevenue.toFixed(2)}`, icon: '💰', color: 'var(--success-strong)' },
@@ -156,6 +181,28 @@ export default function MerchantDashboard() {
     <div>
       {/* 页面标题 */}
       <h2 style={{ color: 'var(--text)', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>店铺概况</h2>
+
+      {/* 取数异常提示：指标已归零，避免被误读为真实经营数据 */}
+      {err && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          background: 'var(--surface-2)', border: '1px solid var(--border)',
+          borderLeft: '3px solid var(--warning)', borderRadius: 8,
+          padding: '12px 16px', marginBottom: 20,
+        }}>
+          <span style={{ color: 'var(--text)', fontSize: 13 }}>
+            ⚠️ 经营数据未能加载：{err}（下方指标已置零，非真实数据）
+          </span>
+          <button
+            onClick={() => setReloadKey((k) => k + 1)}
+            style={{
+              flexShrink: 0, padding: '6px 16px', background: 'var(--surface)',
+              border: '1px solid var(--border-strong)', borderRadius: 6,
+              color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
+            }}
+          >重新加载</button>
+        </div>
+      )}
 
       {/* 核心指标卡片 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 32 }}>

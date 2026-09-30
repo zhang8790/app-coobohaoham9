@@ -4,6 +4,7 @@
 // 持久化：选择存 sessionStorage，刷新后保持当前门店。
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
+import { withTimeout } from '@/utils/withTimeout'
 import { useAuth } from './AuthContext'
 
 export interface ManagedStore {
@@ -36,22 +37,24 @@ const Ctx = createContext<StoreCtx>(EMPTY)
 // 依赖 stores 表的 public_read_stores 策略（is_active = true 即可被任意已登录用户 SELECT），
 // 因此非 owner 的 staff 也能读到本店行，列表不会漏。
 async function fetchMyStores(userId: string): Promise<ManagedStore[]> {
-  const { data: owned } = await supabase
-    .from('stores').select('id').eq('owner_id', userId)
-  const { data: staff } = await supabase
-    .from('store_staff').select('store_id').eq('user_id', userId).eq('is_active', true)
+  return withTimeout(async () => {
+    const { data: owned } = await supabase
+      .from('stores').select('id').eq('owner_id', userId)
+    const { data: staff } = await supabase
+      .from('store_staff').select('store_id').eq('user_id', userId).eq('is_active', true)
 
-  const ids = Array.from(new Set<string>([
-    ...(owned ?? []).map((r: any) => r.id),
-    ...(staff ?? []).map((r: any) => r.store_id).filter(Boolean),
-  ]))
-  if (!ids.length) return []
+    const ids = Array.from(new Set<string>([
+      ...(owned ?? []).map((r: any) => r.id),
+      ...(staff ?? []).map((r: any) => r.store_id).filter(Boolean),
+    ]))
+    if (!ids.length) return []
 
-  const { data } = await supabase
-    .from('stores').select('id, name, is_platform').in('id', ids)
-  return (data ?? []).map((s: any) => ({
-    id: s.id, name: s.name, is_platform: !!s.is_platform,
-  }))
+    const { data } = await supabase
+      .from('stores').select('id, name, is_platform').in('id', ids)
+    return (data ?? []).map((s: any) => ({
+      id: s.id, name: s.name, is_platform: !!s.is_platform,
+    }))
+  }, 12_000, '门店列表加载')
 }
 
 function savedKey(uid: string) { return `mgmt_store_${uid}` }
@@ -68,7 +71,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let active = true
     ;(async () => {
       setLoading(true)
-      const list = await fetchMyStores(profile.id)
+      let list: ManagedStore[] = []
+      try {
+        list = await fetchMyStores(profile.id)
+      } catch (e) {
+        // 超时/网络异常：不允许把 loading 永远挂住（否则切换器永久显示「门店加载中…」）
+        console.warn('[StoreContext] 门店列表加载失败：', e)
+      }
       if (!active) return
       setStores(list)
       const saved = sessionStorage.getItem(savedKey(profile.id))

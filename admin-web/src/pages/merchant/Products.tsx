@@ -193,6 +193,7 @@ export default function MerchantProducts() {
   const [storeCategory, setStoreCategory] = useState<string | null>(null)
   const [storeRefEnabled, setStoreRefEnabled] = useState(false)
   const [emotionFlash, setEmotionFlash] = useState<string | null>(null)
+  const [loadErr, setLoadErr] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generatingBarcode, setGeneratingBarcode] = useState(false)
   const [printingBarcode, setPrintingBarcode] = useState(false)
@@ -305,16 +306,21 @@ export default function MerchantProducts() {
 
   // 加载商品列表
   useEffect(() => {
-    if (useMock || !isMerchantUser || !storeId) {
-      // 演示模式或用 Mock 数据
+    if (useMock) {
+      // 仅「显式演示模式」使用 Mock 商品
       setList([...MOCK_PRODUCTS])
       return
     }
+    // 门店尚未解析完 / 无门店：保持空列表。
+    // ⚠️ 原判断写作 `!isMerchantUser`（函数取反恒为 false），等价于「只要 storeId 为空就填
+    //    MOCK_PRODUCTS」，导致进页面瞬间/无门店时给商户展示一批并不存在的商品。
+    if (!storeId) return
     load()
   }, [useMock, storeId, profile])
 
   const load = async () => {
     setList([])
+    setLoadErr(null)
     try {
       const { data, error } = await supabase
         .from('products')
@@ -338,9 +344,11 @@ export default function MerchantProducts() {
         sales: agg[p.id]?.sales ?? 0,
         revenue: agg[p.id]?.revenue ?? 0,
       } as ProductWithExt)))
-    } catch (e) {
-      console.warn('[Products] 加载失败，使用 Mock:', e)
-      setList([...MOCK_PRODUCTS])
+    } catch (e: any) {
+      // 不再静默回退 Mock 商品：让商户看到并不存在的商品，比看到空列表危险得多
+      console.error('[Products] 加载失败：', e)
+      setList([])
+      setLoadErr(e?.message || '商品列表加载失败')
     }
   }
 
@@ -1007,6 +1015,26 @@ export default function MerchantProducts() {
           boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
         }}>
           {emotionFlash}
+        </div>
+      )}
+
+      {/* 商品取数异常提示（列表已置空，避免与假数据混淆） */}
+      {loadErr && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          background: 'var(--surface-2)', border: '1px solid var(--border)',
+          borderLeft: '3px solid var(--warning)', borderRadius: 8,
+          padding: '12px 16px', marginBottom: 16,
+        }}>
+          <span style={{ color: 'var(--text)', fontSize: 13 }}>⚠️ 商品列表未能加载：{loadErr}</span>
+          <button
+            onClick={() => load()}
+            style={{
+              flexShrink: 0, padding: '6px 16px', background: 'var(--surface)',
+              border: '1px solid var(--border-strong)', borderRadius: 6,
+              color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
+            }}
+          >重新加载</button>
         </div>
       )}
 

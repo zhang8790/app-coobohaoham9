@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore, getMerchantAnalytics } from '@/api/merchant'
+import requestCache from '@/utils/requestCache'
 import type { MerchantAnalytics } from '@/types'
 
 function MiniBarChart({ data, labels, height = 120 }: { data: number[]; labels: string[]; height?: number }) {
@@ -53,6 +54,8 @@ function PieChart({ data }: { data: { name: string; value: number }[] }) {
   )
 }
 
+const PERIOD_DAYS: Record<'7d' | '30d', 7 | 30> = { '7d': 7, '30d': 30 }
+
 export default function MerchantAnalytics() {
   const { profile } = useAuth()
   const { selectedStoreId } = useStore()
@@ -60,20 +63,45 @@ export default function MerchantAnalytics() {
   const [data, setData] = useState<MerchantAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [storeId, setStoreId] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  const days = PERIOD_DAYS[period]
 
   useEffect(() => {
     if (!profile) return
     let cancelled = false
     ;(async () => {
-      const store = await getMyMerchantStore(profile.id, selectedStoreId)
-      if (cancelled) return
-      if (!store) { setLoading(false); return }
-      setStoreId(store.id)
-      const d = await getMerchantAnalytics(store.id).catch(() => null)
-      if (!cancelled) { setData(d); setLoading(false) }
+      setLoading(true)
+      setErr(null)
+      try {
+        const store = await getMyMerchantStore(profile.id, selectedStoreId)
+        if (cancelled) return
+        if (!store) { setStoreId(null); setData(null); return }
+        setStoreId(store.id)
+        const d = await getMerchantAnalytics(store.id, days)
+        if (cancelled) return
+        setData(d)
+      } catch (e: any) {
+        if (cancelled) return
+        console.error('[MerchantAnalytics] 加载失败：', e)
+        setData(null)
+        setErr(e?.message || '数据加载失败，请重试')
+      } finally {
+        // 关键：成功 / 失败 / 超时都必须落下 loading。
+        // 缺了这一步，一旦请求悬挂（supabase-js 的 fetch 无内置超时），
+        // 页面就会永久停在「加载中…」且没有任何错误线索。
+        if (!cancelled) setLoading(false)
+      }
     })()
     return () => { cancelled = true }
-  }, [profile, selectedStoreId])
+  }, [profile, selectedStoreId, days, reloadKey])
+
+  const retry = () => {
+    // 清掉进程内聚合缓存，确保重试是真的重新请求
+    requestCache.clear()
+    setReloadKey(k => k + 1)
+  }
 
   return (
     <div>
@@ -96,13 +124,28 @@ export default function MerchantAnalytics() {
         </div>
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)' }}>加载中…</div>}
+      {loading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)' }}>数据加载中…</div>}
 
-      {!loading && !storeId && (
+      {!loading && err && (
+        <div style={{
+          textAlign: 'center', padding: '40px 24px', margin: '0 auto', maxWidth: 520,
+          background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12,
+        }}>
+          <p style={{ fontSize: 28, marginBottom: 10 }}>⚠️</p>
+          <p style={{ color: 'var(--text)', fontSize: 14, marginBottom: 6 }}>数据分析加载失败</p>
+          <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 18 }}>{err}</p>
+          <button onClick={retry} style={{
+            padding: '8px 22px', background: 'var(--success-strong)', border: 'none',
+            borderRadius: 6, color: 'white', fontSize: 13, cursor: 'pointer',
+          }}>重新加载</button>
+        </div>
+      )}
+
+      {!loading && !err && !storeId && (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)', fontSize: 14 }}>未找到关联门店</div>
       )}
 
-      {!loading && storeId && data && (
+      {!loading && !err && storeId && data && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
             {[
@@ -123,7 +166,7 @@ export default function MerchantAnalytics() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24, marginBottom: 24 }}>
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-              <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>销售趋势（近7日）</h3>
+              <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>销售趋势（近 {days} 日）</h3>
               <MiniBarChart data={data.salesTrend.map(s => s.amount)} labels={data.salesTrend.map(s => s.date)} height={200} />
             </div>
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>

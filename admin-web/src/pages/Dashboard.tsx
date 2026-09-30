@@ -55,8 +55,12 @@ export default function Dashboard() {
       setTodo({ merchantApps: 2, products: 3, withdrawals: 1, refunds: 0, expiry: 4 })
       return
     }
-    getAdminStats().then(setStats).catch(() => setStats(MOCK_STATS))
-    getRecentMerchants(5).then(setRecent).catch(() => setRecent(MOCK_RECENT))
+    getAdminStats().then(setStats).catch((e) => {
+      // 不再回退 MOCK_STATS：给平台管理员看假经营数字是不可接受的，宁可留空（卡片渲染已有 null 兜底）
+      console.error('[AdminDashboard] 经营数据加载失败：', e)
+      setStats(null)
+    })
+    getRecentMerchants(5).then(setRecent).catch(() => setRecent([]))
     getTodoCounts().then(setTodo).catch(() => setTodo(null))
   }, [useMock])
 

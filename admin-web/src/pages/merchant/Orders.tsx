@@ -126,9 +126,11 @@ export default function MerchantOrders() {
         }))
       })
       setOrders(rows)
-    } catch (e) {
-      console.warn('[MerchantOrders] 加载失败，使用 Mock:', e)
-      setOrders(MOCK_ORDERS)
+    } catch (e: any) {
+      // 不再静默回退 Mock 订单：假订单会让商户误以为有单要处理
+      console.warn('[MerchantOrders] 加载失败：', e)
+      setOrders([])
+      setNotice('订单加载失败：' + (e?.message || e))
     } finally {
       setLoading(false)
     }
