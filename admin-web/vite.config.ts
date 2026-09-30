@@ -3,9 +3,12 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 export default defineConfig({
-  // 相对 base：构建产物(dist)可经任意静态服务器/子路径打开，
-  // 避免默认绝对路径(/assets/...)在 file:// 或子目录部署下白屏。
-  base: './',
+  // 必须用绝对 base '/'。
+  // 曾用 './'（相对）导致严重线上事故：SPA 深链/刷新页面时（如 /merchant/barcode-maker），
+  // 浏览器把 '/merchant/' 当目录，把 './assets/x.js' 解析为 '/merchant/assets/x.js'；
+  // 该路径不存在，又被 nginx `try_files ... /index.html` 兜底成 HTML 返回，
+  // 浏览器把 HTML 当 JS 解析 → 静默失败 → 整页白屏（且无任何报错提示）。
+  base: '/',
   plugins: [react()],
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },

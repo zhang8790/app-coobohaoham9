@@ -100,7 +100,11 @@ server {
     }
 
     # 静态资源长缓存（vite 产物带 hash）
+    # 资源缺失必须明确 404，绝不兜底成 index.html。
+    # 否则浏览器会把 HTML 当 JS/CSS 解析 → 静默失败 → 整页白屏（排查极其困难）。
+    # 注意：本段 heredoc 无引号，注释里也不能出现未转义的美元变量，否则 set -u 会中断部署。
     location /assets/ {
+        try_files \$uri =404;
         expires 30d;
         add_header Cache-Control "public, immutable";
     }
