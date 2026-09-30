@@ -96,7 +96,7 @@ export default function Settings() {
     <div style={{ maxWidth: 720 }}>
       <h2 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>模型配置</h2>
       <p style={{ color: 'var(--text-dim)', fontSize: 14, margin: '0 0 20px' }}>
-        填写模型网址与 Key 后，全项目（小程序识别 / 食疗导购 / 情绪编译）统一调用，无需改代码、无需重启。
+        填写模型网址与 Key 后，全项目（识别 / 食疗导购）统一调用，无需改代码、无需重启。
       </p>
 
       <div style={{

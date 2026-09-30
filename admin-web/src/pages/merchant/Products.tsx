@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getCategories, createStoreCategory, updateStoreCategory, deleteStoreCategory } from '@/api/categories'
 import { getMerchantProductSales, getMyMerchantStore } from '@/api/merchant'
 import { useStore } from '@/contexts/StoreContext'
-import { localCompileEmotion, recommendDimensions } from '@/utils/emotion'
 import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/utils/shiyang'
 import { NATURE_SCALE, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
 import { analyzeDish } from '@/utils/dish-analyzer'
@@ -190,7 +189,6 @@ export default function MerchantProducts() {
   const { selectedStoreId } = useStore()
   const [list, setList] = useState<ProductWithExt[]>([])
   const [storeId, setStoreId] = useState<string | null>(null)
-  const [storeCategory, setStoreCategory] = useState<string | null>(null)
   const [storeRefEnabled, setStoreRefEnabled] = useState(false)
   const [emotionFlash, setEmotionFlash] = useState<string | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
@@ -294,10 +292,9 @@ export default function MerchantProducts() {
       if (st?.id) {
         const { data } = await supabase
           .from('stores')
-          .select('category, referral_rate_enabled')
+          .select('referral_rate_enabled')
           .eq('id', st.id)
           .maybeSingle()
-        setStoreCategory(data?.category ?? null)
         setStoreRefEnabled(data?.referral_rate_enabled ?? false)
       }
     }
@@ -950,33 +947,6 @@ export default function MerchantProducts() {
     setList(prev => prev.filter(p => p.id !== id))
   }
 
-  // 情绪编译：调 emotion-compile Edge Function，把商品编译为情绪化叙事（结果写入 product_emotion 缓存）
-  const handleCompileEmotion = async (p: ProductWithExt) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('emotion-compile', {
-        body: {
-          mode: 'compile',
-          product_id: useMock ? undefined : p.id,
-          name: p.name,
-          description: p.description || '',
-          category: storeCategory || undefined,
-        },
-      })
-      if (error) {
-        // 云端函数未部署/不可用时，前端本地规则兜底，保证编译不失败
-        const rec = recommendDimensions(p.description || '')
-        const local = localCompileEmotion({ name: p.name, description: p.description || '', selected: rec })
-        setEmotionFlash(`⚠️ 云端函数未部署，已用本地规则生成：\n${local.emotion_title}\n${local.emotion_detail}`)
-      } else if (data) {
-        setEmotionFlash(`${data.emotion_title || ''}\n${data.emotion_detail || ''}${data.compiled_by ? `（${data.compiled_by}）` : ''}`)
-      }
-      setTimeout(() => setEmotionFlash(null), 7000)
-    } catch (e: any) {
-      setEmotionFlash('编译异常：' + String(e?.message || e))
-      setTimeout(() => setEmotionFlash(null), 7000)
-    }
-  }
-
   const totalCost    = list.reduce((s, p) => s + (p.cost_price || 0) * p.sales, 0)
   // 营收取 order_items 聚合值（revenue）；Mock 商品无 revenue 时回退 price*sales
   const totalRevenue = list.reduce((s, p) => s + (p.revenue ?? (p.price * p.sales)), 0)
@@ -1006,7 +976,7 @@ export default function MerchantProducts() {
         </button>
       </div>
 
-      {/* 情绪编译结果 toast */}
+      {/* 生成结果 toast（智能填充 / 食疗文案 等） */}
       {emotionFlash && (
         <div style={{
           position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
@@ -1205,7 +1175,6 @@ export default function MerchantProducts() {
               </div>
               {/* action */}
               <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-                <button onClick={() => handleCompileEmotion(p)} style={{ padding: '4px 10px', background: 'rgba(99,102,241,0.15)', border: '1px solid var(--accent)', borderRadius: 4, color: 'var(--accent-text)', cursor: 'pointer', fontSize: 12 }}>情绪编译</button>
                 <button onClick={() => openEdit(p)} style={{ padding: '4px 10px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>编辑</button>
                 <button onClick={() => toggleStatus(p.id)} style={{
                   padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12,
