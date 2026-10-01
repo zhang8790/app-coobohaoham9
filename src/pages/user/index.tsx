@@ -334,7 +334,7 @@ function UserPage() {
  {unreadCount > 0 && (
  <View style={{
  position: 'absolute', top: 10, right: 16, minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9,
- background: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+ background: 'hsl(var(--destructive))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
  <Text style={{ color: 'white', fontSize: '22rpx', fontWeight: 600, lineHeight: '18px' }}>
  {unreadCount > 99 ? '99+' : unreadCount}
  </Text>

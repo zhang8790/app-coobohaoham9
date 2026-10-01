@@ -103,7 +103,7 @@ const SCENE_BY_CROWD: Array<{ kw: string[]; scene: string; label: string }> = [
  onClick={() => go('/pages/food/constitution-test/index')}
  >
  <View className="flex items-center gap-3 min-w-0">
- <View className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'hsl(var(--primary))1a' }}>
+ <View className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'hsl(var(--primary) / 0.1)' }}>
  <Icon name="pencil" size={20} className="text-primary" />
  </View>
  <View className="min-w-0">

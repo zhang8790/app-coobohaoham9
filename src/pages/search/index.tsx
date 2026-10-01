@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
 import { View, Text, Image, Input, ScrollView } from '@tarojs/components'
 import { searchProducts } from '@/db/api'
+import { withTimeout } from '@/utils/withTimeout'
 import Icon from '@/components/Icon'
 import type { Product } from '@/db/types'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
@@ -13,6 +14,7 @@ export default function SearchPage() {
  const [keyword, setKeyword] = useState('')
  const [results, setResults] = useState<Product[]>([])
  const [loading, setLoading] = useState(false)
+ const [error, setError] = useState<string | null>(null)
  const [searched, setSearched] = useState(false)
  // 「适合我」个性化筛选（仅对已完成健康画像的用户生效）
  const [fitOnly, setFitOnly] = useState(false)
@@ -43,11 +45,18 @@ export default function SearchPage() {
  if (!text) return
  setLoading(true)
  setSearched(true)
+ setError(null)
  pushHistory(text)
 
- const data = await searchProducts(text)
+ try {
+ const data = await withTimeout(searchProducts(text), 10000, '搜索超时，请重试')
  setResults(data)
+ } catch (e: any) {
+ setError(e?.message || '网络异常，请重试')
+ setResults([])
+ } finally {
  setLoading(false)
+ }
  }, [history])
 
  const clearHistory = () => {
@@ -158,11 +167,19 @@ export default function SearchPage() {
  {/* 搜索结果 */}
  {searched && (
  <View className="px-4 pt-4">
- {loading ? (
+{error ? (
+ <View className="flex flex-col items-center justify-center pt-20 gap-4">
+ <Text className="text-xl text-destructive">加载失败</Text>
+ <Text className="text-base text-muted-foreground">{error}</Text>
+ <View className="mt-2 px-6 py-2 rounded-full bg-primary" hoverClass="none" onClick={() => doSearch(keyword)}>
+ <Text className="text-white text-sm">重试</Text>
+ </View>
+ </View>
+) : loading ? (
  <View className="flex items-center justify-center pt-20">
  <Icon name="loading" size={36} className="text-primary animate-spin" />
  </View>
- ) : results.length === 0 ? (
+) : results.length === 0 ? (
  <View className="flex flex-col items-center justify-center pt-20 gap-4">
  <View className="text-muted-foreground"><Icon name="search" size={64} /></View>
  <Text className="text-2xl text-muted-foreground">未找到相关商品</Text>
