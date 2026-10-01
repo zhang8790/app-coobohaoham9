@@ -34,11 +34,15 @@ async function getWxAccessToken(appId: string, appSecret: string): Promise<strin
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  // ⚠️ 关键：使用「来店有喜」小程序 AppID/Secret。
-  // 经线上实测 MERCHANT_APP_ID/WX_SECRET 被微信判为 invalid appid(40013)，
-  // 故回退使用原 generate-qrcode 指定的 THIRD_PARTY_LOGIN_APP_ID/SECRET（实证可用）。
-  const APP_ID = Deno.env.get('THIRD_PARTY_LOGIN_APP_ID') ?? ''
-  const APP_SECRET = Deno.env.get('THIRD_PARTY_LOGIN_APP_SECRET') ?? ''
+  // ⚠️ 关键：必须用「来店有喜」小程序「自身」的 AppID/Secret 才能生成属于本小程序的码。
+  //   来店有喜小程序 AppID = wxb5bdfdbb471a500f，与微信登录（get-wechat-openid /
+  //   wechat_miniapp_login）共用同一套 MERCHANT_APP_ID + WX_SECRET，登录链路已跑通，凭据配对有效。
+  //   THIRD_PARTY_LOGIN_APP_ID 是「微信开放平台第三方登录」的另一个 AppID，用它生成的码属于
+  //   那个小程序，微信扫一扫只会打开那个 app 而非来店有喜 → 表现成「扫门店二维码进不去门店」。
+  //   （历史上曾误报 MERCHANT_APP_ID 为 invalid appid(40013)，实为当时 WX_SECRET 与该 AppID
+  //    不匹配；现登录链路已用同一对凭据跑通，可直接使用，切勿再回退到 THIRD_PARTY。）
+  const APP_ID = Deno.env.get('MERCHANT_APP_ID') ?? ''
+  const APP_SECRET = Deno.env.get('WX_SECRET') ?? ''
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
   const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
