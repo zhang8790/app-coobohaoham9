@@ -185,7 +185,7 @@ export default function FoodDetectivePage() {
  </View>
  {isSolved && solvedInfo && (
  <View className="mt-2 flex items-center gap-3">
- <Text className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#F3F4F6', color: '#6B7280' }}>
+ <Text className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#F6F2EE', color: '#6B7280' }}>
  得分 {solvedInfo.score}
  </Text>
  <Text className="text-[10px]" style={{ color: '#15803D' }}>
@@ -282,7 +282,7 @@ export default function FoodDetectivePage() {
  <View className="flex gap-3">
  <View
  className="rounded-xl py-3 px-5 flex items-center justify-center"
- style={{ background: '#F3F4F6' }}
+ style={{ background: '#F6F2EE' }}
  onClick={() => { setScreen('list'); setActiveCase(null); setSelected([]) }}
  >
  <Text className="text-sm font-medium text-[#6B7280]">← 案件列表</Text>
@@ -418,7 +418,7 @@ export default function FoodDetectivePage() {
  style={{ background: '#EFF6FF', borderWidth: 1, borderStyle: 'solid', borderColor: '#BFDBFE' }}
  onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}
  >
- <Text className="text-sm font-medium" style={{ color: '#1D4ED8' }}>
+ <Text className="text-sm font-medium" style={{ color: 'hsl(var(--primary))' }}>
  学会了吗？去扫一个真实配料表试试 →
  </Text>
  </View>

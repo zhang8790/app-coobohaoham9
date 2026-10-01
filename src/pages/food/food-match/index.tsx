@@ -94,7 +94,7 @@ export default function FoodMatch() {
 
  return (
  <ScrollView style={pageStyle} scrollY>
- <View style={{ ...card, background: 'linear-gradient(135deg,#ecfdf5,#f0f9ff)' }}>
+ <View style={{ ...card, background: 'linear-gradient(135deg,#ecfdf5,#F6F2EE)' }}>
  <Text style={{ fontSize: '36rpx', fontWeight: '700', color: '#0f172a' }}> 个性化食疗推荐专区</Text>
  <Text style={{ fontSize: '26rpx', color: '#475569', marginTop: 4, lineHeight: '20px' }}>
  勾选您的状态标签，系统基于私有配料安全库 + 人群匹配算法，自动计算每款零食的适配分（0–100）并排序推荐。仅作饮食选购参考，不含诊断。
@@ -180,7 +180,7 @@ export default function FoodMatch() {
 }
 
 const pageStyle: React.CSSProperties = {
- minHeight: '100vh', background: 'linear-gradient(180deg, var(--color-herb-50) 0%, #f8fafc 40%)', padding: '16px', boxSizing: 'border-box',
+ minHeight: '100vh', background: 'linear-gradient(180deg, var(--color-herb-50) 0%, #F7F3E9 40%)', padding: '16px', boxSizing: 'border-box',
 }
 const card: React.CSSProperties = {
  background: '#fff', borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',

@@ -239,7 +239,7 @@ export default function AnalysisResult() {
 
  {/* ──── 评估说明（数据源 + 算法局限，信任透明） ──── */}
  <View style={{ ...cardStyle, background: 'rgba(99,102,241,0.06)', borderColor: 'rgba(99,102,241,0.25)' }}>
- <Text style={{ fontSize: '26rpx', color: '#6366f1', fontWeight: '600' }}>评估说明</Text>
+ <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '600' }}>评估说明</Text>
  <Text style={{ fontSize: '24rpx', color: '#475569', marginTop: 4, lineHeight: '20px', display: 'block' }}>{FOOD_SCAN_DISCLAIMER}</Text>
  </View>
 
@@ -284,7 +284,7 @@ export default function AnalysisResult() {
  {/* ──── 食养关注提示 ──── */}
  {report.health_shortboard_tip && (
  <View style={{ ...cardStyle, background: 'rgba(99,102,241,0.06)', borderColor: 'rgba(99,102,241,0.25)' }}>
- <Text style={{ fontSize: '26rpx', color: '#6366f1', fontWeight: '600' }}> 食养关注提示</Text>
+ <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '600' }}> 食养关注提示</Text>
  <Text style={{ fontSize: '28rpx', color: '#334155', marginTop: 4, lineHeight: '22px' }}>
  {safeText(report.health_shortboard_tip)}
  </Text>
@@ -302,7 +302,7 @@ export default function AnalysisResult() {
  ].map((item) => (
  <View key={item.label} style={{
  borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10,
- background: item.active ? 'rgba(212,165,55,0.12)' : '#f8fafc',
+ background: item.active ? 'rgba(212,165,55,0.12)' : '#F7F3E9',
  borderWidth: 1, borderColor: item.active ? '#8A6B22' : 'rgba(0,0,0,0.06)',
  }}>
  <Text style={{
@@ -476,7 +476,7 @@ function Row({ label, value }: { label: string; value?: string }) {
 // ==================== 样式 ====================
 const pageStyle: React.CSSProperties = {
  minHeight: '100vh',
- background: 'linear-gradient(180deg, var(--color-herb-50) 0%, #f8fafc 40%)',
+ background: 'linear-gradient(180deg, var(--color-herb-50) 0%, #F7F3E9 40%)',
  padding: '16px',
  boxSizing: 'border-box',
 }
@@ -514,7 +514,7 @@ const additiveCardStyle = (bg: string): React.CSSProperties => ({
 
 const tagStyle: React.CSSProperties = {
  fontSize: '24rpx',
- color: '#0369a1',
+ color: 'hsl(var(--primary-strong))',
  background: 'rgba(3,105,161,0.08)',
  borderRadius: 8,
  paddingVertical: 4,

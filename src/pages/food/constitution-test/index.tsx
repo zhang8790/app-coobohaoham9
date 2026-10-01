@@ -187,8 +187,8 @@ export default function ConstitutionTestPage() {
  </Text>
  <View className="mt-3 flex flex-wrap gap-2">
  {['约 1 分钟', '无需登录也能设', '可保存到偏好'].map((t) => (
- <View key={t} className="rounded-full bg-[#FDF2F8] px-3 py-1">
- <Text className="text-xs text-[#DB2777]">{t}</Text>
+ <View key={t} className="rounded-full bg-[hsl(var(--primary) / 0.08)] px-3 py-1">
+ <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>{t}</Text>
  </View>
  ))}
  </View>
@@ -203,7 +203,7 @@ export default function ConstitutionTestPage() {
  <Button
  onClick={() => { setCurrentQ(0); setStep('quiz') }}
  className="mt-5 rounded-full"
- style={{ background: '#DB2777', color: '#fff' }}
+ style={{ background: 'hsl(var(--primary))', color: '#fff' }}
  >
  开始设置
  </Button>
@@ -219,7 +219,7 @@ export default function ConstitutionTestPage() {
  <View
  key={i}
  className="h-1.5 flex-1 rounded-full"
- style={{ background: i <= currentQ ? '#DB2777' : '#EAEAEA' }}
+ style={{ background: i <= currentQ ? 'hsl(var(--primary))' : '#EAEAEA' }}
  />
  ))}
  </View>
@@ -238,9 +238,9 @@ export default function ConstitutionTestPage() {
  onClick={() => handleSelect(idx)}
  className="rounded-2xl px-4 py-3.5"
  style={{
- background: active ? '#DB2777' : '#fff',
+ background: active ? 'hsl(var(--primary))' : '#fff',
  borderWidth: 1,
- borderColor: active ? '#DB2777' : '#F0E4EA',
+ borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.35)',
  }}
  >
  <Text className="text-sm" style={{ color: active ? '#fff' : '#374151' }}>
@@ -252,7 +252,7 @@ export default function ConstitutionTestPage() {
  </View>
 
  {currentQ > 0 && (
- <Button onClick={goPrev} className="mt-5 rounded-full" style={{ background: '#fff', color: '#DB2777', borderWidth: 1, borderColor: '#EAEAEA' }}>
+ <Button onClick={goPrev} className="mt-5 rounded-full" style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#EAEAEA' }}>
  上一步
  </Button>
  )}
@@ -441,7 +441,7 @@ export default function ConstitutionTestPage() {
  {p.name}
  </Text>
  <View className="mt-1 flex items-center justify-between">
- <Text className="text-sm font-bold text-[#DB2777]">¥{p.price}</Text>
+ <Text className="text-sm font-bold text-[hsl(var(--primary))]">¥{p.price}</Text>
  {p.overall_nature ? (
  <Text className="text-[10px] text-muted-foreground">{p.overall_nature}</Text>
  ) : null}
@@ -479,7 +479,7 @@ export default function ConstitutionTestPage() {
  {p.name}
  </Text>
  <View className="mt-1 flex items-center justify-between">
- <Text className="text-sm font-bold text-[#DB2777]">¥{p.price}</Text>
+ <Text className="text-sm font-bold text-[hsl(var(--primary))]">¥{p.price}</Text>
  {p.food_stage ? (
  <Text className="text-[10px] text-muted-foreground">{p.food_stage}阶</Text>
  ) : null}
@@ -550,14 +550,14 @@ export default function ConstitutionTestPage() {
  onClick={handleSave}
  loading={saving}
  className="rounded-full"
- style={{ background: saved ? 'var(--muted-foreground)' : '#DB2777', color: '#fff' }}
+ style={{ background: saved ? 'var(--muted-foreground)' : 'hsl(var(--primary))', color: '#fff' }}
  >
  {saved ? '✓ 已保存到我的偏好' : '保存到我的偏好'}
  </Button>
  <Button
  onClick={restart}
  className="rounded-full"
- style={{ background: '#fff', color: '#DB2777', borderWidth: 1, borderColor: '#EAEAEA' }}
+ style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#EAEAEA' }}
  >
  重新设置
  </Button>

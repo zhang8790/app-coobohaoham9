@@ -191,8 +191,8 @@ const STATUS_COLORS: Record<string, { label: string; fg: string; bg: string }> =
  expired: { label: '已过期', fg: '#dc2626', bg: 'rgba(239,68,68,0.10)' },
 }
 
-const page: React.CSSProperties = { minHeight: '100vh', background: '#f8fafc', padding: 16, boxSizing: 'border-box' }
-const headerCard: React.CSSProperties = { background: 'linear-gradient(135deg,#0f766e,#14b8a6)', borderRadius: 16, padding: 20, marginBottom: 14 }
+const page: React.CSSProperties = { minHeight: '100vh', background: '#F7F3E9', padding: 16, boxSizing: 'border-box' }
+const headerCard: React.CSSProperties = { background: 'linear-gradient(135deg, hsl(var(--primary-strong)), hsl(var(--primary)))', borderRadius: 16, padding: 20, marginBottom: 14 }
 const emptyCard: React.CSSProperties = { background: '#fff', borderRadius: 14, padding: 32, textAlign: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }
 const itemCard: React.CSSProperties = {
  background: '#fff', borderRadius: 12, padding: 14, marginBottom: 10,
