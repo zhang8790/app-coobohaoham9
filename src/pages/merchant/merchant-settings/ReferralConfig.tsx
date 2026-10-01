@@ -48,6 +48,12 @@ export default function ReferralConfig({
           示例：让利率 10%，订单 100 元 → 品牌让利 10 元，用于消费者推荐奖励 + 健康豆返还 + 品牌收入
         </Text>
       </View>
+      {/* 概念边界：让利池 vs 分成比例（审计修复 B·D） */}
+      <View className="mt-2 p-2 rounded-lg" style={{ background: 'rgba(138,107,34,0.08)', borderWidth: 1, borderColor: 'rgba(138,107,34,0.25)' }}>
+        <Text className="text-xs" style={{ color: '#8A6B22' }}>
+          概念边界：此处是「让利总池」（商家控，3%~30%）。推广员实际分成比例由平台段位体系动态计算，不可在此配置——请勿把「让利设置」误认为「分销分成比例」。
+        </Text>
+      </View>
       {/* 店铺整体让利开关 */}
       <View className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
         <View className="flex-1 pr-3">

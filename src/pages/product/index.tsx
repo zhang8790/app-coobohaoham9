@@ -51,14 +51,16 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
 export default function ProductPage() {
  const { user } = useAuth()
  const { classifyProduct, familyMembers, selectedMemberId } = useFoodTherapy()
- const { id, expiryEp, expiryBatch } = useMemo(() => {
+ const { id, expiryEp, expiryBatch, referralCode } = useMemo(() => {
  const params = Taro.getCurrentInstance().router?.params
  const rawId = params?.id ? decodeURIComponent(params.id) : ''
  // 临期价参数（ep=单价 / batch=批次）：早期「临期特惠」入口页已移除，但临期价透传路径保留——
  // 实际成交价由 createOrderV2 按 batch_id 在服务端从 v_near_expiry_products 校验套用（防资损，前端无法伪造）。
  const ep = params?.ep ? Number(decodeURIComponent(params.ep)) : 0
  const batch = params?.batch ? decodeURIComponent(params.batch) : ''
- return { id: rawId, expiryEp: ep, expiryBatch: batch }
+ // 推广来源（分享/邀请码）：分享卡片进商品详情时携带 ref/inviter，收藏时记录以还原锁客（审计修复 B）
+ const ref = params?.ref ? String(params.ref) : params?.inviter ? String(params.inviter) : ''
+ return { id: rawId, expiryEp: ep, expiryBatch: batch, referralCode: ref }
  }, [])
  const [product, setProduct] = useState<Product | null>(null)
  const [foodAdditives, setFoodAdditives] = useState<FoodAdditive[]>([])
@@ -308,7 +310,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
  const handleToggleFav = async () => {
  if (!requireLogin() || !product) return
  setFavLoading(true)
- const { isFav: newFav } = await toggleFavorite(product.id)
+ const { isFav: newFav } = await toggleFavorite(product.id, referralCode)
  setIsFav(newFav)
  setFavLoading(false)
  // 导购反馈回流：收藏=点赞偏好，取消=点踩

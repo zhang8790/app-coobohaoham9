@@ -3384,10 +3384,11 @@ export async function bindStoreReferrer(storeId: string): Promise<void> {
     const code = (owner as any)?.referral_code || (owner as any)?.invite_code
     if (!code) return
 
-    // 绑定（仅当为空，防二次覆盖）
+    // 绑定（仅当为空，防二次覆盖）。来源标记 store_default（门店默认推广人），
+    // 优先级低于显式分享/邀请：bind_referrer RPC 允许显式来源覆盖 store_default。
     const { error } = await supabase
       .from('profiles')
-      .update({ referrer_id: ownerId })
+      .update({ referrer_id: ownerId, referrer_source: 'store_default' })
       .eq('id', user.id)
       .is('referrer_id', null)
   } catch (e) {
@@ -3838,7 +3839,10 @@ export async function getMyFavorites(page = 0, limit = 20): Promise<import('./ty
   return (data ?? []) as import('./types').Favorite[]
 }
 
-export async function toggleFavorite(productId: string): Promise<{ isFav: boolean }> {
+export async function toggleFavorite(
+  productId: string,
+  referralCode?: string
+): Promise<{ isFav: boolean }> {
   const { data: { user } } = await getLocalUser()
   if (!user) return { isFav: false }
   try {
@@ -3847,7 +3851,14 @@ export async function toggleFavorite(productId: string): Promise<{ isFav: boolea
       await supabase.from('favorites').delete().eq('id', existing.id)
       return { isFav: false }
     }
-    await supabase.from('favorites').insert({ user_id: user.id, product_id: productId })
+    // 记录收藏时的推广来源：优先显式传入（商品页 query.ref），回退全局待绑定码。
+    // 避免「从收藏进商品详情」丢失锁客来源（审计修复 B）。
+    const ref = (referralCode || Taro.getStorageSync('pendingReferralCode') || '') as string
+    await supabase.from('favorites').insert({
+      user_id: user.id,
+      product_id: productId,
+      referral_code: ref || null,
+    })
     return { isFav: true }
   } catch (e) {
     console.error('[toggleFavorite]', e)

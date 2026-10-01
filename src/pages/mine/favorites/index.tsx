@@ -54,7 +54,7 @@ function FavoritesPage() {
               if (!p) return null
               return (
                 <View key={fav.id} className="bg-card rounded-2xl border border-border overflow-hidden"
-                  onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${encodeURIComponent(p.id)}` })}>
+                  onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${encodeURIComponent(p.id)}${fav.referral_code ? `&ref=${encodeURIComponent(fav.referral_code)}` : ''}` })}>
                   <View className="relative" style={{ height: '320rpx' }}>
                     <LazyImage
                       src={p.main_image || p.image_url || ''}

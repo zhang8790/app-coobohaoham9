@@ -22,6 +22,7 @@ function CommissionRules() {
           <Text className="block text-foreground font-semibold mb-1 leading-snug">二、奖励比例</Text>
           <Text className="block">1. 奖励比例由您的「段位」决定（段位依近 6 个月消费动态计算，停消费则下调）。</Text>
           <Text className="block">2. 具体比例以「推荐中心」当前段位展示为准，不承诺固定或高额收益。</Text>
+          <Text className="block">3. 「让利设置」（商家在店铺后台设定的让利率）是订单让利总池，与您的段位分成比例是两个独立概念：商家控让利池大小，平台控您的分成比例，二者不可混淆。</Text>
         </View>
 
         <View className="mb-4">

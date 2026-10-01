@@ -683,6 +683,7 @@ export interface Favorite {
   user_id: string
   product_id: string
   created_at: string
+  referral_code?: string | null
   products?: Product
 }
 
