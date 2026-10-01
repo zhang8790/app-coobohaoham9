@@ -7,6 +7,8 @@
     <meta name="description" content="来电有喜管理后台" />
     <meta name="theme-color" content="#F4F6F9" />
     <title>来电有喜管理后台</title>
+    <!-- 运行时端点注入：先于模块脚本执行，window.__APP_CONFIG__ 缺失时前端回退 VITE_ 配置 -->
+    <script src="/app-config.js"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { getAppConfig } from '@/lib/appConfig'
 import type {
   AdminStats, MerchantApplication, Product,
   Withdrawal, MerchantSettlement, Profile, Announcement, Refund,
@@ -53,9 +54,9 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 // =========== 后端连接检测 ===========
 export async function testConnection(): Promise<{ ok: boolean; message: string; details?: any }> {
   try {
-    // 测试 1: 检查 Supabase URL 是否可达
-    const url = import.meta.env.VITE_SUPABASE_URL
-    if (!url) return { ok: false, message: 'VITE_SUPABASE_URL 未配置' }
+    // 测试 1: 检查 Supabase URL 是否可达（取运行时/构建期合并后的真实端点）
+    const url = getAppConfig().supabaseUrl
+    if (!url) return { ok: false, message: 'Supabase 端点未配置' }
 
     // 测试 2: 尝试查询（会受 RLS 影响）
     const { error, count } = await supabase

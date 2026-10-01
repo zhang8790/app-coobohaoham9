@@ -58,6 +58,26 @@ if [ ! -f "$SITE_ROOT/index.html" ]; then
   exit 1
 fi
 
+# ---------- 运行时端点注入（可选） ----------
+# 若部署时传入 SUPABASE_URL / SUPABASE_ANON_KEY，则覆写 app-config.js，
+# 使后端切到自托管 / 反向代理无需重新构建前端。
+# 传参示例（注意 sudo 需用 -E 透传环境变量）：
+#   SUPABASE_URL="https://api.laidianyouxi.com" \
+#   SUPABASE_ANON_KEY="eyJhbGci..." \
+#   sudo -E bash deploy-admin-web.sh /tmp/admin-web-dist.tar.gz
+# 不传则保留 dist 自带的安全空默认（前端回退 VITE_ 配置）。
+if [ -n "${SUPABASE_URL:-}" ]; then
+  cat > "$SITE_ROOT/app-config.js" <<EOF
+window.__APP_CONFIG__ = {
+  supabaseUrl: "${SUPABASE_URL}",
+  supabaseAnonKey: "${SUPABASE_ANON_KEY:-}"
+};
+EOF
+  echo "    已注入运行时 Supabase 端点: $SUPABASE_URL"
+else
+  echo "    未提供 SUPABASE_URL，保留构建期 VITE_ 配置（fallback）"
+fi
+
 echo "==> [4/6] 写入 nginx 配置 $NGINX_CONF"
 cat > "$NGINX_CONF" <<EOF
 server {
@@ -117,6 +137,11 @@ server {
 
     # index.html 不缓存，保证发版即时生效
     location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    # 运行时端点配置：不缓存，保证切换后端端点即时生效
+    location = /app-config.js {
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
 }

@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
+import { getAppConfig } from './appConfig'
 
-const url = import.meta.env.VITE_SUPABASE_URL as string
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+// 端点来源：运行时注入(window.__APP_CONFIG__) 优先，构建期 VITE_ 兜底。
+// 详见 src/lib/appConfig.ts —— 后端迁移到自托管/反代只需改部署参数，无需重建。
+const { supabaseUrl: url, supabaseAnonKey: anonKey } = getAppConfig()
 
 // 单一会话客户端：负责「鉴权 + 全部数据读写」。
 //
