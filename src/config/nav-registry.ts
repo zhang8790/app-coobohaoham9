@@ -82,9 +82,11 @@ export const NAV: Record<string, NavEntry> = {
 // 2026-09-15：移除临期特惠/限时福利金刚区（与「拒绝折扣零食内卷」价值主义铁律冲突），
 // 首页金刚区仅保留「食养中心」单一入口，杜绝 C 端折扣/促销/社会证明曝光。
 export const HOME_ICON_ZONE: string[] = ['food']
-// 2026-09-24：补齐「登记了但全站零入口」的两条 —— 绑定手机号（网页后台登录/找回凭证）、
-// 输入邀请码绑定门店（门店运营身份自助绑定），此前只登记无入口 = 死功能。
-export const USER_SERVICE_CENTER: string[] = ['food', 'help', 'bindPhone', 'merchantBind']
+// 2026-10-01：按张林要求从「我的」页撤掉「绑定手机号」「输入邀请码绑定门店」两个入口
+// （该页改为大厂式「我的服务」宫格，见 pages/user/index.tsx 的 SERVICE_GRID）。
+// ⚠️ 对应 NAV 定义（bindPhone / merchantBind）**保留**——设置页、商家申请页仍引用，
+// 功能链路未删，仅不再出现在「我的」页。
+export const USER_SERVICE_CENTER: string[] = ['food', 'help']
 
 // ---- 3) 开发期校验：同一 url 绝不允许出现两次（防止未来再次重复）----
 if (process.env.NODE_ENV !== 'production') {

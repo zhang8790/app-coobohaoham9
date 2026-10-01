@@ -14,54 +14,24 @@ import { RANK_COLOR_MAP } from '@/constants/ranks'
 import { buildRadarProfile, type RadarDim } from '@/utils/food-therapy/radar-profile'
 import { getCurrentTerm } from '@/utils/seasonal-box'
 import RadarChart from '@/components/food/RadarChart'
-import { NAV, USER_SERVICE_CENTER } from '@/config/nav-registry'
 
 const NEUTRAL_NICKNAMES = ['小确幸', '慢生活', '元气满满', '暖洋洋', '甜豆豆', '乐悠悠', '小欢喜', '轻飘飘', '棉花糖', '微醺猫']
 
 type MenuItem = { name: string; iconName: string; page?: string }
 
-// 服务中心分组统一从导航登记册生成，杜绝与首页同名目的地出现不同标签
-// （原「食养服务中心」与首页「食养中心」指向同一页面，现已统一为登记册中的规范 label）
-// 图标同样取自登记册（NAV[id].icon），避免「登记了入口却因图标名不在白名单而渲染成空白」。
-const SERVICE_CENTER_ITEMS: MenuItem[] = USER_SERVICE_CENTER.map(id => {
- const e = NAV[id]
- return { name: e.label, iconName: e.icon || 'leaf', page: e.url }
-})
-
-// 图标一律走 <Icon>（base64 线性图标白名单）。
-// ⚠️ 历史 bug：此处曾用 `icon: 'medal'` / `icon: ''` 这类旧 iconfont class 名，
-// 而 iconfont 早已废弃、空字符串还会渲染出一个空 View —— 结果是「我的」页大量入口
-// 图标位一片空白。现全部改为白名单内的 iconName，不存在即编译期就能发现。
-const MENU_GROUPS: { title: string; iconName: string; items: MenuItem[] }[] = [
- {
- title: '我的账户',
- iconName: 'account',
- items: [
+// 我的服务（大厂式工具宫格：4 列，图标在上、文字在下）。
+// 2026-10-01 按「大厂布局」重排：原「我的账户 / 珍宝库 / 服务中心」三层列表合并为单一宫格；
+// 并按张林要求移除「绑定手机号」「输入邀请码绑定门店」两个入口——功能本身仍在
+// 设置页（更换手机号）与商家申请页保留，不删链路，仅从「我的」页撤掉入口。
+// ⚠️ 图标一律走白名单（components/Icon/iconBase64.ts），不存在即编译期可发现。
+const SERVICE_GRID: MenuItem[] = [
  { name: '我的段位', iconName: 'medal', page: '/pages/mine/my-promotion/index' },
  { name: '食品管家', iconName: 'clipboard-list-outline', page: '/pages/food/tracker/index' },
  { name: '地址管理', iconName: 'location', page: '/pages/mine/address/index' },
- ]
- },
- {
- title: '珍宝库',
- iconName: 'gift-outline',
- items: [
  { name: '商品收藏', iconName: 'heart', page: '/pages/mine/favorites/index' },
  { name: '浏览足迹', iconName: 'history', page: '/pages/mine/footprint/index' },
- ]
- },
- {
- title: '服务中心',
- iconName: 'headset',
- items: SERVICE_CENTER_ITEMS,
- },
- {
- title: '设置',
- iconName: 'tune',
- items: [
- { name: '设置', iconName: 'tune', page: '/pages/mine/settings/index' },
- ]
- },
+ { name: '食养中心', iconName: 'leaf', page: '/pages/food/index' },
+ { name: '帮助中心', iconName: 'headset', page: '/pages/agreement/help/index' },
 ]
 
 // 订单 5 状态：图标同样必须走白名单（原 '★' / '⟳' / '' 当 class 用 → 前三个状态完全没有图标）
@@ -287,10 +257,17 @@ function UserPage() {
 <BrandMark tone="white" size={170}
   style={{ position: 'absolute', right: -36, top: -28, opacity: 0.12, pointerEvents: 'none' }} />
 {/* 品牌标题行：药食同源 · 食疗零食 / 来店有喜 · 懂身体的好物（与首页 hero 一致） */}
-<View className="flex items-center gap-2.5 relative mb-3" style={{ zIndex: 1 }}>
+<View className="flex items-center justify-between relative mb-3" style={{ zIndex: 1 }}>
   <View className="flex flex-col">
     <Text className="text-xs font-bold tracking-wide" style={{ color: 'rgba(255,255,255,0.92)' }}>药食同源 · 食疗零食</Text>
     <Text className="text-xl font-bold leading-tight" style={{ color: '#fff' }}>来店有喜 · 懂身体的好物</Text>
+  </View>
+  {/* 设置入口（大厂惯例：右上角齿轮）。账号/隐私等二级设置在设置页内。 */}
+  <View
+    className="flex items-center justify-center flex-shrink-0"
+    style={{ width: 36, height: 36, borderRadius: 18, background: 'rgba(255,255,255,0.18)' }}
+    onClick={() => Taro.navigateTo({ url: '/pages/mine/settings/index' })}>
+    <Icon name="tune" size={22} className="text-white" />
   </View>
 </View>
  {!user ? (
@@ -448,23 +425,23 @@ function UserPage() {
  </View>
  )}
 
- {/* 功能菜单组：所有入口均已在 app.config 注册，图标全部走 <Icon> 白名单 */}
- {MENU_GROUPS.map(group => (
- <View key={group.title} className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
- <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
- <Icon name={group.iconName} size={22} className="text-primary flex-shrink-0" />
- <Text className="text-base font-bold text-foreground">{group.title}</Text>
+ {/* 我的服务：大厂式 4 列工具宫格（图标在上、文字在下），点击直达各功能页 */}
+ <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
+ <View className="flex items-center px-4 py-3 border-b border-border">
+ <Text className="text-base font-bold text-foreground">我的服务</Text>
  </View>
- {group.items.map(item => (
- <View key={item.name} className="flex items-center gap-3 px-4 py-4 border-b border-border last:border-0"
+ <View className="flex flex-wrap pt-2 pb-3">
+ {SERVICE_GRID.map(item => (
+ <View key={item.name} className="flex flex-col items-center py-3"
+ style={{ width: '25%' }}
+ hoverClass="none"
  onClick={() => item.page ? Taro.navigateTo({ url: item.page }) : Taro.showToast({ title: '功能开发中', icon: 'none' })}>
- <Icon name={item.iconName} size={22} className="text-foreground flex-shrink-0" />
- <Text className="flex-1 cat-name truncate">{item.name}</Text>
- <Icon name="chevron-right" size={20} className="text-muted-foreground flex-shrink-0" />
+ <Icon name={item.iconName} size={30} className="text-foreground" />
+ <Text className="text-sm text-muted-foreground mt-1">{item.name}</Text>
  </View>
  ))}
  </View>
- ))}
+ </View>
 
  {/* 退出登录 */}
  {user && (
