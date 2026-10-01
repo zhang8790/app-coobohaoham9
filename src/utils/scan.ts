@@ -35,10 +35,14 @@ export async function scanRaw(opts: {
 }
 
 /**
- * 判断扫码结果是否为「门店二维码」（小程序码 / 链接形式均可识别）
- * - 小程序码被 wx.scanCode 识别时，path 会带 store-home，result/query 含 scene=s=短码
- * - 兼容旧版 ?store= 链接形式
- * 返回可用于进店的 scene 串，或 null 表示非门店码。
+ * 判断扫码结果是否为「门店二维码」并提取进店 scene 串，非门店码返回 null。
+ *
+ * ⚠️ 微信平台限制（务必牢记）：小程序内部 wx.scanCode **无法识别「小程序码（太阳码）」**，
+ * 太阳码只能由微信客户端「扫一扫 / 长按识别」启动小程序（走启动参数 scene，不经过本函数）。
+ * 因此本函数实际只会遇到两类输入：
+ *  1) 应用内「扫码购物」扫到的【普通二维码】：result = `s=短码&r=推广码`，命中下方 s= 正则即进店；
+ *  2) 旧版 ?store=SHORT 链接形式。
+ * 切勿依赖 `res.path.includes('store-home')` 这条分支识别太阳码——那是死分支（wx.scanCode 读不到太阳码的 path）。
  */
 function detectStoreScene(res: any): string | null {
   try {
