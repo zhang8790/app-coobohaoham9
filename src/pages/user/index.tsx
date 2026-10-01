@@ -32,6 +32,7 @@ const SERVICE_GRID: MenuItem[] = [
  { name: '浏览足迹', iconName: 'history', page: '/pages/mine/footprint/index' },
  { name: '食养中心', iconName: 'leaf', page: '/pages/food/index' },
  { name: '帮助中心', iconName: 'headset', page: '/pages/agreement/help/index' },
+ { name: '设置', iconName: 'tune', page: '/pages/mine/settings/index' },
 ]
 
 // 订单 5 状态：图标同样必须走白名单（原 '★' / '⟳' / '' 当 class 用 → 前三个状态完全没有图标）
@@ -262,12 +263,16 @@ function UserPage() {
     <Text className="text-xs font-bold tracking-wide" style={{ color: 'rgba(255,255,255,0.92)' }}>药食同源 · 食疗零食</Text>
     <Text className="text-xl font-bold leading-tight" style={{ color: '#fff' }}>来店有喜 · 懂身体的好物</Text>
   </View>
-  {/* 设置入口（大厂惯例：右上角齿轮）。账号/隐私等二级设置在设置页内。 */}
+  {/* 设置入口（大厂惯例：右上角齿轮 + 文字标签，强化发现性）。账号/隐私等二级设置在设置页内。 */}
   <View
-    className="flex items-center justify-center flex-shrink-0"
-    style={{ width: 36, height: 36, borderRadius: 18, background: 'rgba(255,255,255,0.18)' }}
+    className="flex items-center gap-1 flex-shrink-0"
     onClick={() => Taro.navigateTo({ url: '/pages/mine/settings/index' })}>
-    <Icon name="tune" size={22} className="text-white" />
+    <Text className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.95)' }}>设置</Text>
+    <View
+      className="flex items-center justify-center"
+      style={{ width: 30, height: 30, borderRadius: 15, background: 'rgba(255,255,255,0.18)' }}>
+      <Icon name="tune" size={20} className="text-white" />
+    </View>
   </View>
 </View>
  {!user ? (
