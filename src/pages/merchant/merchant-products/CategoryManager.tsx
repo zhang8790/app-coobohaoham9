@@ -77,7 +77,7 @@ export default function CategoryManager({
  <View onClick={() => onMoveCategory(c, 1)} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '30rpx', color: '#888' }}>↓</Text></View>
  {editingCatId === c.id
  ? <View onClick={() => onSaveRename(c)} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: 'bold' }}>✓</Text></View>
- : <View onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '26rpx', color: '#3B82F6' }}>改名</Text></View>}
+ : <View onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '26rpx', color: '#15803D' }}>改名</Text></View>}
  <View onClick={() => onDeleteCategory(c)} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '26rpx', color: '#EF4444' }}>删</Text></View>
  </View>
  )}

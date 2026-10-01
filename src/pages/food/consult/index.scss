@@ -69,7 +69,7 @@
 }
 .consult-clear-text {
   font-size: 12px;
-  color: #94a3b8;
+  color: #6F675C;
 }
 
 /* 空态 */
@@ -83,7 +83,7 @@
 .consult-empty-text {
   font-size: 13px;
   line-height: 1.7;
-  color: #64748b;
+  color: #6F675C;
 }
 .consult-greet-title {
   display: block;
@@ -120,7 +120,7 @@
   border-radius: 16px 16px 16px 4px;
   background: #fff;
   border: 1px solid rgba(94, 122, 79, 0.22);
-  color: #475569;
+  color: #3F3A34;
   font-size: 13px;
   line-height: 1.6;
 }
@@ -140,7 +140,7 @@
   width: 84px;
   height: 84px;
   border-radius: 14px;
-  background: #F1F5F9;
+  background: #F4EFE8;
   flex-shrink: 0;
 }
 .rec-body {
@@ -157,7 +157,7 @@
   flex: 1;
   font-size: 15px;
   font-weight: 700;
-  color: #1f2937;
+  color: #2A2A2A;
 }
 .rec-meta {
   display: flex;
@@ -173,8 +173,8 @@
 }
 .rec-nature {
   font-size: 11px;
-  color: #64748b;
-  background: #F1F5F9;
+  color: #6F675C;
+  background: #F4EFE8;
   padding: 1px 7px;
   border-radius: 6px;
 }
@@ -195,7 +195,7 @@
 .rec-reason {
   font-size: 12px;
   line-height: 1.5;
-  color: #64748b;
+  color: #6F675C;
 }
 .rec-actions {
   display: flex;
@@ -267,13 +267,13 @@
   max-height: 96px;
   padding: 9px 12px;
   border-radius: 14px;
-  background: #F1F5F9;
+  background: #F4EFE8;
   font-size: 14px;
-  color: #1f2937;
+  color: #2A2A2A;
   line-height: 1.4;
 }
 .consult-input-ph {
-  color: #94a3b8;
+  color: #6F675C;
 }
 .consult-send {
   display: flex;
@@ -310,7 +310,7 @@
 }
 .consult-checkout-empty-text {
   font-size: 13px;
-  color: #94a3b8;
+  color: #6F675C;
   font-weight: 600;
 }
 /* 结算主条 */
@@ -328,7 +328,7 @@
 .consult-checkout-cart {
   font-size: 14px;
   font-weight: 600;
-  color: #334155;
+  color: #3F3A34;
 }
 .consult-checkout-toggle {
   font-size: 12px;
@@ -349,7 +349,7 @@
 /* 商品明细（可展开内联） */
 .consult-checkout-items {
   max-height: 32vh;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #ECE6DD;
 }
 /* 内层容器承载 padding：scroll-view 在 webview 渲染模式不支持 padding，故移到内层 View */
 .consult-checkout-items-inner {
@@ -360,7 +360,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 0;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid #ECE6DD;
 }
 .consult-checkout-item:last-child {
   border-bottom: none;
@@ -370,7 +370,7 @@
   height: 48px;
   border-radius: 10px;
   flex-shrink: 0;
-  background: #f3f4f6;
+  background: #F4EFE8;
 }
 .consult-checkout-item-info {
   flex: 1;
@@ -380,13 +380,13 @@
   display: block;
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: #2A2A2A;
 }
 .consult-checkout-item-meta {
   display: block;
   margin-top: 2px;
   font-size: 12px;
-  color: #64748b;
+  color: #6F675C;
   font-weight: 600;
 }
 .consult-checkout-item-sub {
@@ -430,7 +430,7 @@
   background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-deep)));
 }
 .consult-conflict-btn--close {
-  background: #f3f4f6;
+  background: #F4EFE8;
 }
 .consult-conflict-btn-text {
   font-size: 14px;
@@ -438,7 +438,7 @@
   color: #fff;
 }
 .consult-conflict-btn--close .consult-conflict-btn-text {
-  color: #4b5563;
+  color: #4A443D;
 }
 
 /* 顶部标题栏：标题 + 客服按钮同行 */

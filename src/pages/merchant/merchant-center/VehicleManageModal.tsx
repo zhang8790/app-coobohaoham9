@@ -42,7 +42,7 @@ export default function VehicleManageModal({ visible, vehicles, vehicleName, veh
                 <Text className="text-base text-foreground font-bold">{v.name}</Text>
                 <Button
                   className="!m-0 !p-0 !rounded-xl"
-                  style={{ background: v.status === 'active' ? '#2E9E5B' : '#94A3B8', border: 'none' }}
+                  style={{ background: v.status === 'active' ? '#2E9E5B' : '#6F675C', border: 'none' }}
                   onClick={() => onToggle(v)}>
                   <View className="px-4 py-1.5 flex items-center gap-1">
                     <Text className="text-base font-bold text-white">{v.status === 'active' ? '运营中' : '已停驶'}</Text>
@@ -60,7 +60,7 @@ export default function VehicleManageModal({ visible, vehicles, vehicleName, veh
                 value={vehicleName}
                 onInput={(e: any) => onVehicleNameChange(e.detail.value)}
                 placeholder="如：城西夜市流动车"
-                style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: '#1F2937', fontSize: '32rpx' }}
+                style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: '#2A2A2A', fontSize: '32rpx' }}
               />
             </View>
             <Button

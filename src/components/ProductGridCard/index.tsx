@@ -145,7 +145,7 @@ export default function ProductGridCard({
  {/* 安全评级色标徽章（来自配料安全分析） */}
  {safeLevelCode && (
  <Text className="px-1.5 py-0.5 rounded-full text-xs font-bold" style={{
- background: SAFE_COLORS[safeLevelCode]?.bg || '#F3F4F6',
+ background: SAFE_COLORS[safeLevelCode]?.bg || '#F4EFE8',
  color: SAFE_COLORS[safeLevelCode]?.fg || '#999999',
  borderWidth: 1,
  borderColor: SAFE_COLORS[safeLevelCode]?.border || 'transparent',
@@ -158,7 +158,7 @@ export default function ProductGridCard({
  </Text>
  )}
  {therapyReport.overall_nature_code ? (
- <Text className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: '#F3F4F6', color: NATURE_COLOR[therapyReport.overall_nature_code] ?? '#999999' }}>
+ <Text className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: '#F4EFE8', color: NATURE_COLOR[therapyReport.overall_nature_code] ?? '#999999' }}>
  {NATURE_FEELING[therapyReport.overall_nature_code] || therapyReport.overall_nature_code}
  </Text>
  ) : null}

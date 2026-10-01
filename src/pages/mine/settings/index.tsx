@@ -226,7 +226,7 @@ function SettingsPage() {
               </View>
               <View
                 className="w-12 h-7 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: isOn ? '#22C55E' : '#D1D5DB', padding: '2px' }}>
+                style={{ backgroundColor: isOn ? '#22C55E' : '#ECE6DD', padding: '2px' }}>
                 <View
                   className="w-6 h-6 rounded-full bg-white"
                   style={{
@@ -254,7 +254,7 @@ function SettingsPage() {
           </View>
           <View
             className="w-12 h-7 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: allowBehaviorAnalysis ? '#22C55E' : '#D1D5DB', padding: '2px' }}>
+            style={{ backgroundColor: allowBehaviorAnalysis ? '#22C55E' : '#ECE6DD', padding: '2px' }}>
             <View
               className="w-6 h-6 rounded-full bg-white"
               style={{

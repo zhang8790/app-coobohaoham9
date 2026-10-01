@@ -108,8 +108,8 @@ function RefundApplyPage() {
  if (existingRefund) {
  const statusMap: Record<string, { text: string; color: string; icon: string }> = {
  'pending': { text: '待审核', color: '#B45309', icon: '' },
- 'processing': { text: '退款处理中', color: '#0369A1', icon: '' },
- 'approved': { text: '审核通过', color: '#0369A1', icon: '✓' },
+ 'processing': { text: '退款处理中', color: '#15803D', icon: '' },
+ 'approved': { text: '审核通过', color: '#15803D', icon: '✓' },
  'rejected': { text: '已拒绝', color: '#DC2626', icon: '✕' },
  'completed': { text: '已完成退款', color: '#2E7D5B', icon: '✓' },
  'closed': { text: '退款已关闭', color: '#666666', icon: '✕' },

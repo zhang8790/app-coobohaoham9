@@ -273,7 +273,7 @@ function MyPromotionPage() {
           {[
             { label: '待结算', value: `¥${Number(commSummary?.total_pending || 0).toFixed(2)}`, color: 'hsl(var(--primary))' },
             { label: '已结算', value: `¥${Number(commSummary?.total_settled || 0).toFixed(2)}`, color: '#2E7D5B' },
-            { label: '总笔数', value: `${commSummary?.total_count || 0}笔`, color: '#0369A1' },
+            { label: '总笔数', value: `${commSummary?.total_count || 0}笔`, color: '#15803D' },
           ].map(item => (
             <View key={item.label} className="flex flex-col items-center gap-1">
               <Text className="text-2xl font-bold" style={{ color: item.color }}>{item.value}</Text>

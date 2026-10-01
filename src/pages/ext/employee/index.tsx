@@ -303,7 +303,7 @@ function EmployeePage() {
         <View className="mx-4 mt-4 grid grid-cols-2 gap-3">
           {[
             { icon: 'scan', label: '扫码推荐', desc: '让客户扫您的码', color: 'hsl(var(--primary))' },
-            { icon: 'chart', label: '业绩统计', desc: '查看推荐业绩', color: '#0369A1' },
+            { icon: 'chart', label: '业绩统计', desc: '查看推荐业绩', color: '#15803D' },
             { icon: 'user', label: '我的客户', desc: '查看归属客户', color: 'hsl(var(--primary))' },
             { icon: 'coin', label: '奖励明细', desc: '查看推荐奖励记录', color: '#8A6B22' },
           ].map(btn => (

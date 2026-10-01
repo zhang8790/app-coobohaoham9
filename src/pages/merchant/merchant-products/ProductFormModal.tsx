@@ -424,8 +424,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  <View
  key={row.id}
  onClick={() => { if (!selected) controller.setIngredientItems(prev => [...prev, controller.dictRowToItem(row)]); controller.setIngredientQuery(''); controller.setIngredientResults([]) }}
- style={{ padding: '4px 10px', borderRadius: '14px', border: `1px solid ${selected ? '#34A853' : '#D1D5DB'}`, background: selected ? '#E8F7EC' : '#FFF' }}>
- <Text style={{ fontSize: '26rpx', color: selected ? '#34A853' : '#374151' }}>{name}</Text>
+ style={{ padding: '4px 10px', borderRadius: '14px', border: `1px solid ${selected ? '#34A853' : '#ECE6DD'}`, background: selected ? '#E8F7EC' : '#FFF' }}>
+ <Text style={{ fontSize: '26rpx', color: selected ? '#34A853' : '#3F3A34' }}>{name}</Text>
  </View>
  )
  })}
@@ -443,7 +443,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <View key={it.id} style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '12px', background: '#F6FBF7', border: '1px solid #F0DAD2' }}>
  <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
  <View style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
- <Text style={{ fontSize: '30rpx', fontWeight: 'bold', color: '#1F2937' }}>{it.name}</Text>
+ <Text style={{ fontSize: '30rpx', fontWeight: 'bold', color: '#2A2A2A' }}>{it.name}</Text>
  <Text style={{ fontSize: '22rpx', color: '#fff', background: '#34A853', padding: '1px 8px', borderRadius: '10px' }}>{it.nature}</Text>
  </View>
  <View onClick={() => controller.setIngredientItems(prev => prev.filter(x => x.id !== it.id))} style={{ padding: '2px 8px' }}>
@@ -452,7 +452,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
  {/* 占比 */}
  <View style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
- <Text style={{ fontSize: '24rpx', color: '#4B5563' }}>占比</Text>
+ <Text style={{ fontSize: '24rpx', color: '#4A443D' }}>占比</Text>
  <Input
  value={String(it.ratio)}
  type="number"
@@ -466,8 +466,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  const sel = it.cooking === m
  return (
  <View key={m} onClick={() => controller.setIngredientItems(prev => prev.map(x => x.id === it.id ? { ...x, cooking: m } : x))}
- style={{ padding: '3px 10px', borderRadius: '9999px', background: sel ? '#34A853' : '#FFF', border: `1px solid ${sel ? '#34A853' : '#D1D5DB'}` }}>
- <Text style={{ fontSize: '24rpx', color: sel ? '#FFF' : '#374151' }}>{m}</Text>
+ style={{ padding: '3px 10px', borderRadius: '9999px', background: sel ? '#34A853' : '#FFF', border: `1px solid ${sel ? '#34A853' : '#ECE6DD'}` }}>
+ <Text style={{ fontSize: '24rpx', color: sel ? '#FFF' : '#3F3A34' }}>{m}</Text>
  </View>
  )
  })}
@@ -479,7 +479,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  return (
  <View key={a} onClick={() => controller.setIngredientItems(prev => prev.map(x => x.id === it.id ? { ...x, aux: sel ? x.aux.filter(y => y !== a) : [...x.aux, a] } : x))}
  style={{ padding: '3px 10px', borderRadius: '9999px', background: sel ? '#FDE68A' : '#FFF', border: '1px solid #E5C07B' }}>
- <Text style={{ fontSize: '24rpx', color: sel ? 'hsl(var(--primary))' : '#374151' }}>{a}</Text>
+ <Text style={{ fontSize: '24rpx', color: sel ? 'hsl(var(--primary))' : '#3F3A34' }}>{a}</Text>
  </View>
  )
  })}
@@ -605,7 +605,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  ? { bg: '#FDECEC', border: '#F5C2C2', fg: '#C0392B' }
  : w.level === 'orange'
  ? { bg: '#FBF3DD', border: '#E7D9B0', fg: '#8A6B22' }
- : { bg: '#E8F0FE', border: '#BFD3F5', fg: '#1D4ED8' }
+ : { bg: '#F6F2EE', border: '#ECE6DD', fg: '#15803D' }
  return (
  <View key={i} style={{ padding: '6px 8px', borderRadius: '8px', background: tone.bg, borderLeftWidth: '3px', borderLeftColor: tone.fg, borderTopWidth: '1px', borderRightWidth: '1px', borderBottomWidth: '1px', borderTopColor: tone.border, borderRightColor: tone.border, borderBottomColor: tone.border, marginBottom: '6px' }}>
  <Text style={{ fontSize: '22rpx', fontWeight: '700', color: tone.fg }}>{w.level === 'red' ? '' : w.level === 'orange' ? '' : ''} {w.label}</Text>
@@ -649,14 +649,14 @@ export default function ProductFormModal({ controller, categories, products, onM
  {!controller.form.barcode ? (
  <View
  onClick={controller.onGenerateBarcode}
- style={{ padding: '8px 14px', borderRadius: '10px', background: controller.generatingBarcode ? '#9CA3AF' : '#15803D', opacity: controller.generatingBarcode ? 0.7 : 1 }}>
+ style={{ padding: '8px 14px', borderRadius: '10px', background: controller.generatingBarcode ? '#6F675C' : '#15803D', opacity: controller.generatingBarcode ? 0.7 : 1 }}>
  <Text style={{ color: '#fff', fontSize: '26rpx', fontWeight: '600' }}>{controller.generatingBarcode ? '生成中…' : ' 一键生成店内码'}</Text>
  </View>
  ) : null}
  {controller.form.barcode ? (
  <View
  onClick={controller.onPrintBarcode}
- style={{ padding: '8px 14px', borderRadius: '10px', background: controller.printingBarcode ? '#9CA3AF' : '#FF8C42', opacity: controller.printingBarcode ? 0.7 : 1 }}>
+ style={{ padding: '8px 14px', borderRadius: '10px', background: controller.printingBarcode ? '#6F675C' : '#FF8C42', opacity: controller.printingBarcode ? 0.7 : 1 }}>
  <Text style={{ color: '#fff', fontSize: '26rpx', fontWeight: '600' }}>{controller.printingBarcode ? '打印中…' : ' 打印标签'}</Text>
  </View>
  ) : null}

@@ -366,7 +366,7 @@ export async function generateVideoSharePoster(
 
       // 装饰性光晕
       ctx.globalAlpha = 0.1
-      ctx.fillStyle = '#7C3AED'
+      ctx.fillStyle = '#15803D'
       ctx.beginPath(); ctx.arc(W * 0.8, H * 0.2, 100, 0, Math.PI * 2); ctx.fill()
       ctx.beginPath(); ctx.arc(W * 0.15, H * 0.8, 80, 0, Math.PI * 2); ctx.fill()
       ctx.globalAlpha = 1.0
@@ -379,9 +379,9 @@ export async function generateVideoSharePoster(
         // 顶部视频标签
         const tagW = 130
         roundRect(pad, 32, tagW, 32, 16)
-        ctx.fillStyle = 'rgba(124,58,237,0.35)'
+        ctx.fillStyle = 'rgba(94,122,79,0.35)'
         ctx.fill()
-        ctx.fillStyle = '#C4B5FD'
+        ctx.fillStyle = '#15803D'
         ctx.font = 'bold 17px sans-serif'
         ctx.fillText('▶ 视频分享', pad + 18, 54)
 
@@ -395,7 +395,7 @@ export async function generateVideoSharePoster(
         for (const line of titleLines) { ctx.fillText(line, pad, ty); ty += 42 }
 
         // 副标题提示
-        ctx.fillStyle = 'rgba(196,181,253,0.7)'
+        ctx.fillStyle = 'rgba(94,122,79,0.7)'
         ctx.font = '18px sans-serif'
         ctx.fillText('点击播放，看看有什么好内容', pad, ty + 16)
 
@@ -406,7 +406,7 @@ export async function generateVideoSharePoster(
         ctx.fillStyle = '#ffffff'
         ctx.font = 'bold 20px sans-serif'
         ctx.fillText('✦ 来店有喜', pad + 14, by)
-        ctx.fillStyle = 'rgba(196,181,253,0.6)'
+        ctx.fillStyle = 'rgba(94,122,79,0.6)'
         ctx.font = '14px sans-serif'
         ctx.fillText('好物推荐', pad + 14, by + 20)
 
@@ -422,12 +422,12 @@ export async function generateVideoSharePoster(
         // 无封面：中央大播放按钮占位
         const cx = W / 2, cy = H / 2 + 10, pr = 48
         ctx.globalAlpha = 0.15
-        ctx.fillStyle = '#7C3AED'
+        ctx.fillStyle = '#15803D'
         ctx.beginPath(); ctx.arc(cx, cy, pr + 16, 0, Math.PI * 2); ctx.fill()
         ctx.globalAlpha = 0.4
         ctx.beginPath(); ctx.arc(cx, cy, pr, 0, Math.PI * 2); ctx.fill()
         ctx.globalAlpha = 1.0
-        ctx.fillStyle = '#C4B5FD'
+        ctx.fillStyle = '#15803D'
         ctx.beginPath(); ctx.moveTo(cx - 16, cy - 24); ctx.lineTo(cx - 16, cy + 24); ctx.lineTo(cx + 26, cy); ctx.closePath(); ctx.fill()
         drawVideoContent()
         return

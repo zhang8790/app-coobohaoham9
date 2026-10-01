@@ -22,7 +22,7 @@ const STAGE_COLOR: Record<string, string> = {
   orange: '#B45309',
   amber: '#B45309',
   normal: '#15803D',
-  expired: '#6B7280',
+  expired: '#6F675C',
 }
 
 function MerchantExpiryPage() {
@@ -145,7 +145,7 @@ function MerchantExpiryPage() {
             <View className="flex flex-col gap-3">
               {filtered.map(e => {
                 const eff = e.effective_price ?? (e.price ? e.price * (1 - (e.auto_discount_rate ?? 0) / 100) : 0)
-                const stageColor = STAGE_COLOR[e.discount_stage] || '#6B7280'
+                const stageColor = STAGE_COLOR[e.discount_stage] || '#6F675C'
                 const isSaving = savingId === e.batch_id
                 return (
                   <View key={e.batch_id} className="bg-card rounded-2xl border border-border p-3">
@@ -192,7 +192,7 @@ function MerchantExpiryPage() {
                               width: '60px', textAlign: 'center',
                               padding: '4px 8px', borderRadius: 8,
                               border: '1px solid rgba(148,163,184,0.3)',
-                              fontSize: '28rpx', color: 'var(--foreground, #1e293b)',
+                              fontSize: '28rpx', color: 'var(--foreground, #2A2A2A)',
                             }}
                           />
                           <Text className="text-sm text-muted-foreground">%</Text>

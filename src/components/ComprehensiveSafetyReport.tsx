@@ -63,13 +63,13 @@ export default function ComprehensiveSafetyReport({
  <View style={{ marginTop: 12 }}>
  <Text className="text-sm font-semibold text-foreground" style={{ display: 'block', marginBottom: 6 }}>
  营养成分
- <Text style={{ fontSize: '24rpx', fontWeight: 'normal', color: '#6B7280' }}>
+ <Text style={{ fontSize: '24rpx', fontWeight: 'normal', color: '#6F675C' }}>
  {nutrition.basis === 'perServing' && nutrition.servingNote ? `（${nutrition.servingNote}）` : '（每 100g）'}
  </Text>
  </Text>
  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
  {nutrition.items.map((it) => {
- const c = it.flag ? FLAG_COLOR[it.flag] : '#374151'
+ const c = it.flag ? FLAG_COLOR[it.flag] : '#3F3A34'
  const childPct = it.childDailyPct
  const childColor = childPct == null ? null : childPct >= 50 ? '#DC2626' : childPct >= 25 ? '#B45309' : '#15803D'
  return (
@@ -90,7 +90,7 @@ export default function ComprehensiveSafetyReport({
  <Text style={{ fontSize: '20rpx', fontWeight: 'normal' }}> {it.unit}</Text>
  </Text>
  {(it.nrvPct != null || it.childDailyPct != null) && (
- <Text style={{ fontSize: '20rpx', color: '#6B7280', display: 'block', marginTop: 2 }}>
+ <Text style={{ fontSize: '20rpx', color: '#6F675C', display: 'block', marginTop: 2 }}>
  {it.nrvPct != null ? `NRV ${it.nrvPct}%` : ''}
  {it.nrvPct != null && it.childDailyPct != null ? ' · ' : ''}
  {it.childDailyPct != null ? `儿童每日 ${it.childDailyPct}%` : ''}

@@ -9,7 +9,7 @@ export default function RiskWarning() {
       <Text style={{ color: '#FBBF24', fontSize: '26rpx', fontWeight: 700, lineHeight: 1.6 }}>
         风险提示
       </Text>
-      <Text style={{ color: '#E5E7EB', fontSize: '24rpx', lineHeight: 1.8, marginTop: 4 }}>
+      <Text style={{ color: '#ECE6DD', fontSize: '24rpx', lineHeight: 1.8, marginTop: 4 }}>
         本品牌仅从事实物商品零售经营，推广佣金依托真实商品交易产生，以健康豆形式发放、可在本小程序内消费。
       </Text>
     </View>

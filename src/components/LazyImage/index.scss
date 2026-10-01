@@ -1,7 +1,7 @@
 .lazy-image {
   position: relative;
   overflow: hidden;
-  background: #f5f5f5;
+  background: #ECE6DD;
 
   &__img {
     width: 100%;
@@ -23,7 +23,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f5f5f5;
+    background: #ECE6DD;
   }
 
   &__placeholder {
@@ -35,7 +35,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #f5f5f5 25%, #e0e0e0 50%, #f5f5f5 75%);
+    background: linear-gradient(135deg, #ECE6DD 25%, #F4EFE8 50%, #ECE6DD 75%);
     background-size: 200% 200%;
     animation: shimmer 1.5s infinite;
   }

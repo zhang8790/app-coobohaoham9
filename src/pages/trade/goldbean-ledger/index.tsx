@@ -151,8 +151,8 @@ function TongbaoLedgerPage() {
                   <View key={it.id} className="bg-card rounded-2xl p-4 border border-border">
                     <View className="flex items-center justify-between">
                       <View className="flex items-center gap-3">
-                        <View className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: (TYPE_COLOR[it.type] || '#6B7280') + '20' }}>
-                          <Icon name={isIncome ? 'arrow-down' : 'arrow-up'} size={20} className="text-xl" style={{ color: TYPE_COLOR[it.type] || '#6B7280' }} />
+                        <View className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: (TYPE_COLOR[it.type] || '#6F675C') + '20' }}>
+                          <Icon name={isIncome ? 'arrow-down' : 'arrow-up'} size={20} className="text-xl" style={{ color: TYPE_COLOR[it.type] || '#6F675C' }} />
                         </View>
                         <View>
                           <Text className="text-lg font-bold text-foreground">{TYPE_LABEL[it.type] || it.type}</Text>

@@ -374,23 +374,23 @@ export default function StoreHomePage() {
       {/* ========== 门店详情信息卡 ========== */}
       <View style={{ margin: '0 32rpx', marginTop: '24rpx', background: '#FFF', borderRadius: '28rpx', padding: '32rpx', borderWidth: '2rpx', borderColor: 'rgba(0,0,0,0.06)', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: '12rpx', marginBottom: '16rpx' }}>
-          <Text style={{ fontSize: '28rpx', fontWeight: '700', color: '#1e293b' }}> 门店信息</Text>
+          <Text style={{ fontSize: '28rpx', fontWeight: '700', color: '#2A2A2A' }}> 门店信息</Text>
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '12rpx' }}>
           {store.description && (
-            <Text style={{ fontSize: '26rpx', color: '#475569', lineHeight: '40rpx', width: '100%', display: 'block' }}>{store.description}</Text>
+            <Text style={{ fontSize: '26rpx', color: '#3F3A34', lineHeight: '40rpx', width: '100%', display: 'block' }}>{store.description}</Text>
           )}
           <View style={storeInfoTag}>
             <Image src={BRAND_LINE_ICONS['map-pin']} style={{ width: 15, height: 15, flexShrink: 0 }} />
-            <Text style={{ fontSize: '24rpx', color: '#475569' }}>{store.address || '查看地图'}</Text>
+            <Text style={{ fontSize: '24rpx', color: '#3F3A34' }}>{store.address || '查看地图'}</Text>
           </View>
           <View style={storeInfoTag}>
-            <View style={{ width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: bizStatus?.state === 'open' ? '#22C55E' : '#9CA3AF' }} />
-            <Text style={{ fontSize: '24rpx', color: '#475569' }}>{bizStatus?.text}{bizStatus?.closingSoon ? ` · 今日营业至 ${bizStatus.closeText}` : ''}</Text>
+            <View style={{ width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: bizStatus?.state === 'open' ? '#22C55E' : '#6F675C' }} />
+            <Text style={{ fontSize: '24rpx', color: '#3F3A34' }}>{bizStatus?.text}{bizStatus?.closingSoon ? ` · 今日营业至 ${bizStatus.closeText}` : ''}</Text>
           </View>
           <View style={storeInfoTag}>
             <Icon name="phone" size={15} />
-            <Text style={{ fontSize: '24rpx', color: '#475569' }}>{store.phone || '联系方式待更新'}</Text>
+            <Text style={{ fontSize: '24rpx', color: '#3F3A34' }}>{store.phone || '联系方式待更新'}</Text>
           </View>
         </View>
         {fulfillmentText && (
@@ -541,7 +541,7 @@ export default function StoreHomePage() {
                             ) : null}
                           </View>
                         )}
-                        <Text style={{ fontSize: '30rpx', fontWeight: 'bold', color: '#1A1A1A' }} numberOfLines={2}>{p.name}</Text>
+                        <Text style={{ fontSize: '30rpx', fontWeight: 'bold', color: '#2A2A2A' }} numberOfLines={2}>{p.name}</Text>
 
                         {/* 价格 + 加入购物车 */}
                         <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '16rpx' }}>
@@ -564,6 +564,6 @@ export default function StoreHomePage() {
 
 const storeInfoTag: React.CSSProperties = {
   flexDirection: 'row', alignItems: 'center', gap: '8rpx',
-  background: '#f8fafc', borderRadius: '16rpx', paddingVertical: '12rpx', paddingHorizontal: '20rpx',
+  background: '#F4EFE8', borderRadius: '16rpx', paddingVertical: '12rpx', paddingHorizontal: '20rpx',
   flexShrink: 0,
 } as any

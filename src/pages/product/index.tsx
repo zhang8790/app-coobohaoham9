@@ -473,7 +473,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
           {/* —— 配方安全（原② 配料表） —— */}
           <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} showShiyang={false} />
           {safetyReport && <ComprehensiveSafetyReport report={safetyReport} fullLabel showDisclaimer={false} />}
-          <View className="mt-3 flex items-center justify-end" style={{ paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
+          <View className="mt-3 flex items-center justify-end" style={{ paddingTop: 12, borderTopWidth: 1, borderTopColor: '#ECE6DD' }}>
             <Text style={{ fontSize: '24rpx', color: 'hsl(var(--primary))', fontWeight: '600', borderBottomWidth: 1, borderBottomColor: 'hsl(var(--primary))' }}
               onClick={() => Taro.navigateTo({ url: `/pages/food/analysis-result/index?product_id=${encodeURIComponent(product.id)}` })}>
               查看检测报告 ›
@@ -521,7 +521,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
               if (!hasShiyang) return null
 
               return (
-                <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
+                <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#ECE6DD' }}>
                   <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>食养参考</Text>
                 <View className="mt-3">
                   {/* 食养特点栏（顶部结论，plain 表达；安心结论合并于此，不再二次套卡） */}
@@ -529,7 +529,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                     <Text style={{ fontSize: '30rpx', fontWeight: '700', color: 'var(--color-herb-600)', display: 'block' }}>
                       {stageMod.stage ? `食养特点：${stageMod.label} · ${stageMod.coreTag}` : '温和食养 · 日常参考'}
                     </Text>
-                    <Text style={{ fontSize: '26rpx', color: '#4B5563', display: 'block', lineHeight: '1.6', marginTop: 2 }}>{stageMod.oneLiner}</Text>
+                    <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6', marginTop: 2 }}>{stageMod.oneLiner}</Text>
                     {input.food_category && (
                       <Text style={{ fontSize: '24rpx', color: 'var(--color-herb-600)', display: 'block', marginTop: 2 }}>
                         分类：{input.food_category}{input.overall_nature ? ` · 食性${input.overall_nature}` : ''}
@@ -558,11 +558,11 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                     </View>
                   )}
                   {crowdRec.length === 0 && input.guide_sentence && (
-                    <Text style={{ fontSize: '26rpx', color: '#4B5563', display: 'block', lineHeight: '1.6', marginTop: 10 }}>{input.guide_sentence}</Text>
+                    <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6', marginTop: 10 }}>{input.guide_sentence}</Text>
                   )}
                   {/* 辨证结论：商家手填优先，否则展示引擎按中医体质/证型生成的结论（迁移 00237） */}
                   {fitText ? (
-                    <Text style={{ fontSize: '24rpx', color: '#4B5563', display: 'block', lineHeight: '1.6', marginTop: 6 }}>适合：{fitText}</Text>
+                    <Text style={{ fontSize: '24rpx', color: '#4A443D', display: 'block', lineHeight: '1.6', marginTop: 6 }}>适合：{fitText}</Text>
                   ) : null}
 
                   {/* 模块1：核心食材食养属性（折叠；无内容则整块不渲染） */}
@@ -578,17 +578,17 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                           </View>
                           {stageMod.ingredients.map((ing, i) => (
                             <View key={ing.key + i} style={{ flexDirection: 'row', padding: '6px 8px', borderTop: i === 0 ? '0' : '1px solid #EFF6F0' }}>
-                              <Text style={{ flex: 2, fontSize: '24rpx', color: '#1F2937' }}>{ing.icon} {ing.name}</Text>
-                              <Text style={{ flex: 1, fontSize: '24rpx', color: '#6B7280' }}>{ing.nature}</Text>
-                              <Text style={{ flex: 3, fontSize: '24rpx', color: '#4B5563', lineHeight: '1.5' }}>{ing.benefits.join('、')}</Text>
-                              <Text style={{ flex: 2, fontSize: '24rpx', color: '#4B5563', lineHeight: '1.5' }}>{ing.scenarios.join('、')}</Text>
+                              <Text style={{ flex: 2, fontSize: '24rpx', color: '#2A2A2A' }}>{ing.icon} {ing.name}</Text>
+                              <Text style={{ flex: 1, fontSize: '24rpx', color: '#6F675C' }}>{ing.nature}</Text>
+                              <Text style={{ flex: 3, fontSize: '24rpx', color: '#4A443D', lineHeight: '1.5' }}>{ing.benefits.join('、')}</Text>
+                              <Text style={{ flex: 2, fontSize: '24rpx', color: '#4A443D', lineHeight: '1.5' }}>{ing.scenarios.join('、')}</Text>
                             </View>
                           ))}
                         </View>
                       ) : (
                         <View>
                           {(foodBenefit?.ingredients || []).map((ing, i) => (
-                            <Text key={i} style={{ fontSize: '26rpx', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>
+                            <Text key={i} style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6' }}>
                               {ing.icon ? `${ing.icon} ` : ''}{ing.name}：{shieldCopy(ing.role).safe}
                             </Text>
                           ))}
@@ -604,11 +604,11 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                         <View>
                           <Text style={{ fontSize: '26rpx', fontWeight: 'bold', color: '#B45309', display: 'block', marginTop: 4 }}>现代营养</Text>
                           {foodBenefit.modernNutrition.map((it, i) => (
-                            <Text key={i} style={{ fontSize: '26rpx', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>· {it.title}：{it.desc}</Text>
+                            <Text key={i} style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6' }}>· {it.title}：{it.desc}</Text>
                           ))}
                         </View>
                       ) : (
-                        <Text style={{ fontSize: '26rpx', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>{input.positive_effect}</Text>
+                        <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6' }}>{input.positive_effect}</Text>
                       )}
                     </CollapsibleSection>
                   )}
@@ -630,7 +630,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                           ))}
                         </View>
                       ) : (
-                        <Text style={{ fontSize: '26rpx', color: '#4B5563', display: 'block', lineHeight: '1.6', marginTop: 2 }}>推荐搭配：{(input.match_goods || []).join('、')}</Text>
+                        <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6', marginTop: 2 }}>推荐搭配：{(input.match_goods || []).join('、')}</Text>
                       )}
                     </CollapsibleSection>
                   )}
@@ -638,9 +638,9 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                   {/* 食用小贴士（建议食用量 + 适宜状态） */}
                   <View style={{ padding: '8px 10px', borderRadius: '12px', background: '#FFFDF7', border: '1px solid #F0E6CF', marginTop: 4 }}>
                     <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>食用小贴士</Text>
-                    <Text style={{ fontSize: '26rpx', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>建议食用量：{eatAmount}</Text>
+                    <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6' }}>建议食用量：{eatAmount}</Text>
                     {tipAudiences.length > 0 && (
-                      <Text style={{ fontSize: '26rpx', color: '#4B5563', display: 'block', lineHeight: '1.6' }}>更适合这些日常状态：{tipAudiences.join('、')}</Text>
+                      <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6' }}>更适合这些日常状态：{tipAudiences.join('、')}</Text>
                     )}
                   </View>
                 </View>

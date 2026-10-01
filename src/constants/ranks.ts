@@ -13,7 +13,7 @@ export const RANK_TIERS: RankTier[] = [
   { rank: '初心', min: 200, color: '#50C878' },
   { rank: '明心', min: 800, color: '#4A90D9' },
   { rank: '静心', min: 2000, color: '#CD7F32' },
-  { rank: '悟心', min: 6000, color: '#9CA3AF' },
+  { rank: '悟心', min: 6000, color: '#6F675C' },
   { rank: '无心境', min: 20000, color: '#D4AF37' },
 ]
 
