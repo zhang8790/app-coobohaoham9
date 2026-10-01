@@ -67,6 +67,7 @@ function MerchantCenterPage() {
   // 门店二维码相关状态
   const [showQrModal, setShowQrModal] = useState(false)
   const [storeQrUrl, setStoreQrUrl] = useState('')
+  const [storeScanContent, setStoreScanContent] = useState('')
   const [qrLoading, setQrLoading] = useState(false)
 
   // P3 门店联动：本店流动车（轻量随身管理）
@@ -231,21 +232,26 @@ function MerchantCenterPage() {
   // 打开门店二维码弹窗
   const handleShowStoreQr = async () => {
     if (!store) return
-    // 已有二维码直接显示
+    // 取门店主推广码，写入门店码 r= 参数：用户扫码进店即显式锁定门店主（二维码锁客，佣金回流门店）
+    let referralCode: string | undefined
+    if (store.owner_id) {
+      const { data: owner } = await supabase
+        .from('profiles')
+        .select('referral_code, invite_code')
+        .eq('id', store.owner_id)
+        .maybeSingle()
+      referralCode = (owner as any)?.referral_code || (owner as any)?.invite_code || undefined
+    }
+    // 构造「应用内扫码购物」用的普通二维码内容（标准 scene 串，命中 s= 即进店）
+    const sc = (store.short_code || store.id).toUpperCase().slice(0, 8)
+    const scanContent = referralCode ? `s=${sc}&r=${referralCode}` : `s=${sc}`
+    setStoreScanContent(scanContent)
+
+    // 已有太阳码直接显示
     if (storeQrUrl) { setShowQrModal(true); return }
     setQrLoading(true)
     setShowQrModal(true)
     try {
-      // 取门店主推广码，写入门店码 r= 参数：用户扫码进店即显式锁定门店主（二维码锁客，佣金回流门店）
-      let referralCode: string | undefined
-      if (store.owner_id) {
-        const { data: owner } = await supabase
-          .from('profiles')
-          .select('referral_code, invite_code')
-          .eq('id', store.owner_id)
-          .maybeSingle()
-        referralCode = (owner as any)?.referral_code || (owner as any)?.invite_code || undefined
-      }
       const url = await generateQrcode({
         type: 'store',
         short_code: store.short_code || store.id,
@@ -437,6 +443,7 @@ function MerchantCenterPage() {
         visible={showQrModal}
         storeName={store.name}
         storeQrUrl={storeQrUrl}
+        scanContent={storeScanContent}
         qrLoading={qrLoading}
         onClose={() => setShowQrModal(false)}
         onSave={handleSaveStoreQr}
