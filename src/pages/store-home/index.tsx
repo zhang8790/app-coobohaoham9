@@ -1,5 +1,5 @@
 // @title 门店详情
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import './index.scss'
@@ -7,7 +7,7 @@ import LazyImage from '@/components/LazyImage'
 
 // 关键：必须从 common.js 导入至少一项，否则 Rollup 会 tree-sh掉 common.js 和 vendors.js
 // 导致小程序运行时缺少必要代码 → 页面空白崩溃
-import { getStoreById, getCategories, getProducts, addToCart, bindStoreReferrer, getMyAddresses } from '@/db/api'
+import { getStoreById, getCategories, getProducts, addToCart, bindStoreReferrer, bindReferralByCode, getMyAddresses } from '@/db/api'
 import { showCartToast } from '@/utils/cartToast'
 import type { Store, StoreCategory, Product, UserAddress } from '@/db/types'
 import { supabase, getLocalUser } from '@/client/supabase'
@@ -39,6 +39,8 @@ export default function StoreHomePage() {
   const [addingId, setAddingId] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [userAddr, setUserAddr] = useState<UserAddress | null>(null)
+  // 扫码进店场景：门店码 scene 携带的 r=推广码（店员/分销员/门店主），用于二维码显式锁客
+  const sceneRefCodeRef = useRef<string>('')
   // 食疗食材字典：驱动门店商品卡实时三色预警 / 整体性味（与详情页同源引擎）
   const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
   useEffect(() => {
@@ -68,6 +70,10 @@ export default function StoreHomePage() {
           const storeMatch = decodedScene.match(/s=([A-Za-z0-9]{4,12})/i)
           if (storeMatch) {
             const shortCode = storeMatch[1].toUpperCase()
+
+            // 提取 r=推广码（门店码可能携带显式推广人，如店员/分销员/门店主）
+            const refMatch = decodedScene.match(/r=([A-Za-z0-9]{4,12})/i)
+            sceneRefCodeRef.current = refMatch ? refMatch[1].toUpperCase() : ''
 
             // 通过短码查询门店 ID
             supabase.from('stores').select('id').eq('short_code', shortCode).maybeSingle()
@@ -107,8 +113,14 @@ export default function StoreHomePage() {
     ]).then(([s, cats, prods]) => {
       if (s) {
         setStore(s)
-        // 强引导门店自推码：进店即绑门店 owner 推广码（让利佣金回流门店）
-        bindStoreReferrer(storeId).catch(() => {})
+        // 锁客：门店码 scene 携带 r=推广码 → 显式锁定该推广人（二维码锁客，qr 来源优先于门店默认）；
+        // 否则退回门店默认绑定（绑定门店 owner，让利佣金回流门店）。
+        const sceneRef = sceneRefCodeRef.current
+        if (sceneRef) {
+          bindReferralByCode(sceneRef, 'qr').catch(() => {})
+        } else {
+          bindStoreReferrer(storeId).catch(() => {})
+        }
         // 动态设置导航栏标题为商家名字
         Taro.setNavigationBarTitle({ title: s.name })
       }

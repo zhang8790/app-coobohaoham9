@@ -3396,6 +3396,32 @@ export async function bindStoreReferrer(storeId: string): Promise<void> {
   }
 }
 
+/**
+ * 通过推广码显式绑定推荐人（二维码锁客）。
+ * 用于「扫门店二维码 / 微信扫码进店」：门店码 scene 携带 r=推广码，
+ * 扫后显式锁定该推广人（店员 / 分销员 / 门店主），来源标记为 qr，
+ * 优先级高于门店默认绑定（store_default），可在 bind_referrer 中被显式来源覆盖升级。
+ * 依赖迁移 00237：bind_referrer 增加 p_source 参数 + profiles.referrer_source 列。
+ * 未部署前调用会静默失败（不影响进店）；部署后即生效。
+ */
+export async function bindReferralByCode(
+  referralCode: string,
+  source: 'qr' | 'share' | 'manual' | 'invite_code' = 'qr',
+): Promise<void> {
+  if (!referralCode) return
+  try {
+    const { data: { user } } = await getLocalUser()
+    if (!user) return
+    const { error } = await supabase.rpc('bind_referrer', {
+      p_referral_code: referralCode.toUpperCase().trim(),
+      p_source: source,
+    } as any)
+    if (error) console.warn('[bindReferralByCode] 绑定失败(不影响进店):', error.message)
+  } catch (e) {
+    console.warn('[bindReferralByCode] 异常(不影响进店)', e)
+  }
+}
+
 // =====================
 // 管理员专用 API
 // =====================

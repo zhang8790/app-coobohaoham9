@@ -236,9 +236,20 @@ function MerchantCenterPage() {
     setQrLoading(true)
     setShowQrModal(true)
     try {
+      // 取门店主推广码，写入门店码 r= 参数：用户扫码进店即显式锁定门店主（二维码锁客，佣金回流门店）
+      let referralCode: string | undefined
+      if (store.owner_id) {
+        const { data: owner } = await supabase
+          .from('profiles')
+          .select('referral_code, invite_code')
+          .eq('id', store.owner_id)
+          .maybeSingle()
+        referralCode = (owner as any)?.referral_code || (owner as any)?.invite_code || undefined
+      }
       const url = await generateQrcode({
         type: 'store',
         short_code: store.short_code || store.id,
+        referral_code: referralCode,
       })
       if (url) setStoreQrUrl(url)
       else Taro.showToast({ title: '二维码生成失败', icon: 'none' })

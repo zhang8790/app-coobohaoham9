@@ -25,13 +25,19 @@ COMMENT ON COLUMN public.favorites.referral_code IS
   '收藏时的推广来源码；从收藏进商品详情时还原为 ref 参数，优先于门店默认绑定';
 
 -- 3) bind_referrer 改造：引入 p_source，实现「显式来源可覆盖门店默认」
-DROP FUNCTION IF EXISTS public.bind_referrer(p_referral_code text);
+-- ⚠️ 幂等铁律：改函数参数必须 DROP 新旧「全部」签名，再 CREATE。
+--    只删旧签名而用普通 CREATE 建新签名 → 重跑撞 42723（function already exists with same argument types）。
+--    且旧的 1 参签名若残留，与「带 DEFAULT 的 2 参签名」并存会让单参调用报 42725（函数不唯一）——
+--    客户端 login/index.tsx、utils/share.ts 都是单参调用，故 1 参签名必须删净。
+DROP FUNCTION IF EXISTS public.bind_referrer(text);
+DROP FUNCTION IF EXISTS public.bind_referrer(text, text);
 
 CREATE FUNCTION public.bind_referrer(
   p_referral_code text,
   p_source text DEFAULT 'share'
 )
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public AS $$
 DECLARE
   v_referrer RECORD;
   v_self_code text;
@@ -71,6 +77,9 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'referrer_id', v_referrer.id, 'source', p_source);
 END;
 $$;
+
+-- DROP 会连带清掉原函数 ACL，显式还原执行权限（客户端 anon/authenticated 需可调用）
+GRANT EXECUTE ON FUNCTION public.bind_referrer(text, text) TO anon, authenticated, service_role;
 
 -- 4) convert_pending_referral 同步写 referrer_source（注册转化走的是显式分享/邀请来源）
 CREATE OR REPLACE FUNCTION convert_pending_referral(
