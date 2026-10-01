@@ -366,7 +366,7 @@ export default function FoodScanPage() {
     {/* 评估说明（数据来源 + 算法局限，信任度核心） */}
     {analyzed && (
       <View className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'rgba(94,122,79,0.20)', background: 'rgba(94,122,79,0.05)' }}>
-        <Text className="text-[11px]" style={{ display: 'block', color: '#475569', lineHeight: 1.7 }}>{FOOD_SCAN_DISCLAIMER}</Text>
+        <Text className="text-[11px]" style={{ display: 'block', color: '#4A443D', lineHeight: 1.7 }}>{FOOD_SCAN_DISCLAIMER}</Text>
       </View>
     )}
 
@@ -404,8 +404,8 @@ export default function FoodScanPage() {
 
  {/* 针对用户的健康短板：把扫描配料性味 vs 用户短板 → 补/伤/中性 */}
  {analyzed && shortfalls.length > 0 && (
- <View className="mt-4 rounded-2xl border p-4" style={{ borderColor: '#EAEAEA', background: '#FBF7EF' }}>
- <Text className="text-base font-bold text-[#1A1A1A]"> 针对你的健康短板</Text>
+ <View className="mt-4 rounded-2xl border p-4" style={{ borderColor: '#ECE6DD', background: '#FBF7EF' }}>
+ <Text className="text-base font-bold text-[#2A2A2A]"> 针对你的健康短板</Text>
  {shortfallEval.hits.filter((h) => h.kind === 'harm').length > 0 && (
  <View className="mt-2">
  <Text className="text-xs font-semibold" style={{ color: '#DC2626', display: 'block', marginBottom: 4 }}>
@@ -435,7 +435,7 @@ export default function FoodScanPage() {
  </View>
  )}
  {shortfallEval.hits.length === 0 && (
-      <Text className="text-xs text-[#6B7280] mt-2 block" style={{ lineHeight: 1.7 }}>
+      <Text className="text-xs text-[#6F675C] mt-2 block" style={{ lineHeight: 1.7 }}>
         当前配料与你的食养关注无明显冲突，可继续看其他维度。
       </Text>
  )}

@@ -114,7 +114,7 @@ export default function FoodDetectivePage() {
  <View className="px-5 pt-5 pb-3">
  <View
  className="rounded-2xl p-5"
- style={{ background: 'linear-gradient(135deg, #1F2937 0%, #374151 100%)' }}
+ style={{ background: 'linear-gradient(135deg, #2A2A2A 0%, #3F3A34 100%)' }}
  >
  <View className="flex items-center justify-between">
  <View className="flex items-center gap-3">
@@ -152,7 +152,7 @@ export default function FoodDetectivePage() {
 
  {/* 案件列表 */}
  <ScrollView scrollY className="px-5 pb-8" style={{ height: 'calc(100vh - 278px)' }}>
- <Text className="text-sm font-bold text-[#374151] mb-2"> 待破案件</Text>
+ <Text className="text-sm font-bold text-[#3F3A34] mb-2"> 待破案件</Text>
  {DETECTIVE_CASES.map((c) => {
  const isSolved = !!solved[c.id]
  const solvedInfo = solved[c.id]
@@ -167,7 +167,7 @@ export default function FoodDetectivePage() {
  <View className="flex items-center gap-2 flex-1">
  <Text className="text-xl">{isSolved ? '' : ''}</Text>
  <View className="flex-1">
- <Text className="text-sm font-bold" style={{ color: '#374151' }}>{c.title}</Text>
+ <Text className="text-sm font-bold" style={{ color: '#3F3A34' }}>{c.title}</Text>
  <Text className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{c.productName} · {c.brand}</Text>
  </View>
  </View>
@@ -185,7 +185,7 @@ export default function FoodDetectivePage() {
  </View>
  {isSolved && solvedInfo && (
  <View className="mt-2 flex items-center gap-3">
- <Text className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#F6F2EE', color: '#6B7280' }}>
+ <Text className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#F6F2EE', color: '#6F675C' }}>
  得分 {solvedInfo.score}
  </Text>
  <Text className="text-[10px]" style={{ color: '#15803D' }}>
@@ -230,7 +230,7 @@ export default function FoodDetectivePage() {
 
  {/* 配料表（可点击标记） */}
  <View className="px-5 mb-2">
- <Text className="text-sm font-bold text-[#374151] mb-2">
+ <Text className="text-sm font-bold text-[#3F3A34] mb-2">
  配料表（点击标记可疑项）
  </Text>
  <View className="flex flex-wrap gap-2">
@@ -242,13 +242,13 @@ export default function FoodDetectivePage() {
  className="px-3 py-2 rounded-xl"
  style={{
  background: isSel ? '#FEE2E2' : '#FFFFFF',
- border: `1.5px solid ${isSel ? '#DC2626' : '#E5E7EB'}`,
+ border: `1.5px solid ${isSel ? '#DC2626' : '#ECE6DD'}`,
  }}
  onClick={() => toggleIngredient(ing)}
  >
  <View className="flex items-center gap-1">
  {isSel && <Text className="text-xs" style={{ color: '#DC2626' }}></Text>}
- <Text className="text-sm font-medium" style={{ color: isSel ? '#DC2626' : '#374151' }}>
+ <Text className="text-sm font-medium" style={{ color: isSel ? '#DC2626' : '#3F3A34' }}>
  {ing}
  </Text>
  </View>
@@ -285,7 +285,7 @@ export default function FoodDetectivePage() {
  style={{ background: '#F6F2EE' }}
  onClick={() => { setScreen('list'); setActiveCase(null); setSelected([]) }}
  >
- <Text className="text-sm font-medium text-[#6B7280]">← 案件列表</Text>
+ <Text className="text-sm font-medium text-[#6F675C]">← 案件列表</Text>
  </View>
  <View
  className="flex-1 rounded-xl py-3 flex items-center justify-center"
@@ -328,7 +328,7 @@ export default function FoodDetectivePage() {
  </View>
 
  {/* 配料复盘 */}
- <Text className="text-sm font-bold text-[#374151] mb-2"> 配料复盘</Text>
+ <Text className="text-sm font-bold text-[#3F3A34] mb-2"> 配料复盘</Text>
  <View className="mb-4">
  {case2.ingredientList.map((ing, i) => {
  const isCulprit = case2.culprits.includes(ing)
@@ -337,9 +337,9 @@ export default function FoodDetectivePage() {
  const risk = frag?.riskLevel || 'white'
 
  let bg = '#FFFFFF'
- let border = '#E5E7EB'
+ let border = '#ECE6DD'
  let label = ''
- let color = '#6B7280'
+ let color = '#6F675C'
 
  if (isCulprit && isSelected) {
  bg = '#DCFCE7'; border = '#15803D'; label = '✓ 揪出'; color = '#166534'
@@ -348,7 +348,7 @@ export default function FoodDetectivePage() {
  } else if (!isCulprit && isSelected) {
  bg = '#FEE2E2'; border = '#DC2626'; label = ' 误报'; color = '#DC2626'
  } else {
- bg = '#F9FAFB'; border = '#E5E7EB'; label = RISK_LABEL[risk]; color = RISK_COLOR[risk]
+ bg = '#F4EFE8'; border = '#ECE6DD'; label = RISK_LABEL[risk]; color = RISK_COLOR[risk]
  }
 
  return (
@@ -358,7 +358,7 @@ export default function FoodDetectivePage() {
  style={{ background: bg, borderWidth: 1, borderStyle: 'solid', borderColor: border }}
  >
  <View className="flex items-center gap-2">
- <Text className="text-sm font-medium" style={{ color: '#374151' }}>{ing}</Text>
+ <Text className="text-sm font-medium" style={{ color: '#3F3A34' }}>{ing}</Text>
  {frag && (
  <Text
  className="text-[9px] px-1.5 py-0.5 rounded"
@@ -375,7 +375,7 @@ export default function FoodDetectivePage() {
  </View>
 
  {/* 知识讲解 */}
- <Text className="text-sm font-bold text-[#374151] mb-2"> 案件档案</Text>
+ <Text className="text-sm font-bold text-[#3F3A34] mb-2"> 案件档案</Text>
  <View className="mb-4">
  {case2.culprits.map((name, i) => {
  const frag = KNOWLEDGE_FRAGMENTS[name]
@@ -392,7 +392,7 @@ export default function FoodDetectivePage() {
  {RISK_LABEL[frag.riskLevel]}
  </Text>
  </View>
- <Text className="text-xs leading-relaxed" style={{ color: '#4B5563' }}>
+ <Text className="text-xs leading-relaxed" style={{ color: '#4A443D' }}>
  {frag.description}
  </Text>
  {frag.dangerTip && (
@@ -434,7 +434,7 @@ export default function FoodDetectivePage() {
  >
  <View
  className="rounded-xl py-3 flex items-center justify-center"
- style={{ background: 'linear-gradient(135deg, #1F2937 0%, #374151 100%)' }}
+ style={{ background: 'linear-gradient(135deg, #2A2A2A 0%, #3F3A34 100%)' }}
  onClick={backToList}
  >
  <Text className="text-sm font-semibold text-white">返回侦探局</Text>

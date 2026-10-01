@@ -210,8 +210,8 @@ export default function FamilyArchivePage() {
  return (
  <View className="min-h-screen bg-[#F7F3E9] px-4 pt-5 pb-16">
  {/* 标题 */}
- <Text className="text-2xl font-bold text-[#1A1A1A]"> 家庭食养档案</Text>
- <Text className="text-xs text-[#6B7280] mt-1 block">一户一档 · 全家人的食养参考都留在这里</Text>
+ <Text className="text-2xl font-bold text-[#2A2A2A]"> 家庭食养档案</Text>
+ <Text className="text-xs text-[#6F675C] mt-1 block">一户一档 · 全家人的食养参考都留在这里</Text>
 
  {/* 迁移成本 banner：成员越多，换小程序损失越大（中性，不涉医疗宣称） */}
  {familyMembers.length > 0 ? (
@@ -227,19 +227,19 @@ export default function FamilyArchivePage() {
  </Text>
  </View>
  ) : (
- <View className="mt-4 rounded-2xl p-4" style={{ background: '#FFFFFF', borderWidth: 1, borderColor: '#EAEAEA' }}>
- <Text className="text-sm font-bold text-[#1A1A1A]">为全家建立专属食养档案</Text>
- <Text className="text-xs text-[#6B7280] mt-1.5 block" style={{ lineHeight: 1.6 }}>
+ <View className="mt-4 rounded-2xl p-4" style={{ background: '#FFFFFF', borderWidth: 1, borderColor: '#ECE6DD' }}>
+ <Text className="text-sm font-bold text-[#2A2A2A]">为全家建立专属食养档案</Text>
+ <Text className="text-xs text-[#6F675C] mt-1.5 block" style={{ lineHeight: 1.6 }}>
  添加家人后，给谁买零食都能一键切换「为 TA 定制」的食养参考，避开过敏、顺着体质挑。
  </Text>
  </View>
  )}
 
  {/* 门店分享授权：线上工具引流 → 线下门店承接到店精准导购 */}
- <View className="mt-4 rounded-2xl p-4" style={{ background: '#FFFFFF', borderWidth: 1, borderColor: '#EAEAEA' }}>
+ <View className="mt-4 rounded-2xl p-4" style={{ background: '#FFFFFF', borderWidth: 1, borderColor: '#ECE6DD' }}>
  <View className="flex items-center justify-between">
  <View className="flex-1 pr-3">
- <Text className="text-sm font-bold text-[#1A1A1A]">向常去门店分享食养档案</Text>
+ <Text className="text-sm font-bold text-[#2A2A2A]">向常去门店分享食养档案</Text>
  <Text className="text-[11px] text-muted-foreground mt-1 block" style={{ lineHeight: 1.6 }}>
  开启后，你锁定的门店店员可在你到店时查看中性食养参考（体质 / 过敏原 / 慢病 / 目标），做精准导购。仅分享膳食参考维度，不含任何病历或诊断信息，可随时关闭。
  </Text>
@@ -265,7 +265,7 @@ export default function FamilyArchivePage() {
  const tags = memberCrowdTags(m)
  const ac = allergenCount(m)
  return (
- <View key={m.id} className="rounded-2xl bg-white p-4 shadow-sm" style={{ borderWidth: 1, borderColor: '#EAEAEA' }}>
+ <View key={m.id} className="rounded-2xl bg-white p-4 shadow-sm" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
  <View className="flex items-center gap-3">
  <View
  className="w-11 h-11 rounded-full flex items-center justify-center"
@@ -275,7 +275,7 @@ export default function FamilyArchivePage() {
  </View>
  <View className="flex-1 min-w-0">
  <View className="flex items-center gap-2">
- <Text className="text-base font-bold text-[#1A1A1A]">{m.name}</Text>
+ <Text className="text-base font-bold text-[#2A2A2A]">{m.name}</Text>
  {m.age_group ? (
  <Text className="text-[10px] text-[#8A6A4B] px-2 py-0.5 rounded-full" style={{ background: '#FBF1E8' }}>{m.age_group}</Text>
  ) : null}
@@ -294,7 +294,7 @@ export default function FamilyArchivePage() {
  {tags.length > 0 ? (
  <View className="mt-3 flex flex-wrap gap-1.5">
  {tags.map((t) => (
- <Text key={t} className="text-[11px] text-[#6B7280] px-2 py-0.5 rounded-full" style={{ background: '#F6F2EE' }}>{t}</Text>
+ <Text key={t} className="text-[11px] text-[#6F675C] px-2 py-0.5 rounded-full" style={{ background: '#F6F2EE' }}>{t}</Text>
  ))}
  </View>
  ) : null}
@@ -313,15 +313,15 @@ export default function FamilyArchivePage() {
  ＋ 添加家人
  </Button>
  ) : (
- <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm" style={{ borderWidth: 1, borderColor: '#EAEAEA' }}>
- <Text className="text-base font-bold text-[#1A1A1A]">{form.id ? '编辑家人' : '添加家人'}</Text>
+ <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
+ <Text className="text-base font-bold text-[#2A2A2A]">{form.id ? '编辑家人' : '添加家人'}</Text>
 
  {/* 称呼 */}
  <View className="mt-3">
- <Text className="text-xs text-[#6B7280]">称呼 *</Text>
+ <Text className="text-xs text-[#6F675C]">称呼 *</Text>
  <Input
  className="mt-1 rounded-xl px-3 py-2 text-sm"
- style={{ background: '#F6F2EE', color: '#1A1A1A' }}
+ style={{ background: '#F6F2EE', color: '#2A2A2A' }}
  placeholder="如：爸爸 / 女儿 / 奶奶"
  value={form.name}
  onInput={(e) => setForm({ ...form, name: e.detail.value })}
@@ -331,28 +331,28 @@ export default function FamilyArchivePage() {
  {/* 生命阶段 + 性别 */}
  <View className="mt-3 flex gap-3">
  <View className="flex-1">
- <Text className="text-xs text-[#6B7280]">生命阶段</Text>
+ <Text className="text-xs text-[#6F675C]">生命阶段</Text>
  <Picker
  mode="selector"
  range={AGE_GROUP_OPTIONS as unknown as string[]}
  onChange={(e) => setForm({ ...form, age_group: AGE_GROUP_OPTIONS[e.detail.value as number] })}
  >
  <View className="mt-1 rounded-xl px-3 py-2" style={{ background: '#F6F2EE' }}>
- <Text className="text-sm" style={{ color: form.age_group ? '#1A1A1A' : 'var(--muted-foreground)' }}>
+ <Text className="text-sm" style={{ color: form.age_group ? '#2A2A2A' : 'var(--muted-foreground)' }}>
  {form.age_group || '请选择'}
  </Text>
  </View>
  </Picker>
  </View>
  <View className="flex-1">
- <Text className="text-xs text-[#6B7280]">性别</Text>
+ <Text className="text-xs text-[#6F675C]">性别</Text>
  <Picker
  mode="selector"
  range={GENDER_OPTIONS as unknown as string[]}
  onChange={(e) => setForm({ ...form, gender: GENDER_OPTIONS[e.detail.value as number] })}
  >
  <View className="mt-1 rounded-xl px-3 py-2" style={{ background: '#F6F2EE' }}>
- <Text className="text-sm" style={{ color: form.gender ? '#1A1A1A' : 'var(--muted-foreground)' }}>
+ <Text className="text-sm" style={{ color: form.gender ? '#2A2A2A' : 'var(--muted-foreground)' }}>
  {form.gender || '请选择'}
  </Text>
  </View>
@@ -362,7 +362,7 @@ export default function FamilyArchivePage() {
 
  {/* 身体状态（多选 chip） */}
  <View className="mt-3">
- <Text className="text-xs text-[#6B7280]">身体状态（可多选）</Text>
+ <Text className="text-xs text-[#6F675C]">身体状态（可多选）</Text>
  <View className="mt-1.5 flex flex-wrap gap-2">
  {BODY_STATE_OPTIONS.map((o) => {
  const active = form.body_states.includes(o)
@@ -371,7 +371,7 @@ export default function FamilyArchivePage() {
  key={o}
  onClick={() => setForm({ ...form, body_states: toggleInArray(form.body_states, o) })}
  className="text-xs px-3 py-1.5 rounded-full"
- style={{ background: active ? 'hsl(var(--primary))' : '#F6F2EE', color: active ? '#fff' : '#6B7280' }}
+ style={{ background: active ? 'hsl(var(--primary))' : '#F6F2EE', color: active ? '#fff' : '#6F675C' }}
  >
  {o}
  </Text>
@@ -382,7 +382,7 @@ export default function FamilyArchivePage() {
 
  {/* 健康人群（多选 chip） */}
  <View className="mt-3">
- <Text className="text-xs text-[#6B7280]">健康人群（可多选 · 仅作食养参考）</Text>
+ <Text className="text-xs text-[#6F675C]">健康人群（可多选 · 仅作食养参考）</Text>
  <View className="mt-1.5 flex flex-wrap gap-2">
  {CHRONIC_OPTIONS.map((o) => {
  const active = form.chronic_conditions.includes(o)
@@ -391,7 +391,7 @@ export default function FamilyArchivePage() {
  key={o}
  onClick={() => setForm({ ...form, chronic_conditions: toggleInArray(form.chronic_conditions, o) })}
  className="text-xs px-3 py-1.5 rounded-full"
- style={{ background: active ? '#8A6B22' : '#F6F2EE', color: active ? '#fff' : '#6B7280' }}
+ style={{ background: active ? '#8A6B22' : '#F6F2EE', color: active ? '#fff' : '#6F675C' }}
  >
  {o}
  </Text>
@@ -402,7 +402,7 @@ export default function FamilyArchivePage() {
 
  {/* 致敏原（多选 chip，用 key） */}
  <View className="mt-3">
- <Text className="text-xs text-[#6B7280]">致敏原（可多选）</Text>
+ <Text className="text-xs text-[#6F675C]">致敏原（可多选）</Text>
  <View className="mt-1.5 flex flex-wrap gap-2">
  {ALLERGY_OPTIONS.map((o) => {
  const active = form.allergies.includes(o.key)
@@ -411,7 +411,7 @@ export default function FamilyArchivePage() {
  key={o.key}
  onClick={() => setForm({ ...form, allergies: toggleInArray(form.allergies, o.key) })}
  className="text-xs px-3 py-1.5 rounded-full"
- style={{ background: active ? 'hsl(var(--primary))' : '#F6F2EE', color: active ? '#fff' : '#6B7280' }}
+ style={{ background: active ? 'hsl(var(--primary))' : '#F6F2EE', color: active ? '#fff' : '#6F675C' }}
  >
  {o.name}
  </Text>
@@ -422,7 +422,7 @@ export default function FamilyArchivePage() {
 
  {/* 健康目标（多选 chip） */}
  <View className="mt-3">
- <Text className="text-xs text-[#6B7280]">健康目标（可多选）</Text>
+ <Text className="text-xs text-[#6F675C]">健康目标（可多选）</Text>
  <View className="mt-1.5 flex flex-wrap gap-2">
  {HEALTH_GOAL_OPTIONS.map((o) => {
  const active = form.health_goals.includes(o)
@@ -431,7 +431,7 @@ export default function FamilyArchivePage() {
  key={o}
  onClick={() => setForm({ ...form, health_goals: toggleInArray(form.health_goals, o) })}
  className="text-xs px-3 py-1.5 rounded-full"
- style={{ background: active ? 'hsl(var(--primary))' : '#F6F2EE', color: active ? '#fff' : '#6B7280' }}
+ style={{ background: active ? 'hsl(var(--primary))' : '#F6F2EE', color: active ? '#fff' : '#6F675C' }}
  >
  {o}
  </Text>
@@ -442,10 +442,10 @@ export default function FamilyArchivePage() {
 
  {/* 备注 */}
  <View className="mt-3">
- <Text className="text-xs text-[#6B7280]">备注（选填 · 中性食养偏好，非病历）</Text>
+ <Text className="text-xs text-[#6F675C]">备注（选填 · 中性食养偏好，非病历）</Text>
  <Input
  className="mt-1 rounded-xl px-3 py-2 text-sm"
- style={{ background: '#F6F2EE', color: '#1A1A1A' }}
+ style={{ background: '#F6F2EE', color: '#2A2A2A' }}
  placeholder="如：口味偏淡 / 喜欢温热"
  value={form.notes}
  onInput={(e) => setForm({ ...form, notes: e.detail.value })}
@@ -465,7 +465,7 @@ export default function FamilyArchivePage() {
  <Button
  onClick={() => { setFormOpen(false); setForm(blankForm()) }}
  className="flex-1 rounded-full"
- style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#EAEAEA' }}
+ style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
  >
  取消
  </Button>
@@ -474,7 +474,7 @@ export default function FamilyArchivePage() {
  )}
 
  {/* 免责声明 */}
- <View className="mt-5 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#EAEAEA' }}>
+ <View className="mt-5 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
  <Text className="text-[11px] text-muted-foreground leading-relaxed block">{FOOD_THERAPY_DISCLAIMER}</Text>
  </View>
  </View>
