@@ -3,8 +3,12 @@
  * 统一经 client-error-log Edge Function 写入 error_logs 表，便于故障排查。
  * 自包含：直接 fetch，不依赖项目 supabase 单例；anon key 随端包发布，非机密。
  */
-const SUPABASE_URL = 'https://pyqgsxcjmijtbstwthbn.supabase.co'
+// 端点跟随构建期环境变量 TARO_APP_SUPABASE_URL（与小程序主客户端同源），
+// 带云端兜底，确保切换到反代域名时上报通道同步生效。
+const SUPABASE_URL =
+  process.env.TARO_APP_SUPABASE_URL || 'https://pyqgsxcjmijtbstwthbn.supabase.co'
 const ANON_KEY =
+  process.env.TARO_APP_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5cWdzeGNqbWlqdGJzdHd0aGJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NjIxMTIsImV4cCI6MjA5ODUzODExMn0.DQPNwBTPcQXfTixxz6Vfd53nYePuaEt58vzNWpaodWM'
 
 export function reportError(err: unknown, ctx?: Record<string, unknown>): void {
