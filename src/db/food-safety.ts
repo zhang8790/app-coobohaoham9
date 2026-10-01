@@ -7,6 +7,41 @@
 //   import { callIngredientAnalyze, getFoodAllergens } from '@/db/food-safety'
 // ============================================================
 import { supabase } from '@/client/supabase'
+import { withTimeout } from '@/utils/withTimeout'
+
+// 静态库读取缓存：食疗参考库（过敏原/人群文案/触发词/标签规则）是种子数据，仅后台维护时变更。
+// 加 10 分钟内存缓存，避免每次进分析结果页/适配页都跨境重拉（supabase.co 链路 0.9~1.7s）。
+// 失败优先回退陈旧缓存，避免白屏；与 getFoodIngredients 既有模块级缓存模式一致。
+const STATIC_TTL = 10 * 60 * 1000
+
+type CacheBox<T> = { data: T[]; ts: number }
+
+async function fetchCachedStatic<T>(box: CacheBox<T>, query: Promise<any>): Promise<T[]> {
+  const now = Date.now()
+  if (box.data.length && now - box.ts < STATIC_TTL) return box.data
+  try {
+    const res: any = await withTimeout(query, 10000, '食疗库加载超时').catch(() => ({
+      data: null,
+      error: { message: '食疗库加载超时' },
+    }))
+    if (res?.error) {
+      console.error('[fetchCachedStatic] 加载失败:', res.error?.message || res.error)
+      return box.data.length ? box.data : []
+    }
+    const rows = (res?.data as T[]) ?? []
+    box.data = rows
+    box.ts = now
+    return rows
+  } catch (e: any) {
+    console.error('[fetchCachedStatic] 异常:', e)
+    return box.data.length ? box.data : []
+  }
+}
+
+const _allergensCache: CacheBox<FoodAllergen> = { data: [], ts: 0 }
+const _crowdTipsCache: CacheBox<FoodCrowdTip> = { data: [], ts: 0 }
+const _crowdTriggersCache: CacheBox<FoodCrowdTrigger> = { data: [], ts: 0 }
+const _tagRulesCache: CacheBox<FoodTagRule> = { data: [], ts: 0 }
 
 // 4 档安全评级 code（与 ingredient-analyze EF / ingredient_ocr_tasks.safety_level 一致）
 export type SafeLevelCode = 'A_preferred' | 'A_limit' | 'B_caution' | 'C_avoid'
@@ -126,38 +161,24 @@ export interface FoodTagRule {
 // 三库读取（公开可读）
 // ============================================================
 export async function getFoodAllergens(): Promise<FoodAllergen[]> {
-  const { data, error } = await supabase
-    .from('food_allergens')
-    .select('*')
-    .order('sort_order')
-  if (error) {
-    console.error('[getFoodAllergens] 查询失败:', error.message)
-    return []
-  }
-  return (data as FoodAllergen[]) ?? []
+  return fetchCachedStatic(
+    _allergensCache,
+    supabase.from('food_allergens').select('*').order('sort_order'),
+  )
 }
 
 export async function getFoodCrowdTips(): Promise<FoodCrowdTip[]> {
-  const { data, error } = await supabase
-    .from('food_crowd_tips')
-    .select('*')
-    .order('sort_order')
-  if (error) {
-    console.error('[getFoodCrowdTips] 查询失败:', error.message)
-    return []
-  }
-  return (data as FoodCrowdTip[]) ?? []
+  return fetchCachedStatic(
+    _crowdTipsCache,
+    supabase.from('food_crowd_tips').select('*').order('sort_order'),
+  )
 }
 
 export async function getFoodCrowdTriggers(): Promise<FoodCrowdTrigger[]> {
-  const { data, error } = await supabase
-    .from('food_crowd_triggers')
-    .select('*')
-  if (error) {
-    console.error('[getFoodCrowdTriggers] 查询失败:', error.message)
-    return []
-  }
-  return (data as FoodCrowdTrigger[]) ?? []
+  return fetchCachedStatic(
+    _crowdTriggersCache,
+    supabase.from('food_crowd_triggers').select('*'),
+  )
 }
 
 // ============================================================
@@ -261,16 +282,10 @@ export async function callIngredientAnalyze(payload: {
 
 // 读取食疗标签规则（供前端「自检标签库」勾选 + 后台面板）
 export async function getFoodTagRules(): Promise<FoodTagRule[]> {
-  const { data, error } = await supabase
-    .from('food_tag_rules')
-    .select('*')
-    .eq('status', 'active')
-    .order('tag_key')
-  if (error) {
-    console.error('[getFoodTagRules] 查询失败:', error.message)
-    return []
-  }
-  return (data as FoodTagRule[]) ?? []
+  return fetchCachedStatic(
+    _tagRulesCache,
+    supabase.from('food_tag_rules').select('*').eq('status', 'active').order('tag_key'),
+  )
 }
 
 // 跨商品适配分排序（模块三·food-match Edge Function）

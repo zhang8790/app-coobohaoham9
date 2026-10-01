@@ -669,56 +669,6 @@ export async function getProducts(opts: {
 }
 
 // ============================================
-// 商品推荐排序（均衡热度榜 v1）
-// 服务端 fn_product_feed_rank 计算综合热度分（近期销量+上升势头+新鲜度+历史基线+商家置顶），
-// 这里二次拉取完整商品行并按分排序，复用 Product 类型与 requestCache。
-// 信号均来自既有 order_items / products.sales_count，无需新增埋点。
-// ============================================
-export async function getRankedFeed(opts: {
-  storeId?: string
-  limit?: number
-  page?: number
-} = {}): Promise<Product[]> {
-  const cacheKey = `rf:${cacheMakeKey(opts)}`
-  const cached = cacheGet<Product[]>(cacheKey)
-  if (cached) return cached
-
-  const { storeId, limit = 20, page = 0 } = opts
-  // 多拉一页，保证客户端切片分页正确
-  const fetchLimit = (page + 1) * limit
-  const { data, error } = await supabase.rpc('fn_product_feed_rank', {
-    p_store_id: storeId ?? null,
-    p_limit: fetchLimit,
-    p_recent_days: 30,
-  })
-  if (error) {
-    console.error('[getRankedFeed] RPC 失败:', error.message)
-    return []
-  }
-  const ids: string[] = (data || []).map((r: any) => r.product_id)
-  if (ids.length === 0) return []
-
-  const { data: prods, error: e2 } = await supabase
-    .from('products')
-    .select('*, stores(id,name,image_url,is_platform)')
-    .in('id', ids)
-  if (e2) {
-    console.error('[getRankedFeed] 拉取商品失败:', e2.message)
-    return []
-  }
-  const rows: Product[] = Array.isArray(prods) ? prods : []
-  // 按热度分顺序还原（RPC 已排好序）
-  const map = new Map(rows.map((p) => [p.id, p]))
-  const ordered = ids.map((id) => map.get(id)).filter((p): p is Product => Boolean(p))
-
-  const start = page * limit
-  const sliced = ordered.slice(start, start + limit)
-
-  cacheSet(cacheKey, sliced, 30_000) // 30s TTL，与 getProducts 一致
-  return sliced
-}
-
-// ============================================
 // 附近商品推荐（基于用户定位）
 // 功能：根据用户输入经纬度，推荐附近门店的商品，并返回距离
 // 注意：需要先在 Supabase 执行 RPC_Get_Nearby_Products.sql
@@ -747,11 +697,21 @@ export async function getNearbyProducts(
   platformFilter?: 'only' | 'exclude'
 ): Promise<NearbyProduct[]> {
   try {
-    const { data, error } = await supabase.rpc('get_nearby_products', {
-      p_lat: lat,
-      p_lng: lng,
-      p_limit: limit * 3, // 多取一些，过滤后再截断
-      p_category: category || null})
+    // 跨境链路无内置超时：用 withTimeout 把 RPC 收敛到 10s 失败快返（沿用 return [] 契约）
+    const rpcRes = await withTimeout(
+      supabase.rpc('get_nearby_products', {
+        p_lat: lat,
+        p_lng: lng,
+        p_limit: limit * 3, // 多取一些，过滤后再截断
+        p_category: category || null,
+      }),
+      10000,
+      '附近商品加载超时',
+    ).catch((e: unknown) => ({
+      data: null,
+      error: { message: (e as Error)?.message || '附近商品加载超时' },
+    }))
+    const { data, error } = rpcRes
 
     if (error) {
       console.error('[getNearbyProducts] 查询失败:', error.message)
@@ -1224,16 +1184,6 @@ export async function getAnnouncements(): Promise<Announcement[]> {
   const { data } = await supabase.from('announcements').select('*')
     .eq('is_active', true).order('sort_order')
   return Array.isArray(data) ? data : []
-}
-
-// 首页「好物动态」：拉取全站实时下单脱敏聚合（SECURITY DEFINER RPC，绕过 orders RLS）
-export async function getOrderFeed(limit = 20): Promise<import('./types').OrderFeedItem[]> {
-  const { data, error } = await supabase.rpc('get_recent_order_feed', { p_limit: limit })
-  if (error) {
-    console.error('[getOrderFeed]', error)
-    return []
-  }
-  return (data as import('./types').OrderFeedItem[]) ?? []
 }
 
 // =====================
