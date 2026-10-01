@@ -89,14 +89,14 @@ export default function FoodMatch() {
  }, {})
 
  if (loading) {
- return <View style={pageStyle}><View style={card}><Text style={{ color: '#94a3b8' }}>加载中…</Text></View></View>
+ return <View style={pageStyle}><View style={card}><Text style={{ color: '#6F675C' }}>加载中…</Text></View></View>
  }
 
  return (
  <ScrollView style={pageStyle} scrollY>
- <View style={{ ...card, background: 'linear-gradient(135deg,#ecfdf5,#F6F2EE)' }}>
- <Text style={{ fontSize: '36rpx', fontWeight: '700', color: '#0f172a' }}> 个性化食疗推荐专区</Text>
- <Text style={{ fontSize: '26rpx', color: '#475569', marginTop: 4, lineHeight: '20px' }}>
+ <View style={{ ...card, background: 'linear-gradient(135deg,#F0F7EC,#F6F2EE)' }}>
+ <Text style={{ fontSize: '36rpx', fontWeight: '700', color: '#2A2A2A' }}> 个性化食疗推荐专区</Text>
+ <Text style={{ fontSize: '26rpx', color: '#4A443D', marginTop: 4, lineHeight: '20px' }}>
  勾选您的状态标签，系统基于私有配料安全库 + 人群匹配算法，自动计算每款零食的适配分（0–100）并排序推荐。仅作饮食选购参考，不含诊断。
  </Text>
  </View>
@@ -106,16 +106,16 @@ export default function FoodMatch() {
  <SectionTitle title="① 选择您的状态标签（可多选）" />
  {Object.entries(groups).map(([g, list]) => (
  <View key={g} style={{ marginTop: 10 }}>
- <Text style={{ fontSize: '24rpx', color: '#94a3b8', fontWeight: '600' }}>{g}</Text>
+ <Text style={{ fontSize: '24rpx', color: '#6F675C', fontWeight: '600' }}>{g}</Text>
  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
  {list.map((r) => {
  const on = selected.includes(r.tag_key)
  return (
  <View key={r.tag_key} onClick={() => toggle(r.tag_key)} style={{
  borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, marginRight: 8, marginBottom: 8,
- background: on ? 'hsl(var(--primary))' : '#f1f5f9', borderWidth: 1, borderColor: on ? 'hsl(var(--primary))' : 'rgba(0,0,0,0.06)',
+ background: on ? 'hsl(var(--primary))' : '#F4EFE8', borderWidth: 1, borderColor: on ? 'hsl(var(--primary))' : 'rgba(0,0,0,0.06)',
  }}>
- <Text style={{ fontSize: '26rpx', fontWeight: on ? '700' : '500', color: on ? '#fff' : '#334155' }}>{r.label}</Text>
+ <Text style={{ fontSize: '26rpx', fontWeight: on ? '700' : '500', color: on ? '#fff' : '#3F3A34' }}>{r.label}</Text>
  </View>
  )
  })}
@@ -146,17 +146,17 @@ export default function FoodMatch() {
  <Image src={p.image_url || p.main_image} style={{ width: 64, height: 64, borderRadius: 10, flexShrink: 0 }} mode="aspectFill" />
  ) : null}
  <View style={{ flex: 1, marginLeft: 12 }}>
- <Text style={{ fontSize: '28rpx', fontWeight: '600', color: '#1e293b', lineHeight: '20px' }} numberOfLines={2}>
+ <Text style={{ fontSize: '28rpx', fontWeight: '600', color: '#2A2A2A', lineHeight: '20px' }} numberOfLines={2}>
  {i + 1}. {p?.name || '商品'}
  </Text>
  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
  <View style={{ background: m.bg, borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8, marginRight: 8 }}>
  <Text style={{ fontSize: '24rpx', fontWeight: '700', color: m.fg }}>{m.label} {it.score}分</Text>
  </View>
- {it.safe_level ? <Text style={{ fontSize: '22rpx', color: '#64748b' }}>{it.safe_level}</Text> : null}
+ {it.safe_level ? <Text style={{ fontSize: '22rpx', color: '#6F675C' }}>{it.safe_level}</Text> : null}
  </View>
  {it.reasons?.slice(0, 2).map((rs, k) => (
- <Text key={k} style={{ fontSize: '22rpx', color: '#64748b', marginTop: 3 }}>· {rs}</Text>
+ <Text key={k} style={{ fontSize: '22rpx', color: '#6F675C', marginTop: 3 }}>· {rs}</Text>
  ))}
  </View>
  </View>
@@ -172,7 +172,7 @@ export default function FoodMatch() {
  )}
 
  <View style={{ height: 24 }} />
- <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#94a3b8', paddingBottom: 20 }}>
+ <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#6F675C', paddingBottom: 20 }}>
  以上内容基于食品国标配料信息整理，仅作饮食选购参考，不构成医疗诊断或专业建议
  </Text>
  </ScrollView>

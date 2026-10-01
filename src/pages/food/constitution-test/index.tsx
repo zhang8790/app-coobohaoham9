@@ -170,8 +170,8 @@ export default function ConstitutionTestPage() {
  <View className="min-h-screen bg-[#F7F3E9] px-4 pt-5 pb-16">
  {/* ===== 顶部标题 ===== */}
  <View className="mb-4">
- <Text className="text-2xl font-bold text-[#1A1A1A]"> 食养偏好设置</Text>
- <Text className="text-xs text-[#6B7280] mt-1 block">
+ <Text className="text-2xl font-bold text-[#2A2A2A]"> 食养偏好设置</Text>
+ <Text className="text-xs text-[#6F675C] mt-1 block">
  几步选择，了解你的口味与食性偏好，挑好物更对味
  </Text>
  </View>
@@ -180,8 +180,8 @@ export default function ConstitutionTestPage() {
  {step === 'intro' && (
  <View>
  <View className="rounded-2xl bg-white p-5 shadow-sm">
- <Text className="text-base font-bold text-[#1A1A1A]">这是什么</Text>
- <Text className="text-sm text-[#374151] mt-2 block" style={{ lineHeight: 1.8 }}>
+ <Text className="text-base font-bold text-[#2A2A2A]">这是什么</Text>
+ <Text className="text-sm text-[#3F3A34] mt-2 block" style={{ lineHeight: 1.8 }}>
  根据你近期的身体感受，用几步简单选择，给出你的「食养偏好倾向」——
  偏温还是偏凉、适合哪些性味的好物。结果仅作食养参考，帮你更快挑到合适的吃食。
  </Text>
@@ -194,7 +194,7 @@ export default function ConstitutionTestPage() {
  </View>
  </View>
 
- <View className="mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#EAEAEA' }}>
+ <View className="mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
  <Text className="text-[11px] text-muted-foreground leading-relaxed block">
  {FOOD_THERAPY_DISCLAIMER}
  </Text>
@@ -219,15 +219,15 @@ export default function ConstitutionTestPage() {
  <View
  key={i}
  className="h-1.5 flex-1 rounded-full"
- style={{ background: i <= currentQ ? 'hsl(var(--primary))' : '#EAEAEA' }}
+ style={{ background: i <= currentQ ? 'hsl(var(--primary))' : '#ECE6DD' }}
  />
  ))}
  </View>
  <Text className="text-xs text-muted-foreground">
  第 {currentQ + 1} / {total} 步
  </Text>
- <Text className="text-lg font-bold text-[#1A1A1A] mt-1 block">{q.question}</Text>
- <Text className="text-xs text-[#6B7280] mt-1 block">{q.hint}</Text>
+ <Text className="text-lg font-bold text-[#2A2A2A] mt-1 block">{q.question}</Text>
+ <Text className="text-xs text-[#6F675C] mt-1 block">{q.hint}</Text>
 
  <View className="mt-5 flex flex-col gap-3">
  {q.options.map((opt, idx) => {
@@ -243,7 +243,7 @@ export default function ConstitutionTestPage() {
  borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.35)',
  }}
  >
- <Text className="text-sm" style={{ color: active ? '#fff' : '#374151' }}>
+ <Text className="text-sm" style={{ color: active ? '#fff' : '#3F3A34' }}>
  {opt.label}
  </Text>
  </View>
@@ -252,7 +252,7 @@ export default function ConstitutionTestPage() {
  </View>
 
  {currentQ > 0 && (
- <Button onClick={goPrev} className="mt-5 rounded-full" style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#EAEAEA' }}>
+ <Button onClick={goPrev} className="mt-5 rounded-full" style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}>
  上一步
  </Button>
  )}
@@ -264,21 +264,21 @@ export default function ConstitutionTestPage() {
  <View>
  {/* —— 揭晓 —— */}
  <View className="ct-reveal rounded-3xl p-5" style={{ background: primary.colorLight }}>
- <Text className="text-xs text-[#6B7280]">你的食养偏好倾向</Text>
+ <Text className="text-xs text-[#6F675C]">你的食养偏好倾向</Text>
  <View className="mt-1 flex items-center gap-2">
  <Text className="ct-emoji-breathe text-3xl">{primary.emoji}</Text>
  <Text className="text-2xl font-bold" style={{ color: primary.color }}>
  {primary.name}
  </Text>
  </View>
- <Text className="text-sm text-[#374151] mt-2 block" style={{ lineHeight: 1.7 }}>
+ <Text className="text-sm text-[#3F3A34] mt-2 block" style={{ lineHeight: 1.7 }}>
  {primary.description}
  </Text>
 
  <View className="mt-3 flex flex-wrap gap-2">
  {primary.characteristics.map((c) => (
  <View key={c} className="rounded-full bg-white/70 px-3 py-1">
- <Text className="text-xs text-[#4B5563]">{c}</Text>
+ <Text className="text-xs text-[#4A443D]">{c}</Text>
  </View>
  ))}
  </View>
@@ -298,8 +298,8 @@ export default function ConstitutionTestPage() {
 
  {/* —— 为什么是你 —— */}
  <View className="ct-reveal ct-stagger-1 mt-4 rounded-2xl bg-white p-4 shadow-sm">
- <Text className="text-sm font-bold text-[#1A1A1A]">为什么是你</Text>
- <Text className="text-xs text-[#6B7280] mt-1 block">
+ <Text className="text-sm font-bold text-[#2A2A2A]">为什么是你</Text>
+ <Text className="text-xs text-[#6F675C] mt-1 block">
  你的 5 个选择，是这样指向「{primary.name}」的
  </Text>
 
@@ -317,17 +317,17 @@ export default function ConstitutionTestPage() {
  <Text className="text-sm">{t.emoji}</Text>
  <Text
  className="text-xs"
- style={{ color: isPrimary ? primary.color : '#6B7280', fontWeight: isPrimary ? '700' : '400' }}
+ style={{ color: isPrimary ? primary.color : '#6F675C', fontWeight: isPrimary ? '700' : '400' }}
  >
  {t.name}
  </Text>
  </View>
  <Text className="text-xs text-muted-foreground">{score} 分</Text>
  </View>
- <View className="mt-1 h-2 w-full overflow-hidden rounded-full bg-[#F3F4F6]">
+ <View className="mt-1 h-2 w-full overflow-hidden rounded-full bg-[#F4EFE8]">
  <View
  className="ct-score-bar h-2 rounded-full"
- style={{ width: `${pct}%`, background: isPrimary ? primary.color : '#E5E7EB' }}
+ style={{ width: `${pct}%`, background: isPrimary ? primary.color : '#ECE6DD' }}
  />
  </View>
  </View>
@@ -351,10 +351,10 @@ export default function ConstitutionTestPage() {
  <View
  key={qq.id}
  className="rounded-xl px-3 py-2.5"
- style={{ background: '#FBF7EF', borderWidth: 1, borderColor: '#EAEAEA' }}
+ style={{ background: '#FBF7EF', borderWidth: 1, borderColor: '#ECE6DD' }}
  >
  <Text className="text-[11px] text-muted-foreground">第 {qi + 1} 题 · {qq.question}</Text>
- <Text className="text-sm text-[#1A1A1A] mt-1 block font-semibold">{opt?.label}</Text>
+ <Text className="text-sm text-[#2A2A2A] mt-1 block font-semibold">{opt?.label}</Text>
  {effectEntries.length > 0 ? (
  <View className="mt-1.5 flex flex-wrap gap-1.5">
  {effectEntries.map(([k, pts]) => {
@@ -379,8 +379,8 @@ export default function ConstitutionTestPage() {
 
  {/* —— 今天做 —— */}
  <View className="ct-reveal ct-stagger-2 mt-4 rounded-2xl bg-white p-4 shadow-sm">
- <Text className="text-sm font-bold text-[#1A1A1A]">今天可以做</Text>
- <Text className="text-xs text-[#6B7280] mt-1 block">顺着你的偏好，今天就这么吃</Text>
+ <Text className="text-sm font-bold text-[#2A2A2A]">今天可以做</Text>
+ <Text className="text-xs text-[#6F675C] mt-1 block">顺着你的偏好，今天就这么吃</Text>
 
  {/* 宜忌性味 */}
  <View className="mt-3 flex flex-wrap gap-2">
@@ -403,13 +403,13 @@ export default function ConstitutionTestPage() {
  <View
  key={s.key}
  className="rounded-xl px-3 py-2"
- style={{ background: s.severity === 'low' ? '#F0FDF4' : '#FBF7EF', borderWidth: 1, borderColor: '#EAEAEA' }}
+ style={{ background: s.severity === 'low' ? '#F0FDF4' : '#FBF7EF', borderWidth: 1, borderColor: '#ECE6DD' }}
  >
  <View className="flex items-center gap-1.5">
  <Text className="text-base">{s.emoji}</Text>
- <Text className="text-sm font-semibold text-[#1A1A1A]">{s.label}</Text>
+ <Text className="text-sm font-semibold text-[#2A2A2A]">{s.label}</Text>
  </View>
- <Text className="text-xs text-[#6B7280] mt-1 block" style={{ lineHeight: 1.6 }}>{s.desc}</Text>
+ <Text className="text-xs text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>{s.desc}</Text>
  </View>
  ))}
  </View>
@@ -418,7 +418,7 @@ export default function ConstitutionTestPage() {
 
  {/* 推荐商品 */}
  <View className="ct-reveal ct-stagger-3 mt-5">
- <Text className="text-base font-bold text-[#1A1A1A]">为你挑的 · 适配好物</Text>
+ <Text className="text-base font-bold text-[#2A2A2A]">为你挑的 · 适配好物</Text>
  {loadingRecs ? (
  <Text className="text-sm text-muted-foreground mt-3 block">匹配中…</Text>
  ) : good.length === 0 ? (
@@ -435,9 +435,9 @@ export default function ConstitutionTestPage() {
  {p.image_url ? (
  <Image src={p.image_url} className="h-20 w-full rounded-xl" mode="aspectFill" />
  ) : (
- <View className="h-20 w-full rounded-xl bg-[#F3F4F6]" />
+ <View className="h-20 w-full rounded-xl bg-[#F4EFE8]" />
  )}
- <Text className="text-xs text-[#1A1A1A] mt-1.5 line-clamp-1" numberOfLines={1}>
+ <Text className="text-xs text-[#2A2A2A] mt-1.5 line-clamp-1" numberOfLines={1}>
  {p.name}
  </Text>
  <View className="mt-1 flex items-center justify-between">
@@ -456,10 +456,10 @@ export default function ConstitutionTestPage() {
  {/* 按调理路径：清通调补固阶段配对（复用详情页阶段引擎，与性味适配互补） */}
  {stage && stageRecs.length > 0 && (
  <View className="ct-reveal ct-stagger-3 mt-5">
- <Text className="text-base font-bold text-[#1A1A1A]">
+ <Text className="text-base font-bold text-[#2A2A2A]">
  按食养路径 · 你的「{STAGE_META[stage].label}」好物
  </Text>
- <Text className="text-xs text-[#6B7280] mt-1 block" style={{ lineHeight: 1.6 }}>
+ <Text className="text-xs text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>
  你的食养偏好偏「{primary.name}」，适合从「{STAGE_META[stage].label}·{STAGE_META[stage].coreTag}」入手食养。以下为契合该路径的专属好物。
  </Text>
  <ScrollView scrollX className="mt-3 whitespace-nowrap">
@@ -473,9 +473,9 @@ export default function ConstitutionTestPage() {
  {p.image_url ? (
  <Image src={p.image_url} className="h-20 w-full rounded-xl" mode="aspectFill" />
  ) : (
- <View className="h-20 w-full rounded-xl bg-[#F3F4F6]" />
+ <View className="h-20 w-full rounded-xl bg-[#F4EFE8]" />
  )}
- <Text className="text-xs text-[#1A1A1A] mt-1.5 line-clamp-1" numberOfLines={1}>
+ <Text className="text-xs text-[#2A2A2A] mt-1.5 line-clamp-1" numberOfLines={1}>
  {p.name}
  </Text>
  <View className="mt-1 flex items-center justify-between">
@@ -517,16 +517,16 @@ export default function ConstitutionTestPage() {
  <Text className="text-5xl">{primary.emoji}</Text>
  <View>
  <Text className="text-2xl font-bold" style={{ color: primary.color }}>{primary.name}</Text>
- <Text className="text-xs text-[#6B7280] mt-0.5 block">{primary.recommendNature.join(' / ')} 性味更合适</Text>
+ <Text className="text-xs text-[#6F675C] mt-0.5 block">{primary.recommendNature.join(' / ')} 性味更合适</Text>
  </View>
  </View>
- <Text className="text-sm text-[#374151] mt-3 block" style={{ lineHeight: 1.7 }}>
+ <Text className="text-sm text-[#3F3A34] mt-3 block" style={{ lineHeight: 1.7 }}>
  {POSTER_INSIGHT[primary.key] ?? primary.description}
  </Text>
  <View className="mt-3 flex flex-wrap gap-1.5">
  {primary.characteristics.slice(0, 3).map((c) => (
  <View key={c} className="rounded-full bg-white/70 px-2.5 py-0.5">
- <Text className="text-[11px] text-[#4B5563]">{c}</Text>
+ <Text className="text-[11px] text-[#4A443D]">{c}</Text>
  </View>
  ))}
  </View>
@@ -538,7 +538,7 @@ export default function ConstitutionTestPage() {
  </View>
 
  {/* 免责 */}
- <View className="ct-reveal ct-stagger-5 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#EAEAEA' }}>
+ <View className="ct-reveal ct-stagger-5 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
  <Text className="text-[11px] text-muted-foreground leading-relaxed block">
  {FOOD_THERAPY_DISCLAIMER}
  </Text>
@@ -557,7 +557,7 @@ export default function ConstitutionTestPage() {
  <Button
  onClick={restart}
  className="rounded-full"
- style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#EAEAEA' }}
+ style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
  >
  重新设置
  </Button>

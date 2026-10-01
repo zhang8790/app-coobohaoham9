@@ -28,7 +28,7 @@ const LEVEL_META: Record<string, { score: number; label: string; bg: string; fg:
 }
 
 // 无评级数据时的中性兜底：避免空 safe_level_code 被 || 误判成绿色「优选」
-const NEUTRAL_META = { score: 0, label: '待评估', bg: 'rgba(100,116,139,0.08)', fg: '#64748b', border: 'rgba(100,116,139,0.30)', ring: '#cbd5e1' }
+const NEUTRAL_META = { score: 0, label: '待评估', bg: 'rgba(111,103,92,0.08)', fg: '#6F675C', border: 'rgba(111,103,92,0.30)', ring: '#D8D0C4' }
 
 const ADDITIVE_LEVEL: Record<string, { label: string; color: string; bg: string }> = {
  safe: { label: '安全', color: '#15803D', bg: 'rgba(34,197,94,0.08)' },
@@ -172,7 +172,7 @@ export default function AnalysisResult() {
  if (loading) {
  return (
  <View style={pageStyle}>
- <View style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
+ <View style={{ padding: 40, textAlign: 'center', color: '#6F675C' }}>
  <Text>报告生成中…</Text>
  </View>
  </View>
@@ -183,8 +183,8 @@ export default function AnalysisResult() {
  return (
  <View style={pageStyle}>
  <View style={cardStyle}>
- <Text style={{ fontSize: '30rpx', color: '#64748b', lineHeight: '24px' }}>未找到对应安全分析报告。</Text>
- <Text style={{ fontSize: '26rpx', color: '#94a3b8', marginTop: 6, lineHeight: '22px', display: 'block' }}>可前往「配料识别」手动录入或拍照识别配料，即时生成评估报告。</Text>
+ <Text style={{ fontSize: '30rpx', color: '#6F675C', lineHeight: '24px' }}>未找到对应安全分析报告。</Text>
+ <Text style={{ fontSize: '26rpx', color: '#6F675C', marginTop: 6, lineHeight: '22px', display: 'block' }}>可前往「配料识别」手动录入或拍照识别配料，即时生成评估报告。</Text>
  <View style={{
  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 14,
  paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#15803D', borderStyle: 'dashed',
@@ -213,13 +213,13 @@ export default function AnalysisResult() {
     <Text style={{ fontSize: '96rpx', fontWeight: '700', color: meta.fg, lineHeight: '56px', marginTop: 4 }}>
     {meta.score > 0 ? meta.score : '—'}
     </Text>
-    <Text style={{ fontSize: '24rpx', color: '#64748b', marginTop: 2 }}>{meta.score > 0 ? '满分 100' : '暂无评级数据'}</Text>
+    <Text style={{ fontSize: '24rpx', color: '#6F675C', marginTop: 2 }}>{meta.score > 0 ? '满分 100' : '暂无评级数据'}</Text>
  </View>
  {/* 安全色环 */}
  <View style={{ width: 76, height: 76, position: 'relative' }}>
  <View style={{
  width: 76, height: 76, borderRadius: 38,
- background: `conic-gradient(from 180deg, ${meta.ring} 0deg, ${meta.ring} ${180 - deg}deg, #e5e7eb ${180 - deg}deg, #e5e7eb 180deg)`,
+ background: `conic-gradient(from 180deg, ${meta.ring} 0deg, ${meta.ring} ${180 - deg}deg, #ECE6DD ${180 - deg}deg, #ECE6DD 180deg)`,
  }} />
  <View style={{
  position: 'absolute', top: 12, left: 12, right: 12, bottom: 12,
@@ -231,16 +231,16 @@ export default function AnalysisResult() {
  </View>
  </View>
  <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
- <Text style={{ fontSize: '28rpx', color: '#334155', lineHeight: '22px' }}>
+ <Text style={{ fontSize: '28rpx', color: '#3F3A34', lineHeight: '22px' }}>
  {safeText(report.main_conclusion?.general)}
  </Text>
  </View>
  </View>
 
  {/* ──── 评估说明（数据源 + 算法局限，信任透明） ──── */}
- <View style={{ ...cardStyle, background: 'rgba(99,102,241,0.06)', borderColor: 'rgba(99,102,241,0.25)' }}>
+ <View style={{ ...cardStyle, background: 'rgba(94,122,79,0.08)', borderColor: 'rgba(94,122,79,0.22)' }}>
  <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '600' }}>评估说明</Text>
- <Text style={{ fontSize: '24rpx', color: '#475569', marginTop: 4, lineHeight: '20px', display: 'block' }}>{FOOD_SCAN_DISCLAIMER}</Text>
+ <Text style={{ fontSize: '24rpx', color: '#4A443D', marginTop: 4, lineHeight: '20px', display: 'block' }}>{FOOD_SCAN_DISCLAIMER}</Text>
  </View>
 
  {/* ──── 人群适配强提醒（婴幼儿/孕产妇/病人，severity 分级，信任度核心） ──── */}
@@ -263,7 +263,7 @@ export default function AnalysisResult() {
  }}>{sm.tag}</Text>
  <Text style={{ fontSize: '28rpx', fontWeight: '700', color: sm.fg }}>{adv.label}</Text>
  </View>
- <Text style={{ fontSize: '26rpx', color: '#334155', lineHeight: '20px' }}>{safeText(adv.text)}</Text>
+ <Text style={{ fontSize: '26rpx', color: '#3F3A34', lineHeight: '20px' }}>{safeText(adv.text)}</Text>
  </View>
  </View>
  )
@@ -283,9 +283,9 @@ export default function AnalysisResult() {
 
  {/* ──── 食养关注提示 ──── */}
  {report.health_shortboard_tip && (
- <View style={{ ...cardStyle, background: 'rgba(99,102,241,0.06)', borderColor: 'rgba(99,102,241,0.25)' }}>
+ <View style={{ ...cardStyle, background: 'rgba(94,122,79,0.08)', borderColor: 'rgba(94,122,79,0.22)' }}>
  <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '600' }}> 食养关注提示</Text>
- <Text style={{ fontSize: '28rpx', color: '#334155', marginTop: 4, lineHeight: '22px' }}>
+ <Text style={{ fontSize: '28rpx', color: '#3F3A34', marginTop: 4, lineHeight: '22px' }}>
  {safeText(report.health_shortboard_tip)}
  </Text>
  </View>
@@ -307,12 +307,12 @@ export default function AnalysisResult() {
  }}>
  <Text style={{
  fontSize: '24rpx', fontWeight: item.active ? '700' : '400',
- color: item.active ? '#9A7B2E' : '#94a3b8',
+ color: item.active ? '#9A7B2E' : '#6F675C',
  }}>{item.label}</Text>
  </View>
  ))}
  </View>
- <Text style={{ fontSize: '22rpx', color: '#94a3b8', marginTop: 6, display: 'block' }}>
+ <Text style={{ fontSize: '22rpx', color: '#6F675C', marginTop: 6, display: 'block' }}>
  扫描配料时重点关注已选的成分类型
  </Text>
  <View style={{
@@ -341,8 +341,8 @@ export default function AnalysisResult() {
  <Text style={{ fontSize: '32rpx' }}>{a.level === 'safe' ? '' : a.level === 'limit' ? '' : ''}</Text>
  </View>
  <View style={{ flex: 1 }}>
- <Text style={{ fontSize: '30rpx', fontWeight: '700', color: '#1e293b' }}>{a.name}</Text>
- <Text style={{ fontSize: '24rpx', color: '#64748b', marginTop: 1 }}>{a.type}</Text>
+ <Text style={{ fontSize: '30rpx', fontWeight: '700', color: '#2A2A2A' }}>{a.name}</Text>
+ <Text style={{ fontSize: '24rpx', color: '#6F675C', marginTop: 1 }}>{a.type}</Text>
  </View>
  </View>
  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -363,7 +363,7 @@ export default function AnalysisResult() {
  </View>
  </View>
  {a.desc ? (
- <Text style={{ fontSize: '26rpx', color: '#475569', marginTop: 8, lineHeight: '20px', paddingLeft: 48 }}>
+ <Text style={{ fontSize: '26rpx', color: '#4A443D', marginTop: 8, lineHeight: '20px', paddingLeft: 48 }}>
  {safeText(a.desc)}
  </Text>
  ) : null}
@@ -411,12 +411,12 @@ export default function AnalysisResult() {
  mode="aspectFill"
  />
  <View style={{ flex: 1, marginLeft: 12 }}>
- <Text style={{ fontSize: '28rpx', fontWeight: '600', color: '#1e293b', lineHeight: '20px' }}
+ <Text style={{ fontSize: '28rpx', fontWeight: '600', color: '#2A2A2A', lineHeight: '20px' }}
  numberOfLines={2}>{p.name}</Text>
  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
  <Text style={{ fontSize: '32rpx', fontWeight: '700', color: '#dc2626' }}>¥{p.price || '—'}</Text>
  {p.original_price && p.original_price > (p.price || 0) && (
- <Text style={{ fontSize: '24rpx', color: '#94a3b8', textDecoration: 'line-through', marginLeft: 6 }}>
+ <Text style={{ fontSize: '24rpx', color: '#6F675C', textDecoration: 'line-through', marginLeft: 6 }}>
  ¥{p.original_price}
  </Text>
  )}
@@ -450,13 +450,13 @@ export default function AnalysisResult() {
 
  <View style={{ height: 24 }} />
  <View style={{ paddingHorizontal: 24, paddingBottom: 20 }}>
- <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#94a3b8', lineHeight: '18px' }}>
+ <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#6F675C', lineHeight: '18px' }}>
  数据来源：食品配料安全库（基于 GB 2760 等国家标准的添加剂安全评级）与食养资料库
  </Text>
- <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#94a3b8', lineHeight: '18px', marginTop: 4 }}>
+ <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#6F675C', lineHeight: '18px', marginTop: 4 }}>
  局限性：安全库未覆盖全部物质，匹配存在近似误差，不构成医学诊断
  </Text>
- <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#94a3b8', lineHeight: '18px', marginTop: 4 }}>
+ <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#6F675C', lineHeight: '18px', marginTop: 4 }}>
  以上内容不替代医师、营养师等专业建议，特殊人群请遵医嘱
  </Text>
  </View>
@@ -467,8 +467,8 @@ export default function AnalysisResult() {
 function Row({ label, value }: { label: string; value?: string }) {
  return (
  <View style={{ flexDirection: 'row', marginTop: 8 }}>
- <Text style={{ fontSize: '26rpx', color: '#94a3b8', width: 84 }}>{label}</Text>
- <Text style={{ fontSize: '26rpx', color: '#334155', flex: 1, lineHeight: '20px' }}>{value || '—'}</Text>
+ <Text style={{ fontSize: '26rpx', color: '#6F675C', width: 84 }}>{label}</Text>
+ <Text style={{ fontSize: '26rpx', color: '#3F3A34', flex: 1, lineHeight: '20px' }}>{value || '—'}</Text>
  </View>
  )
 }
@@ -515,7 +515,7 @@ const additiveCardStyle = (bg: string): React.CSSProperties => ({
 const tagStyle: React.CSSProperties = {
  fontSize: '24rpx',
  color: 'hsl(var(--primary-strong))',
- background: 'rgba(3,105,161,0.08)',
+ background: 'rgba(94,122,79,0.08)',
  borderRadius: 8,
  paddingVertical: 4,
  paddingHorizontal: 10,
@@ -525,8 +525,8 @@ const tagStyle: React.CSSProperties = {
 
 const chipStyle: React.CSSProperties = {
   fontSize: '24rpx',
-  color: '#475569',
-  background: '#f1f5f9',
+  color: '#4A443D',
+  background: '#F4EFE8',
   borderRadius: 8,
   paddingVertical: 4,
   paddingHorizontal: 10,

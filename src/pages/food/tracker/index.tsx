@@ -101,7 +101,7 @@ export default function FoodTracker() {
  }, [user])
 
  if (loading) {
- return <View style={page}><View style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}><Text>加载中…</Text></View></View>
+ return <View style={page}><View style={{ textAlign: 'center', padding: 40, color: '#6F675C' }}><Text>加载中…</Text></View></View>
  }
 
  const expiringCount = items.filter(i => i.status === 'expiring').length
@@ -136,7 +136,7 @@ export default function FoodTracker() {
  {items.length === 0 ? (
  <View style={emptyCard}>
  <Text style={{ fontSize: '80rpx', display: 'block', textAlign: 'center' }}></Text>
- <Text style={{ fontSize: '28rpx', color: '#94a3b8', marginTop: 8, textAlign: 'center', display: 'block' }}>
+ <Text style={{ fontSize: '28rpx', color: '#6F675C', marginTop: 8, textAlign: 'center', display: 'block' }}>
  还没有购买商品，去逛一逛吧～
  </Text>
  </View>
@@ -151,14 +151,14 @@ export default function FoodTracker() {
  >
  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
  <View style={{
- width: 44, height: 44, borderRadius: 10, background: '#f1f5f9',
+ width: 44, height: 44, borderRadius: 10, background: '#F4EFE8',
  alignItems: 'center', justifyContent: 'center',
  }}>
  <Text style={{ fontSize: '40rpx' }}>{item.status === 'expired' ? '' : item.status === 'expiring' ? '' : ''}</Text>
  </View>
  <View style={{ flex: 1 }}>
- <Text style={{ fontSize: '28rpx', fontWeight: '600', color: '#1e293b' }} numberOfLines={1}>{item.product_name}</Text>
- <Text style={{ fontSize: '24rpx', color: STATUS_COLORS[item.status].fg || '#94a3b8', marginTop: 2 }}>
+ <Text style={{ fontSize: '28rpx', fontWeight: '600', color: '#2A2A2A' }} numberOfLines={1}>{item.product_name}</Text>
+ <Text style={{ fontSize: '24rpx', color: STATUS_COLORS[item.status].fg || '#6F675C', marginTop: 2 }}>
  {item.status === 'expired' ? `已过期 ${Math.abs(item.days_left)} 天`
  : item.status === 'expiring' ? `临期 · 剩${item.days_left}天`
  : item.expire_at ? `保质期内 · 约${Math.max(1, Math.round(item.days_left / 30))}个月`
@@ -178,7 +178,7 @@ export default function FoodTracker() {
  )}
 
  <View style={{ height: 24 }} />
- <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#94a3b8', paddingBottom: 20, display: 'block' }}>
+ <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#6F675C', paddingBottom: 20, display: 'block' }}>
  以上信息基于购买批次的保质期估算，请以实物包装为准
  </Text>
  </ScrollView>
