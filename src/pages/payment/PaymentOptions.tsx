@@ -55,7 +55,7 @@ export default function PaymentOptions(props: PaymentOptionsProps) {
  if (!selectedAddress?.lat || !selectedAddress?.lng) {
  return (
  <View className="px-4 py-2 border-t border-border flex items-center gap-2">
- <Icon name="info" size={16} className="text-amber-500" />
+ <Icon name="information-outline" size={16} className="text-amber-500" />
  <Text className="text-base text-muted-foreground">请选择带地图定位的收货地址以确认配送范围</Text>
  </View>
  )

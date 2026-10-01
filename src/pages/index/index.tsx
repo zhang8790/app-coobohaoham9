@@ -765,7 +765,7 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
  </View>
  ) : (
  <View className="flex flex-col items-center justify-center py-10 gap-3">
- <Icon name="storefront-outline" size={48} className="text-muted-foreground/40" />
+ <Icon name="shop" size={48} className="text-muted-foreground/40" />
  <Text className="text-base text-muted-foreground text-center">
  {fitOnly
  ? '暂无更贴合你的好物，取消筛选看看全部～'

@@ -17,6 +17,7 @@ import { checkIllegalWords } from '@/utils/compliance-words'
 import { calculateDistance } from '@/utils/lbs-service'
 import { toGcj02, type CoordSystem } from '@/utils/coord-convert'
 import { cacheGet, cacheSet, cacheMakeKey, clearRequestCache } from './requestCache'
+import { withTimeout } from '@/utils/withTimeout'
 
 // 食材食疗导购新列（迁移 00100）：DB 未执行时软降级剥离，保证既有上架不失败
 const NEW_PRODUCT_COLUMNS = [
@@ -640,9 +641,19 @@ export async function getProducts(opts: {
     q = q.or(`city_id.is.null,city_id.eq.${cityId}`)
   }
 
-  const { data, error } = await q
+  // 跨境链路（supabase.co）无网络内置超时：默认要等全局 30s 才 reject → 失败体验差。
+  // 这里用 withTimeout 把核心查询收敛到 10s 失败快返；超时按「查询失败」处理（return []），
+  // 沿用既有契约，所有调用方均有 try/catch 或 .catch，不会引入未捕获 rejection。
+  const { data, error } = await withTimeout(
+    q as unknown as Promise<{ data: Product[] | null; error: any }>,
+    10000,
+    '商品加载超时',
+  ).catch((e: unknown) => ({
+    data: null,
+    error: { message: (e as Error)?.message || '商品加载超时', code: 'TIMEOUT' },
+  }))
   if (error) {
-    console.error('[getProducts] 查询失败:', error.message)
+    console.error('[getProducts] 查询失败:', error?.message || error)
     return []
   }
   const all: Product[] = Array.isArray(data) ? data : []

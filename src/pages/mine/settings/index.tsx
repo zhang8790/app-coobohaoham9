@@ -269,7 +269,7 @@ function SettingsPage() {
       {/* 定位授权管理（3.4.7 位置信息退出机制） */}
       <View className="mx-4 mt-4 bg-card rounded-2xl border border-border overflow-hidden">
         <View className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <Icon name="map-marker-outline" size={24} className="text-primary" />
+          <Icon name="location" size={24} className="text-primary" />
           <Text className="text-xl font-bold text-foreground">定位授权管理</Text>
         </View>
         <View className="flex items-center justify-between px-4 py-4"
