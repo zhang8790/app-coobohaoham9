@@ -1,4 +1,4 @@
-// 食疗咨询 · 桥接推荐引擎（自动推荐核心）
+// 食疗咨询 · 桥接推荐引擎（自动推荐核心 · 纯规则引擎，无 LLM/AI）
 // ------------------------------------------------------------
 // 把「用户的自由问话 + 用户画像（体质 / 已购商品的六维画像 / 消费偏好）+
 // 节气时令」融合，给候选商品池逐件打分，输出带六维明细与理由的排序推荐。
@@ -9,7 +9,7 @@
 // 每维对用户「既看重已成的偏好(连续性) 又补足空缺的维度(新颖性)」做平衡 ——
 // 这就是「自动优化」：越买越贴合口味，同时自然补齐未探索的性味/品类。
 //
-// 纯函数 + 异步 NLU（规则兜底，零外部依赖）。可解释、可审计。
+// 纯规则引擎（关键词 NLU + 六维打分），零外部依赖、零 AI 调用。可解释、可审计。
 
 import type { Product, Profile } from '@/db/types'
 import { buildRadarProfile, type RadarProfile } from './radar-profile'
@@ -17,7 +17,7 @@ import { analyzeConsumption, type ConsumptionProfile } from '../consumption-prof
 import { resolveConstitution } from '../today-food-therapy'
 import { type ConstitutionType } from '@/utils/constitution-test'
 import { getCurrentTerm, getTermNatureTags, type SeasonalTerm } from '../seasonal-box'
-import { recommendProductsLLM, resolveFoodType, type NluResult } from './llm'
+import { resolveFoodType, type NluResult } from './llm'
 
 // 商品整体性味 6 档（与 NATURE_SCALE 一致）：大寒/寒凉/平性/微温/温热/大热
 const WARM = new Set(['微温', '温热', '大热'])
@@ -76,14 +76,6 @@ function clamp01(v: number): number {
 }
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v))
-}
-
-// LLM 调用超时保护：避免弱网/网关抖动时咨询页一直转圈（最坏 8s 降级到本地规则引擎）
-function withTimeout<T>(p: Promise<T>, ms: number, tag: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(tag)), ms)
-    p.then((v) => { clearTimeout(t); resolve(v) }).catch((e) => { clearTimeout(t); reject(e) })
-  })
 }
 
 // 连续性维度：商品命中所求 → 用户越看重越高；未命中 → 用户越看重越扣分
@@ -194,10 +186,6 @@ export interface RecommendForConsultInput {
   boostTags?: string[]
   term?: SeasonalTerm | null
   limit?: number
-  /** 前一轮对话摘要（health_tags + food_type + summary），让 LLM 延续上下文 */
-  previousContext?: string
-  /** 购物车已有商品 ID 列表，让 LLM 避开重复推荐 */
-  cartIds?: string[]
   /** 显式体质类型（来自 user_health_profile.constitution_type），优先于 profile 标签 */
   constitutionType?: string | null
 }
@@ -243,9 +231,8 @@ export async function recommendForConsult(input: RecommendForConsultInput): Prom
   const constitution = resolveConstitution(input.profile ?? null, input.constitutionType ?? null)
 
   let nlu: NluResult | null = null
-  // 速度优化：LLM 推荐大脑不需要前置 NLU Edge Function 调用。
-  // 食类收窄用本地 resolveFoodType（零网络、<1ms），省掉一次 ~2s 往返。
-  // 仅保留 food_type 供候选池收窄 + summary 展示。
+  // 食类收窄用本地 resolveFoodType（零网络、<1ms），省掉一次往返；
+  // 仅保留 food_type 供候选池收窄 + summary 展示，全程无 LLM/AI 调用。
   if (input.queryText && input.queryText.trim()) {
     const ft = resolveFoodType(input.queryText)
     if (ft) nlu = { matched_rule_id: null, health_tags: [], emotion_tags: [], nature_hint: '', food_type: ft, source: 'rule' }
@@ -272,55 +259,7 @@ export async function recommendForConsult(input: RecommendForConsultInput): Prom
     if (narrowed.length > 0) candidates = narrowed
   }
 
-  // ── 优先：Qwen 推荐大脑（LLM 网关 food-therapy-ai mode=recommend）──
-  // 把收窄后的候选商品 + 用户画像 + 提问一起发给 Qwen，由它直接排序并给出人话理由。
-  // 这彻底解决了"提问只占 ≤14% 权重、按历史购买乱推"的问题——现在提问才是主导信号。
-  try {
-    const llm = await withTimeout(
-      recommendProductsLLM({
-        queryText: input.queryText || '',
-        products: candidates.slice(0, 40).map(toLlmProduct),
-        profile: buildLlmProfile(constitution, consumption, input.profile ?? null),
-        termName: term?.name,
-        isMedical: isMedicalQuery(input.queryText || ''),
-        previousContext: input.previousContext,
-        cartIds: input.cartIds,
-      }),
-      8000,
-      'llm-timeout',
-    )
-    if (llm.source === 'llm' && llm.items.length) {
-      const byId = new Map(candidates.map((p) => [p.id, p]))
-      const recs = llm.items
-        .map((it): ConsultRecommendation | null => {
-          const p = byId.get(it.product_id)
-          if (!p) return null
-          const base = buildConsultRecommendation(p, ctx) // 复用六维/性味/标签富字段
-          const score = clamp01(it.score)
-          return {
-            ...base,
-            total: clamp(Math.round(score * 100), 0, 100),
-            tier: score >= 0.72 ? 'recommend' : score >= 0.4 ? 'caution' : 'avoid',
-            reasons: it.reasons?.length ? it.reasons.slice(0, 3) : base.reasons,
-          }
-        })
-        .filter((x): x is ConsultRecommendation => x !== null)
-      if (recs.length) {
-        return {
-          recommendations: recs,
-          radar,
-          consumption,
-          constitution,
-          nlu,
-          summary: llm.summary || buildSummary(recs, ctx),
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('[recommendForConsult] LLM 大脑失败，回退规则引擎', e)
-  }
-
-  // ── 兜底：规则引擎（原逻辑，未配 LLM 或 LLM 异常时照常可用）──
+  // ── 纯规则引擎打分（无 LLM/AI）：逐件打分排序，输出 Top-N ──
   const recs = candidates
     .map((p) => buildConsultRecommendation(p, ctx))
     .sort((a, b) => b.total - a.total)
@@ -338,33 +277,7 @@ export async function recommendForConsult(input: RecommendForConsultInput): Prom
   }
 }
 
-// 候选商品 → 精简 payload（控制 token，描述截断）
-function toLlmProduct(p: Product) {
-  return {
-    id: p.id,
-    name: p.name,
-    nature: p.overall_nature || '',
-    health_tags: (p.health_tag || []).filter(Boolean),
-    food_category: ((p as any).food_category || (p as any).category || '') as string,
-    price: p.price,
-    description: (p.description || '').slice(0, 60),
-    allergens: (p.allergens || []).filter(Boolean),
-  }
-}
-
-// 用户画像 → LLM 推荐大脑所需的精简结构
-function buildLlmProfile(
-  constitution: ConstitutionType | null,
-  consumption: ConsumptionProfile,
-  profile: Profile | null,
-) {
-  return {
-    constitutionName: constitution?.name || '',
-    avoidNature: constitution?.avoidNature || [],
-    topTags: (consumption.topHealthTags || []).map((t) => t.tag),
-    allergies: ((profile?.constitution_tags as string[]) || []).filter(Boolean),
-  }
-}
+// （已移除 LLM 推荐大脑相关辅助函数，纯规则引擎打分见上）
 
 function buildSummary(recs: ConsultRecommendation[], ctx: ConsultContext): string {
   if (!recs.length) return '当前门店暂无可推荐商品，换个门店或换个诉求再试试～'

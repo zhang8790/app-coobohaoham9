@@ -37,7 +37,17 @@ const QUICK_PROMPTS = [
  '想吃点坚果补补脑',
  '换季干燥，吃什么蔬菜好',
  '脾胃弱，喝点什么粥养人',
- '想吃点粗粮主食替代米饭',
+  '想吃点粗粮主食替代米饭',
+]
+
+// 固定自助问答素材库（人工预设，无 AI）：点选常见问题直接展开标准回复
+const FIXED_QA: { q: string; a: string }[] = [
+  { q: '痰湿体质秋天怎么吃？', a: '秋季宜省辛增酸、润肺收敛。痰湿质日常少油腻甜腻，多选山药、小米、莲子、茯苓等甘平健脾食材，顺应秋燥以润代补。以上为日常膳食参考，不作诊疗。' },
+  { q: '高血压适合哪款小食？', a: '高血压人群建议避开高钠蜜饯、腌渍类零食；可选低钠、富含膳食纤维的坚果与谷物脆片，并控制每次摄入量。具体请遵医嘱。' },
+  { q: '体寒怕冷适合吃什么？', a: '偏寒体质宜温性食材，如红枣、桂圆、姜类、羊肉羹等甘温之物，秋冬更宜；少碰生冷瓜果。日常食养参考，不替代医嘱。' },
+  { q: '容易上火怎么清火？', a: '易上火者宜凉润，如银耳、百合、梨、绿豆等甘凉食材，少辛辣油炸。持续不适应就医。' },
+  { q: '脾胃弱适合吃什么？', a: '脾胃虚弱宜少食多餐、软烂易消化，小米粥、山药、南瓜、茯苓糕等甘平入脾胃，忌生冷坚硬。' },
+  { q: '孕期/哺乳期能吃什么零食？', a: '孕哺期对食安更敏感，建议避开含酒精、高汞、不明添加剂的零食；优先原味坚果、无添加果干。具体营养方案请咨询医生/营养师。' },
 ]
 
 interface Turn {
@@ -93,8 +103,9 @@ export default function ConsultPage() {
  const [checkoutConflict, setCheckoutConflict] = useState<CartConflict[] | null>(null)
  // 健康档案（学习闭环）：进页自动带入，咨询后沉淀回去
  const [hp, setHp] = useState<UserHealthProfile | null>(null)
- const [hpReady, setHpReady] = useState(false)
- const scrollRef = useRef<any>(null)
+  const [hpReady, setHpReady] = useState(false)
+  const [openQa, setOpenQa] = useState<number | null>(null)
+  const scrollRef = useRef<any>(null)
 
  // 读取本地查询历史（自适应加权，自动优化）
  const readHistory = (): string[] => {
@@ -240,21 +251,14 @@ export default function ConsultPage() {
  if (!text || loading) return
  setQuery('')
  setLoading(true)
- try {
- // 构建上一轮上下文摘要：让 Qwen 知道"刚才在聊什么"，延续对话语境
- const last = turns[turns.length - 1]
- const prevCtx = last
- ? `上一轮：用户问「${last.q}」→ 推荐方向：${last.result.recommendations.slice(0, 3).map((r) => r.healthTags?.join('/') || r.nature).filter(Boolean).join('、') || '无'}`
- : ''
- const res = await recommendForConsult({
+    try {
+      const res = await recommendForConsult({
  products: pool,
  boughtProducts: bought,
  profile,
- queryText: text,
- boostTags,
- previousContext: prevCtx || undefined,
- cartIds: [...cartIds],
- constitutionType: hp?.constitution_type ?? null,
+        queryText: text,
+        boostTags,
+        constitutionType: hp?.constitution_type ?? null,
  })
  if (res.nlu?.health_tags?.length) pushHistory(res.nlu.health_tags)
  const next = [...turns, { q: text, result: res }]
@@ -340,10 +344,21 @@ const handleBuyNow = (p: Product) => {
  已根据你健康档案准备{hp.constitution_type ? ` · 体质 ${hp.constitution_type}` : ''}{(hp.health_goals || []).length ? ` · 关注 ${(hp.health_goals || []).slice(0, 3).join('/')}` : ''}
  </Text>
  </View>
- )}
+    )}
 
- <ScrollView
- scrollY
+      {/* 固定自助问答素材库（人工预设，无 AI）：点选常见问题直接展开标准回复 */}
+      <View style={{ background: '#FFF', borderRadius: 16, padding: '14rpx 16rpx', margin: '10rpx 14rpx' }}>
+        <Text style={{ fontSize: '15px', fontWeight: 700, color: '#15803D', display: 'block', marginBottom: 6 }}>常见食养问答 · 点开看</Text>
+        {FIXED_QA.map((item, i) => (
+          <View key={i} hoverClass="none" onClick={() => setOpenQa(openQa === i ? null : i)} style={{ padding: '10rpx 0', borderTop: i === 0 ? 'none' : '1rpx solid #ECE6DD' }}>
+            <Text style={{ fontSize: '14px', color: '#2A2A2A' }}>{openQa === i ? '▾ ' : '▸ '}{item.q}</Text>
+            {openQa === i && <Text style={{ fontSize: '12px', color: '#4A443D', lineHeight: 1.7, display: 'block', marginTop: 6 }}>{item.a}</Text>}
+          </View>
+        ))}
+      </View>
+
+    <ScrollView
+      scrollY
  className="consult-scroll"
  ref={scrollRef}
  scrollWithAnimation>
@@ -364,7 +379,7 @@ const handleBuyNow = (p: Product) => {
  </View>
  )}
 
- {/* 空态：基于体质给出开机推荐（本地打分，不调 Qwen，毫秒出） */}
+ {/* 空态：基于体质给出开机推荐（本地规则打分，毫秒出） */}
  {turns.length === 0 && (
  <View className="consult-empty">
  {profile?.constitution_tags?.length ? (
