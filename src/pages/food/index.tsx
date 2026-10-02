@@ -114,6 +114,25 @@ const SCENE_BY_CROWD: Array<{ kw: string[]; scene: string; label: string }> = [
  <Text className="text-xs text-primary font-bold flex-shrink-0 ml-2">前往 ›</Text>
  </View>
 
+ {/* 舌象自检：非 AI 望舌引导，给食养倾向参考（与偏好设置互补，纯本地规则） */}
+ <View
+ className="mx-4 mt-3 rounded-2xl p-4 bg-card border border-border flex items-center justify-between active:scale-[0.99] transition-transform"
+ aria-role="button" aria-label="舌象自检"
+ hoverClass="none"
+ onClick={() => go('/pages/food/tongue/index')}
+ >
+ <View className="flex items-center gap-3 min-w-0">
+ <View className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'hsl(var(--primary) / 0.1)' }}>
+ <Icon name="eye" size={20} className="text-primary" />
+ </View>
+ <View className="min-w-0">
+ <Text className="text-base font-bold text-foreground">舌象自检</Text>
+ <Text className="text-xs text-muted-foreground">照着引导看舌象 · 知倾向挑好物</Text>
+ </View>
+ </View>
+ <Text className="text-xs text-primary font-bold flex-shrink-0 ml-2">前往 ›</Text>
+ </View>
+
  <Text className="text-[10px] text-muted-foreground text-center block mt-6 px-6 leading-relaxed">
  {FOOD_THERAPY_DISCLAIMER}
  </Text>
