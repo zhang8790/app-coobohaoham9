@@ -280,35 +280,47 @@ export default function TongueCameraPage() {
                   position: 'absolute',
                   left: '60rpx',
                   right: '60rpx',
-                  top: '30%',
+                  top: '24%',
                   background: '#FFFFFF',
                   borderRadius: '24rpx',
-                  padding: '40rpx 36rpx',
+                  padding: '40rpx 36rpx 32rpx',
                 }}
                 onClick={() => setSampleOpen(false)}
               >
-                <CoverView style={{ fontSize: '32rpx', color: '#2A2A2A', lineHeight: '44rpx' }}>
-                  拍摄示例要点
+                <CoverView style={{ fontSize: '32rpx', color: '#2A2A2A', lineHeight: '44rpx', textAlign: 'center' }}>
+                  拍摄示例
                 </CoverView>
-                <CoverView
-                  style={{
-                    fontSize: '26rpx',
-                    color: '#6F675C',
-                    lineHeight: '42rpx',
-                    marginTop: '18rpx',
-                  }}
-                >
-                  1. 光线充足、不逆光；2. 舌头自然伸出，舌尖朝上，舌面完整；3. 建议后置相机由他人拍摄；4. 请关闭美颜与滤镜，避免色差。
+
+                {/* 示意对齐框：与实时取景同款虚线框，提示舌头如何摆放 */}
+                <CoverView style={{ marginTop: '24rpx', display: 'flex', justifyContent: 'center' }}>
+                  <CoverView
+                    style={{
+                      width: '160rpx',
+                      height: '200rpx',
+                      border: '4rpx dashed #D9A978',
+                      borderRadius: '90rpx',
+                    }}
+                  />
                 </CoverView>
-                <CoverView
-                  style={{
-                    fontSize: '26rpx',
-                    color: '#6F9E6F',
-                    lineHeight: '42rpx',
-                    marginTop: '24rpx',
-                    textAlign: 'center',
-                  }}
-                >
+                <CoverView style={{ fontSize: '22rpx', color: '#9A9388', lineHeight: '32rpx', marginTop: '12rpx', textAlign: 'center' }}>
+                  示意 · 舌尖朝上，舌面伸入框内
+                </CoverView>
+
+                {/* 分条要点 */}
+                <CoverView style={{ fontSize: '25rpx', color: '#6F675C', lineHeight: '40rpx', marginTop: '22rpx' }}>
+                  · 光线充足、尽量不逆光
+                </CoverView>
+                <CoverView style={{ fontSize: '25rpx', color: '#6F675C', lineHeight: '40rpx', marginTop: '6rpx' }}>
+                  · 舌头自然伸出，舌尖朝上、舌面完整
+                </CoverView>
+                <CoverView style={{ fontSize: '25rpx', color: '#6F675C', lineHeight: '40rpx', marginTop: '6rpx' }}>
+                  · 后置相机由他人拍摄效果更佳
+                </CoverView>
+                <CoverView style={{ fontSize: '25rpx', color: '#6F675C', lineHeight: '40rpx', marginTop: '6rpx' }}>
+                  · 关闭美颜与滤镜，避免色差
+                </CoverView>
+
+                <CoverView style={{ fontSize: '28rpx', color: '#6F9E6F', lineHeight: '44rpx', marginTop: '26rpx', textAlign: 'center' }}>
                   知道了，去拍摄
                 </CoverView>
               </CoverView>
