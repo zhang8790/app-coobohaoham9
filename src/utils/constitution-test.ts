@@ -269,7 +269,7 @@ export function calculateResult(answers: number[]): TestResult {
   const sorted = biased.sort((a, b) => b[1] - a[1])
 
   let primaryKey: string
-  if (sorted.length === 0 || sorted[0][1] <= PINGHE_THRESHOLD) {
+  if (sorted.length === 0 || sorted[0][1] < PINGHE_THRESHOLD) {
     primaryKey = 'pinghe'
   } else {
     primaryKey = sorted[0][0]
