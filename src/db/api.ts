@@ -952,28 +952,15 @@ function localUnderstand(text: string): string | null {
   return null
 }
 
-/** 调 emotion-compile 编译商品情绪叙事，结果写 product_emotion 缓存（云端未部署时回退本地规则） */
+/** 编译商品情绪叙事（纯本地规则引擎，零 LLM 依赖；云端 emotion-compile 已不再调用） */
 export async function compileProductEmotion(payload: CompilePayload): Promise<any> {
-  const { data, error } = await supabase.functions.invoke('emotion-compile', {
-    body: { mode: 'compile', ...payload }})
-  if (error || !data) {
-    console.warn('[compileProductEmotion] 云端函数未部署，使用本地规则兜底', error?.message)
-    return localCompile(payload)
-  }
-  return data
+  return localCompile(payload)
 }
 
-/** 调 emotion-compile 把用户自由文本分类为 6 情绪态之一（云端未部署时回退本地关键词） */
+/** 把用户自由文本分类为 6 情绪态之一（纯本地关键词规则，零 LLM 依赖） */
 export async function understandEmotion(text: string): Promise<string | null> {
   if (!text || !text.trim()) return null
-  const { data, error } = await supabase.functions.invoke('emotion-compile', {
-    body: { mode: 'understand', text }})
-  if (error || !data) {
-    console.warn('[understandEmotion] 云端函数未部署，使用本地关键词兜底', error?.message)
-    return localUnderstand(text)
-  }
-  // 优先中文 canonical_tag（与前端 EMOTION_KEYWORD_MAP 标签体系统一）；兼容旧 inner_label
-  return data?.canonical_tag ?? data?.inner_label ?? null
+  return localUnderstand(text)
 }
 
 // =====================

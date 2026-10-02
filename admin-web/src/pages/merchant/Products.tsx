@@ -696,45 +696,15 @@ export default function MerchantProducts() {
     setForm(f => ({ ...f, detail_images: [...f.detail_images, ...urls].slice(0, 20) }))
   }
 
-  // —— 规则引擎一键生成食疗文案（复用已部署 food-therapy-ai · copy 模式，内置医疗宣称闸门）——
+  // —— 一键生成食疗文案（纯本地规则引擎，零 LLM 依赖，内置医疗宣称闸门）——
   const handleRuleGenerate = async () => {
     if (!form.name) { window.alert('请先填写商品名称'); return }
     setGenerating(true)
     const rule = buildRuleCopy(form)
-    try {
-      const { data, error } = await supabase.functions.invoke('food-therapy-ai', {
-        body: {
-          mode: 'copy',
-          name: form.name,
-          nature: form.overall_nature || '',
-          health_tags: form.health_tag,
-          emotion_tags: form.emotion_tag,
-          short_sales_word: rule.guide_sentence,
-          detail_desc: rule.emotion_copy,
-          circle_copy: rule.moments_copy,
-          risk_tip: rule.taboo_warning,
-        },
-      })
-      if (!error && data) {
-        setForm(f => ({
-          ...f,
-          guide_sentence: data.short_sales_word || f.guide_sentence,
-          moments_copy: data.circle_copy || f.moments_copy,
-          emotion_copy: data.detail_desc || f.emotion_copy,
-          taboo_warning: data.risk_tip || f.taboo_warning,
-        }))
-        setEmotionFlash(`已生成食疗文案（来源：${data.source === 'llm' ? '大模型润色' : '本地规则兜底'}）\n可在下方直接微调后再保存`)
-      } else {
-        setForm(f => ({ ...f, ...rule }))
-        setEmotionFlash('⚠️ 云端润色未响应，已用本地规则生成文案，可直接微调')
-      }
-    } catch (e: any) {
-      setForm(f => ({ ...f, ...rule }))
-      setEmotionFlash('生成异常，已用本地规则兜底：' + String(e?.message || e))
-    } finally {
-      setGenerating(false)
-      setTimeout(() => setEmotionFlash(null), 7000)
-    }
+    setForm(f => ({ ...f, ...rule }))
+    setEmotionFlash('已生成食疗文案（本地规则引擎）\n可在下方直接微调后再保存')
+    setGenerating(false)
+    setTimeout(() => setEmotionFlash(null), 7000)
   }
 
   // 一键智能填充：识别食材 → 食疗分析 → 文案生成，一条龙跑完（用最新值，避免 state 滞后）
@@ -765,42 +735,12 @@ export default function MerchantProducts() {
       forbidden_crowds: r.forbidden_crowds.length ? r.forbidden_crowds : form.forbidden_crowds,
     }
     setForm(merged)
-    // 3) 文案（本地规则 + 云端润色，用最新值）
+    // 3) 文案（纯本地规则引擎，零 LLM 依赖，用最新值）
     const rule = buildRuleCopy(merged)
-    try {
-      const { data, error } = await supabase.functions.invoke('food-therapy-ai', {
-        body: {
-          mode: 'copy',
-          name: merged.name,
-          nature: merged.overall_nature || '',
-          health_tags: merged.health_tag,
-          emotion_tags: merged.emotion_tag,
-          short_sales_word: rule.guide_sentence,
-          detail_desc: rule.emotion_copy,
-          circle_copy: rule.moments_copy,
-          risk_tip: rule.taboo_warning,
-        },
-      })
-      if (!error && data) {
-        setForm(f => ({
-          ...f,
-          guide_sentence: data.short_sales_word || f.guide_sentence,
-          moments_copy: data.circle_copy || f.moments_copy,
-          emotion_copy: data.detail_desc || f.emotion_copy,
-          taboo_warning: data.risk_tip || f.taboo_warning,
-        }))
-        setEmotionFlash(`已智能填充（分析+文案，来源：${data.source === 'llm' ? '大模型润色' : '本地规则兜底'}）\n系统已自动产出食疗字段，可展开「商品食疗系统」核对，或点「专家微调」手动修正`)
-      } else {
-        setForm(f => ({ ...f, ...rule }))
-        setEmotionFlash('⚠️ 云端润色未响应，已用本地规则生成文案，可直接微调')
-      }
-    } catch (e: any) {
-      setForm(f => ({ ...f, ...rule }))
-      setEmotionFlash('生成异常，已用本地规则兜底：' + String(e?.message || e))
-    } finally {
-      setGenerating(false)
-      setTimeout(() => setEmotionFlash(null), 7000)
-    }
+    setForm(f => ({ ...f, ...rule }))
+    setEmotionFlash('已智能填充（分析+文案，本地规则引擎）\n系统已自动产出食疗字段，可展开「商品食疗系统」核对，或点「专家微调」手动修正')
+    setGenerating(false)
+    setTimeout(() => setEmotionFlash(null), 7000)
   }
 
   const handleSubmit = async () => {
