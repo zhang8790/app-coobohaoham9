@@ -6,7 +6,7 @@
 // 合规：全程「食养参考 / 倾向」，不出现诊断/辨证/医疗词；结果页必展示 FOOD_THERAPY_DISCLAIMER。
 // 拍照：仅用于「发给食养顾问真人研判」，绝不经 AI 识图（去 AI 铁律）。
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { View, Text, Button, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/taro'
 import {
@@ -25,6 +25,10 @@ type Step = 'intro' | 'quiz' | 'result'
 
 export default function TonguePage() {
   const [step, setStep] = useState<Step>('intro')
+  const stepRef = useRef<Step>('intro')
+  useEffect(() => {
+    stepRef.current = step
+  }, [step])
   const [currentQ, setCurrentQ] = useState(0)
   const [answers, setAnswers] = useState<number[]>(() => TONGUE_QUESTIONS.map(() => -1))
   const [result, setResult] = useState<TongueResult | null>(null)
@@ -111,12 +115,25 @@ export default function TonguePage() {
   useShareTimeline(() => ({ title: '舌象自检 · 看看你的食养倾向' }))
   useDidShow(() => {
     Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
-    // 从拍摄引导页返回时回填照片（仅本地留档，不经 AI）
+    // 从拍摄引导页返回：回填照片（仅本地留档，不经 AI）；并按衔接标志顺滑接续勾选 → 自动辨证
     try {
       const p = Taro.getStorageSync('tongue:photo')
       if (p) {
         setPhotoPath(p)
         Taro.removeStorageSync('tongue:photo')
+      }
+      const after = Taro.getStorageSync('tongue:afterPhoto')
+      if (after === 'quiz') {
+        Taro.removeStorageSync('tongue:afterPhoto')
+        // 尚未完成辨证（intro）时直接进勾选，拍照后顺滑接续自动辨证；已完成（result）则仅留档照片
+        if (stepRef.current === 'intro') {
+          setAnswers(TONGUE_QUESTIONS.map(() => -1))
+          setCurrentQ(0)
+          setResult(null)
+          setGood([])
+          setCaution([])
+          setStep('quiz')
+        }
       }
     } catch (e) {
       /* ignore */

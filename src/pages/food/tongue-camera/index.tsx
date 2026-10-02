@@ -68,6 +68,8 @@ export default function TongueCameraPage() {
     if (!photo) return
     try {
       Taro.setStorageSync(PHOTO_KEY, photo)
+      // 衔接标志：返回自检页后自动接续勾选 → 规则引擎自动辨证（非 AI）
+      Taro.setStorageSync('tongue:afterPhoto', 'quiz')
     } catch (e) {
       /* ignore */
     }
