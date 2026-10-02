@@ -131,17 +131,14 @@ export function writePath() {
   sleep(1)
 }
 
-// ── LLM 路径：4 个 AI Edge Function 并发压测(验证 P2 llmGuard 限流层) ───────
+// ── LLM 路径：保留的 AI Edge Function 并发压测(验证 P2 llmGuard 限流层) ───────
 // ⚠️ 真调 LLM、按量计费。VU 峰值仅 100 且每轮 sleep 3s，纯为观察限流效果，不是盲打。
 //    端点为 verify_jwt=false 的 Edge Function，匿名(apikey 头)即可触发。
+//    注：food-therapy-ai / emotion-compile 已去 AI 下线，仅剩 product-analyze(配料分析) 与 expiry-engine。
 const EF = `${BASE}/functions/v1`
 const llmPayloads = {
   // 走完整 LLM 识别(不带 test 字段，否则只探活)
   'product-analyze': { name: '压测商品_零食', manualIngredients: ['白砂糖', '食用盐', '植物油'] },
-  // 情绪编译
-  'emotion-compile': { mode: 'compile', name: '压测商品', description: '一款儿童爱吃的健康零食', category: 'snack' },
-  // 食疗文案(直接用 body 字段拼 ctx，最稳触发 LLM，不依赖查库)
-  'food-therapy-ai': { mode: 'copy', name: '压测商品', short_sales_word: '营养好吃', nature: '平', health_tags: ['健脾'], emotion_tags: ['愉悦'] },
   // 跑全量待处理批次，逐批调 LLM；用 storeId 过滤缩小影响面
   'expiry-engine': {},
 }
