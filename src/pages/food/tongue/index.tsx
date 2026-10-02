@@ -82,16 +82,17 @@ export default function TonguePage() {
     setStep('intro')
   }
 
-  const takePhoto = () => {
-    Taro.chooseImage({
-      count: 1,
-      sizeType: ['compressed'],
-      sourceType: ['camera', 'album'],
+  // 打开拍摄引导页（虚线舌形对齐 + 前后置切换 + 拍照/相册/示例）
+  // 该页只负责「拍得更好」，照片仅本地留档，不经 AI
+  const openCameraGuide = () => {
+    Taro.navigateTo({ url: '/pages/food/tongue-camera/index' }).catch(() => {
+      // 兜底：直接调系统相机
+      Taro.chooseImage({ count: 1, sizeType: ['compressed'], sourceType: ['camera'] })
+        .then((res: any) => {
+          if (res?.tempFilePaths?.length) setPhotoPath(res.tempFilePaths[0])
+        })
+        .catch(() => {/* 用户取消，忽略 */})
     })
-      .then((res: any) => {
-        if (res?.tempFilePaths?.length) setPhotoPath(res.tempFilePaths[0])
-      })
-      .catch(() => {/* 用户取消，忽略 */})
   }
 
   const primary = result?.primary ?? null
@@ -110,6 +111,16 @@ export default function TonguePage() {
   useShareTimeline(() => ({ title: '舌象自检 · 看看你的食养倾向' }))
   useDidShow(() => {
     Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
+    // 从拍摄引导页返回时回填照片（仅本地留档，不经 AI）
+    try {
+      const p = Taro.getStorageSync('tongue:photo')
+      if (p) {
+        setPhotoPath(p)
+        Taro.removeStorageSync('tongue:photo')
+      }
+    } catch (e) {
+      /* ignore */
+    }
   })
 
   return (
@@ -324,11 +335,11 @@ export default function TonguePage() {
             ) : null}
             <View className="mt-3 flex flex-col gap-2">
               <Button
-                onClick={takePhoto}
+                onClick={openCameraGuide}
                 className="rounded-full"
                 style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
               >
-                {photoPath ? '重新拍照 / 选图' : '拍照留档'}
+                {photoPath ? '重新拍照' : '去拍照留档'}
               </Button>
               <Button openType="contact" className="rounded-full" style={{ background: 'hsl(var(--primary))', color: '#fff' }}>
                 发给食养顾问真人研判
