@@ -25,8 +25,13 @@ import {
  GENDER_OPTIONS,
 } from '@/utils/food-therapy/profile-map'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
+import { CONSTITUTION_TYPES } from '@/utils/constitution-test'
 
 const AVATAR_COLORS = ['hsl(var(--primary))', '#3B82F6', '#0369A1', '#8B5CF6', '#F59E0B', '#64748B']
+
+// 体质选项（单选，驱动「为 TA 定制」食养参考）。首项是「暂不设置」。
+const CONSTITUTION_NAMES = Object.values(CONSTITUTION_TYPES).map((c) => c.name)
+const CONSTITUTION_PICKER = ['暂不设置', ...CONSTITUTION_NAMES]
 
 interface MemberForm {
  id?: string
@@ -38,6 +43,7 @@ interface MemberForm {
  allergies: string[]
  health_goals: string[]
  notes: string
+ constitution_type: string
 }
 
 const blankForm = (): MemberForm => ({
@@ -49,6 +55,7 @@ const blankForm = (): MemberForm => ({
  allergies: [],
  health_goals: [],
  notes: '',
+ constitution_type: '',
 })
 
 export default function FamilyArchivePage() {
@@ -137,6 +144,7 @@ export default function FamilyArchivePage() {
  allergies: m.allergies ?? [],
  health_goals: m.health_goals ?? [],
  notes: m.notes ?? '',
+ constitution_type: m.constitution_type ?? '',
  })
  setFormOpen(true)
  }
@@ -163,6 +171,7 @@ export default function FamilyArchivePage() {
  allergies: form.allergies,
  health_goals: form.health_goals,
  notes: form.notes || null,
+ constitution_type: form.constitution_type || null,
  diet_cycle: null,
  avatar_color: AVATAR_COLORS[familyMembers.length % AVATAR_COLORS.length],
  })
@@ -279,6 +288,11 @@ export default function FamilyArchivePage() {
  {m.age_group ? (
  <Text className="text-[10px] text-[#8A6A4B] px-2 py-0.5 rounded-full" style={{ background: '#FBF1E8' }}>{m.age_group}</Text>
  ) : null}
+ {m.constitution_type && CONSTITUTION_TYPES[m.constitution_type] ? (
+ <Text className="text-[10px] text-[hsl(var(--primary))] px-2 py-0.5 rounded-full" style={{ background: 'hsl(var(--primary-soft))' }}>
+ {CONSTITUTION_TYPES[m.constitution_type].emoji} {CONSTITUTION_TYPES[m.constitution_type].name}
+ </Text>
+ ) : null}
  {ac > 0 ? (
  <Text className="text-[10px] text-[hsl(var(--primary))] px-2 py-0.5 rounded-full" style={{ background: 'hsl(var(--primary-soft))' }}>过敏 {ac}</Text>
  ) : null}
@@ -358,6 +372,28 @@ export default function FamilyArchivePage() {
  </View>
  </Picker>
  </View>
+ </View>
+
+ {/* 体质（单选，驱动「为 TA 定制」食养参考） */}
+ <View className="mt-3">
+ <Text className="text-xs text-[#6F675C]">体质（单选 · 食养参考）</Text>
+ <Picker
+ mode="selector"
+ range={CONSTITUTION_PICKER as unknown as string[]}
+ onChange={(e) => {
+ const idx = e.detail.value as number
+ if (idx === 0) { setForm({ ...form, constitution_type: '' }); return }
+ const name = CONSTITUTION_PICKER[idx]
+ const key = Object.keys(CONSTITUTION_TYPES).find((k) => CONSTITUTION_TYPES[k].name === name) ?? ''
+ setForm({ ...form, constitution_type: key })
+ }}
+ >
+ <View className="mt-1 rounded-xl px-3 py-2" style={{ background: '#F6F2EE' }}>
+ <Text className="text-sm" style={{ color: form.constitution_type ? '#2A2A2A' : 'var(--muted-foreground)' }}>
+ {form.constitution_type ? `${CONSTITUTION_TYPES[form.constitution_type]?.emoji ?? ''} ${CONSTITUTION_TYPES[form.constitution_type]?.name ?? ''}` : '暂不设置'}
+ </Text>
+ </View>
+ </Picker>
  </View>
 
  {/* 身体状态（多选 chip） */}
