@@ -25,6 +25,7 @@ import { getProductCareInfo } from '@/utils/product-care'
 import { getCurrentTerm } from '@/utils/seasonal-box'
 import CategoryGrid from './CategoryGrid'
 import HomeBanner from './HomeBanner'
+import AssessmentEntry from './AssessmentEntry'
 import BrandMark from '@/components/BrandMark'
 import { BRAND_LINE_ICONS } from '@/components/brandIcons'
 
@@ -650,6 +651,9 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
 {/* 轮播位 = 全站唯一广告位：总后台「首页广告位」配置驱动，热更新；
  未配置广告时回退内置品牌卡，永远不留白。 */}
 <HomeBanner />
+
+{/* 去 AI 门面：标准化体质问卷入口（3 分钟食养评估），点击进 constitution-test */}
+<AssessmentEntry retestDays={retestDays} />
 
 <CategoryGrid storeId={selectedStoreId || undefined} />
 
