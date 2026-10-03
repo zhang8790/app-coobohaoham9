@@ -275,7 +275,9 @@ ingredientDictPromise.then(setIngredientDict).catch(() => setIngredientDict([]))
  additives: foodAdditives.map((a) => ({ name: a.name, risk_level: a.risk_level })),
  allergensDeclared: product.allergens,
  nutrition: product.nutrition,
- isFullLabel: true,
+ // 商品详情页文本仅为「名称+描述」，并非完整标签：不能按完整标签口径做合规判定，
+ // 否则会把「平台标签录入完整度」误当「商品合规性」（误报 9% + 缺失 SC 许可证），并错误倒扣安全分。
+ isFullLabel: false,
  })
  }, [product, foodAdditives])
 
@@ -500,18 +502,16 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
               ...(foodBenefit?.suitableFor || []),
               ...(input.rec_crowds || []),
             ]).slice(0, 6)
+            // 无任何适用人群数据 → 整块不渲染：不再展示「标题 + 暂未提供」空壳（等于对外展示缺失）
+            if (crowdRec.length === 0) return null
             return (
               <View style={{ marginTop: 12 }}>
                 <Text className="text-base font-bold text-foreground" style={{ display: 'block' }}>适用人群</Text>
-                {crowdRec.length > 0 ? (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
-                    {crowdRec.map((c, i) => (
-                      <Text key={'cr' + i} style={{ fontSize: '24rpx', color: 'var(--color-herb-600)', background: 'var(--color-herb-200)', paddingVertical: '3px', paddingHorizontal: '8px', borderRadius: '999px', marginRight: 6, marginBottom: 6 }}>{c}</Text>
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={{ fontSize: '26rpx', color: '#9A9388', display: 'block', lineHeight: '1.6', marginTop: 6 }}>暂未提供适用人群标注</Text>
-                )}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+                  {crowdRec.map((c, i) => (
+                    <Text key={'cr' + i} style={{ fontSize: '24rpx', color: 'var(--color-herb-600)', background: 'var(--color-herb-200)', paddingVertical: '3px', paddingHorizontal: '8px', borderRadius: '999px', marginRight: 6, marginBottom: 6 }}>{c}</Text>
+                  ))}
+                </View>
               </View>
             )
           })()}
@@ -682,7 +682,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
           {/* —— 配方安全（原② 配料表，置于食养之后） —— */}
           <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#ECE6DD' }}>
           <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} showShiyang={false} />
-          {safetyReport && <ComprehensiveSafetyReport report={safetyReport} fullLabel showDisclaimer={false} />}
+          {safetyReport && <ComprehensiveSafetyReport report={safetyReport} bare showDisclaimer={false} />}
           <View className="mt-3 flex items-center justify-end" style={{ paddingTop: 12, borderTopWidth: 1, borderTopColor: '#ECE6DD' }}>
             <Text style={{ fontSize: '24rpx', color: 'hsl(var(--primary))', fontWeight: '600', borderBottomWidth: 1, borderBottomColor: 'hsl(var(--primary))' }}
               onClick={() => Taro.navigateTo({ url: `/pages/food/analysis-result/index?product_id=${encodeURIComponent(product.id)}` })}>

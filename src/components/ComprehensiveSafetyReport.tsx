@@ -22,18 +22,21 @@ export default function ComprehensiveSafetyReport({
   report,
   fullLabel = false,
   showDisclaimer = true,
+  bare = false,
 }: {
   report: ComprehensiveSafetyReport
   fullLabel?: boolean
   /** 是否在卡底展示「以上为食养参考，不替代专业医疗…」强制免责声明；商品详情页为去冗传 false（扫码页默认展示） */
   showDisclaimer?: boolean
+  /** 裸渲染：不套自身卡片外壳（去 mx-4/mt-4/border/bg），用于已在外层卡片内的场景（商品详情页），避免卡片嵌套 */
+  bare?: boolean
 }) {
  if (!report?.hasContent) return null
 
  const { overall, nutrition, label, ageSuitability, warnings } = report
 
  return (
- <View className="mx-4 mt-4 rounded-2xl border border-black/5 p-4" style={{ background: '#fff' }}>
+ <View className={bare ? '' : 'mx-4 mt-4 rounded-2xl border border-black/5 p-4'} style={bare ? undefined : { background: '#fff' }}>
  {/* 总评级 */}
  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
  <Text className="text-base font-bold text-foreground" style={{ display: 'block' }}>
