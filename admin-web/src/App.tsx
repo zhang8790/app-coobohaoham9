@@ -42,6 +42,7 @@ const Risk = lazy(() => import('@/pages/Risk'))
 const Settings = lazy(() => import('@/pages/Settings'))
 const Expiry = lazy(() => import('@/pages/Expiry'))
 const FoodSafetyLibs = lazy(() => import('@/pages/FoodSafetyLibs'))
+const TongueCases = lazy(() => import('@/pages/TongueCases'))
 const FoodIngredients = lazy(() => import('@/pages/FoodIngredients'))
 const FoodTagRules = lazy(() => import('@/pages/FoodTagRules'))
 const OcrDebug = lazy(() => import('@/pages/OcrDebug'))
@@ -169,6 +170,7 @@ export default function App() {
               <Route path="categories" element={<Categories />} />
               <Route path="expiry" element={<Expiry />} />
               <Route path="food-safety-libs" element={<FoodSafetyLibs />} />
+              <Route path="tongue-cases" element={<TongueCases />} />
               <Route path="food-ingredients" element={<FoodIngredients />} />
               <Route path="food-tag-rules" element={<FoodTagRules />} />
               <Route path="ocr-debug" element={<OcrDebug />} />

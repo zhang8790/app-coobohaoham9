@@ -385,7 +385,7 @@ export default function ConstitutionTestPage() {
  {/* 宜忌性味 */}
  <View className="mt-3 flex flex-wrap gap-2">
  {primary.recommendNature.length > 0 && (
- <View className="rounded-full bg-[#ECFDF3] px-3 py-1">
+ <View className="rounded-full bg-[#DCFCE7] px-3 py-1">
  <Text className="text-xs text-[#15803D]">宜 · {primary.recommendNature.join(' / ')}</Text>
  </View>
  )}
@@ -493,7 +493,7 @@ export default function ConstitutionTestPage() {
 
  {/* 谨慎提示 */}
  {caution.length > 0 && (
- <View className="ct-reveal ct-stagger-4 mt-4 rounded-2xl bg-[#FFF7ED] p-4" style={{ borderWidth: 1, borderColor: '#FED7AA' }}>
+ <View className="ct-reveal ct-stagger-4 mt-4 rounded-2xl bg-[#FEF3C7] p-4" style={{ borderWidth: 1, borderColor: '#FEF3C7' }}>
  <Text className="text-sm font-bold text-[#B45309]">少量慎选 · {caution.length} 件</Text>
  <Text className="text-xs text-[#B45309] mt-1 block">
  以下商品性味偏「慎」，按你的偏好建议少量或偶尔食用。

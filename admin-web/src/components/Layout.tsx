@@ -45,6 +45,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/symptom-rules', icon: 'tea', label: '食疗规则库' },
       { to: '/food-safety-libs', icon: 'shield', label: '食品安全库' },
+      { to: '/tongue-cases', icon: 'tea', label: '舌象案例库' },
       { to: '/food-ingredients', icon: 'book', label: '食材库' },
       { to: '/food-tag-rules', icon: 'check', label: '人群标签规则' },
       { to: '/categories', icon: 'tag', label: '商品分类' },

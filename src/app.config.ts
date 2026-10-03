@@ -73,7 +73,7 @@ const subPackages = [
   {
     root: 'pages/food',
     // 已下线孤儿页：seasonal-box / today-food-therapy / ingredient-pairing（食养中心收敛后失去全部入口）
-    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'constitution-test/index', 'tongue/index', 'tongue-camera/index', 'consult/index', 'tracker/index', 'family/index', 'need-find/index', 'food-match/index'],
+    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'constitution-test/index', 'tongue/index', 'tongue-camera/index', 'profile/index', 'consult/index', 'tracker/index', 'family/index', 'need-find/index', 'food-match/index'],
   },
   {
     root: 'pages/ext',

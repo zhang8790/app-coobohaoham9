@@ -12,6 +12,12 @@ import {
   calculateResult,
   CONSTITUTION_TYPES,
 } from '@/utils/constitution-test'
+import {
+  computeHealthIndex,
+  getMechanism,
+  TONGUE_MECHANISM,
+} from '@/utils/food-therapy/tongue-report'
+import { hasForbidden } from '@/utils/compliance/shield'
 
 let pass = 0
 let fail = 0
@@ -30,15 +36,20 @@ function labelsOf(qs: { options: { label: string }[] }[], answers: number[]): st
   return answers.map((a, i) => qs[i].options[a]?.label ?? '(未答)')
 }
 
-// ── 舌象自检：5 题顺序 = color, coat_color, coat_texture, teeth, moist ──
+// ── 舌象自检：8 维顺序 = area, color, coat_color, coat_texture, teeth, crack, moist, sublingual ──
 const tongueScenarios: { name: string; answers: number[]; expectPrimary?: string }[] = [
-  { name: '全部中性（健康基线）', answers: [0, 0, 0, 0, 0], expectPrimary: 'pinghe' },
-  { name: '阳虚+气虚（淡白舌/水滑/胖大齿痕）', answers: [1, 0, 4, 2, 2], expectPrimary: 'yangxu' },
-  { name: '阴虚（红舌/少苔/干）', answers: [2, 4, 3, 0, 1], expectPrimary: 'yinxu' },
-  { name: '湿热+痰湿（暗红/黄厚腻/厚腻/齿痕）', answers: [3, 3, 1, 2, 2], expectPrimary: 'tanshi' },
-  { name: '痰湿（白厚苔/厚腻/齿痕/滑腻）', answers: [0, 1, 1, 2, 2], expectPrimary: 'tanshi' },
-  { name: '血瘀（青紫舌，其余中性）', answers: [4, 0, 0, 0, 0] },
-  { name: '气虚（齿痕为主）', answers: [0, 0, 0, 2, 0], expectPrimary: 'qixu' },
+  { name: '全部中性（健康基线）', answers: [0, 0, 0, 0, 0, 0, 0, 0], expectPrimary: 'pinghe' },
+  { name: '阳虚+气虚（淡白舌/水滑/胖大齿痕）', answers: [1, 1, 0, 4, 2, 0, 2, 0], expectPrimary: 'yangxu' },
+  { name: '阴虚（红舌/少苔/干）', answers: [0, 2, 4, 3, 0, 0, 1, 0], expectPrimary: 'yinxu' },
+  { name: '湿热+痰湿（暗红/黄厚腻/厚腻/齿痕）', answers: [0, 3, 3, 1, 2, 0, 2, 0], expectPrimary: 'tanshi' },
+  { name: '痰湿（白厚苔/厚腻/齿痕/滑腻）', answers: [0, 0, 1, 1, 2, 0, 2, 0], expectPrimary: 'tanshi' },
+  { name: '血瘀（青紫舌，其余中性）', answers: [0, 4, 0, 0, 0, 0, 0, 0] },
+  { name: '气虚（齿痕为主）', answers: [0, 0, 0, 0, 2, 0, 0, 0], expectPrimary: 'qixu' },
+  { name: '血瘀（青紫舌 + 舌下青紫略粗）', answers: [0, 4, 0, 0, 0, 0, 0, 1], expectPrimary: 'xueyu' },
+  { name: '血瘀（舌下青筋明显曲张）', answers: [0, 0, 0, 0, 0, 0, 0, 2], expectPrimary: 'xueyu' },
+  // 新增：覆盖 area（舌体形态）/ crack（裂纹）两个新维度
+  { name: '阴虚裂纹（红舌/少苔/有裂纹/干）', answers: [0, 2, 4, 0, 0, 1, 1, 0], expectPrimary: 'yinxu' },
+  { name: '气虚胖大（胖大舌 + 明显齿痕）', answers: [1, 0, 0, 0, 2, 0, 0, 0], expectPrimary: 'qixu' },
 ]
 
 console.log('\n================ 舌象自检引擎 (calculateTongueResult) ================')
@@ -107,6 +118,64 @@ for (const s of testScenarios) {
     assert(r.primary.key === s.expectPrimary, `${s.name}: 期望 ${s.expectPrimary} 实得 ${r.primary.key}`)
   }
 }
+
+// ── 舌象「全面分析报告」：健康指数算法 ──
+console.log('\n================ 舌象健康指数 (computeHealthIndex) ================')
+
+/** 构造最小 TongueResult（主 + 可选兼有 + 计分） */
+function mkResult(pKey: string, P: number, secKey?: string, Q = 0): any {
+  const scores: Record<string, number> = { [pKey]: P }
+  if (secKey) scores[secKey] = Q
+  return {
+    primary: CONSTITUTION_TYPES[pKey],
+    secondary: secKey ? CONSTITUTION_TYPES[secKey] : undefined,
+    scores,
+    picked: [],
+  }
+}
+
+const idxCases: { name: string; r: any; band: 'low' | 'mid' | 'high' }[] = [
+  { name: '平和（无偏颇）', r: mkResult('pinghe', 0), band: 'low' },
+  { name: '单项 5 分', r: mkResult('shire', 5), band: 'mid' },
+  { name: '主 6 分 + 兼 3 分', r: mkResult('shire', 6, 'xueyu', 3), band: 'mid' },
+  { name: '主 8 分 + 兼 6 分', r: mkResult('shire', 8, 'xueyu', 6), band: 'high' },
+]
+
+for (const c of idxCases) {
+  const idx = computeHealthIndex(c.r)
+  console.log(`【${c.name}】指数 ${idx.score} → ${idx.bandLabel}（复测 ${idx.retestDays} 天）`)
+  assert(idx.score >= 35 && idx.score <= 97, `${c.name}: 指数越界 ${idx.score}`)
+  assert(idx.band === c.band, `${c.name}: 期望分级 ${c.band} 实得 ${idx.band}`)
+  assert(idx.advice.includes('再次检测'), `${c.name}: 建议句缺少复测提示`)
+  assert(idx.retestDays > 0, `${c.name}: 复测天数应 > 0`)
+}
+
+// 单调性：主分越高，指数越低
+const s3 = computeHealthIndex(mkResult('shire', 3)).score
+const s6 = computeHealthIndex(mkResult('shire', 6)).score
+const s9 = computeHealthIndex(mkResult('shire', 9)).score
+assert(s3 > s6 && s6 > s9, `单调性被破坏: ${s3} / ${s6} / ${s9}`)
+console.log(`\n单调性: 3分=${s3} > 6分=${s6} > 9分=${s9} ✓`)
+
+// 夹逼：极端高分被压到下限 35
+assert(computeHealthIndex(mkResult('shire', 50)).score === 35, '下限夹逼失败（应=35）')
+console.log('下限夹逼: 50 分输入 → 35 分 ✓')
+
+// ── 舌象「发生机制」文案：覆盖 + 合规 ──
+console.log('\n================ 舌象发生机制文案 (getMechanism) ================')
+for (const key of Object.keys(CONSTITUTION_TYPES)) {
+  const m = getMechanism(key)
+  const all = [m.general, ...m.items]
+  console.log(`【${key}】${m.general}`)
+  assert(!!m.general && m.general.length > 4, `${key}: general 缺失`)
+  assert(m.items.length >= 3, `${key}: 机制条目不足 3 条`)
+  assert(all.every((s) => !hasForbidden(s)), `${key}: 文案命中违禁词 → 会污染界面`)
+  assert(all.every((s) => !s.includes('**')), `${key}: 文案含脱敏标记 **`)
+}
+
+// 未收录 key 回退平和文案
+assert(getMechanism('__unknown__') === TONGUE_MECHANISM.pinghe, '未知体质应回退平和文案')
+console.log('未知体质回退平和文案 ✓')
 
 console.log('\n================ 结果 ================')
 console.log(`PASS: ${pass}   FAIL: ${fail}`)

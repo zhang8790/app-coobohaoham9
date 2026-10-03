@@ -427,7 +427,7 @@ export default function FoodScanPage() {
  </Text>
  <View className="flex flex-wrap gap-2">
  {shortfallEval.hits.filter((h) => h.kind === 'boost').map((h, i) => (
- <View key={i} className="rounded-full px-3 py-1" style={{ background: '#ECFDF3', borderWidth: 1, borderColor: '#BBF7D0' }}>
+ <View key={i} className="rounded-full px-3 py-1" style={{ background: '#DCFCE7' }}>
  <Text className="text-xs" style={{ color: '#15803D' }}>{safeShort(h.item)} · {safeShort(h.shortfallLabel)}</Text>
  </View>
  ))}

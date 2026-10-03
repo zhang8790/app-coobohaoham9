@@ -1,21 +1,30 @@
-// 舌象自检 · 非 AI（纯规则引导对照）
+// 舌象自检 · 望舌辨证引擎（本地规则算法，界面不出现「AI」二字）
 // ------------------------------------------------------------
-// 入口：食养首页「舌象自检」卡片
-// 流程：intro(说明 + 免责) → quiz(5 项望舌引导对照) → result(体质倾向 + 宜忌 + 拍照给真人顾问)
-// 逻辑层：src/utils/food-therapy/tongue-rules.ts（TONGUE_QUESTIONS / calculateTongueResult）
-// 合规：全程「食养参考 / 倾向」，不出现诊断/辨证/医疗词；结果页必展示 FOOD_THERAPY_DISCLAIMER。
-// 拍照：仅用于「发给食养顾问真人研判」，绝不经 AI 识图（去 AI 铁律）。
+// 入口：食养首页「舌象自检」卡片 / 首页「舌象自检」入口
+// 纯本地主流程（零云、离线可用）：intro(说明 + 免责)
+//   → 拍照留档（舌面 + 舌下，仅本地）或 直接逐项对照
+//   → quiz（8 维舌象特征逐项对照，看自己的照片勾选即可）
+//   → result（本地 v2 规则引擎出体质倾向 + 宜忌 + 好物）
+// 拍照仅本地留档 + 供「食养顾问」真人研判，不参与任何云端视觉识别。
+// 逻辑层：src/utils/food-therapy/tongue-rules.ts（TONGUE_QUESTIONS）
+//          + 进阶辨证 v2：src/utils/food-therapy/tongue-engine-v2.ts（analyzeTongue，证据链+交互项+置信度）
+//          体质↔商品：src/utils/constitution-test.ts（recommendNature/avoidNature/bodyStates/healthGoals）
+// 合规：全程「食养参考 / 倾向」，不出现诊断/辨证/医疗词，亦不出现「AI」字样；结果页必展示 FOOD_THERAPY_DISCLAIMER。
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { View, Text, Button, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/taro'
 import {
   TONGUE_QUESTIONS,
-  calculateTongueResult,
   type TongueResult,
 } from '@/utils/food-therapy/tongue-rules'
-import { CONSTITUTION_TYPES } from '@/utils/constitution-test'
-import { filterProductsByConstitution } from '@/utils/constitution-test'
+import {
+  CONSTITUTION_TYPES,
+  type ConstitutionType,
+} from '@/utils/constitution-test'
+import { analyzeTongue } from '@/utils/food-therapy/tongue-engine-v2'
+import { buildProductMatch, type MatchedProduct } from '@/utils/food-therapy/product-match'
+import TongueReport from '@/components/food/TongueReport'
 import { getProducts } from '@/db/api'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import type { Product } from '@/db/types'
@@ -23,23 +32,71 @@ import './index.scss'
 
 type Step = 'intro' | 'quiz' | 'result'
 
+// 商品匹配（维度 ↔ 体质）已抽到 @/utils/food-therapy/product-match.ts（与「食养画像」页共用）
+
+/** 食养闭环串联条：把 问卷 → 维度 → 舌诊 → 体质 → 商品 一屏可视化 */
+function ChainStrip({ answers, primary }: { answers: number[]; primary: ConstitutionType }) {
+  const answered = answers.filter((a) => a >= 0).length
+  const informative = answers.filter((a) => a > 0).length
+  const steps: { t: string; s: string; hot?: boolean }[] = [
+    { t: '问卷对照', s: `${answered} 维填写` },
+    { t: '舌象维度', s: `${informative} 维有指向` },
+    { t: '舌诊辨证', s: 'v2 进阶引擎' },
+    { t: primary.name, s: '你的体质', hot: true },
+    { t: '适配好物', s: '性味/人群' },
+  ]
+  return (
+    <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+      <Text className="text-sm font-bold text-[#2A2A2A]">食养闭环 · 一键串联</Text>
+      <Text className="text-xs text-[#6F675C] mt-1 block">
+        问卷（8 维）→ 舌象分析 → 体质判定 → 为你匹配的商品
+      </Text>
+      <View className="mt-3 flex flex-row items-stretch">
+        {steps.flatMap((s, i) => {
+          const node = (
+            <View
+              key={`n${i}`}
+              className="flex-1 rounded-xl px-1.5 py-2"
+              style={{ background: s.hot ? primary.colorLight : '#F7F3E9' }}
+            >
+              <Text
+                className="text-xs font-bold text-center block"
+                style={{ color: s.hot ? primary.color : '#3F3A34' }}
+              >
+                {s.t}
+              </Text>
+              <Text className="text-[10px] text-[#9A9388] text-center block mt-0.5">{s.s}</Text>
+            </View>
+          )
+          const arrow = i < steps.length - 1 ? (
+            <Text key={`a${i}`} style={{ alignSelf: 'center', color: '#C9C0B4', fontSize: 14, paddingHorizontal: 2 }}>
+              ›
+            </Text>
+          ) : null
+          return arrow ? [node, arrow] : [node]
+        })}
+      </View>
+    </View>
+  )
+}
+
 export default function TonguePage() {
   const [step, setStep] = useState<Step>('intro')
-  const stepRef = useRef<Step>('intro')
-  useEffect(() => {
-    stepRef.current = step
-  }, [step])
   const [currentQ, setCurrentQ] = useState(0)
   const [answers, setAnswers] = useState<number[]>(() => TONGUE_QUESTIONS.map(() => -1))
   const [result, setResult] = useState<TongueResult | null>(null)
 
   const [products, setProducts] = useState<Product[]>([])
-  const [good, setGood] = useState<Product[]>([])
-  const [caution, setCaution] = useState<Product[]>([])
+  const [good, setGood] = useState<MatchedProduct[]>([])
+  const [caution, setCaution] = useState<MatchedProduct[]>([])
   const [loadingRecs, setLoadingRecs] = useState(false)
 
-  // 拍照留档：仅本地预览，用于发给食养顾问真人研判，不经 AI
+  // 拍照留档：本地预览用于对照自检 + 发给食养顾问真人研判（仅本地，不联网识别）
+  // photoPath = 舌面（正面），photoBack = 舌下（反面）
   const [photoPath, setPhotoPath] = useState('')
+  const [photoBack, setPhotoBack] = useState('')
+  // 是否依据照片做逐项对照（界面标注用，不出现「AI」）
+  const [photoBased, setPhotoBased] = useState(false)
 
   const total = TONGUE_QUESTIONS.length
   const q = TONGUE_QUESTIONS[currentQ]
@@ -55,13 +112,13 @@ export default function TonguePage() {
       return
     }
 
-    const res = calculateTongueResult(next)
+    const res = analyzeTongue(next, { source: 'manual' })
     setResult(res)
     setStep('result')
     setLoadingRecs(true)
     try {
       const all = await getProducts({ limit: 40 })
-      const { good: g, caution: c } = filterProductsByConstitution(all, res.primary)
+      const { good: g, caution: c } = buildProductMatch(all, res)
       setProducts(all)
       setGood(g.slice(0, 6))
       setCaution(c.slice(0, 3))
@@ -83,11 +140,13 @@ export default function TonguePage() {
     setGood([])
     setCaution([])
     setPhotoPath('')
+    setPhotoBack('')
+    setPhotoBased(false)
     setStep('intro')
   }
 
   // 打开拍摄引导页（虚线舌形对齐 + 前后置切换 + 拍照/相册/示例）
-  // 该页只负责「拍得更好」，照片仅本地留档，不经 AI
+  // 拍照仅本地留档（舌面 + 舌下），返回后逐项对照自检，不联网识别
   const openCameraGuide = () => {
     Taro.navigateTo({ url: '/pages/food/tongue-camera/index' }).catch(() => {
       // 兜底：直接调系统相机
@@ -115,26 +174,38 @@ export default function TonguePage() {
   useShareTimeline(() => ({ title: '舌象自检 · 看看你的食养倾向' }))
   useDidShow(() => {
     Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
-    // 从拍摄引导页返回：回填照片（仅本地留档，不经 AI）；并按衔接标志顺滑接续勾选 → 自动辨证
     try {
-      const p = Taro.getStorageSync('tongue:photo')
-      if (p) {
-        setPhotoPath(p)
-        Taro.removeStorageSync('tongue:photo')
-      }
-      const after = Taro.getStorageSync('tongue:afterPhoto')
-      if (after === 'quiz') {
-        Taro.removeStorageSync('tongue:afterPhoto')
-        // 尚未完成辨证（intro）时直接进勾选，拍照后顺滑接续自动辨证；已完成（result）则仅留档照片
-        if (stepRef.current === 'intro') {
+      // 拍照留档返回：本地读取舌面（正面）+ 舌下（反面）两张，跳到逐项对照自检。
+      // 纯本地、不联网、不经任何视觉识别 —— 用户看自己的照片逐项勾选 8 维舌象特征。
+      const captured = Taro.getStorageSync('tongue:captured')
+      if (captured) {
+        try {
+          const { front, back } = JSON.parse(captured)
+          // 解析成功后再删除留档，避免异常数据静默丢失照片
+          Taro.removeStorageSync('tongue:captured')
+          if (typeof front === 'string') setPhotoPath(front)
+          if (typeof back === 'string') setPhotoBack(back)
+          setPhotoBased(true)
+          // 进入逐项对照（清空旧答案，从第一题开始）
           setAnswers(TONGUE_QUESTIONS.map(() => -1))
           setCurrentQ(0)
           setResult(null)
           setGood([])
           setCaution([])
           setStep('quiz')
+          return
+        } catch (e) {
+          /* 解析异常忽略 */
         }
       }
+
+      // 兜底：历史遗留的拍照留档本地路径（结果页预览 / 发给真人顾问）
+      const p = Taro.getStorageSync('tongue:photo')
+      if (p) {
+        setPhotoPath(p)
+        Taro.removeStorageSync('tongue:photo')
+      }
+      Taro.removeStorageSync('tongue:afterPhoto')
     } catch (e) {
       /* ignore */
     }
@@ -146,7 +217,7 @@ export default function TonguePage() {
       <View className="mb-4">
         <Text className="text-2xl font-bold text-[#2A2A2A]"> 舌象自检</Text>
         <Text className="text-xs text-[#6F675C] mt-1 block">
-          照着引导对照舌象，了解你的食养倾向，挑好物更对路
+          先拍舌面（正面）与舌下（反面）两张留档，再逐项对照 8 项舌象特征，本地算法即时给出你的食养倾向
         </Text>
       </View>
 
@@ -156,11 +227,14 @@ export default function TonguePage() {
           <View className="rounded-2xl bg-white p-5 shadow-sm">
             <Text className="text-base font-bold text-[#2A2A2A]">怎么用</Text>
             <Text className="text-sm text-[#3F3A34] mt-2 block" style={{ lineHeight: 1.8 }}>
-              在自然光下，照着 5 个引导问题观察自己的舌头（颜色、苔色、厚薄、齿痕、润燥），
-              逐项勾选即可。系统按传统饮食常识给出你的「食养倾向」，帮你挑更对味的吃食。
+              在自然光下依次拍舌面（正面）与舌下（反面）两张照片留档，然后逐项对照 8 项舌象特征
+              （看着自己的照片勾选即可），本地算法即时给出你的「食养倾向」，帮你挑更对味的吃食。
+            </Text>
+            <Text className="text-xs text-[#9A9388] mt-2 block" style={{ lineHeight: 1.6 }}>
+              照片仅本地留档，不经任何网络识别，不对外公开展示。
             </Text>
             <View className="mt-3 flex flex-wrap gap-2">
-              {['约 1 分钟', '无需登录', '纯本地规则'].map((t) => (
+              {['约 1 分钟', '无需登录', '仅作食养参考'].map((t) => (
                 <View key={t} className="rounded-full bg-[hsl(var(--primary) / 0.08)] px-3 py-1">
                   <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>{t}</Text>
                 </View>
@@ -175,11 +249,27 @@ export default function TonguePage() {
           </View>
 
           <Button
-            onClick={() => { setCurrentQ(0); setStep('quiz') }}
+            onClick={openCameraGuide}
             className="mt-5 rounded-full"
             style={{ background: 'hsl(var(--primary))', color: '#fff' }}
           >
-            开始自检
+            拍照 + 对照自检
+          </Button>
+
+          <Button
+            onClick={() => {
+              setPhotoBased(false)
+              setAnswers(TONGUE_QUESTIONS.map(() => -1))
+              setCurrentQ(0)
+              setResult(null)
+              setGood([])
+              setCaution([])
+              setStep('quiz')
+            }}
+            className="mt-3 rounded-full"
+            style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+          >
+            不拍照，直接逐项对照
           </Button>
         </View>
       )}
@@ -254,6 +344,11 @@ export default function TonguePage() {
                 {primary.name}
               </Text>
             </View>
+            {photoBased ? (
+              <View className="mt-2 inline-flex items-center rounded-full px-2.5 py-0.5" style={{ background: 'rgba(22,163,74,0.12)' }}>
+                <Text className="text-[10px]" style={{ color: '#15803D' }}>拍照对照 · 本地算法</Text>
+              </View>
+            ) : null}
             <Text className="text-sm text-[#3F3A34] mt-2 block" style={{ lineHeight: 1.7 }}>
               {primary.description}
             </Text>
@@ -270,10 +365,18 @@ export default function TonguePage() {
             )}
           </View>
 
+          {/* 食养闭环 · 一键串联：问卷 → 维度 → 舌象 → 体质 → 商品 */}
+          <ChainStrip answers={answers} primary={primary} />
+
+          {/* 食养分析报告：健康状态 / 发生机制 / 关键依据 / 健康指数（v2 进阶算法） */}
+          <TongueReport answers={answers} photoBased={photoBased} />
+
           {/* 为什么这样提示 */}
           <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
             <Text className="text-sm font-bold text-[#2A2A2A]">为什么这样提示</Text>
-            <Text className="text-xs text-[#6F675C] mt-1 block">你勾选的舌象特征，指向了以上倾向</Text>
+            <Text className="text-xs text-[#6F675C] mt-1 block">
+              你逐项对照填出的舌象特征，经本地算法指向了以上倾向
+            </Text>
 
             {scoreEntries.length > 0 ? (
               <View className="mt-3 flex flex-col gap-2.5">
@@ -329,7 +432,7 @@ export default function TonguePage() {
             <Text className="text-sm font-bold text-[#2A2A2A]">口味上可以这样挑</Text>
             <View className="mt-3 flex flex-wrap gap-2">
               {primary.recommendNature.length > 0 && (
-                <View className="rounded-full bg-[#ECFDF3] px-3 py-1">
+                <View className="rounded-full bg-[#DCFCE7] px-3 py-1">
                   <Text className="text-xs text-[#15803D]">宜 · {primary.recommendNature.join(' / ')}</Text>
                 </View>
               )}
@@ -341,14 +444,25 @@ export default function TonguePage() {
             </View>
           </View>
 
-          {/* 拍照给真人顾问（非 AI） */}
+          {/* 拍照给真人顾问（识别引擎 + 真人双轨） */}
           <View className="mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
             <Text className="text-sm font-bold text-[#2A2A2A]">想让真人看看？</Text>
             <Text className="text-xs text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>
-              本功能不靠 AI 识图。你可拍一张舌部照片留档，再把照片发给「食养顾问」真人，由人工帮你研判参考。
+              上方倾向由你逐项对照填出的舌象特征、经本地算法得出，仅供食养参考；如需更细致的人工研判，可把照片发给「食养顾问」真人确认。
             </Text>
             {photoPath ? (
-              <Image src={photoPath} className="mt-3 h-28 w-28 rounded-xl" mode="aspectFill" />
+              <View className="mt-3 flex items-center gap-3">
+                <View className="flex flex-col items-center">
+                  <Image src={photoPath} className="h-24 w-24 rounded-xl" mode="aspectFill" />
+                  <Text className="text-[10px] text-[#9A9388] mt-1">舌面（正面）</Text>
+                </View>
+                {photoBack ? (
+                  <View className="flex flex-col items-center">
+                    <Image src={photoBack} className="h-24 w-24 rounded-xl" mode="aspectFill" />
+                    <Text className="text-[10px] text-[#9A9388] mt-1">舌下（反面）</Text>
+                  </View>
+                ) : null}
+              </View>
             ) : null}
             <View className="mt-3 flex flex-col gap-2">
               <Button
@@ -374,7 +488,7 @@ export default function TonguePage() {
             ) : (
               <ScrollView scrollX className="mt-3 whitespace-nowrap">
                 <View className="flex flex-row gap-3">
-                  {good.map((p) => (
+                  {good.map(({ p, reasons }) => (
                     <View
                       key={p.id}
                       className="inline-flex w-32 flex-col rounded-2xl bg-white p-2.5 shadow-sm"
@@ -389,6 +503,11 @@ export default function TonguePage() {
                         {p.name}
                       </Text>
                       <Text className="text-sm font-bold text-[hsl(var(--primary))]">¥{p.price}</Text>
+                      {reasons[0] ? (
+                        <Text className="text-[10px] text-[#9A9388] mt-0.5 line-clamp-2" numberOfLines={2} style={{ lineHeight: 1.4 }}>
+                          {reasons[0]}
+                        </Text>
+                      ) : null}
                     </View>
                   ))}
                 </View>
@@ -398,12 +517,14 @@ export default function TonguePage() {
 
           {/* 慎选提示 */}
           {caution.length > 0 && (
-            <View className="mt-4 rounded-2xl bg-[#FFF7ED] p-4" style={{ borderWidth: 1, borderColor: '#FED7AA' }}>
+            <View className="mt-4 rounded-2xl bg-[#FEF3C7] p-4" style={{ borderWidth: 1, borderColor: '#FEF3C7' }}>
               <Text className="text-sm font-bold text-[#B45309]">少量慎选 · {caution.length} 件</Text>
               <Text className="text-xs text-[#B45309] mt-1 block">以下商品性味偏「慎」，按你的倾向建议少量或偶尔食用。</Text>
               <View className="mt-2 flex flex-col gap-1">
-                {caution.map((p) => (
-                  <Text key={p.id} className="text-xs text-[#B45309]">· {p.name}</Text>
+                {caution.map(({ p, reasons }) => (
+                  <Text key={p.id} className="text-xs text-[#B45309]">
+                    · {p.name}{reasons[0] ? `（${reasons[0]}）` : ''}
+                  </Text>
                 ))}
               </View>
             </View>

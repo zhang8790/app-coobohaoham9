@@ -25,6 +25,8 @@ export interface GuardedChatOpts {
   system?: string
   user: string
   imageUrl?: string
+  /** 多图（如舌面 + 舌下各一张），优先于 imageUrl；二者皆空则不带图 */
+  imageUrls?: string[]
   temperature?: number
   maxTokens?: number
   responseFormat?: { type: 'json_object' }
@@ -65,7 +67,8 @@ function release() {
 const inflight = new Map<string, Promise<GuardedChatResult>>()
 
 function hashKey(o: GuardedChatOpts): string {
-  const raw = `${o.functionName}|${o.model}|${o.system ?? ''}|${o.user}|${o.imageUrl ?? ''}`
+  const imgs = (o.imageUrls && o.imageUrls.length ? o.imageUrls.join('|') : (o.imageUrl ?? ''))
+  const raw = `${o.functionName}|${o.model}|${o.system ?? ''}|${o.user}|${imgs}`
   let h = 2166136261
   for (let i = 0; i < raw.length; i++) {
     h ^= raw.charCodeAt(i)
@@ -95,8 +98,12 @@ async function run(o: GuardedChatOpts): Promise<GuardedChatResult> {
   try {
     const messages: any[] = []
     if (o.system) messages.push({ role: 'system', content: o.system })
-    const userContent: any = o.imageUrl
-      ? [{ type: 'text', text: o.user }, { type: 'image_url', image_url: { url: o.imageUrl } }]
+    // 多图优先，单图兼容；拼成多个 image_url content part
+    const imageUrls: string[] = []
+    if (o.imageUrls && o.imageUrls.length) imageUrls.push(...o.imageUrls)
+    else if (o.imageUrl) imageUrls.push(o.imageUrl)
+    const userContent: any = imageUrls.length
+      ? [{ type: 'text', text: o.user }, ...imageUrls.map((u) => ({ type: 'image_url', image_url: { url: u } }))]
       : o.user
     messages.push({ role: 'user', content: userContent })
 

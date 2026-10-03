@@ -314,8 +314,8 @@ export default function FoodDetectivePage() {
  className="rounded-2xl p-5 mb-4 text-center"
  style={{
  background: result.passed
- ? 'linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)'
- : 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+ ? 'linear-gradient(135deg, #DCFCE7 0%, #E3F2E5 100%)'
+ : 'linear-gradient(135deg, #FEF3C7 0%, #D97706 100%)',
  }}
  >
  <Text className="text-4xl mb-1">{result.passed ? '' : ''}</Text>

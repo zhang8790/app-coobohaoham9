@@ -415,7 +415,7 @@ export default function StoreHomePage() {
 
       {/* ========== 门店公告 ========== */}
       {store.announcement && (
-        <View style={{ margin: '0 32rpx', marginTop: '24rpx', backgroundColor: '#FFF7ED', borderRadius: '24rpx', padding: '20rpx 28rpx', borderWidth: '2rpx', borderColor: '#FED7AA', flexDirection: 'row', alignItems: 'center', gap: '12rpx' }}>
+        <View style={{ margin: '0 32rpx', marginTop: '24rpx', backgroundColor: '#FEF3C7', borderRadius: '24rpx', padding: '20rpx 28rpx', borderWidth: '2rpx', borderColor: '#FEF3C7', flexDirection: 'row', alignItems: 'center', gap: '12rpx' }}>
           <Icon name="bullhorn" size={17} />
           <Text style={{ fontSize: '26rpx', color: '#666666', flex: 1 }}>{store.announcement}</Text>
         </View>

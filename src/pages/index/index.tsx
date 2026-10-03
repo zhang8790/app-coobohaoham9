@@ -652,7 +652,7 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
  未配置广告时回退内置品牌卡，永远不留白。 */}
 <HomeBanner />
 
-{/* 去 AI 门面：标准化体质问卷入口（3 分钟食养评估），点击进 constitution-test */}
+{/* 去 AI 门面：标准化体质问卷入口（3 分钟食养评估，卡内含舌象自检次级入口） */}
 <AssessmentEntry retestDays={retestDays} />
 
 <CategoryGrid storeId={selectedStoreId || undefined} />
