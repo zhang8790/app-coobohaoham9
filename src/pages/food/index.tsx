@@ -1,7 +1,7 @@
 // @title 食养中心
 import { useMemo, useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Swiper, SwiperItem } from '@tarojs/components'
 import Icon from '@/components/Icon'
 import { useAuth } from '@/contexts/AuthContext'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
@@ -11,6 +11,27 @@ import { profileToCrowds, type Crowd } from '@/utils/food-therapy'
 // 食养中心收敛为「千人千面」单一价值：商品由自研食疗算法按食养档案自动推荐（千人千面，看的产品不同）。
 // 已删除（入口重复 / 不加分，2026-09-19）：今日食养推荐、顺时节气食盒(订阅)、食材配对探索、
 // 家庭食养档案、食安侦探局；仅保留「食养偏好设置」——档案是匹配算法的输入，二者构成闭环。
+// 食养精选轮播（本地静态占位；后续可改为读 banner 配置表做后台化）
+// ⚠️ C 端铁律禁「社会证明」：不放入用户证言 / 反馈截图类 slide
+const FOOD_BANNERS = [
+  {
+    id: 'assess',
+    title: '测体质 · 辨倾向',
+    subtitle: '身体感受 + 舌象对照，本地算法挑对好物',
+    cta: '去评估',
+    bg: 'linear-gradient(120deg, #16A34A 0%, #15803D 100%)',
+    url: '/pages/food/tongue/index',
+  },
+  {
+    id: 'suixi',
+    title: '随息居家宴 · 新品',
+    subtitle: '湿热天必喝：冬瓜薏米陈皮老鸭汤',
+    cta: '看看',
+    bg: 'linear-gradient(120deg, #D9A978 0%, #C68A4E 100%)',
+    url: '/pages/food/need-find/index?scene=immunity',
+  },
+]
+
 export default function FoodHubPage() {
  const { profile } = useAuth()
 
@@ -53,11 +74,36 @@ const SCENE_BY_CROWD: Array<{ kw: string[]; scene: string; label: string }> = [
 
  return (
  <View className="min-h-screen bg-background pb-10" aria-label="食养中心">
- {/* Hero */}
- <View className="px-4 pt-6 pb-2">
- <Text className="text-2xl font-bold text-foreground">你的专属食养清单</Text>
- <Text className="text-sm text-muted-foreground block mt-1">体质调养 · 按你的食养档案自动推荐，看的产品不同</Text>
- </View>
+{/* 食养精选轮播 banner（本地静态占位，数据驱动；C 端铁律禁社会证明，不放用户证言类） */}
+<View className="px-4 pt-4">
+  <Swiper
+    className="w-full rounded-2xl overflow-hidden"
+    style={{ height: '210rpx' }}
+    autoplay
+    circular
+    interval={4500}
+    indicatorDots
+    indicatorColor="rgba(255,255,255,0.45)"
+    indicatorActiveColor="#FFFFFF"
+  >
+    {FOOD_BANNERS.map((b) => (
+      <SwiperItem key={b.id}>
+        <View
+          className="w-full h-full flex flex-col justify-center"
+          style={{ background: b.bg, paddingLeft: '48rpx', paddingRight: '48rpx' }}
+          hoverClass="none"
+          onClick={() => go(b.url)}
+        >
+          <Text style={{ fontSize: '36rpx', fontWeight: 700, color: '#fff', lineHeight: '48rpx' }}>{b.title}</Text>
+          <Text style={{ fontSize: '22rpx', color: 'rgba(255,255,255,0.92)', lineHeight: '32rpx', marginTop: '8rpx' }}>{b.subtitle}</Text>
+          <View style={{ marginTop: '20rpx', alignSelf: 'flex-start', paddingTop: '10rpx', paddingBottom: '10rpx', paddingLeft: '24rpx', paddingRight: '24rpx', borderRadius: '999rpx', background: 'rgba(255,255,255,0.22)' }}>
+            <Text style={{ fontSize: '22rpx', fontWeight: 700, color: '#fff' }}>{b.cta} ›</Text>
+          </View>
+        </View>
+      </SwiperItem>
+    ))}
+  </Swiper>
+</View>
 
  {/* 自研食疗算法 · 按档案智能匹配零食类目（千人千面，点按直达对应零食类目） */}
  <View className="mx-4 mt-3 rounded-2xl p-4 bg-card border border-border">
