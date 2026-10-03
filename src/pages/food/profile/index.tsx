@@ -12,7 +12,7 @@ import { View, Text, ScrollView, Image, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { CONSTITUTION_TYPES } from '@/utils/constitution-test'
 import { TONGUE_QUESTIONS } from '@/utils/food-therapy/tongue-rules'
-import { analyzeTongue } from '@/utils/food-therapy/tongue-engine-v2'
+import { combineAssessment } from '@/utils/food-therapy/tongue-engine-v2'
 import { BAND_META } from '@/utils/food-therapy/tongue-report'
 import ConstitutionDeepAnalysis from '@/components/food/ConstitutionDeepAnalysis'
 import {
@@ -40,6 +40,9 @@ const DIM_LABELS: Record<string, string> = {
   sublingual: '舌下络脉',
 }
 
+// 综合答案构成：前 BODY_COUNT 位为「身体感受 5 题」，其后为「舌象对照 8 维」
+const BODY_COUNT = 5
+
 export default function FoodProfilePage() {
   const [profile, setProfile] = useState<TongueProfile | null>(null)
   const [history, setHistory] = useState<TongueHistoryPoint[]>([])
@@ -52,9 +55,13 @@ export default function FoodProfilePage() {
     setProfile(p)
     setHistory(readTongueHistory())
     if (!p) return
-    // 用保存的 answers 重算 analysis（确定性）→ 复用与结果页同源的商品匹配
+    // 用保存的 answers 重算「综合辨证」（确定性）→ 复用与结果页同源的商品匹配
     setLoadingRecs(true)
-    const analysis = analyzeTongue(p.answers, { source: 'manual' })
+    const isC = (p.answers?.length ?? 0) >= BODY_COUNT + 8
+    const analysis = combineAssessment(
+      isC ? p.answers.slice(0, BODY_COUNT) : [],
+      isC ? p.answers.slice(BODY_COUNT) : p.answers,
+    )
     getProducts({ limit: 40 })
       .then((all: Product[]) => {
         const { good: g, caution: c } = buildProductMatch(all, analysis)
@@ -74,19 +81,19 @@ export default function FoodProfilePage() {
       <View className="min-h-screen bg-[#F7F3E9] px-4 pt-5 pb-16">
         <Text className="text-2xl font-bold text-[#2A2A2A]">我的食养画像</Text>
         <Text className="text-xs text-[#6F675C] mt-1 block">
-          做一次舌象自检，就能生成属于你的食养画像
+          做一次食养评估，就能生成属于你的食养画像
         </Text>
         <View className="mt-6 rounded-2xl bg-white p-6 shadow-sm flex flex-col items-center">
           <Text className="text-4xl">🍃</Text>
           <Text className="text-sm text-[#3F3A34] mt-3 text-center" style={{ lineHeight: 1.7 }}>
-            你还没有食养画像。完成一次舌象自检后，这里会沉淀你的体质倾向、健康指数与适配好物。
+            你还没有食养画像。完成一次食养评估（身体感受 + 舌象对照）后，这里会沉淀你的综合体质倾向、健康指数与适配好物。
           </Text>
           <Button
             onClick={() => Taro.navigateTo({ url: '/pages/food/tongue/index' })}
             className="mt-5 rounded-full"
             style={{ background: 'hsl(var(--primary))', color: '#fff' }}
           >
-            去做舌象自检
+            去做食养评估
           </Button>
         </View>
       </View>
@@ -95,8 +102,15 @@ export default function FoodProfilePage() {
 
   const primary = CONSTITUTION_TYPES[profile.primaryKey]
   const secondary = profile.secondaryKey ? CONSTITUTION_TYPES[profile.secondaryKey] : null
-  // 用保存的 answers 确定性重算 analysis（与结果页同源），供深度辩证可视化
-  const analysis = useMemo(() => analyzeTongue(profile.answers, { source: 'manual' }), [profile.answers])
+  // 综合答案：前 BODY_COUNT 位身体感受，其后舌象对照（共 13）；旧快照为 8 位舌象，做兼容
+  const isCombined = (profile.answers?.length ?? 0) >= BODY_COUNT + 8
+  const bodyAnswers = isCombined ? profile.answers.slice(0, BODY_COUNT) : []
+  const tongueAnswers = isCombined ? profile.answers.slice(BODY_COUNT) : profile.answers
+  // 用保存的 answers 确定性重算「综合辨证」（与评估页、结果页同源），驱动深度分析与好物
+  const combined = useMemo(
+    () => combineAssessment(bodyAnswers, tongueAnswers),
+    [profile.answers],
+  )
   const band = BAND_META[profile.band]
   const updated = new Date(profile.updatedAt)
   const updatedStr = `${updated.getMonth() + 1}.${String(updated.getDate()).padStart(2, '0')} ${String(updated.getHours()).padStart(2, '0')}:${String(updated.getMinutes()).padStart(2, '0')}`
@@ -109,13 +123,13 @@ export default function FoodProfilePage() {
     ...(secondary?.bodyStates || []),
   ])
 
-  // 舌象维度画像：遍历 8 维，informative（>0）与 neutral（=0）分组
+  // 舌象维度画像：遍历 8 维（取综合答案中舌象部分），informative（>0）与 neutral（=0）分组
   const dims = TONGUE_QUESTIONS.map((q, i) => ({
     id: q.id,
     name: DIM_LABELS[q.id] || q.id,
     idx: i,
-    ans: profile.answers[i] ?? -1,
-    label: q.options[profile.answers[i]]?.label || '',
+    ans: tongueAnswers[i] ?? -1,
+    label: q.options[tongueAnswers[i]]?.label || '',
   }))
   const informativeDims = dims.filter((d) => d.ans > 0)
   const neutralDims = dims.filter((d) => d.ans === 0)
@@ -164,12 +178,47 @@ export default function FoodProfilePage() {
         </View>
       </View>
 
-      {/* 体质倾向深度分析（望舌辨证 · 九种体质得分排序 + 证据链） */}
+      {/* 体质倾向深度分析（身体感受 + 舌象对照综合 · 九种体质得分排序 + 证据链） */}
       <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
         <Text className="text-sm font-bold text-[#2A2A2A]">体质倾向深度分析</Text>
-        <Text className="text-xs text-[#6F675C] mt-1 block">望舌辨证 · 九种体质得分排序与证据链</Text>
+        <Text className="text-xs text-[#6F675C] mt-1 block">身体感受 + 舌象对照综合 · 九种体质得分排序与证据链</Text>
         <View className="mt-2">
-          <ConstitutionDeepAnalysis analysis={analysis} />
+          <ConstitutionDeepAnalysis
+            analysis={{
+              scores: combined.scores,
+              primary: combined.primary,
+              secondary: combined.secondary,
+              evidence: combined.tongue.evidence,
+              interactions: combined.tongue.interactions,
+            }}
+          />
+        </View>
+      </View>
+
+      {/* 双通道交叉印证（与评估/结果页同源，让画像同步可视化） */}
+      <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <Text className="text-sm font-bold text-[#2A2A2A]">双通道交叉印证</Text>
+        <Text className="text-xs text-[#6F675C] mt-1 block">{combined.note}</Text>
+        <View className="mt-3 flex items-center gap-2">
+          <View className="flex-1 rounded-xl px-2 py-2" style={{ background: '#F7F3E9' }}>
+            <Text className="text-[10px] text-[#9A9388]">身体感受</Text>
+            <View className="mt-0.5 flex items-center gap-1">
+              <Text style={{ fontSize: 16 }}>{combined.body.primary.emoji}</Text>
+              <Text className="text-xs font-semibold" style={{ color: combined.body.primary.color }}>
+                {combined.body.primary.name}
+              </Text>
+            </View>
+          </View>
+          <Text style={{ color: '#C9C0B4', fontSize: 14 }}>×</Text>
+          <View className="flex-1 rounded-xl px-2 py-2" style={{ background: '#F7F3E9' }}>
+            <Text className="text-[10px] text-[#9A9388]">舌象对照</Text>
+            <View className="mt-0.5 flex items-center gap-1">
+              <Text style={{ fontSize: 16 }}>{combined.tongue.primary.emoji}</Text>
+              <Text className="text-xs font-semibold" style={{ color: combined.tongue.primary.color }}>
+                {combined.tongue.primary.name}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 

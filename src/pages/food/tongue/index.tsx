@@ -34,6 +34,8 @@ import TongueReport from '@/components/food/TongueReport'
 import { getProducts, updateProfile } from '@/db/api'
 import { getLocalUser } from '@/client/supabase'
 import { saveConstitutionResult } from '@/db/food-api'
+import { saveTongueProfile } from '@/utils/food-therapy/tongue-history'
+import { computeHealthIndex } from '@/utils/food-therapy/tongue-report'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import type { Product } from '@/db/types'
 import './index.scss'
@@ -271,6 +273,23 @@ export default function TonguePage() {
           scores: combined.scores,
           answers: [...bodyAnswers, ...answers],
         })
+        // 沉淀最近一次「食养画像」本地快照（综合：身体 5 题 + 舌象 8 维，13 项答案）
+        const tongueAnalysis = combined.tongue
+        const idx = computeHealthIndex(tongueAnalysis, tongueAnalysis.confidence)
+        saveTongueProfile({
+          updatedAt: Date.now(),
+          primaryKey: combined.primary.key,
+          primaryName: combined.primary.name,
+          primaryColor: combined.primary.color,
+          primaryEmoji: combined.primary.emoji,
+          secondaryKey: combined.secondary?.key,
+          secondaryName: combined.secondary?.name,
+          healthIndex: idx.score,
+          band: idx.band,
+          bandLabel: idx.bandLabel,
+          confidence: tongueAnalysis.confidence,
+          answers: [...bodyAnswers, ...answers],
+        })
       } catch (e) {
         console.error('[assess] 偏好落库失败（不阻断）', e)
       }
@@ -398,12 +417,6 @@ export default function TonguePage() {
             </View>
           </View>
 
-          <View className="mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
-            <Text className="text-[11px] text-muted-foreground leading-relaxed block">
-              {FOOD_THERAPY_DISCLAIMER}
-            </Text>
-          </View>
-
           <Button
             onClick={openCameraGuide}
             className="mt-5 rounded-full"
@@ -419,6 +432,10 @@ export default function TonguePage() {
           >
             不拍照，直接开始
           </Button>
+
+          <Text className="text-[10px] text-[#9A9388] mt-4 block text-center leading-relaxed">
+            {FOOD_THERAPY_DISCLAIMER}
+          </Text>
         </View>
       )}
 
@@ -665,40 +682,6 @@ export default function TonguePage() {
                   </Text>
                 </View>
               )}
-
-              {/* 答案回放 */}
-              <View className="mt-4 flex flex-col gap-2.5">
-                {TEST_QUESTIONS.map((qq, qi) => {
-                  const opt = qq.options[bodyAnswers[qi]]
-                  const effectEntries = Object.entries(opt?.effect ?? {})
-                  return (
-                    <View
-                      key={qq.id}
-                      className="rounded-xl px-3 py-2.5"
-                      style={{ background: '#FBF7EF', borderWidth: 1, borderColor: '#ECE6DD' }}
-                    >
-                      <Text className="text-[11px] text-muted-foreground">第 {qi + 1} 题 · {qq.question}</Text>
-                      <Text className="text-sm text-[#2A2A2A] mt-1 block font-semibold">{opt?.label}</Text>
-                      {effectEntries.length > 0 ? (
-                        <View className="mt-1.5 flex flex-wrap gap-1.5">
-                          {effectEntries.map(([k, pts]) => {
-                            const ct = CONSTITUTION_TYPES[k]
-                            return (
-                              <View key={k} className="rounded-full px-2 py-0.5" style={{ background: ct.colorLight }}>
-                                <Text className="text-[10px]" style={{ color: ct.color }}>
-                                  {ct.emoji} {ct.name} +{pts}
-                                </Text>
-                              </View>
-                            )
-                          })}
-                        </View>
-                      ) : (
-                        <Text className="text-[11px] text-muted-foreground mt-1 block">· 中性状态，不偏向特定体质</Text>
-                      )}
-                    </View>
-                  )
-                })}
-              </View>
             </View>
           ) : null}
 
@@ -723,7 +706,7 @@ export default function TonguePage() {
           <View className="qa-reveal qa-stagger-4 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
             <Text className="text-sm font-bold text-[#2A2A2A]">想让真人看看？</Text>
             <Text className="text-xs text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>
-              上方倾向由你填写的身体感受与舌象特征、经本地算法交叉校验得出，仅供食养参考；如需更细致的人工研判，可把照片发给「食养顾问」真人确认。
+              以上倾向由你填写的身体感受与舌象特征、经本地算法交叉校验得出，仅供食养参考。
             </Text>
             {photoPath ? (
               <View className="mt-3 flex items-center gap-3">

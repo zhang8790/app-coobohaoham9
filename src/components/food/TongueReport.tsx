@@ -10,7 +10,7 @@ import { View, Text } from '@tarojs/components'
 import { analyzeTongue, confidenceLabel } from '@/utils/food-therapy/tongue-engine-v2'
 import ConstitutionDeepAnalysis from '@/components/food/ConstitutionDeepAnalysis'
 import { computeHealthIndex, getMechanism, BAND_META } from '@/utils/food-therapy/tongue-report'
-import { pushTongueHistory, saveTongueProfile, type TongueHistoryPoint } from '@/utils/food-therapy/tongue-history'
+import { pushTongueHistory, type TongueHistoryPoint } from '@/utils/food-therapy/tongue-history'
 import TrendChart from '@/components/food/TrendChart'
 import {
   getTongueCaseReferences,
@@ -67,21 +67,8 @@ export default function TongueReport({ answers, photoBased }: Props) {
     if (pushed.current) return
     pushed.current = true
     setHistory(pushTongueHistory(index.score))
-    // 沉淀最近一次食养画像（本地，不回写库、不存个人信息）
-    saveTongueProfile({
-      updatedAt: Date.now(),
-      primaryKey: analysis.primary.key,
-      primaryName: analysis.primary.name,
-      primaryColor: analysis.primary.color,
-      primaryEmoji: analysis.primary.emoji,
-      secondaryKey: analysis.secondary?.key,
-      secondaryName: analysis.secondary?.name,
-      healthIndex: index.score,
-      band: index.band,
-      bandLabel: index.bandLabel,
-      confidence: analysis.confidence,
-      answers,
-    })
+    // 画像快照由食养评估页（tongue/index 的落库 effect）按「身体+舌象综合」统一写入，
+    // 避免此处仅存舌象 8 项导致画像与综合结果不一致。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -137,9 +124,6 @@ export default function TongueReport({ answers, photoBased }: Props) {
                 </View>
               ) : null}
             </View>
-            <Text className="text-xs text-[#3F3A34] mt-1.5 block" style={{ lineHeight: 1.7 }}>
-              {primary.description}
-            </Text>
           </Row>
         </View>
 
@@ -149,18 +133,6 @@ export default function TongueReport({ answers, photoBased }: Props) {
             <Text className="text-xs text-[#3F3A34] block" style={{ lineHeight: 1.7 }}>
               {mechanism.general}
             </Text>
-            <View className="mt-2 flex flex-col" style={{ gap: 6 }}>
-              {mechanism.items.map((s, i) => (
-                <View key={i} className="flex" style={{ gap: 6 }}>
-                  <Text className="text-xs font-bold" style={{ color: '#B45309' }}>
-                    {i + 1}.
-                  </Text>
-                  <Text className="text-xs text-[#3F3A34] flex-1" style={{ lineHeight: 1.7 }}>
-                    {s}
-                  </Text>
-                </View>
-              ))}
-            </View>
           </Row>
         </View>
 

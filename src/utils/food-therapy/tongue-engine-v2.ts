@@ -262,11 +262,24 @@ export interface DeepConstitutionAnalysis {
 }
 
 /**
- * 深度体质辩证：把 v2 引擎的 scores + evidence 展开成「九种体质得分排序」，
- * 并给每种体质回溯其舌象证据链（哪维哪个选项加分）。交互项的协同加成以
- * 「协同项」伪证据补足，使各体质回放的加分之和与其最终得分一致。
+ * 深度体质辩证的输入（结构化，便于在「综合（身体+舌象）」与「单通道（舌象）」间复用）：
+ * 只要提供 scores + primary/secondary 即可排序；evidence/interactions 可选（用于回溯证据链）。
  */
-export function deepConstitutionAnalysis(a: TongueAnalysis): DeepConstitutionAnalysis {
+export interface DeepAnalysisInput {
+  scores: Record<string, number>
+  primary?: ConstitutionType
+  secondary?: ConstitutionType
+  evidence?: TongueEvidence[]
+  interactions?: string[]
+}
+
+/**
+ * 深度体质辩证：把 scores + evidence 展开成「九种体质得分排序」，
+ * 并给每种体质回溯其证据链（哪维哪个选项加分）。交互项的协同加成以
+ * 「协同项」伪证据补足，使各体质回放的加分之和与其最终得分一致。
+ * 兼容单通道舌象分析（TongueAnalysis）与综合辨证（CombinedAssessment）两种来源。
+ */
+export function deepConstitutionAnalysis(a: DeepAnalysisInput): DeepConstitutionAnalysis {
   const maxScore = Math.max(1, ...Object.values(a.scores).map((v) => v || 0))
 
   const ranked: ConstitutionScoreDetail[] = Object.keys(CONSTITUTION_TYPES).map((key) => {
@@ -275,7 +288,7 @@ export function deepConstitutionAnalysis(a: TongueAnalysis): DeepConstitutionAna
 
     // ① 选项证据链
     const contributions: ConstitutionContribution[] = []
-    for (const e of a.evidence) {
+    for (const e of a.evidence || []) {
       const pts = e.adds[key]
       if (typeof pts === 'number' && pts > 0) {
         contributions.push({ dimLabel: e.dimLabel, label: e.label, points: pts })
@@ -310,23 +323,23 @@ export function deepConstitutionAnalysis(a: TongueAnalysis): DeepConstitutionAna
   if (a.primary?.key === 'pinghe') {
     note =
       biasCount === 0
-        ? '各项舌象特征以中性表现为多，整体趋于平和，未见明显偏颇倾向。'
+        ? '各项特征以中性表现为多，整体趋于平和，未见明显偏颇倾向。'
         : '以平和为主，个别维度略现倾向，可作为日常食养微调的参考。'
-  } else if (a.secondary) {
+  } else if (a.primary && a.secondary) {
     const gap = (a.scores[a.primary.key] || 0) - (a.scores[a.secondary.key] || 0)
     note =
       gap <= 2
         ? `以「${a.primary.name}」为主，与「${a.secondary.name}」倾向接近，呈兼夹状态，建议两者兼顾调护。`
         : `以「${a.primary.name}」为主，兼有「${a.secondary.name}」倾向，主次较为分明。`
   } else {
-    note = `以「${a.primary.name}」为主倾向，单一偏颇特征较为突出。`
+    note = `以「${a.primary?.name ?? '平和'}」为主倾向，单一偏颇特征较为突出。`
   }
 
   return {
     ranked,
     biasCount,
     primarySecondaryGap:
-      a.secondary ? (a.scores[a.primary.key] || 0) - (a.scores[a.secondary.key] || 0) : undefined,
+      a.primary && a.secondary ? (a.scores[a.primary.key] || 0) - (a.scores[a.secondary.key] || 0) : undefined,
     note,
   }
 }

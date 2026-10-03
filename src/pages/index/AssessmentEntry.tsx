@@ -1,7 +1,7 @@
 // @title 首页「食养评估」入口（身体感受 + 舌象对照 合并入口）
-// 去 AI 落地的「标准化体质问卷 + 望舌对照」门面：点击主行进 /pages/food/tongue
+// 去 AI 落地的「标准化体质问卷 + 望舌对照」门面：点击整卡进 /pages/food/tongue
 // （合并评估：5 题身体感受 + 8 维舌象对照，本地算法双通道交叉校验，界面零 AI 字样）。
-// 复用首页已算好的 retestDays 显示复测提示，零额外网络。
+// 复测状态只由 CTA 文案承载（去测一测 / 去复测），卡内不再放说明长句，保持一眼可读。
 import Taro from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
 import { BRAND_LINE_ICONS } from '@/components/brandIcons'
@@ -16,37 +16,31 @@ export default function AssessmentEntry({ retestDays }: Props) {
     Taro.navigateTo({ url: '/pages/food/tongue/index' }).catch(() => {})
   }
 
-  const sub =
-    retestDays == null
-      ? '身体感受 + 舌象对照，一次测全 · 本地算法给出食养倾向'
-      : `你 ${retestDays} 天前测过，来复测看看变化`
-
+  // 状态由 CTA 承载：未测 → 去测一测；测过 → 去复测
   const cta = retestDays == null ? '去测一测' : '去复测'
 
   return (
     <View
-      className="mx-4 mt-3"
+      className="mx-4 mt-3 flex items-center justify-between active:opacity-90 transition-opacity"
+      aria-role="button"
+      aria-label="食养评估"
+      hoverClass="none"
+      onClick={goAssess}
       style={{
         background:
           'linear-gradient(120deg, hsl(var(--primary-soft)) 0%, hsl(var(--primary-soft-deep)) 100%)',
-        borderRadius: 16,
-        padding: 16,
-        boxShadow: '0 4px 14px rgba(94,122,79,0.10)',
+        borderRadius: '28rpx',
+        padding: '26rpx 28rpx',
+        boxShadow: '0 4rpx 14rpx rgba(94,122,79,0.10)',
       }}
     >
-      {/* 主行：图标 + 文案 + CTA（点击进合并食养评估，全站唯一评估入口） */}
-      <View
-        hoverClass="none"
-        onClick={goAssess}
-        className="flex items-center active:opacity-80 transition-opacity"
-        style={{ gap: 12 }}
-      >
-        {/* 图标圆底（草本绿 leaf 图标，呼应食养主题） */}
+      {/* 左：图标圆底 + 标题（草本绿 leaf 图标，呼应食养主题） */}
+      <View className="flex items-center" style={{ gap: '20rpx', minWidth: 0 }}>
         <View
           style={{
-            width: 46,
-            height: 46,
-            borderRadius: 14,
+            width: '72rpx',
+            height: '72rpx',
+            borderRadius: '20rpx',
             flexShrink: 0,
             background: 'hsl(var(--card))',
             display: 'flex',
@@ -54,44 +48,30 @@ export default function AssessmentEntry({ retestDays }: Props) {
             justifyContent: 'center',
           }}
         >
-          <Image src={BRAND_LINE_ICONS['leaf']} style={{ width: 26, height: 26 }} />
+          <Image src={BRAND_LINE_ICONS['leaf']} style={{ width: '40rpx', height: '40rpx' }} />
         </View>
-
-        {/* 文案：主标题 + 动态副标（复测提示 / 合并说明） */}
-        <View className="flex flex-col flex-1 min-w-0">
-          <Text
-            style={{
-              fontSize: 32,
-              fontWeight: 700,
-              color: 'hsl(var(--primary-strong))',
-              letterSpacing: 0.5,
-            }}
-          >
-            食养评估
-          </Text>
-          <Text
-            style={{
-              fontSize: 24,
-              color: 'hsl(var(--foreground) / 0.72)',
-              marginTop: 3,
-              lineHeight: 1.4,
-            }}
-          >
-            {sub}
-          </Text>
-        </View>
-
-        {/* CTA 实底绿钮 */}
-        <View
+        <Text
           style={{
-            flexShrink: 0,
-            background: 'hsl(var(--primary))',
-            borderRadius: 20,
-            padding: '8px 16px',
+            fontSize: '34rpx',
+            fontWeight: 700,
+            color: 'hsl(var(--primary-strong))',
+            letterSpacing: '0.5rpx',
           }}
         >
-          <Text style={{ color: '#fff', fontSize: 26, fontWeight: 700 }}>{cta} →</Text>
-        </View>
+          食养评估
+        </Text>
+      </View>
+
+      {/* 右：CTA 实底绿钮 */}
+      <View
+        style={{
+          flexShrink: 0,
+          background: 'hsl(var(--primary))',
+          borderRadius: '999rpx',
+          padding: '12rpx 28rpx',
+        }}
+      >
+        <Text style={{ color: '#fff', fontSize: '26rpx', fontWeight: 700 }}>{cta} →</Text>
       </View>
     </View>
   )

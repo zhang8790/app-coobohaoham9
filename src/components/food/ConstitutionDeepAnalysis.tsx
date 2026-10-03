@@ -6,10 +6,11 @@
 // 合规：不出现「诊断」字样；以「望舌辨证 · 食养参考」口径呈现。
 import { useMemo } from 'react'
 import { View, Text } from '@tarojs/components'
-import { deepConstitutionAnalysis, type TongueAnalysis } from '@/utils/food-therapy/tongue-engine-v2'
+import { deepConstitutionAnalysis, type DeepAnalysisInput } from '@/utils/food-therapy/tongue-engine-v2'
 
 interface Props {
-  analysis: TongueAnalysis
+  /** 舌象单通道分析 或 身体+舌象综合辨证，皆可 */
+  analysis: DeepAnalysisInput
 }
 
 export default function ConstitutionDeepAnalysis({ analysis }: Props) {
@@ -84,7 +85,7 @@ export default function ConstitutionDeepAnalysis({ analysis }: Props) {
         })}
       </View>
       <Text className="text-[10px] text-[#9A9388] mt-2 block" style={{ lineHeight: 1.6 }}>
-        共 {deep.biasCount} 种偏颇质呈现倾向；以上为九种体质的望舌辨证得分排序，供食养参考。
+        共 {deep.biasCount} 种偏颇质呈现倾向；以上为九种体质的食养参考得分排序，供你了解自身倾向。
       </Text>
     </View>
   )
