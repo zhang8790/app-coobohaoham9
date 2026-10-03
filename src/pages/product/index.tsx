@@ -470,17 +470,9 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
       {/* 分区②+③ 合并：食安与食养（配方安全 + 食养参考，同属「吃进去什么 / 安不安全」，合并为单卡减少顶层分区标题） */}
       {isFood && (
         <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
-          <SectionTitle iconName="shield" title="食安与食养" />
+          <SectionTitle iconName="shield" title="食养与食安" />
 
-          {/* —— 配方安全（原② 配料表） —— */}
-          <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} showShiyang={false} />
-          {safetyReport && <ComprehensiveSafetyReport report={safetyReport} fullLabel showDisclaimer={false} />}
-          <View className="mt-3 flex items-center justify-end" style={{ paddingTop: 12, borderTopWidth: 1, borderTopColor: '#ECE6DD' }}>
-            <Text style={{ fontSize: '24rpx', color: 'hsl(var(--primary))', fontWeight: '600', borderBottomWidth: 1, borderBottomColor: 'hsl(var(--primary))' }}
-              onClick={() => Taro.navigateTo({ url: `/pages/food/analysis-result/index?product_id=${encodeURIComponent(product.id)}` })}>
-              查看检测报告 ›
-            </Text>
-          </View>
+          {/* 食安块已移至食养参考之后（食养拍第一位） */}
 
           {/* —— 食养参考（原③）：无实质食养数据时整块不渲染，避免空壳「温和食养·日常参考」占位 —— */}
             {product && (() => {
@@ -523,7 +515,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
               if (!hasShiyang) return null
 
               return (
-                <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#ECE6DD' }}>
+                <View>
                   <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>食养参考</Text>
                 <View className="mt-3">
                   {/* 食养特点栏（顶部结论，plain 表达；安心结论合并于此，不再二次套卡） */}
@@ -649,6 +641,18 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
               </View>
             )
           })()}
+
+          {/* —— 配方安全（原② 配料表，置于食养之后） —— */}
+          <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#ECE6DD' }}>
+          <FoodSafetyPanel foodAdditives={foodAdditives} shiyangEntries={shiyangEntries} showShiyang={false} />
+          {safetyReport && <ComprehensiveSafetyReport report={safetyReport} fullLabel showDisclaimer={false} />}
+          <View className="mt-3 flex items-center justify-end" style={{ paddingTop: 12, borderTopWidth: 1, borderTopColor: '#ECE6DD' }}>
+            <Text style={{ fontSize: '24rpx', color: 'hsl(var(--primary))', fontWeight: '600', borderBottomWidth: 1, borderBottomColor: 'hsl(var(--primary))' }}
+              onClick={() => Taro.navigateTo({ url: `/pages/food/analysis-result/index?product_id=${encodeURIComponent(product.id)}` })}>
+              查看检测报告 ›
+            </Text>
+          </View>
+          </View>
         </View>
       )}
 
