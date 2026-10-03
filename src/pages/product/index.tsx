@@ -472,6 +472,31 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
         <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
           <SectionTitle iconName="shield" title="食养与食安" />
 
+          {/* 适用人群：常驻展示，不随食养门控（hasShiyang）消失；无标注时显「暂未提供」而非整块消失 */}
+          {product && (() => {
+            const input = toFoodTherapyInput(product)
+            const crowdRec = cleanAudienceTags([
+              ...((product as any)?.fit_crowd_tags || []),
+              ...(therapyReport?.fit_crowd_tags || []),
+              ...(foodBenefit?.suitableFor || []),
+              ...(input.rec_crowds || []),
+            ]).slice(0, 4)
+            return (
+              <View style={{ marginTop: 12 }}>
+                <Text className="text-base font-bold text-foreground" style={{ display: 'block' }}>适用人群</Text>
+                {crowdRec.length > 0 ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+                    {crowdRec.map((c, i) => (
+                      <Text key={'cr' + i} style={{ fontSize: '24rpx', color: 'var(--color-herb-600)', background: 'var(--color-herb-200)', paddingVertical: '3px', paddingHorizontal: '8px', borderRadius: '999px', marginRight: 6, marginBottom: 6 }}>{c}</Text>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={{ fontSize: '26rpx', color: '#9A9388', display: 'block', lineHeight: '1.6', marginTop: 6 }}>暂未提供适用人群标注</Text>
+                )}
+              </View>
+            )
+          })()}
+
           {/* 食安块已移至食养参考之后（食养拍第一位） */}
 
           {/* —— 食养参考（原③）：无实质食养数据时整块不渲染，避免空壳「温和食养·日常参考」占位 —— */}
@@ -543,14 +568,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                     )}
                   </View>
 
-                  {/* 人群标签栏：3 秒决策（唯一一次展示「适合人群」，避免与折叠模块重复） */}
-                  {crowdRec.length > 0 && (
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
-                      {crowdRec.map((c, i) => (
-                        <Text key={'r' + i} style={{ fontSize: '24rpx', color: 'var(--color-herb-600)', background: 'var(--color-herb-200)', paddingVertical: '3px', paddingHorizontal: '8px', borderRadius: '999px', marginRight: 6, marginBottom: 6 }}> {c}</Text>
-                      ))}
-                    </View>
-                  )}
+                  {/* 适用人群已提升为卡内常驻区块（卡标题下方），此处不再重复渲染标签栏；仅保留引导语兜底 */}
                   {crowdRec.length === 0 && input.guide_sentence && (
                     <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6', marginTop: 10 }}>{input.guide_sentence}</Text>
                   )}
