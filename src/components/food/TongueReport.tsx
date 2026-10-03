@@ -4,7 +4,7 @@
 // 算法：utils/food-therapy/tongue-engine-v2.ts（证据融合 + 交互项 + 置信度）。
 // 健康指数含置信区间与复测趋势小图（Canvas 2D，零依赖）。
 // 合规：文案由 tongue-report/tongue-compliance 统一净化；界面不出现「AI」「诊断」。
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, useRef, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
 import { analyzeTongue, confidenceLabel } from '@/utils/food-therapy/tongue-engine-v2'
