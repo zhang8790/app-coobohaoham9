@@ -7,13 +7,14 @@
 //   · 食养方向（基于体质 healthGoals / bodyStates 的生活化建议）
 //   · 适配好物 / 慎选（用保存的 answers 重算 analysis → buildProductMatch，与结果页同源）
 // 合规：零「AI」、零诊断词；明确标注「本地参考画像，不存个人信息」。
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { View, Text, ScrollView, Image, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { CONSTITUTION_TYPES } from '@/utils/constitution-test'
 import { TONGUE_QUESTIONS } from '@/utils/food-therapy/tongue-rules'
 import { analyzeTongue } from '@/utils/food-therapy/tongue-engine-v2'
 import { BAND_META } from '@/utils/food-therapy/tongue-report'
+import ConstitutionDeepAnalysis from '@/components/food/ConstitutionDeepAnalysis'
 import {
   loadTongueProfile,
   readTongueHistory,
@@ -94,6 +95,8 @@ export default function FoodProfilePage() {
 
   const primary = CONSTITUTION_TYPES[profile.primaryKey]
   const secondary = profile.secondaryKey ? CONSTITUTION_TYPES[profile.secondaryKey] : null
+  // 用保存的 answers 确定性重算 analysis（与结果页同源），供深度辩证可视化
+  const analysis = useMemo(() => analyzeTongue(profile.answers, { source: 'manual' }), [profile.answers])
   const band = BAND_META[profile.band]
   const updated = new Date(profile.updatedAt)
   const updatedStr = `${updated.getMonth() + 1}.${String(updated.getDate()).padStart(2, '0')} ${String(updated.getHours()).padStart(2, '0')}:${String(updated.getMinutes()).padStart(2, '0')}`
@@ -158,6 +161,15 @@ export default function FoodProfilePage() {
               <Text className="text-xs text-[#DC2626]">慎 · {primary.avoidNature.join(' / ')}</Text>
             </View>
           )}
+        </View>
+      </View>
+
+      {/* 体质倾向深度分析（望舌辨证 · 九种体质得分排序 + 证据链） */}
+      <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <Text className="text-sm font-bold text-[#2A2A2A]">体质倾向深度分析</Text>
+        <Text className="text-xs text-[#6F675C] mt-1 block">望舌辨证 · 九种体质得分排序与证据链</Text>
+        <View className="mt-2">
+          <ConstitutionDeepAnalysis analysis={analysis} />
         </View>
       </View>
 

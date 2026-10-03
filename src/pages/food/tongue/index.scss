@@ -1,4 +1,122 @@
-/* 舌象自检页 · 主要样式走内联（与 constitution-test 一致），此处仅做基础约定 */
-.tongue-page {
-  background: #f7f3e9;
+/* 食养评估 · 体验增强动效（与 constitution-test 同源质感，统一到合并页） */
+
+// 题目切换：轻微从右侧滑入
+@keyframes qa-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.qa-fade-in {
+  animation: qa-fade-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+// 选项被选中：轻轻弹一下，给「已选」的确认感
+@keyframes qa-tap {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.qa-tap {
+  animation: qa-tap 0.26s ease-out both;
+}
+
+// 段落过渡门卡：上浮浮现
+@keyframes gate-pop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.gate-pop {
+  animation: gate-pop 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+// 主卡 emoji 轻微呼吸，增加「活」的感觉
+@keyframes qa-emoji-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+.qa-emoji-breathe {
+  animation: qa-emoji-breathe 2.6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+// 结果段落依次浮现（配合 .qa-reveal 使用）
+@keyframes qa-reveal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.qa-reveal {
+  animation: qa-reveal-pop 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.qa-stagger-1 {
+  animation-delay: 0.08s;
+}
+.qa-stagger-2 {
+  animation-delay: 0.18s;
+}
+.qa-stagger-3 {
+  animation-delay: 0.28s;
+}
+.qa-stagger-4 {
+  animation-delay: 0.38s;
+}
+.qa-stagger-5 {
+  animation-delay: 0.48s;
+}
+.qa-stagger-6 {
+  animation-delay: 0.58s;
+}
+
+// 分数条生长
+@keyframes qa-bar-grow {
+  from {
+    width: 0;
+  }
+}
+.qa-bar-grow {
+  animation: qa-bar-grow 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+// 海报卡微光描边
+.qa-poster {
+  position: relative;
+  overflow: hidden;
+}
+.qa-poster::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -30%;
+  width: 60%;
+  height: 80%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.5), transparent 70%);
+  transform: rotate(18deg);
+  pointer-events: none;
 }

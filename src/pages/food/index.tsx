@@ -88,50 +88,31 @@ const SCENE_BY_CROWD: Array<{ kw: string[]; scene: string; label: string }> = [
  className="rounded-xl mb-3 px-3 py-2.5 active:scale-[0.99] transition-transform"
  style={{ background: 'hsl(var(--primary) / 0.08)' }}
  hoverClass="none"
- onClick={() => go('/pages/food/constitution-test/index')}
+  onClick={() => go('/pages/food/tongue/index')}
  >
- <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>完善「食养偏好设置」后，这里会出现为你定制的零食类目 · 去设置 ›</Text>
+ <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>完成「食养评估」（身体感受 + 舌象对照）后，这里会出现为你定制的零食类目 · 去评估 ›</Text>
  </View>
  )}
  </View>
 
- {/* 食养偏好设置：千人千面匹配的唯一输入端，构成「设置档案 → 自动推荐」闭环 */}
- <View
+{/* 食养评估：身体感受 + 舌象对照 合并入口（千人千面匹配的唯一输入端） */}
+<View
  className="mx-4 mt-4 rounded-2xl p-4 bg-card border border-border flex items-center justify-between active:scale-[0.99] transition-transform"
- aria-role="button" aria-label="食养偏好设置"
+ aria-role="button" aria-label="食养评估"
  hoverClass="none"
- onClick={() => go('/pages/food/constitution-test/index')}
- >
+ onClick={() => go('/pages/food/tongue/index')}
+>
  <View className="flex items-center gap-3 min-w-0">
  <View className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'hsl(var(--primary) / 0.1)' }}>
  <Icon name="pencil" size={20} className="text-primary" />
  </View>
  <View className="min-w-0">
- <Text className="text-base font-bold text-foreground">食养偏好设置</Text>
- <Text className="text-xs text-muted-foreground">读懂你的体质与口味 · 推荐随档案而变</Text>
+ <Text className="text-base font-bold text-foreground">食养评估</Text>
+ <Text className="text-xs text-muted-foreground">身体感受 + 舌象对照 · 本地算法辨倾向挑好物</Text>
  </View>
  </View>
  <Text className="text-xs text-primary font-bold flex-shrink-0 ml-2">前往 ›</Text>
- </View>
-
- {/* 舌象自检：非 AI 望舌引导，给食养倾向参考（与偏好设置互补，纯本地规则） */}
- <View
- className="mx-4 mt-3 rounded-2xl p-4 bg-card border border-border flex items-center justify-between active:scale-[0.99] transition-transform"
- aria-role="button" aria-label="舌象自检"
- hoverClass="none"
- onClick={() => go('/pages/food/tongue/index')}
- >
- <View className="flex items-center gap-3 min-w-0">
- <View className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'hsl(var(--primary) / 0.1)' }}>
- <Icon name="eye" size={20} className="text-primary" />
- </View>
- <View className="min-w-0">
- <Text className="text-base font-bold text-foreground">舌象自检</Text>
- <Text className="text-xs text-muted-foreground">照着引导看舌象 · 知倾向挑好物</Text>
- </View>
- </View>
- <Text className="text-xs text-primary font-bold flex-shrink-0 ml-2">前往 ›</Text>
- </View>
+</View>
 
  <Text className="text-[10px] text-muted-foreground text-center block mt-6 px-6 leading-relaxed">
  {FOOD_THERAPY_DISCLAIMER}

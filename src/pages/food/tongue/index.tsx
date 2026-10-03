@@ -1,55 +1,99 @@
-// 舌象自检 · 望舌辨证引擎（本地规则算法，界面不出现「AI」二字）
+// 食养评估 · 望舌辨证引擎（本地规则算法，界面不出现「AI」二字）
 // ------------------------------------------------------------
-// 入口：食养首页「舌象自检」卡片 / 首页「舌象自检」入口
-// 纯本地主流程（零云、离线可用）：intro(说明 + 免责)
-//   → 拍照留档（舌面 + 舌下，仅本地）或 直接逐项对照
-//   → quiz（8 维舌象特征逐项对照，看自己的照片勾选即可）
-//   → result（本地 v2 规则引擎出体质倾向 + 宜忌 + 好物）
+// 合并入口：把「食养偏好设置（身体感受 5 题）」与「舌象自检（舌象对照 8 维）」
+// 合并为一次评估，先答身体感受，再对照舌象（可拍照留档），双通道各自辨证后交叉校验，
+// 合成综合食养倾向 + 宜忌 + 好物。
+// 纯本地主流程（零云、离线可用）：intro(说明 + 免责 + 英雄引导)
+//   → 拍照留档（舌面 + 舌下，仅本地，可选）或 直接对照
+//   → quiz（身体感受 5 题 + 舌象对照 8 维，逐项勾选，自动顺滑推进）
+//   → 段落过渡门卡（身体→舌象仪式化切换）
+//   → result（双通道交叉校验 → 综合体质倾向 + 宜忌 + 好物，错落揭晓）
 // 拍照仅本地留档 + 供「食养顾问」真人研判，不参与任何云端视觉识别。
-// 逻辑层：src/utils/food-therapy/tongue-rules.ts（TONGUE_QUESTIONS）
-//          + 进阶辨证 v2：src/utils/food-therapy/tongue-engine-v2.ts（analyzeTongue，证据链+交互项+置信度）
-//          体质↔商品：src/utils/constitution-test.ts（recommendNature/avoidNature/bodyStates/healthGoals）
 // 合规：全程「食养参考 / 倾向」，不出现诊断/辨证/医疗词，亦不出现「AI」字样；结果页必展示 FOOD_THERAPY_DISCLAIMER。
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, Button, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/taro'
 import {
+  TEST_QUESTIONS,
+  calculateResult,
+  constitutionToCrowds,
+  CONSTITUTION_TYPES,
+  type TestResult,
+} from '@/utils/constitution-test'
+import {
   TONGUE_QUESTIONS,
-  type TongueResult,
 } from '@/utils/food-therapy/tongue-rules'
 import {
-  CONSTITUTION_TYPES,
-  type ConstitutionType,
-} from '@/utils/constitution-test'
-import { analyzeTongue } from '@/utils/food-therapy/tongue-engine-v2'
+  analyzeTongue,
+  combineAssessment,
+  type CombinedAssessment,
+} from '@/utils/food-therapy/tongue-engine-v2'
 import { buildProductMatch, type MatchedProduct } from '@/utils/food-therapy/product-match'
 import TongueReport from '@/components/food/TongueReport'
-import { getProducts } from '@/db/api'
+import { getProducts, updateProfile } from '@/db/api'
+import { getLocalUser } from '@/client/supabase'
+import { saveConstitutionResult } from '@/db/food-api'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import type { Product } from '@/db/types'
 import './index.scss'
 
 type Step = 'intro' | 'quiz' | 'result'
 
+// ── 合并问卷：身体感受（5 题）+ 舌象对照（8 维）──
+type QSection = 'body' | 'tongue'
+interface NormQ {
+  section: QSection
+  idx: number
+  question: string
+  sub: string
+  options: { label: string; hint?: string }[]
+}
+const BODY_NORM: NormQ[] = TEST_QUESTIONS.map((q, i) => ({
+  section: 'body',
+  idx: i,
+  question: q.question,
+  sub: q.hint,
+  options: q.options.map((o) => ({ label: o.label })),
+}))
+const TONGUE_NORM: NormQ[] = TONGUE_QUESTIONS.map((q, i) => ({
+  section: 'tongue',
+  idx: i,
+  question: q.question,
+  sub: q.tip,
+  options: q.options.map((o) => ({ label: o.label, hint: o.hint })),
+}))
+const MERGED: NormQ[] = [...BODY_NORM, ...TONGUE_NORM]
+const BODY_LEN = BODY_NORM.length
+
+// 海报一句洞察（与 constitution-test 同源，统一品牌语气）
+const POSTER_INSIGHT: Record<string, string> = {
+  yangxu: '怕冷不是娇气，是身体在提醒你：该暖一点了。',
+  yinxu: '容易上火，是因为身体想要一点润泽。',
+  qixu: '总觉乏力，是「气」在提醒你该补一补了。',
+  tanshi: '身子沉重，是湿悄悄住下了，该清一清。',
+  shire: '油光痘痘，是热在身体里待得太久。',
+  xueyu: '瘀青易留，是血在说它流得有点慢了。',
+  qiyu: '情绪起伏，是气在身体里打了个结。',
+  pinghe: '状态不错，好好吃饭就是对身体最好的照顾。',
+}
+
 // 商品匹配（维度 ↔ 体质）已抽到 @/utils/food-therapy/product-match.ts（与「食养画像」页共用）
 
-/** 食养闭环串联条：把 问卷 → 维度 → 舌诊 → 体质 → 商品 一屏可视化 */
-function ChainStrip({ answers, primary }: { answers: number[]; primary: ConstitutionType }) {
-  const answered = answers.filter((a) => a >= 0).length
-  const informative = answers.filter((a) => a > 0).length
+/** 食养闭环串联条：把 身体感受 → 舌象对照 → 双通道辨证 → 综合体质 → 商品 一屏可视化 */
+function ChainStrip({ combined }: { combined: CombinedAssessment }) {
   const steps: { t: string; s: string; hot?: boolean }[] = [
-    { t: '问卷对照', s: `${answered} 维填写` },
-    { t: '舌象维度', s: `${informative} 维有指向` },
-    { t: '舌诊辨证', s: 'v2 进阶引擎' },
-    { t: primary.name, s: '你的体质', hot: true },
+    { t: '身体感受', s: '5 题填写' },
+    { t: '舌象对照', s: '8 维填写' },
+    { t: '双通道辨证', s: '交叉校验' },
+    { t: combined.primary.name, s: '综合体质', hot: true },
     { t: '适配好物', s: '性味/人群' },
   ]
   return (
     <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
       <Text className="text-sm font-bold text-[#2A2A2A]">食养闭环 · 一键串联</Text>
       <Text className="text-xs text-[#6F675C] mt-1 block">
-        问卷（8 维）→ 舌象分析 → 体质判定 → 为你匹配的商品
+        身体感受 → 舌象对照 → 双通道辨证 → 综合体质 → 为你匹配的商品
       </Text>
       <View className="mt-3 flex flex-row items-stretch">
         {steps.flatMap((s, i) => {
@@ -57,11 +101,11 @@ function ChainStrip({ answers, primary }: { answers: number[]; primary: Constitu
             <View
               key={`n${i}`}
               className="flex-1 rounded-xl px-1.5 py-2"
-              style={{ background: s.hot ? primary.colorLight : '#F7F3E9' }}
+              style={{ background: s.hot ? combined.primary.colorLight : '#F7F3E9' }}
             >
               <Text
                 className="text-xs font-bold text-center block"
-                style={{ color: s.hot ? primary.color : '#3F3A34' }}
+                style={{ color: s.hot ? combined.primary.color : '#3F3A34' }}
               >
                 {s.t}
               </Text>
@@ -83,8 +127,14 @@ function ChainStrip({ answers, primary }: { answers: number[]; primary: Constitu
 export default function TonguePage() {
   const [step, setStep] = useState<Step>('intro')
   const [currentQ, setCurrentQ] = useState(0)
+  const [bodyAnswers, setBodyAnswers] = useState<number[]>(() => TEST_QUESTIONS.map(() => -1))
   const [answers, setAnswers] = useState<number[]>(() => TONGUE_QUESTIONS.map(() => -1))
-  const [result, setResult] = useState<TongueResult | null>(null)
+  const [bodyResult, setBodyResult] = useState<TestResult | null>(null)
+  const [combined, setCombined] = useState<CombinedAssessment | null>(null)
+
+  // 体验增强：选项轻弹 + 自动顺滑推进 + 段落过渡门卡
+  const [justSelected, setJustSelected] = useState<number | null>(null)
+  const [sectionGate, setSectionGate] = useState(false)
 
   const [products, setProducts] = useState<Product[]>([])
   const [good, setGood] = useState<MatchedProduct[]>([])
@@ -98,47 +148,94 @@ export default function TonguePage() {
   // 是否依据照片做逐项对照（界面标注用，不出现「AI」）
   const [photoBased, setPhotoBased] = useState(false)
 
-  const total = TONGUE_QUESTIONS.length
-  const q = TONGUE_QUESTIONS[currentQ]
-  const selected = answers[currentQ]
+  const total = MERGED.length
+  const q = MERGED[currentQ]
+  const selected = q ? (q.section === 'body' ? bodyAnswers[q.idx] : answers[q.idx]) : -1
+  const locked = justSelected !== null
 
-  const handleSelect = async (optIdx: number) => {
-    const next = [...answers]
-    next[currentQ] = optIdx
-    setAnswers(next)
+  // 选答：记录选项 → 轻弹反馈 → 短暂停顿后顺滑推进（末题则双通道计算并进入结果）
+  const handleSelect = (optIdx: number) => {
+    if (locked) return
+    const cur = MERGED[currentQ]
+    const isBody = cur.section === 'body'
+    const next = isBody ? [...bodyAnswers] : [...answers]
+    next[cur.idx] = optIdx
+    if (isBody) setBodyAnswers(next)
+    else setAnswers(next)
+    setJustSelected(optIdx)
 
-    if (currentQ < total - 1) {
-      setCurrentQ(currentQ + 1)
-      return
-    }
-
-    const res = analyzeTongue(next, { source: 'manual' })
-    setResult(res)
-    setStep('result')
-    setLoadingRecs(true)
-    try {
-      const all = await getProducts({ limit: 40 })
-      const { good: g, caution: c } = buildProductMatch(all, res)
-      setProducts(all)
-      setGood(g.slice(0, 6))
-      setCaution(c.slice(0, 3))
-    } catch (e) {
-      console.error('[tongue] 商品匹配失败', e)
-    } finally {
-      setLoadingRecs(false)
-    }
+    setTimeout(async () => {
+      setJustSelected(null)
+      const isLastBody = isBody && cur.idx === BODY_LEN - 1
+      if (isLastBody) {
+        setSectionGate(true)
+        return
+      }
+      if (currentQ < total - 1) {
+        setCurrentQ(currentQ + 1)
+        return
+      }
+      // 末题（最后一题舌象）：用更新后的本地数组计算（setState 异步，必须用 next）
+      const finalBody = isBody ? next : bodyAnswers
+      const finalTongue = isBody ? answers : next
+      const bodyRes = calculateResult(finalBody)
+      const tongueRes = analyzeTongue(finalTongue, { source: 'manual' })
+      const comb = combineAssessment(finalBody, finalTongue)
+      setBodyResult(bodyRes)
+      setCombined(comb)
+      setStep('result')
+      setLoadingRecs(true)
+      try {
+        const all = await getProducts({ limit: 40 })
+        const { good: g, caution: c } = buildProductMatch(all, comb)
+        setProducts(all)
+        setGood(g.slice(0, 6))
+        setCaution(c.slice(0, 3))
+      } catch (e) {
+        console.error('[assess] 商品匹配失败', e)
+      } finally {
+        setLoadingRecs(false)
+      }
+    }, 300)
   }
 
   const goPrev = () => {
     if (currentQ > 0) setCurrentQ(currentQ - 1)
   }
 
-  const restart = () => {
+  const enterTongue = () => {
+    setSectionGate(false)
+    setCurrentQ(BODY_LEN)
+  }
+  const backToBody = () => {
+    setSectionGate(false)
+    setCurrentQ(BODY_LEN - 1)
+  }
+
+  const startDirect = () => {
+    setPhotoBased(false)
+    setBodyAnswers(TEST_QUESTIONS.map(() => -1))
     setAnswers(TONGUE_QUESTIONS.map(() => -1))
     setCurrentQ(0)
-    setResult(null)
+    setBodyResult(null)
+    setCombined(null)
     setGood([])
     setCaution([])
+    setJustSelected(null)
+    setSectionGate(false)
+    setStep('quiz')
+  }
+
+  const restart = () => {
+    setBodyAnswers(TEST_QUESTIONS.map(() => -1))
+    setAnswers(TONGUE_QUESTIONS.map(() => -1))
+    setCurrentQ(0)
+    setBodyResult(null)
+    setCombined(null)
+    setGood([])
+    setCaution([])
+    setJustSelected(null)
+    setSectionGate(false)
     setPhotoPath('')
     setPhotoBack('')
     setPhotoBased(false)
@@ -158,25 +255,55 @@ export default function TonguePage() {
     })
   }
 
-  const primary = result?.primary ?? null
-  const scoreEntries: [string, number][] = result
-    ? Object.entries(result.scores)
+  // 综合结果落库（食养偏好标签 + 全量结果），支撑首页千人千面与复测；未登录静默跳过
+  useEffect(() => {
+    if (step !== 'result' || !combined) return
+    let alive = true
+    ;(async () => {
+      try {
+        const { data: { user } } = await getLocalUser()
+        if (!user?.id) return
+        const tags = [combined.primary.key, ...constitutionToCrowds(combined.primary)]
+        await updateProfile({ constitution_tags: tags })
+        await saveConstitutionResult({
+          primaryKey: combined.primary.key,
+          secondaryKey: combined.secondary?.key ?? null,
+          scores: combined.scores,
+          answers: [...bodyAnswers, ...answers],
+        })
+      } catch (e) {
+        console.error('[assess] 偏好落库失败（不阻断）', e)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, combined])
+
+  // 身体感受得分排行（仅取有分的偏颇质，降序取前 4）
+  const bodyScoreEntries: [string, number][] = bodyResult
+    ? Object.entries(bodyResult.scores)
         .filter(([, s]) => s > 0)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 4)
     : []
-  const maxScore = scoreEntries.length > 0 ? scoreEntries[0][1] : 0
+  const bodyMax = bodyScoreEntries.length > 0 ? bodyScoreEntries[0][1] : 0
+
+  const shareTitle = combined
+    ? `我是${combined.primary.emoji}${combined.primary.name}，身体感受+舌象对照双印证，你呢？`
+    : '食养评估 · 身体感受 + 舌象对照'
 
   useShareAppMessage(() => ({
-    title: '舌象自检 · 看看你的食养倾向',
+    title: shareTitle,
     path: '/pages/food/tongue/index',
   }))
-  useShareTimeline(() => ({ title: '舌象自检 · 看看你的食养倾向' }))
+  useShareTimeline(() => ({ title: shareTitle }))
   useDidShow(() => {
     Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
     try {
       // 拍照留档返回：本地读取舌面（正面）+ 舌下（反面）两张，跳到逐项对照自检。
-      // 纯本地、不联网、不经任何视觉识别 —— 用户看自己的照片逐项勾选 8 维舌象特征。
+      // 纯本地、不联网、不经任何视觉识别 —— 用户看自己的照片逐项勾选特征。
       const captured = Taro.getStorageSync('tongue:captured')
       if (captured) {
         try {
@@ -187,11 +314,15 @@ export default function TonguePage() {
           if (typeof back === 'string') setPhotoBack(back)
           setPhotoBased(true)
           // 进入逐项对照（清空旧答案，从第一题开始）
+          setBodyAnswers(TEST_QUESTIONS.map(() => -1))
           setAnswers(TONGUE_QUESTIONS.map(() => -1))
           setCurrentQ(0)
-          setResult(null)
+          setBodyResult(null)
+          setCombined(null)
           setGood([])
           setCaution([])
+          setJustSelected(null)
+          setSectionGate(false)
           setStep('quiz')
           return
         } catch (e) {
@@ -211,31 +342,56 @@ export default function TonguePage() {
     }
   })
 
+  // 顶部标题
+  const Header = (
+    <View className="mb-4">
+      <Text className="text-2xl font-bold text-[#2A2A2A]"> 食养评估</Text>
+      <Text className="text-xs text-[#6F675C] mt-1 block">
+        身体感受 5 题 + 舌象对照 8 维，本地算法综合给出你的食养倾向（约 2 分钟）
+      </Text>
+    </View>
+  )
+
   return (
     <View className="min-h-screen bg-[#F7F3E9] px-4 pt-5 pb-16">
-      {/* 顶部标题 */}
-      <View className="mb-4">
-        <Text className="text-2xl font-bold text-[#2A2A2A]"> 舌象自检</Text>
-        <Text className="text-xs text-[#6F675C] mt-1 block">
-          先拍舌面（正面）与舌下（反面）两张留档，再逐项对照 8 项舌象特征，本地算法即时给出你的食养倾向
-        </Text>
-      </View>
+      {Header}
 
-      {/* 说明 */}
+      {/* 说明 / 英雄引导 */}
       {step === 'intro' && (
         <View>
-          <View className="rounded-2xl bg-white p-5 shadow-sm">
-            <Text className="text-base font-bold text-[#2A2A2A]">怎么用</Text>
-            <Text className="text-sm text-[#3F3A34] mt-2 block" style={{ lineHeight: 1.8 }}>
-              在自然光下依次拍舌面（正面）与舌下（反面）两张照片留档，然后逐项对照 8 项舌象特征
-              （看着自己的照片勾选即可），本地算法即时给出你的「食养倾向」，帮你挑更对味的吃食。
+          <View
+            className="rounded-3xl p-6 shadow-sm"
+            style={{
+              background: 'linear-gradient(160deg, #FFFDF8 0%, #FBF7EF 100%)',
+              borderWidth: 1,
+              borderColor: '#ECE6DD',
+            }}
+          >
+            <Text className="text-[11px] font-semibold" style={{ color: 'hsl(var(--primary))' }}>
+              身体感受 × 舌象对照
             </Text>
-            <Text className="text-xs text-[#9A9388] mt-2 block" style={{ lineHeight: 1.6 }}>
-              照片仅本地留档，不经任何网络识别，不对外公开展示。
+            <Text className="text-2xl font-bold text-[#2A2A2A] mt-1 block">读懂你的食养倾向</Text>
+            <Text className="text-sm text-[#6F675C] mt-2 block" style={{ lineHeight: 1.75 }}>
+              两步轻测：先聊聊 5 个身体小感受，再在自然光下看自己的舌头、对照 8 项特征。本地算法交叉印证，给你一份专属食养参考。
             </Text>
+
+            {/* 两大部分可视化 */}
+            <View className="mt-4 flex flex-row gap-3">
+              <View className="flex-1 rounded-2xl p-3" style={{ background: '#fff', borderWidth: 1, borderColor: '#ECE6DD' }}>
+                <Text className="text-lg">🙂</Text>
+                <Text className="text-sm font-semibold text-[#2A2A2A] mt-1 block">身体感受</Text>
+                <Text className="text-[11px] text-[#9A9388] mt-0.5 block">5 个轻松小问</Text>
+              </View>
+              <View className="flex-1 rounded-2xl p-3" style={{ background: '#fff', borderWidth: 1, borderColor: '#ECE6DD' }}>
+                <Text className="text-lg">👅</Text>
+                <Text className="text-sm font-semibold text-[#2A2A2A] mt-1 block">舌象对照</Text>
+                <Text className="text-[11px] text-[#9A9388] mt-0.5 block">8 维望舌特征</Text>
+              </View>
+            </View>
+
             <View className="mt-3 flex flex-wrap gap-2">
-              {['约 1 分钟', '无需登录', '仅作食养参考'].map((t) => (
-                <View key={t} className="rounded-full bg-[hsl(var(--primary) / 0.08)] px-3 py-1">
+              {['约 2 分钟', '无需登录', '本地算法·不联网'].map((t) => (
+                <View key={t} className="rounded-full px-3 py-1" style={{ background: 'hsl(var(--primary) / 0.08)' }}>
                   <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>{t}</Text>
                 </View>
               ))}
@@ -253,95 +409,161 @@ export default function TonguePage() {
             className="mt-5 rounded-full"
             style={{ background: 'hsl(var(--primary))', color: '#fff' }}
           >
-            拍照 + 对照自检
+            拍照 + 开始评估
           </Button>
 
           <Button
-            onClick={() => {
-              setPhotoBased(false)
-              setAnswers(TONGUE_QUESTIONS.map(() => -1))
-              setCurrentQ(0)
-              setResult(null)
-              setGood([])
-              setCaution([])
-              setStep('quiz')
-            }}
+            onClick={startDirect}
             className="mt-3 rounded-full"
             style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
           >
-            不拍照，直接逐项对照
+            不拍照，直接开始
           </Button>
         </View>
       )}
 
       {/* 逐题对照 */}
-      {step === 'quiz' && q && (
+      {step === 'quiz' && q && !sectionGate && (
         <View>
-          <View className="mb-4 flex items-center gap-2">
-            {TONGUE_QUESTIONS.map((_, i) => (
+          {/* 分段进度：身体感受（鼠尾草绿）/ 舌象对照（草本绿）两色分段 + 当前段落标签 */}
+          <View className="mb-4">
+            <View className="flex items-center justify-between mb-2">
+              <Text className="text-xs text-[#6F675C]">第 {currentQ + 1} / {total} 步</Text>
               <View
-                key={i}
-                className="h-1.5 flex-1 rounded-full"
-                style={{ background: i <= currentQ ? 'hsl(var(--primary))' : '#ECE6DD' }}
-              />
-            ))}
-          </View>
-          <Text className="text-xs text-muted-foreground">第 {currentQ + 1} / {total} 步</Text>
-          <Text className="text-lg font-bold text-[#2A2A2A] mt-1 block">{q.question}</Text>
-          <Text className="text-xs text-[#6F675C] mt-1 block">{q.tip}</Text>
-
-          <View className="mt-5 flex flex-col gap-3">
-            {q.options.map((opt, idx) => {
-              const active = selected === idx
-              return (
-                <View
-                  key={idx}
-                  onClick={() => handleSelect(idx)}
-                  className="rounded-2xl px-4 py-3.5"
-                  style={{
-                    background: active ? 'hsl(var(--primary))' : '#fff',
-                    borderWidth: 1,
-                    borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.35)',
-                  }}
+                className="rounded-full px-2.5 py-0.5"
+                style={{
+                  background: q.section === 'body' ? 'hsl(var(--primary) / 0.1)' : 'rgba(22,163,74,0.1)',
+                }}
+              >
+                <Text
+                  className="text-[11px] font-semibold"
+                  style={{ color: q.section === 'body' ? 'hsl(var(--primary))' : '#15803D' }}
                 >
-                  <Text className="text-sm" style={{ color: active ? '#fff' : '#3F3A34' }}>
-                    {opt.label}
-                  </Text>
-                  {opt.hint ? (
-                    <Text
-                      className="text-[11px] mt-0.5 block"
-                      style={{ color: active ? 'rgba(255,255,255,0.85)' : '#9A9388' }}
-                    >
-                      {opt.hint}
-                    </Text>
-                  ) : null}
-                </View>
-              )
-            })}
+                  {q.section === 'body' ? '身体感受' : '舌象对照'}
+                </Text>
+              </View>
+            </View>
+            <View className="flex items-center">
+              {MERGED.map((m, i) => (
+                <View
+                  key={i}
+                  className="h-1.5 flex-1 rounded-full"
+                  style={{
+                    background: i <= currentQ
+                      ? (m.section === 'body' ? 'hsl(var(--primary))' : '#15803D')
+                      : '#ECE6DD',
+                    marginLeft: i === BODY_LEN ? 8 : i === 0 ? 0 : 2,
+                  }}
+                />
+              ))}
+            </View>
           </View>
 
-          {currentQ > 0 && (
+          {/* 题目内容：每次换题重新挂载触发滑入动画 */}
+          <View key={currentQ} className="qa-fade-in">
+            <Text className="text-lg font-bold text-[#2A2A2A] block">{q.question}</Text>
+            <Text className="text-xs text-[#6F675C] mt-1 block">{q.sub}</Text>
+
+            <View className="mt-5 flex flex-col gap-3">
+              {q.options.map((opt, idx) => {
+                const active = selected === idx
+                const justTapped = justSelected === idx
+                return (
+                  <View
+                    key={idx}
+                    onClick={() => !locked && handleSelect(idx)}
+                    className={`rounded-2xl px-4 py-3.5 ${justTapped ? 'qa-tap' : ''}`}
+                    style={{
+                      background: active ? 'hsl(var(--primary))' : '#fff',
+                      borderWidth: 1,
+                      borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.35)',
+                    }}
+                  >
+                    <View className="flex items-center justify-between">
+                      <Text className="text-sm" style={{ color: active ? '#fff' : '#3F3A34' }}>
+                        {opt.label}
+                      </Text>
+                      {active ? <Text className="text-base font-bold" style={{ color: '#fff' }}>✓</Text> : null}
+                    </View>
+                    {opt.hint ? (
+                      <Text
+                        className="text-[11px] mt-0.5 block"
+                        style={{ color: active ? 'rgba(255,255,255,0.85)' : '#9A9388' }}
+                      >
+                        {opt.hint}
+                      </Text>
+                    ) : null}
+                  </View>
+                )
+              })}
+            </View>
+
+            {currentQ > 0 && (
+              <Button
+                onClick={goPrev}
+                className="mt-5 rounded-full"
+                style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+              >
+                上一步
+              </Button>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* 段落过渡门卡：身体感受 → 舌象对照 仪式化切换 */}
+      {step === 'quiz' && sectionGate && (
+        <View className="gate-pop">
+          <View
+            className="rounded-3xl p-6 shadow-sm"
+            style={{
+              background: 'linear-gradient(160deg, #FFFDF8 0%, #FBF7EF 100%)',
+              borderWidth: 1,
+              borderColor: '#ECE6DD',
+            }}
+          >
+            <Text className="text-[11px] font-semibold" style={{ color: '#15803D' }}>第一部分完成</Text>
+            <Text className="text-2xl font-bold text-[#2A2A2A] mt-1 block">进入舌象对照</Text>
+            <Text className="text-sm text-[#6F675C] mt-2 block" style={{ lineHeight: 1.75 }}>
+              在自然光下伸出舌头，对照下面 8 项特征勾选。{photoBased ? '可参考刚拍的舌面 / 舌下照片，对着看更准。' : '若还没拍，可在结果页补拍留档给食养顾问真人研判。'}
+            </Text>
+            <View
+              className="mt-4 rounded-2xl p-3 flex items-center gap-2"
+              style={{ background: '#fff', borderWidth: 1, borderColor: '#ECE6DD' }}
+            >
+              <Text className="text-lg">👅</Text>
+              <Text className="text-xs text-[#6F675C]" style={{ lineHeight: 1.5 }}>
+                提示：自然光最好，别刚吃完带色食物或刷完牙就拍，颜色才准。
+              </Text>
+            </View>
             <Button
-              onClick={goPrev}
+              onClick={enterTongue}
               className="mt-5 rounded-full"
+              style={{ background: '#15803D', color: '#fff' }}
+            >
+              开始对照 →
+            </Button>
+            <Button
+              onClick={backToBody}
+              className="mt-3 rounded-full"
               style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
             >
-              上一步
+              返回修改身体感受
             </Button>
-          )}
+          </View>
         </View>
       )}
 
       {/* 结果 */}
-      {step === 'result' && primary && result && (
+      {step === 'result' && combined && (
         <View>
-          {/* 揭晓 */}
-          <View className="rounded-3xl p-5" style={{ background: primary.colorLight }}>
-            <Text className="text-xs text-[#6F675C]">你的舌象食养倾向</Text>
+          {/* 综合体质倾向 banner：揭晓 + emoji 呼吸 */}
+          <View className="qa-reveal rounded-3xl p-5" style={{ background: combined.primary.colorLight }}>
+            <Text className="text-xs text-[#6F675C]">综合食养倾向（身体感受 + 舌象对照）</Text>
             <View className="mt-1 flex items-center gap-2">
-              <Text className="text-3xl">{primary.emoji}</Text>
-              <Text className="text-2xl font-bold" style={{ color: primary.color }}>
-                {primary.name}
+              <Text className="qa-emoji-breathe text-3xl">{combined.primary.emoji}</Text>
+              <Text className="text-2xl font-bold" style={{ color: combined.primary.color }}>
+                {combined.primary.name}
               </Text>
             </View>
             {photoBased ? (
@@ -350,105 +572,158 @@ export default function TonguePage() {
               </View>
             ) : null}
             <Text className="text-sm text-[#3F3A34] mt-2 block" style={{ lineHeight: 1.7 }}>
-              {primary.description}
+              {combined.primary.description}
             </Text>
-            {result.secondary && (
+            {combined.secondary ? (
               <View className="mt-3">
                 <Text className="text-xs text-muted-foreground">兼顾倾向</Text>
                 <View className="mt-1 flex items-center gap-1.5">
-                  <Text className="text-lg">{result.secondary.emoji}</Text>
-                  <Text className="text-sm font-semibold" style={{ color: result.secondary.color }}>
-                    {result.secondary.name}
+                  <Text className="text-lg">{combined.secondary.emoji}</Text>
+                  <Text className="text-sm font-semibold" style={{ color: combined.secondary.color }}>
+                    {combined.secondary.name}
                   </Text>
                 </View>
               </View>
-            )}
+            ) : null}
           </View>
 
-          {/* 食养闭环 · 一键串联：问卷 → 维度 → 舌象 → 体质 → 商品 */}
-          <ChainStrip answers={answers} primary={primary} />
+          {/* 双通道交叉校验 */}
+          <View className="qa-reveal qa-stagger-1 mt-4 rounded-2xl bg-white p-4 shadow-sm">
+            <Text className="text-sm font-bold text-[#2A2A2A]">两项互相印证</Text>
+            <Text className="text-xs text-[#6F675C] mt-1 block">{combined.note}</Text>
+            <View className="mt-3 flex items-center gap-2">
+              <View className="flex-1 rounded-xl px-2 py-2" style={{ background: '#F7F3E9' }}>
+                <Text className="text-[10px] text-[#9A9388]">身体感受</Text>
+                <View className="mt-0.5 flex items-center gap-1">
+                  <Text style={{ fontSize: 16 }}>{combined.body.primary.emoji}</Text>
+                  <Text className="text-xs font-semibold" style={{ color: combined.body.primary.color }}>
+                    {combined.body.primary.name}
+                  </Text>
+                </View>
+              </View>
+              <Text style={{ color: '#C9C0B4', fontSize: 14 }}>×</Text>
+              <View className="flex-1 rounded-xl px-2 py-2" style={{ background: '#F7F3E9' }}>
+                <Text className="text-[10px] text-[#9A9388]">舌象对照</Text>
+                <View className="mt-0.5 flex items-center gap-1">
+                  <Text style={{ fontSize: 16 }}>{combined.tongue.primary.emoji}</Text>
+                  <Text className="text-xs font-semibold" style={{ color: combined.tongue.primary.color }}>
+                    {combined.tongue.primary.name}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
 
-          {/* 食养分析报告：健康状态 / 发生机制 / 关键依据 / 健康指数（v2 进阶算法） */}
-          <TongueReport answers={answers} photoBased={photoBased} />
+          {/* 食养闭环 · 一键串联：身体感受 → 舌象 → 双通道辨证 → 综合体质 → 商品 */}
+          <View className="qa-reveal qa-stagger-2">
+            <ChainStrip combined={combined} />
+          </View>
 
-          {/* 为什么这样提示 */}
-          <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-            <Text className="text-sm font-bold text-[#2A2A2A]">为什么这样提示</Text>
-            <Text className="text-xs text-[#6F675C] mt-1 block">
-              你逐项对照填出的舌象特征，经本地算法指向了以上倾向
-            </Text>
+          {/* 食养分析报告（舌象深度 · v2 进阶算法） */}
+          <View className="qa-reveal qa-stagger-3">
+            <TongueReport answers={answers} photoBased={photoBased} />
+          </View>
 
-            {scoreEntries.length > 0 ? (
-              <View className="mt-3 flex flex-col gap-2.5">
-                {scoreEntries.map(([key, score]) => {
-                  const t = CONSTITUTION_TYPES[key]
-                  const pct = maxScore > 0 ? Math.max(8, Math.round((score / maxScore) * 100)) : 0
-                  const isPrimary = key === primary.key
-                  return (
-                    <View key={key}>
-                      <View className="flex items-center justify-between">
-                        <View className="flex items-center gap-1">
-                          <Text className="text-sm">{t.emoji}</Text>
-                          <Text
-                            className="text-xs"
-                            style={{ color: isPrimary ? primary.color : '#6F675C', fontWeight: isPrimary ? '700' : '400' }}
-                          >
-                            {t.name}
-                          </Text>
+          {/* 身体感受分析 */}
+          {bodyResult ? (
+            <View className="qa-reveal qa-stagger-3 mt-4 rounded-2xl bg-white p-4 shadow-sm">
+              <Text className="text-sm font-bold text-[#2A2A2A]">身体感受分析</Text>
+              <Text className="text-xs text-[#6F675C] mt-1 block">
+                你 5 个身体感受的选择，指向的体质倾向
+              </Text>
+              {bodyScoreEntries.length > 0 ? (
+                <View className="mt-3 flex flex-col gap-2.5">
+                  {bodyScoreEntries.map(([key, score]) => {
+                    const t = CONSTITUTION_TYPES[key]
+                    const pct = bodyMax > 0 ? Math.max(8, Math.round((score / bodyMax) * 100)) : 0
+                    const isPrimary = key === combined.body.primary.key
+                    return (
+                      <View key={key}>
+                        <View className="flex items-center justify-between">
+                          <View className="flex items-center gap-1">
+                            <Text className="text-sm">{t.emoji}</Text>
+                            <Text
+                              className="text-xs"
+                              style={{ color: isPrimary ? combined.body.primary.color : '#6F675C', fontWeight: isPrimary ? '700' : '400' }}
+                            >
+                              {t.name}
+                            </Text>
+                          </View>
+                          <Text className="text-xs text-muted-foreground">{score} 分</Text>
                         </View>
-                        <Text className="text-xs text-muted-foreground">{score} 分</Text>
+                        <View className="mt-1 h-2 w-full overflow-hidden rounded-full bg-[#F4EFE8]">
+                          <View className="qa-bar-grow h-2 rounded-full" style={{ width: `${pct}%`, background: isPrimary ? combined.body.primary.color : '#ECE6DD' }} />
+                        </View>
                       </View>
-                      <View className="mt-1 h-2 w-full overflow-hidden rounded-full bg-[#F4EFE8]">
-                        <View className="h-2 rounded-full" style={{ width: `${pct}%`, background: isPrimary ? primary.color : '#ECE6DD' }} />
-                      </View>
+                    )
+                  })}
+                </View>
+              ) : (
+                <View className="mt-3 rounded-xl px-3 py-2.5" style={{ background: '#F0FDF4', borderWidth: 1, borderColor: '#DCFCE7' }}>
+                  <Text className="text-xs text-[#15803D]" style={{ lineHeight: 1.6 }}>
+                    你的各项身体感受都偏中性、整体状态均衡 —— 这恰恰是「{combined.body.primary.name}」的样子。
+                  </Text>
+                </View>
+              )}
+
+              {/* 答案回放 */}
+              <View className="mt-4 flex flex-col gap-2.5">
+                {TEST_QUESTIONS.map((qq, qi) => {
+                  const opt = qq.options[bodyAnswers[qi]]
+                  const effectEntries = Object.entries(opt?.effect ?? {})
+                  return (
+                    <View
+                      key={qq.id}
+                      className="rounded-xl px-3 py-2.5"
+                      style={{ background: '#FBF7EF', borderWidth: 1, borderColor: '#ECE6DD' }}
+                    >
+                      <Text className="text-[11px] text-muted-foreground">第 {qi + 1} 题 · {qq.question}</Text>
+                      <Text className="text-sm text-[#2A2A2A] mt-1 block font-semibold">{opt?.label}</Text>
+                      {effectEntries.length > 0 ? (
+                        <View className="mt-1.5 flex flex-wrap gap-1.5">
+                          {effectEntries.map(([k, pts]) => {
+                            const ct = CONSTITUTION_TYPES[k]
+                            return (
+                              <View key={k} className="rounded-full px-2 py-0.5" style={{ background: ct.colorLight }}>
+                                <Text className="text-[10px]" style={{ color: ct.color }}>
+                                  {ct.emoji} {ct.name} +{pts}
+                                </Text>
+                              </View>
+                            )
+                          })}
+                        </View>
+                      ) : (
+                        <Text className="text-[11px] text-muted-foreground mt-1 block">· 中性状态，不偏向特定体质</Text>
+                      )}
                     </View>
                   )
                 })}
               </View>
-            ) : (
-              <View className="mt-3 rounded-xl px-3 py-2.5" style={{ background: '#F0FDF4', borderWidth: 1, borderColor: '#DCFCE7' }}>
-                <Text className="text-xs text-[#15803D]" style={{ lineHeight: 1.6 }}>
-                  你的各项舌象特征都偏中性、整体状态均衡 —— 这恰恰是「{primary.name}」的样子。
-                </Text>
-              </View>
-            )}
-
-            <View className="mt-4 flex flex-col gap-2">
-              {result.picked.map((p, i) => (
-                <View
-                  key={i}
-                  className="rounded-xl px-3 py-2.5"
-                  style={{ background: '#FBF7EF', borderWidth: 1, borderColor: '#ECE6DD' }}
-                >
-                  <Text className="text-[11px] text-muted-foreground">第 {i + 1} 项 · {p.question}</Text>
-                  <Text className="text-sm text-[#2A2A2A] mt-1 block font-semibold">{p.label}</Text>
-                </View>
-              ))}
             </View>
-          </View>
+          ) : null}
 
-          {/* 宜忌性味 */}
-          <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+          {/* 宜忌性味（综合体质） */}
+          <View className="qa-reveal qa-stagger-4 mt-4 rounded-2xl bg-white p-4 shadow-sm">
             <Text className="text-sm font-bold text-[#2A2A2A]">口味上可以这样挑</Text>
             <View className="mt-3 flex flex-wrap gap-2">
-              {primary.recommendNature.length > 0 && (
+              {combined.primary.recommendNature.length > 0 && (
                 <View className="rounded-full bg-[#DCFCE7] px-3 py-1">
-                  <Text className="text-xs text-[#15803D]">宜 · {primary.recommendNature.join(' / ')}</Text>
+                  <Text className="text-xs text-[#15803D]">宜 · {combined.primary.recommendNature.join(' / ')}</Text>
                 </View>
               )}
-              {primary.avoidNature.length > 0 && (
+              {combined.primary.avoidNature.length > 0 && (
                 <View className="rounded-full bg-[#FEF2F2] px-3 py-1">
-                  <Text className="text-xs text-[#DC2626]">慎 · {primary.avoidNature.join(' / ')}</Text>
+                  <Text className="text-xs text-[#DC2626]">慎 · {combined.primary.avoidNature.join(' / ')}</Text>
                 </View>
               )}
             </View>
           </View>
 
           {/* 拍照给真人顾问（识别引擎 + 真人双轨） */}
-          <View className="mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
+          <View className="qa-reveal qa-stagger-4 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
             <Text className="text-sm font-bold text-[#2A2A2A]">想让真人看看？</Text>
             <Text className="text-xs text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>
-              上方倾向由你逐项对照填出的舌象特征、经本地算法得出，仅供食养参考；如需更细致的人工研判，可把照片发给「食养顾问」真人确认。
+              上方倾向由你填写的身体感受与舌象特征、经本地算法交叉校验得出，仅供食养参考；如需更细致的人工研判，可把照片发给「食养顾问」真人确认。
             </Text>
             {photoPath ? (
               <View className="mt-3 flex items-center gap-3">
@@ -479,7 +754,7 @@ export default function TonguePage() {
           </View>
 
           {/* 适配好物 */}
-          <View className="mt-5">
+          <View className="qa-reveal qa-stagger-5 mt-5">
             <Text className="text-base font-bold text-[#2A2A2A]">为你挑的 · 适配好物</Text>
             {loadingRecs ? (
               <Text className="text-sm text-muted-foreground mt-3 block">匹配中…</Text>
@@ -517,7 +792,7 @@ export default function TonguePage() {
 
           {/* 慎选提示 */}
           {caution.length > 0 && (
-            <View className="mt-4 rounded-2xl bg-[#FEF3C7] p-4" style={{ borderWidth: 1, borderColor: '#FEF3C7' }}>
+            <View className="qa-reveal qa-stagger-5 mt-4 rounded-2xl bg-[#FEF3C7] p-4" style={{ borderWidth: 1, borderColor: '#FEF3C7' }}>
               <Text className="text-sm font-bold text-[#B45309]">少量慎选 · {caution.length} 件</Text>
               <Text className="text-xs text-[#B45309] mt-1 block">以下商品性味偏「慎」，按你的倾向建议少量或偶尔食用。</Text>
               <View className="mt-2 flex flex-col gap-1">
@@ -530,28 +805,59 @@ export default function TonguePage() {
             </View>
           )}
 
+          {/* 可分享海报卡 */}
+          <View className="qa-reveal qa-stagger-6 mt-5">
+            <View
+              className="qa-poster rounded-3xl p-5"
+              style={{ background: `linear-gradient(135deg, ${combined.primary.colorLight}, #ffffff)` }}
+            >
+              <View className="flex items-center justify-between">
+                <Text className="text-[11px] text-muted-foreground">我的食养评估</Text>
+                <Text className="text-[11px] text-muted-foreground">来店有喜</Text>
+              </View>
+              <View className="mt-3 flex items-center gap-3">
+                <Text className="text-5xl">{combined.primary.emoji}</Text>
+                <View>
+                  <Text className="text-2xl font-bold" style={{ color: combined.primary.color }}>{combined.primary.name}</Text>
+                  <Text className="text-xs text-[#6F675C] mt-0.5 block">
+                    {combined.primary.recommendNature.join(' / ')} 性味更合适
+                  </Text>
+                </View>
+              </View>
+              <Text className="text-sm text-[#3F3A34] mt-3 block" style={{ lineHeight: 1.7 }}>
+                {POSTER_INSIGHT[combined.primary.key] ?? combined.primary.description}
+              </Text>
+              <View className="mt-3 flex items-center gap-1.5">
+                <Text className="text-xs text-[#6F675C]">身体感受 × 舌象对照 双印证</Text>
+              </View>
+            </View>
+            <Button openType="share" className="mt-3 rounded-full" style={{ background: combined.primary.color, color: '#fff' }}>
+              分享给好友 · 一起测测食养倾向
+            </Button>
+          </View>
+
           {/* 免责 */}
-          <View className="mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
+          <View className="qa-reveal qa-stagger-6 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
             <Text className="text-[11px] text-muted-foreground leading-relaxed block">
               {FOOD_THERAPY_DISCLAIMER}
             </Text>
           </View>
 
           {/* 操作 */}
-          <View className="mt-5 flex flex-col gap-3">
+          <View className="qa-reveal qa-stagger-6 mt-5 flex flex-col gap-3">
             <Button
-              onClick={() => Taro.navigateTo({ url: '/pages/food/constitution-test/index' })}
+              onClick={() => Taro.navigateTo({ url: '/pages/food/profile/index' })}
               className="rounded-full"
               style={{ background: 'hsl(var(--primary))', color: '#fff' }}
             >
-              去完善食养偏好设置
+              查看我的食养画像
             </Button>
             <Button
               onClick={restart}
               className="rounded-full"
               style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
             >
-              重新自检
+              重新评估
             </Button>
           </View>
         </View>

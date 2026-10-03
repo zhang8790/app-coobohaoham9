@@ -1,7 +1,6 @@
-// @title 首页「3分钟食养评估」入口（合并舌象自检）
-// 去 AI 落地的「标准化体质问卷」门面：点击主行进 /pages/food/constitution-test（5 题规则问卷，落库入口）；
-// 卡内并置舌象自检次级入口（👁 拍张舌头 · 智能识别倾向），点进 /pages/food/tongue（双轨：弱网/失败规则引擎兜底，界面零 AI 字样）。
-// 主行与次级入口为兄弟节点，各自独立绑定 onClick，互不嵌套，避免冒泡误触。
+// @title 首页「食养评估」入口（身体感受 + 舌象对照 合并入口）
+// 去 AI 落地的「标准化体质问卷 + 望舌对照」门面：点击主行进 /pages/food/tongue
+// （合并评估：5 题身体感受 + 8 维舌象对照，本地算法双通道交叉校验，界面零 AI 字样）。
 // 复用首页已算好的 retestDays 显示复测提示，零额外网络。
 import Taro from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
@@ -13,17 +12,13 @@ interface Props {
 }
 
 export default function AssessmentEntry({ retestDays }: Props) {
-  const goQuestionnaire = () => {
-    Taro.navigateTo({ url: '/pages/food/constitution-test/index' }).catch(() => {})
-  }
-
-  const goTongue = () => {
+  const goAssess = () => {
     Taro.navigateTo({ url: '/pages/food/tongue/index' }).catch(() => {})
   }
 
   const sub =
     retestDays == null
-      ? '测体质 · 挑对适合你的食养好物'
+      ? '身体感受 + 舌象对照，一次测全 · 本地算法给出食养倾向'
       : `你 ${retestDays} 天前测过，来复测看看变化`
 
   const cta = retestDays == null ? '去测一测' : '去复测'
@@ -35,14 +30,14 @@ export default function AssessmentEntry({ retestDays }: Props) {
         background:
           'linear-gradient(120deg, hsl(var(--primary-soft)) 0%, hsl(var(--primary-soft-deep)) 100%)',
         borderRadius: 16,
-        padding: '16px',
+        padding: 16,
         boxShadow: '0 4px 14px rgba(94,122,79,0.10)',
       }}
     >
-      {/* 主行：图标 + 文案 + CTA（点击进标准化体质问卷，全站唯一落库入口） */}
+      {/* 主行：图标 + 文案 + CTA（点击进合并食养评估，全站唯一评估入口） */}
       <View
         hoverClass="none"
-        onClick={goQuestionnaire}
+        onClick={goAssess}
         className="flex items-center active:opacity-80 transition-opacity"
         style={{ gap: 12 }}
       >
@@ -62,24 +57,24 @@ export default function AssessmentEntry({ retestDays }: Props) {
           <Image src={BRAND_LINE_ICONS['leaf']} style={{ width: 26, height: 26 }} />
         </View>
 
-        {/* 文案：主标题 + 动态副标（复测提示） */}
+        {/* 文案：主标题 + 动态副标（复测提示 / 合并说明） */}
         <View className="flex flex-col flex-1 min-w-0">
           <Text
             style={{
-              fontSize: '32rpx',
+              fontSize: 32,
               fontWeight: 700,
               color: 'hsl(var(--primary-strong))',
               letterSpacing: 0.5,
             }}
           >
-            3 分钟食养评估
+            食养评估
           </Text>
           <Text
             style={{
-              fontSize: '24rpx',
+              fontSize: 24,
               color: 'hsl(var(--foreground) / 0.72)',
               marginTop: 3,
-              lineHeight: '1.4',
+              lineHeight: 1.4,
             }}
           >
             {sub}
@@ -95,37 +90,8 @@ export default function AssessmentEntry({ retestDays }: Props) {
             padding: '8px 16px',
           }}
         >
-          <Text style={{ color: '#fff', fontSize: '26rpx', fontWeight: 700 }}>{cta} →</Text>
+          <Text style={{ color: '#fff', fontSize: 26, fontWeight: 700 }}>{cta} →</Text>
         </View>
-      </View>
-
-      {/* 分隔线 */}
-      <View
-        style={{
-          height: 1,
-          background: 'hsl(var(--foreground) / 0.12)',
-          margin: '14px 0 12px',
-        }}
-      />
-
-      {/* 舌象自检次级入口（兄弟节点，独立绑定，不触发主行问卷跳转） */}
-      <View
-        hoverClass="none"
-        onClick={goTongue}
-        className="flex items-center justify-between active:opacity-70 transition-opacity"
-      >
-        <Text
-          style={{
-            fontSize: '26rpx',
-            color: 'hsl(var(--primary-strong))',
-            fontWeight: 600,
-          }}
-        >
-          👁 或拍张舌头照片 · 智能识别倾向
-        </Text>
-        <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary-strong))', fontWeight: 700 }}>
-          →
-        </Text>
       </View>
     </View>
   )

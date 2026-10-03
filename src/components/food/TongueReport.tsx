@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState, useRef, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
 import { analyzeTongue, confidenceLabel } from '@/utils/food-therapy/tongue-engine-v2'
+import ConstitutionDeepAnalysis from '@/components/food/ConstitutionDeepAnalysis'
 import { computeHealthIndex, getMechanism, BAND_META } from '@/utils/food-therapy/tongue-report'
 import { pushTongueHistory, saveTongueProfile, type TongueHistoryPoint } from '@/utils/food-therapy/tongue-history'
 import TrendChart from '@/components/food/TrendChart'
@@ -215,7 +216,14 @@ export default function TongueReport({ answers, photoBased }: Props) {
           </Row>
         </View>
 
-        {/* ⑤ 数据库参考（案例库佐证，离线/超时优雅降级） */}
+        {/* ⑤ 体质倾向深度分析（望舌辨证 · 九种体质得分排序 + 证据链） */}
+        <View style={DIVIDER}>
+          <Row label="深度分析">
+            <ConstitutionDeepAnalysis analysis={analysis} />
+          </Row>
+        </View>
+
+        {/* ⑥ 数据库参考（案例库佐证，离线/超时优雅降级） */}
         <View style={DIVIDER}>
           <Row label="数据库参考">
             {refState === 'loading' ? (

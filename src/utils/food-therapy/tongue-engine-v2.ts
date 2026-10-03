@@ -11,7 +11,11 @@
  * 合规：本模块只做数值演算，不产出面向用户的文案；文案须过 tongue-compliance。
  */
 
-import { CONSTITUTION_TYPES } from '@/utils/constitution-test'
+import {
+  CONSTITUTION_TYPES,
+  calculateResult,
+  type TestResult,
+} from '@/utils/constitution-test'
 import {
   TONGUE_QUESTIONS,
   calculateTongueResult,
@@ -222,4 +226,188 @@ export function confidenceLabel(c: number): string {
   if (c >= 0.85) return '较高'
   if (c >= 0.7) return '中等'
   return '偏低'
+}
+
+/** 单条体质得分的构成（来自哪一维、哪个选项、加了几分） */
+export interface ConstitutionContribution {
+  dimLabel: string
+  label: string
+  points: number
+}
+
+/** 单种体质的得分明细（用于深度辩证的可视化与回放） */
+export interface ConstitutionScoreDetail {
+  key: string
+  name: string
+  emoji: string
+  color: string
+  score: number
+  /** 该体质的舌象证据来源（维度 → 选项 → 加分），按分值降序 */
+  contributions: ConstitutionContribution[]
+  isPrimary: boolean
+  isSecondary: boolean
+  /** 相对最高分的强度 0~1（用于条形可视化） */
+  ratio: number
+}
+
+/** 深度体质辩证结果：九种体质全量排序 + 兼夹说明 */
+export interface DeepConstitutionAnalysis {
+  ranked: ConstitutionScoreDetail[]
+  /** 得分 > 0 的偏颇质数量（兼夹维度） */
+  biasCount: number
+  /** 主与次的分差 */
+  primarySecondaryGap?: number
+  /** 兼夹/倾向中性说明（渲染层负责最终净化，不出现「诊断」字样） */
+  note: string
+}
+
+/**
+ * 深度体质辩证：把 v2 引擎的 scores + evidence 展开成「九种体质得分排序」，
+ * 并给每种体质回溯其舌象证据链（哪维哪个选项加分）。交互项的协同加成以
+ * 「协同项」伪证据补足，使各体质回放的加分之和与其最终得分一致。
+ */
+export function deepConstitutionAnalysis(a: TongueAnalysis): DeepConstitutionAnalysis {
+  const maxScore = Math.max(1, ...Object.values(a.scores).map((v) => v || 0))
+
+  const ranked: ConstitutionScoreDetail[] = Object.keys(CONSTITUTION_TYPES).map((key) => {
+    const c = CONSTITUTION_TYPES[key]
+    const score = a.scores[key] || 0
+
+    // ① 选项证据链
+    const contributions: ConstitutionContribution[] = []
+    for (const e of a.evidence) {
+      const pts = e.adds[key]
+      if (typeof pts === 'number' && pts > 0) {
+        contributions.push({ dimLabel: e.dimLabel, label: e.label, points: pts })
+      }
+    }
+
+    // ② 交互项协同加成补足（使回放之和 = 最终得分）
+    const optionSum = contributions.reduce((s, cc) => s + cc.points, 0)
+    const delta = score - optionSum
+    if (delta > 0) {
+      contributions.push({ dimLabel: '协同项', label: '特征组合协同加成', points: delta })
+    }
+    contributions.sort((x, y) => y.points - x.points)
+
+    return {
+      key,
+      name: c.name,
+      emoji: c.emoji,
+      color: c.color,
+      score,
+      contributions,
+      isPrimary: a.primary?.key === key,
+      isSecondary: a.secondary?.key === key,
+      ratio: score / maxScore,
+    }
+  })
+  ranked.sort((x, y) => y.score - x.score)
+
+  const biasCount = ranked.filter((r) => r.key !== 'pinghe' && r.score > 0).length
+
+  let note: string
+  if (a.primary?.key === 'pinghe') {
+    note =
+      biasCount === 0
+        ? '各项舌象特征以中性表现为多，整体趋于平和，未见明显偏颇倾向。'
+        : '以平和为主，个别维度略现倾向，可作为日常食养微调的参考。'
+  } else if (a.secondary) {
+    const gap = (a.scores[a.primary.key] || 0) - (a.scores[a.secondary.key] || 0)
+    note =
+      gap <= 2
+        ? `以「${a.primary.name}」为主，与「${a.secondary.name}」倾向接近，呈兼夹状态，建议两者兼顾调护。`
+        : `以「${a.primary.name}」为主，兼有「${a.secondary.name}」倾向，主次较为分明。`
+  } else {
+    note = `以「${a.primary.name}」为主倾向，单一偏颇特征较为突出。`
+  }
+
+  return {
+    ranked,
+    biasCount,
+    primarySecondaryGap:
+      a.secondary ? (a.scores[a.primary.key] || 0) - (a.scores[a.secondary.key] || 0) : undefined,
+    note,
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 双通道交叉校验：身体感受问卷 + 舌象对照，合成综合体质倾向
+// ----------------------------------------------------------------------------
+// 两套独立引擎（calculateResult / analyzeTongue）各自辨证，再把两套得分**按同一
+// 货币（加分点）求和**得到综合得分，沿用同一套阈值判定主/次。两者一致则互相印证、
+// 不一致则呈兼夹，天然完成「问卷 × 舌象」的交叉校验，降低单通道误判。
+// 合规：只做数值合成，文案由调用方负责，全程不出现「AI/诊断」。
+
+export interface CombinedAssessment {
+  /** 身体感受问卷结果（5 题） */
+  body: TestResult
+  /** 舌象对照结果（v2 引擎，含证据链/交互项/置信度） */
+  tongue: TongueAnalysis
+  /** 综合得分（身体 + 舌象，按维度求和） */
+  scores: Record<string, number>
+  primary: ConstitutionType
+  secondary?: ConstitutionType
+  /** 身体问卷主倾向 key */
+  bodyPrimaryKey: string
+  /** 舌象对照主倾向 key */
+  tonguePrimaryKey: string
+  /** 两通道是否指向同一偏颇质（互相印证） */
+  consensus: boolean
+  /** 交叉校验说明（食养参考口径，不出现诊断词） */
+  note: string
+}
+
+/**
+ * 把身体感受问卷（5 题）与舌象对照（8 维）合并辨证。
+ * @param bodyAnswers   TEST_QUESTIONS 的答案下标数组（长度 5，未答用 -1）
+ * @param tongueAnswers TONGUE_QUESTIONS 的答案下标数组（长度 8，未答用 -1）
+ */
+export function combineAssessment(
+  bodyAnswers: number[],
+  tongueAnswers: number[],
+): CombinedAssessment {
+  const body = calculateResult(bodyAnswers)
+  const tongue = analyzeTongue(tongueAnswers, { source: 'manual' })
+
+  const scores: Record<string, number> = {}
+  for (const key of Object.keys(CONSTITUTION_TYPES)) {
+    scores[key] = (body.scores[key] || 0) + (tongue.scores[key] || 0)
+  }
+
+  const { primaryKey, secondaryKey } = derivePrimary(scores)
+  const primary = CONSTITUTION_TYPES[primaryKey]
+  const secondary = secondaryKey ? CONSTITUTION_TYPES[secondaryKey] : undefined
+
+  const bodyPrimaryKey = body.primary.key
+  const tonguePrimaryKey = tongue.primary.key
+  const consensus =
+    bodyPrimaryKey !== 'pinghe' &&
+    tonguePrimaryKey !== 'pinghe' &&
+    bodyPrimaryKey === tonguePrimaryKey
+
+  let note: string
+  if (consensus) {
+    note = `身体感受与舌象对照指向同一倾向（${primary.name}），两项互相印证，综合判断更可信。`
+  } else if (bodyPrimaryKey === 'pinghe' && tonguePrimaryKey === 'pinghe') {
+    note = '身体感受与舌象对照均趋于平和，未见明显偏颇倾向。'
+  } else if (bodyPrimaryKey === 'pinghe') {
+    note = `身体感受偏中性，舌象对照更倾向「${tongue.primary.name}」，以舌象对照为主参考。`
+  } else if (tonguePrimaryKey === 'pinghe') {
+    note = `舌象对照偏中性，身体感受更倾向「${body.primary.name}」，以身体感受为主参考。`
+  } else {
+    note = `身体感受偏「${body.primary.name}」、舌象对照偏「${tongue.primary.name}」，两者略有差异；综合取较高者，建议两者兼顾调护。`
+  }
+
+  return {
+    body,
+    tongue,
+    scores,
+    primary,
+    secondary,
+    bodyPrimaryKey,
+    tonguePrimaryKey,
+    consensus,
+    note,
+  }
 }
