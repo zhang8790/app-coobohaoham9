@@ -479,10 +479,24 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
             // 引擎 buildTherapyReport 仅在商品有匹配食材时才跑，没配食材的商品此前人群全空；
             // 这里直接复用同一映射，有 health_tag 即可生成（体虚怕冷/脾胃虚寒…），填满「适用人群」。
             const { crowdTags: healthCrowd } = deriveFitConstitution((product as any)?.health_tag)
+            // health_tag 中可能直接嵌「适合X」人群标签（适合儿童/银发/孕产…），透传出来避免漏失真实受众
+            const FIT_LABEL_MAP: Record<string, string> = {
+              '适合儿童': '儿童',
+              '适合银发': '银发长辈',
+              '适合孕产': '孕产女性',
+              '适合熬夜': '熬夜人群',
+              '适合睡前': '睡眠不佳',
+              '适合体虚': '体虚人群',
+              '适合肠胃虚弱': '肠胃虚弱',
+            }
+            const healthTagCrowd = ((product as any)?.health_tag || [])
+              .map((t: string) => FIT_LABEL_MAP[t] || (t.startsWith('适合') ? t.slice(2) : ''))
+              .filter(Boolean)
             const crowdRec = cleanAudienceTags([
               ...((product as any)?.fit_crowd_tags || []),
               ...(therapyReport?.fit_crowd_tags || []),
               ...healthCrowd,
+              ...healthTagCrowd,
               ...(foodBenefit?.suitableFor || []),
               ...(input.rec_crowds || []),
             ]).slice(0, 6)
