@@ -294,6 +294,30 @@ export function deriveFitConstitution(healthTags?: string[] | null): {
   return { syndromes, crowdTags }
 }
 
+/** 功效标签 → 中医九种体质（适配体质轴，与 CONSTITUTION_TYPES / shiyang-dictionary 对齐；保守映射，避免过度断言） */
+export const HEALTH_TAG_CONSTITUTION_MAP: Record<string, string[]> = {
+  温中散寒: ['阳虚质', '气虚质'],
+  健脾养胃: ['气虚质', '痰湿质'],
+  滋阴润燥: ['阴虚质'],
+  清热降火: ['湿热质', '阴虚质'],
+  补气养血: ['气虚质', '阳虚质'],
+  舒缓安适: ['气郁质', '阴虚质'],
+  消食化积: ['痰湿质', '气虚质'],
+  润养舒喉: ['阴虚质'],
+  利水消肿: ['痰湿质'],
+}
+
+/** 由功效标签推导适配体质（九种体质名，去重保序） */
+export function deriveFitConstitutionTypes(healthTags?: string[] | null): string[] {
+  const out: string[] = []
+  for (const tag of healthTags || []) {
+    const hit = HEALTH_TAG_CONSTITUTION_MAP[tag]
+    if (!hit) continue
+    for (const c of hit) if (!out.includes(c)) out.push(c)
+  }
+  return out
+}
+
 // ---------- 5. 三色预警 + 文案组装 ----------
 export function buildTherapyReport(
   productName: string,

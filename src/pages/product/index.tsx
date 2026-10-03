@@ -23,7 +23,7 @@ import GiftSections from '@/pages/product/GiftSections'
 import { getFoodBenefit } from '@/data/foodBenefits'
 import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
 import { shieldCopy, cleanAudienceTags } from '@/utils/compliance/shield'
-import { buildTherapyReport, buildTherapyHeadline, isFoodProduct, NATURE_FEELING, deriveFitConstitution, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, buildTherapyHeadline, isFoodProduct, NATURE_FEELING, deriveFitConstitution, deriveFitConstitutionTypes, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 
 // 模块级缓存：食材字典（食养引擎基础数据）仅拉一次，跨商品跳转不再重复请求（PRD 4.1）
@@ -42,6 +42,21 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
  </View>
  {open && <View style={{ marginTop: 6 }}>{children}</View>}
  </View>
+ )
+}
+
+/** 食养适配行：标签 + 药丸；无标签整行不渲染（不展示空壳） */
+function TagRow({ label, tags }: { label: string; tags: string[] }) {
+ if (!tags || tags.length === 0) return null
+ return (
+  <View style={{ marginTop: 12 }}>
+   <Text className="text-base font-bold text-foreground" style={{ display: 'block' }}>{label}</Text>
+   <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+    {tags.map((c, i) => (
+     <Text key={label + i} style={{ fontSize: '24rpx', color: 'var(--color-herb-600)', background: 'var(--color-herb-200)', paddingVertical: '3px', paddingHorizontal: '8px', borderRadius: '999px', marginRight: 6, marginBottom: 6 }}>{c}</Text>
+    ))}
+   </View>
+  </View>
  )
 }
 
@@ -474,14 +489,13 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
         <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
           <SectionTitle iconName="shield" title="食养与食安" />
 
-          {/* 适用人群：常驻展示，不随食养门控（hasShiyang）消失；无标注时显「暂未提供」而非整块消失 */}
+          {/* 食养适配三轴：人群 / 场景 / 体质 —— 有数据才渲染对应行，避免空壳 */}
           {product && (() => {
             const input = toFoodTherapyInput(product)
-            // 由商品功效标签(health_tag)经 HEALTH_TAG_FIT_MAP 推导适用人群，独立于食材：
-            // 引擎 buildTherapyReport 仅在商品有匹配食材时才跑，没配食材的商品此前人群全空；
-            // 这里直接复用同一映射，有 health_tag 即可生成（体虚怕冷/脾胃虚寒…），填满「适用人群」。
+            // ① 适用人群：由商品功效标签(health_tag)经 HEALTH_TAG_FIT_MAP 推导，独立于食材；
+            // 引擎 buildTherapyReport 仅在商品有匹配食材时才跑，没配食材的商品此前人群全空。
+            // 这里复用同一映射 + 「适合X」受众透传，有 health_tag 即可生成（体虚怕冷/脾胃虚寒…）。
             const { crowdTags: healthCrowd } = deriveFitConstitution((product as any)?.health_tag)
-            // health_tag 中可能直接嵌「适合X」人群标签（适合儿童/银发/孕产…），透传出来避免漏失真实受众
             const FIT_LABEL_MAP: Record<string, string> = {
               '适合儿童': '儿童',
               '适合银发': '银发长辈',
@@ -502,16 +516,17 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
               ...(foodBenefit?.suitableFor || []),
               ...(input.rec_crowds || []),
             ]).slice(0, 6)
-            // 无任何适用人群数据 → 整块不渲染：不再展示「标题 + 暂未提供」空壳（等于对外展示缺失）
-            if (crowdRec.length === 0) return null
+            // ② 适用场景：商家填的 scene_tags（已回填真实食品）；无则整行不渲染
+            const sceneRec = cleanAudienceTags((product as any)?.scene_tags || []).slice(0, 6)
+            // ③ 适配体质：由 health_tag 经 HEALTH_TAG_CONSTITUTION_MAP 推导九体质（阳虚质/阴虚质…）
+            const constitutionRec = deriveFitConstitutionTypes((product as any)?.health_tag).slice(0, 6)
+            // 三轴全空 → 整块不渲染（不展示标题 + 暂未提供 空壳）
+            if (crowdRec.length === 0 && sceneRec.length === 0 && constitutionRec.length === 0) return null
             return (
               <View style={{ marginTop: 12 }}>
-                <Text className="text-base font-bold text-foreground" style={{ display: 'block' }}>适用人群</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
-                  {crowdRec.map((c, i) => (
-                    <Text key={'cr' + i} style={{ fontSize: '24rpx', color: 'var(--color-herb-600)', background: 'var(--color-herb-200)', paddingVertical: '3px', paddingHorizontal: '8px', borderRadius: '999px', marginRight: 6, marginBottom: 6 }}>{c}</Text>
-                  ))}
-                </View>
+                <TagRow label="适用人群" tags={crowdRec} />
+                <TagRow label="适用场景" tags={sceneRec} />
+                <TagRow label="适配体质" tags={constitutionRec} />
               </View>
             )
           })()}
