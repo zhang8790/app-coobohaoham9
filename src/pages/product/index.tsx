@@ -23,7 +23,7 @@ import GiftSections from '@/pages/product/GiftSections'
 import { getFoodBenefit } from '@/data/foodBenefits'
 import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
 import { shieldCopy, cleanAudienceTags } from '@/utils/compliance/shield'
-import { buildTherapyReport, buildTherapyHeadline, isFoodProduct, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, buildTherapyHeadline, isFoodProduct, NATURE_FEELING, deriveFitConstitution, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 
 // 模块级缓存：食材字典（食养引擎基础数据）仅拉一次，跨商品跳转不再重复请求（PRD 4.1）
@@ -475,12 +475,17 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
           {/* 适用人群：常驻展示，不随食养门控（hasShiyang）消失；无标注时显「暂未提供」而非整块消失 */}
           {product && (() => {
             const input = toFoodTherapyInput(product)
+            // 由商品功效标签(health_tag)经 HEALTH_TAG_FIT_MAP 推导适用人群，独立于食材：
+            // 引擎 buildTherapyReport 仅在商品有匹配食材时才跑，没配食材的商品此前人群全空；
+            // 这里直接复用同一映射，有 health_tag 即可生成（体虚怕冷/脾胃虚寒…），填满「适用人群」。
+            const { crowdTags: healthCrowd } = deriveFitConstitution((product as any)?.health_tag)
             const crowdRec = cleanAudienceTags([
               ...((product as any)?.fit_crowd_tags || []),
               ...(therapyReport?.fit_crowd_tags || []),
+              ...healthCrowd,
               ...(foodBenefit?.suitableFor || []),
               ...(input.rec_crowds || []),
-            ]).slice(0, 4)
+            ]).slice(0, 6)
             return (
               <View style={{ marginTop: 12 }}>
                 <Text className="text-base font-bold text-foreground" style={{ display: 'block' }}>适用人群</Text>
