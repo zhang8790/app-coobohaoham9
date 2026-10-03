@@ -52,6 +52,13 @@ function Section({ title, open, onToggle, hint, danger, children }: {
   )
 }
 
+// 商品上架向导：把近 50 个字段收成 3 步，一次只面对一组，降低一眼复杂度
+const FORM_STEPS: { key: number; label: string; hint: string }[] = [
+  { key: 1, label: '基本信息', hint: '图片 / 名称 / 分类 / 价格库存' },
+  { key: 2, label: '食养配置', hint: '原料成分 / 食疗系统（可跳过）' },
+  { key: 3, label: '营销预览', hint: '门店营销 / 顾客视角（可跳过）' },
+]
+
 // 结构化食材项（与小程序端 IngredientItem 保持一致）：原料成分分析升级为 占比/烹饪方式/辅料
 type IngredientItem = {
   id: string
@@ -269,6 +276,16 @@ export default function MerchantProducts() {
     media: false, base: true, price: true, category: false, ingredients: false, therapy: true, marketing: false,
   })
   const toggleSection = (k: string) => setSections(s => ({ ...s, [k]: !s[k] }))
+  // 商品上架分步（1 基本信息 / 2 食养配置 / 3 营销预览）
+  const [step, setStep] = useState(1)
+  const goNext = () => {
+    // 第 1 步未填必填项时不放行，避免一路「下一步」到保存才发现
+    if (step === 1 && (!form.name || !form.price || !form.stock)) {
+      window.alert('请先填写商品名称、售价、库存后再进入下一步')
+      return
+    }
+    setStep(s => Math.min(FORM_STEPS.length, s + 1))
+  }
   // 专家微调：默认关闭；引擎计算的食疗字段只读展示，开启后可手动覆盖（适合人群/性味/阶段/提示）
   const [expertMode, setExpertMode] = useState(false)
 
@@ -380,6 +397,7 @@ export default function MerchantProducts() {
       food_stage: '',
       product_kind: 'food', is_active: true, fit_people_override: '', materials: [],
       gift_meaning: '', gift_craft: '', gift_scene: '', gift_care: '' })
+    setStep(1)
     setShowModal(true)
   }
 
@@ -431,10 +449,11 @@ export default function MerchantProducts() {
       gift_scene: (p as any).gift_scene ?? '',
       gift_care: (p as any).gift_care ?? '',
     })
+    setStep(1)
     setShowModal(true)
   }
 
-  const closeModal = () => { setShowModal(false); setEditing(null) }
+  const closeModal = () => { setShowModal(false); setEditing(null); setStep(1) }
 
   // 一键生成店内码（仅编辑已有商品）：服务端原子分配 EAN-13 并回写 products.barcode
   // 用 RPC fn_alloc_store_barcode（SECURITY DEFINER，行锁防并发撞码），保证唯一且校验位正确
@@ -1136,9 +1155,39 @@ export default function MerchantProducts() {
       {showModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={closeModal}>
           <div style={{ background: 'var(--surface-2)', borderRadius: 16, padding: 24, width: 600, border: '1px solid var(--border)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ color: 'var(--text)', margin: '0 0 20px', fontSize: 16 }}>{editing ? '编辑商品' : '添加商品'}</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 style={{ color: 'var(--text)', margin: 0, fontSize: 16 }}>{editing ? '编辑商品' : '添加商品'}</h3>
+              <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>第 {step} / {FORM_STEPS.length} 步</span>
+            </div>
+            {/* 步骤条：一次只面对一组字段；已完成的步骤可点击回看 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+              {FORM_STEPS.map((s, i) => {
+                const active = step === s.key
+                const done = step > s.key
+                return (
+                  <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button type="button" onClick={() => setStep(s.key)} title={s.hint}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12,
+                        border: `1px solid ${active ? 'var(--primary)' : 'var(--border-soft)'}`,
+                        background: active ? 'var(--primary)' : done ? 'rgba(16,185,129,0.12)' : 'var(--bg)',
+                        color: active ? '#fff' : done ? 'var(--success-strong)' : 'var(--text-dim)',
+                        fontWeight: active ? 700 : 400 }}>
+                      <span style={{ width: 15, height: 15, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10,
+                        background: active ? 'rgba(255,255,255,0.28)' : done ? 'var(--success-strong)' : 'var(--border)',
+                        color: active || done ? '#fff' : 'var(--text-dim)' }}>{done ? '✓' : s.key}</span>
+                      {s.label}
+                    </button>
+                    {i < FORM_STEPS.length - 1 && <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>›</span>}
+                  </div>
+                )
+              })}
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* ===== 第 1 步：基本信息 ===== */}
+              <div style={{ display: step === 1 ? 'flex' : 'none', flexDirection: 'column', gap: 14 }}>
+
+              <Section title="商品图片 / 视频" open={sections.media} onToggle={() => toggleSection('media')} hint="主图 / 副图 / 视频 / 详情图">
               {/* ===== 主图 ===== */}
               <div>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>主图 *</span>
@@ -1247,6 +1296,7 @@ export default function MerchantProducts() {
                   <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>已选 {form.detail_images.length}/20 张，支持 JPG/PNG，按上传顺序排列，可在商品详情页依次展示，可直接拖拽图片到此区域</span>
                 </div>
               </div>
+              </Section>
 
               <Section title="基础信息" open={sections.base} onToggle={() => toggleSection('base')} hint="名称 / 描述 / 类型">
               <label>
@@ -1484,6 +1534,10 @@ export default function MerchantProducts() {
               <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>选二级子类会自动归到对应场景；🌐 为平台全局分类，对所有门店生效</span>
             </div>
             </Section>
+            </div>
+
+              {/* ===== 第 2 步：食养配置 ===== */}
+              <div style={{ display: step === 2 ? 'flex' : 'none', flexDirection: 'column', gap: 14 }}>
 
             <Section title="原料成分" open={sections.ingredients} onToggle={() => toggleSection('ingredients')} hint="可选 · 自动识别">
             {/*  原料成分分析（可选） */}
@@ -1767,6 +1821,10 @@ export default function MerchantProducts() {
               )}
 
               </Section>
+              </div>
+
+              {/* ===== 第 3 步：营销与预览 ===== */}
+              <div style={{ display: step === 3 ? 'flex' : 'none', flexDirection: 'column', gap: 14 }}>
 
               <Section title="门店营销配套" open={sections.marketing} onToggle={() => toggleSection('marketing')} hint="导购 / 朋友圈 / 忌口（可选）">
               {/* 门店营销配套录入区 */}
@@ -1842,9 +1900,20 @@ export default function MerchantProducts() {
                 </div>
               </div>
             </div>
+            </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
+            {/* 分步导航：上一步 / 下一步 / 确定；缺项时左侧直接提示缺什么 */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end', alignItems: 'center' }}>
+              <span style={{ marginRight: 'auto', fontSize: 12, color: (!form.name || !form.price || !form.stock) ? 'var(--danger)' : 'var(--text-dim)' }}>
+                {!form.name ? '请填写商品名称' : !form.price ? '请填写售价' : !form.stock ? '请填写库存' : FORM_STEPS[step - 1]?.hint}
+              </span>
               <button onClick={closeModal} style={{ padding: '8px 20px', background: 'transparent', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14 }}>取消</button>
+              {step > 1 && (
+                <button onClick={() => setStep(s => Math.max(1, s - 1))} style={{ padding: '8px 20px', background: 'transparent', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', cursor: 'pointer', fontSize: 14 }}>上一步</button>
+              )}
+              {step < FORM_STEPS.length && (
+                <button onClick={goNext} style={{ padding: '8px 20px', background: 'transparent', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--primary)', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>下一步</button>
+              )}
               <button onClick={handleSubmit} disabled={!form.name || !form.price || !form.stock} style={{
                 padding: '8px 20px',
                 background: (!form.name || !form.price || !form.stock) ? 'var(--border-soft)' : 'var(--success-strong)',
