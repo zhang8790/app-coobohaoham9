@@ -116,6 +116,13 @@ export default function TongueCameraPage() {
     setStep('front')
   }
 
+  // 仅重拍舌下（保留已拍好的舌面，回到第二步）
+  const retakeBack = () => {
+    setBackPhoto('')
+    setShot('')
+    setStep('back')
+  }
+
   // 当前步骤的引导文案
   const isFront = step === 'front'
   const pillText = isFront
@@ -261,13 +268,22 @@ export default function TongueCameraPage() {
               >
                 保存并返回对照自检
               </Button>
-              <Button
-                onClick={retakeAll}
-                className="rounded-full"
-                style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
-              >
-                重新拍摄
-              </Button>
+              <View className="flex flex-row gap-3">
+                <Button
+                  onClick={retakeBack}
+                  className="rounded-full"
+                  style={{ flex: 1, background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+                >
+                  重拍舌下
+                </Button>
+                <Button
+                  onClick={retakeAll}
+                  className="rounded-full"
+                  style={{ flex: 1, background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+                >
+                  重拍全部
+                </Button>
+              </View>
             </View>
         </View>
       </View>
@@ -286,6 +302,17 @@ export default function TongueCameraPage() {
             </Text>
           </View>
           <View className="tongue-cam-preview-actions">
+            {!isFront ? (
+              <Button
+                className="tongue-cam-btn ghost"
+                onClick={() => {
+                  setShot('')
+                  setStep('front')
+                }}
+              >
+                上一步
+              </Button>
+            ) : null}
             <Button className="tongue-cam-btn ghost" onClick={() => setShot('')}>
               重拍
             </Button>

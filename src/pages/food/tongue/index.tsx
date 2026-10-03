@@ -246,12 +246,30 @@ export default function TonguePage() {
 
   // 打开拍摄引导页（虚线舌形对齐 + 前后置切换 + 拍照/相册/示例）
   // 拍照仅本地留档（舌面 + 舌下），返回后逐项对照自检，不联网识别
-  const openCameraGuide = () => {
+  // photoOnly=true：结果页「重新拍照」专用 —— 仅更新照片，返回后保留当前评估结果与答案
+  const openCameraGuide = (photoOnlyFlag = false) => {
+    if (photoOnlyFlag) Taro.setStorageSync('tongue:photoOnly', '1')
     Taro.navigateTo({ url: '/pages/food/tongue-camera/index' }).catch(() => {
-      // 兜底：直接调系统相机
-      Taro.chooseImage({ count: 1, sizeType: ['compressed'], sourceType: ['camera'] })
+      // 兜底：直接调系统相机 / 相册（最多 2 张：舌面 + 舌下）
+      Taro.chooseImage({ count: 2, sizeType: ['compressed'], sourceType: ['camera', 'album'] })
         .then((res: any) => {
-          if (res?.tempFilePaths?.length) setPhotoPath(res.tempFilePaths[0])
+          const paths = res?.tempFilePaths || []
+          if (paths[0]) setPhotoPath(paths[0])
+          if (paths[1]) setPhotoBack(paths[1])
+          setPhotoBased(true)
+          if (!photoOnlyFlag) {
+            // 兜底入口：拍照后直接进对照（保留已拍照片）
+            setBodyAnswers(TEST_QUESTIONS.map(() => -1))
+            setAnswers(TONGUE_QUESTIONS.map(() => -1))
+            setCurrentQ(0)
+            setBodyResult(null)
+            setCombined(null)
+            setGood([])
+            setCaution([])
+            setJustSelected(null)
+            setSectionGate(false)
+            setStep('quiz')
+          }
         })
         .catch(() => {/* 用户取消，忽略 */})
     })
@@ -324,6 +342,7 @@ export default function TonguePage() {
       // 拍照留档返回：本地读取舌面（正面）+ 舌下（反面）两张，跳到逐项对照自检。
       // 纯本地、不联网、不经任何视觉识别 —— 用户看自己的照片逐项勾选特征。
       const captured = Taro.getStorageSync('tongue:captured')
+      const photoOnly = Taro.getStorageSync('tongue:photoOnly')
       if (captured) {
         try {
           const { front, back } = JSON.parse(captured)
@@ -332,22 +351,29 @@ export default function TonguePage() {
           if (typeof front === 'string') setPhotoPath(front)
           if (typeof back === 'string') setPhotoBack(back)
           setPhotoBased(true)
-          // 进入逐项对照（清空旧答案，从第一题开始）
-          setBodyAnswers(TEST_QUESTIONS.map(() => -1))
-          setAnswers(TONGUE_QUESTIONS.map(() => -1))
-          setCurrentQ(0)
-          setBodyResult(null)
-          setCombined(null)
-          setGood([])
-          setCaution([])
-          setJustSelected(null)
-          setSectionGate(false)
-          setStep('quiz')
+          if (!photoOnly) {
+            // 正常入口（intro → 拍照 → 对照）：清空旧答案，从第一题开始
+            setBodyAnswers(TEST_QUESTIONS.map(() => -1))
+            setAnswers(TONGUE_QUESTIONS.map(() => -1))
+            setCurrentQ(0)
+            setBodyResult(null)
+            setCombined(null)
+            setGood([])
+            setCaution([])
+            setJustSelected(null)
+            setSectionGate(false)
+            setStep('quiz')
+          } else {
+            // 结果页「重新拍照」：仅更新照片，保留当前评估结果与答案（不跳回对照）
+            Taro.removeStorageSync('tongue:photoOnly')
+          }
           return
         } catch (e) {
           /* 解析异常忽略 */
         }
       }
+      // 取消拍照 / 未成功留档：清除可能残留的 photoOnly 标记，避免污染后续正常入口
+      Taro.removeStorageSync('tongue:photoOnly')
 
       // 兜底：历史遗留的拍照留档本地路径（结果页预览 / 发给真人顾问）
       const p = Taro.getStorageSync('tongue:photo')
@@ -724,7 +750,7 @@ export default function TonguePage() {
             ) : null}
             <View className="mt-3 flex flex-col gap-2">
               <Button
-                onClick={openCameraGuide}
+                onClick={() => openCameraGuide(true)}
                 className="rounded-full"
                 style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
               >
