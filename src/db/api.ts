@@ -758,50 +758,6 @@ export async function getNearbyProducts(
  * - 返回的商品携带完整 mood_tags，供前端排序
  * @param platformFilter 自营门店过滤：'only'=只看自营，'exclude'=排除自营
  */
-export async function getProductsByEmotion(
-  moodTags: string[],
-  limit = 40,
-  platformFilter?: 'only' | 'exclude'
-): Promise<Product[]> {
-  if (!moodTags || moodTags.length === 0) {
-    return getProducts({ limit, platformFilter })
-  }
-
-  // JS 层过滤函数（复用 isPlatformProduct 双重保险逻辑）
-  const byPlatform = (list: Product[]): Product[] => {
-    if (platformFilter === 'only') return list.filter(isPlatformProduct)
-    if (platformFilter === 'exclude') return list.filter(p => !isPlatformProduct(p))
-    return list
-  }
-
-  // Step1：情绪匹配池（最多 60 条），带上 stores 信息用于 JS 过滤
-  const { data: matched } = await supabase
-    .from('products')
-    .select('*, stores(id,name,image_url,is_platform)')
-    .eq('is_active', true)
-    .overlaps('mood_tags', moodTags)
-    .order('created_at', { ascending: false })
-    .limit(60)
-
-  let matchedList: Product[] = byPlatform(Array.isArray(matched) ? matched : [])
-
-  // Step2：若匹配不足，用无情绪过滤的商品补齐
-  if (matchedList.length < limit) {
-    const matchedIds = new Set(matchedList.map(p => p.id))
-    const { data: fallback } = await supabase
-      .from('products')
-      .select('*, stores(id,name,image_url,is_platform)')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(limit - matchedList.length + 10)
-    const allFallback = Array.isArray(fallback) ? fallback : []
-    const extra: Product[] = byPlatform(allFallback).filter(p => !matchedIds.has(p.id)).slice(0, limit - matchedList.length)
-    return [...matchedList, ...extra]
-  }
-
-  return matchedList.slice(0, limit)
-}
-
 /**
  * 按商品 ID 批量取商品（带上 stores 信息），用于回溯已购订单对应的商品。
  * @param ids 商品 ID 列表（内部去重；为空直接返回 []）
@@ -955,10 +911,6 @@ function localUnderstand(text: string): string | null {
 }
 
 /** 编译商品情绪叙事（纯本地规则引擎，零 LLM 依赖；云端 emotion-compile 已不再调用） */
-export async function compileProductEmotion(payload: CompilePayload): Promise<any> {
-  return localCompile(payload)
-}
-
 /** 把用户自由文本分类为 6 情绪态之一（纯本地关键词规则，零 LLM 依赖） */
 export async function understandEmotion(text: string): Promise<string | null> {
   if (!text || !text.trim()) return null
@@ -1093,11 +1045,6 @@ export async function getOrderById(id: string): Promise<Order | null> {
   if (!id) return null
   const { data } = await supabase.from('orders').select('*, order_items(*)').eq('id', id).maybeSingle()
   return data
-}
-
-export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {
-  if (!id) return
-  await supabase.from('orders').update({ status, ...(status === 'completed' ? { paid_at: new Date().toISOString() } : {}) }).eq('id', id)
 }
 
 export async function getOrderCounts(): Promise<Record<string, number>> {
@@ -2247,14 +2194,6 @@ export async function markOrderUsed(orderId: string): Promise<boolean> {
 }
 
 /** 按订单号查订单（确权页校验是否已使用） */
-export async function getOrderForClaim(orderNo: string): Promise<{ verified_at: string | null; status: string } | null> {
-  if (!orderNo) return null
-  const { data } = await supabase
-    .from('orders').select('verified_at, status').eq('order_no', orderNo).maybeSingle()
-  if (!data) return null
-  return { verified_at: (data as any).verified_at || null, status: (data as any).status }
-}
-
 /** 当前用户已确权的订单号集合（订单中心判断「去确权」按钮用） */
 export async function getClaimedOrderNos(): Promise<string[]> {
   const { data: { user } } = await getLocalUser()
@@ -2365,62 +2304,10 @@ export async function spendEmotionTongbao(
 }
 
 /** 用户健康豆余额（前端展示用，比 getOrCreate 轻） */
-export async function getEmotionTongbaoBalance(userId: string): Promise<number> {
-  if (!userId) return 0
-  const { data } = await supabase
-    .from('emotion_assets').select('balance').eq('user_id', userId).maybeSingle()
-  return data?.balance ?? 0
-}
-
 /** 健康豆流水（最近 N 条，倒序） */
-export async function getEmotionTongbaoLogs(userId: string, limit = 50): Promise<EmotionTongbaoLog[]> {
-  if (!userId) return []
-  const { data } = await supabase
-    .from('emotion_tongbao_logs')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(limit)
-  return (data || []) as unknown as EmotionTongbaoLog[]
-}
-
 /** 健康豆累计统计（用于账单页） */
-export async function getEmotionTongbaoStats(userId: string): Promise<{
-  balance: number; total_earned: number; total_spent: number
-}> {
-  if (!userId) return { balance: 0, total_earned: 0, total_spent: 0 }
-  const { data } = await supabase
-    .from('emotion_assets')
-    .select('balance,total_earned,total_spent')
-    .eq('user_id', userId)
-    .maybeSingle()
-  return {
-    balance: data?.balance ?? 0,
-    total_earned: data?.total_earned ?? 0,
-    total_spent: data?.total_spent ?? 0}
-}
-
 /** 徽章字典（前端冷启动拉一次即可） */
-export async function getEmotionBadgeDefs(): Promise<EmotionBadgeDef[]> {
-  const { data } = await supabase
-    .from('emotion_badge_defs')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
-  return (data || []) as unknown as EmotionBadgeDef[]
-}
-
 /** 用户已获徽章 */
-export async function getUserEmotionBadges(userId: string): Promise<EmotionBadgeGrant[]> {
-  if (!userId) return []
-  const { data } = await supabase
-    .from('emotion_badge_grants')
-    .select('*')
-    .eq('user_id', userId)
-    .order('granted_at', { ascending: false })
-  return (data || []) as unknown as EmotionBadgeGrant[]
-}
-
 /** 颁发徽章（幂等：已拥有则静默跳过，不触发 409 噪音） */
 export async function grantEmotionBadge(
   userId: string,
@@ -2576,13 +2463,6 @@ export async function getWechatOpenid(code: string): Promise<string | null> {
 }
 
 /** 获取用户佣金列表 */
-export async function getMyCommissions(page = 0, limit = 20): Promise<import('./types').Commission[]> {
-  const { data } = await supabase.from('commissions')
-    .select('*').order('created_at', { ascending: false })
-    .range(page * limit, (page + 1) * limit - 1)
-  return Array.isArray(data) ? data : []
-}
-
 /** 获取我的健康豆流水（收益+支出） */
 export async function getMyTongbaoLogs(page = 0, limit = 30): Promise<import('./types').TongbaoLog[]> {
   const { data } = await supabase.from('tongbao_logs')
@@ -2618,17 +2498,7 @@ export async function getMyPointsLogs(page = 0, limit = 30): Promise<import('./t
 }
 
 /** 获取我的退款记录 */
-export async function getMyRefunds(): Promise<import('./types').Refund[]> {
-  const { data } = await supabase.from('refunds').select('*').order('created_at', { ascending: false })
-  return Array.isArray(data) ? data : []
-}
-
 /** 获取订单的退款记录 */
-export async function getRefundsByOrderId(orderId: string): Promise<import('./types').Refund[]> {
-  const { data } = await supabase.from('refunds').select('*').eq('order_id', orderId).order('created_at', { ascending: false })
-  return Array.isArray(data) ? data : []
-}
-
 /**
  * 提交退款申请 —— 改为调用 refund-order Edge Function（服务端闭环）。
  *
@@ -3821,14 +3691,6 @@ export async function submitReviews(reviews: Array<{
     }
   }
   return !error
-}
-
-export async function getProductReviews(productId: string, page = 0, limit = 10): Promise<import('./types').ProductReview[]> {
-  const { data } = await supabase.from('product_reviews')
-    .select('*, profiles(id, nickname, avatar_url)')
-    .eq('product_id', productId).order('created_at', { ascending: false })
-    .range(page * limit, (page + 1) * limit - 1)
-  return (data ?? []) as import('./types').ProductReview[]
 }
 
 // =====================
