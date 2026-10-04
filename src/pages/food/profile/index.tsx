@@ -10,7 +10,7 @@
 import { useState, useMemo } from 'react'
 import { View, Text, ScrollView, Image, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { CONSTITUTION_TYPES } from '@/utils/constitution-test'
+import { CONSTITUTION_TYPES, TEST_QUESTIONS, DEEP_BODY_QUESTIONS, type TestQuestion } from '@/utils/constitution-test'
 import { TONGUE_QUESTIONS } from '@/utils/food-therapy/tongue-rules'
 import { combineAssessment } from '@/utils/food-therapy/tongue-engine-v2'
 import { BAND_META } from '@/utils/food-therapy/tongue-report'
@@ -40,8 +40,22 @@ const DIM_LABELS: Record<string, string> = {
   sublingual: '舌下络脉',
 }
 
-// 综合答案构成：前 BODY_COUNT 位为「身体感受 5 题」，其后为「舌象对照 8 维」
-const BODY_COUNT = 5
+// 综合答案构成：前 bodyCount 位为「身体感受」，其后为「舌象对照 8 维」
+const TONGUE_COUNT = 8
+
+/**
+ * 依据快照的 bodyCount 标记与答案长度，判定身体题数与对应题库。
+ * 兼容三种快照：新 9 题深度版（17 项）/ 旧 5 题快速版（13 项）/ 更早纯舌象版（8 项）。
+ */
+function resolveBodyLayout(
+  answers: number[] | undefined,
+  bodyCountFlag?: number,
+): { bodyCount: number; questions: TestQuestion[] } {
+  const len = answers?.length ?? 0
+  if (bodyCountFlag === 9 || len >= TONGUE_COUNT + 9) return { bodyCount: 9, questions: DEEP_BODY_QUESTIONS }
+  if (bodyCountFlag === 5 || len >= TONGUE_COUNT + 5) return { bodyCount: 5, questions: TEST_QUESTIONS }
+  return { bodyCount: 0, questions: DEEP_BODY_QUESTIONS }
+}
 
 export default function FoodProfilePage() {
   const [profile, setProfile] = useState<TongueProfile | null>(null)
@@ -57,10 +71,12 @@ export default function FoodProfilePage() {
     if (!p) return
     // 用保存的 answers 重算「综合辨证」（确定性）→ 复用与结果页同源的商品匹配
     setLoadingRecs(true)
-    const isC = (p.answers?.length ?? 0) >= BODY_COUNT + 8
+    const { bodyCount, questions } = resolveBodyLayout(p.answers, p.bodyCount)
+    const isC = bodyCount > 0
     const analysis = combineAssessment(
-      isC ? p.answers.slice(0, BODY_COUNT) : [],
-      isC ? p.answers.slice(BODY_COUNT) : p.answers,
+      isC ? p.answers.slice(0, bodyCount) : [],
+      isC ? p.answers.slice(bodyCount) : p.answers,
+      questions,
     )
     getProducts({ limit: 40 })
       .then((all: Product[]) => {
@@ -102,13 +118,14 @@ export default function FoodProfilePage() {
 
   const primary = CONSTITUTION_TYPES[profile.primaryKey]
   const secondary = profile.secondaryKey ? CONSTITUTION_TYPES[profile.secondaryKey] : null
-  // 综合答案：前 BODY_COUNT 位身体感受，其后舌象对照（共 13）；旧快照为 8 位舌象，做兼容
-  const isCombined = (profile.answers?.length ?? 0) >= BODY_COUNT + 8
-  const bodyAnswers = isCombined ? profile.answers.slice(0, BODY_COUNT) : []
-  const tongueAnswers = isCombined ? profile.answers.slice(BODY_COUNT) : profile.answers
+  // 综合答案：前 bodyCount 位身体感受，其后舌象对照（8 维）；兼容旧 5 题版与纯舌象版
+  const layout = resolveBodyLayout(profile.answers, profile.bodyCount)
+  const isCombined = layout.bodyCount > 0
+  const bodyAnswers = isCombined ? profile.answers.slice(0, layout.bodyCount) : []
+  const tongueAnswers = isCombined ? profile.answers.slice(layout.bodyCount) : profile.answers
   // 用保存的 answers 确定性重算「综合辨证」（与评估页、结果页同源），驱动深度分析与好物
   const combined = useMemo(
-    () => combineAssessment(bodyAnswers, tongueAnswers),
+    () => combineAssessment(bodyAnswers, tongueAnswers, layout.questions),
     [profile.answers],
   )
   const band = BAND_META[profile.band]

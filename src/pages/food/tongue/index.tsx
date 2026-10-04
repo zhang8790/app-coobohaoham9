@@ -15,7 +15,7 @@ import { useState, useEffect } from 'react'
 import { View, Text, Button, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/taro'
 import {
-  TEST_QUESTIONS,
+  DEEP_BODY_QUESTIONS,
   calculateResult,
   constitutionToCrowds,
   CONSTITUTION_TYPES,
@@ -27,6 +27,7 @@ import {
 import {
   analyzeTongue,
   combineAssessment,
+  buildBodyDimensionNotes,
   type CombinedAssessment,
 } from '@/utils/food-therapy/tongue-engine-v2'
 import { buildProductMatch, type MatchedProduct } from '@/utils/food-therapy/product-match'
@@ -42,7 +43,7 @@ import './index.scss'
 
 type Step = 'intro' | 'quiz' | 'result'
 
-// ── 合并问卷：身体感受（5 题）+ 舌象对照（8 维）──
+// ── 合并问卷：身体感受 · 深度问诊（9 题）+ 舌象对照（8 维）──
 type QSection = 'body' | 'tongue'
 interface NormQ {
   section: QSection
@@ -51,12 +52,12 @@ interface NormQ {
   sub: string
   options: { label: string; hint?: string }[]
 }
-const BODY_NORM: NormQ[] = TEST_QUESTIONS.map((q, i) => ({
+const BODY_NORM: NormQ[] = DEEP_BODY_QUESTIONS.map((q, i) => ({
   section: 'body',
   idx: i,
   question: q.question,
   sub: q.hint,
-  options: q.options.map((o) => ({ label: o.label })),
+  options: q.options.map((o) => ({ label: o.label, hint: o.hint })),
 }))
 const TONGUE_NORM: NormQ[] = TONGUE_QUESTIONS.map((q, i) => ({
   section: 'tongue',
@@ -85,7 +86,7 @@ const POSTER_INSIGHT: Record<string, string> = {
 /** 食养闭环串联条：把 身体感受 → 舌象对照 → 双通道辨证 → 综合体质 → 商品 一屏可视化 */
 function ChainStrip({ combined }: { combined: CombinedAssessment }) {
   const steps: { t: string; s: string; hot?: boolean }[] = [
-    { t: '身体感受', s: '5 题填写' },
+    { t: '身体感受', s: '9 题填写' },
     { t: '舌象对照', s: '8 维填写' },
     { t: '双通道辨证', s: '交叉校验' },
     { t: combined.primary.name, s: '综合体质', hot: true },
@@ -129,7 +130,7 @@ function ChainStrip({ combined }: { combined: CombinedAssessment }) {
 export default function TonguePage() {
   const [step, setStep] = useState<Step>('intro')
   const [currentQ, setCurrentQ] = useState(0)
-  const [bodyAnswers, setBodyAnswers] = useState<number[]>(() => TEST_QUESTIONS.map(() => -1))
+  const [bodyAnswers, setBodyAnswers] = useState<number[]>(() => DEEP_BODY_QUESTIONS.map(() => -1))
   const [answers, setAnswers] = useState<number[]>(() => TONGUE_QUESTIONS.map(() => -1))
   const [bodyResult, setBodyResult] = useState<TestResult | null>(null)
   const [combined, setCombined] = useState<CombinedAssessment | null>(null)
@@ -180,9 +181,9 @@ export default function TonguePage() {
       // 末题（最后一题舌象）：用更新后的本地数组计算（setState 异步，必须用 next）
       const finalBody = isBody ? next : bodyAnswers
       const finalTongue = isBody ? answers : next
-      const bodyRes = calculateResult(finalBody)
+      const bodyRes = calculateResult(finalBody, DEEP_BODY_QUESTIONS)
       const tongueRes = analyzeTongue(finalTongue, { source: 'manual' })
-      const comb = combineAssessment(finalBody, finalTongue)
+      const comb = combineAssessment(finalBody, finalTongue, DEEP_BODY_QUESTIONS)
       setBodyResult(bodyRes)
       setCombined(comb)
       setStep('result')
@@ -216,7 +217,7 @@ export default function TonguePage() {
 
   const startDirect = () => {
     setPhotoBased(false)
-    setBodyAnswers(TEST_QUESTIONS.map(() => -1))
+    setBodyAnswers(DEEP_BODY_QUESTIONS.map(() => -1))
     setAnswers(TONGUE_QUESTIONS.map(() => -1))
     setCurrentQ(0)
     setBodyResult(null)
@@ -229,7 +230,7 @@ export default function TonguePage() {
   }
 
   const restart = () => {
-    setBodyAnswers(TEST_QUESTIONS.map(() => -1))
+    setBodyAnswers(DEEP_BODY_QUESTIONS.map(() => -1))
     setAnswers(TONGUE_QUESTIONS.map(() => -1))
     setCurrentQ(0)
     setBodyResult(null)
@@ -259,7 +260,7 @@ export default function TonguePage() {
           setPhotoBased(true)
           if (!photoOnlyFlag) {
             // 兜底入口：拍照后直接进对照（保留已拍照片）
-            setBodyAnswers(TEST_QUESTIONS.map(() => -1))
+            setBodyAnswers(DEEP_BODY_QUESTIONS.map(() => -1))
             setAnswers(TONGUE_QUESTIONS.map(() => -1))
             setCurrentQ(0)
             setBodyResult(null)
@@ -307,6 +308,7 @@ export default function TonguePage() {
           bandLabel: idx.bandLabel,
           confidence: tongueAnalysis.confidence,
           answers: [...bodyAnswers, ...answers],
+          bodyCount: DEEP_BODY_QUESTIONS.length,
         })
       } catch (e) {
         console.error('[assess] 偏好落库失败（不阻断）', e)
@@ -317,6 +319,9 @@ export default function TonguePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, combined])
+
+  // 身体感受 · 分维度专业点评（结果页「辨证依据」用；仅含非中性维度）
+  const bodyNotes = buildBodyDimensionNotes(bodyAnswers, DEEP_BODY_QUESTIONS)
 
   // 身体感受得分排行（仅取有分的偏颇质，降序取前 4）
   const bodyScoreEntries: [string, number][] = bodyResult
@@ -353,7 +358,7 @@ export default function TonguePage() {
           setPhotoBased(true)
           if (!photoOnly) {
             // 正常入口（intro → 拍照 → 对照）：清空旧答案，从第一题开始
-            setBodyAnswers(TEST_QUESTIONS.map(() => -1))
+            setBodyAnswers(DEEP_BODY_QUESTIONS.map(() => -1))
             setAnswers(TONGUE_QUESTIONS.map(() => -1))
             setCurrentQ(0)
             setBodyResult(null)
@@ -392,7 +397,7 @@ export default function TonguePage() {
     <View className="mb-4">
       <Text className="text-2xl font-bold text-[#2A2A2A]"> 食养评估</Text>
       <Text className="text-xs text-[#6F675C] mt-1 block">
-        身体感受 5 题 + 舌象对照 8 维，本地算法综合给出你的食养倾向（约 2 分钟）
+        身体感受 9 题 + 舌象对照 8 维，本地算法综合给出你的食养倾向（约 3 分钟）
       </Text>
     </View>
   )
@@ -417,7 +422,7 @@ export default function TonguePage() {
             </Text>
             <Text className="text-2xl font-bold text-[#2A2A2A] mt-1 block">读懂你的食养倾向</Text>
             <Text className="text-sm text-[#6F675C] mt-2 block" style={{ lineHeight: 1.75 }}>
-              两步轻测：先聊聊 5 个身体小感受，再在自然光下看自己的舌头、对照 8 项特征。本地算法交叉印证，给你一份专属食养参考。
+              两步细测：先聊 9 个身体专项感受（寒热 / 汗出 / 精力 / 睡眠 / 情绪等），再在自然光下看自己的舌头、对照 8 项特征。本地算法交叉印证，给你一份专属食养参考。
             </Text>
 
             {/* 两大部分可视化 */}
@@ -425,7 +430,7 @@ export default function TonguePage() {
               <View className="flex-1 rounded-2xl p-3" style={{ background: '#fff', borderWidth: 1, borderColor: '#ECE6DD' }}>
                 <Text className="text-lg">🙂</Text>
                 <Text className="text-sm font-semibold text-[#2A2A2A] mt-1 block">身体感受</Text>
-                <Text className="text-[11px] text-[#9A9388] mt-0.5 block">5 个轻松小问</Text>
+                <Text className="text-[11px] text-[#9A9388] mt-0.5 block">9 个专项细问</Text>
               </View>
               <View className="flex-1 rounded-2xl p-3" style={{ background: '#fff', borderWidth: 1, borderColor: '#ECE6DD' }}>
                 <Text className="text-lg">👅</Text>
@@ -435,7 +440,7 @@ export default function TonguePage() {
             </View>
 
             <View className="mt-3 flex flex-wrap gap-2">
-              {['约 2 分钟', '无需登录', '本地算法·不联网'].map((t) => (
+              {['约 3 分钟', '无需登录', '本地算法·不联网'].map((t) => (
                 <View key={t} className="rounded-full px-3 py-1" style={{ background: 'hsl(var(--primary) / 0.08)' }}>
                   <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>{t}</Text>
                 </View>
@@ -656,6 +661,44 @@ export default function TonguePage() {
               </View>
             </View>
           </View>
+
+          {/* 辨证依据 · 逐项专业解读（身体感受侧，可追溯） */}
+          {bodyNotes.length > 0 ? (
+            <View className="qa-reveal qa-stagger-2 mt-4 rounded-2xl bg-white p-4 shadow-sm">
+              <Text className="text-sm font-bold text-[#2A2A2A]">辨证依据 · 逐项解读</Text>
+              <Text className="text-xs text-[#6F675C] mt-1 block">
+                你的每项身体感受，指向的体质倾向（共 {bodyNotes.length} 项有指向）
+              </Text>
+              <View className="mt-3 flex flex-col gap-2.5">
+                {bodyNotes.map((n, i) => (
+                  <View key={i} className="rounded-xl px-3 py-2.5" style={{ background: '#F7F3E9' }}>
+                    <View className="flex items-center justify-between">
+                      <Text className="text-xs font-bold text-[#3F3A34]">{n.dimLabel}</Text>
+                      {n.toward ? (
+                        <View
+                          className="rounded-full px-2 py-0.5"
+                          style={{ background: 'hsl(var(--primary) / 0.1)' }}
+                        >
+                          <Text className="text-[10px]" style={{ color: 'hsl(var(--primary))' }}>
+                            {n.toward}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text className="text-[11px] text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>
+                      {n.label}
+                      {n.detail ? ` · ${n.detail}` : ''}
+                    </Text>
+                    {n.reading ? (
+                      <Text className="text-[11px] mt-0.5 block" style={{ color: '#15803D', lineHeight: 1.6 }}>
+                        {n.reading}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
 
           {/* 食养闭环 · 一键串联：身体感受 → 舌象 → 双通道辨证 → 综合体质 → 商品 */}
           <View className="qa-reveal qa-stagger-2">

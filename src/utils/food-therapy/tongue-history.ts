@@ -76,6 +76,8 @@ export interface TongueProfile {
   bandLabel: string
   confidence: number
   answers: number[]
+  /** 身体感受题数（9 = 深度问诊版；缺省或 5 = 旧的快速 5 题版），画像页据此选用对应题库重算 */
+  bodyCount?: number
 }
 
 /**

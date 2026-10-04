@@ -13,7 +13,10 @@
 
 import {
   CONSTITUTION_TYPES,
+  TEST_QUESTIONS,
   calculateResult,
+  TENDENCY_PHRASE,
+  type TestQuestion,
   type TestResult,
 } from '@/utils/constitution-test'
 import {
@@ -372,15 +375,17 @@ export interface CombinedAssessment {
 }
 
 /**
- * 把身体感受问卷（5 题）与舌象对照（8 维）合并辨证。
- * @param bodyAnswers   TEST_QUESTIONS 的答案下标数组（长度 5，未答用 -1）
+ * 把身体感受问卷（快速 5 题 或 深度 9 题）与舌象对照（8 维）合并辨证。
+ * @param bodyAnswers   bodyQuestions 的答案下标数组（未答用 -1）
  * @param tongueAnswers TONGUE_QUESTIONS 的答案下标数组（长度 8，未答用 -1）
+ * @param bodyQuestions 身体题库，默认快速版 5 题；食养评估传 DEEP_BODY_QUESTIONS
  */
 export function combineAssessment(
   bodyAnswers: number[],
   tongueAnswers: number[],
+  bodyQuestions: TestQuestion[] = TEST_QUESTIONS,
 ): CombinedAssessment {
-  const body = calculateResult(bodyAnswers)
+  const body = calculateResult(bodyAnswers, bodyQuestions)
   const tongue = analyzeTongue(tongueAnswers, { source: 'manual' })
 
   const scores: Record<string, number> = {}
@@ -423,4 +428,55 @@ export function combineAssessment(
     consensus,
     note,
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 身体感受 · 分维度专业点评（结果页「辨证依据」用）
+// ----------------------------------------------------------------------------
+// 把身体问卷的每一维展开为「用户表现 + 专业解读 + 指向体质」，让结论从「一个名字」
+// 升级为可追溯的依据链。中性基线（无指向）不返回。文案统一「提示…」，零诊断词。
+
+export interface BodyDimensionNote {
+  /** 专业维度名（如「寒热倾向」） */
+  dimLabel: string
+  /** 用户所选选项的分层名（如「轻度畏寒」） */
+  label: string
+  /** 选项的具体表现（比 label 更细） */
+  detail?: string
+  /** 专业解读（「提示…」，不含违禁词） */
+  reading?: string
+  /** 该选项指向的偏颇质 key（最高分项） */
+  towardKey?: string
+  /** 指向短语（体质学描述，供展示） */
+  toward?: string
+}
+
+/**
+ * 把身体感受答案展开为「分维度专业点评」。
+ * 仅返回有指向（effect 非空）的维度；顺序与题库一致。
+ */
+export function buildBodyDimensionNotes(
+  answers: number[],
+  questions: TestQuestion[] = TEST_QUESTIONS,
+): BodyDimensionNote[] {
+  const out: BodyDimensionNote[] = []
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i]
+    const idx = answers[i]
+    if (idx === undefined || idx < 0 || idx >= q.options.length) continue
+    const opt = q.options[idx]
+    const entries = Object.entries(opt.effect || {}) as [string, number][]
+    if (entries.length === 0) continue // 中性基线：无指向，不占版面
+    entries.sort((a, b) => b[1] - a[1])
+    const towardKey = entries[0][0]
+    out.push({
+      dimLabel: q.dimLabel || q.question,
+      label: opt.label,
+      detail: opt.hint,
+      reading: opt.reading,
+      towardKey,
+      toward: TENDENCY_PHRASE[towardKey],
+    })
+  }
+  return out
 }

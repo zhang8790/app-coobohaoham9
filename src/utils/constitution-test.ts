@@ -163,7 +163,17 @@ export interface TestQuestion {
   id: number
   question: string
   hint: string
-  options: { label: string; value: number; effect: Partial<Record<ConstitutionKey, number>> }[]
+  /** 结果页「分维度专业点评」的维度名（缺省回退 question） */
+  dimLabel?: string
+  options: {
+    label: string
+    value: number
+    effect: Partial<Record<ConstitutionKey, number>>
+    /** 选项的具体表现（答题时展示，帮用户对号入座；比 label 更细） */
+    hint?: string
+    /** 该表现指向的专业解读（结果页「依据」用，统一「提示…」口径，不含违禁词） */
+    reading?: string
+  }[]
 }
 
 /** 0=A, 1=B, 2=C, 3=D 对各体质的加分影响 */
@@ -234,6 +244,295 @@ export const TEST_QUESTIONS: TestQuestion[] = [
   },
 ]
 
+/**
+ * 深度问诊题库（9 题 · 食养评估专用）
+ * ----------------------------------------------------------------------------
+ * 相比快速版（5 题）覆盖更全的中医体质自评维度，共 9 个专项：
+ *   ① 寒热倾向 ② 汗出 ③ 精力 ④ 口咽与火热 ⑤ 睡眠 ⑥ 情绪 ⑦ 头身感觉 ⑧ 饮食消化 ⑨ 面色与瘀象
+ * 每题选项给出「具体表现」（hint，答题时帮用户对号入座）与「专业解读」（reading，结果页
+ * 依据链使用），口径统一为「提示…」，不出现诊断 / 辨证 / 疾病词。第 1 项为中性基线（effect 为空）。
+ */
+export const DEEP_BODY_QUESTIONS: TestQuestion[] = [
+  {
+    id: 1,
+    dimLabel: '寒热倾向',
+    question: '对冷热的整体耐受怎么样？',
+    hint: '含手足温度、衣物增减、季节与空调环境下的反应',
+    options: [
+      { label: '寒热均衡', value: 0, effect: {}, hint: '手足温暖，不畏冷也不怕热，衣物与同龄人相当' },
+      {
+        label: '轻度畏寒',
+        value: 1,
+        effect: { yangxu: 2, qixu: 1 },
+        hint: '手足偏凉（以指端、膝以下为多），较同龄人略怕冷，遇冷或空调环境加重',
+        reading: '提示温煦偏弱，阳气不足以温养四肢',
+      },
+      {
+        label: '明显畏寒',
+        value: 2,
+        effect: { yangxu: 3, qixu: 1, xueyu: 1 },
+        hint: '手足常年不温，需多添衣被，食生冷后易腹部发凉或腹泻',
+        reading: '提示阳气偏弱、温煦之力明显不足',
+      },
+      {
+        label: '偏畏热',
+        value: 3,
+        effect: { yinxu: 3, shire: 1 },
+        hint: '怕热、手足心偏热，喜冷饮，稍热即觉烦躁',
+        reading: '提示津液偏少、内热偏盛',
+      },
+    ],
+  },
+  {
+    id: 2,
+    dimLabel: '汗出',
+    question: '日常出汗的时机与多少，更接近哪种？',
+    hint: '含活动后、夜间与汗后体感',
+    options: [
+      { label: '出汗正常', value: 0, effect: {}, hint: '气温高或运动后出汗，量适度，汗后不觉乏力' },
+      {
+        label: '动则易汗',
+        value: 1,
+        effect: { qixu: 3, yangxu: 1 },
+        hint: '稍一活动就出汗，汗后疲乏、怕风，白天尤为明显',
+        reading: '提示气的固摄偏弱、卫外不固',
+      },
+      {
+        label: '夜间出汗',
+        value: 2,
+        effect: { yinxu: 3 },
+        hint: '入睡后或睡中出汗，醒后汗止，常伴口干',
+        reading: '提示津液偏少、夜间易外越',
+      },
+      {
+        label: '汗多黏腻',
+        value: 3,
+        effect: { tanshi: 3, shire: 1 },
+        hint: '汗出偏多、质地黏腻或汗味偏重，身体黏滞不爽',
+        reading: '提示水湿偏盛、郁而偏热',
+      },
+    ],
+  },
+  {
+    id: 3,
+    dimLabel: '精力',
+    question: '日常精神与疲劳后的恢复情况？',
+    hint: '含白天精力、说话气力与恢复速度',
+    options: [
+      { label: '精力充沛', value: 0, effect: {}, hint: '一天精神尚可，劳累后休息即可恢复' },
+      {
+        label: '容易疲乏',
+        value: 1,
+        effect: { qixu: 3 },
+        hint: '稍劳累就疲乏，懒得说话，休息后恢复偏慢',
+        reading: '提示气力偏弱、推动不足',
+      },
+      {
+        label: '气短懒言',
+        value: 2,
+        effect: { qixu: 4, yangxu: 1 },
+        hint: '常感气不够用、说话声音偏轻，活动稍多即气喘',
+        reading: '提示气偏不足、鼓动乏力',
+      },
+    ],
+  },
+  {
+    id: 4,
+    dimLabel: '口咽与火热',
+    question: '口干、咽干、口疮或冒痘的情况？',
+    hint: '含口咽干燥感、口疮与面部冒痘频率',
+    options: [
+      { label: '很少出现', value: 0, effect: {}, hint: '口咽清爽，很少口疮、冒痘' },
+      {
+        label: '偶尔出现',
+        value: 1,
+        effect: { yinxu: 2, shire: 1 },
+        hint: '换季、熬夜或吃燥热食物时偶尔出现',
+        reading: '提示津液偶有不及',
+      },
+      {
+        label: '经常口干咽干',
+        value: 2,
+        effect: { yinxu: 3, shire: 1 },
+        hint: '常觉口干咽燥，喜饮水，饮水后仍觉不润',
+        reading: '提示津液偏少、失于濡润',
+      },
+      {
+        label: '口苦口疮明显',
+        value: 3,
+        effect: { shire: 3, yinxu: 1 },
+        hint: '经常口苦、口疮或面部冒痘，口气偏重',
+        reading: '提示湿与热偏盛、上蒸于口',
+      },
+    ],
+  },
+  {
+    id: 5,
+    dimLabel: '睡眠',
+    question: '入睡、睡眠深浅与多梦情况？',
+    hint: '含入睡快慢、睡眠深浅与醒后感受',
+    options: [
+      { label: '睡眠良好', value: 0, effect: {}, hint: '入睡较快、睡得较沉，醒后精神好' },
+      {
+        label: '入睡偏难',
+        value: 1,
+        effect: { qiyu: 3 },
+        hint: '躺下后翻来覆去、难以入睡，思虑较多',
+        reading: '提示情志偏郁、气机不畅',
+      },
+      {
+        label: '多梦易醒',
+        value: 2,
+        effect: { yinxu: 3, qiyu: 1 },
+        hint: '睡眠浅、多梦，易醒或早醒，醒后难再入睡',
+        reading: '提示津液偏少、心神失于濡养',
+      },
+      {
+        label: '睡不解乏',
+        value: 3,
+        effect: { tanshi: 2, qixu: 2 },
+        hint: '睡够时数仍觉疲乏，晨起犯困、身体发沉',
+        reading: '提示水湿偏盛、清阳不升',
+      },
+    ],
+  },
+  {
+    id: 6,
+    dimLabel: '情绪',
+    question: '近一个月的总体情绪与压力感受？',
+    hint: '含焦虑、低落、烦躁与叹气频率',
+    options: [
+      { label: '平稳', value: 0, effect: {}, hint: '情绪比较平稳，心态放松' },
+      {
+        label: '偶尔波动',
+        value: 1,
+        effect: { qiyu: 2 },
+        hint: '偶尔焦虑、低落或易烦躁',
+        reading: '提示情志偶有不畅',
+      },
+      {
+        label: '常感压力',
+        value: 2,
+        effect: { qiyu: 3 },
+        hint: '常感压力大、易焦虑或郁闷，爱叹气',
+        reading: '提示气机不畅、情志偏郁',
+      },
+      {
+        label: '起伏较大',
+        value: 3,
+        effect: { qiyu: 4, yinxu: 1, shire: 1 },
+        hint: '情绪起伏明显、较难自控，或容易发怒',
+        reading: '提示气机郁滞日久，兼有郁热',
+      },
+    ],
+  },
+  {
+    id: 7,
+    dimLabel: '头身感觉',
+    question: '头部昏沉或身体沉重的感觉？',
+    hint: '含头重、身沉、头晕与阴雨天反应',
+    options: [
+      { label: '清爽', value: 0, effect: {}, hint: '头身清爽，无明显沉重感' },
+      {
+        label: '偶尔头重',
+        value: 1,
+        effect: { tanshi: 2 },
+        hint: '偶尔头昏沉、身体发沉，阴雨天更明显',
+        reading: '提示水湿偏盛、清阳受困',
+      },
+      {
+        label: '常感沉重',
+        value: 2,
+        effect: { tanshi: 3, qixu: 1 },
+        hint: '常觉头重如裹、身体沉重乏力，懒得动',
+        reading: '提示水湿停聚偏重、困阻清阳',
+      },
+      {
+        label: '头胀头晕',
+        value: 3,
+        effect: { yinxu: 2, shire: 2 },
+        hint: '常感头胀、头晕或眼花，情绪紧张时加重',
+        reading: '提示津液偏少、内热偏盛',
+      },
+    ],
+  },
+  {
+    id: 8,
+    dimLabel: '饮食消化',
+    question: '食欲、餐后感受与大便情况？',
+    hint: '含食欲、腹胀与大便性状',
+    options: [
+      { label: '正常', value: 0, effect: {}, hint: '食欲正常、餐后舒适，大便规律成形' },
+      {
+        label: '偶有腹胀',
+        value: 1,
+        effect: { qixu: 2, tanshi: 2 },
+        hint: '偶尔腹胀、食欲一般，饭后容易犯困',
+        reading: '提示运化偏慢、脾气略弱',
+      },
+      {
+        label: '常腹胀便溏',
+        value: 2,
+        effect: { tanshi: 3, qixu: 2 },
+        hint: '经常腹胀、食欲不振，大便偏溏或黏滞',
+        reading: '提示水湿偏盛、运化不及',
+      },
+      {
+        label: '喜甜腻口黏',
+        value: 3,
+        effect: { tanshi: 4, shire: 1 },
+        hint: '偏爱甜腻油炸，口中黏腻，大便不爽',
+        reading: '提示水湿偏盛、郁而偏热',
+      },
+    ],
+  },
+  {
+    id: 9,
+    dimLabel: '面色与瘀象',
+    question: '面色、唇色与皮肤瘀斑情况？',
+    hint: '含面色光泽、唇色与磕碰后瘀青',
+    options: [
+      { label: '红润有光', value: 0, effect: {}, hint: '面色红润、有光泽，唇色红润' },
+      {
+        label: '偏淡少华',
+        value: 1,
+        effect: { qixu: 2, yangxu: 1 },
+        hint: '面色偏淡、少光泽，唇色偏淡',
+        reading: '提示气力偏弱、荣养不足',
+      },
+      {
+        label: '晦暗易瘀',
+        value: 2,
+        effect: { xueyu: 3, qixu: 1 },
+        hint: '面色晦暗、唇色偏暗，磕碰后容易留瘀青',
+        reading: '提示气血运行偏滞',
+      },
+      {
+        label: '油腻偏红',
+        value: 3,
+        effect: { shire: 3 },
+        hint: '面色偏红或油光，容易长痘',
+        reading: '提示湿与热偏盛',
+      },
+    ],
+  },
+]
+
+/**
+ * 体质 → 倾向短语（专业口径，供结果页「依据链 · 指向」展示）。
+ * 均为体质学描述，不含诊断 / 疗效 / 功效违禁词（避免被合规护栏二次净化）。
+ */
+export const TENDENCY_PHRASE: Record<string, string> = {
+  yangxu: '阳气偏弱、温煦不足',
+  yinxu: '津液偏少、失于濡润',
+  qixu: '气力偏弱、推动不足',
+  tanshi: '水湿偏盛、运化偏慢',
+  shire: '湿与热偏盛',
+  xueyu: '气血运行偏滞',
+  qiyu: '气机不畅、情志偏郁',
+  pinghe: '整体较为均衡',
+}
+
 // ── 评分引擎 ──────────────────────────────────────────────────────────────
 
 export interface TestResult {
@@ -245,15 +544,18 @@ export interface TestResult {
 /** 偏颇质最高分低于该阈值时，判定为平和质（消除旧版「选健康选项就 +3 平和」的虚假偏置） */
 const PINGHE_THRESHOLD = 3
 
-/** 根据5道题答案计算体质得分（平和质为阈值兜底，非选项主动加分） */
-export function calculateResult(answers: number[]): TestResult {
+/**
+ * 根据答案计算体质得分（平和质为阈值兜底，非选项主动加分）。
+ * @param questions 题库，默认快速版 5 题；食养评估传 DEEP_BODY_QUESTIONS（9 题深度问诊）
+ */
+export function calculateResult(answers: number[], questions: TestQuestion[] = TEST_QUESTIONS): TestResult {
   const scores: Record<string, number> = {}
   for (const key of Object.keys(CONSTITUTION_TYPES)) {
     scores[key] = 0
   }
 
-  for (let i = 0; i < TEST_QUESTIONS.length; i++) {
-    const q = TEST_QUESTIONS[i]
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i]
     const answerIdx = answers[i]
     if (answerIdx === undefined || answerIdx < 0 || answerIdx >= q.options.length) continue
     const option = q.options[answerIdx]
