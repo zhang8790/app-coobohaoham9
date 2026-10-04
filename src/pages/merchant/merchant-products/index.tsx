@@ -1,6 +1,6 @@
 // @title 商品管理（商家端）
-import { useState, useCallback, useEffect } from 'react'
-import Taro from '@tarojs/taro'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import Taro, { useRouter } from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
 import Icon from '@/components/Icon'
 import RevenueCard from './RevenueCard'
@@ -101,6 +101,25 @@ function MerchantProductsPage() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { loadCategories() }, [loadCategories])
+
+  // 商家中心「快捷操作」以 ?action=add / ?action=scan 跳入本页（QuickActions.tsx）。
+  // 此前本页未消费该参数 → 从商家中心点「新增商品/扫码上架」跳过来毫无反应。
+  // 此处消费一次：add → 自动打开新增表单；scan → 自动拉起扫码。加载完成后再触发，确保 store 就绪。
+  const router = useRouter()
+  const actionHandledRef = useRef(false)
+  useEffect(() => {
+    if (actionHandledRef.current || loading) return
+    const act = router?.params?.action
+    if (act === 'add') {
+      productForm.handleNewProduct()
+      actionHandledRef.current = true
+    } else if (act === 'scan') {
+      if (!store) return
+      productForm.handleScan()
+      actionHandledRef.current = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, store])
 
   // 批量配料安全分析：对缺失安全评级的商品跑本地确定性引擎（菜名→食材→食养/安全字段），
   // 派生初评级(A/C)后回写 products，运营只需复核标红项，无需逐个手填。纯前端、零网络、可重复跑。
