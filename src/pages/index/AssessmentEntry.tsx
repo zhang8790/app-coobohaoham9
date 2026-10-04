@@ -1,6 +1,6 @@
 // @title 首页「食养评估」入口（身体感受 + 舌象对照 合并入口）
 // 去 AI 落地的「标准化体质问卷 + 望舌对照」门面：点击整卡进 /pages/food/tongue
-// （合并评估：5 题身体感受 + 8 维舌象对照，本地算法双通道交叉校验，界面零 AI 字样）。
+// （合并评估：身体·深度 9 题 + 8 维舌象对照，本地算法双通道交叉校验，界面零 AI 字样）。
 // 复测状态只由 CTA 文案承载（去测一测 / 去复测），卡内不再放说明长句，保持一眼可读。
 import Taro from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'

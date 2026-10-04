@@ -356,7 +356,7 @@ export function deepConstitutionAnalysis(a: DeepAnalysisInput): DeepConstitution
 // 合规：只做数值合成，文案由调用方负责，全程不出现「AI/诊断」。
 
 export interface CombinedAssessment {
-  /** 身体感受问卷结果（5 题） */
+  /** 身体感受问卷结果（深度 9 题 或 快速 5 题） */
   body: TestResult
   /** 舌象对照结果（v2 引擎，含证据链/交互项/置信度） */
   tongue: TongueAnalysis

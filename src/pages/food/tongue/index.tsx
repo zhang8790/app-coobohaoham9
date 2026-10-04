@@ -1,11 +1,11 @@
 // 食养评估 · 望舌辨证引擎（本地规则算法，界面不出现「AI」二字）
 // ------------------------------------------------------------
-// 合并入口：把「食养偏好设置（身体感受 5 题）」与「舌象自检（舌象对照 8 维）」
+// 合并入口：把「食养偏好设置（身体感受·深度 9 题）」与「舌象自检（舌象对照 8 维）」
 // 合并为一次评估，先答身体感受，再对照舌象（可拍照留档），双通道各自辨证后交叉校验，
 // 合成综合食养倾向 + 宜忌 + 好物。
 // 纯本地主流程（零云、离线可用）：intro(说明 + 免责 + 英雄引导)
 //   → 拍照留档（舌面 + 舌下，仅本地，可选）或 直接对照
-//   → quiz（身体感受 5 题 + 舌象对照 8 维，逐项勾选，自动顺滑推进）
+//   → quiz（身体感受·深度 9 题 + 舌象对照 8 维，逐项勾选，自动顺滑推进）
 //   → 段落过渡门卡（身体→舌象仪式化切换）
 //   → result（双通道交叉校验 → 综合体质倾向 + 宜忌 + 好物，错落揭晓）
 // 拍照仅本地留档 + 供「食养顾问」真人研判，不参与任何云端视觉识别。
@@ -292,7 +292,7 @@ export default function TonguePage() {
           scores: combined.scores,
           answers: [...bodyAnswers, ...answers],
         })
-        // 沉淀最近一次「食养画像」本地快照（综合：身体 5 题 + 舌象 8 维，13 项答案）
+        // 沉淀最近一次「食养画像」本地快照（综合：身体深度 9 题 + 舌象 8 维，17 项答案；旧版 5+8=13 项）
         const tongueAnalysis = combined.tongue
         const idx = computeHealthIndex(tongueAnalysis, tongueAnalysis.confidence)
         saveTongueProfile({
@@ -713,9 +713,9 @@ export default function TonguePage() {
           {/* 身体感受分析 */}
           {bodyResult ? (
             <View className="qa-reveal qa-stagger-3 mt-4 rounded-2xl bg-white p-4 shadow-sm">
-              <Text className="text-sm font-bold text-[#2A2A2A]">身体感受分析</Text>
+              <Text className="text-sm font-bold text-[#2A2A2A]">身体感受 · 倾向汇总</Text>
               <Text className="text-xs text-[#6F675C] mt-1 block">
-                你 5 个身体感受的选择，指向的体质倾向
+                9 项专项身体感受的倾向汇总（按匹配强度排序，与上方逐项解读互为印证）
               </Text>
               {bodyScoreEntries.length > 0 ? (
                 <View className="mt-3 flex flex-col gap-2.5">
