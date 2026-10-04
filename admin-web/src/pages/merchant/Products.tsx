@@ -427,7 +427,7 @@ export default function MerchantProducts() {
       positive_effect: (p as any).positive_effect ?? '',
       risk_warning: (p as any).risk_warning ?? '',
       emotion_copy: (p as any).emotion_copy ?? '',
-      scenes: (p as any).scenes ?? [],
+      scenes: (p as any).scene_tags ?? [],
       rec_crowds: (p as any).rec_crowds ?? [],
       cautious_crowds: (p as any).cautious_crowds ?? [],
       cautious_notes: (p as any).cautious_notes ?? '',
@@ -797,7 +797,7 @@ export default function MerchantProducts() {
       positive_effect: form.positive_effect || null,
       risk_warning: form.risk_warning || null,
       emotion_copy: form.emotion_copy || null,
-      scenes: form.scenes.length ? form.scenes : null,
+      scene_tags: form.scenes.length ? form.scenes : null,
       rec_crowds: form.rec_crowds.length ? form.rec_crowds : null,
       cautious_crowds: form.cautious_crowds.length ? form.cautious_crowds : null,
       cautious_notes: form.cautious_notes || null,
@@ -859,9 +859,9 @@ export default function MerchantProducts() {
         const msg = e?.message || ''
         // 软降级：若 products 表尚未加导购相关列（迁移 00090 / 00100 / 00104 未执行），
         // 或部分核心列缺失，剥离后重试，保证保存不失败（与小程序端 api.ts 一致）
-        if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scenes|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|combo_product_ids|guide_sentence|moments_copy|taboo_warning|product_kind|fit_people_override|materials|gift_meaning|gift_craft|gift_scene|gift_care/.test(msg)) {
+        if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scene_tags|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|combo_product_ids|guide_sentence|moments_copy|taboo_warning|product_kind|fit_people_override|materials|gift_meaning|gift_craft|gift_scene|gift_care/.test(msg)) {
           const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind,
-            food_category, positive_effect, risk_warning, emotion_copy, scenes, rec_crowds, cautious_crowds,
+            food_category, positive_effect, risk_warning, emotion_copy, scene_tags, rec_crowds, cautious_crowds,
             cautious_notes, forbidden_crowds, forbidden_reasons, combo_product_ids, guide_sentence, moments_copy,
             taboo_warning, product_kind, fit_people_override, materials, gift_meaning, gift_craft, gift_scene, gift_care, ...rest } = body
           const res2: any = await persist(rest)

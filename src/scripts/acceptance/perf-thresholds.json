@@ -1,0 +1,20 @@
+{
+  "description": "性能压测阈值（JMeter/CI 使用）。本沙箱不执行，仅作为准入/退出阈值约定。",
+  "source": "规范阶段2-4 性能自动化检测验收阈值示例",
+  "thresholds": {
+    "core_api_p95_ms": 500,
+    "core_api_avg_ms": 300,
+    "concurrency_users": 200,
+    "max_5xx_rate": 0,
+    "slow_sql_capture": true,
+    "oss_upload_download_ms": 1000
+  },
+  "core_endpoints": [
+    "GET /rest/v1/products",
+    "GET /rest/v1/products?select=scene_tags,health_tag",
+    "POST /functions/v1/ingredient-analyze",
+    "POST /functions/v1/distribute-commission",
+    "GET /rest/v1/user_health_profile"
+  ],
+  "note": "将本文件作为 JMeter 测试计划的阈值断言来源；超限即判定 P1（严重级）。"
+}

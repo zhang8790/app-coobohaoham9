@@ -25,6 +25,7 @@ import { getProducts, updateProfile } from '@/db/api'
 import { getLocalUser } from '@/client/supabase'
 import { upsertUserHealthProfile, saveConstitutionResult } from '@/db/food-api'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
+import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import type { Product } from '@/db/types'
 import './index.scss'
 
@@ -43,7 +44,8 @@ const POSTER_INSIGHT: Record<string, string> = {
 }
 
 export default function ConstitutionTestPage() {
- const [step, setStep] = useState<Step>('intro')
+  const { refreshHealthProfile } = useFoodTherapy()
+  const [step, setStep] = useState<Step>('intro')
  const [currentQ, setCurrentQ] = useState(0)
  const [answers, setAnswers] = useState<number[]>(() => TEST_QUESTIONS.map(() => -1))
  const [result, setResult] = useState<TestResult | null>(null)
@@ -124,9 +126,13 @@ export default function ConstitutionTestPage() {
  try {
  // 偏好标签：体质 key + 身体状态标签（首页/食疗引擎按 key 直接命中，更精准）
  const tags = [result.primary.key, ...constitutionToCrowds(result.primary)]
- await updateProfile({ constitution_tags: tags })
- // 全量结果落库（分数+答案+主/次体质），支撑「为什么是你」回放与复测
- const saved = await saveConstitutionResult({
+  await updateProfile({ constitution_tags: tags })
+  // 结构化体质画像回写：与商品「适配体质」轴同格式（中文名 阳虚质/阴虚质…），
+  // 打通「用户画像 ↔ 商品个性化」闭环，使商品详情能自动高亮适配当前用户的体质
+  await upsertUserHealthProfile({ user_id: user.id, constitution_type: result.primary.name })
+  refreshHealthProfile() // 写库后刷新 context 画像，商品页「适配体质」立即联动高亮
+  // 全量结果落库（分数+答案+主/次体质），支撑「为什么是你」回放与复测
+  const saved = await saveConstitutionResult({
  primaryKey: result.primary.key,
  secondaryKey: result.secondary?.key ?? null,
  scores: result.scores,

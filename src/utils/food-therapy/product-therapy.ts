@@ -42,6 +42,7 @@ export interface ProductTherapyReport {
   combined_effect: string // 综合功效
   fit_people: string // 适宜人群（辨证：中医体质/证型 + 食材适用场景）
   fit_crowd_tags: string[] // 适配体质/人群标签（体虚怕冷/脾胃虚寒…），辨证展示与个性化匹配
+  fit_constitution_types: string[] // 由功效标签推导的九体质（适配体质轴，与用户画像 constitution_type 对齐）
   caution_people: string // 慎食人群
   chronic_tags: string[] // 慢病适配标签（去重）
   warnings: TherapyWarning[] // 三色预警（红/橙/蓝）
@@ -268,14 +269,14 @@ export const HEALTH_TAG_FIT_MAP: Record<string, { syndrome: string; crowds: stri
   舒缓安适: { syndrome: '心神不宁、夜卧不安者', crowds: ['失眠'] },
   消食化积: { syndrome: '食积内停、脘腹胀满者', crowds: ['肠胃虚弱'] },
   润养舒喉: { syndrome: '肺燥津伤、咽喉失润者', crowds: ['喉咙肿痛'] },
-  利水消肿: { syndrome: '水湿内停、肢体困重者', crowds: [] },
+  利水消肿: { syndrome: '水湿内停、肢体困重者', crowds: ['痰湿体质'] },
 }
 
 /** 辨证适配人群词表：与 admin-web BODY/HEALTH_CROWD_OPTIONS 对齐，但刻意剔除
  *  痛风/高血压/高血糖/高血脂等疾病名——仅保留体质与身体状态类，
  *  避免构成疾病定向适配（PRD 3.3 合规红线）。商家可在词表内手动增删。 */
 export const FIT_CROWD_OPTIONS = [
-  '体虚怕冷', '脾胃虚寒', '宫寒量少', '经期量大', '易上火', '喉咙肿痛', '肠胃虚弱', '失眠', '免疫力低',
+  '体虚怕冷', '脾胃虚寒', '宫寒量少', '经期量大', '易上火', '喉咙肿痛', '肠胃虚弱', '失眠', '免疫力低', '痰湿体质',
 ] as const
 
 /** 由功效标签推导辨证适配：证型短语列表 + 人群标签列表（均去重、保持稳定序） */
@@ -368,11 +369,11 @@ export function buildTherapyReport(
   )
   // 辨证证型（由功效标签推导）优先，再接食材适用场景
   const { syndromes, crowdTags } = deriveFitConstitution(healthTags)
+  const constitutionTypes = deriveFitConstitutionTypes(healthTags)
   const fitParts = [...syndromes, ...fitScenes]
-  // 兜底通用项：已有辨证结论时不再叠加，避免把专业辨证稀释成「谁都适合」的空洞串
-  const fallback = syndromes.length
-    ? []
-    : ['日常佐餐', '上班族', '青少年饮食搭配'].filter((x) => !fitParts.includes(x))
+  // 兜底通用项：移除「谁都适合」通用串（PRD 合规：不暗示普适功效），无辨证结论时 fit_people 留空，
+  // 由调用方自行决定占位，避免与商品详情三轴（适用人群 TagRow）口径冲突。
+  const fallback: string[] = []
   const fit_people = sanitizeTherapyCopy([...fitParts, ...fallback].join('、'))
 
   // 商家寄语模板（80 字内，合规过滤；中性体感描述，杜绝功效/疾病定向，详见 PRD 2.4）
@@ -386,6 +387,7 @@ export function buildTherapyReport(
     combined_effect,
     fit_people,
     fit_crowd_tags: crowdTags,
+    fit_constitution_types: constitutionTypes,
     caution_people: caution.join('；'),
     chronic_tags: chronic,
     warnings,

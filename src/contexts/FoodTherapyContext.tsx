@@ -138,6 +138,19 @@ export function FoodTherapyProvider({ children }: { children: ReactNode }) {
       .catch(() => setFamilyMembers([]))
   }, [profile?.id])
 
+  // 重新拉取本人结构化画像（体质测试/舌象评估写库后调用，保证商品页「适配体质」自动高亮同源）
+  const refreshHealthProfile = useCallback(() => {
+    const ownerId = profile?.id
+    if (!ownerId) return
+    getUserHealthProfile(ownerId)
+      .then((hp) => {
+        setUserHealthProfile(hp as UserHealthProfile | null)
+        setHasHealthProfile(!!hp)
+        setUserAllergens(Array.isArray((hp as any)?.allergens) ? ((hp as any).allergens as string[]) : [])
+      })
+      .catch(() => {})
+  }, [profile?.id])
+
   const toggleCrowd = useCallback((c: Crowd) => {
     setSelectedCrowds((prev) => {
       const next = prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
@@ -211,7 +224,7 @@ export function FoodTherapyProvider({ children }: { children: ReactNode }) {
   const value = useMemo<FoodTherapyCtx>(
     () => ({
       selectedCrowds, selectedScene, toggleCrowd, setScene, clearFilters, classifyProduct, classifyProducts,
-      userAllergens, hasHealthProfile, getSuitability,       userHealthProfile,
+      userAllergens, hasHealthProfile, getSuitability,       userHealthProfile, refreshHealthProfile,
       familyMembers, selectedMemberId, setSelectedMemberId, refreshFamilyMembers, activeProfile,
     }),
     [

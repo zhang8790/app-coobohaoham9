@@ -23,7 +23,7 @@ import GiftSections from '@/pages/product/GiftSections'
 import { getFoodBenefit } from '@/data/foodBenefits'
 import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
 import { shieldCopy, cleanAudienceTags } from '@/utils/compliance/shield'
-import { buildTherapyReport, buildTherapyHeadline, isFoodProduct, NATURE_FEELING, deriveFitConstitution, deriveFitConstitutionTypes, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, buildTherapyHeadline, isFoodProduct, NATURE_FEELING, deriveFitConstitutionTypes, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 
 // 模块级缓存：食材字典（食养引擎基础数据）仅拉一次，跨商品跳转不再重复请求（PRD 4.1）
@@ -46,15 +46,23 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
 }
 
 /** 食养适配行：标签 + 药丸；无标签整行不渲染（不展示空壳） */
-function TagRow({ label, tags }: { label: string; tags: string[] }) {
+function TagRow({ label, tags, highlight }: { label: string; tags: string[]; highlight?: string }) {
  if (!tags || tags.length === 0) return null
  return (
   <View style={{ marginTop: 12 }}>
    <Text className="text-base font-bold text-foreground" style={{ display: 'block' }}>{label}</Text>
    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
-    {tags.map((c, i) => (
-     <Text key={label + i} style={{ fontSize: '24rpx', color: 'var(--color-herb-600)', background: 'var(--color-herb-200)', paddingVertical: '3px', paddingHorizontal: '8px', borderRadius: '999px', marginRight: 6, marginBottom: 6 }}>{c}</Text>
-    ))}
+    {tags.map((c, i) => {
+     const hit = !!highlight && c === highlight
+     return (
+      <Text key={label + i} style={{
+       fontSize: '24rpx',
+       color: hit ? '#FFFFFF' : 'var(--color-herb-600)',
+       background: hit ? 'hsl(var(--primary-deep))' : 'var(--color-herb-200)',
+       paddingVertical: '6rpx', paddingHorizontal: '16rpx', borderRadius: '999px', marginRight: 12, marginBottom: 12,
+      }}>{hit ? `★${c}` : c}</Text>
+     )
+    })}
    </View>
   </View>
  )
@@ -65,7 +73,7 @@ function TagRow({ label, tags }: { label: string; tags: string[] }) {
 
 export default function ProductPage() {
  const { user } = useAuth()
- const { classifyProduct, familyMembers, selectedMemberId } = useFoodTherapy()
+ const { activeProfile } = useFoodTherapy()
  const { id, expiryEp, expiryBatch, referralCode } = useMemo(() => {
  const params = Taro.getCurrentInstance().router?.params
  const rawId = params?.id ? decodeURIComponent(params.id) : ''
@@ -492,10 +500,8 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
           {/* 食养适配三轴：人群 / 场景 / 体质 —— 有数据才渲染对应行，避免空壳 */}
           {product && (() => {
             const input = toFoodTherapyInput(product)
-            // ① 适用人群：由商品功效标签(health_tag)经 HEALTH_TAG_FIT_MAP 推导，独立于食材；
-            // 引擎 buildTherapyReport 仅在商品有匹配食材时才跑，没配食材的商品此前人群全空。
-            // 这里复用同一映射 + 「适合X」受众透传，有 health_tag 即可生成（体虚怕冷/脾胃虚寒…）。
-            const { crowdTags: healthCrowd } = deriveFitConstitution((product as any)?.health_tag)
+            // ① 适用人群：由商品功效标签(health_tag)经 HEALTH_TAG_FIT_MAP 推导，独立于食材。
+            // P1-4：人群推导统一走 therapyReport（引擎一次性算出），页级删除重复的 deriveFitConstitution 调用。
             const FIT_LABEL_MAP: Record<string, string> = {
               '适合儿童': '儿童',
               '适合银发': '银发长辈',
@@ -511,22 +517,29 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
             const crowdRec = cleanAudienceTags([
               ...((product as any)?.fit_crowd_tags || []),
               ...(therapyReport?.fit_crowd_tags || []),
-              ...healthCrowd,
               ...healthTagCrowd,
               ...(foodBenefit?.suitableFor || []),
               ...(input.rec_crowds || []),
             ]).slice(0, 6)
             // ② 适用场景：商家填的 scene_tags（已回填真实食品）；无则整行不渲染
             const sceneRec = cleanAudienceTags((product as any)?.scene_tags || []).slice(0, 6)
-            // ③ 适配体质：由 health_tag 经 HEALTH_TAG_CONSTITUTION_MAP 推导九体质（阳虚质/阴虚质…）
-            const constitutionRec = deriveFitConstitutionTypes((product as any)?.health_tag).slice(0, 6)
+            // ③ 适配体质：由 therapyReport.fit_constitution_types（= health_tag → 九体质），与用户画像 constitution_type 对齐；
+            // 回退 deriveFitConstitutionTypes 仅作防御（therapyReport 意外为空时）
+            const constitutionRec = (therapyReport?.fit_constitution_types || deriveFitConstitutionTypes((product as any)?.health_tag)).slice(0, 6)
+            // P0-2：读取当前选购对象（本人/家庭成员）的体质，用于高亮匹配项并给出个性化结论
+            const userConstitution = (activeProfile as any)?.constitution_type || ''
             // 三轴全空 → 整块不渲染（不展示标题 + 暂未提供 空壳）
             if (crowdRec.length === 0 && sceneRec.length === 0 && constitutionRec.length === 0) return null
             return (
               <View style={{ marginTop: 12 }}>
                 <TagRow label="适用人群" tags={crowdRec} />
                 <TagRow label="适用场景" tags={sceneRec} />
-                <TagRow label="适配体质" tags={constitutionRec} />
+                <TagRow label="适配体质" tags={constitutionRec} highlight={userConstitution} />
+                {userConstitution && constitutionRec.includes(userConstitution) ? (
+                  <Text style={{ fontSize: '24rpx', color: 'hsl(var(--primary-deep))', display: 'block', marginTop: 4 }}>
+                    此商品适配您的【{userConstitution}】
+                  </Text>
+                ) : null}
               </View>
             )
           })()}
@@ -549,9 +562,6 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                 : stageMod.stage === '清' || stageMod.stage === '通'
                 ? '建议每日 1–2 份，肠胃敏感者可从小量开始。'
                 : '建议每日 1–2 份，随餐或两餐之间食用，细嚼慢咽更舒服。'
-              // 辨证结论文案：商家手填覆盖优先，回退引擎辨证结果（迁移 00237）
-              const fitText = String((p as any)?.fit_people_override || '').trim()
-                || (therapyReport?.fit_people || '')
               // 人群标签栏：只展示推荐人群（合规过滤疾病定向/恢复期待词）
               const crowdRec = cleanAudienceTags([
                 ...((p as any)?.fit_crowd_tags || []),
@@ -567,7 +577,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
               // 是否有实质食养数据：商家辨证 / 食养阶段 / 食材 / 人群 / 搭配 / 分类 / 引导语 任一存在才展示，避免空壳「温和食养·日常参考」占位
               const hasShiyang =
                 !!therapyReport || !!foodBenefit || !!stageMod.stage ||
-                stageMod.ingredients.length > 0 || crowdRec.length > 0 || !!fitText ||
+                stageMod.ingredients.length > 0 || crowdRec.length > 0 ||
                 !!stageMod.comboNarrative || comboProducts.length > 0 ||
                 (input.match_goods?.length || 0) > 0 || !!input.positive_effect ||
                 !!input.food_category || !!input.guide_sentence
@@ -607,9 +617,6 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                     <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6', marginTop: 10 }}>{input.guide_sentence}</Text>
                   )}
                   {/* 辨证结论：商家手填优先，否则展示引擎按中医体质/证型生成的结论（迁移 00237） */}
-                  {fitText ? (
-                    <Text style={{ fontSize: '24rpx', color: '#4A443D', display: 'block', lineHeight: '1.6', marginTop: 6 }}>适合：{fitText}</Text>
-                  ) : null}
 
                   {/* 模块1：核心食材食养属性（折叠；无内容则整块不渲染） */}
                   {hasIngredients && (
