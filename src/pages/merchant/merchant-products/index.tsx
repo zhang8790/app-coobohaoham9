@@ -104,17 +104,18 @@ function MerchantProductsPage() {
 
   // 商家中心「快捷操作」以 ?action=add / ?action=scan 跳入本页（QuickActions.tsx）。
   // 此前本页未消费该参数 → 从商家中心点「新增商品/扫码上架」跳过来毫无反应。
-  // 此处消费一次：add → 自动打开新增表单；scan → 自动拉起扫码。加载完成后再触发，确保 store 就绪。
+  // 消费一次：add → 立即开新增表单（handleNewProduct 不依赖 store，故不等 loading，避免卡在登录态瞬间丢弃）；
+  // scan → 等 store 就绪再拉起扫码。
   const router = useRouter()
   const actionHandledRef = useRef(false)
   useEffect(() => {
-    if (actionHandledRef.current || loading) return
+    if (actionHandledRef.current) return
     const act = router?.params?.action
     if (act === 'add') {
       productForm.handleNewProduct()
       actionHandledRef.current = true
     } else if (act === 'scan') {
-      if (!store) return
+      if (loading || !store) return
       productForm.handleScan()
       actionHandledRef.current = true
     }

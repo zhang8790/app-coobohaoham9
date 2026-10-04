@@ -81,6 +81,14 @@ function MerchantCenterPage() {
   // 跟踪加载态（供超时提示判断是否仍在加载，避免加载完成后还弹"较慢"提示）
   const loadingRef = useRef(true)
 
+  // 跳转商品管理（新增/扫码自动开表单），统一的可靠入口
+  const goProducts = (action?: 'add' | 'scan') => {
+    const url = action
+      ? `/pages/merchant/merchant-products/index?action=${action}`
+      : '/pages/merchant/merchant-products/index'
+    Taro.navigateTo({ url })
+  }
+
   // 第一步：加载商家信息（快速）
   useEffect(() => {
     let cancelled = false
@@ -407,7 +415,8 @@ function MerchantCenterPage() {
   }
 
   return (<RouteGuard>
-    <View className="min-h-screen bg-background pb-8">
+    <View className="min-h-screen bg-background pb-10">
+      {/* 品牌头（渐变） */}
       <StoreInfoCard
         store={store}
         storeCount={stores.length}
@@ -416,27 +425,42 @@ function MerchantCenterPage() {
         onSwitch={() => setShowStoreSwitch(true)}
       />
 
-      <CrossSummaryCard storeCount={stores.length} crossSummary={crossSummary} />
-
+      {/* 经营概览 KPI（上浮叠在品牌头上） */}
       <StatCards stats={stats} />
 
+      {/* 核心操作：新增商品为主 CTA */}
+      <QuickActions
+        onAdd={() => goProducts('add')}
+        onScan={() => goProducts('scan')}
+        onBatchAnalyze={() => goProducts()}
+      />
+
+      {/* 多店总览（仅多店时显示） */}
+      <CrossSummaryCard storeCount={stores.length} crossSummary={crossSummary} />
+
+      {/* 功能模块网格 */}
+      <View className="px-4 mt-5">
+        <Text className="text-lg font-bold text-foreground">经营工具</Text>
+      </View>
+      <NavGrid />
+
+      {/* 货款结算 */}
       <SettlementCard
         settlement={settlement}
         onWithdraw={() => Taro.navigateTo({ url: `/pages/trade/withdraw/index?kind=settlement&storeId=${store.id}` })}
       />
 
+      {/* 临期预警 */}
       <ExpiryCard expiryStats={expiryStats} />
 
+      {/* 流动车 */}
       <VehiclesCard
         vehicles={vehicles}
         onOpenModal={() => setShowVehicleModal(true)}
         onToggle={handleToggleVehicle}
       />
 
-      <NavGrid />
-
-      <QuickActions />
-
+      {/* 最近订单 */}
       <RecentOrders statsLoaded={statsLoaded} recentOrders={recentOrders} />
 
       <StoreQrModal

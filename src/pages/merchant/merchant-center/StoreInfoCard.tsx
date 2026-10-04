@@ -1,4 +1,4 @@
-// @title 门店信息卡（纯展示）
+// @title 门店品牌头（渐变，专业仪表盘头部）
 import { View, Text, Button } from '@tarojs/components'
 import Icon from '@/components/Icon'
 import type { Store } from '@/db/types'
@@ -13,41 +13,63 @@ interface Props {
 
 export default function StoreInfoCard({ store, storeCount, onViewStore, onShowQr, onSwitch }: Props) {
   return (
-    <View className="mx-4 mt-2 p-4 rounded-2xl bg-card border border-border">
-      <View className="flex items-center gap-3">
-        <View className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Icon name="store" size={24} className="text-primary" />
+    <View
+      style={{
+        background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-strong)))',
+        paddingTop: 'calc(env(safe-area-inset-top) + 20px)',
+        paddingBottom: '28px',
+        paddingLeft: '16px',
+        paddingRight: '16px',
+        borderBottomLeftRadius: '24px',
+        borderBottomRightRadius: '24px',
+      }}>
+      {/* 顶部：门店名 + 状态 + 操作图标 */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <View style={{ flex: 1, marginRight: '12px' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+            <Text style={{ fontSize: '40rpx', fontWeight: 'bold', color: '#FFFFFF' }}>{store.name}</Text>
+            <View
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: '4px',
+                paddingHorizontal: '10px', paddingVertical: '3px',
+                borderRadius: '9999px',
+                background: 'rgba(255,255,255,0.22)',
+              }}>
+              <View style={{ width: '8px', height: '8px', borderRadius: '4px', background: '#B9F6CA' }} />
+              <Text style={{ fontSize: '22rpx', color: '#FFFFFF' }}>营业中</Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: '24rpx', color: 'rgba(255,255,255,0.85)', marginTop: '6px' }}>
+            {store.address || '暂未填写门店地址'}
+          </Text>
         </View>
-        <View className="flex-1">
-          <Text className="text-2xl font-bold text-foreground">{store.name}</Text>
-          <Text className="text-base text-muted-foreground">{store.address || '暂无地址'}</Text>
-        </View>
-        {storeCount > 1 && (
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+          {storeCount > 1 && (
+            <View
+              onClick={onSwitch}
+              style={{ width: '40px', height: '40px', borderRadius: '20px', background: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="shuffle" size={20} className="text-white" />
+            </View>
+          )}
           <View
-            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary/5"
-            onClick={onSwitch}>
-            <Text className="text-sm font-bold text-primary">切换</Text>
-            <Text className="text-primary" style={{ fontSize: '28rpx' }}>▾</Text>
+            onClick={onShowQr}
+            style={{ width: '40px', height: '40px', borderRadius: '20px', background: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="qrcode" size={20} className="text-white" />
           </View>
-        )}
+        </View>
       </View>
-      {/* 操作按钮行：查看 + 二维码 */}
-      <View className="flex gap-2 mt-3">
-        <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-xl"
-          onClick={onViewStore}>
-          <View className="py-2 flex items-center justify-center gap-1">
-            <Icon name="eye" size={28} className="text-white" />
-            <Text className="text-base font-bold text-white">查看门店</Text>
-          </View>
-        </Button>
-        <Button className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-primary !rounded-xl"
-          onClick={onShowQr}>
-          <View className="py-2 flex items-center justify-center gap-1">
-            <Icon name="qrcode" size={28} className="text-primary" />
-            <Text className="text-base font-bold text-primary">门店二维码</Text>
-          </View>
-        </Button>
-      </View>
+
+      {/* 底部：查看门店（幽灵按钮） */}
+      <Button
+        className="!m-0 !p-0 !bg-transparent !border !border-white/40 !rounded-2xl !leading-none"
+        style={{ marginTop: '16px' }}
+        onClick={onViewStore}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '6px', paddingVertical: '10px' }}>
+          <Icon name="store" size={18} className="text-white" />
+          <Text style={{ fontSize: '26rpx', color: '#FFFFFF', fontWeight: '600' }}>查看门店主页</Text>
+        </View>
+      </Button>
     </View>
   )
 }

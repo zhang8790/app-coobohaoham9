@@ -1,25 +1,49 @@
-// 商家中心：快捷操作（新增商品 / 扫码上架，纯展示，零逻辑改动）
+// 商家中心：快捷操作（新增商品为主 CTA + 扫码/批量分析为次级）
 import Taro from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
 import Icon from '@/components/Icon'
 
-export default function QuickActions() {
+interface Props {
+  onAdd: () => void
+  onScan: () => void
+  onBatchAnalyze: () => void
+}
+
+export default function QuickActions({ onAdd, onScan, onBatchAnalyze }: Props) {
   return (
     <View className="px-4 mt-4">
-      <Text className="text-lg font-bold text-foreground mb-2">快捷操作</Text>
-      <View className="flex gap-3">
-        <Button className="!flex-1 !m-0 !p-0 !bg-primary !border-none !rounded-2xl !leading-none"
-          onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-products/index?action=add' })}>
-          <View className="py-3 flex items-center gap-1">
-            <Icon name="plus" size={20} className="text-white" />
-            <Text className="text-base font-bold text-white">新增商品</Text>
+      {/* 主 CTA：新增商品（最优先入口，全宽渐变） */}
+      <Button
+        className="!m-0 !p-0 !bg-transparent !border-none !rounded-2xl !leading-none"
+        onClick={onAdd}>
+        <View
+          style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            paddingVertical: '16px',
+            background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-strong)))',
+            boxShadow: '0 6px 16px hsl(var(--primary) / 0.28)',
+          }}>
+          <Icon name="plus" size={22} className="text-white" />
+          <Text style={{ fontSize: '32rpx', fontWeight: 'bold', color: '#FFFFFF' }}>新增商品</Text>
+        </View>
+      </Button>
+
+      {/* 次级操作：扫码上架 / 批量分析配料安全 */}
+      <View style={{ flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+        <Button
+          className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-primary !rounded-2xl !leading-none"
+          onClick={onScan}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '6px', paddingVertical: '13px' }}>
+            <Icon name="barcode-scan" size={20} className="text-primary" />
+            <Text style={{ fontSize: '28rpx', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>扫码上架</Text>
           </View>
         </Button>
-        <Button className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-primary !rounded-2xl !leading-none"
-          onClick={() => Taro.navigateTo({ url: '/pages/merchant/merchant-products/index?action=scan' })}>
-          <View className="py-3 flex items-center gap-1">
-            <Icon name="barcode-scan" size={20} className="text-primary" />
-            <Text className="text-base font-bold text-primary">扫码上架</Text>
+        <Button
+          className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-dashed !border-primary !rounded-2xl !leading-none"
+          onClick={onBatchAnalyze}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '6px', paddingVertical: '13px' }}>
+            <Icon name="shield-check" size={20} className="text-primary" />
+            <Text style={{ fontSize: '28rpx', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>批量分析</Text>
           </View>
         </Button>
       </View>
