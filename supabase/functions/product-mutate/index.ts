@@ -153,14 +153,16 @@ Deno.serve(async (req: Request) => {
         resolvedBarcode = body.barcode && body.barcode.trim() ? body.barcode.trim() : null
       }
       // auto_barcode：商品当前无码（且用户未显式填/null）时自动分配店内码
+      // 注意：门店未配置条码前缀(fn_alloc_store_barcode RAISE) 或序号用尽时，绝不应阻断商品更新——
+      // 条码是可选属性，分配失败则保留无条码，由商家后续配置前缀后"生成条码"补发。
       if (body.auto_barcode && (resolvedBarcode === undefined || resolvedBarcode === null) && !existing.barcode) {
         const { data: alloc, error: allocErr } = await supabase
           .rpc('fn_alloc_store_barcode', { p_store_id: existing.store_id })
         if (allocErr || !alloc || !alloc.length) {
-          console.error('[product-mutate] 分配条码失败:', allocErr?.message)
-          return Response.json({ error: '自动生成条码失败' }, { status: 500, headers: corsHeaders })
+          console.warn('[product-mutate] 自动分配条码失败（门店未配置前缀/序号用尽），更新保留无条码：', allocErr?.message)
+        } else {
+          resolvedBarcode = alloc[0].barcode
         }
-        resolvedBarcode = alloc[0].barcode
       }
       if (resolvedBarcode !== undefined) {
         updatePayload.barcode = resolvedBarcode
@@ -233,15 +235,18 @@ Deno.serve(async (req: Request) => {
     }
 
     // 解析条码：auto_barcode 且为空时自动分配店内码
+    // 重要：门店未配置条码前缀(fn_alloc_store_barcode RAISE) 或序号用尽时，绝不能整体失败——
+    // 条码是可选属性，分配失败则无条码创建，商户后续配好前缀再用"生成条码"补发，避免"上不了新商品"。
     let resolvedBarcode: string | null = (body.barcode && body.barcode.trim()) ? body.barcode.trim() : null
     if (body.auto_barcode && !resolvedBarcode) {
       const { data: alloc, error: allocErr } = await supabase
         .rpc('fn_alloc_store_barcode', { p_store_id: store_id })
       if (allocErr || !alloc || !alloc.length) {
-        console.error('[product-mutate] 分配条码失败:', allocErr?.message)
-        return Response.json({ error: '自动生成条码失败' }, { status: 500, headers: corsHeaders })
+        console.warn('[product-mutate] 自动分配条码失败（门店未配置前缀/序号用尽），商品将无条码创建：', allocErr?.message)
+        resolvedBarcode = null
+      } else {
+        resolvedBarcode = alloc[0].barcode
       }
-      resolvedBarcode = alloc[0].barcode
     }
 
     const insertPayload: Record<string, unknown> = {
@@ -251,7 +256,7 @@ Deno.serve(async (req: Request) => {
       price,
       stock,
       barcode: resolvedBarcode,
-      barcode_type: 'EAN13',
+      barcode_type: resolvedBarcode ? 'EAN13' : null,
       main_image: body.main_image || null,
       sub_images: body.sub_images && body.sub_images.length ? body.sub_images : null,
       detail_images: body.detail_images && body.detail_images.length ? body.detail_images : null,

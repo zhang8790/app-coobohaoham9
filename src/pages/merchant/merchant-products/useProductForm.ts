@@ -476,7 +476,12 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
         // 新建成功后停留编辑态：回写 id 与自动分配的店内码，让用户立即打印标签
         setEditId(created.id)
         setForm(f => ({ ...f, barcode: created.barcode || f.barcode }))
-        Taro.showToast({ title: '已上架，已自动分配店内码，可立即打印标签', icon: 'success' })
+        Taro.showToast({
+          title: created.barcode
+            ? '已上架，已自动分配店内码，可立即打印标签'
+            : '已上架（门店未配置条码前缀，可稍后在编辑页生成条码）',
+          icon: 'success',
+        })
         if (nonHomologyNames.length) {
           Taro.showModal({
             title: '药食同源合规提示',
