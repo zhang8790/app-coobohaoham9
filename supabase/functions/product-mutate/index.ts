@@ -49,6 +49,18 @@ type ProductInput = {
   fit_crowd_tags?: string[] | null
   therapy_pending?: boolean | null
   allergens?: string[] | null
+  // 商品结构化字段（前端 useProductForm 收集，createProduct 已透传）：分类 / 类型 / 礼品手作 / 安全评级
+  category_id?: string | null
+  sub_category_id?: string | null
+  product_kind?: string | null
+  nutrition?: any | null
+  safety_grade?: string | null
+  safety_summary?: any | null
+  materials?: string[] | null
+  gift_meaning?: string | null
+  gift_craft?: string | null
+  gift_scene?: string | null
+  gift_care?: string | null
 }
 
 // 判定 user 是否为门店的合法运营者：店主(owner_id) 或 活跃门店员工(store_staff)
@@ -191,6 +203,18 @@ Deno.serve(async (req: Request) => {
       if (body.fit_crowd_tags !== undefined) updatePayload.fit_crowd_tags = body.fit_crowd_tags && body.fit_crowd_tags.length ? body.fit_crowd_tags : []
       if (body.therapy_pending !== undefined) updatePayload.therapy_pending = !!body.therapy_pending
       if (body.allergens !== undefined) updatePayload.allergens = body.allergens && body.allergens.length ? body.allergens : null
+      // 更新分支同步结构化字段（与新增分支一致的 CHECK 值域校验）
+      if (body.category_id !== undefined) updatePayload.category_id = body.category_id
+      if (body.sub_category_id !== undefined) updatePayload.sub_category_id = body.sub_category_id
+      if (body.product_kind !== undefined && /^(food|gift|craft|care)$/.test(body.product_kind)) updatePayload.product_kind = body.product_kind
+      if (body.nutrition !== undefined) updatePayload.nutrition = body.nutrition
+      if (body.safety_grade !== undefined && /^(S|A|C|D)$/.test(body.safety_grade)) updatePayload.safety_grade = body.safety_grade
+      if (body.safety_summary !== undefined) updatePayload.safety_summary = body.safety_summary
+      if (body.materials !== undefined) updatePayload.materials = body.materials && body.materials.length ? body.materials : []
+      if (body.gift_meaning !== undefined) updatePayload.gift_meaning = body.gift_meaning && body.gift_meaning.trim() ? body.gift_meaning.trim() : null
+      if (body.gift_craft !== undefined) updatePayload.gift_craft = body.gift_craft && body.gift_craft.trim() ? body.gift_craft.trim() : null
+      if (body.gift_scene !== undefined) updatePayload.gift_scene = body.gift_scene && body.gift_scene.trim() ? body.gift_scene.trim() : null
+      if (body.gift_care !== undefined) updatePayload.gift_care = body.gift_care && body.gift_care.trim() ? body.gift_care.trim() : null
 
       const { data, error } = await supabase.from('products').update(updatePayload).eq('id', body.id).select().maybeSingle()
       if (error) {
@@ -283,6 +307,19 @@ Deno.serve(async (req: Request) => {
     if (body.fit_crowd_tags && body.fit_crowd_tags.length) insertPayload.fit_crowd_tags = body.fit_crowd_tags
     if (typeof body.therapy_pending === 'boolean') insertPayload.therapy_pending = body.therapy_pending
     if (body.allergens && body.allergens.length) insertPayload.allergens = body.allergens
+    // 透传前端结构化字段（分类 / 类型 / 礼品手作 / 安全评级），写入前校验 CHECK 约束值域，
+    // 避免非法值触发 CHECK 违例导致整条插入失败（即"新增商品上不去"的潜在来源）。
+    if (body.category_id) insertPayload.category_id = body.category_id
+    if (body.sub_category_id) insertPayload.sub_category_id = body.sub_category_id
+    if (body.product_kind && /^(food|gift|craft|care)$/.test(body.product_kind)) insertPayload.product_kind = body.product_kind
+    if (body.nutrition !== undefined && body.nutrition !== null) insertPayload.nutrition = body.nutrition
+    if (body.safety_grade && /^(S|A|C|D)$/.test(body.safety_grade)) insertPayload.safety_grade = body.safety_grade
+    if (body.safety_summary !== undefined && body.safety_summary !== null) insertPayload.safety_summary = body.safety_summary
+    if (body.materials && body.materials.length) insertPayload.materials = body.materials
+    if (body.gift_meaning && body.gift_meaning.trim()) insertPayload.gift_meaning = body.gift_meaning.trim()
+    if (body.gift_craft && body.gift_craft.trim()) insertPayload.gift_craft = body.gift_craft.trim()
+    if (body.gift_scene && body.gift_scene.trim()) insertPayload.gift_scene = body.gift_scene.trim()
+    if (body.gift_care && body.gift_care.trim()) insertPayload.gift_care = body.gift_care.trim()
 
     const { data, error } = await supabase.from('products').insert(insertPayload).select().maybeSingle()
     if (error) {

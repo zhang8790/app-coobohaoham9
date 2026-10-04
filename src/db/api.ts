@@ -3201,16 +3201,36 @@ export async function createProduct(params: {
       therapy_pending: typeof params.therapy_pending === 'boolean' ? params.therapy_pending : null,
       allergens: params.allergens ?? null,
       auto_barcode: params.auto_barcode ?? null}
+    // 透传表单收集的全部业务字段：createProduct 旧实现只挑了部分字段，
+    // 导致 category_id / product_kind / 食养辨证增强(fit_people_override/fit_crowd_tags) /
+    // 礼品手作(materials/gift_*) / 安全评级(nutrition/safety_grade/safety_summary)
+    // 被静默丢弃，新建商品丢失分类与类型。统一兜底透传，避免再次遗漏。
+    const PASS_THROUGH_KEYS = [
+      'category_id', 'sub_category_id', 'product_kind',
+      'nutrition', 'safety_grade', 'safety_summary',
+      'materials', 'gift_meaning', 'gift_craft', 'gift_scene', 'gift_care',
+      'fit_people_override', 'fit_crowd_tags',
+    ] as const
+    for (const k of PASS_THROUGH_KEYS) {
+      const v = (params as any)[k]
+      if (v !== undefined) (invokeBody as any)[k] = v
+    }
     const { data, error } = await supabase.functions.invoke('product-mutate', { body: invokeBody })
     if (!error && data?.success) {
       clearRequestCache() // 写后失效列表缓存，刚上架商品立即可见
       return (data as any).product as import('./types').Product
     }
-    // 函数返回业务错误（如门店归属不匹配）→ 直接抛出，不再回退（回退也会失败）
+    // 业务错误（门店归属不匹配/门店不存在/权限不足等）→ 直接抛出带码错误，
+    // 让前端展示确切原因，不再静默回退到注定失败的直写掩盖真实问题。
+    if (data?.error) {
+      const bizErr = new Error(data.error) as any
+      bizErr.code = (data as any).code || 'PRODUCT_MUTATE_FAILED'
+      bizErr.bizMessage = data.error
+      throw bizErr
+    }
+    // 调用层错误（网络/瞬态）→ 回退直写兜底（对 owner 仍可成功）
     if (error) {
       console.warn('[createProduct] Edge Function 调用失败，回退直写：', error.message || JSON.stringify(error))
-    } else if (data?.error) {
-      console.warn('[createProduct] Edge Function 业务错误，回退直写：', data.error)
     }
   } catch (e: any) {
     console.warn('[createProduct] 调用 Edge Function 异常，回退直写：', e?.message || e)
@@ -3248,6 +3268,11 @@ export async function createProduct(params: {
       allergens: params.allergens ?? null}
   // auto_barcode 仅供 product-mutate 内部分配店内码，不是 products 表列，回退直写前必须剥除
   delete (insertPayload as any).auto_barcode
+  // 回退直写同样透传业务字段，保持与 EF 路径数据一致
+  for (const k of PASS_THROUGH_KEYS) {
+    const v = (params as any)[k]
+    if (v !== undefined) (insertPayload as any)[k] = v
+  }
   const { data, error } = await supabase.from('products').insert(insertPayload).select().maybeSingle()
   // 软降级：若 products 表尚未加食疗导购新列（迁移 00100 未执行），剥离后重试，保证保存不失败
   if (error && NEW_COLUMN_RE.test(error.message)) {

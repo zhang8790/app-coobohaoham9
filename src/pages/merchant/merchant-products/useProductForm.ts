@@ -493,10 +493,13 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
       }
     } catch (e: any) {
       console.error('[商品管理] 保存失败', e)
-      const msg: string = e?.message || '未知错误'
+      const msg: string = e?.bizMessage || e?.message || '未知错误'
       const code: string = e?.code || ''
       console.error('[商品管理] 错误码(code):', code, '| details:', e?.details)
-      if (/row-level security|policy/.test(msg)) {
+      // 归属/权限类错误给出明确中文提示，便于真机定位（而不是笼统的"被安全策略拒绝"）
+      if (['STORE_OWNER_MISMATCH', 'PRODUCT_OWNER_MISMATCH', 'STORE_MISSING', 'PRODUCT_STORE_MISSING'].includes(code)) {
+        Taro.showToast({ title: '当前账号无权操作该门店', icon: 'none', duration: 4000 })
+      } else if (/row-level security|policy/.test(msg)) {
         Taro.showToast({ title: '被安全策略拒绝(权限不足)', icon: 'none', duration: 4000 })
       } else {
         Taro.showToast({ title: `保存失败：${msg.slice(0, 60)}`, icon: 'none', duration: 4000 })
