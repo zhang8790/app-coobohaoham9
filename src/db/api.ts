@@ -821,6 +821,7 @@ export async function getProductsByIds(ids: string[]): Promise<Product[]> {
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
+  if (!id) return null
   // 主查询：商品 + 门店。不内联 product_emotion，避免该表尚未创建时整条查询失败（商品加载不出）
   const { data, error } = await supabase
     .from('products')
@@ -1089,11 +1090,13 @@ export async function getOrders(status?: OrderStatus, page = 0, limit = 20): Pro
 }
 
 export async function getOrderById(id: string): Promise<Order | null> {
+  if (!id) return null
   const { data } = await supabase.from('orders').select('*, order_items(*)').eq('id', id).maybeSingle()
   return data
 }
 
 export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {
+  if (!id) return
   await supabase.from('orders').update({ status, ...(status === 'completed' ? { paid_at: new Date().toISOString() } : {}) }).eq('id', id)
 }
 
@@ -3320,6 +3323,7 @@ export async function updateProduct(id: string, params: Partial<{
   // 食养系统化（迁移 20260801）
   therapy_json?: any; fit_people?: string; therapy_pending?: boolean; allergens?: string[]
 }>): Promise<boolean> {
+  if (!id) return false
   // 优先走 Edge Function（service_role 绕过 RLS 写策略），未部署 / 异常时回退直写
   const r = await invokeProductMutate({ id, ...(params as Record<string, unknown>) })
   if (r.kind === 'success') { clearRequestCache(); return true }
@@ -3356,6 +3360,7 @@ export async function generateProductBarcode(id: string): Promise<{
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
+  if (!id) return false
   // 优先走 Edge Function（service_role 绕过 products 表 RLS 写策略，并校验门店归属含 store_staff）
   const r = await invokeProductMutate({ deleteId: id })
   if (r.kind === 'success') { clearRequestCache(); return true }
@@ -3442,162 +3447,6 @@ export async function bindReferralByCode(
 // =====================
 // 管理员专用 API
 // =====================
-export async function getAdminStats(): Promise<{ merchants: number; products: number; withdrawals: number; ugc: number }> {
-  const [{ count: m }, { count: p }, { count: w }] = await Promise.all([
-    supabase.from('merchant_applications').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('products').select('*', { count: 'exact', head: true }).eq('review_status', 'pending'),
-    supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-  ])
-  return { merchants: m ?? 0, products: p ?? 0, withdrawals: w ?? 0, ugc: 0 }
-}
-
-export async function getAdminMerchantApplications(): Promise<MerchantApplication[]> {
-  const { data } = await supabase.from('merchant_applications').select('*')
-    .eq('status', 'pending').order('created_at', { ascending: true })
-  return (data ?? []) as MerchantApplication[]
-}
-
-export async function adminApproveApplication(id: string): Promise<boolean> {
-  const app = await supabase.from('merchant_applications').select('user_id, store_name, business_type, description, contact_phone, address').eq('id', id).maybeSingle()
-  if (!app.data) return false
-
-  // ★ 顺序铁律（2026-09-17 修复「审核通过却进不了管理后台」）：
-  //   建店 → 再置「已通过」。旧实现先改 status 再 insert stores，且 insert 写了
-  //   store_type='self' —— 而 stores_store_type_check 只允许 hub/transfer/truck/branch
-  //   （迁移 20260802），因此建店**必然**报 23514 失败；状态已落地又无法回滚，
-  //   用户就卡在「申请已通过 + 无门店」，merchant-center 按 owner_id/store_staff
-  //   取店永远取到 null → 表现为「进不了管理后台」。建店放前面即可自然重试。
-  // 幂等：该用户已有门店（owner_id 命中）则跳过建店，支持重复点击「通过」。
-  const { data: existed } = await supabase.from('stores').select('id')
-    .eq('owner_id', app.data.user_id).limit(1).maybeSingle()
-
-  // ★ 同名无主店优先认领（2026-09-18）：线上存在 owner_id 为 null 的「无主店」
-  //   （历史遗留 / 后台预建，如「杭州礼品店」）。旧实现无条件新建 → 重名两家、
-  //   商家进的是空壳新店、老店永远无主谁也认领不了。先认领同名无主店，认领不到才新建。
-  let storeId: string | null = (existed as any)?.id ?? null
-
-  if (!storeId) {
-    const { data: orphan } = await supabase.from('stores').select('id')
-      .eq('name', app.data.store_name).is('owner_id', null).limit(1).maybeSingle()
-
-    if (orphan?.id) {
-      const { data: claimed, error: claimErr } = await supabase.from('stores')
-        .update({ owner_id: app.data.user_id, is_active: true })
-        .eq('id', orphan.id).select('id')
-      if (claimErr || !claimed || claimed.length === 0) {
-        console.error('[adminApproveApplication] 认领同名无主店失败:', claimErr)
-      } else {
-        storeId = orphan.id
-      }
-    }
-  }
-
-  if (!storeId) {
-    // store_type 合法值仅 branch/hub/transfer/truck；「自营」身份由 is_platform 标识，
-    // 不靠 store_type。写 'branch'（普通门店）与 admin-web / admin-create-store EF 对齐。
-    const { error: storeError } = await supabase.from('stores').insert({
-      owner_id: app.data.user_id,
-      name: app.data.store_name,
-      description: null,
-      phone: app.data.contact_phone || null,
-      address: app.data.address || null,
-      category: '其他',
-      store_type: 'branch',
-      is_active: true,
-      rating: 0})
-
-    if (storeError) {
-      // 建店失败 → 保持 pending，管理员可修复后重试（绝不留下"已通过但无门店"的孤儿态）
-      console.error('[adminApproveApplication] 创建门店失败，已中止审核（申请仍为 pending）:', storeError)
-      return false
-    }
-  }
-
-  // 补运营成员行（best-effort）：owner_id 已足以进后台并读写，store_staff 只影响
-  // 多店切换 / is_store_manager 等增强能力，失败不阻断审核。
-  if (storeId) {
-    const { error: staffErr } = await supabase.from('store_staff').upsert(
-      { store_id: storeId, user_id: app.data.user_id, role: 'owner', is_active: true },
-      { onConflict: 'store_id,user_id' })
-    if (staffErr) console.warn('[adminApproveApplication] store_staff 写入失败（不影响进后台）:', staffErr.message)
-  }
-
-  // 1. 建店成功后，更新申请状态
-  const { error } = await supabase.from('merchant_applications').update({ status: 'approved' }).eq('id', id)
-  if (error) {
-    console.error('[adminApproveApplication] 更新申请状态失败:', error)
-    return false
-  }
-
-  // 2. 同步 profiles.merchant_status（允许失败：申请人下次进「我的」页仍可由 application.status 兜底）
-  await supabase.from('profiles').update({ merchant_status: 'approved' }).eq('id', app.data.user_id)
-
-  // 3. 失效商家门店缓存，避免审核后 30s 内仍读到 null
-  clearRequestCache()
-
-  return true
-}
-
-export async function adminRejectApplication(id: string, reason: string): Promise<boolean> {
-  const app = await supabase.from('merchant_applications').select('user_id').eq('id', id).maybeSingle()
-  if (!app.data) return false
-  const { error } = await supabase.from('merchant_applications').update({ status: 'rejected', reject_reason: reason }).eq('id', id)
-  if (error) return false
-  await supabase.from('profiles').update({ merchant_status: 'rejected' }).eq('id', app.data.user_id)
-  return true
-}
-
-export async function getAdminPendingProducts(): Promise<Product[]> {
-  const { data } = await supabase.from('products').select('*')
-    .eq('review_status', 'pending').order('created_at', { ascending: true })
-  return (data ?? []) as Product[]
-}
-
-export async function adminApproveProduct(id: string): Promise<boolean> {
-  const { error } = await supabase.from('products').update({ review_status: 'approved' }).eq('id', id)
-  return !error
-}
-
-export async function adminRejectProduct(id: string, reason: string): Promise<boolean> {
-  const { error } = await supabase.from('products').update({ review_status: 'rejected', description: `[驳回] ${reason}` }).eq('id', id)
-  return !error
-}
-
-export async function getAdminWithdrawals(): Promise<any[]> {
-  const { data } = await supabase.from('withdrawals')
-    .select('*, profiles(nickname, phone)')
-    .eq('status', 'pending').order('created_at', { ascending: true })
-  return data ?? []
-}
-
-export async function adminApproveWithdrawal(id: string): Promise<boolean> {
-  // 审核通过：扣减用户【推广佣金账户】commission_balance（即结算的推广佣金，单位元）
-  const w = await supabase.from('withdrawals').select('user_id, amount').eq('id', id).maybeSingle()
-  if (!w.data) return false
-  const { data: prof } = await supabase.from('profiles')
-    .select('commission_balance, settled_commission').eq('id', w.data.user_id).maybeSingle()
-  const cur = Number(prof?.commission_balance ?? 0)
-  const amt = Number(w.data.amount)
-  if (cur < amt) {
-    // 余额不足，仅标记异常（不打款），由管理员线下处理
-    await supabase.from('withdrawals').update({ status: 'rejected', remark: '推广佣金余额不足', updated_at: new Date().toISOString() }).eq('id', id)
-    return false
-  }
-  // 扣减佣金账户，并累加「已结算佣金」用于对账（消费健康豆 gold_beans 不在此链路）
-  const settled = Number(prof?.settled_commission ?? 0) + amt
-  await supabase.from('profiles').update({
-    commission_balance: cur - amt,
-    settled_commission: Math.round(settled * 100) / 100,
-    updated_at: new Date().toISOString()}).eq('id', w.data.user_id)
-  const { error } = await supabase.from('withdrawals').update({ status: 'paid', updated_at: new Date().toISOString() }).eq('id', id)
-  return !error
-}
-
-export async function adminRejectWithdrawal(id: string): Promise<boolean> {
-  // 申请时未预扣余额，驳回无需退还（避免凭空加钱）
-  const { error } = await supabase.from('withdrawals').update({ status: 'rejected', updated_at: new Date().toISOString() }).eq('id', id)
-  return !error
-}
 
 // 商家订单
 // 注意：order_items 表未持久化 store_id（createOrderV2 仅写入 orders.store_id），

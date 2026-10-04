@@ -62,9 +62,10 @@ export default function FamilyArchivePage() {
  const { profile } = useAuth()
  const { familyMembers, refreshFamilyMembers } = useFoodTherapy()
 
- const [formOpen, setFormOpen] = useState(false)
- const [form, setForm] = useState<MemberForm>(blankForm)
- const [saving, setSaving] = useState(false)
+  const [formOpen, setFormOpen] = useState(false)
+  const [form, setForm] = useState<MemberForm>(blankForm)
+  const [saving, setSaving] = useState(false)
+  const updateForm = (p: Partial<MemberForm>) => setForm((f) => ({ ...f, ...p }))
 
  useEffect(() => {
  // 进入页面即拉一次最新家庭成员（保证与商品页「为谁选购」同源）
@@ -338,7 +339,7 @@ export default function FamilyArchivePage() {
  style={{ background: '#F6F2EE', color: '#2A2A2A' }}
  placeholder="如：爸爸 / 女儿 / 奶奶"
  value={form.name}
- onInput={(e) => setForm({ ...form, name: e.detail.value })}
+ onInput={(e) => updateForm({ name: e.detail.value })}
  />
  </View>
 
@@ -349,7 +350,7 @@ export default function FamilyArchivePage() {
  <Picker
  mode="selector"
  range={AGE_GROUP_OPTIONS as unknown as string[]}
- onChange={(e) => setForm({ ...form, age_group: AGE_GROUP_OPTIONS[e.detail.value as number] })}
+ onChange={(e) => updateForm({ age_group: AGE_GROUP_OPTIONS[e.detail.value as number] })}
  >
  <View className="mt-1 rounded-xl px-3 py-2" style={{ background: '#F6F2EE' }}>
  <Text className="text-sm" style={{ color: form.age_group ? '#2A2A2A' : 'var(--muted-foreground)' }}>
@@ -363,7 +364,7 @@ export default function FamilyArchivePage() {
  <Picker
  mode="selector"
  range={GENDER_OPTIONS as unknown as string[]}
- onChange={(e) => setForm({ ...form, gender: GENDER_OPTIONS[e.detail.value as number] })}
+ onChange={(e) => updateForm({ gender: GENDER_OPTIONS[e.detail.value as number] })}
  >
  <View className="mt-1 rounded-xl px-3 py-2" style={{ background: '#F6F2EE' }}>
  <Text className="text-sm" style={{ color: form.gender ? '#2A2A2A' : 'var(--muted-foreground)' }}>
@@ -382,10 +383,10 @@ export default function FamilyArchivePage() {
  range={CONSTITUTION_PICKER as unknown as string[]}
  onChange={(e) => {
  const idx = e.detail.value as number
- if (idx === 0) { setForm({ ...form, constitution_type: '' }); return }
+ if (idx === 0) { updateForm({ constitution_type: '' }); return }
  const name = CONSTITUTION_PICKER[idx]
  const key = Object.keys(CONSTITUTION_TYPES).find((k) => CONSTITUTION_TYPES[k].name === name) ?? ''
- setForm({ ...form, constitution_type: key })
+ updateForm({ constitution_type: key })
  }}
  >
  <View className="mt-1 rounded-xl px-3 py-2" style={{ background: '#F6F2EE' }}>
@@ -405,7 +406,7 @@ export default function FamilyArchivePage() {
  return (
  <Text
  key={o}
- onClick={() => setForm({ ...form, body_states: toggleInArray(form.body_states, o) })}
+ onClick={() => updateForm({ body_states: toggleInArray(form.body_states, o) })}
  className="text-xs px-3 py-1.5 rounded-full"
  style={{ background: active ? 'hsl(var(--primary))' : '#F6F2EE', color: active ? '#fff' : '#6F675C' }}
  >
@@ -425,7 +426,7 @@ export default function FamilyArchivePage() {
  return (
  <Text
  key={o}
- onClick={() => setForm({ ...form, chronic_conditions: toggleInArray(form.chronic_conditions, o) })}
+ onClick={() => updateForm({ chronic_conditions: toggleInArray(form.chronic_conditions, o) })}
  className="text-xs px-3 py-1.5 rounded-full"
  style={{ background: active ? '#8A6B22' : '#F6F2EE', color: active ? '#fff' : '#6F675C' }}
  >
@@ -445,7 +446,7 @@ export default function FamilyArchivePage() {
  return (
  <Text
  key={o.key}
- onClick={() => setForm({ ...form, allergies: toggleInArray(form.allergies, o.key) })}
+ onClick={() => updateForm({ allergies: toggleInArray(form.allergies, o.key) })}
  className="text-xs px-3 py-1.5 rounded-full"
  style={{ background: active ? 'hsl(var(--primary))' : '#F6F2EE', color: active ? '#fff' : '#6F675C' }}
  >
@@ -465,7 +466,7 @@ export default function FamilyArchivePage() {
  return (
  <Text
  key={o}
- onClick={() => setForm({ ...form, health_goals: toggleInArray(form.health_goals, o) })}
+ onClick={() => updateForm({ health_goals: toggleInArray(form.health_goals, o) })}
  className="text-xs px-3 py-1.5 rounded-full"
  style={{ background: active ? 'hsl(var(--primary))' : '#F6F2EE', color: active ? '#fff' : '#6F675C' }}
  >
@@ -484,7 +485,7 @@ export default function FamilyArchivePage() {
  style={{ background: '#F6F2EE', color: '#2A2A2A' }}
  placeholder="如：口味偏淡 / 喜欢温热"
  value={form.notes}
- onInput={(e) => setForm({ ...form, notes: e.detail.value })}
+ onInput={(e) => updateForm({ notes: e.detail.value })}
  />
  </View>
 
