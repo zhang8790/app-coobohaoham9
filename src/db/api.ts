@@ -3170,6 +3170,15 @@ export async function createProduct(params: {
 
   // ── 优先走 Edge Function（service_role 在服务端写库，绕过 products 表 RLS 写策略）──
   // 彻底规避「安全加固迁移把商家写策略删掉 → 上架保存失败」的反复问题。
+  // 透传字段白名单：EF 路径与回退直写路径共用，提升到函数作用域，
+  // 避免 EF 不可达走回退分支时引用未定义（此前导致新建商品保存必崩）。
+  const PASS_THROUGH_KEYS = [
+    'category_id', 'sub_category_id', 'product_kind',
+    'nutrition', 'safety_grade', 'safety_summary',
+    'materials', 'gift_meaning', 'gift_craft', 'gift_scene', 'gift_care',
+    'fit_people_override', 'fit_crowd_tags',
+  ] as const
+
   // 函数未部署 / 调用异常时自动回退到下方直写逻辑（保持旧行为，不退化）。
   try {
     const invokeBody: Record<string, unknown> = {
@@ -3205,12 +3214,6 @@ export async function createProduct(params: {
     // 导致 category_id / product_kind / 食养辨证增强(fit_people_override/fit_crowd_tags) /
     // 礼品手作(materials/gift_*) / 安全评级(nutrition/safety_grade/safety_summary)
     // 被静默丢弃，新建商品丢失分类与类型。统一兜底透传，避免再次遗漏。
-    const PASS_THROUGH_KEYS = [
-      'category_id', 'sub_category_id', 'product_kind',
-      'nutrition', 'safety_grade', 'safety_summary',
-      'materials', 'gift_meaning', 'gift_craft', 'gift_scene', 'gift_care',
-      'fit_people_override', 'fit_crowd_tags',
-    ] as const
     for (const k of PASS_THROUGH_KEYS) {
       const v = (params as any)[k]
       if (v !== undefined) (invokeBody as any)[k] = v

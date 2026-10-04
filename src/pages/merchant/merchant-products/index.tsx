@@ -11,7 +11,7 @@ import {
   getMerchantStore, getMerchantProducts, getMerchantProductSales,
   getNearExpiryProducts, getCategories,
   createStoreCategory, updateStoreCategory, deleteStoreCategory,
-  deleteProduct,
+  deleteProduct, updateProduct,
 } from '@/db/api'
 import { analyzeProductFromName } from '@/utils/food-therapy/dishAnalyzer'
 import type { Product, Store, StoreCategory } from '@/db/types'

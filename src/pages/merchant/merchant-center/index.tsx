@@ -22,6 +22,12 @@ import StoreQrModal from './StoreQrModal'
 import VehicleManageModal from './VehicleManageModal'
 import StoreSwitchSheet from './StoreSwitchSheet'
 
+// 网页版自营管理后台地址（与小程序共用同一套 Supabase 数据，功能更全）。
+// ⚠️ 微信 web-view 硬性要求：目标域名须在小程序后台「开发设置 → 业务域名」校验通过，且必须为 HTTPS。
+//    当前部署为 HTTP（http://124.222.23.34），真机 web-view 会显示校验失败页；
+//    正式上线前请把这里改为 HTTPS 域名（如规划中的 api.laidianyouxi.com）并加入业务域名白名单。
+const ADMIN_WEB_URL = 'http://124.222.23.34'
+
 function MerchantCenterPage() {
   const [store, setStore] = useState<Store | null>(null)
   // Phase 4 商家多店：可管理门店列表 + 当前店切换 + 跨店总览
@@ -87,6 +93,12 @@ function MerchantCenterPage() {
       ? `/pages/merchant/merchant-products/index?action=${action}`
       : '/pages/merchant/merchant-products/index'
     Taro.navigateTo({ url })
+  }
+
+  // 打开网页版管理后台（web-view 深链，与小程序数据互通）
+  const goAdminWeb = () => {
+    const target = `${ADMIN_WEB_URL}/merchant`
+    Taro.navigateTo({ url: `/pages/ext/webview/index?url=${encodeURIComponent(target)}` })
   }
 
   // 第一步：加载商家信息（快速）
@@ -434,6 +446,24 @@ function MerchantCenterPage() {
         onScan={() => goProducts('scan')}
         onBatchAnalyze={() => goProducts()}
       />
+
+      {/* 网页版管理后台：深链打通，与小程序共用同一套 Supabase 数据 */}
+      <View className="px-4 mt-5">
+        <View
+          className="flex flex-row items-center justify-between bg-card rounded-2xl border border-border px-4 py-4"
+          onClick={goAdminWeb}>
+          <View className="flex flex-row items-center">
+            <View className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(22,163,74,0.12)' }}>
+              <Icon name="store" size={22} className="text-primary" />
+            </View>
+            <View style={{ marginLeft: '12px' }}>
+              <Text className="text-base font-bold text-foreground">网页版管理后台</Text>
+              <Text className="text-xs text-muted-foreground block" style={{ marginTop: '4px' }}>电脑端功能更全 · 与小程序数据互通</Text>
+            </View>
+          </View>
+          <Icon name="chevron-right" size={20} className="text-muted-foreground" />
+        </View>
+      </View>
 
       {/* 多店总览（仅多店时显示） */}
       <CrossSummaryCard storeCount={stores.length} crossSummary={crossSummary} />

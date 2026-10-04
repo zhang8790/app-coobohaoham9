@@ -29,7 +29,7 @@ export default function StatCards({ stats }: { stats: Stats }) {
     <View
       className="mx-4 bg-card rounded-2xl border border-border"
       style={{ marginTop: '-16px', position: 'relative', zIndex: 2, padding: '16px 8px' }}>
-      <View style={{ flexDirection: 'row' }}>
+      <View className="flex flex-row">
         {ITEMS.map((it, idx) => (
           <View
             key={it.key}

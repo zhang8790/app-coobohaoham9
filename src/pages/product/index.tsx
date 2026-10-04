@@ -73,7 +73,7 @@ function TagRow({ label, tags, highlight }: { label: string; tags: string[]; hig
 
 export default function ProductPage() {
  const { user } = useAuth()
- const { activeProfile } = useFoodTherapy()
+ const { activeProfile, classifyProduct } = useFoodTherapy()
  const { id, expiryEp, expiryBatch, referralCode } = useMemo(() => {
  const params = Taro.getCurrentInstance().router?.params
  const rawId = params?.id ? decodeURIComponent(params.id) : ''

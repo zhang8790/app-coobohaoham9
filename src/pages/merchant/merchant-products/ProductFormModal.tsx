@@ -1,4 +1,5 @@
 // 商品编辑/新增弹窗（从 merchant-products 页抽出，纯展示；全部逻辑由 useProductForm 钩子提供）
+import Taro from '@tarojs/taro'
 import { View, Text, Input, Textarea, Switch, Image } from '@tarojs/components'
 import ProductGridCard from '@/components/ProductGridCard'
 import { EAN13Preview } from './BarcodeTools'
@@ -576,8 +577,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  style={{ padding: '8px 12px', borderRadius: '10px', background: '#F0F4F8', border: '1px solid #DDD' }}>
  <Text style={{ fontSize: '26rpx', color: '#333' }}> 上传图片</Text>
  </View>
- {dishImageUrl ? (
- <Image src={dishImageUrl} mode="aspectFill" style={{ width: '40px', height: '40px', borderRadius: '8px' }} />
+ {controller.dishImageUrl ? (
+ <Image src={controller.dishImageUrl} mode="aspectFill" style={{ width: '40px', height: '40px', borderRadius: '8px' }} />
  ) : null}
  <View onClick={controller.runSmartAnalyze}
  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 12px', borderRadius: '10px', background: controller.analyzing ? '#E0E0E0' : 'hsl(var(--primary))' }}>
