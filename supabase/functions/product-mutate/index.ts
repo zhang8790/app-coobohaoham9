@@ -15,6 +15,7 @@ const corsHeaders = {
 
 type ProductInput = {
   id?: string
+  deleteId?: string   // 删除分支：指定待删商品 id（路由到 EF 统一用 service_role 绕 RLS）
   store_id?: string
   name?: string
   description?: string
@@ -50,6 +51,17 @@ type ProductInput = {
   allergens?: string[] | null
 }
 
+// 判定 user 是否为门店的合法运营者：店主(owner_id) 或 活跃门店员工(store_staff)
+// 与小程序端 isStoreOperatorFor 语义对齐（src/db/api.ts），避免"员工身份进得了中心却写不动商品"
+async function isStoreOperator(storeId: string, userId: string): Promise<boolean> {
+  const { data: store } = await supabase.from('stores').select('owner_id').eq('id', storeId).maybeSingle()
+  if (store && store.owner_id === userId) return true
+  const { data: staff } = await supabase
+    .from('store_staff').select('id')
+    .eq('store_id', storeId).eq('user_id', userId).eq('is_active', true).maybeSingle()
+  return !!staff
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -74,6 +86,35 @@ Deno.serve(async (req: Request) => {
   try {
     const body = (await req.json()) as ProductInput
 
+    // ── 删除分支：校验归属后删除（路由到 EF，统一用 service_role 绕 RLS，避免直删被安全加固策略拦截）──
+    if (body.deleteId) {
+      const { data: existing, error: existErr } = await supabase
+        .from('products').select('id, store_id').eq('id', body.deleteId).maybeSingle()
+      if (existErr) {
+        console.error('[product-mutate] 待删商品查询失败:', existErr.message)
+        return Response.json({ error: '商品查询失败' }, { status: 500, headers: corsHeaders })
+      }
+      if (!existing) return Response.json({ error: '商品不存在' }, { status: 404, headers: corsHeaders })
+      const { data: store, error: storeErr } = await supabase
+        .from('stores').select('id, owner_id').eq('id', existing.store_id).maybeSingle()
+      if (storeErr) {
+        console.error('[product-mutate] 门店查询失败:', storeErr.message)
+        return Response.json({ error: '门店查询失败' }, { status: 500, headers: corsHeaders })
+      }
+      if (!store) return Response.json({ error: '门店不存在', code: 'PRODUCT_STORE_MISSING' }, { status: 404, headers: corsHeaders })
+      // 授权：店主 或 活跃门店员工（store_staff）—— 与商家中心进入门槛一致
+      if (!store.owner_id || store.owner_id !== user.id) {
+        const allowed = await isStoreOperator(existing.store_id, user.id)
+        if (!allowed) return Response.json({ error: '无权删除该商品（归属不匹配）', code: 'PRODUCT_OWNER_MISMATCH' }, { status: 403, headers: corsHeaders })
+      }
+      const { error: delErr } = await supabase.from('products').delete().eq('id', body.deleteId)
+      if (delErr) {
+        console.error('[product-mutate] 删除失败:', delErr.message)
+        return Response.json({ error: `删除失败: ${delErr.message}` }, { status: 500, headers: corsHeaders })
+      }
+      return Response.json({ success: true }, { headers: corsHeaders })
+    }
+
     // ── 更新分支：校验归属后更新 ──
     if (body.id) {
       const { data: existing, error: existErr } = await supabase
@@ -85,13 +126,20 @@ Deno.serve(async (req: Request) => {
       if (!existing) return Response.json({ error: '商品不存在' }, { status: 404, headers: corsHeaders })
 
       const { data: store, error: storeErr } = await supabase
-        .from('stores').select('id').eq('id', existing.store_id).eq('owner_id', user.id).maybeSingle()
+        .from('stores').select('id, owner_id').eq('id', existing.store_id).maybeSingle()
       if (storeErr) {
         console.error('[product-mutate] 门店查询失败:', storeErr.message)
         return Response.json({ error: '门店查询失败' }, { status: 500, headers: corsHeaders })
       }
       if (!store) {
-        return Response.json({ error: '无权操作该商品（归属不匹配）', code: 'PRODUCT_OWNER_MISMATCH' }, { status: 403, headers: corsHeaders })
+        return Response.json({ error: '商品归属门店不存在', code: 'PRODUCT_STORE_MISSING' }, { status: 404, headers: corsHeaders })
+      }
+      // 授权：店主 或 活跃门店员工（store_staff）—— 与商家中心进入门槛一致
+      if (!store.owner_id || store.owner_id !== user.id) {
+        const allowed = await isStoreOperator(existing.store_id, user.id)
+        if (!allowed) {
+          return Response.json({ error: '无权操作该商品（归属不匹配）', code: 'PRODUCT_OWNER_MISMATCH' }, { status: 403, headers: corsHeaders })
+        }
       }
 
       const updatePayload: Record<string, unknown> = {}
@@ -167,15 +215,21 @@ Deno.serve(async (req: Request) => {
     if (!Number.isFinite(price) || price <= 0) return Response.json({ error: '价格不正确' }, { status: 400, headers: corsHeaders })
     if (!Number.isFinite(stock) || stock < 0) return Response.json({ error: '库存不正确' }, { status: 400, headers: corsHeaders })
 
-    // P0 归属校验：仅允许商家写「自己拥有」的门店下的商品
+    // P0 归属校验：仅允许商家（店主 或 活跃门店员工）写「自己归属」的门店下的商品
     const { data: store, error: storeErr } = await supabase
-      .from('stores').select('id').eq('id', store_id).eq('owner_id', user.id).maybeSingle()
+      .from('stores').select('id, owner_id').eq('id', store_id).maybeSingle()
     if (storeErr) {
       console.error('[product-mutate] 门店查询失败:', storeErr.message)
       return Response.json({ error: '门店查询失败' }, { status: 500, headers: corsHeaders })
     }
     if (!store) {
-      return Response.json({ error: '无权操作该门店（门店归属不匹配）', code: 'STORE_OWNER_MISMATCH' }, { status: 403, headers: corsHeaders })
+      return Response.json({ error: '门店不存在', code: 'STORE_MISSING' }, { status: 404, headers: corsHeaders })
+    }
+    if (!store.owner_id || store.owner_id !== user.id) {
+      const allowed = await isStoreOperator(store_id, user.id)
+      if (!allowed) {
+        return Response.json({ error: '无权操作该门店（门店归属不匹配）', code: 'STORE_OWNER_MISMATCH' }, { status: 403, headers: corsHeaders })
+      }
     }
 
     // 解析条码：auto_barcode 且为空时自动分配店内码

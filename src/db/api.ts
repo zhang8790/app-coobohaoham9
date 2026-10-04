@@ -3331,6 +3331,20 @@ export async function generateProductBarcode(id: string): Promise<{
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
+  // 优先走 Edge Function（service_role 绕过 products 表 RLS 写策略，并校验门店归属含 store_staff）
+  try {
+    const { data, error } = await supabase.functions.invoke('product-mutate', { body: { deleteId: id } })
+    if (!error && data?.success) {
+      clearRequestCache() // 写后失效列表缓存，删除立即生效
+      return true
+    }
+    if (error) console.warn('[deleteProduct] Edge Function 调用失败，回退直删：', error.message || JSON.stringify(error))
+    else if (data?.error) console.warn('[deleteProduct] Edge Function 业务错误，回退直删：', data.error)
+  } catch (e: any) {
+    console.warn('[deleteProduct] 调用 Edge Function 异常，回退直删：', e?.message || e)
+  }
+
+  // 回退：直连删除（依赖 products 表 RLS 删除策略；若已被安全加固移除则静默失败，符合预期降级）
   const { error } = await supabase.from('products').delete().eq('id', id)
   clearRequestCache()
   return !error
