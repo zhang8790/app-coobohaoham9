@@ -105,7 +105,7 @@ function MerchantProductsPage() {
   // 商家中心「快捷操作」以 ?action=add / ?action=scan 跳入本页（QuickActions.tsx）。
   // 此前本页未消费该参数 → 从商家中心点「新增商品/扫码上架」跳过来毫无反应。
   // 消费一次：add → 立即开新增表单（handleNewProduct 不依赖 store，故不等 loading，避免卡在登录态瞬间丢弃）；
-  // scan → 等 store 就绪再拉起扫码。
+  // scan → 等 store 就绪再拉起扫码；barcode → 自营中心「条形码制作」入口，滚动定位到条码工具区。
   const router = useRouter()
   const actionHandledRef = useRef(false)
   useEffect(() => {
@@ -117,6 +117,10 @@ function MerchantProductsPage() {
     } else if (act === 'scan') {
       if (loading || !store) return
       productForm.handleScan()
+      actionHandledRef.current = true
+    } else if (act === 'barcode') {
+      if (loading || !store) return
+      setTimeout(() => Taro.pageScrollTo({ selector: '#barcode-tools', duration: 300 }), 300)
       actionHandledRef.current = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -319,7 +323,10 @@ function MerchantProductsPage() {
             </View>
           </View>
 
-          <BarcodeTools store={store} />
+          {/* 条形码制作区（自营中心「条形码制作」入口深链定位锚点） */}
+          <View id="barcode-tools">
+            <BarcodeTools store={store} />
+          </View>
 
           {/* 批量配料安全分析按钮 */}
           <View style={{ display: 'flex', gap: '10px', padding: '10px 14px 0' }}>

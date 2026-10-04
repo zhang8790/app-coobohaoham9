@@ -1,6 +1,6 @@
 // @title 店铺设置（商家端）— 与管理后台保持一致
 import { useState, useEffect } from 'react'
-import Taro from '@tarojs/taro'
+import Taro, { useRouter } from '@tarojs/taro'
 import { View, Text, Input, Textarea, Button, Image, Picker } from '@tarojs/components'
 import {
   getMerchantStore, updateStore, getPrinterConfig, savePrinterConfig, callPrintReceipt,
@@ -149,6 +149,14 @@ function MerchantSettingsPage() {
         }
       })
     })
+  }, [])
+
+  // 自营中心「小票打印」入口以 ?section=printer 跳入本页 → 滚动定位到打印机配置区。
+  const router = useRouter()
+  useEffect(() => {
+    if (router?.params?.section !== 'printer') return
+    setTimeout(() => Taro.pageScrollTo({ selector: '#printer-section', duration: 300 }), 400)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 选择顶部图片（banner）→ 双轨制
@@ -428,7 +436,7 @@ function MerchantSettingsPage() {
       <Announcement form={form} updateField={updateField} />
 
       {/* ===== 8. 小票打印机（一店一台，店里自服务配置）===== */}
-      <View className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
+      <View id="printer-section" className="px-4 mt-3 p-4 rounded-2xl bg-white border border-gray-100">
         <Text className="text-base font-bold text-foreground mb-1 block">小票打印机</Text>
         <Text className="text-xs text-gray-400 mb-3 block">每店一台，订单小票可自动出纸。云打印机需在「飞鹅 / 易联云」后台把本店打印机添加到账号后，填入下方四项。</Text>
 

@@ -845,3 +845,36 @@ export interface PrinterConfig {
   created_at: string
   updated_at: string
 }
+
+// ── 自营门店中心：营销活动（广告投放）与消息通知 ──────────────────────────
+// 与网页版自营后台（admin-web/src/types）保持一致，两端共用同一张表 / 同一套字段。
+export type CampaignType = 'redpacket' | 'physical'
+export type CampaignStatus = 'active' | 'paused' | 'ended'
+
+export interface MarketingCampaign {
+  id: number
+  store_id: string | null
+  campaign_name: string
+  campaign_type: CampaignType
+  gift_name: string | null
+  gift_value: number
+  total_limit: number
+  daily_limit: number
+  start_date: string
+  end_date: string
+  claimed_count: number
+  commission_rate: number
+  status: CampaignStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface MerchantMessage {
+  id: string
+  type: 'order' | 'system' | 'commission'
+  title: string
+  content: string
+  time: string
+  read: boolean
+  rawTime: string
+}

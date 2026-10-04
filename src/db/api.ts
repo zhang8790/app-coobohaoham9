@@ -7,7 +7,8 @@ import type {
   EmotionAsset, EmotionTongbaoLog, EmotionTongbaoReason,
   EmotionBadgeDef, EmotionBadgeGrant,
   ProductEmotion, Order, OrderStatus,
-  MerchantApplication, Announcement, EmotionClaim, StoreNearExpiry} from './types'
+  MerchantApplication, Announcement, EmotionClaim, StoreNearExpiry,
+  MarketingCampaign, MerchantMessage, CampaignStatus} from './types'
 import { generateEmotionDescription } from '@/utils/emotion-description'
 import { type ProductCareInfo } from '@/utils/product-care'
 import { MOOD_TAGS, MOOD_CATEGORIES } from '@/utils/mood-tags'
@@ -4279,4 +4280,107 @@ export async function printOrderReceipt(orderId: string, storeId?: string): Prom
     await supabase.from('orders').update({ printed_at: new Date().toISOString() }).eq('id', orderId)
   }
   return r
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// 自营门店中心：消息通知 / 营销活动（广告投放）
+// 与网页版自营后台（admin-web/src/api/merchant.ts）功能一一对应，两端共用同一套表：
+//   消息通知 = announcements(平台公告) ∪ orders(本店订单) ∪ commissions(本账号佣金) 聚合视图；
+//   营销活动 = marketing_campaigns 表 CRUD。
+// ══════════════════════════════════════════════════════════════════════════
+
+function fmtMsgTime(t?: string): string {
+  if (!t) return ''
+  const d = new Date(t)
+  if (isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+/**
+ * 商家消息通知：聚合平台公告 + 本店订单 + 本账号佣金，按时间倒序返回。
+ * 与网页版 getMerchantMessages 完全对齐（同三张表、同 10 条上限、同排序口径）。
+ */
+export async function getMerchantMessages(storeId: string, userId: string): Promise<MerchantMessage[]> {
+  const msgs: MerchantMessage[] = []
+
+  const { data: anns } = await supabase
+    .from('announcements')
+    .select('*')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(10)
+  ;(anns || []).forEach((a: any) =>
+    msgs.push({ id: 'sys-' + a.id, type: 'system', title: '平台公告', content: a.content, time: fmtMsgTime(a.created_at), read: false, rawTime: a.created_at }))
+
+  const { data: orders } = await supabase
+    .from('orders')
+    .select('id, order_no, created_at, status')
+    .eq('store_id', storeId)
+    .order('created_at', { ascending: false })
+    .limit(10)
+  ;(orders || []).forEach((o: any) =>
+    msgs.push({ id: 'ord-' + o.id, type: 'order', title: '新订单 ' + (o.order_no || ''), content: '订单状态：' + (o.status || ''), time: fmtMsgTime(o.created_at), read: false, rawTime: o.created_at }))
+
+  const { data: comms } = await supabase
+    .from('commissions')
+    .select('id, commission_amount, created_at, status')
+    .eq('beneficiary_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(10)
+  ;(comms || []).forEach((c: any) =>
+    msgs.push({ id: 'com-' + c.id, type: 'commission', title: '佣金到账', content: `佣金 ¥${Number(c.commission_amount || 0).toFixed(2)}（${c.status}）`, time: fmtMsgTime(c.created_at), read: false, rawTime: c.created_at }))
+
+  return msgs.sort((a, b) => (b.rawTime || '').localeCompare(a.rawTime || ''))
+}
+
+/** 本店营销活动列表（marketing_campaigns） */
+export async function getMerchantCampaigns(storeId: string): Promise<MarketingCampaign[]> {
+  if (!storeId) return []
+  const { data, error } = await supabase
+    .from('marketing_campaigns')
+    .select('*')
+    .eq('store_id', storeId)
+    .order('created_at', { ascending: false })
+  if (error) { console.error('[getMerchantCampaigns]', error); return [] }
+  return (data as MarketingCampaign[]) || []
+}
+
+export interface CampaignInput {
+  campaign_name: string
+  campaign_type: 'redpacket' | 'physical'
+  gift_name: string
+  gift_value: number
+  total_limit: number
+  daily_limit: number
+  start_date: string
+  end_date: string
+  commission_rate: number
+}
+
+/** 新建营销活动（含违禁词校验，与商品/网页端同口径拦截） */
+export async function createCampaign(storeId: string, payload: CampaignInput): Promise<boolean> {
+  const nameCheck = checkIllegalWords(payload.campaign_name)
+  const giftCheck = checkIllegalWords(payload.gift_name)
+  const hits = Array.from(new Set([...nameCheck.found, ...giftCheck.found]))
+  if (hits.length) throw new Error(`文案含违禁词：${hits.join('、')}，请修改后重试`)
+
+  const { error } = await supabase.from('marketing_campaigns').insert({
+    store_id: storeId,
+    ...payload,
+    claimed_count: 0,
+    status: 'active',
+  })
+  if (error) throw error
+  return true
+}
+
+/** 变更活动状态（active / paused / ended） */
+export async function updateCampaignStatus(id: number, status: CampaignStatus): Promise<boolean> {
+  const { error } = await supabase
+    .from('marketing_campaigns')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+  return true
 }

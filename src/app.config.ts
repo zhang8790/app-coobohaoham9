@@ -29,6 +29,8 @@ const subPackages = [
       'merchant-members/index',
       'merchant-coupons/index',
       'merchant-analytics/index',
+      'merchant-messages/index',
+      'merchant-ads/index',
       'merchant-settings/index',
       'merchant-expiry/index',
       'merchant-batch/index',
