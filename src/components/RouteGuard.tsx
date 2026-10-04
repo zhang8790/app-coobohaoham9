@@ -5,12 +5,10 @@ import {View, Text} from '@tarojs/components'
 import {useAuth} from '@/contexts/AuthContext'
 import Icon from '@/components/Icon'
 
-// Public pages that don't require authentication
 const PUBLIC_PAGE_PATHS = ['/pages/login/index']
 
 const LOGIN_PAGE_PATH = '/pages/login/index'
 
-// Storage key for saving redirect path after login
 export const STORAGE_KEY_REDIRECT_PATH = 'loginRedirectPath'
 
 function getTabBarPages(): string[] {
@@ -33,7 +31,6 @@ function navigateToLogin(currentPath: string): void {
 
   isNavigating = true
 
-  // Save current path for redirect after login
   Taro.setStorageSync(STORAGE_KEY_REDIRECT_PATH, currentPath)
   // 始终用 navigateTo 进登录页：保证登录页返回栈存在，微信原生返回键有目标可退，
   // 避免 redirectTo 清空栈导致原生返回键"无效"（微信审核"点击返回选项无效"根因之一）。
@@ -61,7 +58,6 @@ export function RouteGuard({children}: {children: React.ReactNode}) {
   const checkAuth = useCallback(() => {
     const currentPath: string = Taro.getCurrentInstance()?.router?.path || ''
 
-    // Always allow public pages to render (even during loading)
     const isPublic = PUBLIC_PAGE_PATHS.some((publicPath) => currentPath?.includes(publicPath))
     if (isPublic) {
       setShouldRender(true)
@@ -74,13 +70,11 @@ export function RouteGuard({children}: {children: React.ReactNode}) {
       return
     }
 
-    // Allow access if user is authenticated
     if (user) {
       setShouldRender(true)
       return
     }
 
-    // Not authenticated and not a public page -> redirect to login
     if (currentPath && !currentPath?.includes(LOGIN_PAGE_PATH)) {
       navigateToLogin(currentPath)
       setShouldRender(false)

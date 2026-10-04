@@ -2,9 +2,7 @@
 // 修复 18565613635 只能用手机号 OTP 登录的问题：
 // 通过 Admin API 给该账号补上 email 身份并设置密码 12345678，
 // 使小程序「账号密码登录」可用。
-//
 // 运行：
-//   export SUPABASE_URL="https://pyqgsxcjmijtbstwthbn.supabase.co"
 //   node scripts/fix-1856-email-login.js "<SUPABASE_SERVICE_ROLE_KEY>"
 
 const SUPABASE_URL = process.env.SUPABASE_URL || ''

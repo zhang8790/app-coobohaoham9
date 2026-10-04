@@ -4,7 +4,6 @@
 // 设计目的：根治「同一功能/页面在多处以不同标签重复出现」的顽疾。
 // 过去食养中心在首页叫「食养中心」、在「我的」页叫「食养服务中心」，
 // 本质就是每个页面各自硬编码一份入口清单，没有统一权威。
-//
 // 使用约定（铁律）：
 // 1. 任何「功能/页面入口」只在此处定义一次，用稳定 id 引用；
 // 2. label 是规范展示名，全站唯一 —— 禁止同一 url 拥有两个不同 label；
@@ -95,7 +94,6 @@ if (process.env.NODE_ENV !== 'production') {
  if (!e.url) continue
  const prev = seen.get(e.url)
  if (prev) {
- // eslint-disable-next-line no-console
  console.warn(
  `[nav-registry] 重复目的地：${e.url} 同时被「${prev}」和「${e.id}」占用，` +
  `会导致同一功能以不同标签出现。请合并为一条。`,

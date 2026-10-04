@@ -1,21 +1,15 @@
 // 创建（或确保存在）一个手机号用户，并绑定上级（上线），使用 service_role 权限。
-//
 // 前置：
-//   export SUPABASE_URL="https://<project-ref>.supabase.co"
 // 运行：
 //   node scripts/create_user_with_upline.js <新用户手机号> <登陆密码> <上线手机号> "<SERVICE_ROLE_KEY>"
-//
 // 例（本项目）：
-//   export SUPABASE_URL="https://pyqgsxcjmijtbstwthbn.supabase.co"
 //   node scripts/create_user_with_upline.js 13526245633 123456789 18565613635 "<你的 SERVICE_ROLE KEY>"
-//
 // 行为：
 //   1) 若新用户不存在 -> 用指定密码创建（phone_confirm=true，可直接密码登录）
 //      若已存在     -> 将其密码更新为指定密码（幂等覆盖，会打印提示）
 //   2) 查找上线手机号对应的 profile（兼容 +86 / 裸号两种格式）
 //   3) 将新用户 profiles.referrer_id 绑定为上线 id（已正确则不动）
 //   4) 确保新用户有 referral_code（trigger 应已生成，缺失则补）
-//
 // 注意：SERVICE_ROLE KEY 拥有绕过 RLS 的超级权限，切勿提交进仓库 / 泄露。
 
 const SUPABASE_URL = process.env.SUPABASE_URL || ''

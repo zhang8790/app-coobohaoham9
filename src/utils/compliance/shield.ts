@@ -194,7 +194,6 @@ export function shieldCopy(text: string): ShieldResult {
     }
   }
   if (hits.length && isDev) {
-    // eslint-disable-next-line no-console
     console.warn('[compliance-shield] 命中违禁词已屏蔽:', hits.join(', '), '| 原文:', text)
   }
   return { safe, hits, clean: hits.length === 0 }

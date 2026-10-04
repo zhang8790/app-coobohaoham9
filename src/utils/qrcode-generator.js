@@ -1,18 +1,11 @@
 //---------------------------------------------------------------------
-//
-// QR Code Generator for JavaScript
-//
 // Copyright (c) 2009 Kazuhiko Arase
-//
 // URL: http://www.d-project.com/
-//
 // Licensed under the MIT license:
 //  http://www.opensource.org/licenses/mit-license.php
-//
 // The word 'QR Code' is registered trademark of
 // DENSO WAVE INCORPORATED
 //  http://www.denso-wave.com/qrcode/faqpatent-e.html
-//
 //---------------------------------------------------------------------
 
 var qrcode = function() {
@@ -209,7 +202,6 @@ var qrcode = function() {
         }
       }
 
-      // fixed module
       _modules[_moduleCount - 8][8] = (!test);
     };
 
@@ -1763,7 +1755,6 @@ var qrcode = function() {
       throw 'sjis not supported.';
     }
     !function(c, code) {
-      // self test for sjis support.
       var test = stringToBytes(c);
       if (test.length != 2 || ( (test[0] << 8) | test[1]) != code) {
         throw 'sjis not supported.';
@@ -1817,7 +1808,6 @@ var qrcode = function() {
 
   //=====================================================================
   // GIF Support etc.
-  //
 
   //---------------------------------------------------------------------
   // byteArrayOutputStream
@@ -1973,7 +1963,6 @@ var qrcode = function() {
           _buflen = 0;
           return -1;
         } else if (c.match(/^\s$/) ) {
-          // ignore if whitespace.
           continue;
         }
 

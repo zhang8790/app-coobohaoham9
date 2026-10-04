@@ -1,7 +1,6 @@
 // @title 绑定/更换手机号
 // 用途：给已登录（微信登录）的账号补一个手机号身份，使该账号可用「手机号 + 密码」
 // 登录网页版管理后台，并让总后台可按手机号检索到该用户（profiles.phone）。
-//
 // 流程（Supabase 安全换绑）：updateUser({phone}) 向新号发送 OTP → verifyOtp(type='phone_change')
 // 确认 → 回写 profiles.phone（best-effort，失败不阻断，auth 侧已完成绑定）。
 import { useState, useRef, useEffect } from 'react'

@@ -3,7 +3,6 @@
 // 五个维度与 emotion-scoring.ts 的 EMOTION_TAG_DIMENSIONS 严格对齐：
 //   function 功能 / scene 场景 / emotion 情绪 / identity 身份 / sensory 感官
 // 每个维度商家限选 1-3 个（见工作台约束）。
-//
 // 另提供 recommendDimensions(description)：根据商品描述关键词，给各维度推荐标签，
 // 辅助商家快速打标（对应方案 §3.2「算法引擎自动推荐标签」）。
 

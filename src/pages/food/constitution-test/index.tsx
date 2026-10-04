@@ -2,7 +2,6 @@
 // 流程：intro(说明+免责) → quiz(9题深度逐题) → result(结果卡 + 推荐商品)
 // 逻辑层复用 src/utils/constitution-test.ts：DEEP_BODY_QUESTIONS / calculateResult / filterProductsByConstitution
 // 存档：结果写回 profiles.constitution_tags，由 FoodTherapyContext 自动注入全站个性化推荐。
-//
 // 合规框架：本页是「食养偏好参考」而非医疗诊断。用户可见文案统一为「偏好/倾向」，
 // 全程展示 FOOD_THERAPY_DISCLAIMER，符合项目 P2 去医疗化红线。
 

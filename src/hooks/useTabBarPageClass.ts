@@ -1,7 +1,6 @@
 import Taro from '@tarojs/taro'
 import {useEffect} from 'react'
 
-// Auto-fix blank page issue caused by missing tabBar page class name during hot reload
 export const useTabBarPageClass = () => {
   useEffect(() => {
     // Only listen to route changes in Web environment
@@ -11,7 +10,6 @@ export const useTabBarPageClass = () => {
       try {
         const route = toLocation?.path
         const isTabBarPage = Taro.getApp().config?.tabBar?.list?.some((tab: Taro.TabBarItem) => tab.pagePath === route)
-        // Add class name to tabBar pages during route switching
         if (isTabBarPage) {
           document.querySelector(`#app > [id*="${route}"]`)?.classList.add('taro_tabbar_page')
         }

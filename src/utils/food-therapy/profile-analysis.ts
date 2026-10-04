@@ -3,7 +3,6 @@
 // 输入：商品 Product + 用户结构化画像 UserHealthProfile
 // 输出：安全等级（复用 classifyProduct）+ 过敏原强预警 + 慢病/体质禁忌
 //       + 食养契合度 profile-fit(0~100) + 个性化一句话点评（过 shieldCopy）
-//
 // 设计：完全复用现有引擎（classifyProduct / symptom-rules / resolveNature），
 //       仅在其上加「用户维度」交叉比对，不重写既有逻辑。
 

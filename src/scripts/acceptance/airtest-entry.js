@@ -6,11 +6,9 @@
 //   授权检测：微信一键登录、手机号授权
 //   兼容性：自动切换 iOS/安卓模拟器分辨率
 // 重点校验：页面渲染错乱、按钮失效、弹窗遮挡、路由死循环
-//
 // 用法（CI 机器）：
 //   airtest run airtest-entry.js --device Android:///  # 或 iOS
 //   或由微信开发者工具 CLI 驱动：cli autoTest --project <app.json>
-//
 // 关键路由清单（供脚本断言页面可达、无死循环）：
 const ROUTES = [
   'pages/index/index',          // 首页

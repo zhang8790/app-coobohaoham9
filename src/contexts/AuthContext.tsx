@@ -326,7 +326,6 @@ export function AuthProvider({children}: {children: ReactNode}) {
 
   const signInWithWechat = async () => {
     try {
-      // Check if running in WeChat Mini Program environment
       if (Taro.getEnv() !== Taro.ENV_TYPE.WEAPP) {
         throw new Error('仅支持微信小程序登录，网页端请使用用户名密码登录')
       }
@@ -334,7 +333,6 @@ export function AuthProvider({children}: {children: ReactNode}) {
       // Get WeChat login code
       const loginResult = await Taro.login()
 
-      // Call backend Edge Function for login
       const {data, error} = await supabase.functions.invoke('wechat_miniapp_login', {
         body: {code: loginResult?.code}
       })

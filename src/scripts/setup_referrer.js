@@ -1,14 +1,10 @@
 // 建立账号 18565613635 并设为 18701410500 的上级（一级推荐人 / L1）
-//
 // 前置条件：
 //   1) 设置环境变量 SUPABASE_URL
 //   2) 用 service_role key 运行（可绕过 RLS，且必须能写 auth.users / profiles）
 //   3) 线上若报 "column referrer_id does not exist"，请先在 SQL Editor 跑 supabase/fix-referrer-id.sql
-//
 // 运行：
-//   export SUPABASE_URL="https://xxxx.supabase.co"
 //   node scripts/setup_referrer.js "<你的 SUPABASE SERVICE_ROLE KEY>"
-//
 // 说明：幂等——已存在则不重复创建；关系已正确则不动。
 
 const SUPABASE_URL = process.env.SUPABASE_URL || ''

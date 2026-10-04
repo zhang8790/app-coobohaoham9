@@ -4,7 +4,6 @@
 // 输出：拆分食材 → 聚合整体性味 → 组合功效 → 推导风险人群 → 推断 food_category
 //        全部输出字段对齐商品食养列与录入表单枚举（HEALTH_TAGS / CROWD_OPTIONS /
 //        NATURE_SCALE / SCENE_OPTIONS / FOOD_CATEGORIES），保证表单能正确识别选中。
-//
 // 设计原则：
 //   - 纯函数、确定性（同一菜名永远得到同一结果）
 //   - 复用 INGREDIENT_DICT（59 味）与 matchIngredientKeys，与商家录入「智能识别」同源
