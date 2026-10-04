@@ -1,6 +1,6 @@
 // 食养偏好设置 —— 页面层
-// 流程：intro(说明+免责) → quiz(5题逐题) → result(结果卡 + 推荐商品)
-// 逻辑层复用 src/utils/constitution-test.ts：TEST_QUESTIONS / calculateResult / filterProductsByConstitution
+// 流程：intro(说明+免责) → quiz(9题深度逐题) → result(结果卡 + 推荐商品)
+// 逻辑层复用 src/utils/constitution-test.ts：DEEP_BODY_QUESTIONS / calculateResult / filterProductsByConstitution
 // 存档：结果写回 profiles.constitution_tags，由 FoodTherapyContext 自动注入全站个性化推荐。
 //
 // 合规框架：本页是「食养偏好参考」而非医疗诊断。用户可见文案统一为「偏好/倾向」，
@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { View, Text, Button, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline, useDidShow } from '@tarojs/taro'
 import {
- TEST_QUESTIONS,
+ DEEP_BODY_QUESTIONS,
  calculateResult,
  filterProductsByConstitution,
  constitutionToCrowds,
@@ -47,7 +47,7 @@ export default function ConstitutionTestPage() {
   const { refreshHealthProfile } = useFoodTherapy()
   const [step, setStep] = useState<Step>('intro')
  const [currentQ, setCurrentQ] = useState(0)
- const [answers, setAnswers] = useState<number[]>(() => TEST_QUESTIONS.map(() => -1))
+ const [answers, setAnswers] = useState<number[]>(() => DEEP_BODY_QUESTIONS.map(() => -1))
  const [result, setResult] = useState<TestResult | null>(null)
 
  const [products, setProducts] = useState<Product[]>([])
@@ -60,8 +60,8 @@ export default function ConstitutionTestPage() {
  const [saving, setSaving] = useState(false)
  const [saved, setSaved] = useState(false)
 
- const total = TEST_QUESTIONS.length
- const q = TEST_QUESTIONS[currentQ]
+ const total = DEEP_BODY_QUESTIONS.length
+ const q = DEEP_BODY_QUESTIONS[currentQ]
  const selected = answers[currentQ]
 
  // 选答：到达最后一题则计算并进入结果，否则下一题
@@ -76,7 +76,7 @@ export default function ConstitutionTestPage() {
  }
 
  // 最后一题：计算 + 拉商品 + 匹配
- const res = calculateResult(next)
+ const res = calculateResult(next, DEEP_BODY_QUESTIONS)
  setResult(res)
  setStep('result')
  setLoadingRecs(true)
@@ -104,7 +104,7 @@ export default function ConstitutionTestPage() {
  }
 
  const restart = () => {
- setAnswers(TEST_QUESTIONS.map(() => -1))
+ setAnswers(DEEP_BODY_QUESTIONS.map(() => -1))
  setCurrentQ(0)
  setResult(null)
  setGood([])
@@ -178,7 +178,7 @@ export default function ConstitutionTestPage() {
  <View className="mb-4">
  <Text className="text-2xl font-bold text-[#2A2A2A]"> 食养偏好设置</Text>
  <Text className="text-xs text-[#6F675C] mt-1 block">
- 几步选择，了解你的口味与食性偏好，挑好物更对味
+ 9 项专项身体感受，了解你的食性与口味偏好，挑好物更对味
  </Text>
  </View>
 
@@ -188,11 +188,11 @@ export default function ConstitutionTestPage() {
  <View className="rounded-2xl bg-white p-5 shadow-sm">
  <Text className="text-base font-bold text-[#2A2A2A]">这是什么</Text>
  <Text className="text-sm text-[#3F3A34] mt-2 block" style={{ lineHeight: 1.8 }}>
- 根据你近期的身体感受，用几步简单选择，给出你的「食养偏好倾向」——
- 偏温还是偏凉、适合哪些性味的好物。结果仅作食养参考，帮你更快挑到合适的吃食。
+ 根据你近期的身体感受，用 9 项专项细问（寒热 / 汗出 / 精力 / 口咽火热 / 睡眠 / 情绪 / 头身 / 饮食消化 / 面色瘀象），
+ 给出你的「食养偏好倾向」——偏温还是偏凉、适合哪些性味的好物。结果仅作食养参考，帮你更快挑到合适的吃食。
  </Text>
  <View className="mt-3 flex flex-wrap gap-2">
- {['约 1 分钟', '无需登录也能设', '可保存到偏好'].map((t) => (
+ {['约 3 分钟', '无需登录也能设', '可保存到偏好'].map((t) => (
  <View key={t} className="rounded-full bg-[hsl(var(--primary) / 0.08)] px-3 py-1">
  <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>{t}</Text>
  </View>
@@ -221,7 +221,7 @@ export default function ConstitutionTestPage() {
  <View>
  {/* 进度 */}
  <View className="mb-4 flex items-center gap-2">
- {TEST_QUESTIONS.map((_, i) => (
+ {DEEP_BODY_QUESTIONS.map((_, i) => (
  <View
  key={i}
  className="h-1.5 flex-1 rounded-full"
@@ -252,6 +252,14 @@ export default function ConstitutionTestPage() {
  <Text className="text-sm" style={{ color: active ? '#fff' : '#3F3A34' }}>
  {opt.label}
  </Text>
+ {opt.hint ? (
+ <Text
+ className="text-[11px] mt-1 block"
+ style={{ color: active ? 'rgba(255,255,255,0.85)' : '#9A9389', lineHeight: 1.5 }}
+ >
+ {opt.hint}
+ </Text>
+ ) : null}
  </View>
  )
  })}
@@ -306,7 +314,7 @@ export default function ConstitutionTestPage() {
  <View className="ct-reveal ct-stagger-1 mt-4 rounded-2xl bg-white p-4 shadow-sm">
  <Text className="text-sm font-bold text-[#2A2A2A]">为什么是你</Text>
  <Text className="text-xs text-[#6F675C] mt-1 block">
- 你的 5 个选择，是这样指向「{primary.name}」的
+ 你的 9 项身体感受，是这样指向「{primary.name}」的
  </Text>
 
  {/* 得分条 */}
@@ -350,7 +358,7 @@ export default function ConstitutionTestPage() {
 
  {/* 答案回放 */}
  <View className="mt-4 flex flex-col gap-2.5">
- {TEST_QUESTIONS.map((qq, qi) => {
+ {DEEP_BODY_QUESTIONS.map((qq, qi) => {
  const opt = qq.options[answers[qi]]
  const effectEntries = Object.entries(opt?.effect ?? {})
  return (
@@ -359,8 +367,13 @@ export default function ConstitutionTestPage() {
  className="rounded-xl px-3 py-2.5"
  style={{ background: '#FBF7EF', borderWidth: 1, borderColor: '#ECE6DD' }}
  >
- <Text className="text-[11px] text-muted-foreground">第 {qi + 1} 题 · {qq.question}</Text>
+ <Text className="text-[11px] text-muted-foreground">第 {qi + 1} 题 · {qq.dimLabel ?? qq.question}</Text>
  <Text className="text-sm text-[#2A2A2A] mt-1 block font-semibold">{opt?.label}</Text>
+ {opt?.reading ? (
+ <Text className="text-[11px] text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>
+ {opt.reading}
+ </Text>
+ ) : null}
  {effectEntries.length > 0 ? (
  <View className="mt-1.5 flex flex-wrap gap-1.5">
  {effectEntries.map(([k, pts]) => {
