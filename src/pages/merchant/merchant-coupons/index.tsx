@@ -27,6 +27,7 @@ function MerchantCouponsPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ title: '', discount_type: 'amount', discount_value: '', min_amount: '', total: '', start_date: '', end_date: '' })
+  const updateForm = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }))
   const [redeemCode, setRedeemCode] = useState('')
   const [redeeming, setRedeeming] = useState(false)
 
@@ -184,16 +185,16 @@ function MerchantCouponsPage() {
             </View>
             <View className="mb-3">
               <Text className="text-base text-foreground mb-1">优惠券名称</Text>
-              <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" value={form.title} onInput={e => setForm({ ...form, title: e.detail.value })} placeholder="如：新客立减5元" />
+              <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" value={form.title} onInput={e => updateForm({ title: e.detail.value })} placeholder="如：新客立减5元" />
             </View>
             <View className="flex gap-3 mb-3">
               <View className="flex-1">
                 <Text className="text-base text-foreground mb-1">优惠类型</Text>
                 <View className="flex gap-2">
-                  <View className={`flex-1 py-2 rounded-xl text-center ${form.discount_type === 'amount' ? 'bg-primary' : 'bg-muted'}`} onClick={() => setForm({ ...form, discount_type: 'amount' })}>
+                  <View className={`flex-1 py-2 rounded-xl text-center ${form.discount_type === 'amount' ? 'bg-primary' : 'bg-muted'}`} onClick={() => updateForm({ discount_type: 'amount' })}>
                     <Text className={`text-sm ${form.discount_type === 'amount' ? 'text-white' : 'text-muted-foreground'}`}>满减</Text>
                   </View>
-                  <View className={`flex-1 py-2 rounded-xl text-center ${form.discount_type === 'percent' ? 'bg-primary' : 'bg-muted'}`} onClick={() => setForm({ ...form, discount_type: 'percent' })}>
+                  <View className={`flex-1 py-2 rounded-xl text-center ${form.discount_type === 'percent' ? 'bg-primary' : 'bg-muted'}`} onClick={() => updateForm({ discount_type: 'percent' })}>
                     <Text className={`text-sm ${form.discount_type === 'percent' ? 'text-white' : 'text-muted-foreground'}`}>折扣</Text>
                   </View>
                 </View>
@@ -202,29 +203,29 @@ function MerchantCouponsPage() {
             <View className="flex gap-3 mb-3">
               <View className="flex-1">
                 <Text className="text-base text-foreground mb-1">优惠金额</Text>
-                <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.discount_value} onInput={e => setForm({ ...form, discount_value: e.detail.value })} placeholder={form.discount_type === 'amount' ? '5' : '10(9折)'} />
+                <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.discount_value} onInput={e => updateForm({ discount_value: e.detail.value })} placeholder={form.discount_type === 'amount' ? '5' : '10(9折)'} />
               </View>
               <View className="flex-1">
                 <Text className="text-base text-foreground mb-1">最低消费</Text>
-                <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.min_amount} onInput={e => setForm({ ...form, min_amount: e.detail.value })} placeholder="0" />
+                <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.min_amount} onInput={e => updateForm({ min_amount: e.detail.value })} placeholder="0" />
               </View>
             </View>
             <View className="flex gap-3 mb-3">
               <View className="flex-1">
                 <Text className="text-base text-foreground mb-1">发放数量</Text>
-                <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.total} onInput={e => setForm({ ...form, total: e.detail.value })} placeholder="100" />
+                <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.total} onInput={e => updateForm({ total: e.detail.value })} placeholder="100" />
               </View>
             </View>
             <View className="flex gap-3 mb-3">
               <View className="flex-1">
                 <Text className="text-base text-foreground mb-1">开始日期</Text>
-                <Picker mode="date" onChange={e => setForm({ ...form, start_date: e.detail.value })}>
+                <Picker mode="date" onChange={e => updateForm({ start_date: e.detail.value })}>
                   <View className="border-2 border-input rounded-xl px-3 py-2 text-base">{form.start_date || <Text className="text-muted-foreground">选择日期</Text>}</View>
                 </Picker>
               </View>
               <View className="flex-1">
                 <Text className="text-base text-foreground mb-1">结束日期</Text>
-                <Picker mode="date" onChange={e => setForm({ ...form, end_date: e.detail.value })}>
+                <Picker mode="date" onChange={e => updateForm({ end_date: e.detail.value })}>
                   <View className="border-2 border-input rounded-xl px-3 py-2 text-base">{form.end_date || <Text className="text-muted-foreground">选择日期</Text>}</View>
                 </Picker>
               </View>

@@ -3137,6 +3137,35 @@ export async function getProductByBarcode(barcode: string): Promise<import('./ty
   return data ?? null
 }
 
+// product-mutate Edge Function 调用封装：统一「成功 / 业务错误 / 调用失败」三态与回退决策。
+// 新增/更新/删除/生成条码四种写操作共用，消除重复的 try/catch + 日志样板。
+type ProductMutateOutcome =
+  | { kind: 'success'; data: any }
+  | { kind: 'biz-error'; code: string; message: string }
+  | { kind: 'invoke-failed' }
+
+async function invokeProductMutate(body: Record<string, unknown>): Promise<ProductMutateOutcome> {
+  try {
+    const { data, error } = await supabase.functions.invoke('product-mutate', { body })
+    if (!error && data?.success) return { kind: 'success', data }
+    if (data?.error) return { kind: 'biz-error', code: (data as any).code || 'PRODUCT_MUTATE_FAILED', message: (data as any).error }
+    if (error) console.warn('[product-mutate] 调用失败，将回退直写：', error.message || JSON.stringify(error))
+    return { kind: 'invoke-failed' }
+  } catch (e: any) {
+    console.warn('[product-mutate] 调用异常，将回退直写：', e?.message || e)
+    return { kind: 'invoke-failed' }
+  }
+}
+
+// 商品写操作透传字段白名单：EF 路径与回退直写路径共用（提升到模块作用域），
+// 避免此前声明在函数内、EF 不可达走回退分支时引用未定义导致保存必崩。
+const PASS_THROUGH_KEYS = [
+  'category_id', 'sub_category_id', 'product_kind',
+  'nutrition', 'safety_grade', 'safety_summary',
+  'materials', 'gift_meaning', 'gift_craft', 'gift_scene', 'gift_care',
+  'fit_people_override', 'fit_crowd_tags',
+] as const
+
 export async function createProduct(params: {
   store_id: string; category_id?: string; name: string; description?: string
   price: number; original_price?: number; image_url?: string; stock: number
@@ -3171,74 +3200,57 @@ export async function createProduct(params: {
 
   // ── 优先走 Edge Function（service_role 在服务端写库，绕过 products 表 RLS 写策略）──
   // 彻底规避「安全加固迁移把商家写策略删掉 → 上架保存失败」的反复问题。
-  // 透传字段白名单：EF 路径与回退直写路径共用，提升到函数作用域，
-  // 避免 EF 不可达走回退分支时引用未定义（此前导致新建商品保存必崩）。
-  const PASS_THROUGH_KEYS = [
-    'category_id', 'sub_category_id', 'product_kind',
-    'nutrition', 'safety_grade', 'safety_summary',
-    'materials', 'gift_meaning', 'gift_craft', 'gift_scene', 'gift_care',
-    'fit_people_override', 'fit_crowd_tags',
-  ] as const
+  const invokeBody: Record<string, unknown> = {
+    store_id: params.store_id,
+    name: params.name,
+    description: params.description ?? null,
+    price: params.price,
+    stock: params.stock,
+    barcode: params.barcode ?? null,
+    main_image: params.main_image || params.image_url || null,
+    sub_images: params.sub_images ?? null,
+    detail_images: params.detail_images ?? null,
+    video_url: params.video_url ?? null,
+    cost_price: params.cost_price ?? null,
+    original_price: params.original_price ?? null,
+    discount_rate: params.discount_rate ?? null,
+    mood_tags: params.mood_tags ?? [],
+    scene_tags: params.scene_tags ?? [],
+    ingredients: params.ingredients ?? null,
+    is_active: params.is_active ?? false,
+    overall_nature: params.overall_nature ?? null,
+    health_tag: params.health_tag ?? null,
+    emotion_tag: params.emotion_tag ?? null,
+    match_goods: params.match_goods ?? null,
+    conflict_goods: params.conflict_goods ?? null,
+    aux_remind: params.aux_remind ?? null,
+    therapy_json: params.therapy_json ?? null,
+    fit_people: params.fit_people ?? null,
+    therapy_pending: typeof params.therapy_pending === 'boolean' ? params.therapy_pending : null,
+    allergens: params.allergens ?? null,
+    auto_barcode: params.auto_barcode ?? null,
+  }
+  // 兜底透传表单收集的全部业务字段（category_id / product_kind / 食养辨证增强 /
+  // 礼品手作 / 安全评级），避免旧实现静默丢弃致新建商品丢失分类与类型。
+  for (const k of PASS_THROUGH_KEYS) {
+    const v = (params as any)[k]
+    if (v !== undefined) (invokeBody as any)[k] = v
+  }
 
-  // 函数未部署 / 调用异常时自动回退到下方直写逻辑（保持旧行为，不退化）。
-  try {
-    const invokeBody: Record<string, unknown> = {
-      store_id: params.store_id,
-      name: params.name,
-      description: params.description ?? null,
-      price: params.price,
-      stock: params.stock,
-      barcode: params.barcode ?? null,
-      main_image: params.main_image || params.image_url || null,
-      sub_images: params.sub_images ?? null,
-      detail_images: params.detail_images ?? null,
-      video_url: params.video_url ?? null,
-      cost_price: params.cost_price ?? null,
-      original_price: params.original_price ?? null,
-      discount_rate: params.discount_rate ?? null,
-      mood_tags: params.mood_tags ?? [],
-      scene_tags: params.scene_tags ?? [],
-      ingredients: params.ingredients ?? null,
-      is_active: params.is_active ?? false,
-      overall_nature: params.overall_nature ?? null,
-      health_tag: params.health_tag ?? null,
-      emotion_tag: params.emotion_tag ?? null,
-      match_goods: params.match_goods ?? null,
-      conflict_goods: params.conflict_goods ?? null,
-      aux_remind: params.aux_remind ?? null,
-      therapy_json: params.therapy_json ?? null,
-      fit_people: params.fit_people ?? null,
-      therapy_pending: typeof params.therapy_pending === 'boolean' ? params.therapy_pending : null,
-      allergens: params.allergens ?? null,
-      auto_barcode: params.auto_barcode ?? null}
-    // 透传表单收集的全部业务字段：createProduct 旧实现只挑了部分字段，
-    // 导致 category_id / product_kind / 食养辨证增强(fit_people_override/fit_crowd_tags) /
-    // 礼品手作(materials/gift_*) / 安全评级(nutrition/safety_grade/safety_summary)
-    // 被静默丢弃，新建商品丢失分类与类型。统一兜底透传，避免再次遗漏。
-    for (const k of PASS_THROUGH_KEYS) {
-      const v = (params as any)[k]
-      if (v !== undefined) (invokeBody as any)[k] = v
-    }
-    const { data, error } = await supabase.functions.invoke('product-mutate', { body: invokeBody })
-    if (!error && data?.success) {
-      clearRequestCache() // 写后失效列表缓存，刚上架商品立即可见
-      return (data as any).product as import('./types').Product
-    }
+  const r = await invokeProductMutate(invokeBody)
+  if (r.kind === 'success') {
+    clearRequestCache() // 写后失效列表缓存，刚上架商品立即可见
+    return r.data.product as import('./types').Product
+  }
+  if (r.kind === 'biz-error') {
     // 业务错误（门店归属不匹配/门店不存在/权限不足等）→ 直接抛出带码错误，
     // 让前端展示确切原因，不再静默回退到注定失败的直写掩盖真实问题。
-    if (data?.error) {
-      const bizErr = new Error(data.error) as any
-      bizErr.code = (data as any).code || 'PRODUCT_MUTATE_FAILED'
-      bizErr.bizMessage = data.error
-      throw bizErr
-    }
-    // 调用层错误（网络/瞬态）→ 回退直写兜底（对 owner 仍可成功）
-    if (error) {
-      console.warn('[createProduct] Edge Function 调用失败，回退直写：', error.message || JSON.stringify(error))
-    }
-  } catch (e: any) {
-    console.warn('[createProduct] 调用 Edge Function 异常，回退直写：', e?.message || e)
+    const bizErr = new Error(r.message) as any
+    bizErr.code = r.code
+    bizErr.bizMessage = r.message
+    throw bizErr
   }
+  // invoke-failed（网络/瞬态）→ 回退直写兜底（对 owner 仍可成功）
 
   // ── 回退：直连 Supabase 写入（依赖 products 表 RLS 写策略，需 00095 已应用）──
   // 先查门店信息，让新建商品携带 stores 关联数据
@@ -3308,19 +3320,9 @@ export async function updateProduct(id: string, params: Partial<{
   // 食养系统化（迁移 20260801）
   therapy_json?: any; fit_people?: string; therapy_pending?: boolean; allergens?: string[]
 }>): Promise<boolean> {
-  // 优先走 Edge Function（service_role 绕过 RLS 写策略），未部署时回退直写
-  try {
-    const invokeBody: Record<string, unknown> = { id, ...(params as Record<string, unknown>) }
-    const { data, error } = await supabase.functions.invoke('product-mutate', { body: invokeBody })
-    if (!error && data?.success) {
-      clearRequestCache() // 写后失效列表缓存，改价/改图立即生效
-      return true
-    }
-    if (error) console.warn('[updateProduct] Edge Function 调用失败，回退直写：', error.message || JSON.stringify(error))
-    else if (data?.error) console.warn('[updateProduct] Edge Function 业务错误，回退直写：', data.error)
-  } catch (e: any) {
-    console.warn('[updateProduct] 调用 Edge Function 异常，回退直写：', e?.message || e)
-  }
+  // 优先走 Edge Function（service_role 绕过 RLS 写策略），未部署 / 异常时回退直写
+  const r = await invokeProductMutate({ id, ...(params as Record<string, unknown>) })
+  if (r.kind === 'success') { clearRequestCache(); return true }
 
   // 回退：直连更新（依赖 products 表 RLS 写策略）
   const { error } = await supabase.from('products').update(params as any).eq('id', id)
@@ -3343,35 +3345,20 @@ export async function generateProductBarcode(id: string): Promise<{
   product?: import('./types').Product
   error?: string
 }> {
-  try {
-    const { data, error } = await supabase.functions.invoke('product-mutate', { body: { id, auto_barcode: true } })
-    if (!error && data?.success) {
-      clearRequestCache()
-      return { ok: true, product: (data as any).product as import('./types').Product }
-    }
-    const msg = String(error?.message || (data as any)?.error || '未知错误')
-    console.warn('[generateProductBarcode]', msg)
-    return { ok: false, error: msg }
-  } catch (e: any) {
-    const msg = String(e?.message || e)
-    console.warn('[generateProductBarcode]', msg)
-    return { ok: false, error: msg }
+  const r = await invokeProductMutate({ id, auto_barcode: true })
+  if (r.kind === 'success') {
+    clearRequestCache()
+    return { ok: true, product: (r.data as any).product as import('./types').Product }
   }
+  const msg = r.kind === 'biz-error' ? r.message : '未知错误'
+  console.warn('[generateProductBarcode]', msg)
+  return { ok: false, error: msg }
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
   // 优先走 Edge Function（service_role 绕过 products 表 RLS 写策略，并校验门店归属含 store_staff）
-  try {
-    const { data, error } = await supabase.functions.invoke('product-mutate', { body: { deleteId: id } })
-    if (!error && data?.success) {
-      clearRequestCache() // 写后失效列表缓存，删除立即生效
-      return true
-    }
-    if (error) console.warn('[deleteProduct] Edge Function 调用失败，回退直删：', error.message || JSON.stringify(error))
-    else if (data?.error) console.warn('[deleteProduct] Edge Function 业务错误，回退直删：', data.error)
-  } catch (e: any) {
-    console.warn('[deleteProduct] 调用 Edge Function 异常，回退直删：', e?.message || e)
-  }
+  const r = await invokeProductMutate({ deleteId: id })
+  if (r.kind === 'success') { clearRequestCache(); return true }
 
   // 回退：直连删除（依赖 products 表 RLS 删除策略；若已被安全加固移除则静默失败，符合预期降级）
   const { error } = await supabase.from('products').delete().eq('id', id)
@@ -4300,38 +4287,33 @@ function fmtMsgTime(t?: string): string {
 /**
  * 商家消息通知：聚合平台公告 + 本店订单 + 本账号佣金，按时间倒序返回。
  * 与网页版 getMerchantMessages 完全对齐（同三张表、同 10 条上限、同排序口径）。
+ * 单数据源失败（超时/异常）不影响其余来源，整体鲁棒。
  */
 export async function getMerchantMessages(storeId: string, userId: string): Promise<MerchantMessage[]> {
   const msgs: MerchantMessage[] = []
+  const push = (id: string, type: MerchantMessage['type'], title: string, content: string, rawTime: string) =>
+    msgs.push({ id, type, title, content, time: fmtMsgTime(rawTime), read: false, rawTime })
 
-  const { data: anns } = await supabase
-    .from('announcements')
-    .select('*')
-    .eq('is_active', true)
-    .order('created_at', { ascending: false })
-    .limit(10)
-  ;(anns || []).forEach((a: any) =>
-    msgs.push({ id: 'sys-' + a.id, type: 'system', title: '平台公告', content: a.content, time: fmtMsgTime(a.created_at), read: false, rawTime: a.created_at }))
+  ;(await safeSelect(supabase.from('announcements').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(10)))
+    .forEach((a: any) => push('sys-' + a.id, 'system', '平台公告', a.content, a.created_at))
 
-  const { data: orders } = await supabase
-    .from('orders')
-    .select('id, order_no, created_at, status')
-    .eq('store_id', storeId)
-    .order('created_at', { ascending: false })
-    .limit(10)
-  ;(orders || []).forEach((o: any) =>
-    msgs.push({ id: 'ord-' + o.id, type: 'order', title: '新订单 ' + (o.order_no || ''), content: '订单状态：' + (o.status || ''), time: fmtMsgTime(o.created_at), read: false, rawTime: o.created_at }))
+  ;(await safeSelect(supabase.from('orders').select('id, order_no, created_at, status').eq('store_id', storeId).order('created_at', { ascending: false }).limit(10)))
+    .forEach((o: any) => push('ord-' + o.id, 'order', '新订单 ' + (o.order_no || ''), '订单状态：' + (o.status || ''), o.created_at))
 
-  const { data: comms } = await supabase
-    .from('commissions')
-    .select('id, commission_amount, created_at, status')
-    .eq('beneficiary_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(10)
-  ;(comms || []).forEach((c: any) =>
-    msgs.push({ id: 'com-' + c.id, type: 'commission', title: '佣金到账', content: `佣金 ¥${Number(c.commission_amount || 0).toFixed(2)}（${c.status}）`, time: fmtMsgTime(c.created_at), read: false, rawTime: c.created_at }))
+  ;(await safeSelect(supabase.from('commissions').select('id, commission_amount, created_at, status').eq('beneficiary_id', userId).order('created_at', { ascending: false }).limit(10)))
+    .forEach((c: any) => push('com-' + c.id, 'commission', '佣金到账', `佣金 ¥${Number(c.commission_amount || 0).toFixed(2)}（${c.status}）`, c.created_at))
 
   return msgs.sort((a, b) => (b.rawTime || '').localeCompare(a.rawTime || ''))
+}
+
+// 单源容错查询：单条 Supabase 查询超时（8s）或异常时返回空数组，
+// 不让任一数据源失败拖垮整个消息聚合（公告/订单/佣金须独立聚合）。
+async function safeSelect<T = any>(builder: any): Promise<T[]> {
+  try {
+    const { data, error } = await withTimeout(builder, 8000, '查询超时')
+    if (error) { console.error('[getMerchantMessages]', error); return [] }
+    return (data as T[]) || []
+  } catch (e) { console.error('[getMerchantMessages] 查询异常', e); return [] }
 }
 
 /** 本店营销活动列表（marketing_campaigns） */
@@ -4358,16 +4340,28 @@ export interface CampaignInput {
   commission_rate: number
 }
 
-/** 新建营销活动（含违禁词校验，与商品/网页端同口径拦截） */
+/** 新建营销活动（边界校验 + 违禁词校验，与商品/网页端同口径拦截） */
 export async function createCampaign(storeId: string, payload: CampaignInput): Promise<boolean> {
-  const nameCheck = checkIllegalWords(payload.campaign_name)
-  const giftCheck = checkIllegalWords(payload.gift_name)
-  const hits = Array.from(new Set([...nameCheck.found, ...giftCheck.found]))
+  // 边界校验：缺门店 / 空名称 / 负数 / 日期非法 一律早抛，避免脏数据落库
+  if (!storeId) throw new Error('缺少门店信息，无法创建活动')
+  const name = payload.campaign_name.trim()
+  if (!name) throw new Error('活动名称不能为空')
+  if ([payload.gift_value, payload.total_limit, payload.daily_limit].some(v => v < 0))
+    throw new Error('数量/金额不能为负')
+  if (payload.commission_rate < 0 || payload.commission_rate > 1)
+    throw new Error('佣金比例须为 0~100%')
+  const start = new Date(payload.start_date).getTime()
+  const end = new Date(payload.end_date).getTime()
+  if (isNaN(start) || isNaN(end) || end <= start) throw new Error('结束日期须晚于开始日期')
+
+  // 违禁词校验（广告法绝对化用语/金融化/博彩诱导）
+  const hits = Array.from(new Set([...checkIllegalWords(name).found, ...checkIllegalWords(payload.gift_name).found]))
   if (hits.length) throw new Error(`文案含违禁词：${hits.join('、')}，请修改后重试`)
 
   const { error } = await supabase.from('marketing_campaigns').insert({
     store_id: storeId,
     ...payload,
+    campaign_name: name,
     claimed_count: 0,
     status: 'active',
   })

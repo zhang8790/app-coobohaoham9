@@ -25,6 +25,9 @@ const EMPTY_FORM = {
   gift_value: '5', total_limit: '100', daily_limit: '10', start_date: '', end_date: '', commission_rate: '10',
 }
 
+const loadCampaigns = (storeId: string) =>
+  getMerchantCampaigns(storeId).catch(() => [] as MarketingCampaign[])
+
 function MerchantAdsPage() {
   const [ads, setAds] = useState<MarketingCampaign[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,6 +36,7 @@ function MerchantAdsPage() {
   const [filter, setFilter] = useState<FilterKey>('all')
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({ ...EMPTY_FORM })
+  const updateForm = (patch: Partial<typeof EMPTY_FORM>) => setForm(f => ({ ...f, ...patch }))
 
   useEffect(() => {
     let cancelled = false
@@ -42,7 +46,7 @@ function MerchantAdsPage() {
         if (cancelled) return
         if (!st) { setLoading(false); return }
         setStoreId(st.id)
-        const list = await getMerchantCampaigns(st.id).catch(() => [] as MarketingCampaign[])
+        const list = await loadCampaigns(st.id)
         if (!cancelled) setAds(list)
       } catch (e) {
         console.error('[MerchantAds] 加载失败', e)
@@ -57,7 +61,7 @@ function MerchantAdsPage() {
   const runningCount = ads.filter(a => a.status === 'active').length
   const totalClaimed = ads.reduce((s, a) => s + (a.claimed_count || 0), 0)
 
-  const reload = async () => { if (storeId) setAds(await getMerchantCampaigns(storeId).catch(() => [] as MarketingCampaign[])) }
+  const reload = async () => { if (storeId) setAds(await loadCampaigns(storeId)) }
 
   const handleCreate = async () => {
     if (!storeId) return
@@ -224,7 +228,7 @@ function MerchantAdsPage() {
             <View className="mb-3">
               <Text className="text-base text-foreground" style={{ marginBottom: '4px' }}>活动名称 *</Text>
               <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" value={form.campaign_name}
-                onInput={e => setForm({ ...form, campaign_name: e.detail.value })} placeholder="如：进店有喜红包" />
+                onInput={e => updateForm({ campaign_name: e.detail.value })} placeholder="如：进店有喜红包" />
             </View>
 
             <View className="flex flex-row mb-3">
@@ -232,9 +236,8 @@ function MerchantAdsPage() {
                 <Text className="text-base text-foreground" style={{ marginBottom: '4px' }}>活动类型</Text>
                 <Picker mode="selector" range={TYPE_OPTIONS}
                   onChange={e => {
-                    const idx = Number(e.detail.value)
-                    const t = idx === 1 ? 'physical' : 'redpacket'
-                    setForm({ ...form, campaign_type: t, gift_name: t === 'redpacket' ? '现金红包' : '' })
+                    const t = Number(e.detail.value) === 1 ? 'physical' : 'redpacket'
+                    updateForm({ campaign_type: t, gift_name: t === 'redpacket' ? '现金红包' : '' })
                   }}>
                   <View className="border-2 border-input rounded-xl px-3 py-2 text-base">{TYPE_LABEL[form.campaign_type]}</View>
                 </Picker>
@@ -242,7 +245,7 @@ function MerchantAdsPage() {
               <View className="flex-1">
                 <Text className="text-base text-foreground" style={{ marginBottom: '4px' }}>礼品名称</Text>
                 <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" value={form.gift_name}
-                  onInput={e => setForm({ ...form, gift_name: e.detail.value })} placeholder="如：现金红包 / 定制帆布袋" />
+                  onInput={e => updateForm({ gift_name: e.detail.value })} placeholder="如：现金红包 / 定制帆布袋" />
               </View>
             </View>
 
@@ -250,12 +253,12 @@ function MerchantAdsPage() {
               <View className="flex-1" style={{ marginRight: '12px' }}>
                 <Text className="text-base text-foreground" style={{ marginBottom: '4px' }}>礼品价值（元）</Text>
                 <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.gift_value}
-                  onInput={e => setForm({ ...form, gift_value: e.detail.value })} placeholder="5" />
+                  onInput={e => updateForm({ gift_value: e.detail.value })} placeholder="5" />
               </View>
               <View className="flex-1">
                 <Text className="text-base text-foreground" style={{ marginBottom: '4px' }}>佣金比例（%）</Text>
                 <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.commission_rate}
-                  onInput={e => setForm({ ...form, commission_rate: e.detail.value })} placeholder="10" />
+                  onInput={e => updateForm({ commission_rate: e.detail.value })} placeholder="10" />
               </View>
             </View>
 
@@ -263,25 +266,25 @@ function MerchantAdsPage() {
               <View className="flex-1" style={{ marginRight: '12px' }}>
                 <Text className="text-base text-foreground" style={{ marginBottom: '4px' }}>发放总数</Text>
                 <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.total_limit}
-                  onInput={e => setForm({ ...form, total_limit: e.detail.value })} placeholder="100" />
+                  onInput={e => updateForm({ total_limit: e.detail.value })} placeholder="100" />
               </View>
               <View className="flex-1">
                 <Text className="text-base text-foreground" style={{ marginBottom: '4px' }}>每日限领</Text>
                 <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.daily_limit}
-                  onInput={e => setForm({ ...form, daily_limit: e.detail.value })} placeholder="10" />
+                  onInput={e => updateForm({ daily_limit: e.detail.value })} placeholder="10" />
               </View>
             </View>
 
             <View className="flex flex-row mb-4">
               <View className="flex-1" style={{ marginRight: '12px' }}>
                 <Text className="text-base text-foreground" style={{ marginBottom: '4px' }}>开始日期</Text>
-                <Picker mode="date" onChange={e => setForm({ ...form, start_date: e.detail.value })}>
+                <Picker mode="date" onChange={e => updateForm({ start_date: e.detail.value })}>
                   <View className="border-2 border-input rounded-xl px-3 py-2 text-base">{form.start_date || <Text className="text-muted-foreground">选择日期</Text>}</View>
                 </Picker>
               </View>
               <View className="flex-1">
                 <Text className="text-base text-foreground" style={{ marginBottom: '4px' }}>结束日期</Text>
-                <Picker mode="date" onChange={e => setForm({ ...form, end_date: e.detail.value })}>
+                <Picker mode="date" onChange={e => updateForm({ end_date: e.detail.value })}>
                   <View className="border-2 border-input rounded-xl px-3 py-2 text-base">{form.end_date || <Text className="text-muted-foreground">选择日期</Text>}</View>
                 </Picker>
               </View>
