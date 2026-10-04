@@ -9,7 +9,6 @@ import type {
   ProductEmotion, Order, OrderStatus,
   MerchantApplication, Announcement, EmotionClaim, StoreNearExpiry,
   MarketingCampaign, MerchantMessage, CampaignStatus} from './types'
-import { generateEmotionDescription } from '@/utils/emotion-description'
 import { type ProductCareInfo } from '@/utils/product-care'
 import { MOOD_TAGS, MOOD_CATEGORIES } from '@/utils/mood-tags'
 import { calculateDynamicScore, RANK_CONFIG_TABLE_V5, calculateCommissionV5, computeMemberRank, getActiveMultiplier, getRecruitMultiplier, calcWithholdingTax, PLATFORM_CONFIG } from '@/utils/commission-calculator-v5'
@@ -839,67 +838,6 @@ export async function getProductBatchInfo(productId: string): Promise<ProductBat
 // 情绪编译（emotion-compile Edge Function）
 // =====================
 
-export interface CompilePayload {
-  product_id?: string
-  name: string
-  description?: string
-  category?: string
-  mood_tags?: string[]
-  scene_tags?: string[]
-}
-
-/**
- * 本地规则兜底：云端 emotion-compile 未部署时，用前端规则生成三阶段情绪叙事。
- * 结构与云端 ruleCompile 对齐：emotion_title / stage1(场景问句) / stage2(状态确认) / stage3(身份确认)
- */
-function localCompile(payload: CompilePayload): any {
-  const name = (payload.name || '').trim()
-  const mood = payload.mood_tags || []
-  const scene = payload.scene_tags || []
-  const category = payload.category
-
-  // 商品名为空时直接返回填写提示，避免生成「这件物事」之类的废话
-  if (!name) {
-    const hint = '请先填写商品名称，再生成情绪化描述——有了名字，文案才能写出它的模样。'
-    return {
-      emotion_title: '待填写商品名称',
-      stage1: hint,
-      stage2: hint,
-      stage3: '',
-      candidates: [hint],
-      emotion_detail: hint,
-      compiled_by: 'local-rule',
-      _local: true}
-  }
-
-  // 用 3 个候选文案（v1 → v2 → v3），各取不同的 variant 池子
-  const variants = [0, 1, 2].map(v => generateEmotionDescription({ name }, mood, scene, category, undefined, v))
-  // 主文案 = 三个候选拼接（stage2 主体信息量翻 3 倍，且段落感强）
-  const stage2 = variants.join('\n')
-
-  // 起笔：场景化问句
-  const moment = scene[0] ? `每逢${scene[0]}` : '若得闲时'
-  const stage1 = `${moment}，你可曾想要一份妥帖的心境？`
-
-  // 收束：身份确认
-  const closers = [
-    '你便是懂得慢享生活的人。',
-    '这便是你给日子留白的本事。',
-    '你便是有心为自己留一寸温柔的人。',
-  ]
-  const stage3 = closers[Math.abs(name.length) % closers.length]
-
-  return {
-    emotion_title: name,
-    stage1,
-    stage2,
-    stage3,
-    candidates: variants,  // 工作台可点"换一版"切换
-    emotion_detail: `${stage1} ${stage2} ${stage3}`,
-    compiled_by: 'local-rule',
-    _local: true}
-}
-
 /** 本地关键词兜底：把自由文本分类为 6 情绪态之一（positive/warm/fresh/luxury/fun/calm） */
 function localUnderstand(text: string): string | null {
   for (const cat of Object.keys(MOOD_CATEGORIES)) {
@@ -910,8 +848,7 @@ function localUnderstand(text: string): string | null {
   return null
 }
 
-/** 编译商品情绪叙事（纯本地规则引擎，零 LLM 依赖；云端 emotion-compile 已不再调用） */
-/** 把用户自由文本分类为 6 情绪态之一（纯本地关键词规则，零 LLM 依赖） */
+/** 把自由文本分类为 6 情绪态之一（纯本地关键词规则，零 LLM 依赖） */
 export async function understandEmotion(text: string): Promise<string | null> {
   if (!text || !text.trim()) return null
   return localUnderstand(text)
