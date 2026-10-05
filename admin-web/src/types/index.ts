@@ -207,51 +207,6 @@ export interface Refund {
 // ================= 确权（共建会员确权）总后台治理 =================
 export type EmotionClaimStatus = 'active' | 'voided'
 
-export interface EmotionClaimRow {
-  id: string
-  user_id: string
-  order_no: string | null
-  product_id: string | null
-  store_id: string | null
-  selected_emotion: string | null
-  badge_text: string | null
-  badge_code: string | null
-  tb_amount: number
-  cv_amount: number
-  upline_l1: string | null
-  upline_l2: string | null
-  upline_l1_cv: number
-  upline_l2_cv: number
-  status: EmotionClaimStatus
-  rule_version: string | null
-  voided_at: string | null
-  voided_reason: string | null
-  refund_ratio: number
-  created_at: string
-  nickname: string | null
-  phone: string | null
-  user_is_banned: boolean
-}
-
-export interface EmotionClaimStats {
-  total: number
-  active: number
-  voided: number
-  active_cv: number
-  active_tb: number
-  active_users: number
-}
-
-export interface EmotionRuleVersion {
-  version: string
-  announced_at: string
-  effective_at: string
-  const_json: Record<string, number>
-  note: string | null
-  is_active: boolean
-  created_at: string
-}
-
 // ================= 商家后台领域模型 =================
 export type CouponStatus = 'active' | 'draft' | 'paused' | 'expired'
 

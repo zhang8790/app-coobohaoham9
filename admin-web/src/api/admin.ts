@@ -527,17 +527,6 @@ export async function getMerchantSettlementSummary(): Promise<{ total_settled: n
   }, { total_settled: 0, count: 0, store_count: 0 })
 }
 
-/** 各门店货款余额概览（merchant_balance） */
-export async function getStoreSettlementBalances(): Promise<{ id: string; name: string | null; merchant_balance: number; wx_sub_mch_id: string | null }[]> {
-  return safeQuery(async () => {
-    const { data } = await supabase
-      .from('stores')
-      .select('id, name, merchant_balance, wx_sub_mch_id')
-      .order('merchant_balance', { ascending: false })
-    return (Array.isArray(data) ? data : []) as any[]
-  }, [])
-}
-
 /** 历史补结算：将已完成未结算的订单补跑结算 RPC（调用 merchant-payout Edge Function） */
 export async function triggerSettlementBackfill(): Promise<{ ok: boolean; backfilled?: number; skipped?: number; error?: string }> {
   try {
@@ -624,14 +613,6 @@ export async function getRefunds(status: string, page: number, pageSize: number)
     if (status !== 'all') data = data.filter(r => r.status === status)
     return { data: data.slice(page * pageSize, (page + 1) * pageSize), total: data.length }
   })())
-}
-
-export async function approveRefund(_id: string): Promise<boolean> {
-  return safeQuery(() => supabase.from('refunds').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', _id).then(() => true), true)
-}
-
-export async function rejectRefund(_id: string, _reason: string): Promise<boolean> {
-  return safeQuery(() => supabase.from('refunds').update({ status: 'closed' }).eq('id', _id).then(() => true), true)
 }
 
 // ── 用户管理 ──────────────────────────────────────────────────────────

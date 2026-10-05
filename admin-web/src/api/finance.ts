@@ -645,21 +645,6 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail | nul
   }
 }
 
-// 单笔订单的精确佣金合计（剔除已退款）
-export async function getOrderCommission(orderId: string): Promise<number> {
-  try {
-    const { data, error } = await supabase
-      .from('commissions')
-      .select('commission_amount.sum()')
-      .eq('order_id', orderId)
-      .neq('status', 'refunded')
-    if (error || !data || !data.length) return 0
-    return Number((data[0] as any).sum ?? 0)
-  } catch {
-    return 0
-  }
-}
-
 export interface CommissionBreakdown {
   total: number
   l1: number

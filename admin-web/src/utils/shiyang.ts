@@ -21,8 +21,6 @@ export interface ShiyangTag {
 
 // 与小程序端保持一致的维度常量（共用 DB 列形状）
 export const SHIYANG_DIMENSION_KEY = 'shiyang' as const
-export const SHIYANG_DIMENSION_LABEL = '食养成分'
-export const SHIYANG_DIMENSION_MAX = 5 // 每商品最多选 5 个食材
 
 // 食养成分种子词典（59 条，按性味分组）
 export const INGREDIENT_DICT: Record<string, IngredientEntry> = {
@@ -164,11 +162,6 @@ export function generateShiyangCopy(input: ShiyangCopyInput): ShiyangCopyOutput 
     cardDetail: detail,
     disclaimer: SHIYANG_DISCLAIMER,
   }
-}
-
-// 把「中文名数组」转成 DB 存储形状 { shiyang: [...] }
-export function toShiyangTags(zhNames: string[]): Record<string, string[]> {
-  return { [SHIYANG_DIMENSION_KEY]: zhNames }
 }
 
 // 收集某食材的全部匹配候选（全名 + 别名，小写）

@@ -163,18 +163,6 @@ export function PrimaryButton({ children, type = 'button', disabled, loading, on
   )
 }
 
-/* ---------- 文字按钮 / 链接按钮 ---------- */
-export function GhostButton({ children, onClick, disabled }: { children: ReactNode; onClick?: () => void; disabled?: boolean }) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled}
-      style={{
-        padding: '8px 14px', background: 'transparent', border: '1px solid var(--border-strong)',
-        borderRadius: 'var(--radius-md)', color: 'var(--text-muted)', cursor: disabled ? 'not-allowed' : 'pointer',
-        fontSize: 'var(--text-sm)', fontWeight: 'var(--fw-medium)',
-      }}>{children}</button>
-  )
-}
-
 /* ---------- 统一输入框基础样式（供各页 input/select 复用） ---------- */
 export const inputBase: CSSProperties = {
   width: '100%', padding: '11px 14px', background: 'var(--surface)',

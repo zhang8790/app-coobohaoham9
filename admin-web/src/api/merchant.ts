@@ -292,66 +292,6 @@ export async function getMerchantWithdrawals(userId: string): Promise<Withdrawal
   }))
 }
 
-export async function getCommissionBalance(userId: string): Promise<{ available: number; totalEarned: number; withdrawn: number }> {
-  const { data: comms } = await supabase
-    .from('commissions')
-    .select('commission_amount, status')
-    .eq('beneficiary_id', userId)
-  const { data: wds } = await supabase
-    .from('withdrawals')
-    .select('amount, status')
-    .eq('user_id', userId)
-
-  const totalEarned = (comms || [])
-    .filter((c: any) => c.status === 'settled')
-    .reduce((s: number, c: any) => s + Number(c.commission_amount || 0), 0)
-  const withdrawn = (wds || [])
-    .filter((w: any) => ['paid', 'approved'].includes(w.status))
-    .reduce((s: number, w: any) => s + Number(w.amount || 0), 0)
-  const available = Math.max(0, totalEarned - withdrawn)
-  return {
-    available: Math.round(available * 100) / 100,
-    totalEarned: Math.round(totalEarned * 100) / 100,
-    withdrawn: Math.round(withdrawn * 100) / 100,
-  }
-}
-
-export async function createWithdrawal(payload: {
-  userId: string
-  storeId: string | null
-  amount: number
-  method: 'bank' | 'alipay' | 'wechat'
-  account: string
-  name: string
-  idCard?: string
-  bankName?: string
-}): Promise<boolean> {
-  // P0 修复：提现必须绑定当前登录用户，禁用任意 userId 传入（防提现盗用链路）。
-  // 真实登录态下强制使用会话用户；演示/未登录态回退到传入 userId（仅演示可用）。
-  const { data: { user } } = await supabaseAuth.auth.getUser()
-  const userId = user?.id ?? payload.userId
-  if (!userId) throw new Error('无法识别用户，请先登录')
-  const { error } = await supabase.from('withdrawals').insert({
-    user_id: userId,
-    store_id: payload.storeId,
-    // ⚠️ 双通道隔离硬约束：门店中心提现 = 商家货款结算通道（kind='settlement'）。
-    // 严禁省略 kind —— withdrawals.kind 默认值是 'commission'，省略会把门店货款
-    // 误写进「用户佣金」通道，破坏后台按 kind 审核/计税/对账的隔离。
-    kind: 'settlement',
-    amount: payload.amount,
-    withdraw_method: payload.method,
-    alipay_account: payload.method === 'alipay' ? payload.account : null,
-    bank_account: payload.method === 'bank' ? payload.account : null,
-    bank_holder: payload.method === 'bank' ? payload.name : null,
-    bank_name: payload.method === 'bank' ? (payload.bankName || null) : null,
-    real_name: payload.name || null,
-    id_card: payload.idCard || null,
-    status: 'pending',
-  })
-  if (error) throw error
-  return true
-}
-
 /**
  * 读取门店货款结算概览（可结算余额 / 冻结 / 累计已结算 / 子商户号）。
  * 走 SECURITY DEFINER RPC fn_get_store_settlement（与小程序 getMerchantSettlement 同源），anon 可读。
@@ -463,40 +403,6 @@ export interface EmotionFunnelSummary {
     reachedEnd: number
     cta: number
   }[]
-}
-
-export function aggregateEmotionFunnel(
-  rows: EmotionFunnelRow[],
-): EmotionFunnelSummary {
-  const enter = rows.filter((r) => r.event_type === 'enter').length
-  const reachedEnd = rows.filter(
-    (r) => r.event_type === 'screen_view' && r.screen_index === 4,
-  ).length
-  const cta = rows.filter((r) => r.event_type === 'cta_click').length
-
-  const byProductMap = new Map<string, { enter: number; reachedEnd: number; cta: number }>()
-  for (const r of rows) {
-    const pid = r.product_id || 'unknown'
-    if (!byProductMap.has(pid)) byProductMap.set(pid, { enter: 0, reachedEnd: 0, cta: 0 })
-    const b = byProductMap.get(pid)!
-    if (r.event_type === 'enter') b.enter++
-    else if (r.event_type === 'screen_view' && r.screen_index === 4) b.reachedEnd++
-    else if (r.event_type === 'cta_click') b.cta++
-  }
-  const byProduct = Array.from(byProductMap.entries())
-    .map(([productId, v]) => ({ productId, ...v }))
-    .sort((a, b) => b.cta - a.cta)
-
-  const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0)
-  return {
-    enter,
-    reachedEnd,
-    cta,
-    enterToEndRate: pct(reachedEnd, enter),
-    endToCtaRate: pct(cta, reachedEnd),
-    overallRate: pct(cta, enter),
-    byProduct,
-  }
 }
 
 // ── 流动车 vehicles（P3 门店联动）────────────────────────────────────
