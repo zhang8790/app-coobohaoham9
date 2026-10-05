@@ -8,6 +8,15 @@ import { addStockBatch } from '@/db/food-api'
 import { supabase } from '@/client/supabase'
 import type { Product, Store } from '@/db/types'
 
+// 复用内联样式常量（重复字面量提取，行为不变）
+const S = {
+  fieldGap: { marginBottom: '14px' },
+  labelStrongBlock: { fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' },
+  inputRow: { height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' },
+  inputFull: { width: '100%', height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 14px', boxSizing: 'border-box' },
+}
+
+
 // 日期 → 北京当天结束/开始，避免 timestamptz 时区偏移导致 days_left 差一天
 const toExpiryISO = (d: string) => `${d}T23:59:59+08:00`
 const toProducedISO = (d: string) => `${d}T00:00:00+08:00`
@@ -117,14 +126,14 @@ function MerchantBatchPage() {
 
  <View style={{ padding: '14px' }}>
  {/* 商品选择 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>商品 *</Text>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrongBlock }}>商品 *</Text>
  {products.length === 0 ? (
  <Text style={{ fontSize: '26rpx', color: 'var(--muted-foreground)' }}>本店暂无商品，请先在商品管理新增</Text>
  ) : (
  <Picker mode="selector" range={productNames} value={selIdx < 0 ? 0 : selIdx}
  onChange={(e: any) => setSelIdx(e.detail.value)}>
- <View style={{ height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' }}>
+ <View style={{ inputRow }}>
  <Text style={{ fontSize: '30rpx', color: selIdx >= 0 ? '#333' : '#BBB' }}>
  {selIdx >= 0 ? products[selIdx].name : '请选择商品'}
  </Text>
@@ -134,25 +143,25 @@ function MerchantBatchPage() {
  </View>
 
  {/* 批次号 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>批次号（选填）</Text>
- <Input style={{ width: '100%', height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 14px', boxSizing: 'border-box' }}
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrongBlock }}>批次号（选填）</Text>
+ <Input style={{ inputFull }}
  placeholder="如 20260728-01" value={batchNo} onInput={(e: any) => setBatchNo(e.detail?.value ?? '')} />
  </View>
 
  {/* 生产日期 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>生产日期（选填）</Text>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrongBlock }}>生产日期（选填）</Text>
  <Picker mode="date" value={producedAt} onChange={(e: any) => setProducedAt(e.detail.value)}>
- <View style={{ height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' }}>
+ <View style={{ inputRow }}>
  <Text style={{ fontSize: '30rpx', color: producedAt ? '#333' : '#BBB' }}>{producedAt || '请选择生产日期'}</Text>
  </View>
  </Picker>
  </View>
 
  {/* 过期日期 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>过期日期 *（保质期）</Text>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrongBlock }}>过期日期 *（保质期）</Text>
  <Picker mode="date" value={expireAt} onChange={(e: any) => setExpireAt(e.detail.value)}>
  <View style={{ height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #E0E0E0', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' }}>
  <Text style={{ fontSize: '30rpx', color: expireAt ? '#B45309' : '#BBB' }}>{expireAt || '请选择过期日期'}</Text>
@@ -162,9 +171,9 @@ function MerchantBatchPage() {
  </View>
 
  {/* 数量 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>数量 *</Text>
- <Input style={{ width: '100%', height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 14px', boxSizing: 'border-box' }}
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrongBlock }}>数量 *</Text>
+ <Input style={{ inputFull }}
  placeholder="0" type="number" value={qty} onInput={(e: any) => setQty(e.detail?.value ?? '')} />
  </View>
 

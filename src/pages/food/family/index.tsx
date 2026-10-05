@@ -27,6 +27,18 @@ import {
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import { CONSTITUTION_TYPES } from '@/utils/constitution-test'
 
+// 复用内联样式常量（重复字面量提取，行为不变）
+const S = {
+  lh16: { lineHeight: 1.6 },
+  bgSoft: { background: '#F6F2EE' },
+  borderPlain: { borderWidth: 1, borderColor: '#ECE6DD' },
+  cardPlain: { background: '#FFFFFF', borderWidth: 1, borderColor: '#ECE6DD' },
+  primarySoft: { background: 'hsl(var(--primary-soft))' },
+  primaryFill: { background: 'hsl(var(--primary))', color: '#fff' },
+  softText: { background: '#F6F2EE', color: '#2A2A2A' },
+}
+
+
 const AVATAR_COLORS = ['hsl(var(--primary))', '#3B82F6', '#0369A1', '#8B5CF6', '#F59E0B', '#64748B']
 
 // 体质选项（单选，驱动「为 TA 定制」食养参考）。首项是「暂不设置」。
@@ -232,25 +244,25 @@ export default function FamilyArchivePage() {
  已为 {familyMembers.length} 位家人建立专属食养档案
  </Text>
  </View>
- <Text className="text-xs text-[#8A6A4B] mt-1.5 block" style={{ lineHeight: 1.6 }}>
+ <Text className="text-xs text-[#8A6A4B] mt-1.5 block" style={{ lh16 }}>
  全家人的体质偏好、过敏史与饮食节奏都沉淀在此。换小程序这些数据将全部丢失，重新建立要花不少功夫。
  </Text>
  </View>
  ) : (
- <View className="mt-4 rounded-2xl p-4" style={{ background: '#FFFFFF', borderWidth: 1, borderColor: '#ECE6DD' }}>
+ <View className="mt-4 rounded-2xl p-4" style={{ cardPlain }}>
  <Text className="text-sm font-bold text-[#2A2A2A]">为全家建立专属食养档案</Text>
- <Text className="text-xs text-[#6F675C] mt-1.5 block" style={{ lineHeight: 1.6 }}>
+ <Text className="text-xs text-[#6F675C] mt-1.5 block" style={{ lh16 }}>
  添加家人后，给谁买零食都能一键切换「为 TA 定制」的食养参考，避开过敏、顺着体质挑。
  </Text>
  </View>
  )}
 
  {/* 门店分享授权：线上工具引流 → 线下门店承接到店精准导购 */}
- <View className="mt-4 rounded-2xl p-4" style={{ background: '#FFFFFF', borderWidth: 1, borderColor: '#ECE6DD' }}>
+ <View className="mt-4 rounded-2xl p-4" style={{ cardPlain }}>
  <View className="flex items-center justify-between">
  <View className="flex-1 pr-3">
  <Text className="text-sm font-bold text-[#2A2A2A]">向常去门店分享食养档案</Text>
- <Text className="text-[11px] text-muted-foreground mt-1 block" style={{ lineHeight: 1.6 }}>
+ <Text className="text-[11px] text-muted-foreground mt-1 block" style={{ lh16 }}>
  开启后，你锁定的门店店员可在你到店时查看中性食养参考（体质 / 过敏原 / 慢病 / 目标），做精准导购。仅分享膳食参考维度，不含任何病历或诊断信息，可随时关闭。
  </Text>
  </View>
@@ -275,7 +287,7 @@ export default function FamilyArchivePage() {
  const tags = memberCrowdTags(m)
  const ac = allergenCount(m)
  return (
- <View key={m.id} className="rounded-2xl bg-white p-4 shadow-sm" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
+ <View key={m.id} className="rounded-2xl bg-white p-4 shadow-sm" style={{ borderPlain }}>
  <View className="flex items-center gap-3">
  <View
  className="w-11 h-11 rounded-full flex items-center justify-center"
@@ -290,12 +302,12 @@ export default function FamilyArchivePage() {
  <Text className="text-[10px] text-[#8A6A4B] px-2 py-0.5 rounded-full" style={{ background: '#FBF1E8' }}>{m.age_group}</Text>
  ) : null}
  {m.constitution_type && CONSTITUTION_TYPES[m.constitution_type] ? (
- <Text className="text-[10px] text-[hsl(var(--primary))] px-2 py-0.5 rounded-full" style={{ background: 'hsl(var(--primary-soft))' }}>
+ <Text className="text-[10px] text-[hsl(var(--primary))] px-2 py-0.5 rounded-full" style={{ primarySoft }}>
  {CONSTITUTION_TYPES[m.constitution_type].emoji} {CONSTITUTION_TYPES[m.constitution_type].name}
  </Text>
  ) : null}
  {ac > 0 ? (
- <Text className="text-[10px] text-[hsl(var(--primary))] px-2 py-0.5 rounded-full" style={{ background: 'hsl(var(--primary-soft))' }}>过敏 {ac}</Text>
+ <Text className="text-[10px] text-[hsl(var(--primary))] px-2 py-0.5 rounded-full" style={{ primarySoft }}>过敏 {ac}</Text>
  ) : null}
  </View>
  {m.gender ? <Text className="text-xs text-muted-foreground">{m.gender}</Text> : null}
@@ -309,13 +321,13 @@ export default function FamilyArchivePage() {
  {tags.length > 0 ? (
  <View className="mt-3 flex flex-wrap gap-1.5">
  {tags.map((t) => (
- <Text key={t} className="text-[11px] text-[#6F675C] px-2 py-0.5 rounded-full" style={{ background: '#F6F2EE' }}>{t}</Text>
+ <Text key={t} className="text-[11px] text-[#6F675C] px-2 py-0.5 rounded-full" style={{ bgSoft }}>{t}</Text>
  ))}
  </View>
  ) : null}
 
  {m.notes ? (
- <Text className="text-xs text-muted-foreground mt-2 block" style={{ lineHeight: 1.6 }}>备注：{m.notes}</Text>
+ <Text className="text-xs text-muted-foreground mt-2 block" style={{ lh16 }}>备注：{m.notes}</Text>
  ) : null}
  </View>
  )
@@ -324,11 +336,11 @@ export default function FamilyArchivePage() {
 
  {/* 添加家人：常驻入口，点击展开 inline 表单（无浮层依赖） */}
  {!formOpen ? (
- <Button onClick={openAdd} className="mt-4 rounded-full" style={{ background: 'hsl(var(--primary))', color: '#fff' }}>
+ <Button onClick={openAdd} className="mt-4 rounded-full" style={{ primaryFill }}>
  ＋ 添加家人
  </Button>
  ) : (
- <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
+ <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm" style={{ borderPlain }}>
  <Text className="text-base font-bold text-[#2A2A2A]">{form.id ? '编辑家人' : '添加家人'}</Text>
 
  {/* 称呼 */}
@@ -336,7 +348,7 @@ export default function FamilyArchivePage() {
  <Text className="text-xs text-[#6F675C]">称呼 *</Text>
  <Input
  className="mt-1 rounded-xl px-3 py-2 text-sm"
- style={{ background: '#F6F2EE', color: '#2A2A2A' }}
+ style={{ softText }}
  placeholder="如：爸爸 / 女儿 / 奶奶"
  value={form.name}
  onInput={(e) => updateForm({ name: e.detail.value })}
@@ -352,7 +364,7 @@ export default function FamilyArchivePage() {
  range={AGE_GROUP_OPTIONS as unknown as string[]}
  onChange={(e) => updateForm({ age_group: AGE_GROUP_OPTIONS[e.detail.value as number] })}
  >
- <View className="mt-1 rounded-xl px-3 py-2" style={{ background: '#F6F2EE' }}>
+ <View className="mt-1 rounded-xl px-3 py-2" style={{ bgSoft }}>
  <Text className="text-sm" style={{ color: form.age_group ? '#2A2A2A' : 'var(--muted-foreground)' }}>
  {form.age_group || '请选择'}
  </Text>
@@ -366,7 +378,7 @@ export default function FamilyArchivePage() {
  range={GENDER_OPTIONS as unknown as string[]}
  onChange={(e) => updateForm({ gender: GENDER_OPTIONS[e.detail.value as number] })}
  >
- <View className="mt-1 rounded-xl px-3 py-2" style={{ background: '#F6F2EE' }}>
+ <View className="mt-1 rounded-xl px-3 py-2" style={{ bgSoft }}>
  <Text className="text-sm" style={{ color: form.gender ? '#2A2A2A' : 'var(--muted-foreground)' }}>
  {form.gender || '请选择'}
  </Text>
@@ -389,7 +401,7 @@ export default function FamilyArchivePage() {
  updateForm({ constitution_type: key })
  }}
  >
- <View className="mt-1 rounded-xl px-3 py-2" style={{ background: '#F6F2EE' }}>
+ <View className="mt-1 rounded-xl px-3 py-2" style={{ bgSoft }}>
  <Text className="text-sm" style={{ color: form.constitution_type ? '#2A2A2A' : 'var(--muted-foreground)' }}>
  {form.constitution_type ? `${CONSTITUTION_TYPES[form.constitution_type]?.emoji ?? ''} ${CONSTITUTION_TYPES[form.constitution_type]?.name ?? ''}` : '暂不设置'}
  </Text>
@@ -482,7 +494,7 @@ export default function FamilyArchivePage() {
  <Text className="text-xs text-[#6F675C]">备注（选填 · 中性食养偏好，非病历）</Text>
  <Input
  className="mt-1 rounded-xl px-3 py-2 text-sm"
- style={{ background: '#F6F2EE', color: '#2A2A2A' }}
+ style={{ softText }}
  placeholder="如：口味偏淡 / 喜欢温热"
  value={form.notes}
  onInput={(e) => updateForm({ notes: e.detail.value })}
@@ -495,7 +507,7 @@ export default function FamilyArchivePage() {
  onClick={handleSave}
  loading={saving}
  className="flex-1 rounded-full"
- style={{ background: 'hsl(var(--primary))', color: '#fff' }}
+ style={{ primaryFill }}
  >
  {form.id ? '保存修改' : '保存家人'}
  </Button>
@@ -511,7 +523,7 @@ export default function FamilyArchivePage() {
  )}
 
  {/* 免责声明 */}
- <View className="mt-5 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
+ <View className="mt-5 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderPlain }}>
  <Text className="text-[11px] text-muted-foreground leading-relaxed block">{FOOD_THERAPY_DISCLAIMER}</Text>
  </View>
  </View>
