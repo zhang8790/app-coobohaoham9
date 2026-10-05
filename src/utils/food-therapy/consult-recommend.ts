@@ -289,7 +289,3 @@ function buildSummary(recs: ConsultRecommendation[], ctx: ConsultContext): strin
   return parts.join('')
 }
 
-// 复用：体质展示名（供 UI 直接拿，避免重复 import）
-export function constitutionDisplayName(c: ConstitutionType | null): string {
-  return c ? c.name : ''
-}

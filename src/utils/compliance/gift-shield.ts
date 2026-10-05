@@ -111,7 +111,3 @@ export function giftShieldCopy(text: string): GiftShieldResult {
   return { safe, hits, clean: hits.length === 0 }
 }
 
-/** 仅校验是否含违禁词（商家端提交前拦截） */
-export function hasGiftForbidden(text: string): boolean {
-  return GIFT_FORBIDDEN_WORDS.some((w) => text.includes(w))
-}

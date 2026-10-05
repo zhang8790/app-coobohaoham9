@@ -178,10 +178,6 @@ export function evaluateCase(
   return { caseId: c.id, selected, correct, missed, wrong, score, passed, newFragments }
 }
 
-/** 根据 id 取案件 */
-export function getCaseById(id: string): DetectiveCase | undefined {
-  return DETECTIVE_CASES.find((c) => c.id === id)
-}
 
 /** 难度标签 */
 export function difficultyLabel(d: 1 | 2 | 3): string {

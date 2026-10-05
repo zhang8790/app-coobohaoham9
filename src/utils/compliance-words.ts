@@ -40,19 +40,3 @@ export function checkIllegalWords(text: string | undefined | null): WordCheckRes
   return { found: Array.from(new Set(found)), passed: found.length === 0 }
 }
 
-/**
- * 批量校验多个字段，返回合并后的命中结果。
- * @param fields 字段名到文本的映射，如 { 标题: name, 描述: description }
- */
-export function checkIllegalWordsBatch(fields: Record<string, string | undefined | null>): WordCheckResult & { details: string[] } {
-  const allFound: string[] = []
-  const details: string[] = []
-  for (const [label, text] of Object.entries(fields)) {
-    const r = checkIllegalWords(text)
-    if (!r.passed) {
-      allFound.push(...r.found)
-      details.push(`${label}：${r.found.join('、')}`)
-    }
-  }
-  return { found: Array.from(new Set(allFound)), passed: allFound.length === 0, details }
-}

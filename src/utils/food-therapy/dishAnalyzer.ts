@@ -281,6 +281,4 @@ export function analyzeProductFromName(name: string, manualIngredients: string[]
   }
 }
 
-// 便于在 Edge Function 未配置时，前端判断是否走本地兜底
-export const DISH_ANALYZER_SOURCE = 'rule'
 export { inferCategory }

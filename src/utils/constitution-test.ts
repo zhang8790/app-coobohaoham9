@@ -620,10 +620,6 @@ export function constitutionToCrowds(constitution: ConstitutionType): string[] {
   return constitution.bodyStates
 }
 
-/** 体质 → 健康目标映射 */
-export function constitutionToGoals(constitution: ConstitutionType): string[] {
-  return constitution.healthGoals
-}
 
 // ── 按「清通调补固」阶段配对 ──────────────────────────────────────────────
 
