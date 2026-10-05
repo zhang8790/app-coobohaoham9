@@ -14,7 +14,7 @@ const S = {
   pad610: { padding: '6px 10px' },
   mt6: { marginTop: '6px' },
   mt2: { marginTop: '2px' },
-}
+} as const
 
 
 type FilterKey = 'all' | 'active' | 'paused' | 'ended'
@@ -149,7 +149,7 @@ function MerchantAdsPage() {
             ].map((k, i) => (
               <View key={k.label} className="flex-1 bg-card rounded-2xl border border-border" style={{ padding: '16px', marginRight: i < 2 ? '10px' : '0' }}>
                 <Text className="text-xs text-muted-foreground">{k.label}</Text>
-                <Text className={`text-2xl font-bold ${k.color}`} style={{ mt6 }}>{k.value}</Text>
+                <Text className={`text-2xl font-bold ${k.color}`} style={S.mt6}>{k.value}</Text>
               </View>
             ))}
           </View>
@@ -182,23 +182,23 @@ function MerchantAdsPage() {
                       </View>
                       <Text className="text-xs text-muted-foreground" style={{ marginLeft: '8px' }}>{TYPE_LABEL[ad.campaign_type] || ad.campaign_type}</Text>
                     </View>
-                    <Text className="text-base font-bold text-foreground" style={{ mt6 }}>{ad.campaign_name}</Text>
-                    <Text className="text-xs text-muted-foreground" style={{ mt2 }}>{ad.start_date} ~ {ad.end_date}</Text>
+                    <Text className="text-base font-bold text-foreground" style={S.mt6}>{ad.campaign_name}</Text>
+                    <Text className="text-xs text-muted-foreground" style={S.mt2}>{ad.start_date} ~ {ad.end_date}</Text>
                   </View>
                   <View className="flex flex-row">
                     {ad.status === 'active' && (
                       <Button className="!m-0 !p-0 !bg-transparent !border !border-border !rounded-xl" onClick={() => setStatus(ad, 'paused')}>
-                        <Text className="text-xs text-muted-foreground" style={{ pad610 }}>暂停</Text>
+                        <Text className="text-xs text-muted-foreground" style={S.pad610}>暂停</Text>
                       </Button>
                     )}
                     {ad.status === 'paused' && (
                       <Button className="!m-0 !p-0 !bg-transparent !border !border-primary !rounded-xl" onClick={() => setStatus(ad, 'active')}>
-                        <Text className="text-xs text-primary" style={{ pad610 }}>重启</Text>
+                        <Text className="text-xs text-primary" style={S.pad610}>重启</Text>
                       </Button>
                     )}
                     {ad.status !== 'ended' && (
                       <Button className="!m-0 !p-0 !bg-transparent !border !border-red-500 !rounded-xl" style={{ marginLeft: '6px' }} onClick={() => setStatus(ad, 'ended')}>
-                        <Text className="text-xs text-red-500" style={{ pad610 }}>结束</Text>
+                        <Text className="text-xs text-red-500" style={S.pad610}>结束</Text>
                       </Button>
                     )}
                   </View>
@@ -214,7 +214,7 @@ function MerchantAdsPage() {
                   ].map((d, i) => (
                     <View key={d.label} className="flex-1 bg-background rounded-xl" style={{ padding: '8px', marginRight: i < 3 ? '8px' : '0' }}>
                       <Text className="text-xs text-muted-foreground">{d.label}</Text>
-                      <Text className="text-sm font-bold text-foreground" style={{ mt2 }}>{d.value}</Text>
+                      <Text className="text-sm font-bold text-foreground" style={S.mt2}>{d.value}</Text>
                     </View>
                   ))}
                 </View>
@@ -236,14 +236,14 @@ function MerchantAdsPage() {
             </View>
 
             <View className="mb-3">
-              <Text className="text-base text-foreground" style={{ mb4 }}>活动名称 *</Text>
+              <Text className="text-base text-foreground" style={S.mb4}>活动名称 *</Text>
               <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" value={form.campaign_name}
                 onInput={e => updateForm({ campaign_name: e.detail.value })} placeholder="如：进店有喜红包" />
             </View>
 
             <View className="flex flex-row mb-3">
-              <View className="flex-1" style={{ mr12 }}>
-                <Text className="text-base text-foreground" style={{ mb4 }}>活动类型</Text>
+              <View className="flex-1" style={S.mr12}>
+                <Text className="text-base text-foreground" style={S.mb4}>活动类型</Text>
                 <Picker mode="selector" range={TYPE_OPTIONS}
                   onChange={e => {
                     const t = Number(e.detail.value) === 1 ? 'physical' : 'redpacket'
@@ -253,47 +253,47 @@ function MerchantAdsPage() {
                 </Picker>
               </View>
               <View className="flex-1">
-                <Text className="text-base text-foreground" style={{ mb4 }}>礼品名称</Text>
+                <Text className="text-base text-foreground" style={S.mb4}>礼品名称</Text>
                 <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" value={form.gift_name}
                   onInput={e => updateForm({ gift_name: e.detail.value })} placeholder="如：现金红包 / 定制帆布袋" />
               </View>
             </View>
 
             <View className="flex flex-row mb-3">
-              <View className="flex-1" style={{ mr12 }}>
-                <Text className="text-base text-foreground" style={{ mb4 }}>礼品价值（元）</Text>
+              <View className="flex-1" style={S.mr12}>
+                <Text className="text-base text-foreground" style={S.mb4}>礼品价值（元）</Text>
                 <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.gift_value}
                   onInput={e => updateForm({ gift_value: e.detail.value })} placeholder="5" />
               </View>
               <View className="flex-1">
-                <Text className="text-base text-foreground" style={{ mb4 }}>佣金比例（%）</Text>
+                <Text className="text-base text-foreground" style={S.mb4}>佣金比例（%）</Text>
                 <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.commission_rate}
                   onInput={e => updateForm({ commission_rate: e.detail.value })} placeholder="10" />
               </View>
             </View>
 
             <View className="flex flex-row mb-3">
-              <View className="flex-1" style={{ mr12 }}>
-                <Text className="text-base text-foreground" style={{ mb4 }}>发放总数</Text>
+              <View className="flex-1" style={S.mr12}>
+                <Text className="text-base text-foreground" style={S.mb4}>发放总数</Text>
                 <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.total_limit}
                   onInput={e => updateForm({ total_limit: e.detail.value })} placeholder="100" />
               </View>
               <View className="flex-1">
-                <Text className="text-base text-foreground" style={{ mb4 }}>每日限领</Text>
+                <Text className="text-base text-foreground" style={S.mb4}>每日限领</Text>
                 <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" type="digit" value={form.daily_limit}
                   onInput={e => updateForm({ daily_limit: e.detail.value })} placeholder="10" />
               </View>
             </View>
 
             <View className="flex flex-row mb-4">
-              <View className="flex-1" style={{ mr12 }}>
-                <Text className="text-base text-foreground" style={{ mb4 }}>开始日期</Text>
+              <View className="flex-1" style={S.mr12}>
+                <Text className="text-base text-foreground" style={S.mb4}>开始日期</Text>
                 <Picker mode="date" onChange={e => updateForm({ start_date: e.detail.value })}>
                   <View className="border-2 border-input rounded-xl px-3 py-2 text-base">{form.start_date || <Text className="text-muted-foreground">选择日期</Text>}</View>
                 </Picker>
               </View>
               <View className="flex-1">
-                <Text className="text-base text-foreground" style={{ mb4 }}>结束日期</Text>
+                <Text className="text-base text-foreground" style={S.mb4}>结束日期</Text>
                 <Picker mode="date" onChange={e => updateForm({ end_date: e.detail.value })}>
                   <View className="border-2 border-input rounded-xl px-3 py-2 text-base">{form.end_date || <Text className="text-muted-foreground">选择日期</Text>}</View>
                 </Picker>
