@@ -41,6 +41,22 @@ import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import type { Product } from '@/db/types'
 import './index.scss'
 
+// 复用内联样式常量（重复字面量提取，行为不变）
+const S = {
+  cardPrimary: { background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' },
+  primaryText: { color: 'hsl(var(--primary))' },
+  cardPlain: { background: '#fff', borderWidth: 1, borderColor: '#ECE6DD' },
+  primaryFill: { background: 'hsl(var(--primary))', color: '#fff' },
+  bgBase: { background: '#F7F3E9' },
+  lh16: { lineHeight: 1.6 },
+  lh175: { lineHeight: 1.75 },
+  greenText: { color: '#15803D' },
+  lh17: { lineHeight: 1.7 },
+  fs16: { fontSize: 16 },
+  borderPlain: { borderWidth: 1, borderColor: '#ECE6DD' },
+}
+
+
 type Step = 'intro' | 'quiz' | 'result'
 
 // ── 合并问卷：身体感受 · 深度问诊（9 题）+ 舌象对照（8 维）──
@@ -417,22 +433,22 @@ export default function TonguePage() {
               borderColor: '#ECE6DD',
             }}
           >
-            <Text className="text-[11px] font-semibold" style={{ color: 'hsl(var(--primary))' }}>
+            <Text className="text-[11px] font-semibold" style={{ primaryText }}>
               身体感受 × 舌象对照
             </Text>
             <Text className="text-2xl font-bold text-[#2A2A2A] mt-1 block">读懂你的食养倾向</Text>
-            <Text className="text-sm text-[#6F675C] mt-2 block" style={{ lineHeight: 1.75 }}>
+            <Text className="text-sm text-[#6F675C] mt-2 block" style={{ lh175 }}>
               两步细测：先聊 9 个身体专项感受（寒热 / 汗出 / 精力 / 睡眠 / 情绪等），再在自然光下看自己的舌头、对照 8 项特征。本地算法交叉印证，给你一份专属食养参考。
             </Text>
 
             {/* 两大部分可视化 */}
             <View className="mt-4 flex flex-row gap-3">
-              <View className="flex-1 rounded-2xl p-3" style={{ background: '#fff', borderWidth: 1, borderColor: '#ECE6DD' }}>
+              <View className="flex-1 rounded-2xl p-3" style={{ cardPlain }}>
                 <Text className="text-lg">🙂</Text>
                 <Text className="text-sm font-semibold text-[#2A2A2A] mt-1 block">身体感受</Text>
                 <Text className="text-[11px] text-[#9A9388] mt-0.5 block">9 个专项细问</Text>
               </View>
-              <View className="flex-1 rounded-2xl p-3" style={{ background: '#fff', borderWidth: 1, borderColor: '#ECE6DD' }}>
+              <View className="flex-1 rounded-2xl p-3" style={{ cardPlain }}>
                 <Text className="text-lg">👅</Text>
                 <Text className="text-sm font-semibold text-[#2A2A2A] mt-1 block">舌象对照</Text>
                 <Text className="text-[11px] text-[#9A9388] mt-0.5 block">8 维望舌特征</Text>
@@ -442,7 +458,7 @@ export default function TonguePage() {
             <View className="mt-3 flex flex-wrap gap-2">
               {['约 3 分钟', '无需登录', '本地算法·不联网'].map((t) => (
                 <View key={t} className="rounded-full px-3 py-1" style={{ background: 'hsl(var(--primary) / 0.08)' }}>
-                  <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>{t}</Text>
+                  <Text className="text-xs" style={{ primaryText }}>{t}</Text>
                 </View>
               ))}
             </View>
@@ -451,7 +467,7 @@ export default function TonguePage() {
           <Button
             onClick={openCameraGuide}
             className="mt-5 rounded-full"
-            style={{ background: 'hsl(var(--primary))', color: '#fff' }}
+            style={{ primaryFill }}
           >
             拍照 + 开始评估
           </Button>
@@ -459,7 +475,7 @@ export default function TonguePage() {
           <Button
             onClick={startDirect}
             className="mt-3 rounded-full"
-            style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+            style={{ cardPrimary }}
           >
             不拍照，直接开始
           </Button>
@@ -550,7 +566,7 @@ export default function TonguePage() {
               <Button
                 onClick={goPrev}
                 className="mt-5 rounded-full"
-                style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+                style={{ cardPrimary }}
               >
                 上一步
               </Button>
@@ -570,14 +586,14 @@ export default function TonguePage() {
               borderColor: '#ECE6DD',
             }}
           >
-            <Text className="text-[11px] font-semibold" style={{ color: '#15803D' }}>第一部分完成</Text>
+            <Text className="text-[11px] font-semibold" style={{ greenText }}>第一部分完成</Text>
             <Text className="text-2xl font-bold text-[#2A2A2A] mt-1 block">进入舌象对照</Text>
-            <Text className="text-sm text-[#6F675C] mt-2 block" style={{ lineHeight: 1.75 }}>
+            <Text className="text-sm text-[#6F675C] mt-2 block" style={{ lh175 }}>
               在自然光下伸出舌头，对照下面 8 项特征勾选。{photoBased ? '可参考刚拍的舌面 / 舌下照片，对着看更准。' : '若还没拍，可在结果页补拍留档给食养顾问真人研判。'}
             </Text>
             <View
               className="mt-4 rounded-2xl p-3 flex items-center gap-2"
-              style={{ background: '#fff', borderWidth: 1, borderColor: '#ECE6DD' }}
+              style={{ cardPlain }}
             >
               <Text className="text-lg">👅</Text>
               <Text className="text-xs text-[#6F675C]" style={{ lineHeight: 1.5 }}>
@@ -594,7 +610,7 @@ export default function TonguePage() {
             <Button
               onClick={backToBody}
               className="mt-3 rounded-full"
-              style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+              style={{ cardPrimary }}
             >
               返回修改身体感受
             </Button>
@@ -616,10 +632,10 @@ export default function TonguePage() {
             </View>
             {photoBased ? (
               <View className="mt-2 inline-flex items-center rounded-full px-2.5 py-0.5" style={{ background: 'rgba(22,163,74,0.12)' }}>
-                <Text className="text-[10px]" style={{ color: '#15803D' }}>拍照对照 · 本地算法</Text>
+                <Text className="text-[10px]" style={{ greenText }}>拍照对照 · 本地算法</Text>
               </View>
             ) : null}
-            <Text className="text-sm text-[#3F3A34] mt-2 block" style={{ lineHeight: 1.7 }}>
+            <Text className="text-sm text-[#3F3A34] mt-2 block" style={{ lh17 }}>
               {combined.primary.description}
             </Text>
             {combined.secondary ? (
@@ -640,20 +656,20 @@ export default function TonguePage() {
             <Text className="text-sm font-bold text-[#2A2A2A]">两项互相印证</Text>
             <Text className="text-xs text-[#6F675C] mt-1 block">{combined.note}</Text>
             <View className="mt-3 flex items-center gap-2">
-              <View className="flex-1 rounded-xl px-2 py-2" style={{ background: '#F7F3E9' }}>
+              <View className="flex-1 rounded-xl px-2 py-2" style={{ bgBase }}>
                 <Text className="text-[10px] text-[#9A9388]">身体感受</Text>
                 <View className="mt-0.5 flex items-center gap-1">
-                  <Text style={{ fontSize: 16 }}>{combined.body.primary.emoji}</Text>
+                  <Text style={{ fs16 }}>{combined.body.primary.emoji}</Text>
                   <Text className="text-xs font-semibold" style={{ color: combined.body.primary.color }}>
                     {combined.body.primary.name}
                   </Text>
                 </View>
               </View>
               <Text style={{ color: '#C9C0B4', fontSize: 14 }}>×</Text>
-              <View className="flex-1 rounded-xl px-2 py-2" style={{ background: '#F7F3E9' }}>
+              <View className="flex-1 rounded-xl px-2 py-2" style={{ bgBase }}>
                 <Text className="text-[10px] text-[#9A9388]">舌象对照</Text>
                 <View className="mt-0.5 flex items-center gap-1">
-                  <Text style={{ fontSize: 16 }}>{combined.tongue.primary.emoji}</Text>
+                  <Text style={{ fs16 }}>{combined.tongue.primary.emoji}</Text>
                   <Text className="text-xs font-semibold" style={{ color: combined.tongue.primary.color }}>
                     {combined.tongue.primary.name}
                   </Text>
@@ -671,7 +687,7 @@ export default function TonguePage() {
               </Text>
               <View className="mt-3 flex flex-col gap-2.5">
                 {bodyNotes.map((n, i) => (
-                  <View key={i} className="rounded-xl px-3 py-2.5" style={{ background: '#F7F3E9' }}>
+                  <View key={i} className="rounded-xl px-3 py-2.5" style={{ bgBase }}>
                     <View className="flex items-center justify-between">
                       <Text className="text-xs font-bold text-[#3F3A34]">{n.dimLabel}</Text>
                       {n.toward ? (
@@ -679,13 +695,13 @@ export default function TonguePage() {
                           className="rounded-full px-2 py-0.5"
                           style={{ background: 'hsl(var(--primary) / 0.1)' }}
                         >
-                          <Text className="text-[10px]" style={{ color: 'hsl(var(--primary))' }}>
+                          <Text className="text-[10px]" style={{ primaryText }}>
                             {n.toward}
                           </Text>
                         </View>
                       ) : null}
                     </View>
-                    <Text className="text-[11px] text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>
+                    <Text className="text-[11px] text-[#6F675C] mt-1 block" style={{ lh16 }}>
                       {n.label}
                       {n.detail ? ` · ${n.detail}` : ''}
                     </Text>
@@ -746,7 +762,7 @@ export default function TonguePage() {
                 </View>
               ) : (
                 <View className="mt-3 rounded-xl px-3 py-2.5" style={{ background: '#F0FDF4', borderWidth: 1, borderColor: '#DCFCE7' }}>
-                  <Text className="text-xs text-[#15803D]" style={{ lineHeight: 1.6 }}>
+                  <Text className="text-xs text-[#15803D]" style={{ lh16 }}>
                     你的各项身体感受都偏中性、整体状态均衡 —— 这恰恰是「{combined.body.primary.name}」的样子。
                   </Text>
                 </View>
@@ -772,9 +788,9 @@ export default function TonguePage() {
           </View>
 
           {/* 拍照给真人顾问（识别引擎 + 真人双轨） */}
-          <View className="qa-reveal qa-stagger-4 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
+          <View className="qa-reveal qa-stagger-4 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderPlain }}>
             <Text className="text-sm font-bold text-[#2A2A2A]">想让真人看看？</Text>
-            <Text className="text-xs text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>
+            <Text className="text-xs text-[#6F675C] mt-1 block" style={{ lh16 }}>
               以上倾向由你填写的身体感受与舌象特征、经本地算法交叉校验得出，仅供食养参考。
             </Text>
             {photoPath ? (
@@ -795,11 +811,11 @@ export default function TonguePage() {
               <Button
                 onClick={() => openCameraGuide(true)}
                 className="rounded-full"
-                style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+                style={{ cardPrimary }}
               >
                 {photoPath ? '重新拍照' : '去拍照留档'}
               </Button>
-              <Button openType="contact" className="rounded-full" style={{ background: 'hsl(var(--primary))', color: '#fff' }}>
+              <Button openType="contact" className="rounded-full" style={{ primaryFill }}>
                 发给食养顾问真人研判
               </Button>
             </View>
@@ -876,7 +892,7 @@ export default function TonguePage() {
                   </Text>
                 </View>
               </View>
-              <Text className="text-sm text-[#3F3A34] mt-3 block" style={{ lineHeight: 1.7 }}>
+              <Text className="text-sm text-[#3F3A34] mt-3 block" style={{ lh17 }}>
                 {POSTER_INSIGHT[combined.primary.key] ?? combined.primary.description}
               </Text>
               <View className="mt-3 flex items-center gap-1.5">
@@ -889,7 +905,7 @@ export default function TonguePage() {
           </View>
 
           {/* 免责 */}
-          <View className="qa-reveal qa-stagger-6 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
+          <View className="qa-reveal qa-stagger-6 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderPlain }}>
             <Text className="text-[11px] text-muted-foreground leading-relaxed block">
               {FOOD_THERAPY_DISCLAIMER}
             </Text>
@@ -900,14 +916,14 @@ export default function TonguePage() {
             <Button
               onClick={() => Taro.navigateTo({ url: '/pages/food/profile/index' })}
               className="rounded-full"
-              style={{ background: 'hsl(var(--primary))', color: '#fff' }}
+              style={{ primaryFill }}
             >
               查看我的食养画像
             </Button>
             <Button
               onClick={restart}
               className="rounded-full"
-              style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+              style={{ cardPrimary }}
             >
               重新评估
             </Button>
