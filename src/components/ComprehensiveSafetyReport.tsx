@@ -12,6 +12,13 @@ import { View, Text } from '@tarojs/components'
 import type { ComprehensiveSafetyReport } from '@/utils/safety-analysis'
 import { FOOD_THERAPY_DISCLAIMER, shieldCopy } from '@/utils/compliance/shield'
 
+const S = {
+  display_block: { display: 'block' },
+  display_block_color_dc2626_lineheight_1_6: { display: 'block', color: '#DC2626', lineHeight: 1.6 },
+  display_block_marginbottom_6: { display: 'block', marginBottom: 6 },
+  margintop_12: { marginTop: 12 },
+} as const
+
 const FLAG_COLOR: Record<string, string> = {
  high: '#B45309',
  extreme: '#DC2626',
@@ -39,7 +46,7 @@ export default function ComprehensiveSafetyReport({
  <View className={bare ? '' : 'mx-4 mt-4 rounded-2xl border border-black/5 p-4'} style={bare ? undefined : { background: '#fff' }}>
  {/* 总评级 */}
  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
- <Text className="text-base font-bold text-foreground" style={{ display: 'block' }}>
+ <Text className="text-base font-bold text-foreground" style={S.display_block}>
  全面安全分析
  </Text>
  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -63,8 +70,8 @@ export default function ComprehensiveSafetyReport({
 
  {/* 营养成分 */}
  {nutrition?.available && (
- <View style={{ marginTop: 12 }}>
- <Text className="text-sm font-semibold text-foreground" style={{ display: 'block', marginBottom: 6 }}>
+ <View style={S.margintop_12}>
+ <Text className="text-sm font-semibold text-foreground" style={S.display_block_marginbottom_6}>
  营养成分
  <Text style={{ fontSize: '24rpx', fontWeight: 'normal', color: '#6F675C' }}>
  {nutrition.basis === 'perServing' && nutrition.servingNote ? `（${nutrition.servingNote}）` : '（每 100g）'}
@@ -87,7 +94,7 @@ export default function ComprehensiveSafetyReport({
  borderColor: it.flag ? c + '33' : 'transparent',
  }}
  >
- <Text className="text-xs text-muted-foreground" style={{ display: 'block' }}>{it.label}</Text>
+ <Text className="text-xs text-muted-foreground" style={S.display_block}>{it.label}</Text>
  <Text style={{ fontSize: '30rpx', fontWeight: 'bold', color: c }}>
  {it.value}
  <Text style={{ fontSize: '20rpx', fontWeight: 'normal' }}> {it.unit}</Text>
@@ -114,7 +121,7 @@ export default function ComprehensiveSafetyReport({
  {nutrition.flags.length > 0 && (
  <View style={{ marginTop: 8 }}>
  {nutrition.flags.map((f, i) => (
- <Text key={i} className="text-xs" style={{ display: 'block', color: '#DC2626', lineHeight: 1.6 }}>
+ <Text key={i} className="text-xs" style={S.display_block_color_dc2626_lineheight_1_6}>
  {f}
  </Text>
  ))}
@@ -125,8 +132,8 @@ export default function ComprehensiveSafetyReport({
 
  {/* 适宜人群 / 警示 */}
  {(ageSuitability.notes.length > 0 || warnings.length > 0) && (
- <View style={{ marginTop: 12 }}>
- <Text className="text-sm font-semibold text-foreground" style={{ display: 'block', marginBottom: 6 }}>
+ <View style={S.margintop_12}>
+ <Text className="text-sm font-semibold text-foreground" style={S.display_block_marginbottom_6}>
  适宜人群 / 警示
  </Text>
  {ageSuitability.infantSafe ? (
@@ -134,7 +141,7 @@ export default function ComprehensiveSafetyReport({
  ✓ 未发现婴幼儿禁用成分
  </Text>
  ) : (
- <Text className="text-xs" style={{ display: 'block', color: '#DC2626', lineHeight: 1.6 }}>
+ <Text className="text-xs" style={S.display_block_color_dc2626_lineheight_1_6}>
  ✕ 含婴幼儿不宜成分，3 岁以下不建议食用
  </Text>
  )}
@@ -148,8 +155,8 @@ export default function ComprehensiveSafetyReport({
 
  {/* 标签合规（完整标签语境才严格展示缺失） */}
  {fullLabel ? (
- <View style={{ marginTop: 12 }}>
- <Text className="text-sm font-semibold text-foreground" style={{ display: 'block', marginBottom: 6 }}>
+ <View style={S.margintop_12}>
+ <Text className="text-sm font-semibold text-foreground" style={S.display_block_marginbottom_6}>
  标签合规完整度 {label.score}%
  </Text>
  <View style={{ height: 6, borderRadius: 999, backgroundColor: '#EEE', overflow: 'hidden' }}>
@@ -162,7 +169,7 @@ export default function ComprehensiveSafetyReport({
  )}
  </View>
  ) : label.score >= 30 ? (
- <View style={{ marginTop: 12 }}>
+ <View style={S.margintop_12}>
  <Text className="text-xs text-muted-foreground" style={{ display: 'block', lineHeight: 1.6 }}>
  已识别标签信息完整度 {label.score}%（粘贴完整标签可获更全的合规分析）
  </Text>

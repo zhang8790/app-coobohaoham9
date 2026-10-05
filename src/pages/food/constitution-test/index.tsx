@@ -28,6 +28,13 @@ import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import type { Product } from '@/db/types'
 import './index.scss'
 
+const S = {
+  background_fff_color_hsl_var_primary_borderwidth_1_bordercolor_ece6dd: { background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' },
+  borderwidth_1_bordercolor_ece6dd: { borderWidth: 1, borderColor: '#ECE6DD' },
+  lineheight_1_6: { lineHeight: 1.6 },
+  lineheight_1_7: { lineHeight: 1.7 },
+} as const
+
 type Step = 'intro' | 'quiz' | 'result'
 
 /** 海报一句洞察：让分享更有「人味」，而非冷冰冰的体质名 */
@@ -199,7 +206,7 @@ export default function ConstitutionTestPage() {
  </View>
  </View>
 
- <View className="mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
+ <View className="mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={S.borderwidth_1_bordercolor_ece6dd}>
  <Text className="text-[11px] text-muted-foreground leading-relaxed block">
  {FOOD_THERAPY_DISCLAIMER}
  </Text>
@@ -265,7 +272,7 @@ export default function ConstitutionTestPage() {
  </View>
 
  {currentQ > 0 && (
- <Button onClick={goPrev} className="mt-5 rounded-full" style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}>
+ <Button onClick={goPrev} className="mt-5 rounded-full" style={S.background_fff_color_hsl_var_primary_borderwidth_1_bordercolor_ece6dd}>
  上一步
  </Button>
  )}
@@ -284,7 +291,7 @@ export default function ConstitutionTestPage() {
  {primary.name}
  </Text>
  </View>
- <Text className="text-sm text-[#3F3A34] mt-2 block" style={{ lineHeight: 1.7 }}>
+ <Text className="text-sm text-[#3F3A34] mt-2 block" style={S.lineheight_1_7}>
  {primary.description}
  </Text>
 
@@ -349,7 +356,7 @@ export default function ConstitutionTestPage() {
  </View>
  ) : (
  <View className="mt-3 rounded-xl px-3 py-2.5" style={{ background: '#F0FDF4', borderWidth: 1, borderColor: '#DCFCE7' }}>
- <Text className="text-xs text-[#15803D]" style={{ lineHeight: 1.6 }}>
+ <Text className="text-xs text-[#15803D]" style={S.lineheight_1_6}>
  你的各项偏颇信号都很弱、整体状态均衡 —— 这恰恰是「{primary.name}」的样子。
  </Text>
  </View>
@@ -369,7 +376,7 @@ export default function ConstitutionTestPage() {
  <Text className="text-[11px] text-muted-foreground">第 {qi + 1} 题 · {qq.dimLabel ?? qq.question}</Text>
  <Text className="text-sm text-[#2A2A2A] mt-1 block font-semibold">{opt?.label}</Text>
  {opt?.reading ? (
- <Text className="text-[11px] text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>
+ <Text className="text-[11px] text-[#6F675C] mt-1 block" style={S.lineheight_1_6}>
  {opt.reading}
  </Text>
  ) : null}
@@ -427,7 +434,7 @@ export default function ConstitutionTestPage() {
  <Text className="text-base">{s.emoji}</Text>
  <Text className="text-sm font-semibold text-[#2A2A2A]">{s.label}</Text>
  </View>
- <Text className="text-xs text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>{s.desc}</Text>
+ <Text className="text-xs text-[#6F675C] mt-1 block" style={S.lineheight_1_6}>{s.desc}</Text>
  </View>
  ))}
  </View>
@@ -477,7 +484,7 @@ export default function ConstitutionTestPage() {
  <Text className="text-base font-bold text-[#2A2A2A]">
  按食养路径 · 你的「{STAGE_META[stage].label}」好物
  </Text>
- <Text className="text-xs text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>
+ <Text className="text-xs text-[#6F675C] mt-1 block" style={S.lineheight_1_6}>
  你的食养偏好偏「{primary.name}」，适合从「{STAGE_META[stage].label}·{STAGE_META[stage].coreTag}」入手食养。以下为契合该路径的专属好物。
  </Text>
  <ScrollView scrollX className="mt-3 whitespace-nowrap">
@@ -538,7 +545,7 @@ export default function ConstitutionTestPage() {
  <Text className="text-xs text-[#6F675C] mt-0.5 block">{primary.recommendNature.join(' / ')} 性味更合适</Text>
  </View>
  </View>
- <Text className="text-sm text-[#3F3A34] mt-3 block" style={{ lineHeight: 1.7 }}>
+ <Text className="text-sm text-[#3F3A34] mt-3 block" style={S.lineheight_1_7}>
  {POSTER_INSIGHT[primary.key] ?? primary.description}
  </Text>
  <View className="mt-3 flex flex-wrap gap-1.5">
@@ -556,7 +563,7 @@ export default function ConstitutionTestPage() {
  </View>
 
  {/* 免责 */}
- <View className="ct-reveal ct-stagger-5 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={{ borderWidth: 1, borderColor: '#ECE6DD' }}>
+ <View className="ct-reveal ct-stagger-5 mt-4 rounded-2xl bg-[#FBF7EF] p-4" style={S.borderwidth_1_bordercolor_ece6dd}>
  <Text className="text-[11px] text-muted-foreground leading-relaxed block">
  {FOOD_THERAPY_DISCLAIMER}
  </Text>
@@ -575,7 +582,7 @@ export default function ConstitutionTestPage() {
  <Button
  onClick={restart}
  className="rounded-full"
- style={{ background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+ style={S.background_fff_color_hsl_var_primary_borderwidth_1_bordercolor_ece6dd}
  >
  重新设置
  </Button>

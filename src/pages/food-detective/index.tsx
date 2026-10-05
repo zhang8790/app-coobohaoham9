@@ -21,6 +21,14 @@ import { useDetectiveStore } from '@/store/detectiveStore'
 import { useAuth } from '@/contexts/AuthContext'
 import { grantEmotionBadge } from '@/db/api'
 
+const S = {
+  background_linear_gradient_135deg_2a2a2a_0_3f3a34_100: { background: 'linear-gradient(135deg, #2A2A2A 0%, #3F3A34 100%)' },
+  color_3f3a34: { color: '#3F3A34' },
+  color_991b1b: { color: '#991B1B' },
+  color_dc2626: { color: '#DC2626' },
+  color_var_muted_foreground: { color: 'var(--muted-foreground)' },
+} as const
+
 // ── 风险色 ────────────────────────────────────────────────────────────────
 
 const RISK_COLOR: Record<string, string> = {
@@ -114,7 +122,7 @@ export default function FoodDetectivePage() {
  <View className="px-5 pt-5 pb-3">
  <View
  className="rounded-2xl p-5"
- style={{ background: 'linear-gradient(135deg, #2A2A2A 0%, #3F3A34 100%)' }}
+ style={S.background_linear_gradient_135deg_2a2a2a_0_3f3a34_100}
  >
  <View className="flex items-center justify-between">
  <View className="flex items-center gap-3">
@@ -167,8 +175,8 @@ export default function FoodDetectivePage() {
  <View className="flex items-center gap-2 flex-1">
  <Text className="text-xl">{isSolved ? '' : ''}</Text>
  <View className="flex-1">
- <Text className="text-sm font-bold" style={{ color: '#3F3A34' }}>{c.title}</Text>
- <Text className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{c.productName} · {c.brand}</Text>
+ <Text className="text-sm font-bold" style={S.color_3f3a34}>{c.title}</Text>
+ <Text className="text-xs" style={S.color_var_muted_foreground}>{c.productName} · {c.brand}</Text>
  </View>
  </View>
  <View
@@ -215,13 +223,13 @@ export default function FoodDetectivePage() {
  >
  <View className="flex items-center gap-2 mb-2">
  <Text className="text-lg"></Text>
- <Text className="text-base font-bold" style={{ color: '#991B1B' }}>{activeCase.title}</Text>
+ <Text className="text-base font-bold" style={S.color_991b1b}>{activeCase.title}</Text>
  </View>
  <Text className="text-xs leading-relaxed" style={{ color: '#7F1D1D' }}>
  {activeCase.scene}
  </Text>
  <View className="mt-2 px-3 py-2 rounded-lg bg-white/60">
- <Text className="text-xs" style={{ color: '#991B1B' }}>
+ <Text className="text-xs" style={S.color_991b1b}>
  涉案商品：{activeCase.productName}（{activeCase.brand}）
  </Text>
  </View>
@@ -247,7 +255,7 @@ export default function FoodDetectivePage() {
  onClick={() => toggleIngredient(ing)}
  >
  <View className="flex items-center gap-1">
- {isSel && <Text className="text-xs" style={{ color: '#DC2626' }}></Text>}
+ {isSel && <Text className="text-xs" style={S.color_dc2626}></Text>}
  <Text className="text-sm font-medium" style={{ color: isSel ? '#DC2626' : '#3F3A34' }}>
  {ing}
  </Text>
@@ -261,7 +269,7 @@ export default function FoodDetectivePage() {
  {/* 已选提示 */}
  <View className="px-5 mb-2">
  {selected.length > 0 ? (
- <Text className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+ <Text className="text-xs" style={S.color_var_muted_foreground}>
  已标记 {selected.length} 项：{selected.join('、')}
  </Text>
  ) : (
@@ -358,7 +366,7 @@ export default function FoodDetectivePage() {
  style={{ background: bg, borderWidth: 1, borderStyle: 'solid', borderColor: border }}
  >
  <View className="flex items-center gap-2">
- <Text className="text-sm font-medium" style={{ color: '#3F3A34' }}>{ing}</Text>
+ <Text className="text-sm font-medium" style={S.color_3f3a34}>{ing}</Text>
  {frag && (
  <Text
  className="text-[9px] px-1.5 py-0.5 rounded"
@@ -397,13 +405,13 @@ export default function FoodDetectivePage() {
  </Text>
  {frag.dangerTip && (
  <View className="mt-2 px-2 py-1.5 rounded" style={{ background: '#FEF2F2' }}>
- <Text className="text-[11px] leading-relaxed" style={{ color: '#DC2626' }}>
+ <Text className="text-[11px] leading-relaxed" style={S.color_dc2626}>
  {frag.dangerTip}
  </Text>
  </View>
  )}
  {frag.funFact && (
- <Text className="text-[11px] leading-relaxed mt-1.5" style={{ color: 'var(--muted-foreground)' }}>
+ <Text className="text-[11px] leading-relaxed mt-1.5" style={S.color_var_muted_foreground}>
  {frag.funFact}
  </Text>
  )}
@@ -434,7 +442,7 @@ export default function FoodDetectivePage() {
  >
  <View
  className="rounded-xl py-3 flex items-center justify-center"
- style={{ background: 'linear-gradient(135deg, #2A2A2A 0%, #3F3A34 100%)' }}
+ style={S.background_linear_gradient_135deg_2a2a2a_0_3f3a34_100}
  onClick={backToList}
  >
  <Text className="text-sm font-semibold text-white">返回侦探局</Text>

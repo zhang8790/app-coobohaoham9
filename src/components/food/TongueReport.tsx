@@ -17,6 +17,15 @@ import {
   type TongueCaseReferenceSummary,
 } from '@/db/tongue-cases'
 
+const S = {
+  background_f7f3e9: { background: '#F7F3E9' },
+  background_rgba_217_169_120_0_16: { background: 'rgba(217,169,120,0.16)' },
+  color_b45309: { color: '#B45309' },
+  gap_6: { gap: 6 },
+  lineheight_1_6: { lineHeight: 1.6 },
+  lineheight_1_7: { lineHeight: 1.7 },
+} as const
+
 interface Props {
   /** 8 维选项下标（顺序同 TONGUE_QUESTIONS） */
   answers: number[]
@@ -96,8 +105,8 @@ export default function TongueReport({ answers, photoBased }: Props) {
     <View className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
       <View className="flex items-center justify-between">
         <Text className="text-sm font-bold text-[#2A2A2A]">食养分析报告</Text>
-        <View className="rounded-full px-2 py-0.5" style={{ background: 'rgba(217,169,120,0.16)' }}>
-          <Text className="text-[10px]" style={{ color: '#B45309' }}>
+        <View className="rounded-full px-2 py-0.5" style={S.background_rgba_217_169_120_0_16}>
+          <Text className="text-[10px]" style={S.color_b45309}>
             置信度 · {confidenceLabel(analysis.confidence)}
           </Text>
         </View>
@@ -117,8 +126,8 @@ export default function TongueReport({ answers, photoBased }: Props) {
                 {primary.name}
               </Text>
               {secondary ? (
-                <View className="rounded-full px-2 py-0.5" style={{ background: 'rgba(217,169,120,0.16)' }}>
-                  <Text className="text-[10px]" style={{ color: '#B45309' }}>
+                <View className="rounded-full px-2 py-0.5" style={S.background_rgba_217_169_120_0_16}>
+                  <Text className="text-[10px]" style={S.color_b45309}>
                     兼有 · {secondary.name}
                   </Text>
                 </View>
@@ -130,7 +139,7 @@ export default function TongueReport({ answers, photoBased }: Props) {
         {/* ② 发生机制 */}
         <View style={DIVIDER}>
           <Row label="发生机制">
-            <Text className="text-xs text-[#3F3A34] block" style={{ lineHeight: 1.7 }}>
+            <Text className="text-xs text-[#3F3A34] block" style={S.lineheight_1_7}>
               {mechanism.general}
             </Text>
           </Row>
@@ -139,9 +148,9 @@ export default function TongueReport({ answers, photoBased }: Props) {
         {/* ③ 关键依据（证据链 + 交互项） */}
         <View style={DIVIDER}>
           <Row label="关键依据">
-            <View className="flex flex-wrap" style={{ gap: 6 }}>
+            <View className="flex flex-wrap" style={S.gap_6}>
               {topEvidence.map((e) => (
-                <View key={e.dim} className="rounded-lg px-2 py-1" style={{ background: '#F7F3E9' }}>
+                <View key={e.dim} className="rounded-lg px-2 py-1" style={S.background_f7f3e9}>
                   <Text className="text-[10px] text-[#6F675C]">
                     {e.dimLabel} · {e.label}
                   </Text>
@@ -157,7 +166,7 @@ export default function TongueReport({ answers, photoBased }: Props) {
                 ))}
               </View>
             ) : (
-              <Text className="text-[10px] text-[#9A9388] mt-2 block" style={{ lineHeight: 1.6 }}>
+              <Text className="text-[10px] text-[#9A9388] mt-2 block" style={S.lineheight_1_6}>
                 共 {analysis.informativeDims} 项特征有指向性，其余 {analysis.neutralDims} 项偏中性
               </Text>
             )}
@@ -167,7 +176,7 @@ export default function TongueReport({ answers, photoBased }: Props) {
         {/* ④ 健康指数 */}
         <View style={DIVIDER}>
           <Row label="健康指数">
-            <View className="flex items-baseline" style={{ gap: 6 }}>
+            <View className="flex items-baseline" style={S.gap_6}>
               <Text className="text-3xl font-bold" style={{ color: index.color }}>
                 {index.score.toFixed(1)}
               </Text>
@@ -178,7 +187,7 @@ export default function TongueReport({ answers, photoBased }: Props) {
                 </Text>
               </View>
             </View>
-            <Text className="text-xs text-[#3F3A34] mt-1.5 block" style={{ lineHeight: 1.7 }}>
+            <Text className="text-xs text-[#3F3A34] mt-1.5 block" style={S.lineheight_1_7}>
               {index.advice}
             </Text>
             <Text className="text-[10px] text-[#9A9388] mt-1 block">
@@ -206,11 +215,11 @@ export default function TongueReport({ answers, photoBased }: Props) {
               </Text>
             ) : refs && refs.matched > 0 ? (
               <View>
-                <Text className="text-xs text-[#3F3A34] block" style={{ lineHeight: 1.7 }}>
+                <Text className="text-xs text-[#3F3A34] block" style={S.lineheight_1_7}>
                   在 {refs.total} 例同类舌象案例中，{refs.matched} 例与你的特征高度相近（
                   {refs.bestMatch} 维吻合）；其中 {refs.samePrimary} 例主倾向同为「{primary.name}」。
                 </Text>
-                <View className="mt-2 flex flex-wrap" style={{ gap: 6 }}>
+                <View className="mt-2 flex flex-wrap" style={S.gap_6}>
                   {(['low', 'mid', 'high'] as const).map((b) => (
                     <View
                       key={b}
@@ -223,9 +232,9 @@ export default function TongueReport({ answers, photoBased }: Props) {
                     </View>
                   ))}
                 </View>
-                <View className="mt-2 flex flex-col" style={{ gap: 6 }}>
+                <View className="mt-2 flex flex-col" style={S.gap_6}>
                   {refs.top.map((c) => (
-                    <View key={c.case_no} className="rounded-lg p-2" style={{ background: '#F7F3E9' }}>
+                    <View key={c.case_no} className="rounded-lg p-2" style={S.background_f7f3e9}>
                       <View className="flex items-center justify-between">
                         <Text className="text-[10px] text-[#6F675C]">{c.case_no} · 参考案例（去标识）</Text>
                         <View
@@ -238,7 +247,7 @@ export default function TongueReport({ answers, photoBased }: Props) {
                         </View>
                       </View>
                       {c.expert_note ? (
-                        <Text className="text-[10px] text-[#6F675C] mt-1 block" style={{ lineHeight: 1.6 }}>
+                        <Text className="text-[10px] text-[#6F675C] mt-1 block" style={S.lineheight_1_6}>
                           {c.expert_note}
                         </Text>
                       ) : null}
@@ -255,7 +264,7 @@ export default function TongueReport({ answers, photoBased }: Props) {
         </View>
       </View>
 
-      <Text className="text-[10px] text-[#9A9388] mt-1 block" style={{ lineHeight: 1.6 }}>
+      <Text className="text-[10px] text-[#9A9388] mt-1 block" style={S.lineheight_1_6}>
         指数与分级为食养参考，会随你的舌象变化而波动，不代表身体检查结论。
       </Text>
 
@@ -263,7 +272,7 @@ export default function TongueReport({ answers, photoBased }: Props) {
       <View
         onClick={() => Taro.navigateTo({ url: '/pages/food/profile/index' })}
         className="mt-3 flex items-center justify-between rounded-xl px-3 py-2.5"
-        style={{ background: '#F7F3E9' }}
+        style={S.background_f7f3e9}
       >
         <Text className="text-xs font-semibold text-[#3F3A34]">查看我的食养画像</Text>
         <Text style={{ color: '#C9C0B4', fontSize: 16 }}>›</Text>

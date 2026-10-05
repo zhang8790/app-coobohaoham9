@@ -23,6 +23,13 @@ import type { FoodAdditive, Product, UserHealthProfile } from '@/db/types'
 import { scanAndRoute } from '@/utils/scan'
 import { useFoodKnowledgeStore } from '@/store/foodKnowledgeStore'
 
+const S = {
+  background_hsl_var_primary_color_fff_fontsize_28rpx: { background: 'hsl(var(--primary))', color: '#fff', fontSize: '28rpx' },
+  display_block: { display: 'block' },
+  display_block_lineheight_1_7: { display: 'block', lineHeight: 1.7 },
+  fontsize_36rpx_marginright_8: { fontSize: '36rpx', marginRight: 8 },
+} as const
+
 /** 安全字符串化：渲染健康短板文案时防止 null/undefined 直接进 JSX */
 const safeShort = (s: unknown): string => (s == null ? '' : String(s))
 
@@ -306,7 +313,7 @@ export default function FoodScanPage() {
  onClick={analyze}
  loading={loading}
  className="mt-2 rounded-full"
- style={{ background: 'hsl(var(--primary))', color: '#fff', fontSize: '28rpx' }}
+ style={S.background_hsl_var_primary_color_fff_fontsize_28rpx}
  >
  解析配料
  </Button>
@@ -318,7 +325,7 @@ export default function FoodScanPage() {
  onClick={chooseImage}
  loading={ocrLoading}
  className="rounded-full"
- style={{ background: 'hsl(var(--primary))', color: '#fff', fontSize: '28rpx' }}
+ style={S.background_hsl_var_primary_color_fff_fontsize_28rpx}
  >
  拍照识别
  </Button>
@@ -380,13 +387,13 @@ export default function FoodScanPage() {
  一句话结论
  </Text>
  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
- <Text style={{ fontSize: '36rpx', marginRight: 8 }}>{conclusion.buy.emoji}</Text>
+ <Text style={S.fontsize_36rpx_marginright_8}>{conclusion.buy.emoji}</Text>
  <Text className="text-sm font-semibold" style={{ color: conclusion.buy.color, flex: 1, lineHeight: 1.5 }}>
  {conclusion.buy.text}
  </Text>
  </View>
  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
- <Text style={{ fontSize: '36rpx', marginRight: 8 }}>{conclusion.child.emoji}</Text>
+ <Text style={S.fontsize_36rpx_marginright_8}>{conclusion.child.emoji}</Text>
  <Text className="text-sm font-semibold" style={{ color: conclusion.child.color, flex: 1, lineHeight: 1.5 }}>
  {conclusion.child.text}
  </Text>
@@ -455,7 +462,7 @@ export default function FoodScanPage() {
  {/* 为您定制 / 为您推荐 的安全好物：画像感知，点选直接进商品详情下单 */}
  {analyzed && recommend.length > 0 && (
  <View className="mt-4">
- <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>
+ <Text className="text-base font-bold text-foreground mb-1" style={S.display_block}>
  {profileToCrowds(userProfile).length > 0 ? '为您定制的安全好物' : '为您推荐的安全好物'}
  </Text>
  {recommendNote ? (
@@ -473,7 +480,7 @@ export default function FoodScanPage() {
  style={{ display: 'inline-block', width: 140, marginRight: 12, verticalAlign: 'top' }}
  >
  <Image src={p.image_url || ''} style={{ width: 140, height: 140, borderRadius: 12 }} mode="aspectFill" />
- <Text className="text-sm text-foreground mt-1" style={{ display: 'block' }} numberOfLines={1}>{p.name}</Text>
+ <Text className="text-sm text-foreground mt-1" style={S.display_block} numberOfLines={1}>{p.name}</Text>
  <Text className="text-xs" style={{ display: 'block', color: '#15803D' }}>
  {profileToCrowds(userProfile).length > 0 ? `契合度 ${fit}` : `食养关怀 ${getProductCareInfo(p).careScore}`}
  </Text>
@@ -492,7 +499,7 @@ export default function FoodScanPage() {
  <Text className="text-sm font-bold" style={{ display: 'block', color: '#B45309', marginBottom: 6 }}>
  已识别 {matchedKeys.length} 项添加剂名
  </Text>
- <Text className="text-xs text-muted-foreground" style={{ display: 'block', lineHeight: 1.7 }}>
+ <Text className="text-xs text-muted-foreground" style={S.display_block_lineheight_1_7}>
  识别到：{matchedKeys.slice(0, 12).join('、')}{matchedKeys.length > 12 ? '...' : ''}
  </Text>
  <Text className="text-xs" style={{ display: 'block', marginTop: 8, lineHeight: 1.7, color: '#B45309' }}>
@@ -506,7 +513,7 @@ export default function FoodScanPage() {
  <Text className="text-sm font-bold" style={{ display: 'block', color: '#15803D', marginBottom: 6 }}>
  文字解析正常，已识别 {shiyangKeys.length} 项原料
  </Text>
- <Text className="text-xs text-muted-foreground" style={{ display: 'block', lineHeight: 1.7 }}>
+ <Text className="text-xs text-muted-foreground" style={S.display_block_lineheight_1_7}>
  识别到：{shiyangKeys.slice(0, 12).join('、')}{shiyangKeys.length > 12 ? '...' : ''}
  </Text>
  <Text className="text-xs text-muted-foreground" style={{ display: 'block', marginTop: 8, lineHeight: 1.7 }}>

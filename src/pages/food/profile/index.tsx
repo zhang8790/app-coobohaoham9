@@ -28,6 +28,13 @@ import type { Product } from '@/db/types'
 import TrendChart from '@/components/food/TrendChart'
 import './index.scss'
 
+const S = {
+  background_f7f3e9: { background: '#F7F3E9' },
+  background_hsl_var_primary_color_fff: { background: 'hsl(var(--primary))', color: '#fff' },
+  fontsize_16: { fontSize: 16 },
+  lineheight_1_7: { lineHeight: 1.7 },
+} as const
+
 // 维度 id → 中文短名（与结果页「望舌识别明细」一致）
 const DIM_LABELS: Record<string, string> = {
   area: '舌体形态',
@@ -101,13 +108,13 @@ export default function FoodProfilePage() {
         </Text>
         <View className="mt-6 rounded-2xl bg-white p-6 shadow-sm flex flex-col items-center">
           <Text className="text-4xl">🍃</Text>
-          <Text className="text-sm text-[#3F3A34] mt-3 text-center" style={{ lineHeight: 1.7 }}>
+          <Text className="text-sm text-[#3F3A34] mt-3 text-center" style={S.lineheight_1_7}>
             你还没有食养画像。完成一次食养评估（身体感受 + 舌象对照）后，这里会沉淀你的综合体质倾向、健康指数与适配好物。
           </Text>
           <Button
             onClick={() => Taro.navigateTo({ url: '/pages/food/tongue/index' })}
             className="mt-5 rounded-full"
-            style={{ background: 'hsl(var(--primary))', color: '#fff' }}
+            style={S.background_hsl_var_primary_color_fff}
           >
             去做食养评估
           </Button>
@@ -178,7 +185,7 @@ export default function FoodProfilePage() {
             </Text>
           </View>
         ) : null}
-        <Text className="text-sm text-[#3F3A34] mt-2 block" style={{ lineHeight: 1.7 }}>
+        <Text className="text-sm text-[#3F3A34] mt-2 block" style={S.lineheight_1_7}>
           {primary.description}
         </Text>
         <View className="mt-3 flex flex-wrap gap-2">
@@ -217,20 +224,20 @@ export default function FoodProfilePage() {
         <Text className="text-sm font-bold text-[#2A2A2A]">双通道交叉印证</Text>
         <Text className="text-xs text-[#6F675C] mt-1 block">{combined.note}</Text>
         <View className="mt-3 flex items-center gap-2">
-          <View className="flex-1 rounded-xl px-2 py-2" style={{ background: '#F7F3E9' }}>
+          <View className="flex-1 rounded-xl px-2 py-2" style={S.background_f7f3e9}>
             <Text className="text-[10px] text-[#9A9388]">身体感受</Text>
             <View className="mt-0.5 flex items-center gap-1">
-              <Text style={{ fontSize: 16 }}>{combined.body.primary.emoji}</Text>
+              <Text style={S.fontsize_16}>{combined.body.primary.emoji}</Text>
               <Text className="text-xs font-semibold" style={{ color: combined.body.primary.color }}>
                 {combined.body.primary.name}
               </Text>
             </View>
           </View>
           <Text style={{ color: '#C9C0B4', fontSize: 14 }}>×</Text>
-          <View className="flex-1 rounded-xl px-2 py-2" style={{ background: '#F7F3E9' }}>
+          <View className="flex-1 rounded-xl px-2 py-2" style={S.background_f7f3e9}>
             <Text className="text-[10px] text-[#9A9388]">舌象对照</Text>
             <View className="mt-0.5 flex items-center gap-1">
-              <Text style={{ fontSize: 16 }}>{combined.tongue.primary.emoji}</Text>
+              <Text style={S.fontsize_16}>{combined.tongue.primary.emoji}</Text>
               <Text className="text-xs font-semibold" style={{ color: combined.tongue.primary.color }}>
                 {combined.tongue.primary.name}
               </Text>
@@ -253,7 +260,7 @@ export default function FoodProfilePage() {
             </Text>
           </View>
         </View>
-        <Text className="text-xs text-[#3F3A34] mt-1.5 block" style={{ lineHeight: 1.7 }}>
+        <Text className="text-xs text-[#3F3A34] mt-1.5 block" style={S.lineheight_1_7}>
           {band.retestText}（{band.retestDays} 天复测建议）
         </Text>
         {history.length > 0 ? <TrendChart points={history} color={band.color} /> : null}
@@ -267,7 +274,7 @@ export default function FoodProfilePage() {
         </Text>
         <View className="mt-3 flex flex-col gap-2">
           {informativeDims.map((d) => (
-            <View key={d.id} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: '#F7F3E9' }}>
+            <View key={d.id} className="flex items-center justify-between rounded-lg px-3 py-2" style={S.background_f7f3e9}>
               <Text className="text-xs text-[#6F675C]">{d.name}</Text>
               <Text className="text-sm text-[#2A2A2A] font-semibold">{d.label}</Text>
             </View>
@@ -359,7 +366,7 @@ export default function FoodProfilePage() {
         <Button
           onClick={() => Taro.navigateTo({ url: '/pages/food/tongue/index' })}
           className="rounded-full"
-          style={{ background: 'hsl(var(--primary))', color: '#fff' }}
+          style={S.background_hsl_var_primary_color_fff}
         >
           重新自检更新画像
         </Button>
