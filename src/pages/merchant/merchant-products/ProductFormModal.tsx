@@ -10,6 +10,33 @@ import { FIT_CROWD_OPTIONS } from '@/utils/food-therapy/product-therapy'
 import { calcMargin } from './types'
 import type { Product, StoreCategory } from '@/db/types'
 
+// 复用内联样式常量（原页面内重复字面量提取，行为不变）
+const S = {
+  fieldGap: { marginBottom: '14px' },
+  labelStrong: { fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px' },
+  labelStrongBlock: { fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' },
+  labelMedium: { fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px' },
+  flex1: { flex: 1 },
+  sectionLabel: { fontSize: '26rpx', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' },
+  textareaBox: { width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' },
+  hintSmall: { fontSize: '22rpx', color: '#AAA', marginTop: '4px' },
+  fullFill: { width: '100%', height: '100%' },
+  primaryLabel: { fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' },
+  rowWrapGap8Mb12: { flexDirection: 'row', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' },
+  rowWrapGap8: { flexDirection: 'row', flexWrap: 'wrap', gap: '8px' },
+  flexCenterGap12: { display: 'flex', alignItems: 'center', gap: '12px' },
+  bigText56: { fontSize: '56rpx' },
+  flexWrapGap8: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
+  mutedSmallBlock: { fontSize: '22rpx', color: 'var(--muted-foreground)', display: 'block' },
+  marginTop10: { marginTop: '10px' },
+  rowWrapGap6Mt8: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' },
+  text26: { fontSize: '26rpx', color: '#333' },
+  warmCard: { marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#FBF7F2', border: '1.5px solid #E8D9C8' },
+  whiteText26: { color: '#fff', fontSize: '26rpx', fontWeight: '600' },
+  textareaBoxLg: { width: '100%', minHeight: '56px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' },
+}
+
+
 type ProductFormModalProps = {
   controller: ProductFormController
   categories: StoreCategory[]
@@ -66,8 +93,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 商品名称 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}>商品名称 *</Text>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrong }}>商品名称 *</Text>
  <Input
  style={{
  width: '100%', height: '44px',
@@ -85,14 +112,14 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 商品分类（store_categories：本店 + 平台全局） */}
- <View style={{ marginBottom: '14px' }}>
+ <View style={{ fieldGap }}>
  <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
  <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600' }}>商品分类</Text>
  <View onClick={() => onManageCategory()} style={{ padding: '3px 12px', borderRadius: '9999px', background: '#FBF7EF' }}>
  <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))' }}>管理分类</Text>
  </View>
  </View>
- <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}>
+ <View style={{ rowWrapGap8 }}>
  <View
  onClick={() => controller.setForm(f => ({ ...f, category_id: '', sub_category_id: '' }))}
  style={{
@@ -127,9 +154,9 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 商品类型（迁移 20260803）：食养食品 / 药膳手串礼品 / 手作 / 护理 —— 决定详情页渲染哪套模块 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}>商品类型</Text>
- <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px' }}>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrong }}>商品类型</Text>
+ <View style={{ rowWrapGap8 }}>
  {[
  { k: 'food', label: '食养食品' },
  { k: 'gift', label: '药膳手串礼品' },
@@ -151,7 +178,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  )
  })}
  </View>
- <Text style={{ fontSize: '22rpx', color: '#AAA', marginTop: '4px' }}>
+ <Text style={{ hintSmall }}>
  {controller.form.product_kind === 'gift'
  ? '礼品详情页走「寓意 / 材质 / 场景 / 保养」专属模块，不与食养共用描述'
  : controller.form.product_kind && controller.form.product_kind !== 'food'
@@ -162,8 +189,8 @@ export default function ProductFormModal({ controller, categories, products, onM
 
  {/* 价格行：售价 / 原价 / 成本 */}
  <View style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
- <View style={{ flex: 1 }}>
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}>售价 *</Text>
+ <View style={{ flex1 }}>
+ <Text style={{ labelMedium }}>售价 *</Text>
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
@@ -174,8 +201,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  value={controller.form.price}
  onInput={(e: any) => controller.setForm(f => ({ ...f, price: e.detail?.value ?? '' }))} />
  </View>
- <View style={{ flex: 1 }}>
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}>原价</Text>
+ <View style={{ flex1 }}>
+ <Text style={{ labelMedium }}>原价</Text>
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
@@ -186,8 +213,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  value={controller.form.original_price}
  onInput={(e: any) => controller.setForm(f => ({ ...f, original_price: e.detail?.value ?? '' }))} />
  </View>
- <View style={{ flex: 1 }}>
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}>成本</Text>
+ <View style={{ flex1 }}>
+ <Text style={{ labelMedium }}>成本</Text>
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
@@ -218,8 +245,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  )}
 
  {/* 让利% — 与自营门店 API discount_rate 对齐 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}> 让利 %</Text>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelMedium }}> 让利 %</Text>
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
@@ -238,12 +265,12 @@ export default function ProductFormModal({ controller, categories, products, onM
  Taro.showToast({ title: '让利最高30%', icon: 'none' })
  }
  }} />
- <Text style={{ fontSize: '22rpx', color: '#AAA', marginTop: '4px' }}>让利比例最高 30%，超出将自动校正为 30%</Text>
+ <Text style={{ hintSmall }}>让利比例最高 30%，超出将自动校正为 30%</Text>
  </View>
 
  {/* 库存 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}>库存 *</Text>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelMedium }}>库存 *</Text>
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
@@ -256,9 +283,9 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 主图 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}>主图</Text>
- <View style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrong }}>主图</Text>
+ <View style={{ flexCenterGap12 }}>
  <View
  onClick={controller.handleChooseMain}
  style={{
@@ -268,22 +295,22 @@ export default function ProductFormModal({ controller, categories, products, onM
  overflow: 'hidden', border: '2px dashed #DDD',
  }}>
  {controller.form.main_image
- ? <Image src={controller.form.main_image} mode="aspectFill" style={{ width: '100%', height: '100%' }} />
- : <Text style={{ fontSize: '56rpx' }}></Text>}
+ ? <Image src={controller.form.main_image} mode="aspectFill" style={{ fullFill }} />
+ : <Text style={{ bigText56 }}></Text>}
  </View>
  <Text style={{ fontSize: '24rpx', color: '#AAA' }}>点击上传商品主图</Text>
  </View>
  </View>
 
  {/* 副图 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrong }}>
  副图（{controller.form.sub_images.length}/9）
  </Text>
- <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+ <View style={{ flexWrapGap8 }}>
  {controller.form.sub_images.map((img, i) => (
  <View key={i} style={{ width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #EEE', position: 'relative' }}>
- <Image src={img} mode="aspectFill" style={{ width: '100%', height: '100%' }} />
+ <Image src={img} mode="aspectFill" style={{ fullFill }} />
  <View
  onClick={() => controller.setForm(f => ({ ...f, sub_images: f.sub_images.filter((_, j) => j !== i) }))}
  style={{
@@ -313,14 +340,14 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 详情图片 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrong }}>
  详情图（{controller.form.detail_images.length}/20）
  </Text>
  <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
  {controller.form.detail_images.map((img, i) => (
  <View key={i} style={{ width: '48px', height: '48px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #EEE', position: 'relative' }}>
- <Image src={img} mode="aspectFill" style={{ width: '100%', height: '100%' }} />
+ <Image src={img} mode="aspectFill" style={{ fullFill }} />
  <View
  onClick={() => controller.setForm(f => ({ ...f, detail_images: f.detail_images.filter((_, j) => j !== i) }))}
  style={{
@@ -347,13 +374,13 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
  )}
  </View>
- <Text style={{ fontSize: '22rpx', color: '#AAA', marginTop: '4px' }}>详情图将在商品详情页依次展示</Text>
+ <Text style={{ hintSmall }}>详情图将在商品详情页依次展示</Text>
  </View>
 
  {/* 商品视频 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}> 商品视频（可选）</Text>
- <View style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrong }}> 商品视频（可选）</Text>
+ <View style={{ flexCenterGap12 }}>
  <View
  onClick={controller.handleChooseVideo}
  style={{
@@ -367,14 +394,14 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Text style={{ fontSize: '64rpx', color: '#FFF' }}></Text>
  </View>
  : <View style={{ textAlign: 'center' }}>
- <Text style={{ fontSize: '56rpx' }}></Text>
+ <Text style={{ bigText56 }}></Text>
  <Text style={{ fontSize: '22rpx', color: 'var(--muted-foreground)', display: 'block', marginTop: '4px' }}>上传视频</Text>
  </View>}
  </View>
- <View style={{ flex: 1 }}>
+ <View style={{ flex1 }}>
  <Text style={{ fontSize: '24rpx', color: '#AAA', display: 'block', marginBottom: '4px' }}>点击上传商品展示视频</Text>
- <Text style={{ fontSize: '22rpx', color: 'var(--muted-foreground)', display: 'block' }}>支持 MP4/MOV 格式</Text>
- <Text style={{ fontSize: '22rpx', color: 'var(--muted-foreground)', display: 'block' }}>最长 60 秒，最大 200MB</Text>
+ <Text style={{ mutedSmallBlock }}>支持 MP4/MOV 格式</Text>
+ <Text style={{ mutedSmallBlock }}>最长 60 秒，最大 200MB</Text>
  {controller.form.video_url && (
  <View
  onClick={() => controller.setForm(f => ({ ...f, video_url: '' }))}
@@ -392,8 +419,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
  </View>
  {/* 原料成分分析 */}
- <View style={{ marginBottom: '14px' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px' }}> 原料成分分析（可选）</Text>
+ <View style={{ fieldGap }}>
+ <Text style={{ labelStrong }}> 原料成分分析（可选）</Text>
  <Text style={{ fontSize: '22rpx', color: '#AAA', marginBottom: '8px', display: 'block' }}>① 填商品名称点「自动识别原料」自动带出，或直接输入原料名搜索添加 → 功效/人群/场景展示在商品详情页</Text>
  <View
  onClick={controller.handleIdentifyIngredients}
@@ -405,7 +432,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 输入原料名快速添加 */}
- <View style={{ marginTop: '10px' }}>
+ <View style={{ marginTop10 }}>
  <Input
  value={controller.ingredientQuery}
  onInput={(e: any) => {
@@ -416,7 +443,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  placeholder='或直接输入原料名（如：姜、梨、番茄）快速添加'
  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E0E0E0', fontSize: '26rpx', background: '#FFF' }} />
  {controller.ingredientResults.length > 0 && (
- <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+ <View style={{ rowWrapGap6Mt8 }}>
  {controller.ingredientResults.map(name => {
  const row = controller.ingredientDict.find(r => r.name === name)
  if (!row) return null
@@ -439,7 +466,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  )}
 
  {controller.ingredientItems.length > 0 && (
- <View style={{ marginTop: '10px' }}>
+ <View style={{ marginTop10 }}>
  {controller.ingredientItems.map((it) => (
  <View key={it.id} style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '12px', background: '#F6FBF7', border: '1px solid #F0DAD2' }}>
  <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -462,7 +489,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Text style={{ fontSize: '22rpx', color: 'var(--muted-foreground)' }}>%（越高过敏提醒越强）</Text>
  </View>
  {/* 烹饪方式 */}
- <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+ <View style={{ rowWrapGap6Mt8 }}>
  {COOKING_METHODS.map(m => {
  const sel = it.cooking === m
  return (
@@ -515,7 +542,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <View style={{ marginBottom: '16px', padding: '12px', borderRadius: '12px', background: '#FBF7EF', border: '1px solid #F0D9A8' }}>
  <Text style={{ fontSize: '28rpx', color: '#8A6B22', fontWeight: '700', marginBottom: '8px', display: 'block' }}> 礼品详情（与食养模块互斥）</Text>
 
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>寓意文化（灵魂文案）</Text>
+ <Text style={{ labelStrongBlock }}>寓意文化（灵魂文案）</Text>
  <Textarea
  style={{ width: '100%', minHeight: '58px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
  placeholder="如：合欢解郁、艾草驱秽——串起一腕清欢"
@@ -523,33 +550,33 @@ export default function ProductFormModal({ controller, categories, products, onM
  value={controller.form.gift_meaning}
  onInput={(e: any) => controller.setForm(f => ({ ...f, gift_meaning: e.detail?.value ?? '' }))} />
 
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>材质 / 草本成分（逗号分隔，绝不填食用食材）</Text>
+ <Text style={{ sectionLabel }}>材质 / 草本成分（逗号分隔，绝不填食用食材）</Text>
  <Textarea
- style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ textareaBox }}
  placeholder="如：檀香、艾草、合欢皮、925银饰"
  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
  value={(controller.form.materials || []).join('、')}
  onInput={(e: any) => controller.setForm(f => ({ ...f, materials: (e.detail?.value ?? '').split(/[、，,\s]+/).filter(Boolean) }))} />
 
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>材质工艺说明</Text>
+ <Text style={{ sectionLabel }}>材质工艺说明</Text>
  <Textarea
- style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ textareaBox }}
  placeholder="如：天然草木+925银饰，古法编绳，单串手作约40分钟"
  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
  value={controller.form.gift_craft}
  onInput={(e: any) => controller.setForm(f => ({ ...f, gift_craft: e.detail?.value ?? '' }))} />
 
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>送礼场景（每行一个）</Text>
+ <Text style={{ sectionLabel }}>送礼场景（每行一个）</Text>
  <Textarea
- style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ textareaBox }}
  placeholder={'如：送给总熬夜的她\n乔迁新居\n长辈安康'}
  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
  value={controller.form.gift_scene}
  onInput={(e: any) => controller.setForm(f => ({ ...f, gift_scene: e.detail?.value ?? '' }))} />
 
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginTop: '12px', marginBottom: '6px', display: 'block' }}>保养与使用注意</Text>
+ <Text style={{ sectionLabel }}>保养与使用注意</Text>
  <Textarea
- style={{ width: '100%', minHeight: '50px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ textareaBox }}
  placeholder="如：天然草木，佩戴前后以软布轻拭；孕妇及敏感体质请遵医嘱使用"
  placeholderStyle="color:#BBB;font-size:13px" maxlength={200}
  value={controller.form.gift_care}
@@ -565,7 +592,7 @@ export default function ProductFormModal({ controller, categories, products, onM
 
  {/* 智能识别：菜名/图片 → 自动识别属性（替代手动选择，仍可微调） */}
  <View style={{ marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#FFF', border: '1.5px solid hsl(var(--primary))' }}>
- <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}>识别（输菜名/传图，自动识别属性）</Text>
+ <Text style={{ primaryLabel }}>识别（输菜名/传图，自动识别属性）</Text>
  <Input
  style={{ width: '100%', height: '40px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 12px', boxSizing: 'border-box' }}
  placeholder="输入商品/菜名，如：冰糖雪梨羹、姜枣茶"
@@ -575,7 +602,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <View style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
  <View onClick={controller.pickDishImage}
  style={{ padding: '8px 12px', borderRadius: '10px', background: '#F0F4F8', border: '1px solid #DDD' }}>
- <Text style={{ fontSize: '26rpx', color: '#333' }}> 上传图片</Text>
+ <Text style={{ text26 }}> 上传图片</Text>
  </View>
  {controller.dishImageUrl ? (
  <Image src={controller.dishImageUrl} mode="aspectFill" style={{ width: '40px', height: '40px', borderRadius: '8px' }} />
@@ -589,8 +616,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 实时食疗安全分析（引擎边填边算） */}
- <View style={{ marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#FBF7F2', border: '1.5px solid #E8D9C8' }}>
- <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}> 实时食疗安全分析（引擎边填边算）</Text>
+ <View style={{ warmCard }}>
+ <Text style={{ primaryLabel }}> 实时食疗安全分析（引擎边填边算）</Text>
  {controller.therapyReport ? (
  <View>
  <View style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
@@ -633,8 +660,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 条形码 / 店内码标签（移至疗养文案旁） */}
- <View style={{ marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#FBF7F2', border: '1.5px solid #E8D9C8' }}>
- <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' }}> 条形码 / 店内码标签</Text>
+ <View style={{ warmCard }}>
+ <Text style={{ primaryLabel }}> 条形码 / 店内码标签</Text>
  <Input
  style={{
  width: '100%', height: '42px', borderRadius: '10px',
@@ -646,19 +673,19 @@ export default function ProductFormModal({ controller, categories, products, onM
  onInput={(e: any) => controller.setForm(f => ({ ...f, barcode: e.detail?.value ?? '' }))} />
  {/* 条码操作：生成 / 预览 / 打印（超市同款 EAN-13 店内码）*/}
  <View style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
- <View style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+ <View style={{ flexWrapGap8 }}>
  {!controller.form.barcode ? (
  <View
  onClick={controller.onGenerateBarcode}
  style={{ padding: '8px 14px', borderRadius: '10px', background: controller.generatingBarcode ? '#6F675C' : '#15803D', opacity: controller.generatingBarcode ? 0.7 : 1 }}>
- <Text style={{ color: '#fff', fontSize: '26rpx', fontWeight: '600' }}>{controller.generatingBarcode ? '生成中…' : ' 一键生成店内码'}</Text>
+ <Text style={{ whiteText26 }}>{controller.generatingBarcode ? '生成中…' : ' 一键生成店内码'}</Text>
  </View>
  ) : null}
  {controller.form.barcode ? (
  <View
  onClick={controller.onPrintBarcode}
  style={{ padding: '8px 14px', borderRadius: '10px', background: controller.printingBarcode ? '#6F675C' : '#FF8C42', opacity: controller.printingBarcode ? 0.7 : 1 }}>
- <Text style={{ color: '#fff', fontSize: '26rpx', fontWeight: '600' }}>{controller.printingBarcode ? '打印中…' : ' 打印标签'}</Text>
+ <Text style={{ whiteText26 }}>{controller.printingBarcode ? '打印中…' : ' 打印标签'}</Text>
  </View>
  ) : null}
  </View>
@@ -715,8 +742,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 整体性味（引擎自动计算，可手动覆盖） */}
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>整体性味（引擎自动算，可手动覆盖）</Text>
- <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+ <Text style={{ labelStrongBlock }}>整体性味（引擎自动算，可手动覆盖）</Text>
+ <View style={{ rowWrapGap8Mb12 }}>
  {NATURE_SCALE.map((n: string) => {
  const sel = controller.form.overall_nature === n
  return (
@@ -733,8 +760,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 食疗标签（赭红） */}
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>食疗标签（最多 3）</Text>
- <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+ <Text style={{ labelStrongBlock }}>食疗标签（最多 3）</Text>
+ <View style={{ rowWrapGap8Mb12 }}>
  {HEALTH_TAGS.map((t: string) => {
  const sel = controller.form.health_tag.includes(t)
  return (
@@ -751,9 +778,9 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 辨证适配人群：由食疗标签自动推导，可手动增删（迁移 00237） */}
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>辨证适配人群（最多 6）</Text>
+ <Text style={{ labelStrongBlock }}>辨证适配人群（最多 6）</Text>
  <Text style={{ fontSize: '22rpx', color: 'var(--muted-foreground)', marginBottom: '6px', display: 'block' }}>根据上方食疗标签自动推导，可手动增删；用于详情页辨证展示与个性化匹配</Text>
- <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+ <View style={{ rowWrapGap8Mb12 }}>
  {FIT_CROWD_OPTIONS.map((t: string) => {
  const sel = controller.form.fit_crowd_tags.includes(t)
  return (
@@ -770,18 +797,18 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 适合人群：引擎辨证生成，商家可手填覆盖（迁移 00237） */}
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>适合人群（可手改，留空则用系统辨证结果）</Text>
+ <Text style={{ labelStrongBlock }}>适合人群（可手改，留空则用系统辨证结果）</Text>
  <Textarea
- style={{ width: '100%', minHeight: '56px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ textareaBoxLg }}
  placeholder={controller.therapyReport?.fit_people || '系统会根据食疗标签与配料自动辨证生成，也可在此手改…'}
  placeholderStyle="color:#BBB;font-size:13px"
  value={controller.form.fit_people_override}
  onInput={(e: any) => controller.setForm(f => ({ ...f, fit_people_override: e.detail?.value ?? '' }))} />
 
  {/* 辅料提醒：过敏/禁忌，让商品更懂用户 */}
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>辅料提醒（过敏/禁忌，如"含坚果，过敏慎选"）</Text>
+ <Text style={{ labelStrongBlock }}>辅料提醒（过敏/禁忌，如"含坚果，过敏慎选"）</Text>
  <Textarea
- style={{ width: '100%', minHeight: '56px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box' }}
+ style={{ textareaBoxLg }}
  placeholder="填写辅料/过敏提醒，让商品更懂用户…"
  placeholderStyle="color:#BBB;font-size:13px"
  value={controller.form.aux_remind}
@@ -790,7 +817,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  {/* 宜搭 / 慎搭：从本店商品选择，互斥 */}
  {products.length > 0 && (
  <View style={{ marginTop: '14px' }}>
- <Text style={{ fontSize: '26rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' }}>宜搭 / 慎搭商品（从本店选择，互斥）</Text>
+ <Text style={{ labelStrongBlock }}>宜搭 / 慎搭商品（从本店选择，互斥）</Text>
  <View style={{ maxHeight: '130px', overflowY: 'auto', marginBottom: '8px' }}>
  {products.filter(p => p.id !== (controller.form as any).id).map((p: any) => {
  const isMatch = controller.form.match_goods.includes(p.id)
@@ -803,7 +830,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  controller.toggleArrayField('match_goods', p.id)
  }}
  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '8px', background: isMatch ? 'rgba(22,163,74,0.08)' : isConflict ? 'rgba(220,38,38,0.08)' : '#FBF7EF', border: `1px solid ${isMatch ? 'rgba(22,163,74,0.25)' : isConflict ? 'rgba(220,38,38,0.25)' : '#EEE'}`, marginBottom: '6px' }}>
- <Text style={{ fontSize: '26rpx', color: '#333' }}>{p.name}</Text>
+ <Text style={{ text26 }}>{p.name}</Text>
  <Text style={{ fontSize: '24rpx', color: tint, fontWeight: '600' }}>{isMatch ? '宜搭' : isConflict ? '慎搭' : '—'}</Text>
  </View>
  )
