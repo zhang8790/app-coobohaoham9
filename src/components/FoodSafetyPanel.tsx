@@ -11,6 +11,11 @@ import { SHIYANG_DISCLAIMER } from '@/utils/ingredient-analysis'
 import { normalizeAdditiveRisk } from '@/utils/additive-dictionary'
 import { shieldCopy } from '@/utils/compliance/shield'
 
+const S = {
+  display_block_marginbottom_8: { display: 'block', marginBottom: 8 },
+  display_block_margintop_4_lineheight_1_6_opacity_0_8: { display: 'block', marginTop: 4, lineHeight: 1.6, opacity: 0.8 },
+} as const
+
 const RISK_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
  white: { label: '安全', color: '#15803D', bg: 'rgba(34,197,94,0.10)', icon: '✓' },
  yellow: { label: '限量', color: '#B45309', bg: 'rgba(245,158,11,0.10)', icon: '' },
@@ -38,7 +43,7 @@ export default function FoodSafetyPanel({
  <View className="mx-4 mt-4 rounded-2xl border border-black/5 p-4" style={{ background: '#fff' }}>
  {foodAdditives?.length > 0 && (
  <View>
- <Text className="text-base font-bold text-foreground" style={{ display: 'block', marginBottom: 8 }}>
+ <Text className="text-base font-bold text-foreground" style={S.display_block_marginbottom_8}>
  配料安全
  </Text>
 {foodAdditives.map((a) => {
@@ -84,7 +89,7 @@ const m = RISK_META[normalizeAdditiveRisk(a.risk_level)] || RISK_META.white
  })}
  <Text
  className="text-[11px] text-muted-foreground"
- style={{ display: 'block', marginTop: 4, lineHeight: 1.6, opacity: 0.8 }}
+ style={S.display_block_margintop_4_lineheight_1_6_opacity_0_8}
  >
  {ADDITIVE_DISCLAIMER}
  </Text>
@@ -93,7 +98,7 @@ const m = RISK_META[normalizeAdditiveRisk(a.risk_level)] || RISK_META.white
 
  {showShiyang && shiyangEntries?.length > 0 && (
  <View style={{ marginTop: foodAdditives?.length ? 12 : 0 }}>
- <Text className="text-base font-bold text-foreground" style={{ display: 'block', marginBottom: 8 }}>
+ <Text className="text-base font-bold text-foreground" style={S.display_block_marginbottom_8}>
  食材食养
  </Text>
 {shiyangEntries.map((e) => (
@@ -156,7 +161,7 @@ const m = RISK_META[normalizeAdditiveRisk(a.risk_level)] || RISK_META.white
 })()}
  <Text
  className="text-[11px] text-muted-foreground"
- style={{ display: 'block', marginTop: 4, lineHeight: 1.6, opacity: 0.8 }}
+ style={S.display_block_margintop_4_lineheight_1_6_opacity_0_8}
  >
  {SHIYANG_DISCLAIMER}
  </Text>

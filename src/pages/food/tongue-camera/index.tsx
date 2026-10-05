@@ -14,6 +14,12 @@ import Taro from '@tarojs/taro'
 import { ICON_WHITE } from '@/components/Icon/iconBase64'
 import './index.scss'
 
+const S = {
+  flex_1_background_fff_color_hsl_var_primary_borderwidth_1_bordercolor_ece6dd: { flex: 1, background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' },
+  fontsize_22rpx_color_9a9388_lineheight_32rpx_margintop_12rpx_textalign_center: { fontSize: '22rpx', color: '#9A9388', lineHeight: '32rpx', marginTop: '12rpx', textAlign: 'center' },
+  fontsize_25rpx_color_6f675c_lineheight_40rpx_margintop_6rpx: { fontSize: '25rpx', color: '#6F675C', lineHeight: '40rpx', marginTop: '6rpx' },
+} as const
+
 export default function TongueCameraPage() {
   // 拍摄步骤：先拍舌面（正面），再拍舌下（反面）
   const [step, setStep] = useState<'front' | 'back'>('front')
@@ -271,14 +277,14 @@ export default function TongueCameraPage() {
                 <Button
                   onClick={retakeBack}
                   className="rounded-full"
-                  style={{ flex: 1, background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+                  style={S.flex_1_background_fff_color_hsl_var_primary_borderwidth_1_bordercolor_ece6dd}
                 >
                   重拍舌下
                 </Button>
                 <Button
                   onClick={retakeAll}
                   className="rounded-full"
-                  style={{ flex: 1, background: '#fff', color: 'hsl(var(--primary))', borderWidth: 1, borderColor: '#ECE6DD' }}
+                  style={S.flex_1_background_fff_color_hsl_var_primary_borderwidth_1_bordercolor_ece6dd}
                 >
                   重拍全部
                 </Button>
@@ -399,7 +405,7 @@ export default function TongueCameraPage() {
               拍摄示例
             </CoverView>
 
-            <CoverView style={{ fontSize: '22rpx', color: '#9A9388', lineHeight: '32rpx', marginTop: '12rpx', textAlign: 'center' }}>
+            <CoverView style={S.fontsize_22rpx_color_9a9388_lineheight_32rpx_margintop_12rpx_textalign_center}>
               共两步：先拍舌面，再拍舌下
             </CoverView>
 
@@ -414,7 +420,7 @@ export default function TongueCameraPage() {
                 }}
               />
             </CoverView>
-            <CoverView style={{ fontSize: '22rpx', color: '#9A9388', lineHeight: '32rpx', marginTop: '12rpx', textAlign: 'center' }}>
+            <CoverView style={S.fontsize_22rpx_color_9a9388_lineheight_32rpx_margintop_12rpx_textalign_center}>
               示意 · 舌尖朝上，舌面伸入框内
             </CoverView>
 
@@ -422,13 +428,13 @@ export default function TongueCameraPage() {
             <CoverView style={{ fontSize: '25rpx', color: '#6F675C', lineHeight: '40rpx', marginTop: '22rpx' }}>
               · 第 1 步：自然光下伸出舌头，拍舌面（正面）
             </CoverView>
-            <CoverView style={{ fontSize: '25rpx', color: '#6F675C', lineHeight: '40rpx', marginTop: '6rpx' }}>
+            <CoverView style={S.fontsize_25rpx_color_6f675c_lineheight_40rpx_margintop_6rpx}>
               · 第 2 步：微微卷舌，拍舌下（反面）看舌底青筋
             </CoverView>
-            <CoverView style={{ fontSize: '25rpx', color: '#6F675C', lineHeight: '40rpx', marginTop: '6rpx' }}>
+            <CoverView style={S.fontsize_25rpx_color_6f675c_lineheight_40rpx_margintop_6rpx}>
               · 后置相机由他人拍摄效果更佳
             </CoverView>
-            <CoverView style={{ fontSize: '25rpx', color: '#6F675C', lineHeight: '40rpx', marginTop: '6rpx' }}>
+            <CoverView style={S.fontsize_25rpx_color_6f675c_lineheight_40rpx_margintop_6rpx}>
               · 关闭美颜与滤镜，避免色差
             </CoverView>
 

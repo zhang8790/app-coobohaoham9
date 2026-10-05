@@ -41,6 +41,13 @@ const MACARON = [
 
 import { readFeedCache, writeFeedCache, readConsumeCache, writeConsumeCache, mergeFeedbackIntoProfile, classifyProductList } from './home-utils'
 
+const S = {
+  color_hsl_var_foreground: { color: 'hsl(var(--foreground))' },
+  display_flex_flexwrap_wrap_justifycontent_space_between: { display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' },
+  zindex_0: { zIndex: 0 },
+  zindex_1: { zIndex: 1 },
+} as const
+
 
 export default function IndexPage() {
  const { user, profile } = useAuth()
@@ -571,7 +578,7 @@ const canUseFitFilter = selectedCrowds.length > 0 || !!consumptionProfile?.hasDa
  src={brandMedia.url}
  mode="aspectFill"
  className="absolute left-0 top-0 w-full h-full"
- style={{ zIndex: 0 }}
+ style={S.zindex_0}
  />
  )}
  {brandMedia?.type === 'video' && (
@@ -581,7 +588,7 @@ const canUseFitFilter = selectedCrowds.length > 0 || !!consumptionProfile?.hasDa
  muted
  loop
  className="absolute left-0 top-0 w-full h-full"
- style={{ zIndex: 0 }}
+ style={S.zindex_0}
  />
  )}
 {/* 顶栏柔光叠加：右上暖白光晕 + 左下深绿暗角，纯视觉不挡操作（内联，避免依赖未 import 的 scss） */}
@@ -589,23 +596,23 @@ const canUseFitFilter = selectedCrowds.length > 0 || !!consumptionProfile?.hasDa
 <View style={{ position: 'absolute', bottom: -50, left: -40, width: 220, height: 220, borderRadius: 110, background: 'radial-gradient(circle, rgba(0,0,0,0.12), rgba(0,0,0,0) 70%)', zIndex: 0, pointerEvents: 'none' }} />
 
  {/* 品牌标题行：来店有喜 · 药食同源食疗零食（最顶部，5秒懂你定位） */}
- <View className="flex items-center gap-2.5 relative" style={{ zIndex: 1 }}>
+ <View className="flex items-center gap-2.5 relative" style={S.zindex_1}>
  <BrandMark size={40} tone="brand" style={{ flexShrink: 0 }} />
  <View className="flex flex-col">
       <Text className="text-xs font-medium tracking-wide" style={{ color: 'hsl(var(--muted-foreground))' }}>药食同源原料｜日常轻养零食</Text>
-      <Text className="text-xl font-bold leading-tight" style={{ color: 'hsl(var(--foreground))' }}>来店有喜·本草食养小食</Text>
+      <Text className="text-xl font-bold leading-tight" style={S.color_hsl_var_foreground}>来店有喜·本草食养小食</Text>
  </View>
  </View>
 
 {/* 定位行：点击切换门店 / 城市（首屏优先入口；无附近门店时 openStoreSheet 自动退化为切城市） */}
 <View
 className="mt-3.5 flex items-center gap-1.5 relative active:opacity-70 transition-opacity"
-style={{ zIndex: 1 }}
+style={S.zindex_1}
 hoverClass="none"
 onClick={openStoreSheet}
 >
 <Image src={BRAND_LINE_ICONS['map-pin']} style={{ width: '26rpx', height: '26rpx', flexShrink: 0 }} />
-<Text className="text-sm font-semibold" style={{ color: 'hsl(var(--foreground))' }}>
+<Text className="text-sm font-semibold" style={S.color_hsl_var_foreground}>
 {locationLoading ? '定位中…' : (activeStore?.store_name || currentCity?.city_name || '选择门店')}
 </Text>
 <Text style={{ fontSize: '22rpx', color: 'hsl(var(--muted-foreground))' }}>∨</Text>
@@ -748,13 +755,13 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
  )}
 
  {loading && feedItems.length === 0 ? (
- <View style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+ <View style={S.display_flex_flexwrap_wrap_justifycontent_space_between}>
  {[0, 1, 2, 3].map(i => (
  <View key={i} className="bg-card rounded-xl border border-border animate-pulse" style={{ width: '48%', height: 200, marginBottom: 12 }} />
  ))}
  </View>
  ) : sortedFeed.length > 0 ? (
- <View style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+ <View style={S.display_flex_flexwrap_wrap_justifycontent_space_between}>
  {sortedFeed.map((f) => (
  <ProductGridCard key={f.product.id} id={f.product.id} name={f.product.name} price={f.product.price}
  spec={f.product.spec}

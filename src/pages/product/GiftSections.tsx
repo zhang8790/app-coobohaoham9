@@ -4,6 +4,12 @@ import type { Product } from '@/db/types'
 import { giftShieldCopy, GIFT_DISCLAIMER } from '@/utils/compliance/gift-shield'
 import { lookupMaterial, type MaterialInfo } from '@/utils/gift/material-kb'
 
+const S = {
+  fontsize_26rpx_color_8a6b22_display_block_lineheight_1_7: { fontSize: '26rpx', color: '#8A6B22', display: 'block', lineHeight: '1.7' },
+  fontsize_26rpx_fontweight_700_color_8a6b22_display_block_marginbottom_8: { fontSize: '26rpx', fontWeight: '700', color: '#8A6B22', display: 'block', marginBottom: 8 },
+  padding_14px_16px_borderradius_16px_background_ffffff_border_1px_solid_f0e2c4: { padding: '14px 16px', borderRadius: '16px', background: '#FFFFFF', border: '1px solid #F0E2C4' },
+} as const
+
 /**
  * 药膳手串 / 工艺礼品的详情模块树（金色质感，区别于食养的蓝色）。
  * 四维：寓意文化(灵魂) / 材质工艺 / 送礼场景(转化核心) / 保养与使用(合规)。
@@ -45,8 +51,8 @@ export default function GiftSections({ product }: { product: Product }) {
 
  {/* ② 材质工艺 */}
  {(craft || materials.length > 0) && (
- <View className="mb-3" style={{ padding: '14px 16px', borderRadius: '16px', background: '#FFFFFF', border: '1px solid #F0E2C4' }}>
- <Text style={{ fontSize: '26rpx', fontWeight: '700', color: '#8A6B22', display: 'block', marginBottom: 8 }}>✦ 材质工艺</Text>
+ <View className="mb-3" style={S.padding_14px_16px_borderradius_16px_background_ffffff_border_1px_solid_f0e2c4}>
+ <Text style={S.fontsize_26rpx_fontweight_700_color_8a6b22_display_block_marginbottom_8}>✦ 材质工艺</Text>
  {materials.length > 0 && (
  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: craft ? 8 : 0 }}>
  {materials.map((m, i) => (
@@ -65,13 +71,13 @@ export default function GiftSections({ product }: { product: Product }) {
  {/* ②-附 材质解读（自动生成，过 gift-shield 合规校验） */}
  {materialInfos.length > 0 && (
  <View className="mb-3" style={{ padding: '14px 16px', borderRadius: '16px', background: 'linear-gradient(135deg,#FBF6EC,#F6EEDD)', border: '1px solid #EAD9B6' }}>
- <Text style={{ fontSize: '26rpx', fontWeight: '700', color: '#8A6B22', display: 'block', marginBottom: 8 }}>✦ 材质解读</Text>
+ <Text style={S.fontsize_26rpx_fontweight_700_color_8a6b22_display_block_marginbottom_8}>✦ 材质解读</Text>
  {materialInfos.map((m, i) => (
  <View key={i} style={{ marginBottom: i < materialInfos.length - 1 ? 10 : 0 }}>
  <Text style={{ fontSize: '28rpx', fontWeight: '700', color: '#8A6B22', display: 'block', marginBottom: 3 }}>{m.name}</Text>
- <Text style={{ fontSize: '26rpx', color: '#8A6B22', display: 'block', lineHeight: '1.7' }}>特性 · {giftShieldCopy(m.traits).safe}</Text>
- <Text style={{ fontSize: '26rpx', color: '#8A6B22', display: 'block', lineHeight: '1.7' }}>寓意 · {giftShieldCopy(m.meaning).safe}</Text>
- <Text style={{ fontSize: '26rpx', color: '#8A6B22', display: 'block', lineHeight: '1.7' }}>体验 · {giftShieldCopy(m.experience).safe}</Text>
+ <Text style={S.fontsize_26rpx_color_8a6b22_display_block_lineheight_1_7}>特性 · {giftShieldCopy(m.traits).safe}</Text>
+ <Text style={S.fontsize_26rpx_color_8a6b22_display_block_lineheight_1_7}>寓意 · {giftShieldCopy(m.meaning).safe}</Text>
+ <Text style={S.fontsize_26rpx_color_8a6b22_display_block_lineheight_1_7}>体验 · {giftShieldCopy(m.experience).safe}</Text>
  </View>
  ))}
  </View>
@@ -80,7 +86,7 @@ export default function GiftSections({ product }: { product: Product }) {
  {/* ③ 送礼场景（转化核心） */}
  {sceneLines.length > 0 && (
  <View className="mb-3" style={{ padding: '14px 16px', borderRadius: '16px', background: 'linear-gradient(135deg,#FEF6EC,#FBEFE0)', border: '1px solid #F1DEC0' }}>
- <Text style={{ fontSize: '26rpx', fontWeight: '700', color: '#8A6B22', display: 'block', marginBottom: 8 }}>✦ 适合送给谁</Text>
+ <Text style={S.fontsize_26rpx_fontweight_700_color_8a6b22_display_block_marginbottom_8}>✦ 适合送给谁</Text>
  {sceneLines.map((s, i) => (
  <Text key={i} style={{ fontSize: '28rpx', color: '#8A6B22', display: 'block', lineHeight: '1.7' }}> {s}</Text>
  ))}
@@ -89,8 +95,8 @@ export default function GiftSections({ product }: { product: Product }) {
 
  {/* ④ 保养与使用（合规，强制常驻免责） */}
  {care && (
- <View className="mb-3" style={{ padding: '14px 16px', borderRadius: '16px', background: '#FFFFFF', border: '1px solid #F0E2C4' }}>
- <Text style={{ fontSize: '26rpx', fontWeight: '700', color: '#8A6B22', display: 'block', marginBottom: 8 }}>✦ 保养与使用</Text>
+ <View className="mb-3" style={S.padding_14px_16px_borderradius_16px_background_ffffff_border_1px_solid_f0e2c4}>
+ <Text style={S.fontsize_26rpx_fontweight_700_color_8a6b22_display_block_marginbottom_8}>✦ 保养与使用</Text>
  <Text style={{ fontSize: '28rpx', color: '#5B4326', display: 'block', lineHeight: '1.7', marginBottom: 10 }}>{care}</Text>
  <View style={{ padding: '8px 10px', borderRadius: '10px', background: '#FFF8F1', border: '1px solid #F3DEC9' }}>
  <Text style={{ fontSize: '22rpx', color: '#9A7B4F', display: 'block', lineHeight: '1.6' }}>{GIFT_DISCLAIMER}</Text>

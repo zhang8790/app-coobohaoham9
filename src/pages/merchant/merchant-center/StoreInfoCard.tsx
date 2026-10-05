@@ -3,6 +3,11 @@ import { View, Text, Button } from '@tarojs/components'
 import Icon from '@/components/Icon'
 import type { Store } from '@/db/types'
 
+const S = {
+  flexdirection_row_alignitems_center_gap_8px: { flexDirection: 'row', alignItems: 'center', gap: '8px' },
+  width_40px_height_40px_borderradius_20px_background_rgba_255_255_255_0_22_alignitems_center_justifycontent_center: { width: '40px', height: '40px', borderRadius: '20px', background: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+} as const
+
 interface Props {
   store: Store
   storeCount: number
@@ -26,7 +31,7 @@ export default function StoreInfoCard({ store, storeCount, onViewStore, onShowQr
       {/* 顶部：门店名 + 状态 + 操作图标 */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <View style={{ flex: 1, marginRight: '12px' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+          <View style={S.flexdirection_row_alignitems_center_gap_8px}>
             <Text style={{ fontSize: '40rpx', fontWeight: 'bold', color: '#FFFFFF' }}>{store.name}</Text>
             <View
               style={{
@@ -44,17 +49,17 @@ export default function StoreInfoCard({ store, storeCount, onViewStore, onShowQr
           </Text>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+        <View style={S.flexdirection_row_alignitems_center_gap_8px}>
           {storeCount > 1 && (
             <View
               onClick={onSwitch}
-              style={{ width: '40px', height: '40px', borderRadius: '20px', background: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}>
+              style={S.width_40px_height_40px_borderradius_20px_background_rgba_255_255_255_0_22_alignitems_center_justifycontent_center}>
               <Icon name="shuffle" size={20} className="text-white" />
             </View>
           )}
           <View
             onClick={onShowQr}
-            style={{ width: '40px', height: '40px', borderRadius: '20px', background: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}>
+            style={S.width_40px_height_40px_borderradius_20px_background_rgba_255_255_255_0_22_alignitems_center_justifycontent_center}>
             <Icon name="qrcode" size={20} className="text-white" />
           </View>
         </View>

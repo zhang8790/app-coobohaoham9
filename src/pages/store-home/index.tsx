@@ -19,6 +19,12 @@ import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 import { haversineKm } from '@/utils/coord-convert'
 import { sceneLabel } from '@/utils/scene-alias'
 
+const S = {
+  display_flex_alignitems_center_justifycontent_center_minheight_1000rpx: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '1000rpx' },
+  fontsize_24rpx_color_3f3a34: { fontSize: '24rpx', color: '#3F3A34' },
+  fontsize_32rpx_color_var_muted_foreground: { fontSize: '32rpx', color: 'var(--muted-foreground)' },
+} as const
+
 // 解析 "09:00" / "9:00" / "09:00:00" 为分钟数
 function parseHHMM(s: string | null): { h: number; m: number } | null {
   if (!s) return null
@@ -273,8 +279,8 @@ export default function StoreHomePage() {
   // 加载中
   if (loading && !store) {
     return (
-      <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '1000rpx' }}>
-        <Text style={{ fontSize: '32rpx', color: 'var(--muted-foreground)' }}>加载中...</Text>
+      <View style={S.display_flex_alignitems_center_justifycontent_center_minheight_1000rpx}>
+        <Text style={S.fontsize_32rpx_color_var_muted_foreground}>加载中...</Text>
       </View>
     )
   }
@@ -282,8 +288,8 @@ export default function StoreHomePage() {
   // 无数据
   if (!store) {
     return (
-      <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '1000rpx' }}>
-        <Text style={{ fontSize: '32rpx', color: 'var(--muted-foreground)' }}>暂无门店信息</Text>
+      <View style={S.display_flex_alignitems_center_justifycontent_center_minheight_1000rpx}>
+        <Text style={S.fontsize_32rpx_color_var_muted_foreground}>暂无门店信息</Text>
       </View>
     )
   }
@@ -394,15 +400,15 @@ export default function StoreHomePage() {
           )}
           <View style={storeInfoTag}>
             <Image src={BRAND_LINE_ICONS['map-pin']} style={{ width: 15, height: 15, flexShrink: 0 }} />
-            <Text style={{ fontSize: '24rpx', color: '#3F3A34' }}>{store.address || '查看地图'}</Text>
+            <Text style={S.fontsize_24rpx_color_3f3a34}>{store.address || '查看地图'}</Text>
           </View>
           <View style={storeInfoTag}>
             <View style={{ width: '16rpx', height: '16rpx', borderRadius: '8rpx', backgroundColor: bizStatus?.state === 'open' ? '#22C55E' : '#6F675C' }} />
-            <Text style={{ fontSize: '24rpx', color: '#3F3A34' }}>{bizStatus?.text}{bizStatus?.closingSoon ? ` · 今日营业至 ${bizStatus.closeText}` : ''}</Text>
+            <Text style={S.fontsize_24rpx_color_3f3a34}>{bizStatus?.text}{bizStatus?.closingSoon ? ` · 今日营业至 ${bizStatus.closeText}` : ''}</Text>
           </View>
           <View style={storeInfoTag}>
             <Icon name="phone" size={15} />
-            <Text style={{ fontSize: '24rpx', color: '#3F3A34' }}>{store.phone || '联系方式待更新'}</Text>
+            <Text style={S.fontsize_24rpx_color_3f3a34}>{store.phone || '联系方式待更新'}</Text>
           </View>
         </View>
         {fulfillmentText && (

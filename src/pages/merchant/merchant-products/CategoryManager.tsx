@@ -2,6 +2,11 @@
 import { View, Text, Input } from '@tarojs/components'
 import type { StoreCategory } from '@/db/types'
 
+const S = {
+  fontsize_30rpx_color_888: { fontSize: '30rpx', color: '#888' },
+  padding_4px_8px: { padding: '4px 8px' },
+} as const
+
 type Props = {
  visible: boolean
  categories: StoreCategory[]
@@ -73,12 +78,12 @@ export default function CategoryManager({
  )}
  {!isGlobal && (
  <View style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
- <View onClick={() => onMoveCategory(c, -1)} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '30rpx', color: '#888' }}>↑</Text></View>
- <View onClick={() => onMoveCategory(c, 1)} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '30rpx', color: '#888' }}>↓</Text></View>
+ <View onClick={() => onMoveCategory(c, -1)} style={S.padding_4px_8px}><Text style={S.fontsize_30rpx_color_888}>↑</Text></View>
+ <View onClick={() => onMoveCategory(c, 1)} style={S.padding_4px_8px}><Text style={S.fontsize_30rpx_color_888}>↓</Text></View>
  {editingCatId === c.id
- ? <View onClick={() => onSaveRename(c)} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: 'bold' }}>✓</Text></View>
- : <View onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '26rpx', color: '#15803D' }}>改名</Text></View>}
- <View onClick={() => onDeleteCategory(c)} style={{ padding: '4px 8px' }}><Text style={{ fontSize: '26rpx', color: '#EF4444' }}>删</Text></View>
+ ? <View onClick={() => onSaveRename(c)} style={S.padding_4px_8px}><Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: 'bold' }}>✓</Text></View>
+ : <View onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }} style={S.padding_4px_8px}><Text style={{ fontSize: '26rpx', color: '#15803D' }}>改名</Text></View>}
+ <View onClick={() => onDeleteCategory(c)} style={S.padding_4px_8px}><Text style={{ fontSize: '26rpx', color: '#EF4444' }}>删</Text></View>
  </View>
  )}
  </View>

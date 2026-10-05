@@ -9,6 +9,13 @@ import { View, Text, Button, Image } from '@tarojs/components'
 import Icon from '@/components/Icon'
 import StoreScanQr from '@/components/StoreScanQr'
 
+const S = {
+  color_hsl_var_primary: { color: 'hsl(var(--primary))' },
+  margintop_10px_backgroundcolor_rgba_94_122_79_0_12_borderradius_8px_paddingvertical_4px_paddinghorizontal_8px: { marginTop: '10px', backgroundColor: 'rgba(94,122,79,0.12)', borderRadius: '8px', paddingVertical: '4px', paddingHorizontal: '8px', },
+  width_150px: { width: '150px' },
+  width_150px_height_150px_borderradius_14px_border_2px_solid_rgba_94_122_79_0_15_backgroundcolor_fff_display_flex_alignitems_center_justifycontent_center_overflow_hidden: { width: '150px', height: '150px', borderRadius: '14px', border: '2px solid rgba(94,122,79,0.15)', backgroundColor: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', },
+} as const
+
 interface Props {
   visible: boolean
   storeName: string
@@ -52,15 +59,9 @@ export default function StoreQrModal({ visible, storeName, storeQrUrl, scanConte
           {/* 同卡并排：左太阳码（微信扫）/ 右普通二维码（应用内扫码购物扫） */}
           <View className="flex flex-row items-start justify-center" style={{ gap: '20px' }}>
             {/* 左：太阳码 */}
-            <View className="flex flex-col items-center" style={{ width: '150px' }}>
+            <View className="flex flex-col items-center" style={S.width_150px}>
               <View
-                style={{
-                  width: '150px', height: '150px', borderRadius: '14px',
-                  border: '2px solid rgba(94,122,79,0.15)',
-                  backgroundColor: '#FFF', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  overflow: 'hidden',
-                }}>
+                style={S.width_150px_height_150px_borderradius_14px_border_2px_solid_rgba_94_122_79_0_15_backgroundcolor_fff_display_flex_alignitems_center_justifycontent_center_overflow_hidden}>
                 {qrLoading ? (
                   <View className="flex flex-col items-center gap-2">
                     <Icon name="loading" size={36} className="text-primary animate-spin" />
@@ -76,25 +77,16 @@ export default function StoreQrModal({ visible, storeName, storeQrUrl, scanConte
                 )}
               </View>
               <View
-                style={{
-                  marginTop: '10px', backgroundColor: 'rgba(94,122,79,0.12)',
-                  borderRadius: '8px', paddingVertical: '4px', paddingHorizontal: '8px',
-                }}>
-                <Text className="text-xs font-bold" style={{ color: 'hsl(var(--primary))' }}>微信扫一扫</Text>
+                style={S.margintop_10px_backgroundcolor_rgba_94_122_79_0_12_borderradius_8px_paddingvertical_4px_paddinghorizontal_8px}>
+                <Text className="text-xs font-bold" style={S.color_hsl_var_primary}>微信扫一扫</Text>
               </View>
               <Text className="text-xs text-muted-foreground text-center mt-1 leading-tight">长按/扫一扫 进店</Text>
             </View>
 
             {/* 右：普通二维码 */}
-            <View className="flex flex-col items-center" style={{ width: '150px' }}>
+            <View className="flex flex-col items-center" style={S.width_150px}>
               <View
-                style={{
-                  width: '150px', height: '150px', borderRadius: '14px',
-                  border: '2px solid rgba(94,122,79,0.15)',
-                  backgroundColor: '#FFF', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  overflow: 'hidden',
-                }}>
+                style={S.width_150px_height_150px_borderradius_14px_border_2px_solid_rgba_94_122_79_0_15_backgroundcolor_fff_display_flex_alignitems_center_justifycontent_center_overflow_hidden}>
                 {scanContent ? (
                   <StoreScanQr content={scanContent} size={142} />
                 ) : (
@@ -105,11 +97,8 @@ export default function StoreQrModal({ visible, storeName, storeQrUrl, scanConte
                 )}
               </View>
               <View
-                style={{
-                  marginTop: '10px', backgroundColor: 'rgba(94,122,79,0.12)',
-                  borderRadius: '8px', paddingVertical: '4px', paddingHorizontal: '8px',
-                }}>
-                <Text className="text-xs font-bold" style={{ color: 'hsl(var(--primary))' }}>小程序内扫码</Text>
+                style={S.margintop_10px_backgroundcolor_rgba_94_122_79_0_12_borderradius_8px_paddingvertical_4px_paddinghorizontal_8px}>
+                <Text className="text-xs font-bold" style={S.color_hsl_var_primary}>小程序内扫码</Text>
               </View>
               <Text className="text-xs text-muted-foreground text-center mt-1 leading-tight">点「扫码购物」扫</Text>
             </View>

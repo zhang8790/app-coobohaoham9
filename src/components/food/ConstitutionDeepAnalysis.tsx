@@ -8,6 +8,11 @@ import { useMemo } from 'react'
 import { View, Text } from '@tarojs/components'
 import { deepConstitutionAnalysis, type DeepAnalysisInput } from '@/utils/food-therapy/tongue-engine-v2'
 
+const S = {
+  background_rgba_217_169_120_0_18: { background: 'rgba(217,169,120,0.18)' },
+  color_b45309: { color: '#B45309' },
+} as const
+
 interface Props {
   /** 舌象单通道分析 或 身体+舌象综合辨证，皆可 */
   analysis: DeepAnalysisInput
@@ -38,15 +43,15 @@ export default function ConstitutionDeepAnalysis({ analysis }: Props) {
                   {r.name}
                 </Text>
                 {r.isPrimary ? (
-                  <View className="rounded-full px-1.5 py-0.5" style={{ background: 'rgba(217,169,120,0.18)' }}>
-                    <Text className="text-[9px]" style={{ color: '#B45309' }}>
+                  <View className="rounded-full px-1.5 py-0.5" style={S.background_rgba_217_169_120_0_18}>
+                    <Text className="text-[9px]" style={S.color_b45309}>
                       主
                     </Text>
                   </View>
                 ) : null}
                 {r.isSecondary ? (
-                  <View className="rounded-full px-1.5 py-0.5" style={{ background: 'rgba(217,169,120,0.18)' }}>
-                    <Text className="text-[9px]" style={{ color: '#B45309' }}>
+                  <View className="rounded-full px-1.5 py-0.5" style={S.background_rgba_217_169_120_0_18}>
+                    <Text className="text-[9px]" style={S.color_b45309}>
                       兼
                     </Text>
                   </View>

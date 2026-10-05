@@ -3,6 +3,11 @@ import Taro from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
 import Icon from '@/components/Icon'
 
+const S = {
+  fontsize_28rpx_fontweight_bold_color_hsl_var_primary: { fontSize: '28rpx', fontWeight: 'bold', color: 'hsl(var(--primary))' },
+  gap_6px_paddingvertical_13px: { gap: '6px', paddingVertical: '13px' },
+} as const
+
 interface Props {
   onAdd: () => void
   onScan: () => void
@@ -34,9 +39,9 @@ export default function QuickActions({ onAdd, onScan, onBatchAnalyze }: Props) {
           <Button
             className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-primary !rounded-2xl !leading-none"
             onClick={onScan}>
-            <View className="flex flex-row items-center justify-center" style={{ gap: '6px', paddingVertical: '13px' }}>
+            <View className="flex flex-row items-center justify-center" style={S.gap_6px_paddingvertical_13px}>
               <Icon name="barcode-scan" size={20} className="text-primary" />
-              <Text style={{ fontSize: '28rpx', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>扫码上架</Text>
+              <Text style={S.fontsize_28rpx_fontweight_bold_color_hsl_var_primary}>扫码上架</Text>
             </View>
           </Button>
         </View>
@@ -44,9 +49,9 @@ export default function QuickActions({ onAdd, onScan, onBatchAnalyze }: Props) {
           <Button
             className="!flex-1 !m-0 !p-0 !bg-card !border-2 !border-dashed !border-primary !rounded-2xl !leading-none"
             onClick={onBatchAnalyze}>
-            <View className="flex flex-row items-center justify-center" style={{ gap: '6px', paddingVertical: '13px' }}>
+            <View className="flex flex-row items-center justify-center" style={S.gap_6px_paddingvertical_13px}>
               <Icon name="shield-check" size={20} className="text-primary" />
-              <Text style={{ fontSize: '28rpx', fontWeight: 'bold', color: 'hsl(var(--primary))' }}>批量分析</Text>
+              <Text style={S.fontsize_28rpx_fontweight_bold_color_hsl_var_primary}>批量分析</Text>
             </View>
           </Button>
         </View>

@@ -9,6 +9,11 @@ import { SCENE_ICON, BRAND_LINE_ICONS } from '@/components/brandIcons'
 // 场景展示名单例（避免各页面各自维护导致首屏/好物页名字不一致）
 import { sceneLabel } from '@/utils/scene-alias'
 
+const S = {
+  width_56rpx_height_56rpx: { width: '56rpx', height: '56rpx' },
+  width_7_height_7_background_hsl_var_primary_transform_rotate_45deg_borderradius_1_flex_0_0_7px: { width: 7, height: 7, background: 'hsl(var(--primary))', transform: 'rotate(45deg)', borderRadius: 1, flex: '0 0 7px' },
+} as const
+
 /**
  * 首页金刚区（分类导航）
  *
@@ -76,9 +81,9 @@ export default function CategoryGrid({ storeId }: { storeId?: string }) {
       <View className="flex flex-col items-center">
         <View className="flex items-center justify-center my-1" style={{ gap: 10 }}>
           <View style={{ width: 44, height: 1, flex: '0 0 44px', background: 'linear-gradient(90deg, transparent, hsl(var(--primary) / 0.35))' }} />
-          <View style={{ width: 7, height: 7, background: 'hsl(var(--primary))', transform: 'rotate(45deg)', borderRadius: 1, flex: '0 0 7px' }} />
+          <View style={S.width_7_height_7_background_hsl_var_primary_transform_rotate_45deg_borderradius_1_flex_0_0_7px} />
           <Text style={{ fontSize: 16, fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: 1, textAlign: 'center' }}>按场景选食养</Text>
-          <View style={{ width: 7, height: 7, background: 'hsl(var(--primary))', transform: 'rotate(45deg)', borderRadius: 1, flex: '0 0 7px' }} />
+          <View style={S.width_7_height_7_background_hsl_var_primary_transform_rotate_45deg_borderradius_1_flex_0_0_7px} />
           <View style={{ width: 44, height: 1, flex: '0 0 44px', background: 'linear-gradient(90deg, hsl(var(--primary) / 0.35), transparent)' }} />
         </View>
         <Text style={{ fontSize: 11.5, color: 'hsl(var(--muted-foreground))', textAlign: 'center', marginTop: -2, marginBottom: 14 }}>挑选适配日常状态的小食</Text>
@@ -108,9 +113,9 @@ export default function CategoryGrid({ storeId }: { storeId?: string }) {
               }}
             >
               {SCENE_ICON[label] ? (
-                <Image src={SCENE_ICON[label]} style={{ width: '56rpx', height: '56rpx' }} />
+                <Image src={SCENE_ICON[label]} style={S.width_56rpx_height_56rpx} />
               ) : (
-                <Image src={BRAND_LINE_ICONS['leaf']} style={{ width: '56rpx', height: '56rpx' }} />
+                <Image src={BRAND_LINE_ICONS['leaf']} style={S.width_56rpx_height_56rpx} />
               )}
             </View>
             {/* 分类名：与好物页左栏共用 .cat-name（单一事实源，禁止各自硬写字号） */}

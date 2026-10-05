@@ -6,6 +6,12 @@ import Icon from '@/components/Icon'
 import { calcMargin } from './types'
 import type { Product, StoreCategory } from '@/db/types'
 
+const S = {
+  flex_1_display_flex_alignitems_center_justifycontent_center_padding_10px: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' },
+  fontsize_24rpx_color_aaa_margintop_2px: { fontSize: '24rpx', color: '#AAA', marginTop: '2px' },
+  width_1px_background_f2f2f2: { width: '1px', background: '#F2F2F2' },
+} as const
+
 type Props = {
   products: Product[]
   filter: 'all' | 'online' | 'offline'
@@ -114,14 +120,14 @@ export default function ProductList({
                   <Text style={{ fontSize: '36rpx', fontWeight: 'bold', color: 'hsl(var(--primary))', marginTop: '4px' }}>¥{p.price}</Text>
                   {p.original_price && <Text style={{ fontSize: '24rpx', color: '#BBB', textDecorationLine: 'line-through', marginLeft: '4px' }}>¥{p.original_price}</Text>}
                   {p.cost_price != null && (
-                    <Text style={{ fontSize: '24rpx', color: '#AAA', marginTop: '2px' }}>成本 ¥{p.cost_price} · 毛利 {margin}</Text>
+                    <Text style={S.fontsize_24rpx_color_aaa_margintop_2px}>成本 ¥{p.cost_price} · 毛利 {margin}</Text>
                   )}
                   {p.discount_rate != null && (
                     <Text style={{ fontSize: '24rpx', color: 'hsl(var(--primary))', marginTop: '2px' }}> 让利 {p.discount_rate}%</Text>
                   )}
-                  <Text style={{ fontSize: '24rpx', color: '#AAA', marginTop: '2px' }}>库存：{p.stock}</Text>
+                  <Text style={S.fontsize_24rpx_color_aaa_margintop_2px}>库存：{p.stock}</Text>
                   {(p as any).sales_count != null && (
-                    <Text style={{ fontSize: '24rpx', color: '#AAA', marginTop: '2px' }}>已售：{(p as any).sales_count}</Text>
+                    <Text style={S.fontsize_24rpx_color_aaa_margintop_2px}>已售：{(p as any).sales_count}</Text>
                   )}
                 </View>
               </View>
@@ -131,25 +137,25 @@ export default function ProductList({
               }}>
                 <View
                   onClick={() => onEdit(p)}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+                  style={S.flex_1_display_flex_alignitems_center_justifycontent_center_padding_10px}>
                   <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '500' }}> 编辑</Text>
                 </View>
-                <View style={{ width: '1px', background: '#F2F2F2' }} />
+                <View style={S.width_1px_background_f2f2f2} />
                 <View
                   onClick={() => onToggleActive(p)}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+                  style={S.flex_1_display_flex_alignitems_center_justifycontent_center_padding_10px}>
                   <Text style={{ fontSize: '26rpx', color: '#666' }}>{p.is_active ? ' 下架' : ' 上架'}</Text>
                 </View>
-                <View style={{ width: '1px', background: '#F2F2F2' }} />
+                <View style={S.width_1px_background_f2f2f2} />
                 <View
                   onClick={() => onDelete(p)}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+                  style={S.flex_1_display_flex_alignitems_center_justifycontent_center_padding_10px}>
                   <Text style={{ fontSize: '26rpx', color: '#EF4444' }}> 删除</Text>
                 </View>
-                <View style={{ width: '1px', background: '#F2F2F2' }} />
+                <View style={S.width_1px_background_f2f2f2} />
                 <View
                   onClick={() => onBatchIn(p)}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+                  style={S.flex_1_display_flex_alignitems_center_justifycontent_center_padding_10px}>
                   <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))' }}> 入库</Text>
                 </View>
               </View>
