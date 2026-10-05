@@ -26,6 +26,17 @@ import { shieldCopy, cleanAudienceTags } from '@/utils/compliance/shield'
 import { buildTherapyReport, buildTherapyHeadline, isFoodProduct, NATURE_FEELING, deriveFitConstitutionTypes, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 
+// 复用内联样式常量（重复字面量提取，行为不变）
+const S = {
+  block: { display: 'block' },
+  descLine: { fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6' },
+  descLineMt: { fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6', marginTop: 2 },
+  mt12: { marginTop: 12 },
+  herbPill: { flex: 2, fontSize: '22rpx', color: 'var(--color-herb-600)', fontWeight: '700' },
+  nowrap: { whiteSpace: 'nowrap' },
+}
+
+
 // 模块级缓存：食材字典（食养引擎基础数据）仅拉一次，跨商品跳转不再重复请求（PRD 4.1）
 let ingredientDictPromise: Promise<FoodIngredientRow[]> | null = null
 
@@ -37,7 +48,7 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
  onClick={() => setOpen((v) => !v)}
  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: '4px', paddingHorizontal: '2px', background: open ? 'var(--color-herb-50)' : 'transparent', borderRadius: '8px' }}
  >
- <Text className="text-base font-bold text-foreground" style={{ display: 'block' }}>{title}</Text>
+ <Text className="text-base font-bold text-foreground" style={{ block }}>{title}</Text>
  <Text style={{ fontSize: '26rpx', color: 'var(--muted-foreground)' }}>{open ? '收起 ' : '展开 '}</Text>
  </View>
  {open && <View style={{ marginTop: 6 }}>{children}</View>}
@@ -49,8 +60,8 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
 function TagRow({ label, tags, highlight }: { label: string; tags: string[]; highlight?: string }) {
  if (!tags || tags.length === 0) return null
  return (
-  <View style={{ marginTop: 12 }}>
-   <Text className="text-base font-bold text-foreground" style={{ display: 'block' }}>{label}</Text>
+  <View style={{ mt12 }}>
+   <Text className="text-base font-bold text-foreground" style={{ block }}>{label}</Text>
    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
     {tags.map((c, i) => {
      const hit = !!highlight && c === highlight
@@ -407,7 +418,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
  {mediaList.map((m, i) => (
  <SwiperItem key={i}>
  {m.type === 'video' ? (
- <Video src={m.url} className="w-full h-full" style={{ display: 'block' }} controls showCenterPlayBtn enableProgressGesture objectFit="contain" />
+ <Video src={m.url} className="w-full h-full" style={{ block }} controls showCenterPlayBtn enableProgressGesture objectFit="contain" />
  ) : (
  <Image src={m.url} mode="aspectFill" className="w-full h-full" style={{ display: 'block', opacity: imgLoaded[i] ? 1 : 0, transition: 'opacity 0.3s ease' }} lazyLoad={i !== 0} onLoad={() => setImgLoaded(s => ({ ...s, [i]: true }))} />
  )}
@@ -531,7 +542,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
             // 三轴全空 → 整块不渲染（不展示标题 + 暂未提供 空壳）
             if (crowdRec.length === 0 && sceneRec.length === 0 && constitutionRec.length === 0) return null
             return (
-              <View style={{ marginTop: 12 }}>
+              <View style={{ mt12 }}>
                 <TagRow label="适用人群" tags={crowdRec} />
                 <TagRow label="适用场景" tags={sceneRec} />
                 <TagRow label="适配体质" tags={constitutionRec} highlight={userConstitution} />
@@ -585,14 +596,14 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
 
               return (
                 <View>
-                  <Text className="text-base font-bold text-foreground mb-2" style={{ display: 'block' }}>食养参考</Text>
+                  <Text className="text-base font-bold text-foreground mb-2" style={{ block }}>食养参考</Text>
                 <View className="mt-3">
                   {/* 食养特点栏（顶部结论，plain 表达；安心结论合并于此，不再二次套卡） */}
                   <View style={{ padding: '10px 12px', borderRadius: '12px', background: 'var(--color-herb-50)', border: '1px solid var(--color-herb-100)' }}>
                     <Text style={{ fontSize: '30rpx', fontWeight: '700', color: 'var(--color-herb-600)', display: 'block' }}>
                       {stageMod.stage ? `食养特点：${stageMod.label} · ${stageMod.coreTag}` : '温和食养 · 日常参考'}
                     </Text>
-                    <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6', marginTop: 2 }}>{stageMod.oneLiner}</Text>
+                    <Text style={{ descLineMt }}>{stageMod.oneLiner}</Text>
                     {input.food_category && (
                       <Text style={{ fontSize: '24rpx', color: 'var(--color-herb-600)', display: 'block', marginTop: 2 }}>
                         分类：{input.food_category}{input.overall_nature ? ` · 食性${input.overall_nature}` : ''}
@@ -624,10 +635,10 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                       {stageMod.ingredients.length > 0 ? (
                         <View style={{ border: '1px solid var(--color-herb-100)', borderRadius: '10px', overflow: 'hidden' }}>
                           <View style={{ flexDirection: 'row', background: 'var(--color-herb-50)', padding: '6px 8px' }}>
-                            <Text style={{ flex: 2, fontSize: '22rpx', color: 'var(--color-herb-600)', fontWeight: '700' }}>食材</Text>
+                            <Text style={{ herbPill }}>食材</Text>
                             <Text style={{ flex: 1, fontSize: '22rpx', color: 'var(--color-herb-600)', fontWeight: '700' }}>性味</Text>
                             <Text style={{ flex: 3, fontSize: '22rpx', color: 'var(--color-herb-600)', fontWeight: '700' }}>传统食用参考</Text>
-                            <Text style={{ flex: 2, fontSize: '22rpx', color: 'var(--color-herb-600)', fontWeight: '700' }}>适配场景</Text>
+                            <Text style={{ herbPill }}>适配场景</Text>
                           </View>
                           {stageMod.ingredients.map((ing, i) => (
                             <View key={ing.key + i} style={{ flexDirection: 'row', padding: '6px 8px', borderTop: i === 0 ? '0' : '1px solid #EFF6F0' }}>
@@ -641,7 +652,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                       ) : (
                         <View>
                           {(foodBenefit?.ingredients || []).map((ing, i) => (
-                            <Text key={i} style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6' }}>
+                            <Text key={i} style={{ descLine }}>
                               {ing.icon ? `${ing.icon} ` : ''}{ing.name}：{shieldCopy(ing.role).safe}
                             </Text>
                           ))}
@@ -657,11 +668,11 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                         <View>
                           <Text style={{ fontSize: '26rpx', fontWeight: 'bold', color: '#B45309', display: 'block', marginTop: 4 }}>现代营养</Text>
                           {foodBenefit.modernNutrition.map((it, i) => (
-                            <Text key={i} style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6' }}>· {it.title}：{it.desc}</Text>
+                            <Text key={i} style={{ descLine }}>· {it.title}：{it.desc}</Text>
                           ))}
                         </View>
                       ) : (
-                        <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6' }}>{input.positive_effect}</Text>
+                        <Text style={{ descLine }}>{input.positive_effect}</Text>
                       )}
                     </CollapsibleSection>
                   )}
@@ -683,17 +694,17 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                           ))}
                         </View>
                       ) : (
-                        <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6', marginTop: 2 }}>推荐搭配：{(input.match_goods || []).join('、')}</Text>
+                        <Text style={{ descLineMt }}>推荐搭配：{(input.match_goods || []).join('、')}</Text>
                       )}
                     </CollapsibleSection>
                   )}
 
                   {/* 食用小贴士（建议食用量 + 适宜状态） */}
                   <View style={{ padding: '8px 10px', borderRadius: '12px', background: '#FFFDF7', border: '1px solid #F0E6CF', marginTop: 4 }}>
-                    <Text className="text-base font-bold text-foreground mb-1" style={{ display: 'block' }}>食用小贴士</Text>
-                    <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6' }}>建议食用量：{eatAmount}</Text>
+                    <Text className="text-base font-bold text-foreground mb-1" style={{ block }}>食用小贴士</Text>
+                    <Text style={{ descLine }}>建议食用量：{eatAmount}</Text>
                     {tipAudiences.length > 0 && (
-                      <Text style={{ fontSize: '26rpx', color: '#4A443D', display: 'block', lineHeight: '1.6' }}>更适合这些日常状态：{tipAudiences.join('、')}</Text>
+                      <Text style={{ descLine }}>更适合这些日常状态：{tipAudiences.join('、')}</Text>
                     )}
                   </View>
                 </View>
@@ -722,7 +733,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
  {product.detail_images && product.detail_images.length > 0 && (
  <View className="mx-4 mt-4">
  <View className="flex items-center justify-center mb-3">
- <Text className="text-base font-bold text-muted-foreground px-3" style={{ display: 'block' }}>商品详情</Text>
+ <Text className="text-base font-bold text-muted-foreground px-3" style={{ block }}>商品详情</Text>
  </View>
  <View className="flex flex-col gap-3">
  {product.detail_images.map((img, i) => (
@@ -731,7 +742,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
  src={img}
  mode="widthFix"
  className="w-full rounded-2xl"
- style={{ display: 'block' }}
+ style={{ block }}
  lazyLoad />
  ))}
  </View>
@@ -776,7 +787,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
  className="flex-1 flex items-center justify-center leading-none rounded-xl bg-card"
  style={{ border: '1.5px solid hsl(var(--primary))', pointerEvents: 'auto' }}
  onClick={handleAddCart}>
- <View className="py-2.5 text-[15px] font-bold text-primary" style={{ whiteSpace: 'nowrap' }}>
+ <View className="py-2.5 text-[15px] font-bold text-primary" style={{ nowrap }}>
  {adding ? '加入中...' : '加入购物车'}
  </View>
  </Button>
@@ -785,7 +796,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
  className="flex-[1.2] flex items-center justify-center leading-none rounded-xl bg-card"
  style={{ border: '1.5px solid hsl(var(--destructive))', boxShadow: '0 4px 12px hsl(var(--destructive) / 0.30)', pointerEvents: 'auto' }}
  onClick={handleBuyNow}>
- <View className="py-2.5 text-[15px] font-bold text-destructive" style={{ whiteSpace: 'nowrap' }}>立即支付</View>
+ <View className="py-2.5 text-[15px] font-bold text-destructive" style={{ nowrap }}>立即支付</View>
  </Button>
  </View>
 
