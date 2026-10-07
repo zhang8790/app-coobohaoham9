@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getFinanceOverview, getDailyTrend, getAnomalyReport, type FinanceOverview, type DailyPoint, type AnomalyReport } from '@/api/finance'
 import { downloadCSV, csvTimestamp, type CsvColumn } from '@/lib/csv'
 import { supabase } from '@/lib/supabase'
+import { NavIcon } from '@/components/icons'
 
 // ── 通用样式 ───────────────────────────────────────────────────────────
 const C = {
@@ -212,7 +213,7 @@ export default function FinanceDashboard() {
       )}
 
       {/* 会员 */}
-      <Section title="会员" icon="👥">
+      <Section title="会员" iconName="users">
         <Kpi label="会员总数" value={fmt(o.membersTotal)} color={C.green} to="/members" />
         <Kpi label="今日新增" value={fmt(o.membersToday)} color={C.blue} sub={dChg(momRegs)} />
         <Kpi label="活跃会员(30d)" value={fmt(o.activeMembers30d)} color={C.purple} sub="近30日有下单" />
@@ -220,7 +221,7 @@ export default function FinanceDashboard() {
       </Section>
 
       {/* 成交 / 收益 */}
-      <Section title="成交与收益" icon="📈">
+      <Section title="成交与收益" iconName="trending">
         <Kpi label="成交订单数" value={fmt(o.ordersPaid)} color={C.accent} to="/orders" sub={dChg(momOrders)} />
         <Kpi label="成交额 累计消费额" value={fmtMoney(o.gmv)} color={C.green} sub={dChg(mom)} />
         <Kpi label="健康豆抵扣" value={fmtMoney(o.concession)} color={C.gold} sub={`占累计消费额 ${((o.concession / Math.max(1, o.gmv)) * 100).toFixed(2)}%`} />
@@ -228,7 +229,7 @@ export default function FinanceDashboard() {
       </Section>
 
       {/* 资产流通 */}
-      <Section title="资产流通（数字化）" icon="💎">
+      <Section title="资产流通（数字化）" iconName="diamond">
         <Kpi label="健康豆余额" value={fmt(o.goldBeans)} color={C.gold} sub="1健康豆=1元" to="/ledgers" />
         <Kpi label="健康豆累计发放" value={fmt(o.goldBeanIssued)} color={C.green} sub="tongbao_logs +" />
         <Kpi label="健康豆累计消耗" value={fmt(o.goldBeanConsumed)} color={C.accent} sub="tongbao_logs −" />
@@ -239,7 +240,7 @@ export default function FinanceDashboard() {
 
       {/* 智能风控 · 异常检测引擎 */}
       {anomaly && (
-        <Section title="风控（异常检测）" icon="🛡️">
+        <Section title="风控（异常检测）" iconName="shield">
           <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
             {anomaly.anomalies.length === 0 ? (
               <p style={{ color: C.green, fontSize: 13 }}>✅ 未发现异常指标</p>
@@ -340,11 +341,11 @@ export default function FinanceDashboard() {
   )
 }
 
-function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+function Section({ title, iconName, children }: { title: string; iconName?: string; children: React.ReactNode }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <span style={{ fontSize: 16 }}>{icon}</span>
+        {iconName && <NavIcon name={iconName} size={16} />}
         <h2 style={{ color: C.text, fontSize: 15, fontWeight: 600 }}>{title}</h2>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>

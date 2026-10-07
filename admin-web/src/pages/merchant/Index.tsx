@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useStore } from '@/contexts/StoreContext'
 import { getMerchantSettlementBalance, getStoreProducts, getMyMerchantStore } from '@/api/merchant'
+import { NavIcon } from '@/components/icons'
 
 // Mock 数据（演示模式 fallback）
 const MOCK_STATS = {
@@ -169,12 +170,12 @@ export default function MerchantDashboard() {
   }, [useMock, storeId, storeReady, reloadKey])
 
   const cards = [
-    { label: '今日营收', value: `¥${stats.todayRevenue.toFixed(2)}`, icon: '💰', color: 'var(--success-strong)' },
-    { label: '本月营收', value: `¥${(stats.monthRevenue / 10000).toFixed(2)}万`, icon: '📈', color: 'var(--info)' },
-    { label: '今日订单', value: stats.todayOrders, icon: '📦', color: 'var(--primary)' },
-    { label: '累积客户', value: stats.totalCustomers, icon: '👥', color: 'var(--accent)' },
-    { label: '商品在售', value: productStats.online, sub: `共${productStats.total}件`, icon: '🛍️', color: 'var(--warning)' },
-    { label: '可结算货款', value: `¥${settlement?.merchant_balance.toFixed(2) ?? '0.00'}`, icon: '🏦', color: 'var(--success-strong)' },
+    { label: '今日营收', value: `¥${stats.todayRevenue.toFixed(2)}`, iconName: 'dollar', color: 'var(--success-strong)' },
+    { label: '本月营收', value: `¥${(stats.monthRevenue / 10000).toFixed(2)}万`, iconName: 'trending', color: 'var(--info)' },
+    { label: '今日订单', value: stats.todayOrders, iconName: 'box', color: 'var(--primary)' },
+    { label: '累积客户', value: stats.totalCustomers, iconName: 'users', color: 'var(--accent)' },
+    { label: '商品在售', value: productStats.online, sub: `共${productStats.total}件`, iconName: 'bag', color: 'var(--warning)' },
+    { label: '可结算货款', value: `¥${settlement?.merchant_balance.toFixed(2) ?? '0.00'}`, iconName: 'bank', color: 'var(--success-strong)' },
   ]
 
   return (
@@ -209,7 +210,7 @@ export default function MerchantDashboard() {
         {cards.map((c, i) => (
           <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <span style={{ fontSize: 24 }}>{c.icon}</span>
+              <NavIcon name={c.iconName} size={24} />
               <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>{c.label}</span>
             </div>
             <p style={{ color: c.color, fontSize: 28, fontWeight: 700 }}>{c.value}</p>
@@ -221,13 +222,13 @@ export default function MerchantDashboard() {
       {/* 快捷操作 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 32 }}>
         {[
-          { label: '商品管理', icon: '📦', to: '/merchant/products' },
-          { label: '订单管理', icon: '📋', to: '/merchant/orders' },
-          { label: '优惠券', icon: '🎟️', to: '/merchant/coupons' },
-          { label: '数据分析', icon: '📊', to: '/merchant/analytics' },
-          { label: '广告投放', icon: '📢', to: '/merchant/ads' },
-          { label: '货款提现', icon: '💰', to: '/merchant/withdraw' },
-          { label: '店铺设置', icon: '⚙️', to: '/merchant/settings' },
+          { label: '商品管理', iconName: 'box', to: '/merchant/products' },
+          { label: '订单管理', iconName: 'list', to: '/merchant/orders' },
+          { label: '优惠券', iconName: 'ticket', to: '/merchant/coupons' },
+          { label: '数据分析', iconName: 'chart', to: '/merchant/analytics' },
+          { label: '广告投放', iconName: 'megaphone', to: '/merchant/ads' },
+          { label: '货款提现', iconName: 'dollar', to: '/merchant/withdraw' },
+          { label: '店铺设置', iconName: 'settings', to: '/merchant/settings' },
         ].map((btn, i) => (
           <div key={i}
             onClick={() => nav(btn.to)}
@@ -235,7 +236,7 @@ export default function MerchantDashboard() {
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
             style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, cursor: 'pointer', transition: 'all 0.2s' }}
           >
-            <span style={{ fontSize: 28, display: 'block', marginBottom: 8 }}>{btn.icon}</span>
+            <NavIcon name={btn.iconName} size={28} style={{ display: 'block', marginBottom: 8 }} />
             <p style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>{btn.label}</p>
           </div>
         ))}

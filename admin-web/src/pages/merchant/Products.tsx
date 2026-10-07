@@ -10,6 +10,7 @@ import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/util
 import { NATURE_SCALE, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
 import { analyzeDish } from '@/utils/dish-analyzer'
 import { encodeEAN13 } from '@/utils/barcode'
+import { NavIcon } from '@/components/icons'
 import { uploadProductAsset } from '@/utils/storage'
 
 interface ProductWithExt extends Product {
@@ -1955,7 +1956,7 @@ export default function MerchantProducts() {
                   ) : (
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }}>
                       <span style={{ fontSize: 15, color: 'var(--text)' }}>{c.name}</span>
-                      {isGlobal && <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>🌐 平台</span>}
+                      {isGlobal && <span style={{ fontSize: 11, color: 'var(--text-dim)', display: 'inline-flex', alignItems: 'center', gap: 2 }}><NavIcon name="globe" size={11} /> 平台</span>}
                     </div>
                   )}
                   {!isGlobal && (

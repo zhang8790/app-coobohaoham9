@@ -28,6 +28,12 @@ export const ICON_PATHS: Record<string, string> = {
   check: 'M20 6L9 17l-5-5',
   alert: 'M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
   x: 'M18 6 6 18M6 6l12 12',
+  globe: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20M12 2c3.5 4.5 3.5 15.5 0 20M12 2c-3.5 4.5-3.5 15.5 0 20',
+  diamond: 'M6 3h12l4 6-10 12L2 9z',
+  bag: 'M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0',
+  list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  ticket: 'M4 4h16a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V6a2 2 0 0 1 2-2z',
+  settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1l2.1-2.1M17 7l2.1-2.1',
 }
 
 export function NavIcon({ name, size = 16, style }: { name: string; size?: number; style?: CSSProperties }) {

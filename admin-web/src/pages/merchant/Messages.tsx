@@ -4,8 +4,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore, getMerchantMessages } from '@/api/merchant'
 import type { MerchantMessage } from '@/types'
+import { NavIcon } from '@/components/icons'
 
-const TYPE_ICON: Record<string, string> = { order: '📦', system: '⚙️', commission: '💰' }
+const TYPE_ICON: Record<string, string> = { order: 'box', system: 'settings', commission: 'dollar' }
 const TYPE_LABEL: Record<string, string> = { order: '订单消息', system: '系统消息', commission: '佣金消息' }
 
 export default function MerchantMessages() {
@@ -80,7 +81,7 @@ export default function MerchantMessages() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 18 }}>{TYPE_ICON[msg.type]}</span>
+                    <span style={{ display: 'inline-flex' }}><NavIcon name={TYPE_ICON[msg.type]} size={18} /></span>
                     <span style={{ color: msg.read ? 'var(--text)' : 'var(--primary)', fontSize: 15, fontWeight: msg.read ? 600 : 700 }}>{msg.title}</span>
                     {!msg.read && <span style={{ width: 8, height: 8, background: 'var(--primary-strong)', borderRadius: '50%' }} />}
                   </div>
@@ -101,7 +102,7 @@ export default function MerchantMessages() {
               <button onClick={() => setDetailMsg(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: 20, cursor: 'pointer' }}>✕</button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <span style={{ fontSize: 16 }}>{TYPE_ICON[detailMsg.type]}</span>
+              <span style={{ display: 'inline-flex' }}><NavIcon name={TYPE_ICON[detailMsg.type]} size={16} /></span>
               <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>{TYPE_LABEL[detailMsg.type]}</span>
               <span style={{ color: 'var(--border-soft)' }}>·</span>
               <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>{detailMsg.time}</span>
