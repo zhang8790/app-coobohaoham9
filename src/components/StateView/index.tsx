@@ -24,11 +24,13 @@ interface StateViewProps {
   style?: CSSProperties
 }
 
-const copy: Record<StateType, { emoji: string; title: string; tint: string; live: 'assertive' | 'polite' | undefined }> = {
-  loading: { emoji: '', title: '加载中…', tint: 'hsl(var(--primary))', live: 'polite' },
-  empty:   { emoji: '🗂️', title: '暂无内容', tint: 'hsl(var(--muted-foreground))', live: undefined },
-  error:   { emoji: '⚠️', title: '加载失败', tint: 'hsl(var(--destructive))', live: 'assertive' },
-  success: { emoji: '✅', title: '操作成功', tint: 'var(--color-herb-500)', live: 'polite' },
+// emoji 视觉锤已收口为线性图标（#83）：空/错/成功三态改用 Icon 组件，
+// 与 loading 态统一为中性灰阶线性图标库，语义色由文案/操作按钮承载。
+const copy: Record<StateType, { icon: string; title: string; tint: string; live: 'assertive' | 'polite' | undefined }> = {
+  loading: { icon: 'loading', title: '加载中…', tint: 'hsl(var(--primary))', live: 'polite' },
+  empty:   { icon: 'package-variant', title: '暂无内容', tint: 'hsl(var(--muted-foreground))', live: undefined },
+  error:   { icon: 'alert-circle', title: '加载失败', tint: 'hsl(var(--destructive))', live: 'assertive' },
+  success: { icon: 'check-circle', title: '操作成功', tint: 'var(--color-herb-500)', live: 'polite' },
 }
 
 const wrapStyle: CSSProperties = {
@@ -65,7 +67,7 @@ export default function StateView({
         {type === 'loading' ? (
           <Icon name="loading" size={40} className="animate-spin" style={{ color: c.tint }} />
         ) : (
-          <Text style={{ fontSize: '72rpx', lineHeight: 1 }}>{c.emoji}</Text>
+          <Icon name={c.icon} size={40} style={{ color: c.tint }} />
         )}
         <Text style={{ fontSize: '30rpx', fontWeight: 600, color: 'hsl(var(--foreground))', lineHeight: 1.4 }}>{t}</Text>
         {description ? (
