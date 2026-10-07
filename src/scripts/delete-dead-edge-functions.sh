@@ -14,8 +14,8 @@
 #   supabase link --project-ref pyqgsxcjmijtbstwthbn
 #   bash scripts/delete-dead-edge-functions.sh
 #
-# ⚠️ 删除后不可恢复（函数代码仍在仓库 supabase/functions/<name>/，可随时重建）。
-#    若日后需要重新部署，进入对应目录 `supabase functions deploy <name>` 即可。
+# ⚠️ 删除线上函数后不可恢复；本仓库已同步移除本地 supabase/functions/<name>/ 目录。
+#    若日后需重建，从 git 历史恢复该目录后再 `supabase functions deploy <name>` 即可。
 # ============================================================
 
 set -euo pipefail
