@@ -1,6 +1,7 @@
 // @title 商品分类管理抽屉（商家端）— 从 merchant-products 主页面抽离
 import { View, Text, Input } from '@tarojs/components'
 import type { StoreCategory } from '@/db/types'
+import Icon from '@/components/Icon'
 
 const S = {
   fontsize_30rpx_color_888: { fontSize: '30rpx', color: '#888' },
@@ -42,7 +43,7 @@ export default function CategoryManager({
  <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
  <Text style={{ fontSize: '36rpx', fontWeight: 'bold', color: '#333' }}>管理商品分类</Text>
  <View onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '16px', background: '#FBF7EF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
- <Text style={{ fontSize: '36rpx', color: 'var(--muted-foreground)' }}>✕</Text>
+ <Icon name="close" size={18} />
  </View>
  </View>
 
@@ -81,7 +82,7 @@ export default function CategoryManager({
  <View onClick={() => onMoveCategory(c, -1)} style={S.padding_4px_8px}><Text style={S.fontsize_30rpx_color_888}>↑</Text></View>
  <View onClick={() => onMoveCategory(c, 1)} style={S.padding_4px_8px}><Text style={S.fontsize_30rpx_color_888}>↓</Text></View>
  {editingCatId === c.id
- ? <View onClick={() => onSaveRename(c)} style={S.padding_4px_8px}><Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: 'bold' }}>✓</Text></View>
+ ? <View onClick={() => onSaveRename(c)} style={S.padding_4px_8px}><Icon name="check" size={13} className="text-primary" /></View>
  : <View onClick={() => { setEditingCatId(c.id); setEditingCatName(c.name) }} style={S.padding_4px_8px}><Text style={{ fontSize: '26rpx', color: '#15803D' }}>改名</Text></View>}
  <View onClick={() => onDeleteCategory(c)} style={S.padding_4px_8px}><Text style={{ fontSize: '26rpx', color: '#EF4444' }}>删</Text></View>
  </View>

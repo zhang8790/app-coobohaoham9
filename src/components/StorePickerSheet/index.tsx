@@ -1,6 +1,7 @@
 // @title 门店选择底部弹层（多门店发现/切换，Phase 1）
 import { View, Text, ScrollView } from '@tarojs/components'
 import { NearestStore } from '@/db/api'
+import Icon from '@/components/Icon'
 
 /** 超过此距离视为「跨城门店」：首页 pill 不再显示该距离，选择器里也降为灰色小字 */
 export const FAR_STORE_KM = 50
@@ -69,7 +70,7 @@ export default function StorePickerSheet({
  hoverClass="none"
  onClick={onClose}
  >
- <Text className="text-base text-muted-foreground">✕</Text>
+ <Icon name="close" size={16} className="text-muted-foreground" />
  </View>
  </View>
 
@@ -110,7 +111,7 @@ export default function StorePickerSheet({
  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
  style={{ background: active ? 'hsl(var(--primary) / 0.12)' : 'rgba(0,0,0,0.04)' }}
  >
- <Text style={{ fontSize: '44rpx' }}>{active ? '✓' : ''}</Text>
+ {active ? <Icon name="check" size={22} /> : null}
  </View>
  {/* 中部信息 */}
  <View className="flex-1 min-w-0">

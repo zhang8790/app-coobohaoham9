@@ -48,7 +48,7 @@ export default function StoreQrModal({ visible, storeName, storeQrUrl, scanConte
                 backgroundColor: '#FBF7EF', display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
               }}>
-              <Text style={{ fontSize: '36rpx', color: 'var(--muted-foreground)' }}>✕</Text>
+              <Icon name="close" size={18} />
             </View>
           </View>
 

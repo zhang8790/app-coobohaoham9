@@ -285,7 +285,7 @@ function MerchantOrdersPage() {
                 <View className="flex items-center gap-2">
                   {tab === 'unprinted' && (
                     <View onClick={() => toggleSelect(g.id)} className={`flex items-center justify-center rounded-md border-2 ${selected[g.id] ? 'bg-primary border-primary' : 'border-border'} w-5 h-5 flex-shrink-0`}>
-                      {selected[g.id] ? <Text className="text-white text-xs leading-none">✓</Text> : null}
+                      {selected[g.id] ? <Icon name="check" size={12} className="text-white" /> : null}
                     </View>
                   )}
                   <Text className="text-sm text-muted-foreground">订单号：{g.order_no || '-'}</Text>

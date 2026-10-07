@@ -1,6 +1,7 @@
 // @title P3 门店联动：流动车管理弹窗（纯展示，写库逻辑在页面）
 import { View, Text, Button, Input } from '@tarojs/components'
 import type { MerchantVehicle } from './VehiclesCard'
+import Icon from '@/components/Icon'
 
 interface Props {
   visible: boolean
@@ -28,7 +29,7 @@ export default function VehicleManageModal({ visible, vehicles, vehicleName, veh
           <View className="flex items-center justify-between mb-5">
             <Text className="text-xl font-bold text-foreground">流动车管理</Text>
             <View onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '16px', backgroundColor: '#FBF7EF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: '36rpx', color: 'var(--muted-foreground)' }}>✕</Text>
+              <Icon name="close" size={18} />
             </View>
           </View>
 

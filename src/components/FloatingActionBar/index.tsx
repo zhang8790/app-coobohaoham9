@@ -5,6 +5,7 @@ import { useState } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text, Button } from '@tarojs/components'
 import './index.scss'
+import Icon from '@/components/Icon'
 
 export default function FloatingActionBar() {
  const pages = Taro.getCurrentPages()
@@ -46,7 +47,7 @@ export default function FloatingActionBar() {
 
  {/* 右侧边缘把手：始终可见、贴右边缘，按下展开/收起 */}
  <View className="fab-edge-handle" hoverClass="none" aria-role="button" aria-label={open ? '收起咨询菜单' : '展开咨询菜单'} onClick={() => setOpen(v => !v)}>
- <Text className="fab-edge-handle-icon">{open ? '✕' : ''}</Text>
+ {open ? <Icon name="close" size={20} className="fab-edge-handle-icon" /> : null}
  <Text className="fab-edge-handle-text">{open ? '收起' : '咨询'}</Text>
  </View>
  </View>

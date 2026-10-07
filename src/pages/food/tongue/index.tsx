@@ -548,7 +548,7 @@ export default function TonguePage() {
                       <Text className="text-sm" style={{ color: active ? '#fff' : '#3F3A34' }}>
                         {opt.label}
                       </Text>
-                      {active ? <Text className="text-base font-bold" style={{ color: '#fff' }}>✓</Text> : null}
+                      {active ? <Icon name="check" size={16} className="text-white" /> : null}
                     </View>
                     {opt.hint ? (
                       <Text

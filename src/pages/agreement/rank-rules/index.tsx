@@ -6,6 +6,7 @@ import { getMyProfile } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { RANK_COLOR_MAP } from '@/constants/ranks'
 import './index.scss'
+import Icon from '@/components/Icon'
 
 const S = {
   display_block: { display: 'block' },
@@ -93,7 +94,7 @@ function RankRules() {
             <View className="px-4 py-3">
               {t.benefits.map(b => (
                 <View key={b} className="flex items-center gap-2 mb-1">
-                  <Text className="text-primary text-sm">✓</Text>
+                  <Icon name="check" size={14} className="text-primary" />
                   <Text className="text-foreground text-sm">{b}</Text>
                 </View>
               ))}
