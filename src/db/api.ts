@@ -8,7 +8,7 @@ import type {
   EmotionBadgeDef, EmotionBadgeGrant,
   ProductEmotion, Order, OrderStatus,
   MerchantApplication, Announcement, EmotionClaim, StoreNearExpiry,
-  MarketingCampaign, MerchantMessage, CampaignStatus} from './types'
+  MarketingCampaign, MerchantMessage, CampaignStatus, PrinterConfig} from './types'
 import { type ProductCareInfo } from '@/utils/product-care'
 import { MOOD_TAGS, MOOD_CATEGORIES } from '@/utils/mood-tags'
 import { calculateDynamicScore, RANK_CONFIG_TABLE_V5, calculateCommissionV5, computeMemberRank, getActiveMultiplier, getRecruitMultiplier, calcWithholdingTax, PLATFORM_CONFIG } from '@/utils/commission-calculator-v5'

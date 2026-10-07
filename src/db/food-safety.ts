@@ -86,6 +86,18 @@ export interface FoodCrowdTip {
   sort_order: number
 }
 
+// 药食同源匹配洞察（ingredient-analyze EF 基于私有目录表 medicinal_food_catalog 计算，属于「竞品抄不到」的差异化数据层）。
+// 注：当前 EF 在 6.5 段实际落库到 catalog_insight，homology 列暂留空（恒为 null）待后续药食同源专项迭代填充；
+// 此处类型与 catalog_insight 同构，仅作为 food_analysis_reports.homology(jsonb) 的反序列化契约，消除 TS2304。
+export interface HomologyResult {
+  matched_count: number
+  matched: string[]
+  nature_summary: string
+  nature_distribution: Record<string, number>
+  age_caution_hits: Array<{ ingredient: string; cautions: string[] }>
+  compatibility_notes: string[]
+}
+
 // ④ 标准报告 food_analysis_reports
 export interface FoodAnalysisReport {
   id: string

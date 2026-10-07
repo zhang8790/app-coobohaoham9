@@ -18,6 +18,7 @@ import {
   TENDENCY_PHRASE,
   type TestQuestion,
   type TestResult,
+  type ConstitutionType,
 } from '@/utils/constitution-test'
 import {
   TONGUE_QUESTIONS,
