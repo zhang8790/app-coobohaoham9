@@ -2,6 +2,7 @@
 import Taro from '@tarojs/taro'
 import { View, Text, Input, Textarea, Switch, Image } from '@tarojs/components'
 import ProductGridCard from '@/components/ProductGridCard'
+import Icon from '@/components/Icon'
 import { EAN13Preview } from './BarcodeTools'
 import { COOKING_METHODS, AUX_OPTIONS, NATURE_COLOR, type ProductFormController } from './useProductForm'
 import { getProductCareInfo } from '@/utils/product-care'
@@ -143,7 +144,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  border: sel ? '1px solid hsl(var(--primary))' : '1px solid #EEE',
  }}>
  <Text style={{ fontSize: c.parent_id ? '24rpx' : '26rpx', color: sel ? '#FFF' : (c.parent_id ? '#888' : '#666') }}>{c.parent_id ? `└ ${c.name}` : c.name}</Text>
- {c.scope === 'global' && <Text style={{ fontSize: '20rpx', color: sel ? '#FFE0CC' : '#BBB' }}>🌐</Text>}
+ {c.scope === 'global' && <Icon name="globe" size={12} className={sel ? 'text-white' : ''} style={{ marginLeft: 2 }} />}
  </View>
  )
  })}

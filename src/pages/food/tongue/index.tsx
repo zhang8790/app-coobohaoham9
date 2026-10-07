@@ -450,7 +450,7 @@ export default function TonguePage() {
                 <Text className="text-[11px] text-[#9A9388] mt-0.5 block">9 个专项细问</Text>
               </View>
               <View className="flex-1 rounded-2xl p-3" style={S.cardPlain}>
-                <Text className="text-lg">👅</Text>
+                <Icon name="tongue" size={24} className="text-primary" />
                 <Text className="text-sm font-semibold text-[#2A2A2A] mt-1 block">舌象对照</Text>
                 <Text className="text-[11px] text-[#9A9388] mt-0.5 block">8 维望舌特征</Text>
               </View>
@@ -596,7 +596,7 @@ export default function TonguePage() {
               className="mt-4 rounded-2xl p-3 flex items-center gap-2"
               style={S.cardPlain}
             >
-              <Text className="text-lg">👅</Text>
+              <Icon name="tongue" size={20} className="text-primary" />
               <Text className="text-xs text-[#6F675C]" style={{ lineHeight: 1.5 }}>
                 提示：自然光最好，别刚吃完带色食物或刷完牙就拍，颜色才准。
               </Text>
