@@ -39,6 +39,7 @@ import { saveTongueProfile } from '@/utils/food-therapy/tongue-history'
 import { computeHealthIndex } from '@/utils/food-therapy/tongue-report'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import type { Product } from '@/db/types'
+import Icon from '@/components/Icon'
 import './index.scss'
 
 // 复用内联样式常量（重复字面量提取，行为不变）
@@ -444,7 +445,7 @@ export default function TonguePage() {
             {/* 两大部分可视化 */}
             <View className="mt-4 flex flex-row gap-3">
               <View className="flex-1 rounded-2xl p-3" style={S.cardPlain}>
-                <Text className="text-lg">🙂</Text>
+                <Icon name="emoticon-happy" size={24} className="text-primary" />
                 <Text className="text-sm font-semibold text-[#2A2A2A] mt-1 block">身体感受</Text>
                 <Text className="text-[11px] text-[#9A9388] mt-0.5 block">9 个专项细问</Text>
               </View>

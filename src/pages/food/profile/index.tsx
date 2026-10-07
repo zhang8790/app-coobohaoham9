@@ -26,6 +26,7 @@ import { getProducts } from '@/db/api'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import type { Product } from '@/db/types'
 import TrendChart from '@/components/food/TrendChart'
+import Icon from '@/components/Icon'
 import './index.scss'
 
 const S = {
@@ -107,7 +108,7 @@ export default function FoodProfilePage() {
           做一次食养评估，就能生成属于你的食养画像
         </Text>
         <View className="mt-6 rounded-2xl bg-white p-6 shadow-sm flex flex-col items-center">
-          <Text className="text-4xl">🍃</Text>
+          <Icon name="leaf" size={36} className="text-primary" />
           <Text className="text-sm text-[#3F3A34] mt-3 text-center" style={S.lineheight_1_7}>
             你还没有食养画像。完成一次食养评估（身体感受 + 舌象对照）后，这里会沉淀你的综合体质倾向、健康指数与适配好物。
           </Text>
