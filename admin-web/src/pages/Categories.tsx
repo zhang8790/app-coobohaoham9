@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, Fragment } from 'react'
 import { getCategories, createStoreCategory, updateStoreCategory, deleteStoreCategory, countProductsByCategory, syncStoreCategoryName } from '@/api/categories'
 import type { StoreCategory } from '@/types'
+import { NavIcon } from '@/components/icons'
 
 /**
  * 商品分类管理（平台全局）——支持两级：场景(一级) → 子类(二级)
@@ -211,7 +212,7 @@ export default function Categories() {
         {renderIconCell(c)}
         <td style={S.td}>
           {level === 0 ? (
-            <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: 'var(--info-soft)', color: 'var(--info-strong)' }}>🌐 全局</span>
+            <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: 'var(--info-soft)', color: 'var(--info-strong)' }}><NavIcon name="globe" size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />全局</span>
           ) : (
             <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: 'var(--bg)', color: 'var(--text-dim)', border: '1px solid var(--border)' }}>二级</span>
           )}

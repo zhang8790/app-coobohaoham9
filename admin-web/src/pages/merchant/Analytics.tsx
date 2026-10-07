@@ -5,6 +5,7 @@ import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore, getMerchantAnalytics } from '@/api/merchant'
 import requestCache from '@/utils/requestCache'
 import type { MerchantAnalytics } from '@/types'
+import { NavIcon } from '@/components/icons'
 
 function MiniBarChart({ data, labels, height = 120 }: { data: number[]; labels: string[]; height?: number }) {
   const max = Math.max(...data, 1)
@@ -131,7 +132,7 @@ export default function MerchantAnalytics() {
           textAlign: 'center', padding: '40px 24px', margin: '0 auto', maxWidth: 520,
           background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12,
         }}>
-          <p style={{ fontSize: 28, marginBottom: 10 }}>⚠️</p>
+          <p style={{ fontSize: 28, marginBottom: 10 }}><NavIcon name="alert" size={28} style={{ color: 'var(--warning)' }} /></p>
           <p style={{ color: 'var(--text)', fontSize: 14, marginBottom: 6 }}>数据分析加载失败</p>
           <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 18 }}>{err}</p>
           <button onClick={retry} style={{
@@ -149,14 +150,14 @@ export default function MerchantAnalytics() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
             {[
-              { label: '今日营收', value: `¥${data.revenueToday.toLocaleString()}`, icon: '💰', color: 'var(--success-strong)' },
-              { label: '本月营收', value: `¥${data.revenueMonth.toLocaleString()}`, icon: '📈', color: 'var(--info)' },
-              { label: '今日订单', value: String(data.ordersToday), icon: '📦', color: 'var(--primary)' },
-              { label: '累积客户', value: String(data.totalCustomers), icon: '👥', color: 'var(--accent)' },
+              { label: '今日营收', value: `¥${data.revenueToday.toLocaleString()}`, iconName: 'dollar', color: 'var(--success-strong)' },
+              { label: '本月营收', value: `¥${data.revenueMonth.toLocaleString()}`, iconName: 'trending', color: 'var(--info)' },
+              { label: '今日订单', value: String(data.ordersToday), iconName: 'box', color: 'var(--primary)' },
+              { label: '累积客户', value: String(data.totalCustomers), iconName: 'users', color: 'var(--accent)' },
             ].map((stat, i) => (
               <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 20 }}>{stat.icon}</span>
+                  <NavIcon name={stat.iconName} size={20} />
                 </div>
                 <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 4 }}>{stat.label}</p>
                 <p style={{ color: stat.color, fontSize: 24, fontWeight: 700 }}>{stat.value}</p>

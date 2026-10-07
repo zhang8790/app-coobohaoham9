@@ -34,6 +34,9 @@ export const ICON_PATHS: Record<string, string> = {
   list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
   ticket: 'M4 4h16a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V6a2 2 0 0 1 2-2z',
   settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1l2.1-2.1M17 7l2.1-2.1',
+  trash: 'M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6',
+  lock: 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4',
+  truck: 'M1 3h15v13H1zM16 8h4l3 3v5h-7M5.5 18.5A1.5 1.5 0 1 0 5.5 15a1.5 1.5 0 0 0 0 3.5M18.5 18.5A1.5 1.5 0 1 0 18.5 15a1.5 1.5 0 0 0 0 3.5',
 }
 
 export function NavIcon({ name, size = 16, style }: { name: string; size?: number; style?: CSSProperties }) {

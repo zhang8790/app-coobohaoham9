@@ -8,6 +8,7 @@ import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore, getMerchantWithdrawals, getMerchantSettlementBalance, applyMerchantSettlementWithdrawal } from '@/api/merchant'
 import { supabase } from '@/lib/supabase'
 import type { WithdrawalRecord, SavedWithdrawalAccount } from '@/types'
+import { NavIcon } from '@/components/icons'
 
 const STATUS_LABEL: Record<string, string> = { pending: '审核中', approved: '已审核', paid: '已到账', rejected: '已拒绝' }
 const STATUS_COLOR: Record<string, string> = { pending: 'var(--warning)', approved: 'var(--info)', paid: 'var(--success-strong)', rejected: 'var(--danger)' }
@@ -241,7 +242,7 @@ export default function MerchantWithdraw() {
                                 if (error) { alert('删除失败：' + error.message); return }
                                 setSavedAccounts(prev => prev.filter(x => x.id !== a.id))
                                 if (selectedSavedId === a.id) setSelectedSavedId(null)
-                              }} style={{ padding: '4px 6px', background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 14 }} title="删除">🗑</button>
+                              }} style={{ padding: '4px 6px', background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 14 }} title="删除"><NavIcon name="trash" size={14} /></button>
                             </div>
                           )
                         })}
@@ -258,12 +259,12 @@ export default function MerchantWithdraw() {
                   <div>
                     <label style={{ color: 'var(--text-muted)', fontSize: 13, display: 'block', marginBottom: 8 }}>到账方式</label>
                     <div style={{ display: 'flex', gap: 12 }}>
-                      {[{ key: 'alipay', label: '支付宝', icon: '💰' }, { key: 'bank', label: '银行卡', icon: '🏦' }].map(m => (
+                      {[{ key: 'alipay', label: '支付宝', iconName: 'dollar' }, { key: 'bank', label: '银行卡', iconName: 'bank' }].map(m => (
                         <div key={m.key} onClick={() => setMethod(m.key as any)} style={{
                           flex: 1, padding: '12px', background: method === m.key ? 'var(--primary)20' : 'var(--bg)',
                           border: `2px solid ${method === m.key ? 'var(--primary)' : 'var(--border-soft)'}`, borderRadius: 8, textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s',
                         }}>
-                          <span style={{ fontSize: 20, display: 'block', marginBottom: 4 }}>{m.icon}</span>
+                          <NavIcon name={m.iconName} size={20} />
                           <span style={{ color: method === m.key ? 'var(--primary)' : 'var(--text-muted)', fontSize: 13, fontWeight: 600 }}>{m.label}</span>
                         </div>
                       ))}

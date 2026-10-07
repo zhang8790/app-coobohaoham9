@@ -57,7 +57,7 @@ function StoreSwitcher() {
           borderRadius: 'var(--radius-md)', color: 'var(--text)', cursor: 'pointer', fontSize: 'var(--text-base)', fontWeight: 'var(--fw-semibold)',
         }}
       >
-        <span style={{ fontSize: 15 }}>🏪</span>
+        <NavIcon name="store" size={15} />
         <span style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current?.name}</span>
         {stores.length > 1 && <span style={{ color: 'var(--text-dim)', fontSize: 12, marginLeft: 2 }}>▾</span>}
       </button>
@@ -125,7 +125,7 @@ export default function MerchantLayout() {
         {/* Logo */}
         <div style={{ padding: collapsed ? '0 16px' : '0 20px', display: 'flex', alignItems: 'center', gap: 11, borderBottom: '1px solid var(--border)', height: 64, flexShrink: 0, overflow: 'hidden' }}>
           <div style={{ width: 34, height: 34, background: 'var(--success-strong)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <span style={{ color: 'white', fontSize: 17 }}>🏪</span>
+            <span style={{ color: 'white' }}><NavIcon name="store" size={17} /></span>
           </div>
           {!collapsed && (
             <div style={{ minWidth: 0 }}>
@@ -196,7 +196,7 @@ export default function MerchantLayout() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 34, height: 34, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 14 }}>🏪</span>
+                <NavIcon name="store" size={14} />
               </div>
               <div>
                 <p style={{ color: 'var(--text)', fontSize: 13, fontWeight: 'var(--fw-semibold)', lineHeight: 1 }}>

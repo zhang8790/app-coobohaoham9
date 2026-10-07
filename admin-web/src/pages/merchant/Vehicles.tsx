@@ -6,6 +6,7 @@ import {
   getMyMerchantStore, getMerchantVehicles, createVehicle, updateVehicleName, setVehicleStatus,
   getVehicleTransfers, type MerchantVehicle, type VehicleTransferRow,
 } from '@/api/merchant'
+import { NavIcon } from '@/components/icons'
 
 const STATUS_LABEL: Record<string, string> = { active: '运营中', offline: '已停驶' }
 const STATUS_COLOR: Record<string, string> = { active: 'var(--success-strong)', offline: 'var(--text-muted)' }
@@ -132,7 +133,7 @@ export default function MerchantVehicles() {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
                   <div style={{ width: 52, height: 52, background: 'linear-gradient(135deg, var(--primary-strong), var(--primary-hover))', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <span style={{ fontSize: 24 }}>🚚</span>
+                    <NavIcon name="truck" size={24} />
                   </div>
                   <div>
                     <p style={{ color: 'var(--text)', fontSize: 17, fontWeight: 700 }}>{v.name}</p>

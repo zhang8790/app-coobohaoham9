@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { getMyMerchantStore } from '@/api/merchant'
 import { useStore } from '@/contexts/StoreContext'
+import { NavIcon } from '@/components/icons'
 
 // ============ 类型 ============
 interface Member {
@@ -371,7 +372,7 @@ export default function MerchantMembers() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <span style={{ fontSize: 16 }}>👤</span>
+                    <NavIcon name="user" size={16} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.nickname}</p>
@@ -396,7 +397,7 @@ export default function MerchantMembers() {
             <div style={{ padding: 20, borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
                 <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--success-strong)22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 28 }}>👤</span>
+                  <NavIcon name="user" size={28} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700, margin: 0 }}>{selected.nickname}</p>
@@ -508,7 +509,7 @@ export default function MerchantMembers() {
             {/* 跨店消费说明 */}
             {selected.other_orders > 0 && (
               <div style={{ padding: '12px 20px', background: 'var(--bg)', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: 'var(--accent)', fontSize: 16 }}>🔒</span>
+                <NavIcon name="lock" size={16} style={{ color: 'var(--accent)' }} />
                 <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: 0 }}>
                   跨店订单仅显示<strong style={{ color: 'var(--accent-text)' }}>分润金额</strong>，商品详情及订单金额已隐藏，以保护其他店铺隐私。
                 </p>

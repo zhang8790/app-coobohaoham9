@@ -8,6 +8,7 @@ import {
   type SelfStoreProduct, type SelfStoreOrder, type SelfStoreStats,
 } from '@/api/admin'
 import { geocodeAddress } from '@/utils/geocode'
+import { NavIcon } from '@/components/icons'
 
 const PAGE_SIZE = 10
 const CATEGORIES = ['图书', '美食', '饮品', '零食', '日用', '礼品', '生鲜', '其他']
@@ -132,7 +133,7 @@ export default function SelfStores() {
               正常新申请在总后台审核通过时会自动把门店 owner 设为申请人，整条链路不需要手动绑定。 */}
           {!loading && list.some(r => !r.owner_id && !r.is_platform) && (
             <div style={{ background: 'rgba(217,119,6,0.10)', border: `1px solid ${C.gold}`, borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ color: C.gold, fontSize: 16, flexShrink: 0 }}>⚠️</span>
+              <NavIcon name="alert" size={16} style={{ color: C.gold, flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ color: C.text, fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
                   {list.filter(r => !r.owner_id && !r.is_platform).length} 家商户门店未设置店长账号

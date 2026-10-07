@@ -99,7 +99,7 @@ export default function MerchantMessages() {
           <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, width: 480 }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>{detailMsg.title}</h3>
-              <button onClick={() => setDetailMsg(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: 20, cursor: 'pointer' }}>✕</button>
+              <button onClick={() => setDetailMsg(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: 20, cursor: 'pointer', display: 'inline-flex' }}><NavIcon name="x" size={20} /></button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <span style={{ display: 'inline-flex' }}><NavIcon name={TYPE_ICON[detailMsg.type]} size={16} /></span>

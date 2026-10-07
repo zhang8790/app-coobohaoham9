@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { getMyMerchantStore } from '@/api/merchant'
 import { useStore } from '@/contexts/StoreContext'
+import { NavIcon } from '@/components/icons'
 
 interface OrderRow {
   id: string
@@ -286,7 +287,7 @@ export default function MerchantOrders() {
 
                 <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
                   <div style={{ width: 64, height: 64, background: 'var(--border)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <span style={{ color: 'var(--border-soft)', fontSize: 24 }}>📦</span>
+                    <NavIcon name="box" size={24} style={{ color: 'var(--border-soft)' }} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600 }}>{order.product_name}</p>
