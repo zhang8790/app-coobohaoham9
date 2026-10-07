@@ -30,6 +30,7 @@ function MerchantProductsPage() {
   const [expiryMap, setExpiryMap] = useState<Record<string, string>>({})
   const [showCatModal, setShowCatModal] = useState(false)
   const [newCatName, setNewCatName] = useState('')
+  const [newCatParent, setNewCatParent] = useState('')
   const [editingCatId, setEditingCatId] = useState<string | null>(null)
   const [editingCatName, setEditingCatName] = useState('')
   // 分类管理 / 批量分析 的提交态（表单保存态在 useProductForm 内，互不干扰）
@@ -213,10 +214,11 @@ function MerchantProductsPage() {
     const name = newCatName.trim()
     if (!name) { Taro.showToast({ title: '请输入分类名称', icon: 'none' }); return }
     setSaving(true)
-    const created = await createStoreCategory({ storeId: store.id, name })
+    const created = await createStoreCategory({ storeId: store.id, name, parentId: newCatParent || null })
     setSaving(false)
-    if (!created) { Taro.showToast({ title: '创建失败，请重试', icon: 'none' }); return }
+    if (!created) { Taro.showToast({ title: newCatParent ? '创建二级分类失败：请确认总部已部署二级分类迁移' : '创建失败，请重试', icon: 'none' }); return }
     setNewCatName('')
+    setNewCatParent('')
     Taro.showToast({ title: '已新建分类', icon: 'success' })
     await loadCategories()
   }
@@ -364,6 +366,8 @@ function MerchantProductsPage() {
           categories={categories}
           newCatName={newCatName}
           setNewCatName={setNewCatName}
+          newCatParent={newCatParent}
+          setNewCatParent={setNewCatParent}
           editingCatId={editingCatId}
           setEditingCatId={setEditingCatId}
           editingCatName={editingCatName}

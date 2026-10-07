@@ -534,20 +534,26 @@ export async function getNearExpiryProducts(opts: { storeId?: string | null; lim
   return (data as StoreNearExpiry[]) ?? []
 }
 
-/** 新建分类：storeId 有值→店内分类(scope='store')，否则→全局分类(scope='global') */
+/** 新建分类：storeId 有值→店内分类(scope='store')，否则→全局分类(scope='global')；
+ *  parentId 有值→二级分类，null/省略→一级分类。
+ *  注意：parent_id 列依赖迁移 20260927_add_category_parent.sql；未执行时仅建一级可用。 */
 export async function createStoreCategory(input: {
   storeId: string | null
   name: string
   sortOrder?: number
   scope?: 'global' | 'store'
+  parentId?: string | null
 }): Promise<StoreCategory | null> {
   const scope = input.scope ?? (input.storeId ? 'store' : 'global')
-  const { data, error } = await supabase.from('store_categories').insert({
+  const payload: Record<string, unknown> = {
     store_id: input.storeId ?? null,
     name: input.name.trim(),
     sort_order: Number.isFinite(input.sortOrder as number) ? (input.sortOrder as number) : 0,
     scope,
-  }).select().single()
+  }
+  // 仅在指定父级时携带 parent_id，避免迁移未执行时一级分类创建被 PGRST204 拒绝
+  if (input.parentId) payload.parent_id = input.parentId
+  const { data, error } = await supabase.from('store_categories').insert(payload).select().single()
   if (error) { console.warn('[createStoreCategory]', error); return null }
   clearRequestCache() // 写后失效分类 5min 缓存，新建分类立即可见
   return data as StoreCategory
