@@ -225,7 +225,6 @@ export default function MerchantProducts() {
     food_category: '',
     positive_effect: '',
     risk_warning: '',
-    emotion_copy: '',
     scenes: [] as string[],
     rec_crowds: [] as string[],
     cautious_crowds: [] as string[],
@@ -256,7 +255,6 @@ export default function MerchantProducts() {
 
   // 判断是否有自营门店权限
   const isMerchantUser = profile?.merchant_status === 'approved' || profile?.role === 'merchant'
-  const [customScene, setCustomScene] = useState('')
 
   // 实时食疗安全分析结果（P1-8）：点「实时安全分析」后写入，供商家直观看到系统判定
   const [liveSafety, setLiveSafety] = useState<{
@@ -392,7 +390,7 @@ export default function MerchantProducts() {
     setLiveSafety(null)
     setForm({ name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', barcode: '', main_image: '', sub_images: [], detail_images: [], video_url: '', discount_rate: '', ingredients: [],
       overall_nature: '', health_tag: [], emotion_tag: [], match_goods: [], conflict_goods: [], aux_remind: '',
-      food_category: '', positive_effect: '', risk_warning: '', emotion_copy: '', scenes: [],
+      food_category: '', positive_effect: '', risk_warning: '', scenes: [],
       rec_crowds: [], cautious_crowds: [], cautious_notes: '', forbidden_crowds: [], forbidden_reasons: '',
       combo_product_ids: [], guide_sentence: '', moments_copy: '', taboo_warning: '', category_id: '', sub_category_id: '',
       food_stage: '',
@@ -427,7 +425,6 @@ export default function MerchantProducts() {
       food_category: (p as any).food_category ?? '',
       positive_effect: (p as any).positive_effect ?? '',
       risk_warning: (p as any).risk_warning ?? '',
-      emotion_copy: (p as any).emotion_copy ?? '',
       scenes: (p as any).scene_tags ?? [],
       rec_crowds: (p as any).rec_crowds ?? [],
       cautious_crowds: (p as any).cautious_crowds ?? [],
@@ -666,18 +663,17 @@ export default function MerchantProducts() {
   }
 
   // —— 食疗文案：本地规则草稿（与小程序端同源口径，即使云端 LLM 未配置也能产出可用文案）——
-  const buildRuleCopy = (f: typeof form): { guide_sentence: string; moments_copy: string; emotion_copy: string; taboo_warning: string } => {
+  const buildRuleCopy = (f: typeof form): { guide_sentence: string; moments_copy: string; taboo_warning: string } => {
     const name = f.name || '这款好物'
     const nature = f.overall_nature || (f.ingredients.length ? '平和' : '')
     const tags = f.health_tag.length ? f.health_tag.join('、') : (f.ingredients.length ? '日常调养' : '')
     const rec = f.rec_crowds.length ? f.rec_crowds.join('、') : '注重食养的人'
     const guide = `${name}${nature ? `性${nature}` : ''}，适合${rec}，温润好入口，食疗日常小确幸。`
     const moments = `今天被${name}暖到了。${tags ? `${tags}缓缓补回来，` : ''}把好好吃饭这件小事，过成对自己的犒赏。`
-    const emotion = `第一段：柴米油盐里，也有认真生活的证据。\n第二段：一碗${name}的温度，刚好接住疲惫的自己。\n第三段：好好吃饭，就是最朴素的爱自己。`
     const taboo = f.forbidden_crowds.length
       ? `${f.forbidden_crowds.join('、')}人群建议少量尝试或回避${f.forbidden_reasons ? '：' + f.forbidden_reasons : ''}`
       : (f.cautious_crowds.length ? `${f.cautious_crowds.join('、')}人群建议少量品鉴${f.cautious_notes ? '：' + f.cautious_notes : ''}` : '')
-    return { guide_sentence: guide, moments_copy: moments, emotion_copy: emotion, taboo_warning: taboo }
+    return { guide_sentence: guide, moments_copy: moments, taboo_warning: taboo }
   }
 
   // —— 合规巡检：医疗宣称词 + 违规广告词（命中则保存前提示运营确认）——
@@ -797,7 +793,7 @@ export default function MerchantProducts() {
       food_category: form.food_category || null,
       positive_effect: form.positive_effect || null,
       risk_warning: form.risk_warning || null,
-      emotion_copy: form.emotion_copy || null,
+      emotion_copy: null, // 情绪价值文案已下线（2026-10-08）：恒写空，旧数据保存即清
       scene_tags: form.scenes.length ? form.scenes : null,
       rec_crowds: form.rec_crowds.length ? form.rec_crowds : null,
       cautious_crowds: form.cautious_crowds.length ? form.cautious_crowds : null,
@@ -824,7 +820,6 @@ export default function MerchantProducts() {
     const complianceHits = scanCompliance({
       guide_sentence: body.guide_sentence ?? '',
       moments_copy: body.moments_copy ?? '',
-      emotion_copy: body.emotion_copy ?? '',
       positive_effect: body.positive_effect ?? '',
       risk_warning: body.risk_warning ?? '',
       taboo_warning: body.taboo_warning ?? '',
@@ -1745,17 +1740,9 @@ export default function MerchantProducts() {
                 </div>
               </div>
 
-              {/* 情绪价值文案（固定三段式模板填空） */}
+              {/* 适配消费场景（预设多选；2026-10-08 简单化：去掉自定义补充与冗余"已选"行） */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>情绪价值文案（三段式）</span>
-                <textarea value={form.emotion_copy} onChange={e => setForm(f => ({ ...f, emotion_copy: e.target.value }))} placeholder={'第一段：热汤通体暖意\n第二段：疲惫时的温柔抚慰\n第三段：犒劳长期辛苦的自己'} rows={3}
-                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
-                <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>温暖陪伴 / 放松时刻 / 犒劳自己，三段换行填写</span>
-              </div>
-
-              {/* 适配消费场景（预设 + 自定义） */}
-              <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>适配消费场景（多选 + 可补充）</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>适配消费场景（多选）</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                   {SCENE_OPTIONS.map(s => {
                     const active = form.scenes.includes(s)
@@ -1767,14 +1754,6 @@ export default function MerchantProducts() {
                     )
                   })}
                 </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <input value={customScene} onChange={e => setCustomScene(e.target.value)} placeholder="补充自定义场景，如：出差途中" style={{ flex: 1, padding: '6px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
-                  <button type="button" disabled={!customScene.trim()} onClick={() => { if (customScene.trim()) { toggleArr('scenes', customScene.trim()); setCustomScene('') } }}
-                    style={{ padding: '6px 14px', background: customScene.trim() ? 'var(--border)' : 'var(--border-soft)', border: '1px solid var(--border-soft)', borderRadius: 8, color: customScene.trim() ? 'var(--text)' : 'var(--text-dim)', cursor: customScene.trim() ? 'pointer' : 'not-allowed', fontSize: 13 }}>添加</button>
-                </div>
-                {form.scenes.length > 0 && (
-                  <div style={{ marginTop: 6, color: 'var(--success-strong)', fontSize: 12 }}>已选：{form.scenes.join('、')}</div>
-                )}
               </div>
 
               {/* 人群标签（系统自动判定，只读；专家微调可改说明/覆盖） */}
