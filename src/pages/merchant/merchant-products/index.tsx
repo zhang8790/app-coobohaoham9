@@ -296,6 +296,7 @@ function MerchantProductsPage() {
           onToggleActive={handleToggleActive}
           onDelete={handleDeleteProduct}
           onBatchIn={(p) => Taro.navigateTo({ url: `/pages/merchant/merchant-batch/index?productId=${p.id}` })}
+          onPreview={(p) => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}
         >
 
           {/* 操作按钮 —— 关键修复区域 */}

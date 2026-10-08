@@ -22,12 +22,13 @@ type Props = {
   onToggleActive: (p: Product) => void
   onDelete: (p: Product) => void
   onBatchIn: (p: Product) => void
+  onPreview: (p: Product) => void
   children?: ReactNode
 }
 
 export default function ProductList({
   products, filter, setFilter, expiryMap, categories,
-  onEdit, onToggleActive, onDelete, onBatchIn, children,
+  onEdit, onToggleActive, onDelete, onBatchIn, onPreview, children,
 }: Props) {
   const catNameOf = (id: string | null | undefined): string => {
     if (!id) return '未分类'
@@ -101,6 +102,9 @@ export default function ProductList({
                       background: p.is_active ? '#DCFCE7' : '#FBF7EF',
                     }}>
                       <Text style={{ fontSize: '22rpx', color: p.is_active ? '#15803D' : 'var(--muted-foreground)' }}>{p.is_active ? '在售' : '下架'}</Text>
+                      {p.therapy_pending ? (
+                        <Text style={{ fontSize: '22rpx', color: '#B45309', marginLeft: '6px' }}>· 食疗待补全</Text>
+                      ) : null}
                       {expiryMap[p.id] && (() => {
                         const s = expiryMap[p.id]
                         const m: Record<string, { c: string; t: string }> = { red: { c: '#DC2626', t: '紧急' }, orange: { c: '#B45309', t: '紧迫' }, amber: { c: '#B45309', t: '临期' } }
@@ -157,6 +161,12 @@ export default function ProductList({
                   onClick={() => onBatchIn(p)}
                   style={S.flex_1_display_flex_alignitems_center_justifycontent_center_padding_10px}>
                   <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))' }}> 入库</Text>
+                </View>
+                <View style={S.width_1px_background_f2f2f2} />
+                <View
+                  onClick={() => onPreview(p)}
+                  style={S.flex_1_display_flex_alignitems_center_justifycontent_center_padding_10px}>
+                  <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))' }}> 预览</Text>
                 </View>
               </View>
             </View>

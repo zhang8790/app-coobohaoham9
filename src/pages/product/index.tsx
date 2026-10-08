@@ -17,6 +17,7 @@ import { supabase } from '@/client/supabase'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { toFoodTherapyInput, TIER_LABEL, buildShiyangStageModule } from '@/utils/food-therapy'
 import { resolveIngredientEntries } from '@/utils/ingredient-analysis'
+import { analyzeConstitutionFit, CONSTITUTION_TYPES } from '@/utils/shiyang-dictionary'
 import FoodSafetyPanel from '@/components/FoodSafetyPanel'
 import ComprehensiveSafetyReport from '@/components/ComprehensiveSafetyReport'
 import GiftSections from '@/pages/product/GiftSections'
@@ -532,6 +533,58 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                     此商品适配您的【{userConstitution}】
                   </Text>
                 ) : null}
+
+                {/* 九体质适配全景：基于食材性味/味 的本地规则计分（非 AI），
+                    9 宫格呈现「更适合 / 宜少吃 / 中性」，并高亮本人/家庭成员体质。
+                    仅食养参考，不诊断、不替代医嘱。 */}
+                {(() => {
+                  const fit = analyzeConstitutionFit(shiyangEntries as any)
+                  if (!fit) return null
+                  const suitSet = new Set(fit.suitable)
+                  const avoidSet = new Set(fit.avoid)
+                  const legend: Array<{ k: string; c: string; t: string }> = [
+                    { k: 'suit', c: '#15803D', t: '更适合' },
+                    { k: 'avoid', c: '#B45309', t: '宜少吃' },
+                    { k: 'neutral', c: '#9CA3AF', t: '中性' },
+                  ]
+                  return (
+                    <View style={{ marginTop: 10 }}>
+                      <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <Text style={{ fontSize: '22rpx', color: 'hsl(var(--muted-foreground))' }}>九体质适配全景</Text>
+                        <View style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {legend.map(l => (
+                            <View key={l.k} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                              <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: l.c }} />
+                              <Text style={{ fontSize: '20rpx', color: 'hsl(var(--muted-foreground))' }}>{l.t}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                      <View style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {CONSTITUTION_TYPES.map((c) => {
+                          const isSuit = suitSet.has(c)
+                          const isAvoid = avoidSet.has(c)
+                          const isUser = userConstitution === c
+                          const bg = isSuit ? '#DCFCE7' : isAvoid ? '#FDECEC' : '#F3F4F6'
+                          const fg = isSuit ? '#15803D' : isAvoid ? '#B45309' : '#9CA3AF'
+                          return (
+                            <View key={c}
+                              style={{
+                                padding: '6rpx 16rpx', borderRadius: '10rpx', backgroundColor: bg,
+                                borderWidth: isUser ? 2 : 1,
+                                borderColor: isUser ? '#B45309' : isSuit ? '#86EFAC' : isAvoid ? '#FCA5A5' : '#E5E7EB',
+                              }}>
+                              <Text style={{ fontSize: '22rpx', color: fg, fontWeight: isSuit || isUser ? 'bold' : 'normal' }}>{c}</Text>
+                            </View>
+                          )
+                        })}
+                      </View>
+                      <Text style={{ fontSize: '20rpx', color: 'hsl(var(--muted-foreground))', display: 'block', marginTop: 6 }}>
+                        （九分法食养参考，温和性/味偏好推算，不构成体质诊断或调理建议）
+                      </Text>
+                    </View>
+                  )
+                })()}
               </View>
             )
           })()}
