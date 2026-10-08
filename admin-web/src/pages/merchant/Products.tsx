@@ -281,8 +281,8 @@ export default function MerchantProducts() {
     }
     setStep(s => Math.min(FORM_STEPS.length, s + 1))
   }
-  // 专家微调：默认关闭；引擎计算的食疗字段只读展示，开启后可手动覆盖（适合人群/性味/阶段/提示）
-  const [expertMode, setExpertMode] = useState(false)
+  // 人群标签手动输入草稿（推荐/品鉴/回避 三档各自的暂存框）
+  const [crowdDraft, setCrowdDraft] = useState<{ rec: string; cautious: string; forbidden: string }>({ rec: '', cautious: '', forbidden: '' })
 
   // 加载本店分类（含平台全局），仅在真实模式且已拿到 storeId 时
   useEffect(() => {
@@ -654,6 +654,15 @@ export default function MerchantProducts() {
       return { ...f, [key]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] }
     })
   }
+  // 人群标签手动输入：把一段文字按「、,，空格」拆分并合并进对应数组（去重）
+  const addCrowd = (key: 'rec_crowds' | 'cautious_crowds' | 'forbidden_crowds', text: string) => {
+    const items = text.split(/[、,，\s]+/).map(s => s.trim()).filter(Boolean)
+    if (!items.length) return
+    setForm(f => {
+      const arr = (f[key] as string[])
+      return { ...f, [key]: Array.from(new Set([...arr, ...items])) } as typeof form
+    })
+  }
 
   // —— 食疗文案：本地规则草稿（与小程序端同源口径，即使云端 LLM 未配置也能产出可用文案）——
   const buildRuleCopy = (f: typeof form): { guide_sentence: string } => {
@@ -742,7 +751,7 @@ export default function MerchantProducts() {
     // 3) 文案（纯本地规则引擎，零 LLM 依赖，用最新值）
     const rule = buildRuleCopy(merged)
     setForm(f => ({ ...f, ...rule }))
-    setEmotionFlash('已智能填充（分析+文案，本地规则引擎）\n系统已自动产出食疗字段，可展开「商品食疗系统」核对，或点「专家微调」手动修正')
+    setEmotionFlash('已智能填充（分析+文案，本地规则引擎）\n系统已自动产出食疗字段，可展开「商品食疗系统」直接核对或修改')
     setGenerating(false)
     setTimeout(() => setEmotionFlash(null), 7000)
   }
@@ -1613,13 +1622,9 @@ export default function MerchantProducts() {
                     style={{ padding: '6px 14px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 8, color: (generating || !form.name) ? 'var(--text-dim)' : 'var(--text)', cursor: (generating || !form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
                     {generating ? '生成中…' : '重新生成文案'}
                   </button>
-                  <button type="button" onClick={() => setExpertMode(v => !v)}
-                    style={{ padding: '6px 14px', background: expertMode ? 'rgba(194,65,12,0.12)' : 'var(--bg)', border: `1px solid ${expertMode ? 'var(--primary)' : 'var(--border-soft)'}`, borderRadius: 8, color: expertMode ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>
-                    {expertMode ? '✓ 专家微调开' : '专家微调'}
-                  </button>
                 </div>
               </div>
-              <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>点「一键智能填充」即按商品名自动识别食材、计算性味 / 人群 / 安全分析并生成导购文案；下方字段由系统产出，默认只读，仅少数场景需点「专家微调」手动覆盖。</p>
+              <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>点「一键智能填充」即按商品名自动识别食材、计算性味 / 人群 / 安全分析并生成导购文案（结果可直接在下方手动修改）；不填充也可手动逐项填写。</p>
 
               {/* 实时食疗安全分析（P1-8）：复用 analyzeDish 对当前名称+食材做系统判定 */}
               <div style={{ marginBottom: 14, padding: 14, background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 10 }}>
@@ -1675,52 +1680,40 @@ export default function MerchantProducts() {
                 )}
               </div>
 
-              {/* 整体性味（系统自动计算，专家微调可覆盖） */}
+              {/* 整体性味（可手动选择，留空则由系统按原料自动聚合） */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>整体性味（系统自动）</span>
-                <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: form.overall_nature ? 'var(--text)' : 'var(--text-dim)', fontSize: 14 }}>
-                  {form.overall_nature || '点「一键智能填充」后自动判定'}
-                </div>
-                {expertMode && (
-                  <select value={form.overall_nature} onChange={e => setForm(f => ({ ...f, overall_nature: e.target.value }))}
-                    style={{ width: '100%', marginTop: 8, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
-                    <option value="">未设置（将按原料自动聚合）</option>
-                    {NATURE_SCALE.map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                )}
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>整体性味</span>
+                <select value={form.overall_nature} onChange={e => setForm(f => ({ ...f, overall_nature: e.target.value }))}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
+                  <option value="">未设置（将按原料自动聚合）</option>
+                  {NATURE_SCALE.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
               </div>
 
-              {/* 食养阶段（清通调补固，系统自动派生，专家微调可覆盖） */}
+              {/* 食养阶段（可手动选择，清通调补固） */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食养阶段（系统自动）</span>
-                <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: form.food_stage ? 'var(--text)' : 'var(--text-dim)', fontSize: 14 }}>
-                  {form.food_stage ? ({ 清: '清阶 · 清火润燥', 通: '通阶 · 通肠益菌', 调: '调阶 · 健脾养胃', 补: '补阶 · 补钙增营', 固: '固阶 · 固本均衡' } as Record<string, string>)[form.food_stage] : '点「一键智能填充」后自动判定'}
-                </div>
-                {expertMode && (
-                  <select value={form.food_stage} onChange={e => setForm(f => ({ ...f, food_stage: e.target.value }))}
-                    style={{ width: '100%', marginTop: 8, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
-                    <option value="">未设置（按核心食材主导功效自动判定）</option>
-                    <option value="清">清阶 · 清火润燥</option>
-                    <option value="通">通阶 · 通肠益菌</option>
-                    <option value="调">调阶 · 健脾养胃</option>
-                    <option value="补">补阶 · 补钙增营</option>
-                    <option value="固">固阶 · 固本均衡</option>
-                  </select>
-                )}
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食养阶段</span>
+                <select value={form.food_stage} onChange={e => setForm(f => ({ ...f, food_stage: e.target.value }))}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
+                  <option value="">未设置（按核心食材主导功效自动判定）</option>
+                  <option value="清">清阶 · 清火润燥</option>
+                  <option value="通">通阶 · 通肠益菌</option>
+                  <option value="调">调阶 · 健脾养胃</option>
+                  <option value="补">补阶 · 补钙增营</option>
+                  <option value="固">固阶 · 固本均衡</option>
+                </select>
               </div>
 
-              {/* 食疗滋养效果：正向 + 风险（系统自动，只读） */}
+              {/* 食疗滋养效果：正向 + 风险（可手动填写，也可一键填充） */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>正向调理作用（系统自动）</span>
-                <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: form.positive_effect ? 'var(--text)' : 'var(--text-dim)', fontSize: 14, minHeight: 38, whiteSpace: 'pre-wrap' }}>
-                  {form.positive_effect || '点「一键智能填充」后自动产出'}
-                </div>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>正向调理作用</span>
+                <textarea value={form.positive_effect} onChange={e => setForm(f => ({ ...f, positive_effect: e.target.value }))} placeholder="如：温中散寒、益气健脾（可留空，由系统一键填充自动产出）" rows={2}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食用参考（系统自动）</span>
-                <div style={{ marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: form.risk_warning ? 'var(--text)' : 'var(--text-dim)', fontSize: 14, minHeight: 38, whiteSpace: 'pre-wrap' }}>
-                  {form.risk_warning || '点「一键智能填充」后自动产出'}
-                </div>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食用参考</span>
+                <textarea value={form.risk_warning} onChange={e => setForm(f => ({ ...f, risk_warning: e.target.value }))} placeholder="如：体质偏热者适量（可留空，由系统一键填充自动产出）" rows={2}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
               </div>
 
               {/* 适配消费场景（预设多选；2026-10-08 简单化：去掉自定义补充与冗余"已选"行） */}
@@ -1739,49 +1732,67 @@ export default function MerchantProducts() {
                 </div>
               </div>
 
-              {/* 人群标签（系统自动判定，只读；专家微调可改说明/覆盖） */}
+              {/* 人群标签（可手动增删，也可一键填充自动判定） */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>① 五星推荐人群（系统自动）</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>① 五星推荐人群</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                   {form.rec_crowds.length ? form.rec_crowds.map(c => (
-                    <span key={c} style={{ padding: '4px 10px', background: '#065F46', border: '1px solid var(--success-strong)', borderRadius: 999, fontSize: 12, color: '#ECFDF5' }}>{c}</span>
-                  )) : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>点「一键智能填充」后自动判定</span>}
+                    <span key={c} onClick={() => toggleArr('rec_crowds', c)} title="点击删除"
+                      style={{ padding: '4px 8px 4px 10px', background: '#065F46', border: '1px solid var(--success-strong)', borderRadius: 999, fontSize: 12, color: '#ECFDF5', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {c}<span style={{ fontSize: 11, opacity: .85 }}>×</span>
+                    </span>
+                  )) : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>暂无（可手动添加或一键填充）</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <input value={crowdDraft.rec} onChange={e => setCrowdDraft(d => ({ ...d, rec: e.target.value }))} placeholder="输入人群后点添加（多个用、或空格分隔）" style={{ flex: 1, padding: '6px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
+                  <button type="button" disabled={!crowdDraft.rec.trim()} onClick={() => { addCrowd('rec_crowds', crowdDraft.rec); setCrowdDraft(d => ({ ...d, rec: '' })) }}
+                    style={{ padding: '6px 14px', background: crowdDraft.rec.trim() ? 'var(--success-strong)' : 'var(--border-soft)', border: '1px solid var(--border-soft)', borderRadius: 8, color: crowdDraft.rec.trim() ? '#fff' : 'var(--text-dim)', cursor: crowdDraft.rec.trim() ? 'pointer' : 'not-allowed', fontSize: 13 }}>添加</button>
                 </div>
               </div>
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>② 少量品鉴人群（系统自动）</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>② 少量品鉴人群</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                   {form.cautious_crowds.length ? form.cautious_crowds.map(c => (
-                    <span key={c} style={{ padding: '4px 10px', background: 'var(--warning)', border: '1px solid var(--warning)', borderRadius: 999, fontSize: 12, color: '#FEF3C7' }}>{c}</span>
-                  )) : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>无</span>}
+                    <span key={c} onClick={() => toggleArr('cautious_crowds', c)} title="点击删除"
+                      style={{ padding: '4px 8px 4px 10px', background: 'var(--warning)', border: '1px solid var(--warning)', borderRadius: 999, fontSize: 12, color: '#FEF3C7', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {c}<span style={{ fontSize: 11, opacity: .85 }}>×</span>
+                    </span>
+                  )) : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>暂无</span>}
                 </div>
-                {expertMode && (
-                  <textarea value={form.cautious_notes} onChange={e => setForm(f => ({ ...f, cautious_notes: e.target.value }))} placeholder="如：少量饮用、去辣减油" rows={2}
-                    style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
-                )}
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <input value={crowdDraft.cautious} onChange={e => setCrowdDraft(d => ({ ...d, cautious: e.target.value }))} placeholder="输入人群后点添加（多个用、或空格分隔）" style={{ flex: 1, padding: '6px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
+                  <button type="button" disabled={!crowdDraft.cautious.trim()} onClick={() => { addCrowd('cautious_crowds', crowdDraft.cautious); setCrowdDraft(d => ({ ...d, cautious: '' })) }}
+                    style={{ padding: '6px 14px', background: crowdDraft.cautious.trim() ? 'var(--warning)' : 'var(--border-soft)', border: '1px solid var(--border-soft)', borderRadius: 8, color: crowdDraft.cautious.trim() ? '#FEF3C7' : 'var(--text-dim)', cursor: crowdDraft.cautious.trim() ? 'pointer' : 'not-allowed', fontSize: 13 }}>添加</button>
+                </div>
+                <textarea value={form.cautious_notes} onChange={e => setForm(f => ({ ...f, cautious_notes: e.target.value }))} placeholder="如：少量饮用、去辣减油" rows={2}
+                  style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>③ 建议回避人群（系统自动）</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>③ 建议回避人群</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                   {form.forbidden_crowds.length ? form.forbidden_crowds.map(c => (
-                    <span key={c} style={{ padding: '4px 10px', background: '#7F1D1D', border: '1px solid var(--danger)', borderRadius: 999, fontSize: 12, color: '#FECACA' }}>{c}</span>
-                  )) : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>无</span>}
+                    <span key={c} onClick={() => toggleArr('forbidden_crowds', c)} title="点击删除"
+                      style={{ padding: '4px 8px 4px 10px', background: '#7F1D1D', border: '1px solid var(--danger)', borderRadius: 999, fontSize: 12, color: '#FECACA', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {c}<span style={{ fontSize: 11, opacity: .85 }}>×</span>
+                    </span>
+                  )) : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>暂无</span>}
                 </div>
-                {expertMode && (
-                  <textarea value={form.forbidden_reasons} onChange={e => setForm(f => ({ ...f, forbidden_reasons: e.target.value }))} placeholder="如：特殊体质建议回避、建议少量尝试" rows={2}
-                    style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
-                )}
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <input value={crowdDraft.forbidden} onChange={e => setCrowdDraft(d => ({ ...d, forbidden: e.target.value }))} placeholder="输入人群后点添加（多个用、或空格分隔）" style={{ flex: 1, padding: '6px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
+                  <button type="button" disabled={!crowdDraft.forbidden.trim()} onClick={() => { addCrowd('forbidden_crowds', crowdDraft.forbidden); setCrowdDraft(d => ({ ...d, forbidden: '' })) }}
+                    style={{ padding: '6px 14px', background: crowdDraft.forbidden.trim() ? 'var(--danger)' : 'var(--border-soft)', border: '1px solid var(--border-soft)', borderRadius: 8, color: crowdDraft.forbidden.trim() ? '#FECACA' : 'var(--text-dim)', cursor: crowdDraft.forbidden.trim() ? 'pointer' : 'not-allowed', fontSize: 13 }}>添加</button>
+                </div>
+                <textarea value={form.forbidden_reasons} onChange={e => setForm(f => ({ ...f, forbidden_reasons: e.target.value }))} placeholder="如：特殊体质建议回避、建议少量尝试" rows={2}
+                  style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
               </div>
 
-              {/* 适合人群覆盖（仅专家微调） */}
-              {expertMode && (
-                <div style={{ marginBottom: 14 }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>适合人群（fit_people_override）</span>
-                  <textarea value={form.fit_people_override} onChange={e => setForm(f => ({ ...f, fit_people_override: e.target.value }))} placeholder="留空则由食疗引擎辨证推导；手填则直接作为「适合人群」展示" rows={2}
-                    style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--primary)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
-                  <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>若填写，将覆盖系统自动判定的适合人群（辨证增强迁移 00237）</span>
-                </div>
-              )}
+              {/* 适合人群覆盖（手填则直接覆盖系统自动判定） */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>适合人群（自定义覆盖）</span>
+                <textarea value={form.fit_people_override} onChange={e => setForm(f => ({ ...f, fit_people_override: e.target.value }))} placeholder="留空则由食疗引擎辨证推导；手填则直接作为「适合人群」展示" rows={2}
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>若填写，将覆盖系统自动判定的适合人群（辨证增强迁移 00237）</span>
+              </div>
 
               {/* 门店配套（导购短句，C 端详情页展示） */}
               <div style={{ marginBottom: 14 }}>
