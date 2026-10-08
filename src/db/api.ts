@@ -448,6 +448,49 @@ export async function getStoreCategories(storeId: string): Promise<StoreCategory
   return out
 }
 
+export type FoodCategoryRow = { id: string; name: string; sort_order: number; is_active: boolean }
+
+/**
+ * 食疗导购分类（food_categories 参考表）——DB 驱动，替代硬编码枚举。
+ * 5min 内存缓存；失败返回 []（调用方回退到 FOOD_CATEGORIES 常量）。
+ */
+export async function getFoodCategories(): Promise<FoodCategoryRow[]> {
+  const ck = cacheMakeKey('foodCats')
+  const hit = cacheGet<FoodCategoryRow[]>(ck)
+  if (hit) return hit
+  try {
+    const { data } = await supabase
+      .from('food_categories')
+      .select('id,name,sort_order,is_active')
+      .eq('is_active', true)
+      .order('sort_order')
+    const out = Array.isArray(data) ? (data as FoodCategoryRow[]) : []
+    cacheSet(ck, out, 300_000)
+    return out
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 自由原料候选登记：把商家/用户自由输入的原料（free: 前缀项）登记进 ingredient_candidates 候选池。
+ * 非阻塞：失败静默，绝不阻断商家主流程（保存商品 / 添加原料）。
+ */
+export async function upsertIngredientCandidate(name: string, storeId?: string | null): Promise<void> {
+  const n = (name || '').trim()
+  if (!n) return
+  try {
+    await supabase
+      .from('ingredient_candidates')
+      .upsert(
+        { name: n, store_id: storeId ?? null, source: 'free_input', status: 'pending' },
+        { onConflict: 'name,store_id' },
+      )
+  } catch {
+    /* 静默：候选登记失败不影响主流程 */
+  }
+}
+
 /**
  * 组合查询：店内分类 + 可选全局分类（平台建的 scope='global'）
  * - 商家端：getCategories({ storeId, includeGlobal: true }) 取到「本店 + 全局」两套

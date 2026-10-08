@@ -6,7 +6,7 @@ import Taro from '@tarojs/taro'
 import { scanRaw } from '@/utils/scan'
 import {
   getProductByBarcode, generateProductBarcode, callPrintBarcode,
-  createProduct, updateProduct,
+  createProduct, updateProduct, getFoodCategories, upsertIngredientCandidate,
 } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import { uploadImage, uploadVideo } from '@/utils/upload'
@@ -45,6 +45,8 @@ export type FormState = {
   category_id: string
   // 二级分类（场景内细分，仅筛选维度；一级归类仍为 category_id）
   sub_category_id: string
+  // 食疗导购分类（food_categories 参考表驱动，回退常量；区别于 store_categories 归类）
+  food_category: string
   // —— 商品类型化（迁移 20260803）：礼品/手作与食养食品分开 ——
   product_kind: string
   materials: string[]
@@ -74,6 +76,7 @@ export const emptyForm = (): FormState => ({
   guide_sentence: '',
   category_id: '',
   sub_category_id: '',
+  food_category: '',
   product_kind: 'food',
   materials: [],
   gift_meaning: '',
@@ -154,6 +157,7 @@ export type ProductFormController = {
   toggleIngredient: (key: string) => void
   toggleArrayField: (field: 'health_tag' | 'match_goods' | 'conflict_goods' | 'fit_crowd_tags', val: string, max?: number) => void
   dictRowToItem: (row: FoodIngredientRow) => IngredientItem
+  foodCategories: { id: string; name: string; sort_order: number; is_active: boolean }[]
 }
 
 export function useProductForm(store: Store | null, opts: { onSaved: () => void }): ProductFormController {
@@ -165,6 +169,13 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
   const [ingredientResults, setIngredientResults] = useState<string[]>([])
   // 自由原料：食材库里没有的自定义原料（free: 前缀标记，不参与食养派生，仅作原料清单记录）
   const [freeIngredient, setFreeIngredient] = useState('')
+  // 食疗导购分类（food_categories 参考表驱动，DB 可扩展；空时前端回退 FOOD_CATEGORIES 常量）
+  const [foodCategories, setFoodCategories] = useState<{ id: string; name: string; sort_order: number; is_active: boolean }[]>([])
+  useEffect(() => {
+    let alive = true
+    getFoodCategories().then((rows) => { if (alive) setFoodCategories(rows) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
   // 重新生成文案：强制触发一次商家寄语重算（食养系统本就边填边算，此按钮给商家一个显式「重算」入口）
   const [regenNonce, setRegenNonce] = useState(0)
   // 食疗商品系统化：食材库（DB 可维护）+ 结构化食材项
@@ -324,6 +335,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
       guide_sentence: (p as any).guide_sentence ?? '',
       category_id: p.category_id ?? '',
       sub_category_id: (p as any).sub_category_id ?? '',
+      food_category: (p as any).food_category ?? '',
       product_kind: (p as any).product_kind ?? 'food',
       materials: (p as any).materials ?? [],
       gift_meaning: (p as any).gift_meaning ?? '',
@@ -475,6 +487,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
         is_active: form.is_active,
         category_id: form.category_id || null,
         sub_category_id: form.sub_category_id || null,
+        food_category: form.food_category || null,
         // 商品类型化
         product_kind: form.product_kind || 'food',
         materials: isGiftKind && form.materials.length > 0 ? form.materials : undefined,
@@ -714,6 +727,8 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
         }))
       if (!add.length) return prev
       Taro.showToast({ title: `已添加 ${add.length} 种自由原料`, icon: 'success' })
+      // 登记自由原料到候选池（非阻塞：失败静默，不影响主流程）
+      for (const it of add) upsertIngredientCandidate(it.name, store?.id)
       return [...prev, ...add]
     })
     setFreeIngredient('')
@@ -742,8 +757,9 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     ingredientDict,
     ingredientQuery, setIngredientQuery,
     ingredientResults, setIngredientResults,
-    freeIngredient, setFreeIngredient,
-    addFreeIngredient, handleRegenerateCopy,
+  freeIngredient, setFreeIngredient,
+  addFreeIngredient, handleRegenerateCopy,
+  foodCategories,
     dishName, setDishName,
     dishImageUrl, setDishImageUrl,
     analyzing, saving, generatingBarcode, printingBarcode, scanning,

@@ -270,6 +270,20 @@ export default function MerchantProducts() {
   const [newCatName, setNewCatName] = useState('')
   const [editingCatId, setEditingCatId] = useState<string | null>(null)
   const [editingCatName, setEditingCatName] = useState('')
+  // 食疗导购分类（food_categories 参考表驱动；空时回退 FOOD_CATEGORIES 常量）
+  const [foodCategories, setFoodCategories] = useState<{ id: string; name: string }[]>([])
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data } = await supabase
+        .from('food_categories')
+        .select('id,name,sort_order,is_active')
+        .eq('is_active', true)
+        .order('sort_order')
+      if (alive && Array.isArray(data)) setFoodCategories(data as any)
+    })().catch(() => {})
+    return () => { alive = false }
+  }, [])
 
   // 商品编辑表单分区折叠状态（默认展开基础/价格/食疗，媒体/分类/原料/营销收起，降低一眼复杂度）
   const [sections, setSections] = useState<Record<string, boolean>>({
@@ -624,26 +638,31 @@ export default function MerchantProducts() {
   const addFreeIngredient = (raw: string) => {
     const names = raw.split(/[、,，\s]+/).map(s => s.trim()).filter(Boolean)
     if (!names.length) return
-    setForm(f => {
-      const exist = new Set(f.ingredients.map(it => it.name))
-      const add: IngredientItem[] = names
-        .filter(n => !exist.has(n))
-        .map(n => ({
-          id: `free:${n}`,
-          name: n,
-          nature: '平性',
-          base_effect: null,
-          caution_crowds: null,
-          allergens: [],
-          chronic_tags: [],
-          neutralize: null,
-          ratio: 50,
-          cooking: '清炒',
-          aux: [],
-        }))
-      if (!add.length) return f
-      return { ...f, ingredients: [...f.ingredients, ...add] }
-    })
+    const exist = new Set(form.ingredients.map(it => it.name))
+    const add: IngredientItem[] = names
+      .filter(n => !exist.has(n))
+      .map(n => ({
+        id: `free:${n}`,
+        name: n,
+        nature: '平性',
+        base_effect: null,
+        caution_crowds: null,
+        allergens: [],
+        chronic_tags: [],
+        neutralize: null,
+        ratio: 50,
+        cooking: '清炒',
+        aux: [],
+      }))
+    if (!add.length) return
+    // 登记自由原料到候选池（非阻塞：失败静默，不影响主流程）
+    for (const it of add) {
+      Promise.resolve(
+        supabase.from('ingredient_candidates')
+          .upsert({ name: it.name, source: 'free_input', status: 'pending' }, { onConflict: 'name,store_id' }),
+      ).catch(() => {})
+    }
+    setForm(f => ({ ...f, ingredients: [...f.ingredients, ...add] }))
   }
   // 食疗分析：按菜名系统拆解食材并组合生成全部食养字段（回填表单）
   const handleAnalyzeDish = () => {
@@ -1514,7 +1533,10 @@ export default function MerchantProducts() {
               <select value={form.food_category} onChange={e => setForm(f => ({ ...f, food_category: e.target.value }))}
                 style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}>
                 <option value="">未分类</option>
-                {FOOD_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {(foodCategories.length ? foodCategories : FOOD_CATEGORIES).map((c: any) => {
+                  const name = typeof c === 'string' ? c : c.name
+                  return <option key={name} value={name}>{name}</option>
+                })}
               </select>
               <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>粉面 / 炖汤 / 热饮 / 小菜，驱动食疗导购分类筛选</span>
             </div>

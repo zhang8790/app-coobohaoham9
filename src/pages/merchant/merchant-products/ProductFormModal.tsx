@@ -9,6 +9,7 @@ import { getProductCareInfo } from '@/utils/product-care'
 import { HEALTH_TAGS, NATURE_SCALE } from '@/utils/food-therapy/types'
 import { FIT_CROWD_OPTIONS } from '@/utils/food-therapy/product-therapy'
 import { calcMargin } from './types'
+import { FOOD_CATEGORIES } from '@/lib/food-engine/wordTables'
 import type { Product, StoreCategory } from '@/db/types'
 
 // 复用内联样式常量（原页面内重复字面量提取，行为不变）
@@ -154,6 +155,39 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Text style={{ fontSize: '24rpx', color: '#BBB' }}>暂无分类，点「管理分类」新建</Text>
  )}
  </View>
+ </View>
+
+ {/* 食疗导购分类（food_categories 参考表驱动；表为空时回退硬编码常量） */}
+ <View style={S.fieldGap}>
+ <Text style={S.labelStrongBlock}>食疗导购分类</Text>
+ <View style={S.rowWrapGap8}>
+ <View
+ onClick={() => controller.setForm(f => ({ ...f, food_category: '' }))}
+ style={{
+ padding: '7px 14px', borderRadius: '9999px',
+ background: controller.form.food_category === '' ? 'hsl(var(--primary))' : '#FFF',
+ border: controller.form.food_category === '' ? '1px solid hsl(var(--primary))' : '1px solid #EEE',
+ }}>
+ <Text style={{ fontSize: '26rpx', color: controller.form.food_category === '' ? '#FFF' : '#666' }}>未分类</Text>
+ </View>
+ {(controller.foodCategories.length ? controller.foodCategories : FOOD_CATEGORIES).map((c: any) => {
+ const name = typeof c === 'string' ? c : c.name
+ const sel = controller.form.food_category === name
+ return (
+ <View
+ key={name}
+ onClick={() => controller.setForm(f => ({ ...f, food_category: name }))}
+ style={{
+ padding: '7px 14px', borderRadius: '9999px',
+ background: sel ? 'hsl(var(--primary))' : '#FFF',
+ border: sel ? '1px solid hsl(var(--primary))' : '1px solid #EEE',
+ }}>
+ <Text style={{ fontSize: '26rpx', color: sel ? '#FFF' : '#666' }}>{name}</Text>
+ </View>
+ )
+ })}
+ </View>
+ <Text style={S.hintSmall}>粉面 / 炖汤 / 热饮 / 小菜…，驱动食疗导购分类筛选（后台可扩展，无需发版）</Text>
  </View>
 
  {/* 商品类型（迁移 20260803）：食养食品 / 药膳手串礼品 / 手作 / 护理 —— 决定详情页渲染哪套模块 */}
