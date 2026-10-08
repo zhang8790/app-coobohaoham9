@@ -75,6 +75,8 @@ type IngredientItem = {
 }
 const COOKING_METHODS = ['清炒', '少油', '重油', '红烧', '水煮', '凉拌']
 const AUX_OPTIONS = ['盐', '糖', '食用油', '酱油', '味精']
+// 常用 12 味（食材库前 12 项，作为快捷勾选入口，降低 59 味全量网格的认知负担）
+const COMMON_KEYS = Object.keys(INGREDIENT_DICT).slice(0, 12)
 
 // 由食材库 key 构建一个结构化 IngredientItem。
 // 注：web 端 INGREDIENT_DICT 仅含 性味/功效/人群/场景，缺少 base_effect / caution_crowds /
@@ -208,6 +210,7 @@ export default function MerchantProducts() {
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [showModal, setShowModal] = useState(false)
   const [freeIngredient, setFreeIngredient] = useState('')
+  const [ingSearch, setIngSearch] = useState('')
   const [editing, setEditing] = useState<ProductWithExt | null>(null)
   const [form, setForm] = useState({
     name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', barcode: '',
@@ -244,6 +247,7 @@ export default function MerchantProducts() {
     gift_craft: '',
     gift_scene: '',
     gift_care: '',
+    therapy_pending: false,
   })
   const mainImgRef   = useRef<HTMLInputElement>(null)
   const subImgRef    = useRef<HTMLInputElement>(null)
@@ -392,7 +396,7 @@ export default function MerchantProducts() {
       guide_sentence: '', category_id: '', sub_category_id: '',
       food_stage: '',
       product_kind: 'food', is_active: true, fit_people_override: '', materials: [],
-      gift_meaning: '', gift_craft: '', gift_scene: '', gift_care: '' })
+      gift_meaning: '', gift_craft: '', gift_scene: '', gift_care: '', therapy_pending: false })
     setStep(1)
     setShowModal(true)
   }
@@ -440,6 +444,7 @@ export default function MerchantProducts() {
       gift_craft: (p as any).gift_craft ?? '',
       gift_scene: (p as any).gift_scene ?? '',
       gift_care: (p as any).gift_care ?? '',
+      therapy_pending: (p as any).therapy_pending ?? false,
     })
     setStep(1)
     setShowModal(true)
@@ -640,15 +645,6 @@ export default function MerchantProducts() {
       return { ...f, ingredients: [...f.ingredients, ...add] }
     })
   }
-  // 智能识别：按商品名匹配食材 key，补全为结构化项（保留已配置项）
-  const autoDetectIngredients = () => {
-    const keys = matchIngredientKeys(form.name)
-    setForm(f => {
-      const existing = new Set(f.ingredients.map(it => it.id))
-      const add = keys.filter(k => !existing.has(k)).map(k => dictKeyToItem(k)).filter(Boolean) as IngredientItem[]
-      return { ...f, ingredients: [...f.ingredients, ...add] }
-    })
-  }
   // 食疗分析：按菜名系统拆解食材并组合生成全部食养字段（回填表单）
   const handleAnalyzeDish = () => {
     if (!form.name) return
@@ -703,6 +699,9 @@ export default function MerchantProducts() {
   // —— 合规巡检：医疗宣称词 + 违规广告词（命中则保存前提示运营确认）——
   const MEDICAL_CLAIM_WORDS = ['治疗', '治愈', '疗效', '医治', '药方', '处方', '根治', '抗癌', '抗炎', '消炎', '降压', '降糖', '遵医嘱', '诊断', '治愈率']
   const AD_ILLEGAL_WORDS = ['国家级', '最高级', '最佳', '最好', '第一', '顶级', '极品', '万能', '100%', '绝对', '唯一', '保本', '稳赚', '躺赚', '零风险', '翻倍', '升值', '中奖', '必中']
+  // 内联敏感词校验（F8）：任一自由文本字段含医疗宣称词即返回 true，供输入框即时红框提示
+  const MEDICAL_CLAIM_RE = /治疗|治愈|疗效|医治|药方|处方|根治|抗癌|抗炎|消炎|降压|降糖|遵医嘱|诊断|治愈率|减肥|瘦身|壮阳|抗菌|杀菌|降血压|降血糖|降血脂/
+  const hasMedicalClaim = (text: string | null | undefined): boolean => !!text && MEDICAL_CLAIM_RE.test(text)
   const scanCompliance = (fields: Record<string, string>): string[] => {
     const hits: string[] = []
     for (const v of Object.values(fields)) {
@@ -786,6 +785,11 @@ export default function MerchantProducts() {
   const handleSubmit = async () => {
     const cost = Number(form.cost_price) || 0
     const dr = Number(form.discount_rate) || 0
+    // F1：食品类商品若未填任何原料，发布前提示食养不完整（不硬阻断，尊重商家自主）
+    if (form.product_kind === 'food' && form.ingredients.length === 0) {
+      const ok = window.confirm('该商品为食品但未填写任何原料成分，食养标签将不完整（C 端仅显示兜底文案）。\n仍要保存？')
+      if (!ok) return
+    }
     const payload = {
       name: form.name,
       price: Number(form.price),
@@ -835,6 +839,8 @@ export default function MerchantProducts() {
       gift_craft: form.gift_craft || null,
       gift_scene: form.gift_scene || null,
       gift_care: form.gift_care || null,
+      // C6：食养待补标记——食品类且未填任何原料即视为待完善（C 端显示「待商家完善」而非笼统兜底）
+      therapy_pending: form.product_kind === 'food' ? (form.ingredients.length === 0) : false,
     }
     let inserted: any = null  // 新建商品插入后取真实 id（用于本地 state 同步）
     // 合规巡检：营销/食疗文案不得含医疗宣称词或违规广告词（命中则提示运营确认）
@@ -874,11 +880,11 @@ export default function MerchantProducts() {
         const msg = e?.message || ''
         // 软降级：若 products 表尚未加导购相关列（迁移 00090 / 00100 / 00104 未执行），
         // 或部分核心列缺失，剥离后重试，保证保存不失败（与小程序端 api.ts 一致）
-        if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scene_tags|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|guide_sentence|moments_copy|taboo_warning|product_kind|fit_people_override|materials|gift_meaning|gift_craft|gift_scene|gift_care/.test(msg)) {
+        if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scene_tags|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|guide_sentence|moments_copy|taboo_warning|product_kind|fit_people_override|materials|gift_meaning|gift_craft|gift_scene|gift_care|therapy_pending/.test(msg)) {
           const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind,
             food_category, positive_effect, risk_warning, emotion_copy, scene_tags, rec_crowds, cautious_crowds,
             cautious_notes, forbidden_crowds, forbidden_reasons, guide_sentence,
-            product_kind, fit_people_override, materials, gift_meaning, gift_craft, gift_scene, gift_care, ...rest } = body
+            product_kind, fit_people_override, materials, gift_meaning, gift_craft, gift_scene, gift_care, therapy_pending, ...rest } = body
           const res2: any = await persist(rest)
           if (res2?.error) {
             window.alert(`保存失败（已尝试剥离可选列仍失败）：\n${res2.error.message}${res2.error.hint ? '\n提示：' + res2.error.hint : ''}`)
@@ -1557,25 +1563,30 @@ export default function MerchantProducts() {
             <Section title="原料成分" open={sections.ingredients} onToggle={() => toggleSection('ingredients')} hint="可选 · 自动识别">
             {/*  原料成分分析（可选） */}
             <div style={{ marginTop: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}> 原料成分分析（可选）</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="button" onClick={autoDetectIngredients} disabled={!form.name}
-                    style={{ padding: '6px 14px', background: (!form.name) ? 'var(--border-soft)' : 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 8, color: (!form.name) ? 'var(--text-dim)' : 'var(--text)', cursor: (!form.name) ? 'not-allowed' : 'pointer', fontSize: 13 }}>
-                    自动识别
-                  </button>
-                  <button type="button" onClick={handleAnalyzeDish} disabled={!form.name}
-                    style={{ padding: '6px 14px', background: (!form.name) ? 'var(--border-soft)' : 'var(--success-strong)', border: '1px solid var(--success-strong)', borderRadius: 8, color: (!form.name) ? 'var(--text-dim)' : '#fff', cursor: (!form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
-                    食疗分析
-                  </button>
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}> 原料成分分析</span>
+                <button type="button" onClick={handleAnalyzeDish} disabled={!form.name}
+                  style={{ padding: '6px 14px', background: (!form.name) ? 'var(--border-soft)' : 'var(--primary-strong)', border: 'none', borderRadius: 8, color: (!form.name) ? 'var(--text-dim)' : '#fff', cursor: (!form.name) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                  ⚡ 按菜名智能识别
+                </button>
               </div>
-              <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>根据商品名自动识别食材，匹配食养成分（性味 / 功效 / 适合人群 / 场景）。</p>
+              <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>填好商品名后点「按菜名智能识别」：系统自动匹配食材，并一次性计算性味 / 功效 / 人群 / 场景（结果可在下方核对修改）。也可手动勾选 / 输入补充。</p>
               {form.ingredients.length === 0 ? (
-                <div style={{ color: 'var(--text-dim)', fontSize: 13, padding: '12px', background: 'var(--bg)', border: '1px dashed var(--border-soft)', borderRadius: 8 }}>尚未选择原料，可点「自动识别」或下方手动勾选。</div>
+                <div style={{ color: 'var(--text-dim)', fontSize: 13, padding: '12px', background: 'var(--bg)', border: '1px dashed var(--border-soft)', borderRadius: 8 }}>
+                  尚未选择原料，可点上方「⚡ 按菜名智能识别」自动带出，或在下方食材库勾选 / 手动输入。
+                  {form.product_kind === 'food' && <span style={{ color: 'var(--warning)', display: 'block', marginTop: 4 }}>食品类商品建议至少填写 1 种原料，否则食养标签将不完整。</span>}
+                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-                  {form.ingredients.map((it) => (
+                  {/* 占比合计条（F4）：按占比降序展示，合计≠100% 仅提示不阻断 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>占比合计</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: (form.ingredients.reduce((s, i) => s + (Number(i.ratio) || 0), 0)) > 100 ? 'var(--danger)' : 'var(--text)' }}>
+                      {form.ingredients.reduce((s, i) => s + (Number(i.ratio) || 0), 0)}%
+                    </span>
+                    {(form.ingredients.reduce((s, i) => s + (Number(i.ratio) || 0), 0)) > 100 && <span style={{ fontSize: 11, color: 'var(--danger)' }}>（建议合计≈100%，超出仅提示）</span>}
+                  </div>
+                  {form.ingredients.slice().sort((a, b) => (Number(b.ratio) || 0) - (Number(a.ratio) || 0)).map((it) => (
                     <div key={it.id} style={{ background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 10, padding: '10px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1637,8 +1648,33 @@ export default function MerchantProducts() {
                   添加原料
                 </button>
               </div>
+              {/* 食材库搜索引擎（F2）：搜索 + 常用 12 味置顶 + 全量过滤网格 */}
+              <input
+                value={ingSearch}
+                onChange={e => setIngSearch(e.target.value)}
+                placeholder="搜索食材（名称 / 别名）"
+                style={{ width: '100%', padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box', marginBottom: 8 }} />
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>常用：</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  {COMMON_KEYS.map(key => {
+                    const e = INGREDIENT_DICT[key]; if (!e) return null
+                    const active = form.ingredients.some(it => it.id === key)
+                    return (
+                      <button key={key} type="button" onClick={() => toggleIngredient(key)}
+                        style={{ padding: '4px 10px', background: active ? '#065F46' : 'var(--bg)', border: `1px solid ${active ? 'var(--success-strong)' : 'var(--border-soft)'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#ECFDF5' : 'var(--text-muted)' }}>
+                        {e.icon} {e.zh}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {Object.entries(INGREDIENT_DICT).map(([key, e]) => {
+                {Object.entries(INGREDIENT_DICT).filter(([key, e]) => {
+                  const q = ingSearch.trim().toLowerCase()
+                  if (!q) return true
+                  return (e.zh || '').toLowerCase().includes(q) || (e.aliases || []).some(a => a.toLowerCase().includes(q)) || key.toLowerCase().includes(q)
+                }).map(([key, e]) => {
                   const active = form.ingredients.some(it => it.id === key)
                   return (
                     <button key={key} type="button" onClick={() => toggleIngredient(key)}
@@ -1752,12 +1788,14 @@ export default function MerchantProducts() {
               <div style={{ marginBottom: 14 }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>正向调理作用</span>
                 <textarea value={form.positive_effect} onChange={e => setForm(f => ({ ...f, positive_effect: e.target.value }))} placeholder="如：温中散寒、益气健脾（可留空，由系统一键填充自动产出）" rows={2}
-                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: hasMedicalClaim(form.positive_effect) ? '1px solid var(--danger)' : '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                {hasMedicalClaim(form.positive_effect) && <span style={{ color: 'var(--danger)', fontSize: 11 }}>含医疗宣称词，发布前请改为食养参考表述（如「温润」而非「治疗」）。</span>}
               </div>
               <div style={{ marginBottom: 14 }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>食用参考</span>
                 <textarea value={form.risk_warning} onChange={e => setForm(f => ({ ...f, risk_warning: e.target.value }))} placeholder="如：体质偏热者适量（可留空，由系统一键填充自动产出）" rows={2}
-                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: hasMedicalClaim(form.risk_warning) ? '1px solid var(--danger)' : '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                {hasMedicalClaim(form.risk_warning) && <span style={{ color: 'var(--danger)', fontSize: 11 }}>含医疗宣称词，发布前请改为食养参考表述。</span>}
               </div>
 
               {/* 适配消费场景（预设多选；2026-10-08 简单化：去掉自定义补充与冗余"已选"行） */}
@@ -1809,7 +1847,8 @@ export default function MerchantProducts() {
                     style={{ padding: '6px 14px', background: crowdDraft.cautious.trim() ? 'var(--warning)' : 'var(--border-soft)', border: '1px solid var(--border-soft)', borderRadius: 8, color: crowdDraft.cautious.trim() ? '#FEF3C7' : 'var(--text-dim)', cursor: crowdDraft.cautious.trim() ? 'pointer' : 'not-allowed', fontSize: 13 }}>添加</button>
                 </div>
                 <textarea value={form.cautious_notes} onChange={e => setForm(f => ({ ...f, cautious_notes: e.target.value }))} placeholder="如：少量饮用、去辣减油" rows={2}
-                  style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: hasMedicalClaim(form.cautious_notes) ? '1px solid var(--danger)' : '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                {hasMedicalClaim(form.cautious_notes) && <span style={{ color: 'var(--danger)', fontSize: 11 }}>含医疗宣称词，请改为食养参考表述。</span>}
               </div>
               <div style={{ marginBottom: 14 }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>③ 建议回避人群</span>
@@ -1827,14 +1866,16 @@ export default function MerchantProducts() {
                     style={{ padding: '6px 14px', background: crowdDraft.forbidden.trim() ? 'var(--danger)' : 'var(--border-soft)', border: '1px solid var(--border-soft)', borderRadius: 8, color: crowdDraft.forbidden.trim() ? '#FECACA' : 'var(--text-dim)', cursor: crowdDraft.forbidden.trim() ? 'pointer' : 'not-allowed', fontSize: 13 }}>添加</button>
                 </div>
                 <textarea value={form.forbidden_reasons} onChange={e => setForm(f => ({ ...f, forbidden_reasons: e.target.value }))} placeholder="如：特殊体质建议回避、建议少量尝试" rows={2}
-                  style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: hasMedicalClaim(form.forbidden_reasons) ? '1px solid var(--danger)' : '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                {hasMedicalClaim(form.forbidden_reasons) && <span style={{ color: 'var(--danger)', fontSize: 11 }}>含医疗宣称词，请改为食养参考表述。</span>}
               </div>
 
               {/* 适合人群覆盖（手填则直接覆盖系统自动判定） */}
               <div style={{ marginBottom: 14 }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>适合人群（自定义覆盖）</span>
                 <textarea value={form.fit_people_override} onChange={e => setForm(f => ({ ...f, fit_people_override: e.target.value }))} placeholder="留空则由食疗引擎辨证推导；手填则直接作为「适合人群」展示" rows={2}
-                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: hasMedicalClaim(form.fit_people_override) ? '1px solid var(--danger)' : '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                {hasMedicalClaim(form.fit_people_override) && <span style={{ color: 'var(--danger)', fontSize: 11 }}>含医疗宣称词，请改为食养参考表述。</span>}
                 <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>若填写，将覆盖系统自动判定的适合人群（辨证增强迁移 00237）</span>
               </div>
 
