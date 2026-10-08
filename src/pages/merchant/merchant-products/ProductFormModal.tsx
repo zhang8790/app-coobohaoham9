@@ -882,6 +882,24 @@ export default function ProductFormModal({ controller, categories, products, onM
  color="hsl(var(--primary))" />
  </View>
 
+ {/* 存为模板（localStorage，无 schema 依赖） */}
+ <View style={S.fieldGap}>
+ <Text style={S.labelStrongBlock}>存为模板（可复用到新商品）</Text>
+ <View style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+ <Input
+ value={controller.templateName}
+ onInput={(e: any) => controller.setTemplateName(e.detail?.value ?? '')}
+ placeholder="模板名称（留空用商品名）"
+ style={{ flex: 1, height: '40px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 12px', boxSizing: 'border-box' }}
+ />
+ <View
+ onClick={() => controller.saveAsTemplate()}
+ style={{ padding: '9px 18px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #E8D9C8' }}>
+ <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '600' }}> 存为模板</Text>
+ </View>
+ </View>
+ </View>
+
  {/* 保存按钮 */}
  <View
  onClick={() => controller.handleSave()}

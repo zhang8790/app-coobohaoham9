@@ -158,6 +158,21 @@ export type ProductFormController = {
   toggleArrayField: (field: 'health_tag' | 'match_goods' | 'conflict_goods' | 'fit_crowd_tags', val: string, max?: number) => void
   dictRowToItem: (row: FoodIngredientRow) => IngredientItem
   foodCategories: { id: string; name: string; sort_order: number; is_active: boolean }[]
+  // P2 模板 / 复制上架（localStorage 持久化，无 schema 依赖）
+  templateName: string
+  setTemplateName: (v: string) => void
+  duplicateProduct: (p: Product) => void
+  saveAsTemplate: () => void
+  loadTemplate: (tpl: ProductTemplate) => void
+}
+
+// 菜品模板（localStorage 持久化，纯前端，无 schema 依赖）
+export type ProductTemplate = {
+  id: string
+  name: string
+  ts: number
+  form: FormState
+  ingredientItems: IngredientItem[]
 }
 
 export function useProductForm(store: Store | null, opts: { onSaved: () => void }): ProductFormController {
@@ -176,6 +191,47 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     getFoodCategories().then((rows) => { if (alive) setFoodCategories(rows) }).catch(() => {})
     return () => { alive = false }
   }, [])
+  // 模板名称输入（存为模板时用）
+  const [templateName, setTemplateName] = useState('')
+
+  // 复制上架：以现有商品为蓝本，载入表单但置为「新建」态（清空 id/条码/库存），保存即上新
+  const duplicateProduct = (p: Product) => {
+    openEdit(p)
+    setEditId(null)
+    setForm(f => ({ ...f, barcode: '', stock: '0' }))
+    Taro.showToast({ title: '已复制为草稿，改好名称后保存即上新', icon: 'none' })
+  }
+
+  // 存为模板：当前表单 + 配料存到 localStorage（清掉 id/条码等唯一字段）
+  const saveAsTemplate = () => {
+    const name = (templateName || form.name || '未命名模板').trim()
+    const tpl: ProductTemplate = {
+      id: `tpl_${Date.now()}`,
+      name,
+      ts: Date.now(),
+      form: { ...form, barcode: '', stock: '0' },
+      ingredientItems,
+    }
+    try {
+      const raw = Taro.getStorageSync('product_templates') || '[]'
+      const list: ProductTemplate[] = JSON.parse(raw)
+      list.unshift(tpl)
+      Taro.setStorageSync('product_templates', JSON.stringify(list.slice(0, 30)))
+      Taro.showToast({ title: `已存为模板：${name}`, icon: 'success' })
+      setTemplateName('')
+    } catch {
+      Taro.showToast({ title: '模板保存失败', icon: 'none' })
+    }
+  }
+
+  // 从模板载入：新建态，填入模板的表单与配料
+  const loadTemplate = (tpl: ProductTemplate) => {
+    setForm({ ...emptyForm(), ...tpl.form })
+    setIngredientItems(tpl.ingredientItems ?? [])
+    setEditId(null)
+    setShowForm(true)
+    Taro.showToast({ title: `已载入模板：${tpl.name}`, icon: 'none' })
+  }
   // 重新生成文案：强制触发一次商家寄语重算（食养系统本就边填边算，此按钮给商家一个显式「重算」入口）
   const [regenNonce, setRegenNonce] = useState(0)
   // 食疗商品系统化：食材库（DB 可维护）+ 结构化食材项
@@ -769,5 +825,8 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     pickDishImage, runSmartAnalyze, handleIdentifyIngredients,
     onGenerateBarcode, onPrintBarcode,
     toggleIngredient, toggleArrayField, dictRowToItem,
+    foodCategories,
+    templateName, setTemplateName,
+    duplicateProduct, saveAsTemplate, loadTemplate,
   }
 }

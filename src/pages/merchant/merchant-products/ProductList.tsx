@@ -23,12 +23,13 @@ type Props = {
   onDelete: (p: Product) => void
   onBatchIn: (p: Product) => void
   onPreview: (p: Product) => void
+  onDuplicate: (p: Product) => void
   children?: ReactNode
 }
 
 export default function ProductList({
   products, filter, setFilter, expiryMap, categories,
-  onEdit, onToggleActive, onDelete, onBatchIn, onPreview, children,
+  onEdit, onToggleActive, onDelete, onBatchIn, onPreview, onDuplicate, children,
 }: Props) {
   const catNameOf = (id: string | null | undefined): string => {
     if (!id) return '未分类'
@@ -155,6 +156,12 @@ export default function ProductList({
                   onClick={() => onDelete(p)}
                   style={S.flex_1_display_flex_alignitems_center_justifycontent_center_padding_10px}>
                   <Text style={{ fontSize: '26rpx', color: '#EF4444' }}> 删除</Text>
+                </View>
+                <View style={S.width_1px_background_f2f2f2} />
+                <View
+                  onClick={() => onDuplicate(p)}
+                  style={S.flex_1_display_flex_alignitems_center_justifycontent_center_padding_10px}>
+                  <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))' }}> 复制</Text>
                 </View>
                 <View style={S.width_1px_background_f2f2f2} />
                 <View

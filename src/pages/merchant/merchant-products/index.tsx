@@ -17,7 +17,7 @@ import { analyzeProductFromName } from '@/utils/food-therapy/dishAnalyzer'
 import type { Product, Store, StoreCategory } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
 import CategoryManager from './CategoryManager'
-import { useProductForm } from './useProductForm'
+import { useProductForm, type ProductTemplate } from './useProductForm'
 
 function MerchantProductsPage() {
   const [store, setStore] = useState<Store | null>(null)
@@ -36,6 +36,18 @@ function MerchantProductsPage() {
   // 分类管理 / 批量分析 的提交态（表单保存态在 useProductForm 内，互不干扰）
   const [saving, setSaving] = useState(false)
   const [batchAnalyzing, setBatchAnalyzing] = useState(false)
+  // 菜品模板（localStorage）：从模板新建 的弹层
+  const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [templateList, setTemplateList] = useState<ProductTemplate[]>([])
+  const openTemplates = () => {
+    try {
+      const raw = Taro.getStorageSync('product_templates') || '[]'
+      setTemplateList(JSON.parse(raw) as ProductTemplate[])
+    } catch {
+      setTemplateList([])
+    }
+    setTemplatesOpen(true)
+  }
 
   const loadCategories = useCallback(async () => {
     if (!store) return
@@ -297,6 +309,7 @@ function MerchantProductsPage() {
           onDelete={handleDeleteProduct}
           onBatchIn={(p) => Taro.navigateTo({ url: `/pages/merchant/merchant-batch/index?productId=${p.id}` })}
           onPreview={(p) => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}
+          onDuplicate={productForm.duplicateProduct}
         >
 
           {/* 操作按钮 —— 关键修复区域 */}
@@ -323,6 +336,19 @@ function MerchantProductsPage() {
               {productForm.scanning
                 ? <Text style={{ fontSize: '30rpx', color: 'hsl(var(--primary))' }}>扫描中…</Text>
                 : <View style={{ flexDirection: 'row', alignItems: 'center' }}><Icon name="barcode-scan" size={15} className="text-primary" /><Text style={{ color: 'hsl(var(--primary))', fontSize: '30rpx', fontWeight: 'bold' }}>扫码上架</Text></View>}
+            </View>
+          </View>
+
+          {/* 从模板新建（localStorage 模板库） */}
+          <View style={{ display: 'flex', gap: '10px', padding: '10px 14px 0' }}>
+            <View
+              onClick={openTemplates}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '13px 16px', borderRadius: '14px',
+                background: '#FFF', border: '2px dashed #E8D9C8',
+              }}>
+              <Text style={{ color: 'hsl(var(--primary))', fontSize: '30rpx', fontWeight: 'bold' }}> 从模板新建</Text>
             </View>
           </View>
 
@@ -361,6 +387,38 @@ function MerchantProductsPage() {
           products={products}
           onManageCategory={() => setShowCatModal(true)}
         />
+
+        {/* 菜品模板选择器（localStorage 模板库，无 schema 依赖） */}
+        {templatesOpen && (
+          <View style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: '86%', maxHeight: '72%', background: '#FFF', borderRadius: '16px', padding: '20px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+              <Text style={{ fontSize: '32rpx', fontWeight: 'bold', color: '#2A2A2A' }}>从模板新建</Text>
+              <View style={{ marginTop: '12px', overflow: 'auto', flex: 1 }}>
+                {templateList.length === 0 && (
+                  <Text style={{ fontSize: '26rpx', color: '#AAA' }}>暂无模板，可在商品编辑页底部「存为模板」后在此复用</Text>
+                )}
+                {templateList.map((t) => (
+                  <View key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #F2F2F2' }}>
+                    <View style={{ flex: 1, marginRight: '12px' }}>
+                      <Text style={{ fontSize: '28rpx', color: '#2A2A2A' }}>{t.name}</Text>
+                      <Text style={{ fontSize: '22rpx', color: '#AAA', display: 'block' }}>{t.form.name || '未命名'} · {t.ingredientItems.length} 种配料</Text>
+                    </View>
+                    <View
+                      onClick={() => { productForm.loadTemplate(t); setTemplatesOpen(false) }}
+                      style={{ padding: '8px 18px', borderRadius: '10px', background: 'hsl(var(--primary))' }}>
+                      <Text style={{ fontSize: '26rpx', color: '#FFF' }}> 载入</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              <View
+                onClick={() => setTemplatesOpen(false)}
+                style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', borderRadius: '12px', background: '#F2F2F2' }}>
+                <Text style={{ fontSize: '28rpx', color: '#666' }}> 关闭</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         <CategoryManager
           visible={showCatModal}
