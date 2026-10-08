@@ -53,11 +53,10 @@ function Section({ title, open, onToggle, hint, danger, children }: {
   )
 }
 
-// 商品上架向导：把近 50 个字段收成 3 步，一次只面对一组，降低一眼复杂度
+// 商品上架向导：把近 50 个字段收成 2 步，一次只面对一组，降低一眼复杂度
 const FORM_STEPS: { key: number; label: string; hint: string }[] = [
   { key: 1, label: '基本信息', hint: '图片 / 名称 / 分类 / 价格库存' },
-  { key: 2, label: '食养配置', hint: '原料成分 / 食疗系统（可跳过）' },
-  { key: 3, label: '营销预览', hint: '门店营销 / 顾客视角（可跳过）' },
+  { key: 2, label: '食养配置', hint: '原料成分 / 食疗系统 / 门店配套（可跳过）' },
 ]
 
 // 结构化食材项（与小程序端 IngredientItem 保持一致）：原料成分分析升级为 占比/烹饪方式/辅料
@@ -233,8 +232,6 @@ export default function MerchantProducts() {
     forbidden_reasons: '',
     combo_product_ids: [] as string[],
     guide_sentence: '',
-    moments_copy: '',
-    taboo_warning: '',
     category_id: '',
     sub_category_id: '',
     food_stage: '',
@@ -272,10 +269,10 @@ export default function MerchantProducts() {
 
   // 商品编辑表单分区折叠状态（默认展开基础/价格/食疗，媒体/分类/原料/营销收起，降低一眼复杂度）
   const [sections, setSections] = useState<Record<string, boolean>>({
-    media: false, base: true, price: true, category: false, ingredients: false, therapy: true, marketing: false,
+    media: false, base: true, price: true, category: false, ingredients: false, therapy: true,
   })
   const toggleSection = (k: string) => setSections(s => ({ ...s, [k]: !s[k] }))
-  // 商品上架分步（1 基本信息 / 2 食养配置 / 3 营销预览）
+  // 商品上架分步（1 基本信息 / 2 食养配置）
   const [step, setStep] = useState(1)
   const goNext = () => {
     // 第 1 步未填必填项时不放行，避免一路「下一步」到保存才发现
@@ -392,7 +389,7 @@ export default function MerchantProducts() {
       overall_nature: '', health_tag: [], emotion_tag: [], match_goods: [], conflict_goods: [], aux_remind: '',
       food_category: '', positive_effect: '', risk_warning: '', scenes: [],
       rec_crowds: [], cautious_crowds: [], cautious_notes: '', forbidden_crowds: [], forbidden_reasons: '',
-      combo_product_ids: [], guide_sentence: '', moments_copy: '', taboo_warning: '', category_id: '', sub_category_id: '',
+      combo_product_ids: [], guide_sentence: '', category_id: '', sub_category_id: '',
       food_stage: '',
       product_kind: 'food', is_active: true, fit_people_override: '', materials: [],
       gift_meaning: '', gift_craft: '', gift_scene: '', gift_care: '' })
@@ -433,8 +430,6 @@ export default function MerchantProducts() {
       forbidden_reasons: (p as any).forbidden_reasons ?? '',
       combo_product_ids: (p as any).combo_product_ids ?? [],
       guide_sentence: (p as any).guide_sentence ?? '',
-      moments_copy: (p as any).moments_copy ?? '',
-      taboo_warning: (p as any).taboo_warning ?? '',
       category_id: (p as any).category_id ?? '',
       sub_category_id: (p as any).sub_category_id ?? '',
       food_stage: (p as any).food_stage ?? '',
@@ -663,17 +658,12 @@ export default function MerchantProducts() {
   }
 
   // —— 食疗文案：本地规则草稿（与小程序端同源口径，即使云端 LLM 未配置也能产出可用文案）——
-  const buildRuleCopy = (f: typeof form): { guide_sentence: string; moments_copy: string; taboo_warning: string } => {
+  const buildRuleCopy = (f: typeof form): { guide_sentence: string } => {
     const name = f.name || '这款好物'
     const nature = f.overall_nature || (f.ingredients.length ? '平和' : '')
-    const tags = f.health_tag.length ? f.health_tag.join('、') : (f.ingredients.length ? '日常调养' : '')
     const rec = f.rec_crowds.length ? f.rec_crowds.join('、') : '注重食养的人'
     const guide = `${name}${nature ? `性${nature}` : ''}，适合${rec}，温润好入口，食疗日常小确幸。`
-    const moments = `今天被${name}暖到了。${tags ? `${tags}缓缓补回来，` : ''}把好好吃饭这件小事，过成对自己的犒赏。`
-    const taboo = f.forbidden_crowds.length
-      ? `${f.forbidden_crowds.join('、')}人群建议少量尝试或回避${f.forbidden_reasons ? '：' + f.forbidden_reasons : ''}`
-      : (f.cautious_crowds.length ? `${f.cautious_crowds.join('、')}人群建议少量品鉴${f.cautious_notes ? '：' + f.cautious_notes : ''}` : '')
-    return { guide_sentence: guide, moments_copy: moments, taboo_warning: taboo }
+    return { guide_sentence: guide }
   }
 
   // —— 合规巡检：医疗宣称词 + 违规广告词（命中则保存前提示运营确认）——
@@ -802,8 +792,6 @@ export default function MerchantProducts() {
       forbidden_reasons: form.forbidden_reasons || null,
       combo_product_ids: form.combo_product_ids.length ? form.combo_product_ids : null,
       guide_sentence: form.guide_sentence || null,
-      moments_copy: form.moments_copy || null,
-      taboo_warning: form.taboo_warning || null,
       food_stage: form.food_stage || null,
       // 商品类型 + 礼品详情 + 适合人群覆盖（对齐小程序 merchant-products/index.tsx payload）
       is_active: !!form.is_active,
@@ -819,10 +807,8 @@ export default function MerchantProducts() {
     // 合规巡检：营销/食疗文案不得含医疗宣称词或违规广告词（命中则提示运营确认）
     const complianceHits = scanCompliance({
       guide_sentence: body.guide_sentence ?? '',
-      moments_copy: body.moments_copy ?? '',
       positive_effect: body.positive_effect ?? '',
       risk_warning: body.risk_warning ?? '',
-      taboo_warning: body.taboo_warning ?? '',
     })
     if (complianceHits.length) {
       const ok = window.confirm(
@@ -858,8 +844,8 @@ export default function MerchantProducts() {
         if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scene_tags|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|combo_product_ids|guide_sentence|moments_copy|taboo_warning|product_kind|fit_people_override|materials|gift_meaning|gift_craft|gift_scene|gift_care/.test(msg)) {
           const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind,
             food_category, positive_effect, risk_warning, emotion_copy, scene_tags, rec_crowds, cautious_crowds,
-            cautious_notes, forbidden_crowds, forbidden_reasons, combo_product_ids, guide_sentence, moments_copy,
-            taboo_warning, product_kind, fit_people_override, materials, gift_meaning, gift_craft, gift_scene, gift_care, ...rest } = body
+            cautious_notes, forbidden_crowds, forbidden_reasons, combo_product_ids, guide_sentence,
+            product_kind, fit_people_override, materials, gift_meaning, gift_craft, gift_scene, gift_care, ...rest } = body
           const res2: any = await persist(rest)
           if (res2?.error) {
             window.alert(`保存失败（已尝试剥离可选列仍失败）：\n${res2.error.message}${res2.error.hint ? '\n提示：' + res2.error.hint : ''}`)
@@ -1800,19 +1786,9 @@ export default function MerchantProducts() {
                 </div>
               )}
 
-              </Section>
-              </div>
-
-              {/* ===== 第 3 步：营销与预览 ===== */}
-              <div style={{ display: step === 3 ? 'flex' : 'none', flexDirection: 'column', gap: 14 }}>
-
-              <Section title="门店营销配套" open={sections.marketing} onToggle={() => toggleSection('marketing')} hint="导购 / 朋友圈 / 忌口（可选）">
-              {/* 门店营销配套录入区 */}
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 4 }}>
-                <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}> 门店营销配套（自动同步前端 / 海报 / 导购）</span>
-              </div>
-              <div style={{ marginBottom: 14, marginTop: 10 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>店内升单搭配套餐（绑定其他商品）</span>
+              {/* 门店配套（升单搭配 / 导购短句，原第 3 步「营销预览」保留字段，C 端详情页消费） */}
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>门店推荐套餐（绑定其他商品，顾客详情页展示）</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                   {list.filter(p => p.id !== (editing?.id)).map(p => {
                     const active = form.combo_product_ids.includes(p.id)
@@ -1829,58 +1805,12 @@ export default function MerchantProducts() {
                 </div>
               </div>
               <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>店员导购短句</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>店员导购短句（顾客详情页展示）</span>
                 <input value={form.guide_sentence} onChange={e => setForm(f => ({ ...f, guide_sentence: e.target.value }))} placeholder="如：这碗鸡汤温补，特别适合您现在的状态" style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />
               </div>
-              <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>朋友圈种草文案</span>
-                <textarea value={form.moments_copy} onChange={e => setForm(f => ({ ...f, moments_copy: e.target.value }))} placeholder="如：今天被这碗鸡汤暖到了，暖到心底" rows={2}
-                  style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
-              </div>
-              <div style={{ marginBottom: 4 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>忌口红字警示语</span>
-                <input value={form.taboo_warning} onChange={e => setForm(f => ({ ...f, taboo_warning: e.target.value }))} placeholder="如：经期量大、痛风人群慎点" style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />
-              </div>
-            </Section>
 
-            {/* 顾客视角预览（P0-3）：实时从当前表单渲染商品卡 */}
-            <div style={{ marginTop: 24 }}>
-              <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>顾客视角预览</span>
-              <div style={{ marginTop: 8, display: 'flex', gap: 12, background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 12, padding: 12 }}>
-                <div style={{ width: 96, height: 96, borderRadius: 8, overflow: 'hidden', background: 'var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {form.main_image ? (
-                    <img src={form.main_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>无主图</span>
-                  )}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600 }}>{form.name || '商品名称'}</span>
-                    {form.overall_nature && (
-                      <span style={{ fontSize: 11, color: '#fff', background: 'var(--success-strong)', padding: '1px 8px', borderRadius: 10 }}>{form.overall_nature}</span>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
-                    <span style={{ color: 'var(--danger)', fontSize: 18, fontWeight: 700 }}>¥{form.price || '0'}</span>
-                    {form.original_price && Number(form.original_price) > Number(form.price) && (
-                      <span style={{ color: 'var(--text-dim)', fontSize: 12, textDecoration: 'line-through' }}>¥{form.original_price}</span>
-                    )}
-                  </div>
-                  {form.rec_crowds.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-                      {form.rec_crowds.map(c => (
-                        <span key={c} style={{ fontSize: 11, color: 'var(--success-strong)', background: 'rgba(16,185,129,0.12)', padding: '1px 8px', borderRadius: 999 }}>{c}</span>
-                      ))}
-                    </div>
-                  )}
-                  {form.desc && (
-                    <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: '8px 0 0', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{form.desc}</p>
-                  )}
-                </div>
+              </Section>
               </div>
-            </div>
-            </div>
 
             {/* 分步导航：上一步 / 下一步 / 确定；缺项时左侧直接提示缺什么 */}
             <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end', alignItems: 'center' }}>
