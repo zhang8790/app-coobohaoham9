@@ -169,14 +169,49 @@ export default function MerchantDashboard() {
     load()
   }, [useMock, storeId, storeReady, reloadKey])
 
+  // 核心指标卡：featured 渐变主卡（今日营收）+ 各指标专属色系（soft 底 + 深色字保证对比度）
   const cards = [
-    { label: '今日营收', value: `¥${stats.todayRevenue.toFixed(2)}`, iconName: 'dollar', color: 'var(--success-strong)' },
-    { label: '本月营收', value: `¥${(stats.monthRevenue / 10000).toFixed(2)}万`, iconName: 'trending', color: 'var(--info)' },
-    { label: '今日订单', value: stats.todayOrders, iconName: 'box', color: 'var(--primary)' },
-    { label: '累积客户', value: stats.totalCustomers, iconName: 'users', color: 'var(--accent)' },
-    { label: '商品在售', value: productStats.online, sub: `共${productStats.total}件`, iconName: 'bag', color: 'var(--warning)' },
-    { label: '可结算货款', value: `¥${settlement?.merchant_balance.toFixed(2) ?? '0.00'}`, iconName: 'bank', color: 'var(--success-strong)' },
+    { key: 'todayRevenue', label: '今日营收', value: `¥${stats.todayRevenue.toFixed(2)}`, sub: '今日实时', iconName: 'dollar', tone: 'featured' },
+    { key: 'monthRevenue', label: '本月营收', value: `¥${(stats.monthRevenue / 10000).toFixed(2)}万`, sub: '本月累计', iconName: 'trending', tone: 'info' },
+    { key: 'todayOrders', label: '今日订单', value: stats.todayOrders, sub: '笔', iconName: 'box', tone: 'primary' },
+    { key: 'customers', label: '累积客户', value: stats.totalCustomers, sub: '人', iconName: 'users', tone: 'accent' },
+    { key: 'products', label: '商品在售', value: productStats.online, sub: `共${productStats.total}件`, iconName: 'bag', tone: 'warning' },
+    { key: 'settle', label: '可结算货款', value: `¥${settlement?.merchant_balance.toFixed(2) ?? '0.00'}`, sub: '可提现', iconName: 'bank', tone: 'success' },
   ]
+
+  const TONE_STYLE: Record<string, { bg: string; chipBg: string; chipColor: string; valueColor: string; labelColor: string; subColor: string; shadow?: string }> = {
+    featured: {
+      bg: 'linear-gradient(135deg, #E87964 0%, #C0533D 100%)', chipBg: 'rgba(255,255,255,0.22)', chipColor: '#fff',
+      valueColor: '#fff', labelColor: 'rgba(255,255,255,0.92)', subColor: 'rgba(255,255,255,0.75)',
+      shadow: '0 8px 20px rgba(192, 83, 61, 0.28)',
+    },
+    info: { bg: 'var(--info-soft)', chipBg: 'var(--surface)', chipColor: 'var(--info)', valueColor: 'var(--info-text)', labelColor: 'var(--text)', subColor: 'var(--text-dim)' },
+    primary: { bg: 'var(--primary-soft)', chipBg: 'var(--surface)', chipColor: 'var(--primary-strong)', valueColor: 'var(--primary-strong)', labelColor: 'var(--text)', subColor: 'var(--text-dim)' },
+    accent: { bg: 'var(--accent-soft)', chipBg: 'var(--surface)', chipColor: 'var(--accent)', valueColor: 'var(--accent-text)', labelColor: 'var(--text)', subColor: 'var(--text-dim)' },
+    warning: { bg: 'var(--warning-soft)', chipBg: 'var(--surface)', chipColor: 'var(--warning)', valueColor: 'var(--warning)', labelColor: 'var(--text)', subColor: 'var(--text-dim)' },
+    success: { bg: 'var(--success-soft)', chipBg: 'var(--surface)', chipColor: 'var(--success)', valueColor: 'var(--success-strong)', labelColor: 'var(--text)', subColor: 'var(--text-dim)' },
+  }
+
+  // 快捷操作配色（与指标卡色系呼应）
+  const quickActions = [
+    { label: '商品管理', iconName: 'box', to: '/merchant/products', color: 'var(--primary-strong)', soft: 'var(--primary-soft)' },
+    { label: '订单管理', iconName: 'list', to: '/merchant/orders', color: 'var(--info)', soft: 'var(--info-soft)' },
+    { label: '优惠券', iconName: 'ticket', to: '/merchant/coupons', color: 'var(--warning)', soft: 'var(--warning-soft)' },
+    { label: '数据分析', iconName: 'chart', to: '/merchant/analytics', color: 'var(--accent)', soft: 'var(--accent-soft)' },
+    { label: '广告投放', iconName: 'megaphone', to: '/merchant/ads', color: 'var(--danger)', soft: 'var(--danger-soft)' },
+    { label: '货款提现', iconName: 'dollar', to: '/merchant/withdraw', color: 'var(--success)', soft: 'var(--success-soft)' },
+    { label: '店铺设置', iconName: 'settings', to: '/merchant/settings', color: 'var(--text-muted)', soft: 'var(--surface-2)' },
+  ]
+
+  // 订单状态胶囊（soft 底 + 深色字）
+  const STATUS_PILL: Record<string, string> = {
+    pending_pay: 'var(--warning-soft)',
+    pending_ship: 'var(--primary-soft)',
+    pending_receive: 'var(--info-soft)',
+    completed: 'var(--success-soft)',
+    refund: 'var(--danger-soft)',
+    cancelled: 'var(--surface-2)',
+  }
 
   return (
     <div>
@@ -205,90 +240,110 @@ export default function MerchantDashboard() {
         </div>
       )}
 
-      {/* 核心指标卡片 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 32 }}>
-        {cards.map((c, i) => (
-          <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <NavIcon name={c.iconName} size={24} />
-              <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>{c.label}</span>
+      {/* 核心指标卡片：渐变主卡 + 彩色 soft 底指标卡 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 16, marginBottom: 28 }}>
+        {cards.map((c) => {
+          const t = TONE_STYLE[c.tone]
+          return (
+            <div key={c.key} style={{
+              background: t.bg, border: '1px solid var(--border)', borderRadius: 14,
+              padding: '18px 20px', boxShadow: t.shadow,
+              display: 'flex', flexDirection: 'column', gap: 14,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ width: 40, height: 40, borderRadius: 10, background: t.chipBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <NavIcon name={c.iconName} size={20} style={{ color: t.chipColor }} />
+                </span>
+                <span style={{ color: t.labelColor, fontSize: 13, fontWeight: 600 }}>{c.label}</span>
+              </div>
+              <div>
+                <p style={{ color: t.valueColor, fontSize: 26, fontWeight: 700, lineHeight: 1.2 }}>{c.value}</p>
+                {c.sub && <p style={{ color: t.subColor, fontSize: 12, marginTop: 4 }}>{c.sub}</p>}
+              </div>
             </div>
-            <p style={{ color: c.color, fontSize: 28, fontWeight: 700 }}>{c.value}</p>
-            {c.sub && <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 4 }}>{c.sub}</p>}
-          </div>
-        ))}
+          )
+        })}
       </div>
 
-      {/* 快捷操作 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 32 }}>
-        {[
-          { label: '商品管理', iconName: 'box', to: '/merchant/products' },
-          { label: '订单管理', iconName: 'list', to: '/merchant/orders' },
-          { label: '优惠券', iconName: 'ticket', to: '/merchant/coupons' },
-          { label: '数据分析', iconName: 'chart', to: '/merchant/analytics' },
-          { label: '广告投放', iconName: 'megaphone', to: '/merchant/ads' },
-          { label: '货款提现', iconName: 'dollar', to: '/merchant/withdraw' },
-          { label: '店铺设置', iconName: 'settings', to: '/merchant/settings' },
-        ].map((btn, i) => (
-          <div key={i}
+      {/* 快捷操作：彩色图标芯片 + 悬停上浮 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginBottom: 28 }}>
+        {quickActions.map((btn) => (
+          <div key={btn.label}
             onClick={() => nav(btn.to)}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--success-strong)')}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
-            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, cursor: 'pointer', transition: 'all 0.2s' }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = btn.color; e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none' }}
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 12px', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'center' }}
           >
-            <NavIcon name={btn.iconName} size={28} style={{ display: 'block', marginBottom: 8 }} />
-            <p style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>{btn.label}</p>
+            <span style={{ width: 44, height: 44, borderRadius: 12, background: btn.soft, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
+              <NavIcon name={btn.iconName} size={22} style={{ color: btn.color }} />
+            </span>
+            <p style={{ color: 'var(--text)', fontSize: 13, fontWeight: 600 }}>{btn.label}</p>
           </div>
         ))}
       </div>
 
-      {/* 待处理事项 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32 }}>
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-          <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>待处理</h3>
+      {/* 待处理 / 货款账户：彩色顶条 + 数值胶囊 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, marginBottom: 28 }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--warning)', borderRadius: 14, padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--warning-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <NavIcon name="alert" size={16} style={{ color: 'var(--warning)' }} />
+            </span>
+            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700 }}>待处理</h3>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg)', borderRadius: 10, padding: '10px 14px' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>待发货订单</span>
-              <span style={{ color: 'var(--primary)', fontSize: 20, fontWeight: 700 }}>{stats.pendingOrders}</span>
+              <span style={{ color: 'var(--warning)', background: 'var(--warning-soft)', fontSize: 15, fontWeight: 700, borderRadius: 999, padding: '2px 14px' }}>{stats.pendingOrders}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg)', borderRadius: 10, padding: '10px 14px' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>已结算货款</span>
-              <span style={{ color: 'var(--success-strong)', fontSize: 20, fontWeight: 700 }}>¥{(settlement?.total_settled ?? 0).toFixed(2)}</span>
+              <span style={{ color: 'var(--success-strong)', background: 'var(--success-soft)', fontSize: 15, fontWeight: 700, borderRadius: 999, padding: '2px 14px' }}>¥{(settlement?.total_settled ?? 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
 
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-          <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>货款账户</h3>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--success)', borderRadius: 14, padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <span style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--success-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <NavIcon name="bank" size={16} style={{ color: 'var(--success)' }} />
+            </span>
+            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700 }}>货款账户</h3>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg)', borderRadius: 10, padding: '10px 14px' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>当前可结算</span>
-              <span style={{ color: 'var(--success-strong)', fontSize: 20, fontWeight: 700 }}>¥{(settlement?.merchant_balance ?? 0).toFixed(2)}</span>
+              <span style={{ color: 'var(--success-strong)', background: 'var(--success-soft)', fontSize: 15, fontWeight: 700, borderRadius: 999, padding: '2px 14px' }}>¥{(settlement?.merchant_balance ?? 0).toFixed(2)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg)', borderRadius: 10, padding: '10px 14px' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>冻结中</span>
-              <span style={{ color: 'var(--text)', fontSize: 18, fontWeight: 700 }}>¥{(settlement?.settlement_frozen ?? 0).toFixed(2)}</span>
+              <span style={{ color: 'var(--text)', background: 'var(--surface-2)', border: '1px solid var(--border)', fontSize: 15, fontWeight: 700, borderRadius: 999, padding: '2px 14px' }}>¥{(settlement?.settlement_frozen ?? 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* 最新订单 */}
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 14, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700 }}>最新订单</h3>
           <button onClick={() => nav('/merchant/orders')} style={{ background: 'transparent', border: 'none', color: 'var(--success-strong)', cursor: 'pointer', fontSize: 13 }}>查看全部 →</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {recentOrders.map(order => (
-            <div key={order.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg)', borderRadius: 8 }}>
-              <div>
-                <p style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>{order.product_name} x{order.quantity}</p>
-                <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 2 }}>{order.created_at}</p>
+            <div key={order.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg)', borderRadius: 10, borderLeft: `3px solid ${STATUS_COLOR[order.status] ?? 'var(--border)'}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--success-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <NavIcon name="bag" size={16} style={{ color: 'var(--success)' }} />
+                </span>
+                <div>
+                  <p style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>{order.product_name} x{order.quantity}</p>
+                  <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 2 }}>{order.created_at}</p>
+                </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
+              <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: 14 }}>
                 <p style={{ color: 'var(--text)', fontSize: 14, fontWeight: 700 }}>¥{order.price}</p>
-                <span style={{ color: STATUS_COLOR[order.status], fontSize: 12, fontWeight: 600 }}>{STATUS_LABEL[order.status]}</span>
+                <span style={{ color: STATUS_COLOR[order.status], background: STATUS_PILL[order.status] ?? 'var(--surface-2)', fontSize: 12, fontWeight: 600, borderRadius: 999, padding: '3px 12px' }}>{STATUS_LABEL[order.status] ?? order.status}</span>
               </div>
             </div>
           ))}
