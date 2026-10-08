@@ -170,8 +170,8 @@ export default function MerchantWithdraw() {
           {activeTab === 'balance' ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
               <div>
-                <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 16 }}>
-                  <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>账户总览</h3>
+                <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--success-strong)', borderRadius: 12, padding: 20, marginBottom: 16 }}>
+                  <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><NavIcon name="bank" size={18} style={{ color: 'var(--success-strong)' }} />账户总览</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>可结算货款</span>
@@ -191,8 +191,8 @@ export default function MerchantWithdraw() {
                     </div>
                   </div>
                 </div>
-                <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
-                  <h4 style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}> 提现须知</h4>
+                <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--warning)', borderRadius: 12, padding: 16 }}>
+                  <h4 style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><NavIcon name="alert" size={15} style={{ color: 'var(--warning)' }} />提现须知</h4>
                   <ul style={{ color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.8, paddingLeft: 16 }}>
                     <li>最低提现金额：¥1</li>
                     <li>到账方式：微信服务商分账直达门店子商户号（含健康豆垫付部分由平台自有资金打款）</li>
@@ -201,8 +201,8 @@ export default function MerchantWithdraw() {
                 </div>
               </div>
 
-              <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-                <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 20 }}>申请提现</h3>
+              <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--primary-strong)', borderRadius: 12, padding: 20 }}>
+                <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><NavIcon name="dollar" size={18} style={{ color: 'var(--primary-strong)' }} />申请提现</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div>
                     <label style={{ color: 'var(--text-muted)', fontSize: 13, display: 'block', marginBottom: 8 }}>提现金额（元）*</label>
@@ -297,7 +297,7 @@ export default function MerchantWithdraw() {
               {records.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)', fontSize: 14 }}>暂无货款提现记录</div>
               ) : records.map(record => (
-                <div key={record.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+                <div key={record.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: `3px solid ${STATUS_COLOR[record.status] || 'var(--border)'}`, borderRadius: 12, padding: 20 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>

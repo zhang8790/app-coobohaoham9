@@ -259,7 +259,7 @@ export default function MerchantOrders() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {activeTab === 'unprinted' && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--warning)', borderRadius: 10 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer' }}>
                 <input type="checkbox" checked={selectedIds.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} style={{ width: 16, height: 16, cursor: 'pointer' }} />
                 全选本页未打印（{filtered.length}）
@@ -271,7 +271,7 @@ export default function MerchantOrders() {
             <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)', fontSize: 14 }}>暂无订单</div>
           ) : (
             filtered.map(order => (
-              <div key={order.id + order.orders.order_no} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+              <div key={order.id + order.orders.order_no} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: `3px solid ${STATUS_COLOR[order.orders.status] || 'var(--border)'}`, borderRadius: 12, padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {activeTab === 'unprinted' && (

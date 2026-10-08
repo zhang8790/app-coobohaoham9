@@ -6,6 +6,7 @@ import { getMyMerchantStore, getMerchantAnalytics } from '@/api/merchant'
 import requestCache from '@/utils/requestCache'
 import type { MerchantAnalytics } from '@/types'
 import { NavIcon } from '@/components/icons'
+import { StatCard, Panel } from '@/components/themed-cards'
 
 function MiniBarChart({ data, labels, height = 120 }: { data: number[]; labels: string[]; height?: number }) {
   const max = Math.max(...data, 1)
@@ -149,46 +150,33 @@ export default function MerchantAnalytics() {
       {!loading && !err && storeId && data && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
-            {[
-              { label: '今日营收', value: `¥${data.revenueToday.toLocaleString()}`, iconName: 'dollar', color: 'var(--success-strong)' },
-              { label: '本月营收', value: `¥${data.revenueMonth.toLocaleString()}`, iconName: 'trending', color: 'var(--info)' },
-              { label: '今日订单', value: String(data.ordersToday), iconName: 'box', color: 'var(--primary)' },
-              { label: '累积客户', value: String(data.totalCustomers), iconName: 'users', color: 'var(--accent)' },
-            ].map((stat, i) => (
-              <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <NavIcon name={stat.iconName} size={20} />
-                </div>
-                <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 4 }}>{stat.label}</p>
-                <p style={{ color: stat.color, fontSize: 24, fontWeight: 700 }}>{stat.value}</p>
-              </div>
-            ))}
+            <StatCard tone="success" icon="dollar" label="今日营收" value={`¥${data.revenueToday.toLocaleString()}`} />
+            <StatCard tone="info" icon="trending" label="本月营收" value={`¥${data.revenueMonth.toLocaleString()}`} />
+            <StatCard tone="primary" icon="box" label="今日订单" value={String(data.ordersToday)} />
+            <StatCard tone="accent" icon="users" label="累积客户" value={String(data.totalCustomers)} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24, marginBottom: 24 }}>
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-              <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>销售趋势（近 {days} 日）</h3>
+            <Panel tone="success" icon="chart" title={`销售趋势（近 ${days} 日）`}>
               <MiniBarChart data={data.salesTrend.map(s => s.amount)} labels={data.salesTrend.map(s => s.date)} height={200} />
-            </div>
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-              <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>商品排行 TOP 5</h3>
+            </Panel>
+            <Panel tone="primary" icon="bag" title="商品排行 TOP 5">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {data.topProducts.length === 0 ? (
                   <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>暂无销售数据</p>
                 ) : data.topProducts.map((p, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ color: i < 3 ? 'var(--primary)' : 'var(--text-dim)', fontSize: 14, fontWeight: 700, width: 20 }}>{i + 1}</span>
+                    <span style={{ color: i < 3 ? 'var(--primary-strong)' : 'var(--text-dim)', fontSize: 14, fontWeight: 700, width: 20 }}>{i + 1}</span>
                     <span style={{ color: 'var(--text)', fontSize: 13, flex: 1 }}>{p.name}</span>
                     <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>¥{p.sales}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            </Panel>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-              <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>访客分析</h3>
+            <Panel tone="info" icon="users" title="访客分析">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>今日访客（订单数）</span>
@@ -200,11 +188,10 @@ export default function MerchantAnalytics() {
                 </div>
                 <p style={{ color: 'var(--text-dim)', fontSize: 11 }}>注：精细访客统计开发中，当前以订单数为参考</p>
               </div>
-            </div>
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-              <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>流量来源</h3>
+            </Panel>
+            <Panel tone="accent" icon="globe" title="流量来源">
               <PieChart data={data.sources} />
-            </div>
+            </Panel>
           </div>
         </>
       )}

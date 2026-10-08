@@ -129,7 +129,7 @@ export default function MerchantPrinters() {
       {loading && <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-dim)' }}>加载中…</div>}
 
       {!loading && storeId && (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--primary-strong)', borderRadius: 12, padding: 24 }}>
           <div style={{ marginBottom: 18 }}>
             <label style={labelStyle}>打印机服务商</label>
             <select value={provider} onChange={e => setProvider(e.target.value as 'feie' | 'yilianyun' | '365')} style={fieldStyle}>

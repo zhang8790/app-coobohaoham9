@@ -1,5 +1,6 @@
 // @title 自营门店中心 - 店铺设置
 import { useState } from 'react'
+import { NavIcon } from '@/components/icons'
 
 const MOCK_STORE = {
   name: '桂花糕老铺',
@@ -48,8 +49,8 @@ export default function MerchantSettings() {
         {/* 左侧：基本信息 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* 店铺形象 */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>店铺形象</h3>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--primary-strong)', borderRadius: 12, padding: 20 }}>
+            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><NavIcon name="store" size={18} style={{ color: 'var(--primary-strong)' }} />店铺形象</h3>
             <div style={{ display: 'flex', gap: 16 }}>
               <div>
                 <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>封面图</p>
@@ -67,8 +68,8 @@ export default function MerchantSettings() {
           </div>
 
           {/* 基本信息 */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>基本信息</h3>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--accent)', borderRadius: 12, padding: 20 }}>
+            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><NavIcon name="document" size={18} style={{ color: 'var(--accent)' }} />基本信息</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={{ color: 'var(--text-muted)', fontSize: 13, display: 'block', marginBottom: 6 }}>店铺名称 *</label>
@@ -105,8 +106,8 @@ export default function MerchantSettings() {
           </div>
 
           {/* 联系信息 */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>联系信息</h3>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--info)', borderRadius: 12, padding: 20 }}>
+            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><NavIcon name="news" size={18} style={{ color: 'var(--info)' }} />联系信息</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={{ color: 'var(--text-muted)', fontSize: 13, display: 'block', marginBottom: 6 }}>联系电话 *</label>
@@ -139,8 +140,8 @@ export default function MerchantSettings() {
         {/* 右侧：营业设置 + 双通道配置 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* 营业设置 */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>营业设置</h3>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--success)', borderRadius: 12, padding: 20 }}>
+            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><NavIcon name="settings" size={18} style={{ color: 'var(--success)' }} />营业设置</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text)', fontSize: 14 }}>营业状态</span>
@@ -175,8 +176,8 @@ export default function MerchantSettings() {
           </div>
 
           {/* 双通道配置 */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}> 双通道配置</h3>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--warning)', borderRadius: 12, padding: 20 }}>
+            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><NavIcon name="box" size={18} style={{ color: 'var(--warning)' }} />双通道配置</h3>
 
             {/* 配送 */}
             <div style={{ marginBottom: 20, padding: '16px', background: 'var(--bg)', borderRadius: 8 }}>
@@ -238,8 +239,8 @@ export default function MerchantSettings() {
           </div>
 
           {/* 店铺公告 */}
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>店铺公告</h3>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--danger)', borderRadius: 12, padding: 20 }}>
+            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><NavIcon name="megaphone" size={18} style={{ color: 'var(--danger)' }} />店铺公告</h3>
             <textarea
               value={form.announcement}
               onChange={e => updateField('announcement', e.target.value)}

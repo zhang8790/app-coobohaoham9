@@ -122,7 +122,7 @@ export default function MerchantVehicles() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
             {vehicles.map(v => (
-              <div key={v.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
+              <div key={v.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: `3px solid ${STATUS_COLOR[v.status] || 'var(--border)'}`, borderRadius: 12, padding: 20, position: 'relative', overflow: 'hidden' }}>
                 <div style={{
                   position: 'absolute', top: 0, right: 0, padding: '4px 12px',
                   background: STATUS_COLOR[v.status] || 'var(--border-soft)',

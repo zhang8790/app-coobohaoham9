@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { getMyMerchantStore } from '@/api/merchant'
 import { useStore } from '@/contexts/StoreContext'
 import { NavIcon } from '@/components/icons'
+import { StatCard } from '@/components/themed-cards'
 
 // ============ 类型 ============
 interface Member {
@@ -334,23 +335,16 @@ export default function MerchantMembers() {
 
       {/* 统计卡片 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-        {[
-          { label: '会员总数', value: totalMembers, color: 'var(--accent)' },
-          { label: '会员总消费', value: `¥${totalSpent.toLocaleString()}`, color: 'var(--warning)' },
-          { label: '跨店消费会员', value: crossStoreCount, color: 'var(--info)' },
-          { label: '跨店流水占比', value: `${Math.round(members.reduce((s, m) => s + m.other_orders, 0) / members.reduce((s, m) => s + m.total_orders, 0) * 100)}%`, color: 'var(--accent)' },
-        ].map(c => (
-          <div key={c.label} style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 16px', border: '1px solid var(--border)' }}>
-            <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: 0 }}>{c.label}</p>
-            <p style={{ color: c.color, fontSize: 22, fontWeight: 700, margin: '4px 0 0' }}>{c.value}</p>
-          </div>
-        ))}
+        <StatCard tone="accent" icon="users" label="会员总数" value={totalMembers} />
+        <StatCard tone="warning" icon="dollar" label="会员总消费" value={`¥${totalSpent.toLocaleString()}`} />
+        <StatCard tone="info" icon="globe" label="跨店消费会员" value={crossStoreCount} />
+        <StatCard tone="accent" icon="chart" label="跨店流水占比" value={`${Math.round(members.reduce((s, m) => s + m.other_orders, 0) / members.reduce((s, m) => s + m.total_orders, 0) * 100)}%`} />
       </div>
 
       {/* 主体：左侧会员列表 + 右侧详情 */}
       <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 1.5fr' : '1fr', gap: 16 }}>
         {/* ===== 左侧：会员列表 ===== */}
-        <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', borderTop: '3px solid var(--primary-strong)', overflow: 'hidden' }}>
           {/* 搜索 */}
           <div style={{ padding: 16, borderBottom: '1px solid var(--border)' }}>
                 <input
@@ -392,7 +386,7 @@ export default function MerchantMembers() {
         {/* ===== 右侧：会员详情 + 跨店流水 ===== */}
         {selected && (
           <>
-          <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', borderTop: '3px solid var(--success-strong)', overflow: 'hidden' }}>
             {/* 会员信息头部 */}
             <div style={{ padding: 20, borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
@@ -523,7 +517,7 @@ export default function MerchantMembers() {
 
       {/* 未选中时的提示 */}
       {!selected && (
-        <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', padding: 60, textAlign: 'center', marginTop: 16 }}>
+        <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', borderTop: '3px solid var(--accent)', padding: 60, textAlign: 'center', marginTop: 16 }}>
           <p style={{ color: 'var(--text-dim)', fontSize: 16, margin: 0 }}> 请在左侧选择会员，查看详细信息及跨店消费流水</p>
         </div>
       )}

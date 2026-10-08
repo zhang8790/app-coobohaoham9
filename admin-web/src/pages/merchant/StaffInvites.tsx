@@ -193,7 +193,7 @@ export default function StaffInvites() {
       </p>
 
       {/* 生成区 */}
-      <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', padding: 20, marginBottom: 20 }}>
+      <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', borderTop: '3px solid var(--primary-strong)', padding: 20, marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div>
             <span style={labelStyle}>角色</span>
@@ -279,7 +279,7 @@ export default function StaffInvites() {
       </div>
 
       {/* 列表 */}
-      <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', borderTop: '3px solid var(--accent)', overflow: 'hidden' }}>
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>
           已生成的邀请码（{invites.length}）
         </div>

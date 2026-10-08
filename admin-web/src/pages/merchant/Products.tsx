@@ -10,6 +10,7 @@ import { INGREDIENT_DICT, matchIngredientKeys, SHIYANG_DISCLAIMER } from '@/util
 import { NATURE_SCALE, SCENE_OPTIONS, FOOD_CATEGORIES } from '@/utils/food-therapy-tags'
 import { analyzeDish } from '@/utils/dish-analyzer'
 import { encodeEAN13 } from '@/utils/barcode'
+import { StatCard } from '@/components/themed-cards'
 import { NavIcon } from '@/components/icons'
 import { uploadProductAsset } from '@/utils/storage'
 
@@ -1009,32 +1010,18 @@ export default function MerchantProducts() {
 
       {/* stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
-        {[
-          { label: '全部商品', value: list.length, color: 'var(--accent)' },
-          { label: '上架中',   value: list.filter(p => p.status === 'online').length, color: 'var(--success-strong)' },
-          { label: '已下架',   value: list.filter(p => p.status === 'offline').length, color: 'var(--danger)' },
-          { label: '总销量',   value: list.reduce((s, p) => s + p.sales, 0), color: 'var(--warning)' },
-          { label: '平均毛利率', value: avgMargin + '%', color: 'var(--info)' },
-        ].map(c => (
-          <div key={c.label} style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 16px', border: '1px solid var(--border)' }}>
-            <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: 0 }}>{c.label}</p>
-            <p style={{ color: c.color, fontSize: 22, fontWeight: 700, margin: '4px 0 0' }}>{c.value}</p>
-          </div>
-        ))}
+        <StatCard tone="accent" icon="box" label="全部商品" value={list.length} />
+        <StatCard tone="success" icon="check" label="上架中" value={list.filter(p => p.status === 'online').length} />
+        <StatCard tone="danger" icon="x" label="已下架" value={list.filter(p => p.status === 'offline').length} />
+        <StatCard tone="warning" icon="trending" label="总销量" value={list.reduce((s, p) => s + p.sales, 0)} />
+        <StatCard tone="info" icon="chart" label="平均毛利率" value={avgMargin + '%'} />
       </div>
 
       {/* biz overview */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
-        {[
-          { label: '总成本', value: `¥${totalCost.toLocaleString()}`, color: 'var(--warning)' },
-          { label: '总营收', value: `¥${totalRevenue.toLocaleString()}`, color: 'var(--success-strong)' },
-          { label: '总利润', value: `¥${totalProfit.toLocaleString()}`, color: 'var(--info)' },
-        ].map(c => (
-          <div key={c.label} style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '14px 16px', border: '1px solid var(--border)' }}>
-            <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: 0 }}>{c.label}</p>
-            <p style={{ color: c.color, fontSize: 20, fontWeight: 700, margin: '4px 0 0' }}>{c.value}</p>
-          </div>
-        ))}
+        <StatCard tone="warning" icon="bank" label="总成本" value={`¥${totalCost.toLocaleString()}`} />
+        <StatCard tone="success" icon="dollar" label="总营收" value={`¥${totalRevenue.toLocaleString()}`} />
+        <StatCard tone="info" icon="trending" label="总利润" value={`¥${totalProfit.toLocaleString()}`} />
       </div>
 
       {/* filter tabs */}
@@ -1052,7 +1039,7 @@ export default function MerchantProducts() {
       </div>
 
       {/* goods table */}
-      <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', borderTop: '3px solid var(--primary-strong)', overflow: 'hidden' }}>
         {/* table header */}
         <div style={{
           display: 'grid',

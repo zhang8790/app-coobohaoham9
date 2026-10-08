@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore } from '@/api/merchant'
+import { NavIcon } from '@/components/icons'
 import { encodeEAN13 } from '@/utils/barcode'
 
 type LedgerRow = {
@@ -205,7 +206,7 @@ export default function MerchantBarcodeMaker() {
 
       {!loading && storeId && (
         <>
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, marginBottom: 20 }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--primary-strong)', borderRadius: 12, padding: 24, marginBottom: 20 }}>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <button onClick={handleGenerate} disabled={busy !== null} style={{
                 flex: 1, minWidth: 180, padding: '12px', border: 'none', borderRadius: 8, color: 'white',
@@ -243,8 +244,8 @@ export default function MerchantBarcodeMaker() {
             )}
           </div>
 
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
-            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>店内码台账</h3>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: '3px solid var(--info)', borderRadius: 12, padding: 24 }}>
+            <h3 style={{ color: 'var(--text)', fontSize: 16, fontWeight: 700, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}><NavIcon name="list" size={18} style={{ color: 'var(--info)' }} />店内码台账</h3>
             <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 16px' }}>
               出码即留痕，可随时补打。灰色 = 已绑定商品（无需再打空白标签）。
             </p>

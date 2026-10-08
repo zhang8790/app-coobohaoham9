@@ -8,6 +8,7 @@ import { NavIcon } from '@/components/icons'
 
 const TYPE_ICON: Record<string, string> = { order: 'box', system: 'settings', commission: 'dollar' }
 const TYPE_LABEL: Record<string, string> = { order: '订单消息', system: '系统消息', commission: '佣金消息' }
+const TYPE_COLOR: Record<string, string> = { order: 'var(--primary-strong)', system: 'var(--info)', commission: 'var(--success-strong)' }
 
 export default function MerchantMessages() {
   const { profile } = useAuth()
@@ -77,7 +78,7 @@ export default function MerchantMessages() {
                 padding: '16px 20px',
                 cursor: 'pointer',
                 transition: 'border-color 0.2s',
-                borderLeft: msg.read ? '3px solid transparent' : '3px solid var(--primary)',
+                borderLeft: `3px solid ${msg.read ? 'var(--border)' : (TYPE_COLOR[msg.type] || 'var(--primary)')}`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

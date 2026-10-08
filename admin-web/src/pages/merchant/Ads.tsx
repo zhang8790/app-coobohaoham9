@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useStore } from '@/contexts/StoreContext'
 import { getMyMerchantStore, getMerchantCampaigns, createCampaign, updateCampaignStatus } from '@/api/merchant'
 import type { MarketingCampaign } from '@/types'
+import { StatCard } from '@/components/themed-cards'
 
 const STATUS_LABEL: Record<string, string> = { active: '进行中', paused: '已暂停', ended: '已结束' }
 const STATUS_COLOR: Record<string, string> = { active: 'var(--success-strong)', paused: 'var(--warning)', ended: 'var(--text-dim)' }
@@ -88,18 +89,9 @@ export default function MerchantAds() {
       {!loading && storeId && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>进行中活动</p>
-              <p style={{ color: 'var(--success-strong)', fontSize: 28, fontWeight: 700 }}>{runningCount}</p>
-            </div>
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>累计已领取</p>
-              <p style={{ color: 'var(--primary)', fontSize: 28, fontWeight: 700 }}>{totalClaimed}</p>
-            </div>
-            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>活动总数</p>
-              <p style={{ color: 'var(--info)', fontSize: 28, fontWeight: 700 }}>{ads.length}</p>
-            </div>
+            <StatCard tone="success" icon="trending" label="进行中活动" value={runningCount} />
+            <StatCard tone="primary" icon="box" label="累计已领取" value={totalClaimed} />
+            <StatCard tone="info" icon="chart" label="活动总数" value={ads.length} />
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
@@ -123,7 +115,7 @@ export default function MerchantAds() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {filtered.map(ad => (
-                <div key={ad.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+                <div key={ad.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderTop: `3px solid ${STATUS_COLOR[ad.status] || 'var(--border)'}`, borderRadius: 12, padding: 20 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
