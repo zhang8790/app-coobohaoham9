@@ -24,6 +24,7 @@ export type FormState = {
   discount_rate: string
   stock: string; description: string; barcode: string
   main_image: string; sub_images: string[]; detail_images: string[]; video_url: string
+  media: string[]
   is_active: boolean
   ingredients: string[]
   // —— 智能食养 · 食疗配对（让商品更懂用户）——
@@ -54,6 +55,7 @@ export const emptyForm = (): FormState => ({
   name: '', price: '', original_price: '', cost_price: '', discount_rate: '',
   stock: '', description: '', barcode: '',
   main_image: '', sub_images: [], detail_images: [], video_url: '',
+  media: [],
   is_active: true,
   ingredients: [],
   overall_nature: '',
@@ -133,9 +135,9 @@ export type ProductFormController = {
   handleCloseForm: () => void
   openEdit: (p: Product) => void
   handleSave: () => Promise<void>
-  handleChooseMain: () => Promise<void>
-  handleChooseSub: () => Promise<void>
-  handleChooseDetail: () => Promise<void>
+  handleChooseMedia: () => Promise<void>
+  handleRemoveMedia: (i: number) => void
+  handleSetMain: (i: number) => void
   handleChooseVideo: () => Promise<void>
   pickDishImage: () => Promise<void>
   runSmartAnalyze: () => Promise<void>
@@ -277,6 +279,10 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
   }
 
   const openEdit = (p: Product) => {
+    // 把已有的 主图/副图/详情图 合并回单一有序图库（去重、保序、截断 20）
+    const media = Array.from(new Set(
+      [p.main_image ?? p.image_url ?? '', ...(p.sub_images ?? []), ...(p.detail_images ?? [])].filter(Boolean),
+    )).slice(0, 20)
     setForm({
       name: p.name,
       price: String(p.price),
@@ -286,9 +292,10 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
       stock: String(p.stock),
       description: p.description ?? '',
       barcode: p.barcode ?? '',
-      main_image: p.main_image ?? p.image_url ?? '',
-      sub_images: p.sub_images ?? [],
-      detail_images: p.detail_images ?? [],
+      media,
+      main_image: media[0] || '',
+      sub_images: media.slice(1, 10),
+      detail_images: media,
       video_url: p.video_url ?? '',
       is_active: p.is_active,
       ingredients: p.ingredients ?? [],
@@ -515,44 +522,43 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     setIngredientItems([])
   }
 
-  // 图片选择 → 上传到 Supabase Storage → 返回公网 URL
-  const handleChooseMain = async () => {
+  // 统一媒体上传：单一有序图库驱动 主图/副图/详情图，避免分三块各自点击上传。
+  // 规则：media[0] = 主图；media[1..9] = 副图（最多 9）；media 全量 = 详情图（详情页依次展示，最多 20）。
+  const setMedia = (list: string[]) => {
+    const m = list.filter(Boolean).slice(0, 20)
+    setForm(f => ({ ...f, media: m, main_image: m[0] || '', sub_images: m.slice(1, 10), detail_images: m }))
+  }
+  // 简单化：循环选图突破微信 chooseMedia 单次最多 9 张的限制，让用户一次想选多少选多少（上限 20）；
+  // 失败图不再被 setMedia 的 filter(Boolean) 静默丢弃，累计提示失败张数，已成功图照常入册。
+  const handleChooseMedia = async () => {
+    const rest0 = 20 - form.media.length
+    if (rest0 <= 0) { Taro.showToast({ title: '最多20张图片', icon: 'none' }); return }
     Taro.showLoading({ title: '上传中...' })
     try {
-      const url = await uploadImage()
-      if (url) setForm(f => ({ ...f, main_image: url }))
-      else Taro.showToast({ title: '上传失败', icon: 'none' })
+      const accumulated: string[] = []
+      let failed = 0
+      while (form.media.length + accumulated.length < 20) {
+        const rest = 20 - (form.media.length + accumulated.length)
+        const batch = Math.min(9, rest)
+        const urls = (await uploadImage({ count: batch })) as string[]
+        if (!urls || urls.length === 0) break                          // 用户取消或系统异常 → 结束
+        const ok = urls.filter(Boolean)                                // 剔除上传失败的空串
+        failed += urls.length - ok.length
+        accumulated.push(...ok)
+        if (urls.length < batch) break                                 // 用户主动少选 = 结束补选
+      }
+      if (accumulated.length) setMedia([...form.media, ...accumulated])
+      if (failed > 0) Taro.showToast({ title: `${failed} 张上传失败，可重新添加`, icon: 'none' })
     } catch (e) {
-      Taro.showToast({ title: '操作失败' })
+      Taro.showToast({ title: '上传失败，请重试', icon: 'none' })
     } finally {
       Taro.hideLoading()
     }
   }
-  const handleChooseSub = async () => {
-    const rest = 9 - form.sub_images.length
-    if (rest <= 0) { Taro.showToast({ title: '最多9张副图', icon: 'none' }); return }
-    Taro.showLoading({ title: '上传中...' })
-    try {
-      const urls = await uploadImage({ count: rest }) as string[]
-      if (urls.length && urls[0]) setForm(f => ({ ...f, sub_images: [...f.sub_images, ...urls] }))
-    } catch (e) {
-      Taro.showToast({ title: '操作失败' })
-    } finally {
-      Taro.hideLoading()
-    }
-  }
-  const handleChooseDetail = async () => {
-    const rest = 20 - form.detail_images.length
-    if (rest <= 0) { Taro.showToast({ title: '最多20张详情图', icon: 'none' }); return }
-    Taro.showLoading({ title: '上传中...' })
-    try {
-      const urls = await uploadImage({ count: rest }) as string[]
-      if (urls.length && urls[0]) setForm(f => ({ ...f, detail_images: [...f.detail_images, ...urls] }))
-    } catch (e) {
-      Taro.showToast({ title: '操作失败' })
-    } finally {
-      Taro.hideLoading()
-    }
+  const handleRemoveMedia = (i: number) => setMedia(form.media.filter((_, j) => j !== i))
+  const handleSetMain = (i: number) => {
+    if (i === 0) return
+    setMedia([form.media[i], ...form.media.filter((_, j) => j !== i)])
   }
 
   // 视频上传
@@ -693,7 +699,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     analyzing, saving, generatingBarcode, printingBarcode, scanning,
     therapyReport, liveSafety, safetyTone,
     handleNewProduct, handleScan, handleCloseForm, openEdit, handleSave,
-    handleChooseMain, handleChooseSub, handleChooseDetail, handleChooseVideo,
+    handleChooseMedia, handleRemoveMedia, handleSetMain, handleChooseVideo,
     pickDishImage, runSmartAnalyze, handleIdentifyIngredients,
     onGenerateBarcode, onPrintBarcode,
     toggleIngredient, toggleArrayField, dictRowToItem,

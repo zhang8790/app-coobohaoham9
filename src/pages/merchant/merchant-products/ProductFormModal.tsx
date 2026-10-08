@@ -283,102 +283,44 @@ export default function ProductFormModal({ controller, categories, products, onM
  onInput={(e: any) => controller.setForm(f => ({ ...f, stock: e.detail?.value ?? '' }))} />
  </View>
 
- {/* 主图 */}
- <View style={S.fieldGap}>
- <Text style={S.labelStrong}>主图</Text>
- <View style={S.flexCenterGap12}>
- <View
- onClick={controller.handleChooseMain}
- style={{
- width: '80px', height: '80px', borderRadius: '12px',
- background: '#F5F0EB',
- display: 'flex', alignItems: 'center', justifyContent: 'center',
- overflow: 'hidden', border: '2px dashed #DDD',
- }}>
- {controller.form.main_image
- ? <Image src={controller.form.main_image} mode="aspectFill" style={S.fullFill} />
- : <Text style={S.bigText56}></Text>}
- </View>
- <Text style={{ fontSize: '24rpx', color: '#AAA' }}>点击上传商品主图</Text>
- </View>
- </View>
+      {/* 商品图片（统一图库：主图/副图/详情图合一，首图即封面） */}
+      <View style={S.fieldGap}>
+        <Text style={S.labelStrong}>商品图片（{controller.form.media.length}/20）</Text>
+        <View style={S.flexWrapGap8}>
+          {controller.form.media.map((img, i) => (
+            <View key={i} style={{ width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', border: i === 0 ? '2px solid hsl(var(--primary))' : '1px solid #EEE', position: 'relative' }}>
+              <Image src={img} mode="aspectFill" style={S.fullFill} />
+              {i === 0 && (
+                <View style={{ position: 'absolute', left: 0, bottom: 0, background: 'hsl(var(--primary))', paddingVertical: 1, paddingHorizontal: 4 }}>
+                  <Text style={{ color: '#FFF', fontSize: '18rpx' }}>封面</Text>
+                </View>
+              )}
+              <View
+                onClick={() => controller.handleRemoveMedia(i)}
+                style={{ position: 'absolute', top: 0, right: 0, width: '18px', height: '18px', background: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottomLeftRadius: '8px' }}>
+                <Text style={{ color: '#FFF', fontSize: '22rpx' }}>×</Text>
+              </View>
+              {i !== 0 && (
+                <View
+                  onClick={() => controller.handleSetMain(i)}
+                  style={{ position: 'absolute', bottom: 0, right: 0, background: 'rgba(0,0,0,0.55)', paddingVertical: 1, paddingHorizontal: 3 }}>
+                  <Text style={{ color: '#FFF', fontSize: '18rpx' }}>设封面</Text>
+                </View>
+              )}
+            </View>
+          ))}
+          {controller.form.media.length < 20 && (
+            <View
+              onClick={controller.handleChooseMedia}
+              style={{ width: '64px', height: '64px', borderRadius: '8px', background: '#F5F0EB', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #DDD' }}>
+              <Text style={{ fontSize: '40rpx', color: '#BBB' }}>+</Text>
+            </View>
+          )}
+        </View>
+        <Text style={S.hintSmall}>第一张自动作为商品主图，其余图片会在详情页依次展示（最多 20 张，支持一次选多张）</Text>
+      </View>
 
- {/* 副图 */}
- <View style={S.fieldGap}>
- <Text style={S.labelStrong}>
- 副图（{controller.form.sub_images.length}/9）
- </Text>
- <View style={S.flexWrapGap8}>
- {controller.form.sub_images.map((img, i) => (
- <View key={i} style={{ width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #EEE', position: 'relative' }}>
- <Image src={img} mode="aspectFill" style={S.fullFill} />
- <View
- onClick={() => controller.setForm(f => ({ ...f, sub_images: f.sub_images.filter((_, j) => j !== i) }))}
- style={{
- position: 'absolute', top: 0, right: 0,
- width: '18px', height: '18px',
- background: '#EF4444',
- display: 'flex', alignItems: 'center', justifyContent: 'center',
- borderBottomLeftRadius: '8px',
- }}>
- <Text style={{ color: '#FFF', fontSize: '22rpx' }}>×</Text>
- </View>
- </View>
- ))}
- {controller.form.sub_images.length < 9 && (
- <View
- onClick={controller.handleChooseSub}
- style={{
- width: '64px', height: '64px', borderRadius: '8px',
- background: '#F5F0EB',
- display: 'flex', alignItems: 'center', justifyContent: 'center',
- border: '2px dashed #DDD',
- }}>
- <Text style={{ fontSize: '40rpx', color: '#BBB' }}>+</Text>
- </View>
- )}
- </View>
- </View>
-
- {/* 详情图片 */}
- <View style={S.fieldGap}>
- <Text style={S.labelStrong}>
- 详情图（{controller.form.detail_images.length}/20）
- </Text>
- <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
- {controller.form.detail_images.map((img, i) => (
- <View key={i} style={{ width: '48px', height: '48px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #EEE', position: 'relative' }}>
- <Image src={img} mode="aspectFill" style={S.fullFill} />
- <View
- onClick={() => controller.setForm(f => ({ ...f, detail_images: f.detail_images.filter((_, j) => j !== i) }))}
- style={{
- position: 'absolute', top: 0, right: 0,
- width: '16px', height: '16px',
- background: '#EF4444',
- display: 'flex', alignItems: 'center', justifyContent: 'center',
- borderBottomLeftRadius: '6px',
- }}>
- <Text style={{ color: '#FFF', fontSize: '20rpx' }}>×</Text>
- </View>
- </View>
- ))}
- {controller.form.detail_images.length < 20 && (
- <View
- onClick={controller.handleChooseDetail}
- style={{
- width: '48px', height: '48px', borderRadius: '6px',
- background: '#F5F0EB',
- display: 'flex', alignItems: 'center', justifyContent: 'center',
- border: '2px dashed #DDD',
- }}>
- <Text style={{ fontSize: '32rpx', color: '#BBB' }}>+</Text>
- </View>
- )}
- </View>
- <Text style={S.hintSmall}>详情图将在商品详情页依次展示</Text>
- </View>
-
- {/* 商品视频 */}
+      {/* 商品视频 */}
  <View style={S.fieldGap}>
  <Text style={S.labelStrong}> 商品视频（可选）</Text>
  <View style={S.flexCenterGap12}>

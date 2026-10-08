@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>商品上传简化 · 效果预览（小程序端 merchant-products）</title>
+<style>
+  :root{
+    --bg:#F7F3E9; --card:#FFFFFF; --text:#2A2A2A;
+    --primary:hsl(120 18% 48%); --primary-strong:hsl(120 22% 38%);
+    --warm:#D9A978; --danger:#DC2626; --muted:#9b958a;
+    --line:#ECE6D8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;}
+  body{background:var(--bg);color:var(--text);padding:32px 16px;display:flex;justify-content:center;flex-direction:column;align-items:center;gap:18px;}
+  .sheet{width:420px;max-width:100%;background:var(--card);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.08);overflow:hidden;}
+  .nav{background:var(--primary-strong);color:#fff;padding:14px 18px;font-size:16px;font-weight:600;display:flex;justify-content:space-between;align-items:center;}
+  .nav small{font-weight:400;opacity:.85;font-size:12px;}
+  .body{padding:18px;}
+  .field{margin-bottom:22px;}
+  .label{font-size:14px;font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between;}
+  .label .cnt{color:var(--muted);font-weight:400;}
+  .grid{display:flex;flex-wrap:wrap;gap:8px;}
+  .thumb{width:88px;height:88px;border-radius:8px;overflow:hidden;position:relative;border:1px solid var(--line);background:#f3efe6;}
+  .thumb.cover{border:2px solid var(--primary);}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .badge-cover{position:absolute;left:0;bottom:0;background:var(--primary);color:#fff;font-size:11px;padding:1px 6px;border-top-right-radius:6px;}
+  .btn-del{position:absolute;top:0;right:0;width:20px;height:20px;background:var(--danger);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;border-bottom-left-radius:6px;cursor:pointer;}
+  .btn-cover{position:absolute;bottom:0;right:0;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:1px 5px;cursor:pointer;}
+  .add{width:88px;height:88px;border-radius:8px;background:#F5F0EB;border:2px dashed #CFC7B6;display:flex;align-items:center;justify-content:center;font-size:30px;color:#BBB;cursor:pointer;}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;}
+  .video{display:flex;gap:12px;align-items:center;}
+  .video-box{width:120px;height:80px;border-radius:10px;background:#F5F0EB;border:2px dashed #CFC7B6;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;}
+  .video-box .plus{font-size:24px;color:#BBB;}
+  .video-meta{font-size:12px;color:var(--muted);}
+  .actions{display:flex;gap:10px;margin-top:8px;}
+  .btn{padding:9px 14px;border-radius:8px;border:none;font-size:13px;cursor:pointer;}
+  .btn-ghost{background:#F0EBE0;color:var(--text);}
+  .btn-warm{background:var(--warm);color:#fff;}
+  .toast{position:fixed;left:50%;top:24px;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;max-width:90%;text-align:center;}
+  .toast.show{opacity:1;}
+  .legend{width:420px;max-width:100%;background:#fff;border-radius:12px;padding:14px 16px;font-size:12px;color:#555;line-height:1.7;box-shadow:0 4px 16px rgba(0,0,0,.06);}
+  .legend b{color:var(--primary-strong);}
+  .tag{display:inline-block;background:#F0EBE0;color:#6b6356;border-radius:6px;padding:1px 6px;margin-right:4px;font-size:11px;}
+</style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="nav">商品管理 · 上传 <small>简化版原型</small></div>
+    <div class="body">
+      <!-- 商品图片：统一图库，首图=封面 -->
+      <div class="field">
+        <div class="label"><span>商品图片</span><span class="cnt" id="cnt">0/20</span></div>
+        <div class="grid" id="grid"></div>
+        <div class="hint">一次可多选（自动分批最多 9 张/批，循环累加至 20）；首张自动为封面，可点「设封面」调整顺序；每张可删除。主图/副图/详情图由系统自动派生，无需手动区分。</div>
+      </div>
+      <!-- 商品视频：独立可选 -->
+      <div class="field">
+        <div class="label"><span>商品视频（可选）</span></div>
+        <div class="video">
+          <div class="video-box" onclick="addVideo()"><div class="plus">＋</div><div style="font-size:11px;color:#BBB;margin-top:4px;">上传视频</div></div>
+          <div class="video-meta" id="videoMeta">建议 15s 内，展示商品全貌</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="simulateFail()">模拟 2 张上传失败</button>
+        <button class="btn btn-warm" onclick="toast('已保存（演示）')">保存商品</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <b>本次简化改动（对照原 4~5 块各自点击上传）：</b><br/>
+    <span class="tag">G1 已修</span> 循环选图突破微信单次 9 张静默截断，想选满 20 不用反复点「＋」。<br/>
+    <span class="tag">G2 轻量</span> 失败图不再被静默吞掉，累计提示「N 张上传失败，可重新添加」。<br/>
+    <span class="tag">未做</span> 组件拆分 / 进度环 / 拖拽排序 / 视觉 token 化（按你「简单化」要求保留内联实现）。<br/>
+    数据模型零改动：<code>main_image / sub_images / detail_images</code> 由 <code>media[]</code> 自动派生。
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const MAX = 20;
+  let media = [
+    'https://picsum.photos/seed/p0/200',
+    'https://picsum.photos/seed/p1/200',
+    'https://picsum.photos/seed/p2/200'
+  ];
+  let pendingFail = 0;
+
+  function render(){
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    media.forEach((src,i)=>{
+      const t = document.createElement('div');
+      t.className = 'thumb' + (i===0?' cover':'');
+      t.innerHTML = `<img src="${src}" onclick="preview(${i})"/>
+        ${i===0?'<div class="badge-cover">封面</div>':''}
+        <div class="btn-del" onclick="del(${i})">×</div>
+        ${i!==0?'<div class="btn-cover" onclick="setCover(${i})">设封面</div>':''}`;
+      grid.appendChild(t);
+    });
+    if(media.length < MAX){
+      const a = document.createElement('div');
+      a.className='add'; a.textContent='＋'; a.onclick=choose;
+      grid.appendChild(a);
+    }
+    document.getElementById('cnt').textContent = media.length + '/' + MAX;
+  }
+
+  function choose(){
+    const rest = MAX - media.length;
+    if(rest<=0){ toast('最多 20 张图片'); return; }
+    // 演示：模拟一次选 9 张（微信上限），若仍不满则循环累加
+    const batch = Math.min(9, rest);
+    let added = 0;
+    for(let k=0;k<batch;k++){ media.push('https://picsum.photos/seed/'+Date.now()+'_'+k+'/200'); added++; }
+    render();
+    toast('已添加 '+added+' 张（微信单次上限 9，已自动分批累加）');
+  }
+
+  function del(i){ media.splice(i,1); render(); }
+  function setCover(i){ const [x]=media.splice(i,1); media.unshift(x); render(); }
+  function preview(i){ toast('预览第 '+(i+1)+' 张（演示）'); }
+  function addVideo(){ document.getElementById('videoMeta').innerHTML='<span style="color:#16A34A">已添加视频.mp4（演示）</span>'; }
+
+  function simulateFail(){
+    // 模拟 2 张失败：不进 media，累计提示
+    pendingFail += 2;
+    toast(pendingFail + ' 张上传失败，可重新添加');
+  }
+
+  let toastTimer;
+  function toast(msg){
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>el.classList.remove('show'), 2200);
+  }
+
+  render();
+</script>
+</body>
+</html>
