@@ -11,7 +11,11 @@ export default defineConfig({
   base: '/',
   plugins: [react()],
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      // 网页后台复用小程序端单一食疗引擎源码（src/lib/food-engine），消除双端字典/词表漂移
+      '@food-engine': path.resolve(__dirname, '../src/lib/food-engine'),
+    },
   },
   server: {
     host: true,        // 绑定 0.0.0.0，保证预览面板/容器可达

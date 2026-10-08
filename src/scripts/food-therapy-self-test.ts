@@ -119,7 +119,7 @@ const grouped = groupByTier([fitTea, fitBean])
 assert('分组 recommend 含姜茶', grouped.recommend.some((f) => f.productId === 'p1'))
 assert('分组 avoid 含绿豆沙', grouped.avoid.some((f) => f.productId === 'p2'))
 assert('食疗标签库 9 项', HEALTH_TAGS.length === 9, HEALTH_TAGS.length)
-assert('情绪标签库 8 项', EMOTION_TAGS.length === 8, EMOTION_TAGS.length)
+assert('情绪标签库 9 项（双端并集）', EMOTION_TAGS.length === 9, EMOTION_TAGS.length)
 
 console.log('\n=== 7. 纯函数分类器（人群+场景 → 三栏）===')
 const chickenSoup = toFoodTherapyInput({
