@@ -207,6 +207,7 @@ export default function MerchantProducts() {
   const [dragOverDetail, setDragOverDetail] = useState(false)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [showModal, setShowModal] = useState(false)
+  const [freeIngredient, setFreeIngredient] = useState('')
   const [editing, setEditing] = useState<ProductWithExt | null>(null)
   const [form, setForm] = useState({
     name: '', price: '', original_price: '', cost_price: '', stock: '', desc: '', barcode: '',
@@ -611,6 +612,32 @@ export default function MerchantProducts() {
       const item = dictKeyToItem(key)
       if (!item) return f
       return { ...f, ingredients: [...f.ingredients, item] }
+    })
+  }
+  // 手动输入原料成分（自由文本，可填食材库里没有的原料）：拆分去重后追加进列表；
+  // id 用 free: 前缀避免与食材库 key 冲突，标记为非字典项（仅作原料清单记录，不参与食养派生）。
+  const addFreeIngredient = (raw: string) => {
+    const names = raw.split(/[、,，\s]+/).map(s => s.trim()).filter(Boolean)
+    if (!names.length) return
+    setForm(f => {
+      const exist = new Set(f.ingredients.map(it => it.name))
+      const add: IngredientItem[] = names
+        .filter(n => !exist.has(n))
+        .map(n => ({
+          id: `free:${n}`,
+          name: n,
+          nature: '平性',
+          base_effect: null,
+          caution_crowds: null,
+          allergens: [],
+          chronic_tags: [],
+          neutralize: null,
+          ratio: 50,
+          cooking: '清炒',
+          aux: [],
+        }))
+      if (!add.length) return f
+      return { ...f, ingredients: [...f.ingredients, ...add] }
     })
   }
   // 智能识别：按商品名匹配食材 key，补全为结构化项（保留已配置项）
@@ -1553,7 +1580,11 @@ export default function MerchantProducts() {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>{it.name}</span>
-                          <span style={{ fontSize: 11, color: '#fff', background: 'var(--success-strong)', padding: '1px 8px', borderRadius: 10 }}>{it.nature}</span>
+                          {it.id.startsWith('free:') ? (
+                            <span style={{ fontSize: 10, color: '#fff', background: 'var(--info)', padding: '1px 6px', borderRadius: 8 }}>自定义</span>
+                          ) : (
+                            <span style={{ fontSize: 11, color: '#fff', background: 'var(--success-strong)', padding: '1px 8px', borderRadius: 10 }}>{it.nature}</span>
+                          )}
                         </div>
                         <button type="button" onClick={() => setForm(f => ({ ...f, ingredients: f.ingredients.filter(x => x.id !== it.id) }))}
                           style={{ padding: '2px 10px', background: 'transparent', border: '1px solid var(--danger)', borderRadius: 6, color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>✕ 移除</button>
@@ -1593,6 +1624,19 @@ export default function MerchantProducts() {
                   ))}
                 </div>
               )}
+              {/* 手动输入原料：支持食材库里没有的自由原料，多个用空格 / 顿号分隔 */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+                <input
+                  value={freeIngredient}
+                  onChange={e => setFreeIngredient(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { addFreeIngredient(freeIngredient); setFreeIngredient('') } }}
+                  placeholder="手动输入原料，如：老姜、桂皮、海盐（多个用空格 / 顿号分隔）"
+                  style={{ flex: 1, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
+                <button type="button" onClick={() => { addFreeIngredient(freeIngredient); setFreeIngredient('') }}
+                  style={{ padding: '8px 16px', background: 'var(--info)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                  添加原料
+                </button>
+              </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {Object.entries(INGREDIENT_DICT).map(([key, e]) => {
                   const active = form.ingredients.some(it => it.id === key)
