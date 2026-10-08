@@ -40,6 +40,8 @@ export type FormState = {
   // —— 辨证适配（迁移 00237）——
   fit_people_override: string
   fit_crowd_tags: string[]
+  // 导购文案 / 商家寄语（本地规则引擎生成，可手改；与 description 区分：description 仅用于分享文案）
+  guide_sentence: string
   category_id: string
   // 二级分类（场景内细分，仅筛选维度；一级归类仍为 category_id）
   sub_category_id: string
@@ -69,6 +71,7 @@ export const emptyForm = (): FormState => ({
   safety_summary: '',
   fit_people_override: '',
   fit_crowd_tags: [],
+  guide_sentence: '',
   category_id: '',
   sub_category_id: '',
   product_kind: 'food',
@@ -118,6 +121,10 @@ export type ProductFormController = {
   setIngredientQuery: (v: string) => void
   ingredientResults: string[]
   setIngredientResults: (v: string[]) => void
+  freeIngredient: string
+  setFreeIngredient: (v: string) => void
+  addFreeIngredient: () => void
+  handleRegenerateCopy: () => void
   dishName: string
   setDishName: (v: string) => void
   dishImageUrl: string
@@ -156,6 +163,10 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
   // 批量配料安全分析：对缺失安全评级的商品跑本地确定性引擎并回写
   const [ingredientQuery, setIngredientQuery] = useState('')
   const [ingredientResults, setIngredientResults] = useState<string[]>([])
+  // 自由原料：食材库里没有的自定义原料（free: 前缀标记，不参与食养派生，仅作原料清单记录）
+  const [freeIngredient, setFreeIngredient] = useState('')
+  // 重新生成文案：强制触发一次商家寄语重算（食养系统本就边填边算，此按钮给商家一个显式「重算」入口）
+  const [regenNonce, setRegenNonce] = useState(0)
   // 食疗商品系统化：食材库（DB 可维护）+ 结构化食材项
   const [ingredientDict, setIngredientDict] = useState<FoodIngredientRow[]>([])
   const [ingredientItems, setIngredientItems] = useState<IngredientItem[]>([])
@@ -222,7 +233,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     if (!inputs.length) return null
     // 传入食疗标签(health_tag)，让「适合人群」按中医体质/证型辨证生成
     return buildTherapyReport(form.name || '本菜品', inputs, form.health_tag)
-  }, [ingredientItems, form.name, form.health_tag, ingredientDict])
+  }, [ingredientItems, form.name, form.health_tag, ingredientDict, regenNonce])
 
   // 引擎结果自动回填商品食养字段（系统算，商家可微调）
   useEffect(() => {
@@ -310,6 +321,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
       safety_summary: (p as any).safety_summary ?? '',
       fit_people_override: (p as any).fit_people_override ?? '',
       fit_crowd_tags: (p as any).fit_crowd_tags ?? [],
+      guide_sentence: (p as any).guide_sentence ?? '',
       category_id: p.category_id ?? '',
       sub_category_id: (p as any).sub_category_id ?? '',
       product_kind: (p as any).product_kind ?? 'food',
@@ -323,7 +335,8 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     const items: IngredientItem[] = (p.ingredients ?? []).map((nm: string) => {
       const row = ingredientDict.find(r => r.name === nm)
       if (row) return dictRowToItem(row)
-      return { id: nm, name: nm, nature: '平性', base_effect: null, caution_crowds: null, allergens: [], chronic_tags: [], neutralize: null, ratio: 50, cooking: '清炒', aux: [] }
+      // 食材库查不到 → 标记为自由原料（free: 前缀），保持与录入时一致
+      return { id: `free:${nm}`, name: nm, nature: '平性', base_effect: null, caution_crowds: null, allergens: [], chronic_tags: [], neutralize: null, ratio: 50, cooking: '清炒', aux: [] }
     })
     setIngredientItems(items)
   }
@@ -457,6 +470,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
         // 辨证增强（迁移 00237）：商家手填覆盖文案 + 适配体质标签
         fit_people_override: isGiftKind ? undefined : (form.fit_people_override.trim() ? sanitizeTherapyCopy(form.fit_people_override.trim()) : undefined),
         fit_crowd_tags: isGiftKind ? undefined : (form.fit_crowd_tags.length > 0 ? form.fit_crowd_tags : undefined),
+        guide_sentence: isGiftKind ? undefined : (form.guide_sentence.trim() || undefined),
         therapy_pending: isGiftKind ? false : !therapyReport,
         is_active: form.is_active,
         category_id: form.category_id || null,
@@ -686,6 +700,40 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     Taro.showToast({ title: `已识别 ${hits.length} 种食材`, icon: 'success' })
   }
 
+  // 自由原料：手动输入食材库里没有的原料（多个用空格 / 顿号分隔），free: 前缀标记，不参与食养派生
+  const addFreeIngredient = () => {
+    const names = (freeIngredient || '').split(/[、,，\s]+/).map(s => s.trim()).filter(Boolean)
+    if (!names.length) { Taro.showToast({ title: '请输入原料名', icon: 'none' }); return }
+    setIngredientItems(prev => {
+      const exist = new Set(prev.map(it => it.name))
+      const add: IngredientItem[] = names
+        .filter(n => !exist.has(n))
+        .map(n => ({
+          id: `free:${n}`, name: n, nature: '平性', base_effect: null, caution_crowds: null,
+          allergens: [], chronic_tags: [], neutralize: null, ratio: 50, cooking: '清炒', aux: [],
+        }))
+      if (!add.length) return prev
+      Taro.showToast({ title: `已添加 ${add.length} 种自由原料`, icon: 'success' })
+      return [...prev, ...add]
+    })
+    setFreeIngredient('')
+  }
+
+  // 本地规则引擎生成导购文案（与网页后台 buildRuleCopy 同源，零 LLM 依赖，合规内置医疗宣称闸门）
+  const buildRuleCopy = (f: FormState): { guide_sentence: string } => {
+    const name = f.name || '这款好物'
+    const nature = f.overall_nature || (ingredientItems.length ? '平和' : '')
+    const rec = f.fit_crowd_tags.length ? f.fit_crowd_tags.join('、') : '注重食养的人'
+    const guide = `${name}${nature ? `性${nature}` : ''}，适合${rec}，温润好入口，食疗日常小确幸。`
+    return { guide_sentence: guide }
+  }
+
+  // 重新生成文案：显式触发一次导购文案（guide_sentence）重算，结果可手改
+  const handleRegenerateCopy = () => {
+    setForm(f => ({ ...f, ...buildRuleCopy(f) }))
+    Taro.showToast({ title: '已重新生成导购文案', icon: 'success' })
+  }
+
   return {
     showForm, setShowForm,
     editId, setEditId,
@@ -694,6 +742,8 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     ingredientDict,
     ingredientQuery, setIngredientQuery,
     ingredientResults, setIngredientResults,
+    freeIngredient, setFreeIngredient,
+    addFreeIngredient, handleRegenerateCopy,
     dishName, setDishName,
     dishImageUrl, setDishImageUrl,
     analyzing, saving, generatingBarcode, printingBarcode, scanning,

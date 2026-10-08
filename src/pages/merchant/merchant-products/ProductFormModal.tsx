@@ -54,6 +54,8 @@ export default function ProductFormModal({ controller, categories, products, onM
         .sort((a, b) => a.sort_order - b.sort_order)
         .flatMap((p) => [p, ...categories.filter((c) => c.parent_id === p.id).sort((a, b) => a.sort_order - b.sort_order)])
     : categories
+  // 占比合计（C5：与网页后台一致的占比之和校验）
+  const ratioTotal = controller.ingredientItems.reduce((s, it) => s + (Number(it.ratio) || 0), 0)
   return (
     <>
  {controller.showForm && (
@@ -413,10 +415,14 @@ export default function ProductFormModal({ controller, categories, products, onM
  {controller.ingredientItems.map((it) => (
  <View key={it.id} style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '12px', background: '#F6FBF7', border: '1px solid #F0DAD2' }}>
  <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
- <View style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
- <Text style={{ fontSize: '30rpx', fontWeight: 'bold', color: '#2A2A2A' }}>{it.name}</Text>
- <Text style={{ fontSize: '22rpx', color: '#fff', background: '#34A853', padding: '1px 8px', borderRadius: '10px' }}>{it.nature}</Text>
- </View>
+        <View style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Text style={{ fontSize: '30rpx', fontWeight: 'bold', color: '#2A2A2A' }}>{it.name}</Text>
+          {it.id.startsWith('free:') ? (
+            <Text style={{ fontSize: '20rpx', color: '#fff', background: '#3B82F6', padding: '1px 8px', borderRadius: '10px' }}>自定义</Text>
+          ) : (
+            <Text style={{ fontSize: '22rpx', color: '#fff', background: '#34A853', padding: '1px 8px', borderRadius: '10px' }}>{it.nature}</Text>
+          )}
+        </View>
  <View onClick={() => controller.setIngredientItems(prev => prev.filter(x => x.id !== it.id))} style={{ padding: '2px 8px' }}>
  <Text style={{ fontSize: '26rpx', color: '#EF4444' }}>✕ 移除</Text>
  </View>
@@ -459,11 +465,56 @@ export default function ProductFormModal({ controller, categories, products, onM
  ))}
  </View>
  )}
+ {/* 占比合计条：食材占比之和，超 100% 提示（与网页后台一致） */}
+ {controller.ingredientItems.length > 0 && (
+ <View style={{ marginTop: '8px', padding: '8px 12px', borderRadius: '10px', background: ratioTotal > 100 ? '#FDECEC' : '#F6FBF7', border: `1px solid ${ratioTotal > 100 ? '#F5C2C2' : '#F0DAD2'}` }}>
+ <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+ <Text style={{ fontSize: '24rpx', color: '#4A443D' }}>占比合计</Text>
+ <Text style={{ fontSize: '26rpx', fontWeight: 'bold', color: ratioTotal > 100 ? '#C0392B' : '#2E7D32' }}>{ratioTotal}%</Text>
+ </View>
+ {ratioTotal > 100 && (
+ <Text style={{ fontSize: '22rpx', color: '#C0392B', display: 'block', marginTop: '4px' }}> 占比之和已超过 100%，请调整各项占比</Text>
+ )}
+ </View>
+ )}
+ </View>
+
+ {/* 自由原料：食材库没有的自定义原料（不参与食养派生，仅作原料清单记录） */}
+ <View style={{ marginTop: '10px' }}>
+ <Text style={{ fontSize: '24rpx', color: '#4A443D', fontWeight: '600', display: 'block', marginBottom: '6px' }}>自由原料（库里没有可手动填）</Text>
+ <View style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+ <Input
+ value={controller.freeIngredient}
+ onInput={(e: any) => controller.setFreeIngredient(e.detail.value)}
+ placeholder='多个原料用空格 / 顿号分隔，如：虫草花、竹荪'
+ style={{ flex: 1, padding: '8px 10px', borderRadius: '8px', border: '1px solid #E0E0E0', fontSize: '26rpx', background: '#FFF' }} />
+ <View onClick={controller.addFreeIngredient} style={{ padding: '8px 14px', borderRadius: '10px', background: '#3B82F6', whiteSpace: 'nowrap' }}>
+ <Text style={{ color: '#FFF', fontSize: '26rpx', fontWeight: 'bold' }}>添加</Text>
+ </View>
+ </View>
+ </View>
+
+ {/* 导购文案 / 商家寄语（本地规则引擎生成，可手改；与商品描述区分） */}
+ <View style={S.fieldGap}>
+ <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+ <Text style={S.labelStrong}>导购文案（可手改）</Text>
+ <View onClick={controller.handleRegenerateCopy} style={{ padding: '6px 12px', borderRadius: '8px', background: '#FFF', border: '1px solid #E0E0E0' }}>
+ <Text style={{ fontSize: '24rpx', color: '#34A853', fontWeight: '600' }}>重新生成文案</Text>
+ </View>
+ </View>
+ <Textarea
+ style={{ width: '100%', minHeight: '70px', borderRadius: '10px', background: '#FFF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '10px 14px', boxSizing: 'border-box', marginTop: '8px' }}
+ placeholder='点「重新生成文案」自动生成，或手动填写一段导购话术'
+ placeholderStyle="color:#BBB;font-size:13px"
+ maxlength={80}
+ value={controller.form.guide_sentence}
+ onInput={(e: any) => controller.setForm(f => ({ ...f, guide_sentence: e.detail.value }))}
+ />
  </View>
 
  {/* 商家寄语（写给买家看的一段话，简短醒目，详情页会做成专属卡片） */}
  <View style={{ marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#FFFAF5', border: '1px solid hsl(var(--primary-soft))', borderLeftWidth: '4px', borderLeftColor: 'hsl(var(--primary))' }}>
- <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '700', marginBottom: '6px' }}> 商家寄语 / 商品描述（80 字以内）</Text>
+ <Text style={{ fontSize: '28rpx', color: '#333', fontWeight: '700', marginBottom: '6px' }}> 商品描述（分享文案，80 字以内）</Text>
  <Textarea
  style={{
  width: '100%', minHeight: '80px',
