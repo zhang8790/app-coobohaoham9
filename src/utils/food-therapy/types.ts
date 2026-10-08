@@ -95,7 +95,6 @@ export interface FoodTherapyInput {
   cautious_notes?: string | null
   forbidden_crowds?: string[] | null
   forbidden_reasons?: string | null
-  combo_product_ids?: string[] | null
   guide_sentence?: string | null
   moments_copy?: string | null
   taboo_warning?: string | null
@@ -124,7 +123,6 @@ export function toFoodTherapyInput(p: Product): FoodTherapyInput {
     cautious_notes: (p as any).cautious_notes ?? null,
     forbidden_crowds: (p as any).forbidden_crowds ?? null,
     forbidden_reasons: (p as any).forbidden_reasons ?? null,
-    combo_product_ids: (p as any).combo_product_ids ?? null,
     guide_sentence: (p as any).guide_sentence ?? null,
     moments_copy: (p as any).moments_copy ?? null,
     taboo_warning: (p as any).taboo_warning ?? null,

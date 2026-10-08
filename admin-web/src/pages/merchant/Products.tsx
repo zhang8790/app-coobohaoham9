@@ -230,7 +230,6 @@ export default function MerchantProducts() {
     cautious_notes: '',
     forbidden_crowds: [] as string[],
     forbidden_reasons: '',
-    combo_product_ids: [] as string[],
     guide_sentence: '',
     category_id: '',
     sub_category_id: '',
@@ -389,7 +388,7 @@ export default function MerchantProducts() {
       overall_nature: '', health_tag: [], emotion_tag: [], match_goods: [], conflict_goods: [], aux_remind: '',
       food_category: '', positive_effect: '', risk_warning: '', scenes: [],
       rec_crowds: [], cautious_crowds: [], cautious_notes: '', forbidden_crowds: [], forbidden_reasons: '',
-      combo_product_ids: [], guide_sentence: '', category_id: '', sub_category_id: '',
+      guide_sentence: '', category_id: '', sub_category_id: '',
       food_stage: '',
       product_kind: 'food', is_active: true, fit_people_override: '', materials: [],
       gift_meaning: '', gift_craft: '', gift_scene: '', gift_care: '' })
@@ -428,7 +427,6 @@ export default function MerchantProducts() {
       cautious_notes: (p as any).cautious_notes ?? '',
       forbidden_crowds: (p as any).forbidden_crowds ?? [],
       forbidden_reasons: (p as any).forbidden_reasons ?? '',
-      combo_product_ids: (p as any).combo_product_ids ?? [],
       guide_sentence: (p as any).guide_sentence ?? '',
       category_id: (p as any).category_id ?? '',
       sub_category_id: (p as any).sub_category_id ?? '',
@@ -650,7 +648,7 @@ export default function MerchantProducts() {
     })
   }
   // 通用多选数组 toggle（场景 / 三类人群 / 升单套餐）
-  const toggleArr = (key: 'scenes' | 'rec_crowds' | 'cautious_crowds' | 'forbidden_crowds' | 'combo_product_ids', val: string) => {
+  const toggleArr = (key: 'scenes' | 'rec_crowds' | 'cautious_crowds' | 'forbidden_crowds', val: string) => {
     setForm(f => {
       const arr = f[key] as string[]
       return { ...f, [key]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] }
@@ -790,7 +788,6 @@ export default function MerchantProducts() {
       cautious_notes: form.cautious_notes || null,
       forbidden_crowds: form.forbidden_crowds.length ? form.forbidden_crowds : null,
       forbidden_reasons: form.forbidden_reasons || null,
-      combo_product_ids: form.combo_product_ids.length ? form.combo_product_ids : null,
       guide_sentence: form.guide_sentence || null,
       food_stage: form.food_stage || null,
       // 商品类型 + 礼品详情 + 适合人群覆盖（对齐小程序 merchant-products/index.tsx payload）
@@ -841,10 +838,10 @@ export default function MerchantProducts() {
         const msg = e?.message || ''
         // 软降级：若 products 表尚未加导购相关列（迁移 00090 / 00100 / 00104 未执行），
         // 或部分核心列缺失，剥离后重试，保证保存不失败（与小程序端 api.ts 一致）
-        if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scene_tags|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|combo_product_ids|guide_sentence|moments_copy|taboo_warning|product_kind|fit_people_override|materials|gift_meaning|gift_craft|gift_scene|gift_care/.test(msg)) {
+        if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scene_tags|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|guide_sentence|moments_copy|taboo_warning|product_kind|fit_people_override|materials|gift_meaning|gift_craft|gift_scene|gift_care/.test(msg)) {
           const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind,
             food_category, positive_effect, risk_warning, emotion_copy, scene_tags, rec_crowds, cautious_crowds,
-            cautious_notes, forbidden_crowds, forbidden_reasons, combo_product_ids, guide_sentence,
+            cautious_notes, forbidden_crowds, forbidden_reasons, guide_sentence,
             product_kind, fit_people_override, materials, gift_meaning, gift_craft, gift_scene, gift_care, ...rest } = body
           const res2: any = await persist(rest)
           if (res2?.error) {
@@ -1786,24 +1783,7 @@ export default function MerchantProducts() {
                 </div>
               )}
 
-              {/* 门店配套（升单搭配 / 导购短句，原第 3 步「营销预览」保留字段，C 端详情页消费） */}
-              <div style={{ marginBottom: 14 }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>门店推荐套餐（绑定其他商品，顾客详情页展示）</span>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                  {list.filter(p => p.id !== (editing?.id)).map(p => {
-                    const active = form.combo_product_ids.includes(p.id)
-                    return (
-                      <button key={p.id} type="button" onClick={() => toggleArr('combo_product_ids', p.id)}
-                        style={{ padding: '4px 10px', background: active ? '#065F46' : 'var(--bg)', border: `1px solid ${active ? 'var(--success-strong)' : 'var(--border-soft)'}`, borderRadius: 999, cursor: 'pointer', fontSize: 12, color: active ? '#ECFDF5' : 'var(--text-muted)' }}>
-                        {p.name}
-                      </button>
-                    )
-                  })}
-                  {list.filter(p => p.id !== (editing?.id)).length === 0 && (
-                    <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>暂无其他商品可选（先创建商品）</span>
-                  )}
-                </div>
-              </div>
+              {/* 门店配套（导购短句，C 端详情页展示） */}
               <div style={{ marginBottom: 14 }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>店员导购短句（顾客详情页展示）</span>
                 <input value={form.guide_sentence} onChange={e => setForm(f => ({ ...f, guide_sentence: e.target.value }))} placeholder="如：这碗鸡汤温补，特别适合您现在的状态" style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />

@@ -132,9 +132,7 @@ const [adding, setAdding] = useState(false)
  const price = displayPrice
  return Math.round(price * quantity * 100) / 100
  }, [displayPrice, quantity])
- // 门店推荐套餐：根据 combo_product_ids 拉取关联商品
- const [comboProducts, setComboProducts] = useState<Product[]>([])
- // 在售批次的生产日期 / 保质期（来自商家端批次入库 stock_batches，与商家端同步）
+// 在售批次的生产日期 / 保质期（来自商家端批次入库 stock_batches，与商家端同步）
  const [batchInfo, setBatchInfo] = useState<{ produced_at: string | null; expire_at: string | null; shelf_life_days: number | null } | null>(null)
 
  // 构建媒体列表：视频置首帧 + 主图 + 副图（抖音电商习惯：视频即第一眼，更易建立信任）
@@ -258,24 +256,7 @@ ingredientDictPromise.then(setIngredientDict).catch(() => setIngredientDict([]))
  useEffect(() => { refreshCart() }, [refreshCart])
  useDidShow(() => { refreshCart() })
 
- // 拉取「门店推荐套餐」关联商品（combo_product_ids），失败静默降级
- useEffect(() => {
- const ids = (product as any)?.combo_product_ids as string[] | undefined
- if (!ids || ids.length === 0) { setComboProducts([]); return }
- let alive = true
- supabase
- .from('products')
- .select('id, name, price, image_url')
- .in('id', ids)
- .then(({ data, error }: any) => {
- if (!alive) return
- if (!error && Array.isArray(data)) setComboProducts(data as Product[])
- })
- .catch(() => {})
- return () => { alive = false }
- }, [product])
-
- // 拉取本商品挂载的配料安全条目（product_food_additives → food_additives）
+// 拉取本商品挂载的配料安全条目（product_food_additives → food_additives）
  useEffect(() => {
  if (!id) return
  let alive = true
@@ -583,13 +564,13 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
               // 三个折叠模块：仅在确有内容时渲染，空态整块隐藏（不再显示「暂无说明/暂无搭配推荐」）
               const hasIngredients = stageMod.ingredients.length > 0 || (foodBenefit?.ingredients?.length || 0) > 0
               const hasBenefit = !!foodBenefit || !!input.positive_effect
-              const hasCombo = !!stageMod.comboNarrative || comboProducts.length > 0 || (input.match_goods?.length || 0) > 0
+              const hasCombo = !!stageMod.comboNarrative || (input.match_goods?.length || 0) > 0
 
               // 是否有实质食养数据：商家辨证 / 食养阶段 / 食材 / 人群 / 搭配 / 分类 / 引导语 任一存在才展示，避免空壳「温和食养·日常参考」占位
               const hasShiyang =
                 !!therapyReport || !!foodBenefit || !!stageMod.stage ||
                 stageMod.ingredients.length > 0 || crowdRec.length > 0 ||
-                !!stageMod.comboNarrative || comboProducts.length > 0 ||
+                !!stageMod.comboNarrative ||
                 (input.match_goods?.length || 0) > 0 || !!input.positive_effect ||
                 !!input.food_category || !!input.guide_sentence
               if (!hasShiyang) return null
@@ -683,17 +664,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
                       {stageMod.comboNarrative ? (
                         <Text style={{ fontSize: '26rpx', color: 'var(--color-herb-600)', display: 'block', lineHeight: '1.6' }}>{stageMod.comboNarrative}</Text>
                       ) : null}
-                      {comboProducts.length > 0 ? (
-                        <View className="flex gap-2 flex-wrap" style={{ marginTop: 4 }}>
-                          {comboProducts.map((c) => (
-                            <View key={c.id}
-                              className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-base"
-                              onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${c.id}` })}>
-                              <Text>{c.name} ¥{c.price}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      ) : (
+                      {(input.match_goods || []).length > 0 && (
                         <Text style={S.descLineMt}>推荐搭配：{(input.match_goods || []).join('、')}</Text>
                       )}
                     </CollapsibleSection>
