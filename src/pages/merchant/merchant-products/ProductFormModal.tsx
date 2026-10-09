@@ -24,14 +24,9 @@ const S = {
   hintSmall: { fontSize: '22rpx', color: '#AAA', marginTop: '4px' },
   fullFill: { width: '100%', height: '100%' },
   primaryLabel: { fontSize: '26rpx', color: 'hsl(var(--primary))', fontWeight: '700', marginBottom: '8px', display: 'block' },
-  rowWrapGap8Mb12: { flexDirection: 'row', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' },
-  rowWrapGap8: { flexDirection: 'row', flexWrap: 'wrap', gap: '8px' },
-  flexCenterGap12: { display: 'flex', alignItems: 'center', gap: '12px' },
   bigText56: { fontSize: '56rpx' },
-  flexWrapGap8: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   mutedSmallBlock: { fontSize: '22rpx', color: 'var(--muted-foreground)', display: 'block' },
   marginTop10: { marginTop: '10px' },
-  rowWrapGap6Mt8: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' },
   text26: { fontSize: '26rpx', color: '#333' },
   warmCard: { marginBottom: '14px', padding: '12px', borderRadius: '12px', background: '#FBF7F2', border: '1.5px solid #E8D9C8' },
   whiteText26: { color: '#fff', fontSize: '26rpx', fontWeight: '600' },
@@ -60,7 +55,7 @@ export default function ProductFormModal({ controller, categories, products, onM
   return (
     <>
  {controller.showForm && (
- <View style={{
+ <View className="flex flex-col" style={{
  position: 'fixed',
  top: 0, left: 0, right: 0, bottom: 0,
  zIndex: 9999,
@@ -68,8 +63,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  background: 'rgba(0,0,0,0.55)',
 }} catchMove>
  {/* 弹窗内容区 —— 不在背景上加 onClick，避免误触关闭 */}
- <View style={{
- marginTop: 'auto',
+ <View className="flex flex-col" style={{
+marginTop: 'auto',
  width: '100%',
  background: '#FFF',
  borderTopLeftRadius: '24px',
@@ -123,7 +118,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Text style={{ fontSize: '26rpx', color: 'hsl(var(--primary))' }}>管理分类</Text>
  </View>
  </View>
- <View style={S.rowWrapGap8}>
+ <View className="flex flex-row flex-wrap gap-2">
  <View
  onClick={() => controller.setForm(f => ({ ...f, category_id: '', sub_category_id: '' }))}
  style={{
@@ -141,9 +136,10 @@ export default function ProductFormModal({ controller, categories, products, onM
  onClick={() => controller.setForm(f => c.parent_id
    ? { ...f, category_id: c.parent_id as string, sub_category_id: c.id }
    : { ...f, category_id: c.id, sub_category_id: '' })}
- style={{
- padding: '7px 14px', borderRadius: '9999px', flexDirection: 'row', alignItems: 'center', gap: '4px',
- background: sel ? 'hsl(var(--primary))' : '#FFF',
+ className="flex flex-row items-center gap-1"
+style={{
+padding: '7px 14px', borderRadius: '9999px',
+background: sel ? 'hsl(var(--primary))' : '#FFF',
  border: sel ? '1px solid hsl(var(--primary))' : '1px solid #EEE',
  }}>
  <Text style={{ fontSize: c.parent_id ? '24rpx' : '26rpx', color: sel ? '#FFF' : (c.parent_id ? '#888' : '#666') }}>{c.parent_id ? `└ ${c.name}` : c.name}</Text>
@@ -160,7 +156,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  {/* 食疗导购分类（food_categories 参考表驱动；表为空时回退硬编码常量） */}
  <View style={S.fieldGap}>
  <Text style={S.labelStrongBlock}>食疗导购分类</Text>
- <View style={S.rowWrapGap8}>
+ <View className="flex flex-row flex-wrap gap-2">
  <View
  onClick={() => controller.setForm(f => ({ ...f, food_category: '' }))}
  style={{
@@ -193,7 +189,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  {/* 商品类型（迁移 20260803）：食养食品 / 药膳手串礼品 / 手作 / 护理 —— 决定详情页渲染哪套模块 */}
  <View style={S.fieldGap}>
  <Text style={S.labelStrong}>商品类型</Text>
- <View style={S.rowWrapGap8}>
+ <View className="flex flex-row flex-wrap gap-2">
  {[
  { k: 'food', label: '食养食品' },
  { k: 'gift', label: '药膳手串礼品' },
@@ -225,7 +221,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
 
  {/* 价格行：售价 / 原价 / 成本 */}
- <View style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
+ <View className="flex flex-row gap-2.5" style={{ marginBottom: '14px' }}>
  <View style={S.flex1}>
  <Text style={S.labelMedium}>售价 *</Text>
  <Input
@@ -322,7 +318,7 @@ export default function ProductFormModal({ controller, categories, products, onM
       {/* 商品图片（统一图库：主图/副图/详情图合一，首图即封面） */}
       <View style={S.fieldGap}>
         <Text style={S.labelStrong}>商品图片（{controller.form.media.length}/20）</Text>
-        <View style={S.flexWrapGap8}>
+        <View className="flex flex-row flex-wrap gap-2">
           {controller.form.media.map((img, i) => (
             <View key={i} style={{ width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', border: i === 0 ? '2px solid hsl(var(--primary))' : '1px solid #EEE', position: 'relative' }}>
               <Image src={img} mode="aspectFill" style={S.fullFill} />
@@ -359,7 +355,7 @@ export default function ProductFormModal({ controller, categories, products, onM
       {/* 商品视频 */}
  <View style={S.fieldGap}>
  <Text style={S.labelStrong}> 商品视频（可选）</Text>
- <View style={S.flexCenterGap12}>
+ <View className="flex flex-row items-center gap-3">
  <View
  onClick={controller.handleChooseVideo}
  style={{
@@ -422,7 +418,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  placeholder='或直接输入原料名（如：姜、梨、番茄）快速添加'
  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #E0E0E0', fontSize: '26rpx', background: '#FFF' }} />
  {controller.ingredientResults.length > 0 && (
- <View style={S.rowWrapGap6Mt8}>
+ <View className="flex flex-row flex-wrap gap-1.5" style={{ marginTop: '8px' }}>
  {controller.ingredientResults.map(name => {
  const row = controller.ingredientDict.find(r => r.name === name)
  if (!row) return null
@@ -449,7 +445,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  {controller.ingredientItems.map((it) => (
  <View key={it.id} style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '12px', background: '#F6FBF7', border: '1px solid #F0DAD2' }}>
  <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <View className="flex flex-row items-center gap-1.5">
           <Text style={{ fontSize: '30rpx', fontWeight: 'bold', color: '#2A2A2A' }}>{it.name}</Text>
           {it.id.startsWith('free:') ? (
             <Text style={{ fontSize: '20rpx', color: '#fff', background: '#3B82F6', padding: '1px 8px', borderRadius: '10px' }}>自定义</Text>
@@ -462,7 +458,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  </View>
  </View>
  {/* 占比 */}
- <View style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+ <View className="flex flex-row items-center gap-2" style={{ marginTop: '8px' }}>
  <Text style={{ fontSize: '24rpx', color: '#4A443D' }}>占比</Text>
  <Input
  value={String(it.ratio)}
@@ -472,7 +468,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Text style={{ fontSize: '22rpx', color: 'var(--muted-foreground)' }}>%（越高过敏提醒越强）</Text>
  </View>
  {/* 烹饪方式 */}
- <View style={S.rowWrapGap6Mt8}>
+ <View className="flex flex-row flex-wrap gap-1.5" style={{ marginTop: '8px' }}>
  {COOKING_METHODS.map(m => {
  const sel = it.cooking === m
  return (
@@ -484,7 +480,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  })}
  </View>
  {/* 辅料 */}
- <View style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+ <View className="flex flex-row flex-wrap gap-1.5" style={{ marginTop: '6px' }}>
  {AUX_OPTIONS.map(a => {
  const sel = it.aux.includes(a)
  return (
@@ -516,7 +512,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  {/* 自由原料：食材库没有的自定义原料（不参与食养派生，仅作原料清单记录） */}
  <View style={{ marginTop: '10px' }}>
  <Text style={{ fontSize: '24rpx', color: '#4A443D', fontWeight: '600', display: 'block', marginBottom: '6px' }}>自由原料（库里没有可手动填）</Text>
- <View style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+ <View className="flex flex-row items-center gap-2">
  <Input
  value={controller.freeIngredient}
  onInput={(e: any) => controller.setFreeIngredient(e.detail.value)}
@@ -627,7 +623,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  placeholderStyle="color:#BBB;font-size:13px"
  value={controller.dishName}
  onInput={(e: any) => controller.setDishName(e.detail?.value ?? '')} />
- <View style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+ <View className="flex flex-row items-center gap-2" style={{ marginTop: '10px' }}>
  <View onClick={controller.pickDishImage}
  style={{ padding: '8px 12px', borderRadius: '10px', background: '#F0F4F8', border: '1px solid #DDD' }}>
  <Text style={S.text26}> 上传图片</Text>
@@ -648,7 +644,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  <Text style={S.primaryLabel}> 实时食疗安全分析（引擎边填边算）</Text>
  {controller.therapyReport ? (
  <View>
- <View style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+ <View className="flex flex-row items-center flex-wrap gap-2" style={{ marginBottom: '8px' }}>
  <View style={{ padding: '4px 10px', borderRadius: '9999px', background: '#EAF6EC', border: '1px solid #BFE3C4' }}>
  <Text style={{ fontSize: '24rpx', color: '#2E7D32', fontWeight: '700' }}>整体性味 · {controller.therapyReport.overall_nature}</Text>
  </View>
@@ -700,8 +696,8 @@ export default function ProductFormModal({ controller, categories, products, onM
  value={controller.form.barcode}
  onInput={(e: any) => controller.setForm(f => ({ ...f, barcode: e.detail?.value ?? '' }))} />
  {/* 条码操作：生成 / 预览 / 打印（超市同款 EAN-13 店内码）*/}
- <View style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
- <View style={S.flexWrapGap8}>
+ <View className="flex flex-col gap-2" style={{ marginTop: '8px' }}>
+ <View className="flex flex-row flex-wrap gap-2">
  {!controller.form.barcode ? (
  <View
  onClick={controller.onGenerateBarcode}
@@ -771,7 +767,7 @@ export default function ProductFormModal({ controller, categories, products, onM
 
  {/* 整体性味（引擎自动计算，可手动覆盖） */}
  <Text style={S.labelStrongBlock}>整体性味（引擎自动算，可手动覆盖）</Text>
- <View style={S.rowWrapGap8Mb12}>
+ <View className="flex flex-row flex-wrap gap-2" style={{ marginBottom: '12px' }}>
  {NATURE_SCALE.map((n: string) => {
  const sel = controller.form.overall_nature === n
  return (
@@ -789,7 +785,7 @@ export default function ProductFormModal({ controller, categories, products, onM
 
  {/* 食疗标签（赭红） */}
  <Text style={S.labelStrongBlock}>食疗标签（最多 3）</Text>
- <View style={S.rowWrapGap8Mb12}>
+ <View className="flex flex-row flex-wrap gap-2" style={{ marginBottom: '12px' }}>
  {HEALTH_TAGS.map((t: string) => {
  const sel = controller.form.health_tag.includes(t)
  return (
@@ -808,7 +804,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  {/* 辨证适配人群：由食疗标签自动推导，可手动增删（迁移 00237） */}
  <Text style={S.labelStrongBlock}>辨证适配人群（最多 6）</Text>
  <Text style={{ fontSize: '22rpx', color: 'var(--muted-foreground)', marginBottom: '6px', display: 'block' }}>根据上方食疗标签自动推导，可手动增删；用于详情页辨证展示与个性化匹配</Text>
- <View style={S.rowWrapGap8Mb12}>
+ <View className="flex flex-row flex-wrap gap-2" style={{ marginBottom: '12px' }}>
  {FIT_CROWD_OPTIONS.map((t: string) => {
  const sel = controller.form.fit_crowd_tags.includes(t)
  return (
@@ -857,7 +853,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  if (isConflict) { controller.toggleArrayField('conflict_goods', p.id); return }
  controller.toggleArrayField('match_goods', p.id)
  }}
- style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '8px', background: isMatch ? 'rgba(22,163,74,0.08)' : isConflict ? 'rgba(220,38,38,0.08)' : '#FBF7EF', border: `1px solid ${isMatch ? 'rgba(22,163,74,0.25)' : isConflict ? 'rgba(220,38,38,0.25)' : '#EEE'}`, marginBottom: '6px' }}>
+ className="flex flex-row items-center justify-between" style={{ padding: '8px 10px', borderRadius: '8px', background: isMatch ? 'rgba(22,163,74,0.08)' : isConflict ? 'rgba(220,38,38,0.08)' : '#FBF7EF', border: `1px solid ${isMatch ? 'rgba(22,163,74,0.25)' : isConflict ? 'rgba(220,38,38,0.25)' : '#EEE'}`, marginBottom: '6px' }}>
  <Text style={S.text26}>{p.name}</Text>
  <Text style={{ fontSize: '24rpx', color: tint, fontWeight: '600' }}>{isMatch ? '宜搭' : isConflict ? '慎搭' : '—'}</Text>
  </View>
@@ -885,7 +881,7 @@ export default function ProductFormModal({ controller, categories, products, onM
  {/* 存为模板（localStorage，无 schema 依赖） */}
  <View style={S.fieldGap}>
  <Text style={S.labelStrongBlock}>存为模板（可复用到新商品）</Text>
- <View style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+ <View className="flex flex-row items-center gap-2">
  <Input
  value={controller.templateName}
  onInput={(e: any) => controller.setTemplateName(e.detail?.value ?? '')}

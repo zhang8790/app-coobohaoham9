@@ -69,7 +69,7 @@ export default function ProductList({
             <Text style={{
               fontSize: '28rpx', fontWeight: 'bold',
               color: filter === key ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-            }}>{key === 'all' ? '全部' : key === 'online' ? '在售' : '下架'}</Text>
+            }}>{key === 'all' ? '全部' : key === 'online' ? '上架中' : '已下架'}</Text>
           </View>
         ))}
       </View>
@@ -102,7 +102,7 @@ export default function ProductList({
                       padding: '2px 8px', borderRadius: '10px',
                       background: p.is_active ? '#DCFCE7' : '#FBF7EF',
                     }}>
-                      <Text style={{ fontSize: '22rpx', color: p.is_active ? '#15803D' : 'var(--muted-foreground)' }}>{p.is_active ? '在售' : '下架'}</Text>
+                      <Text style={{ fontSize: '22rpx', color: p.is_active ? '#15803D' : 'var(--muted-foreground)' }}>{p.is_active ? '上架中' : '已下架'}</Text>
                       {p.therapy_pending ? (
                         <Text style={{ fontSize: '22rpx', color: '#B45309', marginLeft: '6px' }}>· 食疗待补全</Text>
                       ) : null}

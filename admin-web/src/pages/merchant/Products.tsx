@@ -465,6 +465,15 @@ export default function MerchantProducts() {
     setShowModal(true)
   }
 
+  // 复制上架：以现有商品为蓝本新建（对齐小程序端 useProductForm.duplicateProduct）
+  // 载入该商品全部字段 → 置 editing=null 使 handleSubmit 走 insert 分支（新建而非覆盖原商品）
+  // → 清空条码/库存，保存即作为一件新商品上架
+  const duplicateProduct = (p: ProductWithExt) => {
+    openEdit(p)
+    setEditing(null)
+    setForm(f => ({ ...f, barcode: '', stock: '' }))
+  }
+
   const closeModal = () => { setShowModal(false); setEditing(null); setStep(1) }
 
   // 一键生成店内码（仅编辑已有商品）：服务端原子分配 EAN-13 并回写 products.barcode
@@ -1162,6 +1171,7 @@ export default function MerchantProducts() {
               {/* action */}
               <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                 <button onClick={() => openEdit(p)} style={{ padding: '4px 10px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>编辑</button>
+                <button onClick={() => duplicateProduct(p)} style={{ padding: '4px 10px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>复制上架</button>
                 <button onClick={() => toggleStatus(p.id)} style={{
                   padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12,
                   background: p.status === 'online' ? 'rgba(220,38,38,0.1)' : 'rgba(5,150,105,0.1)',
