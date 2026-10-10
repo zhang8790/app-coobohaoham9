@@ -13,15 +13,13 @@ import ProductGridCard from '@/components/ProductGridCard'
 import CustomTabBar from '@/components/custom-tabbar'
 import FloatingActionBar from '@/components/FloatingActionBar'
 import { getProductCareInfo } from '@/utils/product-care'
-import { buildTherapyReport, isFoodProduct, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, isFoodProduct, isTherapyEnabled, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import type { NearbyProduct } from '@/db/api'
 import type { Product, StoreCategory } from '@/db/types'
 // 场景展示名单例：与首页金刚区同一套名字（DB 里的旧名/变体名在此归一）
 import { sceneLabel } from '@/utils/scene-alias'
-// 食疗筛选：复用共享词表的功效标签，保证与详情页/卡片口径一致
-import { HEALTH_TAGS } from '@/lib/food-engine/wordTables'
 
 // 好物页商品 = 基础商品信息 + 原始 Product（透传给食养引擎，保证关怀层/适合我与首页口径一致）
 type GoodsProduct = NearbyProduct & { raw?: Product }
@@ -55,12 +53,9 @@ function GoodsProductImage({ src, name }: { src: string | null | undefined; name
 export default function GoodsPage() {
   const { currentStore, currentCity } = useLocation()
   const { getSuitability } = useFoodTherapy()
-  // 左栏一级场景（activeTopId='all' = 全部）＋ 右栏顶部二级子类（activeSubId='' = 该场景全部）
+  // 左栏一级品类（activeTopId='all' = 全部）＋ 右栏顶部二级子类（activeSubId='' = 该品类全部）
   const [activeTopId, setActiveTopId] = useState<string>('all')
   const [activeSubId, setActiveSubId] = useState<string>('')
-  // 食疗筛选（客户端，基于已算好的 therapyMap，不重新请求）：性味(温/平/凉) + 功效标签
-  const [natureFilter, setNatureFilter] = useState<'' | '温' | '平' | '凉'>('')
-  const [tagFilter, setTagFilter] = useState<string>('')
   const [topCats, setTopCats] = useState<StoreCategory[]>([]) // 一级场景（已过滤上架+全局）
   const [subsByParent, setSubsByParent] = useState<Record<string, StoreCategory[]>>({}) // 一级 id → 二级子类
   const [products, setProducts] = useState<GoodsProduct[]>([])
@@ -78,9 +73,11 @@ export default function GoodsPage() {
     [activeTopId, subsByParent],
   )
 
-  // 与首页同源的食养关怀层抽取（包 try/catch 兜底，单品异常不影响整列表）
+  // 与首页同源的食养关怀层抽取（包 try/catch 兜底，单品异常不影响整列表）；
+  // 守商品级食养开关，关掉食养系统的商品不展示关怀层
   const safeCare = (p?: Product): ReturnType<typeof getProductCareInfo> | null => {
-    try { return p ? getProductCareInfo(p) : null } catch { return null }
+    if (!p || !isTherapyEnabled(p)) return null
+    try { return getProductCareInfo(p) } catch { return null }
   }
 
   // 食疗引擎报告映射（与详情页/门店卡/首页同源）：好物页商品池一次性算好，卡片直接取用
@@ -90,8 +87,9 @@ export default function GoodsPage() {
     products.forEach((p) => {
       const raw = p.raw as Product | undefined
       if (!raw || !raw.ingredients || (raw.ingredients as string[]).length === 0) { map[p.product_id] = null; return }
-      // 类型闸门：非食养商品不参与食疗计算（工艺品/日用品不应出现「适合人群 / 食性」）
-      if (!isFoodProduct(raw)) { map[p.product_id] = null; return }
+      // 类型闸门：非食养商品不参与食疗计算（工艺品/日用品不应出现「适合人群 / 食性」）；
+      // 同时尊重商品级开关 enable_therapy，关掉食养系统的单品也不展示
+      if (!isTherapyEnabled(raw)) { map[p.product_id] = null; return }
       const inputs: ProductIngredientInput[] = (raw.ingredients as string[]).map((name) => {
         const row = dictMap.get(name)
         if (!row) return null
@@ -107,29 +105,7 @@ export default function GoodsPage() {
     return map
   }, [products, ingredientDict])
 
-  // 性味 → 粗分桶（温/平/凉），与卡片三色预警同源（NATURE_COLOR）
-  const NATURE_BUCKET: Record<string, '温' | '平' | '凉'> = {
-    '大热': '温', '温热': '温', '微温': '温',
-    '平性': '平',
-    '寒凉': '凉', '大寒': '凉',
-  }
-  const natureBucketOf = (code?: string | null): '' | '温' | '平' | '凉' =>
-    code ? (NATURE_BUCKET[code] ?? '') : ''
-
-  // 食疗筛选结果：在当前已加载商品池内，按性味桶 + 功效标签做客户端过滤
-  const displayed = useMemo(() => {
-    if (!natureFilter && !tagFilter) return products
-    return products.filter((p) => {
-      const r = therapyMap[p.product_id] ?? null
-      if (natureFilter && natureBucketOf(r?.overall_nature_code) !== natureFilter) return false
-      if (tagFilter && !((p.raw?.health_tag as string[] | undefined) ?? []).includes(tagFilter)) return false
-      return true
-    })
-  }, [products, therapyMap, natureFilter, tagFilter])
-
-  // 食疗筛选候选功效标签（取共享词表前 6 项，覆盖最常见食养诉求）
-  const TAG_FILTERS = HEALTH_TAGS.slice(0, 6)
-  const NATURE_FILTERS: Array<'' | '温' | '平' | '凉'> = ['', '温', '平', '凉']
+  // 性味 → 粗分桶（温/平/凉）仅供卡片三色预警使用，不再作为顶部筛选维度
 
   const [addingId, setAddingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -301,15 +277,15 @@ export default function GoodsPage() {
         </View>
       </View>
 
-      {/* 主体：左一级场景 + 右（二级 Tab + 商品） */}
+      {/* 主体：左一级品类 + 右（二级 Tab + 商品） */}
       <View className="flex flex-1 overflow-hidden">
-        {/* 左侧一级场景栏：
+        {/* 左侧一级品类栏：
             米白底 + 选中项白卡（与门店页同一套左栏语言），不再用「同底色描边」——
             旧写法选中态与背景几乎同色，用户看不出选中，反馈等于没有。
-            必须用 ScrollView：View + overflow-y-auto 在小程序里不会滚动，8 个场景在小屏会溢出且无法触达。 */}
+            必须用 ScrollView：View + overflow-y-auto 在小程序里不会滚动，品类较多时在小屏会溢出且无法触达。 */}
         <ScrollView scrollY style={{ width: '176rpx', height: '100%', flexShrink: 0, backgroundColor: 'hsl(var(--background))' }}>
           <View style={{ padding: '24rpx 8rpx 8rpx' }}>
-            <Text className="cat-eyebrow">按场景挑好物</Text>
+            <Text className="cat-eyebrow">按品类挑好物</Text>
           </View>
           {[{ id: 'all', label: '全部' }, ...topCats.map(c => ({ id: c.id, label: sceneLabel(c.name) }))].map(cat => {
             const active = activeTopId === cat.id
@@ -333,7 +309,7 @@ export default function GoodsPage() {
 
         {/* 右侧：二级分类 Tab（固定）+ 商品滚动区 */}
         <View className="flex-1 flex flex-col overflow-hidden">
-          {/* 二级子类：该一级场景下有子类才渲染（数据与 admin-web 后台同源）。
+          {/* 二级子类：该一级品类下有子类才渲染（数据与 admin-web 后台同源）。
               「全部」= 一级 + 全部子类商品；点具体子类 = 只看该子类。无子类时整块隐藏。 */}
           {subCats.length > 0 && (
             <ScrollView scrollX className="whitespace-nowrap" style={{ flexShrink: 0 }}>
@@ -364,55 +340,6 @@ export default function GoodsPage() {
             </ScrollView>
           )}
 
-          {/* 食疗筛选（客户端）：性味 + 功效，与卡片三色预警/详情页同源，不重新请求 */}
-          <View style={{ flexShrink: 0, padding: '8rpx 24rpx 4rpx' }}>
-            <View style={{ display: 'flex', alignItems: 'center', gap: '12rpx', marginBottom: '8rpx' }}>
-              <Text style={{ fontSize: '22rpx', color: 'hsl(var(--muted-foreground))' }}>性味</Text>
-              {NATURE_FILTERS.map((n) => {
-                const on = natureFilter === n
-                return (
-                  <View key={`n-${n || 'all'}`} onClick={() => setNatureFilter(n)}
-                    style={{
-                      padding: '6rpx 20rpx', borderRadius: '999rpx', fontSize: '24rpx', lineHeight: 1.3,
-                      backgroundColor: on ? 'hsl(var(--primary))' : 'hsl(var(--card))',
-                      color: on ? '#fff' : 'hsl(var(--muted-foreground))',
-                      borderWidth: 1, borderColor: on ? 'hsl(var(--primary))' : 'hsl(var(--border))',
-                    }}>
-                    {n === '' ? '全部' : `${n}性`}
-                  </View>
-                )
-              })}
-            </View>
-            <ScrollView scrollX className="whitespace-nowrap" style={{ width: '100%' }}>
-              <View style={{ display: 'inline-flex', alignItems: 'center', gap: '12rpx', paddingBottom: '4rpx' }}>
-                <Text style={{ fontSize: '22rpx', color: 'hsl(var(--muted-foreground))' }}>功效</Text>
-                <View key="t-all" onClick={() => setTagFilter('')}
-                  style={{
-                    flex: '0 0 auto', padding: '6rpx 20rpx', borderRadius: '999rpx', fontSize: '24rpx', lineHeight: 1.3,
-                    backgroundColor: tagFilter === '' ? 'hsl(var(--primary))' : 'hsl(var(--card))',
-                    color: tagFilter === '' ? '#fff' : 'hsl(var(--muted-foreground))',
-                    borderWidth: 1, borderColor: tagFilter === '' ? 'hsl(var(--primary))' : 'hsl(var(--border))',
-                  }}>
-                  全部
-                </View>
-                {TAG_FILTERS.map((t) => {
-                  const on = tagFilter === t
-                  return (
-                    <View key={`t-${t}`} onClick={() => setTagFilter(t)}
-                      style={{
-                        flex: '0 0 auto', padding: '6rpx 20rpx', borderRadius: '999rpx', fontSize: '24rpx', lineHeight: 1.3,
-                        backgroundColor: on ? 'hsl(var(--primary))' : 'hsl(var(--card))',
-                        color: on ? '#fff' : 'hsl(var(--muted-foreground))',
-                        borderWidth: 1, borderColor: on ? 'hsl(var(--primary))' : 'hsl(var(--border))',
-                      }}>
-                      {t}
-                    </View>
-                  )
-                })}
-              </View>
-            </ScrollView>
-          </View>
-
           {/* 商品区：ScrollView 触底自动加载下一页（替代原「加载更多」按钮） */}
           <ScrollView scrollY className="flex-1 px-3 py-3" style={{ height: '100%' }} onScrollToLower={handleLoadMore}>
             {loading && products.length === 0 ? (
@@ -432,17 +359,11 @@ export default function GoodsPage() {
               <View className="flex flex-col items-center justify-center" style={{ paddingTop: '160rpx' }}>
                 <Icon name="bag" size={48} style={{ color: 'hsl(var(--muted-foreground))', opacity: 0.4 }} />
                 <Text className="text-base text-foreground" style={{ marginTop: '16rpx' }}>这一类暂时没有好物</Text>
-                <Text className="text-sm text-muted-foreground" style={{ marginTop: '8rpx' }}>换个场景看看，或切换城市 / 门店</Text>
-              </View>
-            ) : displayed.length === 0 ? (
-              <View className="flex flex-col items-center justify-center" style={{ paddingTop: '160rpx' }}>
-                <Icon name="bag" size={48} style={{ color: 'hsl(var(--muted-foreground))', opacity: 0.4 }} />
-                <Text className="text-base text-foreground" style={{ marginTop: '16rpx' }}>没有符合筛选的好物</Text>
-                <Text className="text-sm text-muted-foreground" style={{ marginTop: '8rpx' }}>试试放宽「性味 / 功效」筛选条件</Text>
+                <Text className="text-sm text-muted-foreground" style={{ marginTop: '8rpx' }}>换个品类看看，或切换城市 / 门店</Text>
               </View>
             ) : (
               <View className="flex flex-wrap justify-between">
-                {displayed.map(p => (
+                {products.map(p => (
                   <ProductGridCard
                     key={p.product_id}
                     id={p.product_id}

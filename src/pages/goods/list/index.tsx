@@ -8,6 +8,7 @@ import { refreshCartCount } from '@/utils/cartStore'
 import Icon from '@/components/Icon'
 import ProductGridCard from '@/components/ProductGridCard'
 import { getProductCareInfo } from '@/utils/product-care'
+import { isTherapyEnabled } from '@/utils/food-therapy/product-therapy'
 import { useLocation } from '@/contexts/LocationContext'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { sceneLabel } from '@/utils/scene-alias'
@@ -88,6 +89,7 @@ export default function CategoryListPage() {
   )
 
   const careOf = (p: Product) => {
+    if (!isTherapyEnabled(p)) return null
     try { return getProductCareInfo(p) } catch { return null }
   }
 

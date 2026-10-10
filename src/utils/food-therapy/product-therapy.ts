@@ -256,6 +256,27 @@ export function isFoodProduct(p?: { product_kind?: string | null } | null): bool
   return !p.product_kind || p.product_kind === 'food'
 }
 
+// ---------- 4.4b 商品级食养开关：食养系统是否对顾客展示 ----------
+/**
+ * 食养系统（食养与食安卡 / 关怀层 / 三色预警 / 适合我徽章）是否应对该商品展示。
+ *
+ * 双闸门：
+ *   1) product_kind 必须是食品（空值存量商品按兼容策略放行——见 isFoodProduct）；
+ *   2) 商品级开关 enable_therapy 不能为 false（商家可在商品表单里关掉单品的食养系统）。
+ *
+ * 注意：本函数只判断「食养能力是否展示」，不要用于判定礼品/手作模块。
+ * 礼品/手作仍由 product_kind 单独决定（isFoodProduct 的反面），与 enable_therapy 无关——
+ * 一个关掉食养的食品不会被误判成礼品。
+ */
+export function isTherapyEnabled(p?: {
+  product_kind?: string | null
+  enable_therapy?: boolean | null
+} | null): boolean {
+  if (!p) return false
+  if (!isFoodProduct(p)) return false
+  return p.enable_therapy !== false
+}
+
 // ---------- 4.5 功效标签 → 中医辨证适配（迁移 00237） ----------
 // 把商品的 9 项功效标签（温中散寒/健脾养胃…）反向推导为「适配的中医体质/证型 + 人群标签」，
 // 让「适宜人群」真正辨证生成，而不是只堆「日常佐餐、上班族」这类空洞通用串。

@@ -49,6 +49,8 @@ export type FormState = {
   food_category: string
   // —— 商品类型化（迁移 20260803）：礼品/手作与食养食品分开 ——
   product_kind: string
+  // 商品级食养系统开关（迁移 20261010）：true=展示食养/关怀层（仅 product_kind=food 生效），false=彻底不展示
+  enable_therapy: boolean
   materials: string[]
   gift_meaning: string
   gift_craft: string
@@ -78,6 +80,7 @@ export const emptyForm = (): FormState => ({
   sub_category_id: '',
   food_category: '',
   product_kind: 'food',
+  enable_therapy: true,
   materials: [],
   gift_meaning: '',
   gift_craft: '',
@@ -393,6 +396,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
       sub_category_id: (p as any).sub_category_id ?? '',
       food_category: (p as any).food_category ?? '',
       product_kind: (p as any).product_kind ?? 'food',
+      enable_therapy: (p as any).enable_therapy ?? true,
       materials: (p as any).materials ?? [],
       gift_meaning: (p as any).gift_meaning ?? '',
       gift_craft: (p as any).gift_craft ?? '',
@@ -478,6 +482,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
   }
 
   const handleSave = async () => {
+    if (saving) return
     if (!store) return
     if (!form.name.trim()) { Taro.showToast({ title: '请填写商品名称', icon: 'none' }); return }
     const price = parseFloat(form.price)
@@ -505,6 +510,8 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
         console.error('[商品管理] 归属不匹配：当前登录用户不是该门店 owner，RLS 将拒绝写入')
       }
       const isGiftKind = form.product_kind && form.product_kind !== 'food'
+      // 食养系统关闭（非食品类，或食品类但 enable_therapy=false）：所有食养列一律不写，等同于礼品处理
+      const therapyOff = !!isGiftKind || form.enable_therapy === false
       // 药食同源合规：非礼品类且存在未收录国家《药食同源目录》的食材 → 保存成功后非阻塞提示（不阻止保存）
       const nonHomologyNames = isGiftKind
         ? []
@@ -522,30 +529,33 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
         original_price: form.original_price ? parseFloat(form.original_price) : undefined,
         discount_rate: form.discount_rate ? Math.min(30, Math.max(0, parseFloat(form.discount_rate))) : undefined,
         // 礼品/手作：绝不写入 ingredients（避免误触食疗引擎），也不落 therapy_json
-        ingredients: isGiftKind ? undefined : (ingredientItems.map(i => i.name).length > 0 ? ingredientItems.map(i => i.name) : undefined),
-        overall_nature: isGiftKind ? undefined : (form.overall_nature || undefined),
-        health_tag: isGiftKind ? undefined : (form.health_tag.length > 0 ? form.health_tag : undefined),
-        match_goods: isGiftKind ? undefined : (form.match_goods.length > 0 ? form.match_goods : undefined),
-        conflict_goods: isGiftKind ? undefined : (form.conflict_goods.length > 0 ? form.conflict_goods : undefined),
-        aux_remind: isGiftKind ? undefined : (form.aux_remind.trim() || undefined),
-        allergens: isGiftKind ? undefined : (form.allergens.length > 0 ? form.allergens : undefined),
-        nutrition: isGiftKind ? undefined : (form.nutrition || undefined),
-        safety_grade: isGiftKind ? undefined : (form.safety_grade || undefined),
-        safety_summary: isGiftKind ? undefined : (form.safety_summary || undefined),
+        // therapyOff：食品类关掉食养开关时同样不写食养列（C 端不展示）
+        ingredients: therapyOff ? undefined : (ingredientItems.map(i => i.name).length > 0 ? ingredientItems.map(i => i.name) : undefined),
+        overall_nature: therapyOff ? undefined : (form.overall_nature || undefined),
+        health_tag: therapyOff ? undefined : (form.health_tag.length > 0 ? form.health_tag : undefined),
+        match_goods: therapyOff ? undefined : (form.match_goods.length > 0 ? form.match_goods : undefined),
+        conflict_goods: therapyOff ? undefined : (form.conflict_goods.length > 0 ? form.conflict_goods : undefined),
+        aux_remind: therapyOff ? undefined : (form.aux_remind.trim() || undefined),
+        allergens: therapyOff ? undefined : (form.allergens.length > 0 ? form.allergens : undefined),
+        nutrition: therapyOff ? undefined : (form.nutrition || undefined),
+        safety_grade: therapyOff ? undefined : (form.safety_grade || undefined),
+        safety_summary: therapyOff ? undefined : (form.safety_summary || undefined),
         // 食养系统化：上传即落 therapy_json 单一数据源；无食养则标记 therapy_pending 待补
-        therapy_json: isGiftKind ? undefined : (therapyReport || undefined),
-        fit_people: isGiftKind ? undefined : (therapyReport?.fit_people || undefined),
+        therapy_json: therapyOff ? undefined : (therapyReport || undefined),
+        fit_people: therapyOff ? undefined : (therapyReport?.fit_people || undefined),
         // 辨证增强（迁移 00237）：商家手填覆盖文案 + 适配体质标签
-        fit_people_override: isGiftKind ? undefined : (form.fit_people_override.trim() ? sanitizeTherapyCopy(form.fit_people_override.trim()) : undefined),
-        fit_crowd_tags: isGiftKind ? undefined : (form.fit_crowd_tags.length > 0 ? form.fit_crowd_tags : undefined),
-        guide_sentence: isGiftKind ? undefined : (form.guide_sentence.trim() || undefined),
-        therapy_pending: isGiftKind ? false : !therapyReport,
+        fit_people_override: therapyOff ? undefined : (form.fit_people_override.trim() ? sanitizeTherapyCopy(form.fit_people_override.trim()) : undefined),
+        fit_crowd_tags: therapyOff ? undefined : (form.fit_crowd_tags.length > 0 ? form.fit_crowd_tags : undefined),
+        guide_sentence: therapyOff ? undefined : (form.guide_sentence.trim() || undefined),
+        therapy_pending: therapyOff ? false : !therapyReport,
         is_active: form.is_active,
         category_id: form.category_id || null,
         sub_category_id: form.sub_category_id || null,
         food_category: form.food_category || null,
         // 商品类型化
         product_kind: form.product_kind || 'food',
+        // 商品级食养系统开关（迁移 20261010）：C 端据此 + product_kind 双闸门决定是否展示食养/关怀层
+        enable_therapy: !!form.enable_therapy,
         materials: isGiftKind && form.materials.length > 0 ? form.materials : undefined,
         gift_meaning: isGiftKind && form.gift_meaning.trim() ? form.gift_meaning.trim() : undefined,
         gift_craft: isGiftKind && form.gift_craft.trim() ? form.gift_craft.trim() : undefined,

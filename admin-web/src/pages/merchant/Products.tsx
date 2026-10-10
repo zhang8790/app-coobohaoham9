@@ -255,6 +255,7 @@ export default function MerchantProducts() {
     gift_scene: '',
     gift_care: '',
     therapy_pending: false,
+    enable_therapy: true,
   })
   const mainImgRef   = useRef<HTMLInputElement>(null)
   const subImgRef    = useRef<HTMLInputElement>(null)
@@ -294,7 +295,7 @@ export default function MerchantProducts() {
 
   // 商品编辑表单分区折叠状态（默认展开基础/价格/食疗，媒体/分类/原料/营销收起，降低一眼复杂度）
   const [sections, setSections] = useState<Record<string, boolean>>({
-    media: false, base: true, price: true, category: false, ingredients: false, therapy: true,
+    media: false, base: true, price: true, category: false, ingredients: false, therapy: true, manualTweak: false,
   })
   const toggleSection = (k: string) => setSections(s => ({ ...s, [k]: !s[k] }))
   // 商品上架分步（1 基本信息 / 2 食养配置）
@@ -432,7 +433,7 @@ export default function MerchantProducts() {
       guide_sentence: '', category_id: '', sub_category_id: '',
       food_stage: '',
       product_kind: 'food', is_active: true, fit_people_override: '', materials: [],
-      gift_meaning: '', gift_craft: '', gift_scene: '', gift_care: '', therapy_pending: false })
+      gift_meaning: '', gift_craft: '', gift_scene: '', gift_care: '', therapy_pending: false, enable_therapy: true })
     setStep(1)
     setShowModal(true)
   }
@@ -481,6 +482,7 @@ export default function MerchantProducts() {
       gift_scene: (p as any).gift_scene ?? '',
       gift_care: (p as any).gift_care ?? '',
       therapy_pending: (p as any).therapy_pending ?? false,
+      enable_therapy: (p as any).enable_therapy ?? true,
     })
     setStep(1)
     setShowModal(true)
@@ -791,7 +793,7 @@ export default function MerchantProducts() {
     setGenerating(true)
     const rule = buildRuleCopy(form)
     setForm(f => ({ ...f, ...rule }))
-    setEmotionFlash('已生成食疗文案（本地规则引擎）\n可在下方直接微调后再保存')
+    setEmotionFlash('已生成食疗文案（本地规则引擎）\n可点「展开手动微调」逐项核对后再保存')
     setGenerating(false)
     setTimeout(() => setEmotionFlash(null), 7000)
   }
@@ -827,7 +829,23 @@ export default function MerchantProducts() {
     // 3) 文案（纯本地规则引擎，零 LLM 依赖，用最新值）
     const rule = buildRuleCopy(merged)
     setForm(f => ({ ...f, ...rule }))
-    setEmotionFlash('已智能填充（分析+文案，本地规则引擎）\n系统已自动产出食疗字段，可展开「商品食疗系统」直接核对或修改')
+    // 同步刷新只读安全摘要（让简洁态摘要卡即时显示过敏 / 慎食 / 慢病）
+    const allergens = Array.from(new Set(items.flatMap((i: any) => (i.allergens || []) as string[])))
+    const chronic = Array.from(new Set(items.flatMap((i: any) => (i.chronic_tags || []) as string[])))
+    const note = [
+      r.overall_nature ? `整体性味：${r.overall_nature}。` : '',
+      r.risk_warning ? `食用参考：${r.risk_warning}。` : '',
+      r.forbidden_crowds.length ? `禁忌人群：${r.forbidden_crowds.join('、')}。` : '',
+      r.cautious_crowds.length ? `谨慎人群：${r.cautious_crowds.join('、')}。` : '',
+    ].filter(Boolean).join('')
+    setLiveSafety({
+      overall_nature: r.overall_nature,
+      risks: { red: [...allergens, ...r.forbidden_crowds], orange: r.cautious_crowds, blue: chronic },
+      note,
+    })
+    // 填充完成后收起「手动微调」，保持简洁态（一键即发布）
+    setSections(s => ({ ...s, manualTweak: false }))
+    setEmotionFlash('已智能填充（分析+文案，本地规则引擎）\n系统已自动产出食疗字段，可在上方摘要卡核对，或点「展开手动微调」逐项修改')
     setGenerating(false)
     setTimeout(() => setEmotionFlash(null), 7000)
   }
@@ -891,6 +909,8 @@ export default function MerchantProducts() {
       gift_care: form.gift_care || null,
       // C6：食养待补标记——食品类且未填任何原料即视为待完善（C 端显示「待商家完善」而非笼统兜底）
       therapy_pending: form.product_kind === 'food' ? (form.ingredients.length === 0) : false,
+      // 商品级食养系统开关：仅当食品类且开启时 C 端展示食养/关怀层
+      enable_therapy: !!form.enable_therapy,
     }
     let inserted: any = null  // 新建商品插入后取真实 id（用于本地 state 同步）
     // 合规巡检：营销/食疗文案不得含医疗宣称词或违规广告词（命中则提示运营确认）
@@ -930,11 +950,11 @@ export default function MerchantProducts() {
         const msg = e?.message || ''
         // 软降级：若 products 表尚未加导购相关列（迁移 00090 / 00100 / 00104 未执行），
         // 或部分核心列缺失，剥离后重试，保证保存不失败（与小程序端 api.ts 一致）
-        if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scene_tags|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|guide_sentence|moments_copy|taboo_warning|product_kind|fit_people_override|materials|gift_meaning|gift_craft|gift_scene|gift_care|therapy_pending/.test(msg)) {
+        if (/column|status|sales|ingredients|overall_nature|health_tag|emotion_tag|match_goods|conflict_goods|aux_remind|food_category|positive_effect|risk_warning|emotion_copy|scene_tags|rec_crowds|cautious_crowds|cautious_notes|forbidden_crowds|forbidden_reasons|guide_sentence|moments_copy|taboo_warning|product_kind|fit_people_override|materials|gift_meaning|gift_craft|gift_scene|gift_care|therapy_pending|enable_therapy/.test(msg)) {
           const { ingredients, overall_nature, health_tag, emotion_tag, match_goods, conflict_goods, aux_remind,
             food_category, positive_effect, risk_warning, emotion_copy, scene_tags, rec_crowds, cautious_crowds,
             cautious_notes, forbidden_crowds, forbidden_reasons, guide_sentence,
-            product_kind, fit_people_override, materials, gift_meaning, gift_craft, gift_scene, gift_care, therapy_pending, ...rest } = body
+            product_kind, fit_people_override, materials, gift_meaning, gift_craft, gift_scene, gift_care, therapy_pending, enable_therapy, ...rest } = body
           const res2: any = await persist(rest)
           if (res2?.error) {
             window.alert(`保存失败（已尝试剥离可选列仍失败）：\n${res2.error.message}${res2.error.hint ? '\n提示：' + res2.error.hint : ''}`)
@@ -1817,6 +1837,20 @@ export default function MerchantProducts() {
 
             </Section>
 
+            {/* 食养系统开关（仅食品类出现）：关掉后 C 端详情页/列表/卡片不展示食养与食安、关怀层、适合我徽章 */}
+            {form.product_kind === 'food' && (
+              <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'var(--surface-2)', border: '1px solid var(--border-soft)', borderRadius: 10 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>启用食养系统</span>
+                  <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>关闭后该商品在顾客端不展示食养 / 关怀信息</span>
+                </div>
+                <button type="button" onClick={() => setForm(f => ({ ...f, enable_therapy: !f.enable_therapy }))}
+                  style={{ padding: '7px 16px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, background: form.enable_therapy ? 'var(--success-strong)' : 'var(--border-soft)', color: form.enable_therapy ? '#fff' : 'var(--text-dim)' }}>
+                  {form.enable_therapy ? '已开启' : '已关闭'}
+                </button>
+              </div>
+            )}
+            {(form.product_kind === 'food' && form.enable_therapy) && (
             <Section title="商品食疗系统" open={sections.therapy} onToggle={() => toggleSection('therapy')} hint="系统自动计算 · 可一键填充">
             {/*  商品食疗智能系统 · 完整录入（商家一次录入，前端自动匹配） */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
@@ -1832,8 +1866,54 @@ export default function MerchantProducts() {
                   </button>
                 </div>
               </div>
-              <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>点「一键智能填充」即按商品名自动识别食材、计算性味 / 人群 / 安全分析并生成导购文案（结果可直接在下方手动修改）；不填充也可手动逐项填写。</p>
+              <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: '0 0 8px' }}>点「一键智能填充」即按商品名自动识别食材、计算性味 / 人群 / 安全分析并生成导购文案；不填充也可点下方「展开手动微调」逐项填写。</p>
 
+              {/* 只读结果摘要卡（简洁态常显）：填充后一眼看到系统算出了什么 */}
+              <div style={{ marginBottom: 14, padding: 14, background: 'linear-gradient(180deg,#F0FDF4,var(--bg))', border: '1px solid var(--success-strong)', borderRadius: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 700 }}>系统已自动计算（只读摘要）</span>
+                  <span style={{ fontSize: 11, color: 'var(--success-strong)', background: '#DCFCE7', padding: '2px 8px', borderRadius: 999 }}>无需逐项填</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: '10px 16px' }}>
+                  {([
+                    { label: '整体性味', value: form.overall_nature || '（按原料自动聚合）' },
+                    { label: '食养阶段', value: form.food_stage ? `${form.food_stage}阶` : '（自动判定）' },
+                    { label: '正向调理', value: form.positive_effect || '—' },
+                    { label: '推荐人群', value: form.rec_crowds.length ? form.rec_crowds.join('、') : '—' },
+                    { label: '适合场景', value: form.scenes.length ? form.scenes.join('、') : '—' },
+                    { label: '导购短句', value: form.guide_sentence || '—' },
+                  ] as { label: string; value: string }[]).map(r => (
+                    <div key={r.label}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.label}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 2, fontWeight: 600, wordBreak: 'break-word' }}>{r.value}</div>
+                    </div>
+                  ))}
+                </div>
+                {liveSafety && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                    {([
+                      { c: 'var(--danger)', bg: 'rgba(220,38,38,0.1)', t: '🔴 过敏/禁忌', items: liveSafety.risks.red },
+                      { c: 'var(--warning)', bg: 'rgba(249,115,22,0.1)', t: '🟠 体质慎食', items: liveSafety.risks.orange },
+                      { c: 'var(--info)', bg: 'rgba(59,130,246,0.1)', t: '🔵 慢病适配', items: liveSafety.risks.blue },
+                    ]).map(s => (
+                      <div key={s.t} style={{ flex: 1, minWidth: 140, padding: '6px 10px', borderRadius: 8, background: s.bg, border: `1px solid ${s.c}` }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: s.c }}>{s.t}</div>
+                        <div style={{ fontSize: 12, color: s.c, marginTop: 2 }}>{s.items.length ? s.items.join('、') : '无'}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 手动微调开关（简洁 / 高级双模式切换） */}
+              <button type="button" onClick={() => setSections(s => ({ ...s, manualTweak: !s.manualTweak }))}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14, padding: '8px 14px', background: 'var(--surface-2)', border: '1px dashed var(--border-soft)', borderRadius: 8, color: 'var(--text)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+                {sections.manualTweak ? '▾ 收起手动微调' : '▸ 展开手动微调（逐项核对 / 修改）'}
+              </button>
+
+              {/* 高级态：手动微调字段（默认收起），含实时安全分析工具 */}
+              {sections.manualTweak && (
+              <>
               {/* 实时食疗安全分析（P1-8）：复用 analyzeDish 对当前名称+食材做系统判定 */}
               <div style={{ marginBottom: 14, padding: 14, background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -2012,8 +2092,11 @@ export default function MerchantProducts() {
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>店员导购短句（顾客详情页展示）</span>
                 <input value={form.guide_sentence} onChange={e => setForm(f => ({ ...f, guide_sentence: e.target.value }))} placeholder="如：这碗鸡汤温补，特别适合您现在的状态" style={{ width: '100%', marginTop: 4, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }} />
               </div>
+              </>
+              )}
 
               </Section>
+              )}
               </div>
 
             {/* 分步导航：上一步 / 下一步 / 确定；缺项时左侧直接提示缺什么 */}

@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { profileToCrowds } from '@/utils/food-therapy'
-import { buildTherapyReport, isFoodProduct, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, isFoodProduct, isTherapyEnabled, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 import { getTodayFoodTherapy, resolveConstitution, type TodayFoodTherapyResult } from '@/utils/today-food-therapy'
 import { analyzeConsumption, recommendByConsumption, scoreByConsumption, type ConsumptionProfile } from '@/utils/consumption-profile'
@@ -513,8 +513,9 @@ const canUseFitFilter = selectedCrowds.length > 0 || !!consumptionProfile?.hasDa
  const calc = (p?: Product | null) => {
  if (!p) return null
  // 类型闸门：非食养商品（礼品/手作/护理/日用品）不参与食疗计算，
- // 避免工艺品/日用品被解析出「适合人群 / 食性」这类食品专属结论
- if (!isFoodProduct(p)) return null
+ // 避免工艺品/日用品被解析出「适合人群 / 食性」这类食品专属结论；
+ // 同时尊重商品级开关 enable_therapy（商家可在表单关掉单品食养系统）
+ if (!isTherapyEnabled(p)) return null
  // 优先读 therapy_json 单一数据源（服务端回算 / 上传回写），保证首页与门店卡一致
  const tj = p.therapy_json as Partial<ProductTherapyReport> | null | undefined
  if (tj && tj.overall_nature_code) return tj as ProductTherapyReport
@@ -537,10 +538,12 @@ const canUseFitFilter = selectedCrowds.length > 0 || !!consumptionProfile?.hasDa
  return map
  }, [personalizedItems, displayFeed, ingredientDict])
 
- // 安全取商品关怀层（食养注解），避免单条异常影响整页渲染
- const careOf = (p: Product) => {
+// 安全取商品关怀层（食养注解），避免单条异常影响整页渲染；
+// 同样守商品级食养开关，关掉食养系统的商品不展示关怀层
+const careOf = (p: Product) => {
+ if (!isTherapyEnabled(p)) return null
  try { return getProductCareInfo(p) } catch { return null }
- }
+}
 
  // ===================== 首页通知：右上角铃铛（公告/订单分层，红点提醒） =====================
  // 进行中订单状态（排除已取消/已完成）
@@ -700,7 +703,7 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
           >
             <View style={{ height: 112, position: 'relative', background: MACARON[idx % MACARON.length], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {(p.main_image || p.image_url) && (
-                <Image src={p.main_image || p.image_url || ''} mode="aspectFill" style={{ width: '100%', height: '100%', opacity: cardImgLoaded[p.id] ? 1 : 0, transition: 'opacity 0.3s ease' }} onLoad={() => setCardImgLoaded(s => ({ ...s, [p.id]: true }))} />
+                <Image src={p.main_image || p.image_url || ''} mode="aspectFill" lazyLoad style={{ width: '100%', height: '100%', opacity: cardImgLoaded[p.id] ? 1 : 0, transition: 'opacity 0.3s ease' }} onLoad={() => setCardImgLoaded(s => ({ ...s, [p.id]: true }))} />
               )}
               {fit && (
                 <View style={{ position: 'absolute', top: 8, left: 8, background: 'hsl(var(--primary-soft))', color: 'hsl(var(--primary))', fontSize: '20rpx', fontWeight: 700, borderRadius: 5, padding: '2px 6px' }}>适合你</View>

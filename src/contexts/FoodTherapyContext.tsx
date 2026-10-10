@@ -17,6 +17,7 @@ import { profileToCrowds } from '@/utils/food-therapy/profile-map'
 import { getUserHealthProfile } from '@/db/food-api'
 import { listFamilyMembers } from '@/db/family-api'
 import type { Product, UserHealthProfile, FamilyMember } from '@/db/types'
+import { isTherapyEnabled } from '@/utils/food-therapy/product-therapy'
 import { useAuth } from '@/contexts/AuthContext'
 
 const CROWD_KEY = 'ftSelectedCrowds'
@@ -191,6 +192,8 @@ export function FoodTherapyProvider({ children }: { children: ReactNode }) {
   // 「适合我」三态：过敏原命中 → 忌口（最高优先级）；否则按人群/场景分档
   const getSuitability = useCallback(
     (p: Product): FitTier | null => {
+      // 商品级食养开关：关掉食养系统的商品不展示「适合我」徽章
+      if (!isTherapyEnabled(p)) return null
       const pa = (p as any).allergens as string[] | undefined
       if (userAllergens.length && pa && pa.length) {
         const set = new Set(userAllergens)

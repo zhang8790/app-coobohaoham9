@@ -12,6 +12,7 @@ import FoodSafetyPanel from '@/components/FoodSafetyPanel'
 import ComprehensiveSafetyReport from '@/components/ComprehensiveSafetyReport'
 import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
 import { getProductCareInfo } from '@/utils/product-care'
+import { isTherapyEnabled } from '@/utils/food-therapy/product-therapy'
 import { analyzeForProfile, profileToCrowds } from '@/utils/food-therapy'
 import { buildHealthShortfalls, evaluateShortfall } from '@/utils/food-therapy/health-shortfall'
 import { FOOD_THERAPY_DISCLAIMER, FOOD_SCAN_DISCLAIMER } from '@/utils/compliance/shield'
@@ -47,6 +48,7 @@ export default function FoodScanPage() {
  const [imgPreview, setImgPreview] = useState('')
  const [ocrMsg, setOcrMsg] = useState('')
  const [ocrLoading, setOcrLoading] = useState(false)
+ const [ocrErrored, setOcrErrored] = useState(false)
  const [matchedKeys, setMatchedKeys] = useState<string[]>([]) // 文本命中的添加剂标准名（来自 ADDITIVE_DICT）
  const [shiyangKeys, setShiyangKeys] = useState<string[]>([]) // 食材食养字典命中 key
  const [report, setReport] = useState<ReportType | null>(null) // 全面安全分析报告（致敏原/营养/合规/年龄）
@@ -88,9 +90,9 @@ export default function FoodScanPage() {
  : '暂时没有对您专属推荐，先看通用安全好物',
  )
  } else {
- const scored = list
- .map((p) => ({ p, care: getProductCareInfo(p) }))
- .filter((x) => x.care.careScore >= 60 && x.care.tier !== 'avoid')
+const scored = list
+.map((p) => ({ p, care: isTherapyEnabled(p) ? getProductCareInfo(p) : null }))
+.filter((x) => x.care && x.care.careScore >= 60 && x.care.tier !== 'avoid')
  .sort((a, b) => b.care.careScore - a.care.careScore)
  .slice(0, 8)
  .map((x) => x.p)
@@ -108,9 +110,9 @@ export default function FoodScanPage() {
  // 必须用 normalizeAdditiveRisk 归一后判等，否则 L4 会被漏判、误显「配料较安全/绿」。
  const grade = useMemo(() => {
  if (!additives.length) return null
- if (additives.some((a) => normalizeAdditiveRisk(a.risk_level) === 'black')) return { g: 'C', label: '含慎用成分', color: '#DC2626' }
- if (additives.some((a) => normalizeAdditiveRisk(a.risk_level) === 'yellow')) return { g: 'A', label: '含限量成分', color: '#B45309' }
- return { g: 'S', label: '配料较安全', color: '#15803D' }
+ if (additives.some((a) => normalizeAdditiveRisk(a.risk_level) === 'black')) return { g: 'C', label: 'C不推荐', color: '#DC2626' }
+ if (additives.some((a) => normalizeAdditiveRisk(a.risk_level) === 'yellow')) return { g: 'A', label: 'A含限量成分', color: '#B45309' }
+ return { g: 'S', label: 'A优选', color: '#15803D' }
  }, [additives])
 
  // P4 结论层：把评级/年龄/过敏聚合为「能买吗 / 能给孩子吃吗 / 适合谁」的直接判断
@@ -197,6 +199,7 @@ export default function FoodScanPage() {
     }
     setImgPreview(tp)
     setOcrLoading(true)
+    setOcrErrored(false)
     console.log('[OCR] 流程开始：上传图片', new Date().toISOString())
     setOcrMsg('正在上传并提交识别...')
  try {
@@ -208,9 +211,10 @@ export default function FoodScanPage() {
     )
     console.log('[OCR] 上传完成 ->', (url || '').slice(0, 60))
     if (!url) {
- setOcrMsg('存储桶未配置，无法上传图片（请在 Supabase 控制台创建 product-images 存储桶）')
- return
- }
+      setOcrMsg('存储桶未配置，无法上传图片（请在 Supabase 控制台创建 product-images 存储桶）')
+      setOcrErrored(true)
+      return
+    }
  const task = await withTimeout(
  createIngredientOcrTask({ image_url: url, store_id: currentStore?.id || null }),
  15000,
@@ -218,9 +222,10 @@ export default function FoodScanPage() {
     )
     console.log('[OCR] 任务已建 ->', task?.id)
     if (!task) {
- setOcrMsg('云端识别暂不可用（任务表权限未配置或网络异常）。请直接在上方「粘贴配料文字」框输入配料，本地即可立即分析，效果一致。')
- return
- }
+      setOcrMsg('云端识别暂不可用（任务表权限未配置或网络异常）。请直接在上方「粘贴配料文字」框输入配料，本地即可立即分析，效果一致。')
+      setOcrErrored(true)
+      return
+    }
     setOcrMsg('正在识别配料表...')
     console.log('[OCR] 开始调 EF ocr-ingredient', new Date().toISOString())
     // 直连 Edge Function（auth:false 跳过 403 登录态前戏，公开函数无需 token）
@@ -230,6 +235,7 @@ export default function FoodScanPage() {
  '识别服务响应超时了：请重试，或改用「粘贴配料文字」',
  )
  if (efErr || !ef?.success) {
+ setOcrErrored(true)
  const msg: string = ef?.error || efErr?.message || '识别服务异常'
  if (msg.includes('百度OCR未配置') || msg.includes('BAIDU_OCR')) {
  setOcrMsg('OCR 识别服务未配置，请改用「粘贴配料文字」方式分析')
@@ -256,9 +262,11 @@ export default function FoodScanPage() {
  }),
  )
  setAnalyzed(true)
+ setOcrErrored(false)
  setOcrMsg(ef.safety_grade === 'C' ? '识别完成：含慎用成分，请查看安全评级' : '识别完成')
  } catch (e: any) {
  // 兜底日志（OCR 排查用）
+ setOcrErrored(true)
  console.error('[OCR] 异常详情:', {
  message: e?.message,
  name: e?.name,
@@ -350,6 +358,18 @@ export default function FoodScanPage() {
  </Text>
  )}
 
+{/* OCR 失败后显式重试入口（R7：原仅有错误文案，无重试按钮） */}
+{ocrErrored && (
+ <Button
+ onClick={chooseImage}
+ loading={ocrLoading}
+ className="mt-2 rounded-full self-start"
+ style={{ background: 'hsl(var(--primary))', color: '#fff', fontSize: '26rpx' }}
+ >
+ 重新识别
+ </Button>
+)}
+
  {/* 安全评级总览 */}
  {analyzed && grade && (
  <View
@@ -362,7 +382,7 @@ export default function FoodScanPage() {
  }}
  >
  <Text className="text-base font-bold" style={{ color: grade.color }}>
- 安全评级 {grade.g}
+ 安全评级 {grade.label}
  </Text>
  <Text className="text-sm" style={{ color: grade.color }}>
  {grade.label}
@@ -482,7 +502,7 @@ export default function FoodScanPage() {
  <Image src={p.image_url || ''} style={{ width: 140, height: 140, borderRadius: 12 }} mode="aspectFill" />
  <Text className="text-sm text-foreground mt-1" style={S.display_block} numberOfLines={1}>{p.name}</Text>
  <Text className="text-xs" style={{ display: 'block', color: '#15803D' }}>
- {profileToCrowds(userProfile).length > 0 ? `契合度 ${fit}` : `食养关怀 ${getProductCareInfo(p).careScore}`}
+ {profileToCrowds(userProfile).length > 0 ? `契合度 ${fit}` : `食养关怀 ${isTherapyEnabled(p) ? getProductCareInfo(p).careScore : 0}`}
  </Text>
  </View>
  )

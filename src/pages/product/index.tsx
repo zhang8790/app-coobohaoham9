@@ -24,7 +24,7 @@ import GiftSections from '@/pages/product/GiftSections'
 import { getFoodBenefit } from '@/data/foodBenefits'
 import { analyzeFoodLabel, type ComprehensiveSafetyReport as ReportType } from '@/utils/safety-analysis'
 import { shieldCopy, cleanAudienceTags } from '@/utils/compliance/shield'
-import { buildTherapyReport, buildTherapyHeadline, isFoodProduct, NATURE_FEELING, deriveFitConstitutionTypes, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
+import { buildTherapyReport, buildTherapyHeadline, isFoodProduct, isTherapyEnabled, NATURE_FEELING, deriveFitConstitutionTypes, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
 import { getFoodIngredients, type FoodIngredientRow } from '@/db/food-safety'
 
 // 复用内联样式常量（重复字面量提取，行为不变）
@@ -377,8 +377,10 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
 
  // 商品类型分流：food=食养走食疗模块；gift/craft/care=走礼品模块（互斥，绝不共用食疗话术）
  // 统一走商品类型闸门（与首页/好物页/门店页同源），避免多处各写一份判断导致漂移
- const isFood = isFoodProduct(product)
- const isGift = !isFood
+const isFood = isFoodProduct(product)
+const isGift = !isFood
+// 食养系统展示闸门（双闸门：食品类 且 商品级开关开启），关掉后详情页不展示食养与食安卡
+const showTherapy = isTherapyEnabled(product)
 
  return (
  <View className="min-h-screen bg-background" style={{ paddingBottom: barH }} aria-label="商品详情">
@@ -486,7 +488,7 @@ const foodBenefit = useMemo(() => getFoodBenefit(product), [product])
 
 
       {/* 分区②+③ 合并：食安与食养（配方安全 + 食养参考，同属「吃进去什么 / 安不安全」，合并为单卡减少顶层分区标题） */}
-      {isFood && (
+      {showTherapy && (
         <View className="mx-4 mt-4 p-4 bg-card rounded-2xl border border-border">
           <SectionTitle iconName="shield" title="食养与食安" />
 
