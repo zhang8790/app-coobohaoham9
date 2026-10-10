@@ -75,7 +75,7 @@ const subPackages = [
   {
     root: 'pages/food',
     // 已下线孤儿页：seasonal-box / today-food-therapy / ingredient-pairing（食养中心收敛后失去全部入口）
-    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'constitution-test/index', 'tongue/index', 'tongue-camera/index', 'profile/index', 'consult/index', 'tracker/index', 'family/index', 'need-find/index', 'food-match/index'],
+    pages: ['index', 'scan-result/index', 'food-scan/index', 'analysis-result/index', 'constitution-test/index', 'constitution-detail/index', 'tongue/index', 'tongue-camera/index', 'profile/index', 'consult/index', 'tracker/index', 'family/index', 'need-find/index', 'food-match/index'],
   },
   {
     root: 'pages/ext',
@@ -121,9 +121,6 @@ export default defineAppConfig({
   permission: {
     'scope.userLocation': {
       desc: '用于匹配就近门店，展示本地化商品',
-    },
-    'scope.camera': {
-      desc: '用于拍摄舌部照片，仅本地留档后由食养顾问真人研判参考',
     },
   },
 })

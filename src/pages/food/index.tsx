@@ -7,6 +7,11 @@ import { useAuth } from '@/contexts/AuthContext'
 import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
 import { getUserHealthProfile } from '@/db/food-api'
 import { profileToCrowds, type Crowd } from '@/utils/food-therapy'
+import { CONSTITUTION_TYPES } from '@/utils/constitution-test'
+
+// 九种体质一级类目导航：列出全部 9 种体质（含已补齐的特禀质），点按跳体质详情，详情内再引导自测。
+// 文案取自 CONSTITUTION_TYPES 的合规 description（纯观察性描述，零违禁词）。
+const CONSTITUTION_LIST = Object.values(CONSTITUTION_TYPES)
 
 // 食养中心收敛为「千人千面」单一价值：商品由自研食疗算法按食养档案自动推荐（千人千面，看的产品不同）。
 // 已删除（入口重复 / 不加分，2026-09-19）：今日食养推荐、顺时节气食盒(订阅)、食材配对探索、
@@ -105,45 +110,9 @@ const SCENE_BY_CROWD: Array<{ kw: string[]; scene: string; label: string }> = [
   </Swiper>
 </View>
 
- {/* 自研食疗算法 · 按档案智能匹配零食类目（千人千面，点按直达对应零食类目） */}
- <View className="mx-4 mt-3 rounded-2xl p-4 bg-card border border-border">
- <View className="flex items-center gap-2 mb-3">
- <View className="min-w-0">
- <Text className="text-base font-bold text-foreground block">根据你的食养档案匹配</Text>
- <Text className="text-xs text-muted-foreground block mt-0.5">内嵌自研食疗算法 · 自动挑对零食类目</Text>
- </View>
- </View>
-
- {matchedScenes.length > 0 ? (
- <View className="flex flex-wrap gap-2 mb-3">
- {matchedScenes.map((s) => (
- <View
- key={s.scene}
- className="flex items-center gap-1 px-3 py-2 rounded-full active:scale-95 transition-transform"
- style={{ background: 'hsl(var(--primary) / 0.12)' }}
- hoverClass="none"
- onClick={() => go(`/pages/food/need-find/index?scene=${s.scene}`)}
- >
- <Text className="text-sm font-bold" style={{ color: 'hsl(var(--primary))' }}>{s.label}</Text>
- <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>›</Text>
- </View>
- ))}
- </View>
- ) : (
- <View
- className="rounded-xl mb-3 px-3 py-2.5 active:scale-[0.99] transition-transform"
- style={{ background: 'hsl(var(--primary) / 0.08)' }}
- hoverClass="none"
-  onClick={() => go('/pages/food/tongue/index')}
- >
- <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>完成「食养评估」（身体感受 + 舌象对照）后，这里会出现为你定制的零食类目 · 去评估 ›</Text>
- </View>
- )}
- </View>
-
-{/* 食养评估：身体感受 + 舌象对照 合并入口（千人千面匹配的唯一输入端） */}
+ {/* 食养评估：身体感受 + 舌象对照 合并入口（千人千面匹配唯一输入端，主行动前置到匹配之前） */}
 <View
- className="mx-4 mt-4 rounded-2xl p-4 bg-card border border-border flex items-center justify-between active:scale-[0.99] transition-transform"
+ className="mx-4 mt-3 rounded-2xl p-4 bg-card border border-border flex items-center justify-between active:scale-[0.99] transition-transform"
  aria-role="button" aria-label="食养评估"
  hoverClass="none"
  onClick={() => go('/pages/food/tongue/index')}
@@ -158,6 +127,75 @@ const SCENE_BY_CROWD: Array<{ kw: string[]; scene: string; label: string }> = [
  </View>
  </View>
  <Text className="text-xs text-primary font-bold flex-shrink-0 ml-2">前往 ›</Text>
+</View>
+
+{/* 自研食疗算法 · 按档案智能匹配零食类目（千人千面，点按直达对应零食类目） */}
+{matchedScenes.length > 0 ? (
+ <View className="mx-4 mt-4 rounded-2xl p-4 bg-card border border-border">
+ <View className="flex items-center gap-2 mb-3">
+ <View className="min-w-0">
+ <Text className="text-base font-bold text-foreground block">根据你的食养档案匹配</Text>
+ <Text className="text-xs text-muted-foreground block mt-0.5">内嵌自研食疗算法 · 自动挑对零食类目</Text>
+ </View>
+ </View>
+ <View className="flex flex-wrap gap-2 mb-3">
+ {matchedScenes.map((s) => (
+ <View
+ key={s.scene}
+ className="flex items-center gap-1 px-3 py-2 rounded-full active:scale-95 transition-transform"
+ style={{ background: 'hsl(var(--primary) / 0.12)' }}
+ hoverClass="none"
+ onClick={() => go(`/pages/food/need-find/index?scene=${s.scene}`)}
+ >
+ <Text className="text-sm font-bold" style={{ color: 'hsl(var(--primary))' }}>{s.label}</Text>
+ <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>›</Text>
+ </View>
+ ))}
+ </View>
+ </View>
+) : (
+/* 无档案：不放大卡壳，仅给紧凑引导，避免留白失衡 */
+ <View className="mx-4 mt-3">
+ <View
+ className="rounded-xl px-3 py-2 active:scale-[0.99] transition-transform"
+ style={{ background: 'hsl(var(--primary) / 0.08)' }}
+ hoverClass="none"
+ onClick={() => go('/pages/food/tongue/index')}
+ >
+ <Text className="text-xs leading-snug" style={{ color: 'hsl(var(--primary))' }}>完成一次食养评估，这里会按你的体质与状态匹配专属零食类目 · 去评估 ›</Text>
+ </View>
+ </View>
+)}
+
+{/* 九种体质 · 一级类目导航：列出全部 9 种体质，点选跳体质详情，详情内再引导自测（合规，零违禁词） */}
+<View className="mx-4 mt-4 rounded-2xl p-4 bg-card border border-border">
+ <View className="flex items-center gap-2 mb-1">
+ <Text className="text-base font-bold text-foreground">九种体质</Text>
+ </View>
+ <Text className="text-xs text-muted-foreground block mb-3">中医九种体质 · 点选了解，再测偏向</Text>
+ <View className="flex flex-wrap">
+ {CONSTITUTION_LIST.map((c) => (
+ <View
+ key={c.key}
+ style={{ width: '33.3333%' }}
+ className="flex flex-col items-center py-2.5 active:opacity-60 transition-opacity"
+ hoverClass="none"
+ onClick={() => go(`/pages/food/constitution-detail/index?key=${c.key}`)}
+ >
+ <Text style={{ fontSize: '30rpx', lineHeight: '36rpx' }}>{c.emoji}</Text>
+ <Text className="text-sm font-bold text-foreground mt-1.5">{c.name}</Text>
+ <Text className="text-[10px] text-muted-foreground text-center mt-0.5 px-1.5" numberOfLines={2}>{c.description}</Text>
+ </View>
+ ))}
+ </View>
+ <View
+ className="mt-3 rounded-xl px-3 py-2.5 active:scale-[0.99] transition-transform"
+ style={{ background: 'hsl(var(--primary) / 0.08)' }}
+ hoverClass="none"
+ onClick={() => go('/pages/food/tongue/index')}
+ >
+ <Text className="text-xs" style={{ color: 'hsl(var(--primary))' }}>不确定偏向哪类？做一次食养评估，看你的九体质得分排序 ›</Text>
+ </View>
 </View>
 
  <Text className="text-[10px] text-muted-foreground text-center block mt-6 px-6 leading-relaxed">

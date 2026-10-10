@@ -209,7 +209,13 @@ export default function MerchantProducts() {
   const [dragOverSub, setDragOverSub] = useState(false)
   const [dragOverDetail, setDragOverDetail] = useState(false)
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [search, setSearch] = useState('')
+  const [sortKey, setSortKey] = useState<'price' | 'stock' | 'sales' | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [oosOnly, setOosOnly] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [previewing, setPreviewing] = useState<ProductWithExt | null>(null)
   const [freeIngredient, setFreeIngredient] = useState('')
   const [ingSearch, setIngSearch] = useState('')
   const [editing, setEditing] = useState<ProductWithExt | null>(null)
@@ -381,7 +387,22 @@ export default function MerchantProducts() {
     }
   }
 
-  const filtered = filter === 'all' ? list : list.filter(p => p.status === filter)
+  const filtered = (() => {
+    const q = search.trim().toLowerCase()
+    let arr = list
+      .filter(p => filter === 'all' || p.status === filter)
+      .filter(p => !oosOnly || (p.stock ?? 0) <= 0)
+      .filter(p => !q
+        || p.name.toLowerCase().includes(q)
+        || (p.barcode ?? '').toLowerCase().includes(q)
+        || p.id.toLowerCase().includes(q))
+    if (sortKey) {
+      const val = (p: ProductWithExt) =>
+        sortKey === 'price' ? (p.price || 0) : sortKey === 'stock' ? (p.stock ?? 0) : (p.sales ?? 0)
+      arr = [...arr].sort((a, b) => { const d = val(a) - val(b); return sortDir === 'asc' ? d : -d })
+    }
+    return arr
+  })()
 
   const toggleStatus = async (id: string) => {
     const item = list.find(p => p.id === id)
@@ -954,7 +975,51 @@ export default function MerchantProducts() {
       if (error) { console.warn('[Products] 删除失败:', error); return }
     }
     setList(prev => prev.filter(p => p.id !== id))
+    setSelectedIds(prev => prev.filter(x => x !== id))
   }
+
+  // ── 多选批量删除：表头全选 + 行内勾选，二次确认后批量移除 ──
+  const allSelected = filtered.length > 0 && filtered.every(p => selectedIds.includes(p.id))
+  const toggleSelect = (id: string) =>
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  const toggleSelectAll = () => {
+    if (allSelected) { setSelectedIds([]); return }
+    setSelectedIds(filtered.map(p => p.id))
+  }
+  const clearSelection = () => setSelectedIds([])
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) return
+    if (!confirm(`确认删除选中的 ${selectedIds.length} 个商品？删除后不可恢复。`)) return
+    if (!useMock && storeId) {
+      const { error } = await supabase.from('products').delete().in('id', selectedIds)
+      if (error) { console.warn('[Products] 批量删除失败:', error); return }
+    }
+    setList(prev => prev.filter(p => !selectedIds.includes(p.id)))
+    setSelectedIds([])
+  }
+
+  // 批量上/下架：复用选中态，循环更新 is_active + 派生 status
+  const handleBatchStatus = async (active: boolean) => {
+    if (selectedIds.length === 0) return
+    if (!confirm(`确认将选中的 ${selectedIds.length} 个商品${active ? '上架' : '下架'}？`)) return
+    if (!useMock) {
+      if (!storeId) { window.alert('未找到关联门店，无法修改上架状态。'); return }
+      const { error } = await supabase.from('products').update({ is_active: active }).in('id', selectedIds)
+      if (error) { window.alert(`上架状态更新失败：\n${error.message}`); console.warn('[Products] 批量上/下架失败:', error); return }
+    }
+    setList(prev => prev.map(p => selectedIds.includes(p.id)
+      ? { ...p, is_active: active, status: (active ? 'online' : 'offline') as 'online' | 'offline' }
+      : p))
+    setSelectedIds([])
+  }
+
+  // 列表排序：点列头切换升/降序，再次点同列反转
+  const onSort = (k: 'price' | 'stock' | 'sales') => {
+    if (sortKey === k) { setSortDir(d => d === 'asc' ? 'desc' : 'asc') }
+    else { setSortKey(k); setSortDir('desc') }
+  }
+  const sortIndicator = (k: 'price' | 'stock' | 'sales') =>
+    sortKey === k ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'
 
   const totalCost    = list.reduce((s, p) => s + (p.cost_price || 0) * p.sales, 0)
   // 营收取 order_items 聚合值（revenue）；Mock 商品无 revenue 时回退 price*sales
@@ -1033,38 +1098,79 @@ export default function MerchantProducts() {
         <StatCard tone="info" icon="trending" label="总利润" value={`¥${totalProfit.toLocaleString()}`} />
       </div>
 
-      {/* filter tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
-        {([
-          { key: 'all' as const, label: '全部' },
-          { key: 'online' as const, label: '上架中' },
-          { key: 'offline' as const, label: '已下架' },
-        ]).map(f => (
-          <button key={f.key} onClick={() => setFilter(f.key)} style={{
-            padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-            background: filter === f.key ? 'var(--success-strong)' : 'var(--border)', color: filter === f.key ? '#fff' : 'var(--text-muted)',
-          }}>{f.label}</button>
-        ))}
+      {/* filter + search toolbar */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {([
+            { key: 'all' as const, label: '全部' },
+            { key: 'online' as const, label: '上架中' },
+            { key: 'offline' as const, label: '已下架' },
+          ]).map(f => (
+            <button key={f.key} onClick={() => setFilter(f.key)} style={{
+              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+              background: filter === f.key ? 'var(--success-strong)' : 'var(--border)', color: filter === f.key ? '#fff' : 'var(--text-muted)',
+            }}>{f.label}</button>
+          ))}
+        </div>
+        <button onClick={() => setOosOnly(v => !v)} style={{
+          padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+          background: oosOnly ? 'var(--danger)' : 'var(--border)', color: oosOnly ? '#fff' : 'var(--text-muted)',
+        }}>仅看缺货</button>
+        <div style={{ flex: 1, minWidth: 200, display: 'flex', justifyContent: 'flex-end' }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="搜索名称 / 条码 / 编号"
+            style={{ width: '100%', maxWidth: 280, padding: '7px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }}
+          />
+        </div>
       </div>
+
+      {/* 批量操作条：勾选商品后出现 */}
+      {selectedIds.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          background: 'var(--surface-2)', border: '1px solid var(--border)', borderLeft: '3px solid var(--danger)',
+          borderRadius: 12, padding: '10px 16px', marginBottom: 12,
+        }}>
+          <span style={{ color: 'var(--text)', fontSize: 13, fontWeight: 600 }}>已选 {selectedIds.length} 项</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={clearSelection} style={{ padding: '6px 14px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>取消选择</button>
+            <button onClick={() => handleBatchStatus(true)} style={{ padding: '6px 14px', background: 'var(--success-strong)', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>批量上架</button>
+            <button onClick={() => handleBatchStatus(false)} style={{ padding: '6px 14px', background: 'rgba(245,158,11,0.9)', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>批量下架</button>
+            <button onClick={handleBatchDelete} style={{ padding: '6px 14px', background: 'var(--danger)', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>批量删除</button>
+          </div>
+        </div>
+      )}
 
       {/* goods table */}
       <div style={{ background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--border)', borderTop: '3px solid var(--primary-strong)', overflow: 'hidden' }}>
         {/* table header */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '80px 1fr 90px 90px 80px 80px 70px 70px 70px 70px 160px',
+          gridTemplateColumns: '40px 80px 1fr 90px 90px 80px 80px 70px 70px 70px 70px 160px',
           padding: '10px 16px', background: 'var(--bg)', borderBottom: '1px solid var(--border)',
           fontSize: 12, color: 'var(--text-dim)', fontWeight: 600,
         }}>
+          <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} title="全选" style={{ width: 16, height: 16, cursor: 'pointer', justifySelf: 'center' }} />
           <span>主图</span>
           <span>商品信息</span>
-          <span style={{ textAlign: 'right' }}>售价</span>
+          <span onClick={() => onSort('price')} style={{ textAlign: 'right', cursor: 'pointer', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 3, userSelect: 'none' }}>
+            售价
+            <span style={{ fontSize: 10, color: sortKey === 'price' ? 'var(--primary-strong)' : 'var(--text-dim)' }}>{sortIndicator('price')}</span>
+          </span>
           <span style={{ textAlign: 'right' }}>成本价</span>
           <span style={{ textAlign: 'right' }}>毛利率</span>
           <span style={{ textAlign: 'right' }}>让利</span>
           <span style={{ textAlign: 'right' }}>让利%</span>
-          <span style={{ textAlign: 'center' }}>库存</span>
-          <span style={{ textAlign: 'center' }}>销量</span>
+          <span onClick={() => onSort('stock')} style={{ textAlign: 'center', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 3, userSelect: 'none' }}>
+            库存
+            <span style={{ fontSize: 10, color: sortKey === 'stock' ? 'var(--primary-strong)' : 'var(--text-dim)' }}>{sortIndicator('stock')}</span>
+          </span>
+          <span onClick={() => onSort('sales')} style={{ textAlign: 'center', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 3, userSelect: 'none' }}>
+            销量
+            <span style={{ fontSize: 10, color: sortKey === 'sales' ? 'var(--primary-strong)' : 'var(--text-dim)' }}>{sortIndicator('sales')}</span>
+          </span>
           <span style={{ textAlign: 'center' }}>状态</span>
           <span style={{ textAlign: 'center' }}>操作</span>
         </div>
@@ -1078,10 +1184,12 @@ export default function MerchantProducts() {
           return (
             <div key={p.id} style={{
               display: 'grid',
-              gridTemplateColumns: '80px 1fr 90px 90px 80px 80px 70px 70px 70px 70px 160px',
+              gridTemplateColumns: '40px 80px 1fr 90px 90px 80px 80px 70px 70px 70px 70px 160px',
               padding: '12px 16px', alignItems: 'center',
+              background: selectedIds.includes(p.id) ? 'rgba(16,185,129,0.08)' : ((p.stock ?? 0) <= 0 ? 'rgba(220,38,38,0.07)' : 'transparent'),
               borderBottom: '1px solid var(--border)', fontSize: 13, color: 'var(--text-muted)',
             }}>
+              <input type="checkbox" checked={selectedIds.includes(p.id)} onChange={() => toggleSelect(p.id)} style={{ width: 16, height: 16, cursor: 'pointer', justifySelf: 'center' }} />
               {/* 主图 */}
               <div style={{ position: 'relative' }}>
                 {p.main_image ? (
@@ -1171,6 +1279,7 @@ export default function MerchantProducts() {
               {/* action */}
               <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                 <button onClick={() => openEdit(p)} style={{ padding: '4px 10px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>编辑</button>
+                <button onClick={() => setPreviewing(p)} style={{ padding: '4px 10px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, color: '#818CF8', cursor: 'pointer', fontSize: 12 }}>预览</button>
                 <button onClick={() => duplicateProduct(p)} style={{ padding: '4px 10px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>复制上架</button>
                 <button onClick={() => toggleStatus(p.id)} style={{
                   padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12,
@@ -1977,6 +2086,87 @@ export default function MerchantProducts() {
               )
             })}
             <p style={{ color: 'var(--text-dim)', fontSize: 11, marginTop: 12 }}>🌐 平台分类由总部统一维护，店内不可修改；店内分类仅对本店商品生效。</p>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 商品预览（顾客视角示意） ===== */}
+      {previewing && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={() => setPreviewing(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface-2)', borderRadius: 16, width: 380, maxWidth: '92vw', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 700 }}>商品预览 · 顾客视角</span>
+              <button onClick={() => setPreviewing(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
+              {previewing.video_url ? (
+                <video src={previewing.video_url} controls style={{ width: '100%', height: 220, objectFit: 'cover', background: 'var(--border)', display: 'block' }} />
+              ) : previewing.main_image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={previewing.main_image} alt="" style={{ width: '100%', height: 220, objectFit: 'cover', background: 'var(--border)', display: 'block' }} />
+              ) : (
+                <div style={{ width: '100%', height: 220, background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)', fontSize: 13 }}>无主图</div>
+              )}
+              <div style={{ padding: 16 }}>
+                <h3 style={{ color: 'var(--text)', fontSize: 17, fontWeight: 700, margin: '0 0 8px' }}>{previewing.name}</h3>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+                  <span style={{ color: 'var(--danger)', fontSize: 22, fontWeight: 700 }}>¥{(previewing.price ?? 0).toLocaleString()}</span>
+                  {previewing.original_price ? <span style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'line-through' }}>¥{previewing.original_price}</span> : null}
+                  {previewing.discount_rate ? <span style={{ color: 'var(--accent)', fontSize: 12, background: 'rgba(99,102,241,0.12)', padding: '2px 6px', borderRadius: 4 }}>让利 {previewing.discount_rate}%</span> : null}
+                </div>
+                {(() => {
+                  const g = previewing as any
+                  const tags: { t: string; v: string; tone: string }[] = []
+                  if (previewing.overall_nature) tags.push({ t: '性味', v: previewing.overall_nature, tone: 'var(--success-strong)' })
+                  const fit = g.fit_people_override || (Array.isArray(previewing.health_tag) ? previewing.health_tag.join('、') : '')
+                  if (fit) tags.push({ t: '适宜人群', v: fit, tone: 'var(--info-strong)' })
+                  const cautious = [g.forbidden_reasons, g.cautious_notes].filter(Boolean).join('；')
+                  if (cautious) tags.push({ t: '食用注意', v: cautious, tone: 'var(--warning)' })
+                  if (g.guide_sentence) tags.push({ t: '导购语', v: g.guide_sentence, tone: 'var(--text)' })
+                  if (g.positive_effect) tags.push({ t: '正向功效', v: g.positive_effect, tone: 'var(--success-strong)' })
+                  if (g.risk_warning) tags.push({ t: '风险提示', v: g.risk_warning, tone: 'var(--danger)' })
+                  if (!tags.length) return null
+                  return (
+                    <div style={{ background: 'var(--bg)', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>食养导购</div>
+                      {tags.map((x, i) => (
+                        <div key={i} style={{ marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, color: x.tone, fontWeight: 600 }}>{x.t}：</span>
+                          <span style={{ fontSize: 13, color: 'var(--text)' }}>{x.v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+                {previewing.description ? <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.7, margin: '0 0 12px' }}>{previewing.description}</p> : null}
+                {previewing.sub_images && previewing.sub_images.length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                    {previewing.sub_images.slice(0, 4).map((img: string, i: number) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={img} alt="" style={{ width: 72, height: 72, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--border-soft)' }} />
+                    ))}
+                  </div>
+                )}
+                {previewing.detail_images && previewing.detail_images.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 6 }}>详情图（{previewing.detail_images.length}）</div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {previewing.detail_images.slice(0, 6).map((img: string, i: number) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={i} src={img} alt="" style={{ width: 72, height: 72, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--border-soft)' }} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-dim)', flexShrink: 0 }}>
+                <span>库存 {previewing.stock ?? 0} · 销量 {previewing.sales}</span>
+                <span>{previewing.status === 'online' ? '上架中' : '已下架'}</span>
+              </div>
+            </div>
+            <div style={{ padding: '8px 16px 12px', background: 'var(--surface)', fontSize: 10, color: 'var(--text-dim)', textAlign: 'center', flexShrink: 0 }}>
+              示意预览 · 实际以小程序顾客端渲染为准
+            </div>
           </div>
         </div>
       )}
