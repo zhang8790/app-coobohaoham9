@@ -76,6 +76,8 @@ export interface StoreCategory {
   is_active: boolean
   /** 场景图标（emoji 文本）：金刚区/落地页读取，后台可编辑；库内为空时前端回退 🌿 */
   icon: string | null
+  /** 分类图标图片 URL（用户上传）：优先于 icon 展示，为空时回退 icon/品牌 SVG */
+  icon_url?: string | null
   /** 父分类 id：null=一级分类（场景）；非 null=二级分类 */
   parent_id?: string | null
 }

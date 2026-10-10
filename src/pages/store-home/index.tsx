@@ -12,6 +12,7 @@ import { showCartToast } from '@/utils/cartToast'
 import type { Store, StoreCategory, Product, UserAddress } from '@/db/types'
 import { supabase, getLocalUser } from '@/client/supabase'
 import Icon from '@/components/Icon'
+import CategoryIcon from '@/components/CategoryIcon'
 import { BRAND_LINE_ICONS } from '@/components/brandIcons'
 import AddToCartButton from '@/components/AddToCartButton'
 import { buildTherapyReport, isFoodProduct, isTherapyEnabled, NATURE_FEELING, type ProductIngredientInput, type FoodIngredient, type ProductTherapyReport } from '@/utils/food-therapy/product-therapy'
@@ -437,7 +438,7 @@ export default function StoreHomePage() {
             与好物页左栏同一套视觉语言：米白底 + 选中白卡 + 左侧绿条 + 绿色加粗字。 */}
         {topCats.length > 0 && (
           <ScrollView scrollY style={{ width: '176rpx', height: '100%', flexShrink: 0, backgroundColor: '#F7F3E9' }}>
-            {[{ id: 'all', label: '全部' }, ...topCats.map((c) => ({ id: c.id, label: sceneLabel(c.name) }))].map((cat) => {
+            {[{ id: 'all', label: '全部', cat: undefined as StoreCategory | undefined }, ...topCats.map((c) => ({ id: c.id, label: sceneLabel(c.name), cat: c }))].map((cat) => {
               const on = activeTopId === cat.id
               return (
                 <View
@@ -445,18 +446,21 @@ export default function StoreHomePage() {
                   onClick={() => handleTopSelect(cat.id)}
                   style={{
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '28rpx 8rpx',
+                    padding: '14rpx 8rpx',
                     backgroundColor: on ? '#FFF' : 'transparent',
                     borderLeftWidth: '6rpx',
                     borderLeftColor: on ? 'hsl(var(--primary))' : 'transparent',
                   }}>
+                  {cat.cat && <CategoryIcon cat={cat.cat} size={36} />}
                   <Text style={{
-                    fontSize: '28rpx',
+                    fontSize: '26rpx',
                     fontWeight: on ? '600' : '400',
                     color: on ? 'hsl(var(--primary-strong))' : '#5A5A5A',
                     textAlign: 'center',
+                    marginTop: cat.cat ? '6rpx' : 0,
                   }}>{cat.label}</Text>
                 </View>
               )
@@ -471,12 +475,13 @@ export default function StoreHomePage() {
           {subCats.length > 0 && (
             <ScrollView scrollX style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
               <View style={{ display: 'inline-flex', gap: '16rpx', padding: '24rpx 24rpx 8rpx' }}>
-                {[{ id: '', label: '全部' }, ...subCats.map((s) => ({ id: s.id, label: sceneLabel(s.name) }))].map((s) => {
+                {[{ id: '', label: '全部', cat: undefined as StoreCategory | undefined }, ...subCats.map((s) => ({ id: s.id, label: sceneLabel(s.name), cat: s }))].map((s) => {
                   const on = activeSubId === s.id
                   return (
                     <View
                       key={s.id || 'all-sub'}
                       onClick={() => setActiveSubId(s.id)}
+                      className="flex flex-row items-center"
                       style={{
                         flex: '0 0 auto',
                         padding: '10rpx 28rpx',
@@ -488,6 +493,7 @@ export default function StoreHomePage() {
                         borderWidth: 1,
                         borderColor: on ? 'hsl(var(--primary))' : '#EAE3DA',
                       }}>
+                      {s.cat && <View style={{ marginRight: '6rpx' }}><CategoryIcon cat={s.cat} size={30} /></View>}
                       {s.label}
                     </View>
                   )

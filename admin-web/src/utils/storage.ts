@@ -33,3 +33,14 @@ export async function uploadProductAsset(file: File): Promise<string> {
     return fileToBase64(file)
   }
 }
+
+// 分类图标上传：存 category-icons 存储桶（公开读），失败回退 base64，保证图标永不丢失
+export async function uploadCategoryIcon(file: File): Promise<string> {
+  try {
+    const url = await uploadToBucket(file, 'category-icons', 'icons')
+    if (url) return url
+    throw new Error('empty public url')
+  } catch {
+    return fileToBase64(file)
+  }
+}

@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback, Fragment } from 'react'
+import { useEffect, useState, useCallback, Fragment, useRef } from 'react'
 import { getCategories, createStoreCategory, updateStoreCategory, deleteStoreCategory, countProductsByCategory, syncStoreCategoryName } from '@/api/categories'
+import { uploadCategoryIcon } from '@/utils/storage'
 import type { StoreCategory } from '@/types'
 import { NavIcon } from '@/components/icons'
 
@@ -24,9 +25,11 @@ export default function Categories() {
   const [childName, setChildName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
-  // 图标编辑器：每行可改 icon（emoji 文本），预设快捷选择 + 自定义输入
+  // 图标编辑器：每行可传图片(icon_url) 或 选 emoji(icon)，图片优先展示
   const [editingIconId, setEditingIconId] = useState<string | null>(null)
-  const [iconInput, setIconInput] = useState('')
+  const [pendingIconUrl, setPendingIconUrl] = useState('')
+  const [pendingEmoji, setPendingEmoji] = useState('')
+  const iconFileRef = useRef<HTMLInputElement>(null)
   // 子类展开态：默认全部展开
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const PRESET_EMOJIS = ['🍼', '🥕', '👵', '🌙', '🥣', '💪', '🛡️', '⚡', '🌿', '🍎', '🥗', '🍵', '💊', '🌾', '☕', '🍯']
@@ -123,16 +126,39 @@ export default function Categories() {
 
   const startEditIcon = (c: StoreCategory) => {
     setEditingIconId(c.id)
-    setIconInput(c.icon || '')
+    setPendingIconUrl(c.icon_url || '')
+    setPendingEmoji(c.icon || '')
+  }
+  const handleIconFile = async (_c: StoreCategory, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setBusy(true)
+    try {
+      const url = await uploadCategoryIcon(file)
+      setPendingIconUrl(url)
+      setPendingEmoji('') // 图片优先，清除 emoji 文本
+    } catch {
+      alert('图标上传失败，请重试')
+    } finally {
+      setBusy(false)
+    }
   }
   const handleSaveIcon = async (c: StoreCategory) => {
     setBusy(true)
-    const ok = await updateStoreCategory(c.id, { icon: iconInput.trim() || null })
+    const ok = await updateStoreCategory(c.id, { icon_url: pendingIconUrl || null, icon: pendingEmoji || null })
     setBusy(false)
     if (!ok) { alert('图标保存失败，请重试'); return }
     setEditingIconId(null)
-    setIconInput('')
+    setPendingIconUrl('')
+    setPendingEmoji('')
     load()
+  }
+  // 统一渲染分类图标：icon_url 图片优先，否则 emoji，再否则默认 🌿
+  const renderCategoryIcon = (c: StoreCategory, size = 40) => {
+    if (c.icon_url) {
+      return <img src={c.icon_url} alt={c.name} style={{ width: size, height: size, borderRadius: 12, objectFit: 'cover', border: '1px solid var(--border)', display: 'block' }} />
+    }
+    return <span style={{ fontSize: Math.round(size * 0.56), lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size }}>{c.icon || '🌿'}</span>
   }
 
   const S = {
@@ -146,28 +172,44 @@ export default function Categories() {
   const renderIconCell = (c: StoreCategory) => (
     <td style={S.td}>
       {editingIconId === c.id ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <input
-            autoFocus
-            value={iconInput}
-            maxLength={4}
-            placeholder="粘贴 emoji"
-            onChange={e => setIconInput(e.target.value)}
-            style={{ ...S.input, width: 110, fontSize: 16 }}
-          />
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 180 }}>
-            {PRESET_EMOJIS.map(e => (
-              <button key={e} onClick={() => setIconInput(e)} style={{ fontSize: 18, lineHeight: 1, padding: '2px 4px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' }}>{e}</button>
-            ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 200 }}>
+          {/* 图片上传 / 预览 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              onClick={() => iconFileRef.current?.click()}
+              style={{
+                width: 56, height: 56, borderRadius: 14, border: '1px dashed var(--primary)',
+                background: pendingIconUrl ? `url(${pendingIconUrl}) center/cover` : 'var(--bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', flexShrink: 0, overflow: 'hidden',
+              }}
+            >
+              {!pendingIconUrl && '上传图标'}
+            </div>
+            <input ref={iconFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleIconFile(c, e)} />
+            <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+              {pendingIconUrl ? '已选图片，保存后生效' : '支持 PNG/JPG，建议 1:1 方形'}
+            </div>
+            {pendingIconUrl && (
+              <button onClick={() => { setPendingIconUrl(''); setPendingEmoji('') }} style={S.btn('var(--border-soft)')}>清除</button>
+            )}
           </div>
+          {/* emoji 快捷选择（未选图片时展示，作为无图回退） */}
+          {!pendingIconUrl && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 240 }}>
+              {PRESET_EMOJIS.map(e => (
+                <button key={e} onClick={() => { setPendingEmoji(e); setPendingIconUrl('') }} style={{ fontSize: 18, lineHeight: 1, padding: '2px 4px', background: pendingEmoji === e ? 'var(--primary-soft)' : 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' }}>{e}</button>
+              ))}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => handleSaveIcon(c)} style={S.btn('var(--success-strong)')}>保存</button>
-            <button onClick={() => { setEditingIconId(null); setIconInput('') }} style={S.btn('var(--border-soft)')}>取消</button>
+            <button onClick={() => handleSaveIcon(c)} disabled={busy} style={S.btn('var(--success-strong)')}>保存</button>
+            <button onClick={() => { setEditingIconId(null); setPendingIconUrl(''); setPendingEmoji('') }} style={S.btn('var(--border-soft)')}>取消</button>
           </div>
         </div>
       ) : (
-        <button onClick={() => startEditIcon(c)} style={{ background: 'transparent', border: '1px dashed var(--border-soft)', borderRadius: 8, padding: '4px 8px', fontSize: 22, lineHeight: 1, cursor: 'pointer' }}>
-          {c.icon || '🌿'}
+        <button onClick={() => startEditIcon(c)} style={{ background: 'transparent', border: '1px solid var(--border-soft)', borderRadius: 14, padding: 4, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} title="点击编辑图标">
+          {renderCategoryIcon(c, 44)}
         </button>
       )}
     </td>
@@ -250,7 +292,7 @@ export default function Categories() {
         <h1 style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700, marginBottom: 4 }}>商品分类管理（平台全局）</h1>
         <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>
           两级结构：<b style={{ color: 'var(--text)' }}>一级=场景</b>（首页金刚区「按场景选食养」）→
-          <b style={{ color: 'var(--text)' }}> 二级=子类</b>（用户端分类页顶部二级 Tab）。平台维护的全局分类对所有自营门店生效。
+          <b style={{ color: 'var(--text)' }}> 二级=子类</b>（用户端分类页顶部二级 Tab）。平台维护的全局分类对所有自营门店生效；每行「图标」列支持<b style={{ color: 'var(--text)' }}>上传自定义图片</b>或选 emoji（图片优先展示）。
         </p>
       </div>
 

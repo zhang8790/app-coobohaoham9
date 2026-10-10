@@ -5,6 +5,7 @@ import { View, Text, Input, Textarea, Switch, Image, ScrollView } from '@tarojs/
 import { useState, useEffect, type ReactNode } from 'react'
 import ProductGridCard from '@/components/ProductGridCard'
 import Icon from '@/components/Icon'
+import CategoryIcon from '@/components/CategoryIcon'
 import { EAN13Preview } from './BarcodeTools'
 import { COOKING_METHODS, AUX_OPTIONS, NATURE_COLOR, type ProductFormController } from './useProductForm'
 import { getProductCareInfo } from '@/utils/product-care'
@@ -609,6 +610,7 @@ padding: '7px 14px', borderRadius: '9999px',
 background: sel ? 'hsl(var(--primary))' : '#FFF',
  border: sel ? '1px solid hsl(var(--primary))' : '1px solid #EEE',
  }}>
+ <CategoryIcon cat={c} size={26} />
  <Text style={{ fontSize: c.parent_id ? '24rpx' : '26rpx', color: sel ? '#FFF' : (c.parent_id ? '#888' : '#666') }}>{c.parent_id ? `└ ${c.name}` : c.name}</Text>
  {c.scope === 'global' && <Icon name="globe" size={12} className={sel ? 'text-white' : ''} style={{ marginLeft: 2 }} />}
  </View>

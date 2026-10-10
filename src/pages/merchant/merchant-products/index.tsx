@@ -13,6 +13,7 @@ import {
   createStoreCategory, updateStoreCategory, deleteStoreCategory,
   deleteProduct, updateProduct,
 } from '@/db/api'
+import { uploadImage } from '@/utils/upload'
 import { analyzeProductFromName } from '@/utils/food-therapy/dishAnalyzer'
 import type { Product, Store, StoreCategory } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
@@ -246,6 +247,18 @@ function MerchantProductsPage() {
     await loadCategories()
   }
 
+  // 分类图标上传（商家端）：选图 → category-icons 桶 → 写 icon_url
+  const handlePickIcon = async (cat: StoreCategory) => {
+    try {
+      const url = await uploadImage({ bucket: 'category-icons' })
+      if (!url || typeof url !== 'string') { Taro.showToast({ title: '上传失败', icon: 'none' }); return }
+      const ok = await updateStoreCategory(cat.id, { icon_url: url })
+      if (!ok) { Taro.showToast({ title: '保存图标失败', icon: 'none' }); return }
+      Taro.showToast({ title: '图标已更新', icon: 'success' })
+      await loadCategories()
+    } catch { Taro.showToast({ title: '上传失败', icon: 'none' }) }
+  }
+
   const handleDeleteCategory = (cat: StoreCategory) => {
     Taro.showModal({
       title: '删除分类',
@@ -436,6 +449,7 @@ function MerchantProductsPage() {
           onMoveCategory={handleMoveCategory}
           onSaveRename={handleSaveRename}
           onDeleteCategory={handleDeleteCategory}
+          onPickIcon={handlePickIcon}
         />
 
       </View>

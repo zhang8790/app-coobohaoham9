@@ -1,7 +1,8 @@
 // @title 商品分类管理抽屉（商家端）— 从 merchant-products 主页面抽离
-import { View, Text, Input, Picker } from '@tarojs/components'
+import { View, Text, Input, Picker, ScrollView } from '@tarojs/components'
 import type { StoreCategory } from '@/db/types'
 import Icon from '@/components/Icon'
+import CategoryIcon from '@/components/CategoryIcon'
 
 const S = {
   fontsize_30rpx_color_888: { fontSize: '30rpx', color: '#888' },
@@ -24,13 +25,14 @@ type Props = {
  onMoveCategory: (c: StoreCategory, dir: number) => void
  onSaveRename: (c: StoreCategory) => void
  onDeleteCategory: (c: StoreCategory) => void
+ onPickIcon?: (c: StoreCategory) => void
 }
 
 export default function CategoryManager({
  visible, categories, newCatName, setNewCatName,
  newCatParent, setNewCatParent,
  editingCatId, setEditingCatId, editingCatName, setEditingCatName,
- onClose, onAddCategory, onMoveCategory, onSaveRename, onDeleteCategory,
+ onClose, onAddCategory, onMoveCategory, onSaveRename, onDeleteCategory, onPickIcon,
 }: Props) {
  if (!visible) return null
  // 只展示「店内分类(全部) + 总部一级分类」：总部二级分类商家无权修改，不在此列
@@ -44,9 +46,9 @@ export default function CategoryManager({
  return (
  <View
  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.55)' }}
- onClick={onClose}>
+ onClick={onClose} catchMove>
  <View
- style={{ marginTop: 'auto', width: '100%', background: '#FFF', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', paddingHorizontal: '20px', paddingTop: '20px', paddingBottom: '40px', maxHeight: '85vh', overflowY: 'scroll' }}
+ style={{ marginTop: 'auto', width: '100%', background: '#FFF', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', paddingHorizontal: '20px', paddingTop: '20px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
  onClick={(e: any) => e.stopPropagation()}>
  {/* 标题 */}
  <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
@@ -55,6 +57,16 @@ export default function CategoryManager({
  <Icon name="close" size={18} />
  </View>
  </View>
+
+ {/* 可滚动内容区：ScrollView 自管手势，真机不再被 catchMove 吞滚动 */}
+ <ScrollView
+   scrollY
+   enhanced
+   bounces
+   showScrollbar
+   style={{ flex: 1, minHeight: 0, maxHeight: '66vh' }}
+   contentContainerStyle={{ paddingBottom: 'calc(32px + env(safe-area-inset-bottom))' }}
+ >
 
  {/* 新建分类 */}
  <View style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
@@ -92,6 +104,9 @@ export default function CategoryManager({
  <View key={p.id}>
  {/* 一级行 */}
  <View style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 0', borderBottomWidth: '1px', borderBottomColor: '#F2F2F2', borderBottomStyle: 'solid' }}>
+ <View onClick={p.scope !== 'global' && onPickIcon ? () => onPickIcon(p) : undefined} style={{ width: '44px', height: '44px', borderRadius: '12px', borderWidth: '1px', borderColor: '#EEE', background: '#FBF7EF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+ <CategoryIcon cat={p} size={36} />
+ </View>
  {editingCatId === p.id ? (
  <Input
  value={editingCatName}
@@ -118,6 +133,9 @@ export default function CategoryManager({
  {/* 二级行（缩进 + 标签） */}
  {kids.map((k: StoreCategory) => (
  <View key={k.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0 8px 28px', borderBottomWidth: '1px', borderBottomColor: '#F2F2F2', borderBottomStyle: 'solid', background: '#FAFAF7' }}>
+ <View onClick={k.scope !== 'global' && onPickIcon ? () => onPickIcon(k) : undefined} style={{ width: '40px', height: '40px', borderRadius: '10px', borderWidth: '1px', borderColor: '#EEE', background: '#FBF7EF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+ <CategoryIcon cat={k} size={32} />
+ </View>
  {editingCatId === k.id ? (
  <Input
  value={editingCatName}
@@ -141,6 +159,7 @@ export default function CategoryManager({
  )
  })}
  <Text style={{ fontSize: '22rpx', color: '#BBB', marginTop: '12px', display: 'block' }}> 总部分类由总部统一维护，店内不可修改；店内分类仅对本店商品生效。选父级可建二级分类（需总部已部署二级分类迁移）。</Text>
+ </ScrollView>
  </View>
  </View>
  )

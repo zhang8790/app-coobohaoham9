@@ -1,11 +1,11 @@
 // @title 首页金刚区
 import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import { getCategories, getProducts } from '@/db/api'
 import { useLocation } from '@/contexts/LocationContext'
 import type { StoreCategory } from '@/db/types'
-import { SCENE_ICON, BRAND_LINE_ICONS } from '@/components/brandIcons'
+import CategoryIcon from '@/components/CategoryIcon'
 // 场景展示名单例（避免各页面各自维护导致首屏/好物页名字不一致）
 import { sceneLabel } from '@/utils/scene-alias'
 
@@ -112,11 +112,7 @@ export default function CategoryGrid({ storeId }: { storeId?: string }) {
                 borderColor: 'hsl(var(--primary) / 0.25)',
               }}
             >
-              {SCENE_ICON[label] ? (
-                <Image src={SCENE_ICON[label]} style={S.width_56rpx_height_56rpx} />
-              ) : (
-                <Image src={BRAND_LINE_ICONS['leaf']} style={S.width_56rpx_height_56rpx} />
-              )}
+              <CategoryIcon cat={c} size={56} />
             </View>
             {/* 分类名：与好物页左栏共用 .cat-name（单一事实源，禁止各自硬写字号） */}
             <Text className="cat-name mt-2 truncate" style={{ maxWidth: '136rpx' }}>{label}</Text>

@@ -13,6 +13,7 @@ import { useLocation } from '@/contexts/LocationContext'
 import { useFoodTherapy } from '@/contexts/FoodTherapyContext'
 import { sceneLabel } from '@/utils/scene-alias'
 import type { Product, StoreCategory } from '@/db/types'
+import CategoryIcon from '@/components/CategoryIcon'
 
 /**
  * 分类商品列表页：首页金刚区 / 好物页类目点选后的落地页。
@@ -142,12 +143,13 @@ export default function CategoryListPage() {
         {subCats.length > 0 && (
           <ScrollView scrollX className="whitespace-nowrap" style={{ width: '100%' }}>
           <View style={{ display: 'inline-flex', gap: '16rpx', padding: '0 32rpx 16rpx' }}>
-            {[{ id: '', name: '全部' }, ...subCats].map((s) => {
+            {([{ id: '', name: '全部', cat: undefined as StoreCategory | undefined }, ...subCats.map((s: StoreCategory) => ({ id: s.id, name: s.name, cat: s }))] as Array<{ id: string; name: string; cat?: StoreCategory }>).map((s) => {
               const on = activeSub === s.id
               return (
                 <View
                   key={s.id || 'all'}
                   onClick={() => setActiveSub(s.id)}
+                  className="flex flex-row items-center"
                   style={{
                     flex: '0 0 auto',
                     padding: '10rpx 28rpx',
@@ -160,6 +162,7 @@ export default function CategoryListPage() {
                     borderColor: on ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.25)',
                   }}
                 >
+                  {s.cat && <View style={{ marginRight: '6rpx' }}><CategoryIcon cat={s.cat} size={30} /></View>}
                   {s.name}
                 </View>
               )
