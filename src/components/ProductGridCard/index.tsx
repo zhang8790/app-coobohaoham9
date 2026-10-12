@@ -129,7 +129,7 @@ export default function ProductGridCard({
  {/* 信息区：高度下限只做「同排卡片对齐」用，值贴近真实内容高度，
  避免信息少时被 minHeight 撑出大片空白（价格行 mt-auto 会把空档全挤在中间） */}
  <View className={`flex flex-col gap-1 flex-1 ${compact ? 'px-2 py-1.5' : 'px-2.5 py-2'}`}
- style={{ minHeight: care ? (compact ? '110px' : '134px') : (compact ? '72px' : '88px') }}>
+ style={{ minHeight: compact ? '110px' : '134px' }}> {/* 统一信息区最小高度：有无食养关怀层都等高，跨行不参差 */}
   <Text className="text-base font-bold text-foreground leading-tight line-clamp-2">{name}</Text>
 
   {/* 规格（净含量）：电商卡「图 · 名+规格 · 价」三件套之一。
