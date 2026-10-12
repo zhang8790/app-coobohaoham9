@@ -405,7 +405,13 @@ export default function AnalysisResult() {
  {/* ──── 推荐替代商品（识→买闭环） ──── */}
  {recProducts.length > 0 && (
  <View style={cardStyle}>
-      <SectionTitle accent="herb" title={report.safe_level_code === 'A_preferred' ? '此商品配料评估较好，看看同类好货' : '为你找到同类好货（按价格排序，仅供参考）'} />
+      <SectionTitle accent="herb" title={(() => {
+        // 方案②：评级（A 档）只看添加剂；若含 forbidden 致敏原，标题降级为中性提示，
+        // 避免「评估较好」与下方红色「禁用」卡片语义打架（评级本身不变）。
+        if (report.safe_level_code !== 'A_preferred') return '为你找到同类好货（按价格排序，仅供参考）';
+        const hasForbidden = (report.main_conclusion?.audience_advice || []).some(a => a.severity === 'forbidden');
+        return hasForbidden ? '含致敏原提示，同类好货供你比对' : '此商品配料评估较好，看看同类好货';
+      })()} />
  {recProducts.map((p) => (
  <View key={p.id} style={recItemStyle}
  onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${p.id}` })}
