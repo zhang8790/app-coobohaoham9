@@ -107,10 +107,8 @@ Deno.serve(async (req: Request) => {
         .eq('id', wid).maybeSingle()
       if (!w) return Response.json({ error: '提现单不存在' }, { status: 404, headers: corsHeaders })
       if (w.kind !== 'settlement') return Response.json({ error: '非货款提现单' }, { status: 400, headers: corsHeaders })
-      // 允许 pending / approved / processing 调用；已 paid / rejected 视为重复打款，拦截
-      if (w.status === 'paid' || w.status === 'rejected') {
-        return Response.json({ error: `提现单状态=${w.status}，不可重复打款` }, { status: 400, headers: corsHeaders })
-      }
+      // 重复打款 / 状态闭环由下方「原子幂等锁」统一处理（见 rows 读取之后），
+      // 不再在此处返回 400 —— 已 paid / processing / rejected 的提现单应幂等返回成功，而非报错。
 
       // 读取门店子商户号
       const { data: store } = await supabase
@@ -165,6 +163,32 @@ Deno.serve(async (req: Request) => {
         }, { headers: corsHeaders })
       }
 
+      // ============ 幂等锁（原子抢占）============
+      // 只用一条 UPDATE ... WHERE status IN ('pending','approved') RETURNING 抢占：
+      //   - 命中（pending/approved → processing）=> 本次获得打款资格，继续；
+      //   - 0 行受影响（已是 processing / paid / completed / rejected）=> 视为已处理，
+      //     幂等返回成功，绝不重复打款。并发第二次调用会因 status 已是 processing 而抢占失败。
+      // 注意：抢占集合刻意排除 'processing'，否则并发两请求都会命中 processing 而双付。
+      const nowIso = new Date().toISOString()
+      const { data: lock, error: lockErr } = await supabase
+        .from('withdrawals')
+        .update({ status: 'processing', updated_at: nowIso })
+        .eq('id', wid)
+        .in('status', ['pending', 'approved'])
+        .select('id')
+        .maybeSingle()
+      if (lockErr) {
+        return Response.json({ error: `幂等锁抢占失败: ${lockErr.message}` }, { status: 500, headers: corsHeaders })
+      }
+      if (!lock) {
+        return Response.json({
+          ok: true,
+          status: 'ALREADY_DONE',
+          message: '该提现单已在处理中或已完成打款，本次触发被幂等拦截，未重复打款。',
+          withdrawal_id: wid,
+        }, { headers: corsHeaders })
+      }
+
       let wechatTotal = 0
       let manualTotal = 0
       let sentCount = 0
@@ -188,7 +212,9 @@ Deno.serve(async (req: Request) => {
               appid: MERCHANT_APP_ID,
               sub_mchid: store.wx_sub_mch_id,
               transaction_id: txId,
-              out_order_no: `SETTLE-${wid.slice(0, 8).toUpperCase()}-${String(row.id).slice(0, 8).toUpperCase()}-${Date.now()}`,
+              // 幂等单号：以「提现单 + 结算单」确定，不含时间戳。重试同一笔时复用同一单号，
+              // 微信分账接口对相同 out_order_no 返回同一结果，杜绝重复分账。
+              out_order_no: `SETTLE-${wid.toUpperCase()}-${String(row.id).toUpperCase()}`,
               receivers: [
                 {
                   type: 'merchant',
@@ -224,16 +250,40 @@ Deno.serve(async (req: Request) => {
       }
 
       if (sentCount > 0) {
+        // 状态闭环：标记提现单已打款 + 记录打款时间，便于对账、并配合幂等锁防重。
+        // paid_at 为新增列（见交付说明中的 SQL 片段）；若暂未加列，请删除此处的 paid_at 字段。
+        const { error: markErr } = await supabase
+          .from('withdrawals')
+          .update({
+            status: 'paid',
+            paid_at: nowIso,
+            updated_at: nowIso,
+            remark: `微信服务商分账已发起 ${sentCount} 笔（wechat¥${Math.round(wechatTotal * 100) / 100} / manual¥${Math.round(manualTotal * 100) / 100}）`,
+          })
+          .eq('id', wid)
+        if (markErr) {
+          // 打款已实际发起，仅落库状态失败 —— 记日志，但对外仍返回成功（避免重试导致重复打款）。
+          console.error('[merchant-payout] 标记 withdrawals.paid 失败:', markErr.message)
+        }
         return Response.json({
           ok: true,
           status: 'PROFITSHARING_SENT',
-          message: `已发起 ${sentCount} 笔微信服务商分账，资金将直达商家子商户号；另有 ¥${manualTotal.toFixed(2)} 为健康豆垫付部分，需平台自有资金支付。`,
+          message: `已发起 ${sentCount} 笔微信服务商分账，资金将直达商家子商户号；另有 ¥${manualTotal.toFixed(2)} 为健康豆垫付部分，需平台自有资金支付。提现单已置为 paid。`,
           wechat_total: Math.round(wechatTotal * 100) / 100,
           manual_total: Math.round(manualTotal * 100) / 100,
           details,
         }, { headers: corsHeaders })
       }
 
+      // sentCount===0：本轮未成功发起任何微信分账（全部失败 / 全部为待平台垫付部分）。
+      // 若此前已抢占为 processing，则回滚到 approved，允许人工处理后再次触发；
+      // 否则（未抢占，例如纯 manual）保持原状态不变。
+      if (lock) {
+        await supabase
+          .from('withdrawals')
+          .update({ status: 'approved', updated_at: new Date().toISOString() })
+          .eq('id', wid)
+      }
       return Response.json({
         ok: true,
         status: 'MANUAL_PAYOUT',

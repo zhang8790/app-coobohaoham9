@@ -998,6 +998,7 @@ CREATE TABLE IF NOT EXISTS public.withdrawals (
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','processing','completed','rejected')),
   reject_reason text,
   processed_at timestamptz,
+  paid_at     timestamptz,  -- 货款/佣金实际打款完成时间，由 merchant-payout 在成功打款后置为 now()
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -5385,6 +5386,13 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_unread_created
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_created
   ON notifications (user_id, created_at DESC);
+
+  -- RLS：通知为用户私有数据，此前无任何 RLS 语句 → anon/其他用户可越权读取他人通知。
+  -- 现启用 RLS 并限定仅本人（auth.uid()）可读写自己的通知；后台/服务端经 service_role 写入（send-notification）会绕过 RLS，不受影响。
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY notifications_owner_select ON public.notifications FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY notifications_owner_update ON public.notifications FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY notifications_owner_insert ON public.notifications FOR INSERT WITH CHECK (user_id = auth.uid());
 
 -- 测试期放开：与 emotion_claims 等用户表一致
 ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
@@ -17922,3 +17930,42 @@ UPDATE products
 -- ==================== 回滚_类目图标_2026-09-24.sql ====================
 -- 回滚：移除 store_categories.icon 列（场景图标恢复前端硬编码兜底）
 ALTER TABLE public.store_categories DROP COLUMN IF EXISTS icon;
+
+-- ==================== 补建 get_platform_metrics（消除迁移漂移导致的线上函数缺失报错） ====================
+-- 背景：src/db/api.ts 的 getPlatformMetrics() 调用 supabase.rpc('get_platform_metrics')，
+--       但此前 schema.sql 从未定义该函数（迁移漂移），线上 RPC 缺失直接报错。
+-- 返回列必须与调用方期望严格一致（src/db/api.ts:2071）：
+--   total_cv         全平台有效会员贡献值总和（排除封禁用户，口径对齐 fn_total_cv）
+--   gmv_total        有效订单累计成交额（status ∈ 有效集合，对齐 fn_add_sales 的 v_paid 口径）
+--   new_users_month  本月新增注册用户数
+--   net_margin_total 净毛利估算 = gmv_total × GROSS_MARGIN_FALLBACK(0.15)，与前端估算约定一致
+-- 幂等：CREATE OR REPLACE；与现有函数风格一致（SECURITY DEFINER + SET search_path）。
+CREATE OR REPLACE FUNCTION public.get_platform_metrics()
+RETURNS TABLE (
+  total_cv         numeric,
+  gmv_total        numeric,
+  new_users_month  bigint,
+  net_margin_total numeric
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    COALESCE((SELECT SUM(p.cv_total)
+                FROM public.profiles p
+               WHERE NOT p.is_banned), 0)::numeric AS total_cv,
+    COALESCE((SELECT SUM(o.total_amount)
+                FROM public.orders o
+               WHERE o.status IN ('pending_ship','pending_receive','pending_pickup','pending_review','completed')), 0)::numeric AS gmv_total,
+    COALESCE((SELECT COUNT(*)
+                FROM public.profiles p
+               WHERE p.created_at >= date_trunc('month', now())), 0)::bigint AS new_users_month,
+    (COALESCE((SELECT SUM(o.total_amount)
+                 FROM public.orders o
+                WHERE o.status IN ('pending_ship','pending_receive','pending_pickup','pending_review','completed')), 0)::numeric
+     * 0.15) AS net_margin_total;
+$$;
+
+-- 权限：与 fn_total_cv 等只读统计函数保持一致，允许 anon / authenticated 调用
+GRANT EXECUTE ON FUNCTION public.get_platform_metrics() TO anon, authenticated;

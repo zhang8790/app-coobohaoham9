@@ -544,6 +544,7 @@ function PaymentPage() {
  if (repayMode && repayOrderIdRef.current) {
  _payLock.current = true
  setPaying(true)
+ Taro.showLoading({ title: payMode === 'pure_gold' ? '健康豆支付中...' : '订单处理中...', mask: true })
  try {
  const isWeapp = Taro.getEnv() === 'WEAPP'
  if (!isWeapp) {
@@ -557,6 +558,7 @@ function PaymentPage() {
  const payParams = await getWechatPayParams(repayOrderIdRef.current, openid)
  if (!payParams) throw new Error('微信支付参数获取失败，请检查商户配置')
 
+ Taro.hideLoading()
  await Taro.requestPayment({
  timeStamp: payParams.timeStamp,
  nonceStr: payParams.nonceStr,
@@ -577,27 +579,7 @@ function PaymentPage() {
  }
  } catch (e) { console.warn('[重付] 状态更新失败(不影响)', e) }
 
- // 混合支付：微信支付成功后再扣健康豆（健康豆抵扣额已锁定 = 订单 tb_used，与 EF 重付金额一致）
- if (payMode === 'hybrid' && actualGoldBeansUsed > 0) {
- try {
- const prof = await getMyProfile()
- if (prof?.id) {
- const { data: p2 } = await supabase.from('profiles').select('tb_balance').eq('id', prof.id).single()
- if (p2 && p2.tb_balance >= actualGoldBeansUsed) {
- const { error: derr } = await supabase.from('profiles').update({ tb_balance: p2.tb_balance - actualGoldBeansUsed }).eq('id', prof.id)
- if (derr) console.warn('[重付混合] 健康豆扣减失败(不影响订单)', derr)
- else {
- supabase.from('tongbao_logs').insert({
- user_id: prof.id, order_id: null, type: 'purchase_spend',
- delta: -actualGoldBeansUsed, balance_after: (p2.tb_balance ?? 0) - actualGoldBeansUsed,
- remark: '混合支付消费抵扣健康豆' }).then(() => {}).catch((e: any) => {
- if ((e as any)?.code === '42P01' || (e as any)?.status === 404) console.warn('[tongbao_logs] 表不存在(00096未执行)')
- })
- }
- } else console.warn('[重付混合] 健康豆余额不足，跳过扣减')
- }
- } catch (e) { console.warn('[重付混合] 健康豆扣减异常(不影响订单)', e) }
- }
+ // 重付混合支付健康豆扣减改由服务端 wechat-payment-callback 幂等处理（客户端不再扣，杜绝双扣/白嫖）。
 
  // 跨门店结算：确认所有子订单
  if (repayIsMultiStore && repayParentOrderNo) {
@@ -618,14 +600,16 @@ function PaymentPage() {
  Taro.showToast({ title: msg || '支付失败，请重试', icon: 'none' })
  }
  } finally {
+ Taro.hideLoading()
  setPaying(false)
  _payLock.current = false
  }
  return
- }
+}
 
  _payLock.current = true
  setPaying(true)
+ Taro.showLoading({ title: payMode === 'pure_gold' ? '健康豆支付中...' : '订单处理中...', mask: true })
 
  try {
  // 拼接地址字符串
@@ -669,6 +653,7 @@ function PaymentPage() {
 
  // 2. 纯健康豆：已在服务端完成，直接跳转
  if (payMode === 'pure_gold') {
+ Taro.hideLoading()
  Taro.showToast({ title: '健康豆支付成功！', icon: 'success' })
 
  // 清理购物车里已结算的条目（避免下次进入仍看到「未支付」的已购商品）
@@ -725,7 +710,8 @@ function PaymentPage() {
  const payParams = await getWechatPayParams(orderResult.order.id, openid)
  if (!payParams) throw new Error('微信支付参数获取失败，请检查商户配置')
 
- // 调起微信支付
+ // 调起微信支付（先关 loading，避免遮罩盖住原生支付键盘）
+ Taro.hideLoading()
  await Taro.requestPayment({
  timeStamp: payParams.timeStamp,
  nonceStr: payParams.nonceStr,
@@ -750,35 +736,7 @@ function PaymentPage() {
  }
  } catch (e) { console.warn('[支付成功] 更新状态失败(不影响)', e) }
 
- // 混合支付：微信支付成功后再扣健康豆（订单已记录 tb_used，此处执行实际扣减）
- if (payMode === 'hybrid' && actualGoldBeansUsed > 0) {
- try {
- const prof = await getMyProfile()
- if (prof?.id) {
- const { data: p2 } = await supabase.from('profiles').select('tb_balance').eq('id', prof.id).single()
- if (p2 && p2.tb_balance >= actualGoldBeansUsed) {
- const { error: derr } = await supabase.from('profiles').update({ tb_balance: p2.tb_balance - actualGoldBeansUsed }).eq('id', prof.id)
- if (derr) console.warn('[混合支付] 健康豆扣减失败(不影响订单)', derr)
- else {
- // 非阻塞写健康豆流水（混合支付消费抵扣）；表缺失(404)也不影响订单
- supabase.from('tongbao_logs').insert({
- user_id: prof.id,
- order_id: null,
- type: 'purchase_spend',
- delta: -actualGoldBeansUsed,
- balance_after: (p2.tb_balance ?? 0) - actualGoldBeansUsed,
- remark: '混合支付消费抵扣健康豆'}).then(() => {}).catch((e: any) => {
- if ((e as any)?.code === '42P01' || (e as any)?.status === 404) {
- console.warn('[tongbao_logs] 表不存在(00096未执行)，流水暂不记录')
- }
- })
- }
- } else {
- console.warn('[混合支付] 健康豆余额不足，跳过扣减')
- }
- }
- } catch (e) { console.warn('[混合支付] 健康豆扣减异常(不影响订单)', e) }
- }
+ // 混合支付健康豆扣减改由服务端 wechat-payment-callback 幂等处理（客户端不再扣，杜绝双扣/白嫖）。
 
  // 跨门店结算：确认所有子订单
  if (isMultiStore && parentOrderNo) {
@@ -802,7 +760,8 @@ function PaymentPage() {
  // 支付成功 → 进入「支付成功结果页」（标准确认点；评价改为用户主动，不再被推）
  setTimeout(() => {
  Taro.navigateTo({ url: buildResultUrl(orderResult?.order?.order_no || '', orderTotal, serviceType) })
- }, 1500)} catch (err: any) {
+ }, 1500)
+} catch (err: any) {
  const msg = err?.message || ''
  if (msg.includes('cancel') || msg.includes('用户取消')) {
  Taro.showToast({ title: '已取消支付', icon: 'none' })
@@ -810,10 +769,11 @@ function PaymentPage() {
  Taro.showToast({ title: msg || '支付失败，请重试', icon: 'none' })
  }
  } finally {
+ Taro.hideLoading()
  setPaying(false)
  _payLock.current = false
  }
- }
+}
 
  const handleCancel = () => {
  Taro.showModal({ title: '取消支付', content: '确认放弃本次支付？订单将保留30分钟', success: (res) => {

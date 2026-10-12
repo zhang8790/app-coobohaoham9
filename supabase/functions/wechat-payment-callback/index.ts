@@ -90,13 +90,21 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ code: 'FAIL', message: 'DB error' }), { status: 200 })
     }
 
-    if (!updated || updated.length === 0) {
-      // 0行受影响 = 重复回调，直接返回 SUCCESS
-      console.log('[wechat-payment-callback] duplicate callback for', outTradeNo)
-      return new Response(JSON.stringify({ code: 'SUCCESS', message: '重复回调已忽略' }), { status: 200 })
+    const isFreshPayment = !!(updated && updated.length > 0)
+    let order: any = isFreshPayment ? (updated as any[])[0] : null
+    if (!order) {
+      // 0 行：状态已被客户端提前流转（混合支付客户端先置已支付态）或确为重复回调。
+      // 重新拉取订单，仍执行「幂等健康豆扣减」作为兜底（防客户端扣减失败导致白嫖），
+      // 但不重复触发分佣 / 通知。
+      const { data: o } = await supabase.from('orders')
+        .select('id, order_no, user_id, total_amount, referrer_id, tb_used, store_id, payment_method')
+        .eq('order_no', outTradeNo).maybeSingle()
+      order = (o as any) ?? null
     }
-
-    const order = updated[0]
+    if (!order) {
+      console.warn('[wechat-payment-callback] order not found for', outTradeNo)
+      return new Response(JSON.stringify({ code: 'SUCCESS', message: '订单不存在' }), { status: 200 })
+    }
 
     // D1~D3 修复：读取商家让利率 stores.referral_rate（小数口径，如 0.09=9%）及整体让利开关
     // referral_rate_enabled，透传给 distribute-commission，使云端分佣让利池基数与前端支付页预览完全一致（展示=实发）。
@@ -155,30 +163,39 @@ Deno.serve(async (req: Request) => {
 
     // P0 修复：混合支付健康豆抵扣——纯健康豆已在下单时当场扣除；混合支付(payment_method=wxpay 但
     // tb_used>0)的健康豆推迟到此处（微信支付成功）扣除，避免支付失败却锁健康豆。此前此处漏扣 → 用户白嫖抵扣。
+    // 幂等健康豆扣减：以 tongbao_logs(purchase_spend, order_id) 是否存在作为单次扣减凭证，
+    // 客户端与服务端回调任一先到都只扣一次；先扣方写凭证，后到方跳过（彻底消除双扣，且客户端扣失败时有服务端兜底防白嫖）。
     const goldBeansUsed = order.tb_used ?? 0
     if (goldBeansUsed > 0 && order.payment_method === 'wxpay') {
       try {
-        const { data: gbProf } = await supabase.from('profiles').select('tb_balance').eq('id', order.user_id).maybeSingle()
-        const cur = gbProf?.tb_balance ?? 0
-        if (cur >= goldBeansUsed) {
-          await supabase.from('profiles').update({ tb_balance: cur - goldBeansUsed }).eq('id', order.user_id)
-          supabase.from('tongbao_logs').insert({
-            user_id: order.user_id, order_id: order.id, type: 'purchase_spend',
-            delta: -goldBeansUsed, balance_after: cur - goldBeansUsed,
-            remark: `订单${order.order_no}混合支付健康豆抵扣`,
-          }).then(() => {}) // fire-and-forget audit log
+        const { data: existLog } = await supabase.from('tongbao_logs')
+          .select('id').eq('order_id', order.id).eq('type', 'purchase_spend').maybeSingle()
+        if (existLog) {
+          console.log('[wechat-payment-callback] 健康豆已扣，跳过（幂等）', outTradeNo)
         } else {
-          console.warn('[wechat-payment-callback] 健康豆不足，跳过扣减', { uid: order.user_id, cur, need: goldBeansUsed })
+          const { data: gbProf } = await supabase.from('profiles').select('tb_balance').eq('id', order.user_id).maybeSingle()
+          const cur = gbProf?.tb_balance ?? 0
+          if (cur >= goldBeansUsed) {
+            await supabase.from('profiles').update({ tb_balance: cur - goldBeansUsed }).eq('id', order.user_id)
+            supabase.from('tongbao_logs').insert({
+              user_id: order.user_id, order_id: order.id, type: 'purchase_spend',
+              delta: -goldBeansUsed, balance_after: cur - goldBeansUsed,
+              remark: `订单${order.order_no}混合支付健康豆抵扣`,
+            }).then(() => {}) // fire-and-forget audit log
+          } else {
+            console.warn('[wechat-payment-callback] 健康豆不足，跳过扣减', { uid: order.user_id, cur, need: goldBeansUsed })
+          }
         }
       } catch (e) { console.error('[wechat-payment-callback] 混合健康豆扣减异常', e) }
     }
 
-    // 异步触发分润（不阻塞回调响应）
+    // 异步触发分润（不阻塞回调响应）—仅首次支付成功触发，重复/兜底回调不再触发，避免重复分佣
     // total_amount = 订单全额（含健康豆），作为分佣/让利池基数（2026-07-19 起全额参与分佣）
     // net_amount = 实际微信现金支付额（扣除健康豆抵扣后），仅用于计提微信收单通道费
     const netCashAmount = Math.max(0, (order.total_amount ?? 0) - goldBeansUsed)
     // 落库整单加权率（便于展示/追溯）
     try { await supabase.from('orders').update({ effective_rate: effectiveRate }).eq('id', order.id) } catch {}
+    if (isFreshPayment) {
     supabase.functions.invoke('distribute-commission', {
       body: {
         order_id: order.id,
@@ -194,8 +211,10 @@ Deno.serve(async (req: Request) => {
       console.error('[wechat-payment-callback] distribute-commission error:', msg)
       try { await supabase.from('orders').update({ commission_error: msg }).eq('id', order.id) } catch {}
     })
+    }
 
-    // 异步推送「订单支付成功」通知（不阻塞回调）
+    // 异步推送「订单支付成功」通知（不阻塞回调）—仅首次支付成功推送，避免重复通知
+    if (isFreshPayment) {
     supabase.functions.invoke('send-notification', {
       body: {
         user_id: order.user_id,
@@ -212,6 +231,7 @@ Deno.serve(async (req: Request) => {
         },
       }
     }).catch(e => console.warn('[wechat-payment-callback] send-notification error:', e))
+    }
 
     return new Response(JSON.stringify({ code: 'SUCCESS', message: '处理成功' }), { status: 200 })
 

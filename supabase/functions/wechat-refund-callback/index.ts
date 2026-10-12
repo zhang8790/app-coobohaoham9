@@ -92,28 +92,52 @@ Deno.serve(async (req: Request) => {
       // 2026-07-19 起佣金统一发往 tb_balance，故此处扣 tb_balance 并写 commission_revoke 流水；
       // 此前扣 commission_balance 对当前订单无效（资损），已修正。
       const { data: commissions } = await supabase.from('commissions')
-        .select('id,beneficiary_id,commission_amount').eq('order_id', existing.order_id).in('status', ['pending', 'settled'])
+        .select('id, beneficiary_id, commission_amount, cash_portion, bean_portion, status')
+        .eq('order_id', existing.order_id).in('status', ['pending', 'settled'])
 
       const ratio = refundAmount / totalAmount
 
       for (const c of (commissions ?? [])) {
-        const amt = Math.max(0, Math.round(Number(c.commission_amount || 0) * ratio * 100) / 100)
         await supabase.from('commissions').update({ status: 'refunded' }).eq('id', c.id)
-        if (amt <= 0 || !c.beneficiary_id) {
-          console.log(`[wechat-refund-callback] commission ${c.id} marked refunded (no clawback)`)
+        if (!c.beneficiary_id) {
+          console.log(`[wechat-refund-callback] commission ${c.id} marked refunded (no beneficiary)`)
           continue
         }
-        const { data: benBal } = await supabase.from('profiles').select('tb_balance').eq('id', c.beneficiary_id).maybeSingle()
-        if (benBal) {
-          const newTb = Math.round((Number(benBal.tb_balance || 0) - amt) * 100) / 100
-          await supabase.from('profiles').update({ tb_balance: newTb }).eq('id', c.beneficiary_id)
-          await supabase.from('tongbao_logs').insert({
-            user_id: c.beneficiary_id, order_id: existing.order_id,
-            type: 'commission_revoke', delta: -amt, balance_after: newTb,
-            remark: `订单${existing.order_no}退款佣金回冲`,
-          })
+        // 2026-07-29 起推广收益按「50% 可提现佣金 + 50% 健康豆」拆分发放，
+        // 此处须按 cash_portion→commission_balance / bean_portion→tb_balance 双账户回滚，
+        // 否则已退款订单的佣金仍可被消费/提现 = 资损（此前整笔扣 tb_balance 漏回 commission_balance）。
+        const cashPortion = Number((c as any).cash_portion || 0)
+        const beanPortion = Number((c as any).bean_portion || 0)
+        const legacy = (cashPortion + beanPortion) === 0
+        const effBean = legacy ? Number(c.commission_amount || 0) : beanPortion
+        const effCash = legacy ? 0 : cashPortion
+        const beanClawback = Math.max(0, Math.round(effBean * ratio * 100) / 100)
+        const cashClawback = Math.max(0, Math.round(effCash * ratio * 100) / 100)
+        if (beanClawback > 0) {
+          const { data: bProf } = await supabase.from('profiles').select('tb_balance').eq('id', c.beneficiary_id).maybeSingle()
+          if (bProf) {
+            const newTb = Math.round((Number((bProf as any).tb_balance || 0) - beanClawback) * 100) / 100
+            await supabase.from('profiles').update({ tb_balance: newTb }).eq('id', c.beneficiary_id)
+            await supabase.from('tongbao_logs').insert({
+              user_id: c.beneficiary_id, order_id: existing.order_id,
+              type: 'commission_revoke', delta: -beanClawback, balance_after: newTb,
+              remark: `订单${existing.order_no}退款佣金回冲(健康豆)`,
+            })
+          }
         }
-        console.log(`[wechat-refund-callback] commission ${c.id} clawback amt=${amt} ratio=${ratio.toFixed(4)}`)
+        if (cashClawback > 0) {
+          const { data: bProf } = await supabase.from('profiles').select('commission_balance').eq('id', c.beneficiary_id).maybeSingle()
+          if (bProf) {
+            const newBal = Math.round((Number((bProf as any).commission_balance || 0) - cashClawback) * 100) / 100
+            await supabase.from('profiles').update({ commission_balance: newBal }).eq('id', c.beneficiary_id)
+            await supabase.from('commission_balance_logs').insert({
+              user_id: c.beneficiary_id, order_id: existing.order_id, commission_id: c.id,
+              type: 'commission_revoke', delta: -cashClawback, balance_after: newBal,
+              remark: `订单${existing.order_no}退款佣金回冲(可提现)`,
+            }).catch((e: any) => console.warn('[commission_balance_logs] 回冲失败:', (e as any)?.message))
+          }
+        }
+        console.log(`[wechat-refund-callback] commission ${c.id} clawback bean=${beanClawback} cash=${cashClawback} ratio=${ratio.toFixed(4)}`)
       }
 
       // 扣回积分（points_logs 真实列：related_order_id/amount/type/source）

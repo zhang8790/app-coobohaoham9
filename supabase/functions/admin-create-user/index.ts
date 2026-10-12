@@ -30,6 +30,12 @@ function isValidEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 }
 
+// 归一化为 E.164（+86 前缀），与后台 signInWithPhonePassword 的入参规则一致
+function normalizeCnPhone(v: string): string {
+  const digits = (v || '').replace(/\D/g, '').replace(/^86/, '')
+  return '+86' + digits
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -78,16 +84,19 @@ Deno.serve(async (req: Request) => {
 
   // 展示用标识（优先手机号，便于仅手机号账号回显）
   const label = phone || email
+  // 手机号归一化为 E.164，保证与后台「手机号+密码」登录（signInWithPhonePassword 用 +86 前缀）口径一致
+  const phoneE164 = phone ? normalizeCnPhone(phone) : ''
 
   try {
     // ---- 3. 创建认证账号（email / phone 二选一均可，均自动确认可立即登录）----
+    //    手机号写入 auth.users.phone（E.164）+ raw_user_meta_data.phone，使后台可按手机号登录。
     const { data: newUser, error: createErr } = await serviceSupabase.auth.admin.createUser({
       email: email || undefined,
       password,
-      phone: phone || undefined,
+      phone: phoneE164 || undefined,
       email_confirm: email ? true : undefined,
       phone_confirm: phone ? true : undefined,
-      user_metadata: { nickname: nickname || label },
+      user_metadata: { nickname: nickname || label, ...(phoneE164 ? { phone: phoneE164 } : {}) },
     })
     if (createErr || !newUser?.user) {
       // 常见：邮箱/手机号已存在(duplicate) / 密码策略
@@ -108,7 +117,7 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(`[admin-create-user] admin ${user.id} 创建账号 ${label} 角色=${role}`)
-    return json({ ok: true, user: { id: newUser.user.id, email: email || null, phone: phone || null, role } })
+    return json({ ok: true, user: { id: newUser.user.id, email: email || null, phone: phoneE164 || null, role } })
   } catch (err: any) {
     console.error('[admin-create-user] error:', err)
     return json({ error: err?.message ?? '内部错误' }, 500)

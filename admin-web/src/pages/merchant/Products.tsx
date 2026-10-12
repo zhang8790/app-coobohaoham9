@@ -414,7 +414,8 @@ export default function MerchantProducts() {
         window.alert('未找到关联门店，无法修改上架状态。')
         return
       }
-      const { error } = await supabase.from('products').update({ is_active: newActive }).eq('id', id)
+      // 防御越权：单店内操作强制按本店 store_id 过滤，杜绝跨店改上架状态
+      const { error } = await supabase.from('products').update({ is_active: newActive }).eq('id', id).eq('store_id', storeId)
       if (error) {
         window.alert(`上架状态更新失败：\n${error.message}${error.hint ? '\n提示：' + error.hint : ''}`)
         console.warn('[Products] 更新状态失败:', error); return
@@ -933,7 +934,7 @@ export default function MerchantProducts() {
       }
       const persist = (b: any) =>
         editing
-          ? supabase.from('products').update(b).eq('id', editing.id)
+          ? supabase.from('products').update(b).eq('id', editing.id).eq('store_id', storeId)
           : supabase.from('products').insert({
               ...b,
               store_id: storeId,
@@ -991,7 +992,8 @@ export default function MerchantProducts() {
   const handleDelete = async (id: string) => {
     if (!confirm('确认删除该商品？删除后不可恢复。')) return
     if (!useMock && storeId) {
-      const { error } = await supabase.from('products').delete().eq('id', id)
+      // 防御越权：删除强制按本店 store_id 过滤，杜绝跨店删除他人商品
+      const { error } = await supabase.from('products').delete().eq('id', id).eq('store_id', storeId)
       if (error) { console.warn('[Products] 删除失败:', error); return }
     }
     setList(prev => prev.filter(p => p.id !== id))
@@ -1011,7 +1013,8 @@ export default function MerchantProducts() {
     if (selectedIds.length === 0) return
     if (!confirm(`确认删除选中的 ${selectedIds.length} 个商品？删除后不可恢复。`)) return
     if (!useMock && storeId) {
-      const { error } = await supabase.from('products').delete().in('id', selectedIds)
+      // 防御越权：批量删除强制按本店 store_id 过滤，杜绝跨店删除他人商品
+      const { error } = await supabase.from('products').delete().in('id', selectedIds).eq('store_id', storeId)
       if (error) { console.warn('[Products] 批量删除失败:', error); return }
     }
     setList(prev => prev.filter(p => !selectedIds.includes(p.id)))
@@ -1024,7 +1027,8 @@ export default function MerchantProducts() {
     if (!confirm(`确认将选中的 ${selectedIds.length} 个商品${active ? '上架' : '下架'}？`)) return
     if (!useMock) {
       if (!storeId) { window.alert('未找到关联门店，无法修改上架状态。'); return }
-      const { error } = await supabase.from('products').update({ is_active: active }).in('id', selectedIds)
+      // 防御越权：批量上/下架强制按本店 store_id 过滤，杜绝跨店改状态
+      const { error } = await supabase.from('products').update({ is_active: active }).in('id', selectedIds).eq('store_id', storeId)
       if (error) { window.alert(`上架状态更新失败：\n${error.message}`); console.warn('[Products] 批量上/下架失败:', error); return }
     }
     setList(prev => prev.map(p => selectedIds.includes(p.id)

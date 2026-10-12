@@ -1,6 +1,12 @@
 // 食材食疗智能导购 —— LLM 网关客户端（规则做脑、LLM 做嘴）
 // 通过 supabase Edge Function food-therapy-ai 调用；未配置 LLM_API_KEY 或调用失败时
 // 自动回退规则引擎结果，系统照常可用，零外部依赖。
+//
+// TODO(mobile-app, 2026-10-12 架构审计): food-therapy-ai 这个 Edge Function 当前在
+//   supabase/functions/ 下并不存在（仓库内无对应目录；2026-10 的 AI 下线清理中可能已移除/未随
+//   仓库部署，deploy-llm-config.sh 仍有 `supabase functions deploy food-therapy-ai` 但会失败）。
+//   下方两处 invoke 失败（404 / 缺配置）时不会抛异常崩溃，会走规则引擎兜底（见各函数 try/catch）。
+//   如需恢复 AI 文案，应在 supabase/functions/ 重建该 EF（需对齐原契约），不要凭空新建同名空实现。
 
 import type { FitRule, FoodTherapyInput, MarketingCopy } from './types'
 import { generateMarketingCopy } from './marketing'
@@ -29,6 +35,7 @@ export interface NluResult {
 export async function nluParseSymptoms(text: string): Promise<NluResult> {
   try {
     const supabase = await getSupabase()
+    // TODO: food-therapy-ai EF 当前在仓库内不存在（见文件头说明）；调用失败走下方规则兜底，不崩。
     const { data, error } = await supabase.functions.invoke('food-therapy-ai', {
       body: { mode: 'nlu', text },
     })
@@ -57,6 +64,7 @@ export async function generateMarketingCopyLLM(
   const base = generateMarketingCopy(input, rule)
   try {
     const supabase = await getSupabase()
+    // TODO: food-therapy-ai EF 当前在仓库内不存在（见文件头说明）；调用失败走下方规则兜底，不崩。
     const { data, error } = await supabase.functions.invoke('food-therapy-ai', {
       body: {
         mode: 'copy',

@@ -192,17 +192,27 @@ Deno.serve(async (req: Request) => {
     if (!userId) return fail(codeErr || 'code_invalid_or_expired', '验证码错误或已过期')
 
     // 2) 写密码 + 派生邮箱（email_confirm 必须为 true，否则无法 signInWithPassword）
+    //    同时显式把真实手机号写入 auth.users.phone（E.164）与 raw_user_meta_data.phone，
+    //    使后台「手机号+密码」登录（signInWithPhonePassword 用 E.164 匹配）可命中。
+    //    此前只设了 phone_confirm 而未写 phone 本身，导致历史/异常账号 phone 为空，
+    //    后台登录报「该手机号未注册/无权限」。显式落库后向后兼容、对已有账号幂等。
     const loginEmail = deriveEmail(phoneE164)
     const { error: updErr } = await ctx.admin.auth.admin.updateUserById(userId, {
       email: loginEmail,
       password,
       email_confirm: true,
       phone_confirm: true,
+      phone: phoneE164,
+      user_metadata: { phone: phoneE164 },
     })
     if (updErr) {
-      // 邮箱已被占用（极端情况：同一手机号重复派生）→ 只改密码
+      // 邮箱已被占用（极端情况：同一手机号重复派生）→ 只改密码，phone 已在 OTP 步落库
       if (/already|registered|exists/i.test(updErr.message || '')) {
-        const { error: pwErr } = await ctx.admin.auth.admin.updateUserById(userId, { password })
+        const { error: pwErr } = await ctx.admin.auth.admin.updateUserById(userId, {
+          password,
+          phone: phoneE164,
+          user_metadata: { phone: phoneE164 },
+        })
         if (pwErr) return fail('update_failed', pwErr.message, 500)
       } else {
         return fail('update_failed', updErr.message, 500)

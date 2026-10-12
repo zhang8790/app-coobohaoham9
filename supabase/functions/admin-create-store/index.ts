@@ -30,6 +30,12 @@ function isValidEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 }
 
+// 归一化为 E.164（+86 前缀），与后台 signInWithPhonePassword 的入参规则一致
+function normalizeCnPhone(v: string): string {
+  const digits = (v || '').replace(/\D/g, '').replace(/^86/, '')
+  return '+86' + digits
+}
+
 // 生成门店 short_code（LDYX + 4 位随机字母数字），冲突重试
 function genShortCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -95,15 +101,19 @@ Deno.serve(async (req: Request) => {
   if (!STORE_TYPES.includes(store_type as any)) return json({ error: '非法门店类型' }, 400)
   if (referral_rate < 0 || referral_rate > 1) return json({ error: '让利率需为 0~1 的小数' }, 400)
 
+  // 运营手机号归一化为 E.164，保证与后台「手机号+密码」登录口径一致
+  const managerPhoneE164 = manager_phone ? normalizeCnPhone(manager_phone) : ''
+
   try {
     // ---- 3. 创建运营登录账号（email 直接确认，可立即登录）----
+    //    手机号写入 auth.users.phone（E.164）+ raw_user_meta_data.phone，使后台可按手机号登录。
     const { data: newUser, error: createErr } = await serviceSupabase.auth.admin.createUser({
       email: manager_email,
       password: manager_password,
-      phone: manager_phone || undefined,
+      phone: managerPhoneE164 || undefined,
       email_confirm: true,
       phone_confirm: manager_phone ? true : undefined,
-      user_metadata: { nickname: manager_nickname || store_name },
+      user_metadata: { nickname: manager_nickname || store_name, ...(managerPhoneE164 ? { phone: managerPhoneE164 } : {}) },
     })
     if (createErr || !newUser?.user) {
       return json({ error: createErr?.message || '创建运营账号失败' }, 400)
