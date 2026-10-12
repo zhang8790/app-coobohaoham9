@@ -181,9 +181,9 @@ export default function MerchantDashboard() {
 
   const TONE_STYLE: Record<string, { bg: string; chipBg: string; chipColor: string; valueColor: string; labelColor: string; subColor: string; shadow?: string }> = {
     featured: {
-      bg: 'linear-gradient(135deg, #E87964 0%, #C0533D 100%)', chipBg: 'rgba(255,255,255,0.22)', chipColor: '#fff',
+      bg: 'linear-gradient(135deg, #649064 0%, #3E6541 100%)', chipBg: 'rgba(255,255,255,0.22)', chipColor: '#fff',
       valueColor: '#fff', labelColor: 'rgba(255,255,255,0.92)', subColor: 'rgba(255,255,255,0.75)',
-      shadow: '0 8px 20px rgba(192, 83, 61, 0.28)',
+      shadow: '0 8px 20px rgba(62, 101, 65, 0.28)',
     },
     info: { bg: 'var(--info-soft)', chipBg: 'var(--surface)', chipColor: 'var(--info)', valueColor: 'var(--info-text)', labelColor: 'var(--text)', subColor: 'var(--text-dim)' },
     primary: { bg: 'var(--primary-soft)', chipBg: 'var(--surface)', chipColor: 'var(--primary-strong)', valueColor: 'var(--primary-strong)', labelColor: 'var(--text)', subColor: 'var(--text-dim)' },

@@ -87,11 +87,11 @@ export default function Dashboard() {
         subtitle="平台关键数据总览"
         breadcrumb={<><NavIcon name="grid" size={13} /> 运营管理</>}
         extra={connStatus === 'mock' ? (
-          <span style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid rgba(217,135,10,0.3)' }}>Mock 模式</span>
+          <span style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid rgba(107,114,128,0.3)' }}>Mock 模式</span>
         ) : connStatus === 'real_ok' ? (
           <span style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: 'var(--success-soft)', color: 'var(--success-strong)', border: '1px solid rgba(21,163,74,0.3)' }}>已连接真实后端</span>
         ) : connStatus === 'real_fail' ? (
-          <span style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: 'var(--danger-soft)', color: 'var(--danger-text)', border: '1px solid rgba(220,38,38,0.3)' }}>后端连接失败</span>
+          <span style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: 'var(--danger-soft)', color: 'var(--danger-text)', border: '1px solid rgba(100,144,100,0.3)' }}>后端连接失败</span>
         ) : undefined}
       />
 
@@ -102,7 +102,7 @@ export default function Dashboard() {
           display: 'flex', alignItems: 'center', gap: 10,
           background: connStatus === 'real_ok' ? 'var(--success-soft)' : connStatus === 'real_fail' ? 'var(--danger-soft)' : 'var(--surface-2)',
           border: `1px solid ${
-            connStatus === 'real_ok' ? 'rgba(21,163,74,0.25)' : connStatus === 'real_fail' ? 'rgba(220,38,38,0.25)' : 'var(--border)'
+            connStatus === 'real_ok' ? 'rgba(21,163,74,0.25)' : connStatus === 'real_fail' ? 'rgba(100,144,100,0.25)' : 'var(--border)'
           }`,
         }}>
           <NavIcon name={connStatus === 'real_ok' ? 'check' : connStatus === 'real_fail' ? 'alert' : 'grid'} size={16}

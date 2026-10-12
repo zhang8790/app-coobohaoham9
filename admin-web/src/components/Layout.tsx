@@ -216,7 +216,7 @@ export default function Layout() {
               padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600,
               background: useMock ? 'var(--warning-soft)' : 'var(--success-soft)',
               color: useMock ? 'var(--warning)' : 'var(--success-strong)',
-              border: `1px solid ${useMock ? 'rgba(217,135,10,0.3)' : 'rgba(21,163,74,0.3)'}`,
+              border: `1px solid ${useMock ? 'rgba(107,114,128,0.3)' : 'rgba(21,163,74,0.3)'}`,
             }}>
               {useMock ? 'Mock 模式' : '真实后端'}
             </span>

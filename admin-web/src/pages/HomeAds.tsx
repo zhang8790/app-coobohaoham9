@@ -134,7 +134,7 @@ export default function HomeAds() {
                       width: 160, height: 90, borderRadius: 10, border: '1px dashed var(--border-soft)',
                       background: s.image_url
                         ? `url(${s.image_url}) center/cover`
-                        : 'linear-gradient(135deg, #4CC2A0 0%, #1F9D6B 100%)',
+                        : 'linear-gradient(135deg, #649064 0%, #3E6541 100%)',
                       display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: 6, overflow: 'hidden',
                     }}
                   >

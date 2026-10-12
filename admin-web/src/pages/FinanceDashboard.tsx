@@ -204,7 +204,7 @@ export default function FinanceDashboard() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {alerts.map((a, i) => (
             <div key={i} style={{
-              background: a.lvl === 'danger' ? 'var(--primary-soft)' : 'rgba(245,158,11,0.10)',
+              background: a.lvl === 'danger' ? 'var(--primary-soft)' : 'var(--warning-soft)',
               border: `1px solid ${a.lvl === 'danger' ? C.accent : C.gold}`,
               borderRadius: 10, padding: '12px 16px', color: a.lvl === 'danger' ? 'var(--danger-text)' : 'var(--warning)', fontSize: 13, fontWeight: 500,
             }}>{a.text}</div>
@@ -249,7 +249,7 @@ export default function FinanceDashboard() {
                 {anomaly.anomalies.map(a => (
                   <div key={a.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
-                    background: a.level === 'high' ? 'var(--danger-soft)' : a.level === 'medium' ? 'rgba(245,158,11,0.10)' : 'var(--info-soft)',
+                    background: a.level === 'high' ? 'var(--danger-soft)' : a.level === 'medium' ? 'var(--warning-soft)' : 'var(--info-soft)',
                     border: `1px solid ${a.level === 'high' ? 'var(--danger-text)' : a.level === 'medium' ? C.gold : C.blue}`,
                     borderRadius: 10, padding: '12px 16px',
                   }}>

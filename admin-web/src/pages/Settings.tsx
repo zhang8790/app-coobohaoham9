@@ -170,7 +170,7 @@ export default function Settings() {
             marginTop: 18, padding: '10px 14px', borderRadius: 8, fontSize: 13,
             background: msg.type === 'success' ? 'var(--success-soft)' : msg.type === 'error' ? 'var(--warning-soft)' : 'var(--bg)',
             color: msg.type === 'success' ? 'var(--success)' : msg.type === 'error' ? 'var(--warning)' : 'var(--text-muted)',
-            border: `1px solid ${msg.type === 'success' ? 'rgba(34,197,94,0.3)' : msg.type === 'error' ? 'rgba(245,158,11,0.3)' : 'var(--border)'}`,
+            border: `1px solid ${msg.type === 'success' ? 'rgba(34,197,94,0.3)' : msg.type === 'error' ? 'rgba(100,144,100,0.3)' : 'var(--border)'}`,
           }}>{msg.text}</div>
         )}
       </div>

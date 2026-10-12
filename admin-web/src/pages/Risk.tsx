@@ -25,15 +25,15 @@ interface CommissionRow {
 interface ProfileMap { [id: string]: { nickname: string; phone: string } }
 
 const RISK_LABEL: Record<string, { label: string; color: string }> = {
-  self_referral: { label: '自推自', color: '#dc2626' },
-  new_account_referral: { label: '新号养号', color: '#d97706' },
+  self_referral: { label: '自推自', color: '#3E6541' },
+  new_account_referral: { label: '新号养号', color: '#649064' },
 }
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  pending: { label: '待结算', color: '#2563eb' },
-  settled: { label: '已结算', color: '#16a34a' },
+  pending: { label: '待结算', color: '#649064' },
+  settled: { label: '已结算', color: '#649064' },
   refunded: { label: '已拒结', color: 'var(--text-muted)' },
-  frozen: { label: '已冻结', color: '#dc2626' },
+  frozen: { label: '已冻结', color: '#3E6541' },
 }
 
 const fmt = (n: number | null | undefined) =>
@@ -163,10 +163,10 @@ export default function Risk() {
       {/* 统计卡 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
         {[
-          { label: '可疑佣金总数', value: stats.total, color: '#dc2626' },
-          { label: '冻结金额(健康豆)', value: fmt(stats.frozenAmt), color: '#dc2626' },
-          { label: '自推自嫌疑', value: stats.selfRef, color: '#d97706' },
-          { label: '新号养号嫌疑', value: stats.newAcc, color: '#d97706' },
+          { label: '可疑佣金总数', value: stats.total, color: '#3E6541' },
+          { label: '冻结金额(健康豆)', value: fmt(stats.frozenAmt), color: '#3E6541' },
+          { label: '自推自嫌疑', value: stats.selfRef, color: '#649064' },
+          { label: '新号养号嫌疑', value: stats.newAcc, color: '#649064' },
         ].map(c => (
           <div key={c.label} style={{
             background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px',
@@ -282,7 +282,7 @@ export default function Risk() {
               }}>
                 <span style={{ color: 'var(--text)', fontSize: 13 }}>{maskName(t.nickname)}</span>
                 <span style={{
-                  fontSize: 12, fontWeight: 700, color: t.count >= 5 ? '#dc2626' : (t.count >= 3 ? '#d97706' : 'var(--text-muted)'),
+                  fontSize: 12, fontWeight: 700, color: t.count >= 5 ? '#3E6541' : (t.count >= 3 ? '#649064' : 'var(--text-muted)'),
                 }}>{t.count} 人</span>
               </div>
             ))

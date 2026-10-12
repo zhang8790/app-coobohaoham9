@@ -170,10 +170,10 @@ export default function MerchantPrinters() {
 
           {/* 已知偏差提示：与小程序端 merchant-settings 保持一致（触发器不读该开关） */}
           <div style={{
-            background: 'var(--warning-soft, #FEF3C7)', border: '1px solid var(--warning, #D97706)',
+            background: 'var(--warning-soft, #E2EDE2)', border: '1px solid var(--warning, #649064)',
             borderRadius: 8, padding: '10px 12px', marginBottom: 16,
           }}>
-            <p style={{ color: '#92400E', fontSize: 12, lineHeight: 1.7, margin: 0 }}>
+            <p style={{ color: '#3E6541', fontSize: 12, lineHeight: 1.7, margin: 0 }}>
               注意：自动打印由数据库触发器驱动，当前版本<b>不判断</b>上面的「支付后自动打印」开关。
               只要「启用打印机」为开，本店已支付订单都会自动出单；若不想出纸，请把「启用打印机」关闭。
             </p>

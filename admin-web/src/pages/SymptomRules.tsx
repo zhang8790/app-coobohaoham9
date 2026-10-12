@@ -128,7 +128,7 @@ export default function SymptomRules() {
             style={{
               padding: '4px 10px', borderRadius: 14, fontSize: 12, cursor: 'pointer',
               border: `1px solid ${on ? 'var(--primary)' : 'var(--border-soft)'}`,
-              background: on ? 'rgba(194,65,12,0.18)' : 'transparent',
+              background: on ? 'rgba(100,144,100,0.18)' : 'transparent',
               color: on ? 'var(--primary-hover)' : 'var(--text-muted)',
             }}>
             {opt}
@@ -160,9 +160,9 @@ export default function SymptomRules() {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600 }}>{r.label}</span>
-                    <span style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--accent-text)', fontSize: 11, padding: '1px 8px', borderRadius: 4 }}>{categoryLabel(r.category)}</span>
+                    <span style={{ background: 'rgba(100,144,100,0.2)', color: 'var(--accent-text)', fontSize: 11, padding: '1px 8px', borderRadius: 4 }}>{categoryLabel(r.category)}</span>
                     <span style={{ background: 'rgba(148,163,184,0.15)', color: 'var(--text-muted)', fontSize: 11, padding: '1px 8px', borderRadius: 4, fontFamily: 'monospace' }}>{r.id}</span>
-                    {!r.is_active && <span style={{ background: 'rgba(239,68,68,0.15)', color: 'var(--danger-text)', fontSize: 11, padding: '1px 8px', borderRadius: 4 }}>已停用</span>}
+                    {!r.is_active && <span style={{ background: 'rgba(100,144,100,0.15)', color: 'var(--danger-text)', fontSize: 11, padding: '1px 8px', borderRadius: 4 }}>已停用</span>}
                   </div>
                   <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: '8px 0 0' }}>触发词：{joinList(r.keywords) || '—'}</p>
                   <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: '4px 0 0' }}>
@@ -173,7 +173,7 @@ export default function SymptomRules() {
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginLeft: 12 }}>
                   <button onClick={() => toggleActive(r)} style={ghostBtn}>{r.is_active ? '停用' : '启用'}</button>
                   <button onClick={() => openEdit(r)} style={ghostBtn}>编辑</button>
-                  <button onClick={() => handleDelete(r)} style={{ ...ghostBtn, borderColor: '#7F1D1D', color: 'var(--danger-text)' }}>删除</button>
+                  <button onClick={() => handleDelete(r)} style={{ ...ghostBtn, borderColor: '#3E6541', color: 'var(--danger-text)' }}>删除</button>
                 </div>
               </div>
             </div>

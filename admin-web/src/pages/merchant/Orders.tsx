@@ -63,7 +63,7 @@ const STATUS_COLOR: Record<string, string> = {
   pending_ship: 'var(--primary)',
   pending_receive: 'var(--info)',
   pending_pickup: 'var(--accent)',
-  pending_review: '#7B1FA2',
+  pending_review: '#649064',
   completed: 'var(--success-strong)',
   after_sale: 'var(--danger)',
   refund: 'var(--danger)',

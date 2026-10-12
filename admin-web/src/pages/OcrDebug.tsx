@@ -28,9 +28,9 @@ type OcrResult = {
 }
 
 const GRADE_COLOR: Record<string, string> = {
-  S: '#16A34A',
-  A: '#D97706',
-  C: '#DC2626',
+  S: '#7FB07F',
+  A: '#649064',
+  C: '#3E6541',
 }
 const GRADE_LABEL: Record<string, string> = {
   S: '配料较安全',
@@ -169,7 +169,7 @@ export default function OcrDebug() {
         {errMsg && (
           <div style={{
             marginTop: 18, padding: '10px 14px', borderRadius: 8, fontSize: 13,
-            background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)',
+            background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid rgba(100,144,100,0.3)',
           }}>{errMsg}</div>
         )}
       </div>
@@ -203,7 +203,7 @@ export default function OcrDebug() {
           <div style={{ marginBottom: 16 }}>
             <p style={labelStyle}>解析配料（{result.parsed_ingredients?.length || 0}）</p>
             <div>{(result.parsed_ingredients && result.parsed_ingredients.length)
-              ? result.parsed_ingredients.map((x) => chip(x, '#0EA5E9'))
+              ? result.parsed_ingredients.map((x) => chip(x, '#649064'))
               : <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>无</span>}</div>
           </div>
 
@@ -211,7 +211,7 @@ export default function OcrDebug() {
           <div style={{ marginBottom: 16 }}>
             <p style={labelStyle}>命中添加剂（{result.matched_additives?.length || 0}）</p>
             <div>{(result.matched_additives && result.matched_additives.length)
-              ? result.matched_additives.map((x) => chip(x, '#B8923A'))
+              ? result.matched_additives.map((x) => chip(x, '#3E6541'))
               : <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>无（未命中 GB2760 添加剂库）</span>}</div>
           </div>
 
@@ -219,7 +219,7 @@ export default function OcrDebug() {
           <div>
             <p style={labelStyle}>风险点</p>
             <div>{(result.risk_flags && result.risk_flags.length)
-              ? result.risk_flags.map((x) => chip(x, '#DC2626'))
+              ? result.risk_flags.map((x) => chip(x, '#3E6541'))
               : <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>无</span>}</div>
           </div>
         </div>

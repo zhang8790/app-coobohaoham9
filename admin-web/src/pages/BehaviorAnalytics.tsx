@@ -251,7 +251,7 @@ export default function BehaviorAnalytics() {
               </div>
               <span style={{
                 fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                background: u.score > 0.66 ? 'var(--danger-soft)' : 'rgba(245,158,11,0.18)',
+                background: u.score > 0.66 ? 'var(--danger-soft)' : 'var(--warning-soft)',
                 color: u.score > 0.66 ? C.red : C.gold,
               }}>{Math.round(u.score * 100)}%</span>
             </div>

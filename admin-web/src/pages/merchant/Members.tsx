@@ -108,7 +108,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 const LEVEL_COLOR: Record<string, string> = {
-  '青铜会员': '#8B7355', '白银会员': 'var(--text-muted)', '黄金会员': 'var(--warning)', '铂金会员': 'var(--accent-text)',
+  '青铜会员': '#B9D6B9', '白银会员': 'var(--text-muted)', '黄金会员': 'var(--warning)', '铂金会员': 'var(--accent-text)',
 }
 
 // ============ 食养导购参考（战略闭环：C 端食养工具 → 门店精准导购）============
@@ -174,7 +174,7 @@ function MemberFoodCard({ p, title, accent }: { p: FoodMember; title: string; ac
         {p.gender && <FoodChip label={p.gender} />}
       </div>
       {allergens.length > 0 && (
-        <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '8px 10px', marginBottom: 6 }}>
+        <div style={{ background: 'rgba(100,144,100,0.08)', border: '1px solid rgba(100,144,100,0.25)', borderRadius: 8, padding: '8px 10px', marginBottom: 6 }}>
           <p style={{ color: 'var(--danger)', fontSize: 12, fontWeight: 700, margin: '0 0 4px' }}>⚠️ 导购红线 · 过敏回避</p>
           <p style={{ color: 'var(--text)', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
             对 {allergens.join('、')} 过敏，挑选零食时务必避开含这些配料的商品。
@@ -193,8 +193,8 @@ function MemberFoodCard({ p, title, accent }: { p: FoodMember; title: string; ac
       )}
       {(((p.chronic_conditions || []).length) > 0 || ((p.body_states || []).length) > 0) && (
         <div style={{ marginTop: 6 }}>
-          {(p.chronic_conditions || []).map(c => <FoodChip key={c} label={c} color="#C8A45C" />)}
-          {(p.body_states || []).map(b => <FoodChip key={b} label={b} color="#3B5B7A" />)}
+          {(p.chronic_conditions || []).map(c => <FoodChip key={c} label={c} color="#649064" />)}
+          {(p.body_states || []).map(b => <FoodChip key={b} label={b} color="#3E6541" />)}
         </div>
       )}
     </div>
@@ -272,8 +272,8 @@ function FoodProfilePanel({ memberId, memberName }: { memberId: string; memberNa
         ) : data?.member ? (
           <>
             {isDemo && (
-              <div style={{ background: 'rgba(202,164,92,0.12)', border: '1px solid rgba(202,164,92,0.3)', borderRadius: 8, padding: '8px 10px', marginBottom: 14 }}>
-                <p style={{ color: '#9A3324', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+              <div style={{ background: 'rgba(100,144,100,0.12)', border: '1px solid rgba(100,144,100,0.3)', borderRadius: 8, padding: '8px 10px', marginBottom: 14 }}>
+                <p style={{ color: '#3E6541', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
                   演示数据：真实场景需会员在 C 端「家庭食养档案」页开启「向常去门店分享食养档案」授权，到店时由本店店员读取。以下为示例画像。
                 </p>
               </div>
@@ -283,7 +283,7 @@ function FoodProfilePanel({ memberId, memberName }: { memberId: string; memberNa
               <>
                 <p style={{ color: 'var(--text-dim)', fontSize: 12, fontWeight: 700, margin: '10px 0 6px' }}>家庭成员食养参考</p>
                 {data.family.map((f, i) => (
-                  <MemberFoodCard key={i} p={f} title={f.name} accent="#3B5B7A" />
+                  <MemberFoodCard key={i} p={f} title={f.name} accent="#3E6541" />
                 ))}
               </>
             )}

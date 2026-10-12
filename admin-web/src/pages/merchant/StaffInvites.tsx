@@ -27,10 +27,10 @@ const ROLE_LABEL: Record<string, string> = {
 }
 
 const ROLE_COLOR: Record<string, string> = {
-  owner: '#C77B30',
-  manager: '#2E7D5B',
-  staff: '#3B5B7A',
-  cashier: '#8A6D3B',
+  owner: '#3E6541',
+  manager: '#4F7A4F',
+  staff: '#649064',
+  cashier: '#7FB07F',
 }
 
 /** 后端 create_store_invite 抛出的英文错误 → 店长能看懂的话术 */

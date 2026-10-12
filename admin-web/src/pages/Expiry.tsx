@@ -35,7 +35,7 @@ interface AuditRow {
 }
 
 const STAGE_COLOR: Record<string, string> = {
-  red: '#EF4444', orange: '#F97316', amber: '#F59E0B', normal: '#22C55E', expired: '#6B7280',
+  red: '#3E6541', orange: '#4F7A4F', amber: '#649064', normal: '#7FB07F', expired: '#6B7280',
 }
 const STAGE_LABEL: Record<string, string> = {
   red: '紧急', orange: '紧迫', amber: '临期', normal: '正常', expired: '已过期',

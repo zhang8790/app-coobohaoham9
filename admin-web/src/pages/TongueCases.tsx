@@ -36,9 +36,9 @@ const CONSTITUTIONS: { key: string; name: string }[] = [
 ]
 const CONST_MAP: Record<string, string> = Object.fromEntries(CONSTITUTIONS.map((c) => [c.key, c.name]))
 const BANDS: { key: Band; name: string; color: string }[] = [
-  { key: 'low', name: '低风险', color: '#15803D' },
-  { key: 'mid', name: '中等风险', color: '#B45309' },
-  { key: 'high', name: '偏高风险', color: '#DC2626' },
+  { key: 'low', name: '低风险', color: '#7FB07F' },
+  { key: 'mid', name: '中等风险', color: '#649064' },
+  { key: 'high', name: '偏高风险', color: '#3E6541' },
 ]
 const BAND_MAP: Record<string, { name: string; color: string }> = Object.fromEntries(
   BANDS.map((b) => [b.key, { name: b.name, color: b.color }]),
@@ -168,10 +168,10 @@ export default function TongueCases() {
         <div
           style={{
             padding: '10px 14px',
-            background: 'var(--danger-soft, #FEE2E2)',
-            border: '1px solid var(--danger, #DC2626)',
+            background: 'var(--danger-soft, #E2EDE2)',
+            border: '1px solid var(--danger, #649064)',
             borderRadius: 8,
-            color: 'var(--danger-strong, #B91C1C)',
+            color: 'var(--danger-strong, #3E6541)',
             fontSize: 13,
             marginBottom: 12,
           }}

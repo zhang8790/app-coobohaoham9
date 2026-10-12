@@ -7,7 +7,7 @@ import { maskPhone } from '@/utils/mask'
 
 const PAGE_SIZE = 20
 const RANK_COLORS: Record<string, string> = {
-  '凡心': '#78350F', '初心': 'var(--warning)', '明心': 'var(--warning)',
+  '凡心': '#3E6541', '初心': 'var(--warning)', '明心': 'var(--warning)',
   '静心': 'var(--primary)', '悟心': 'var(--accent)', '无心境': 'var(--danger)',
 }
 
@@ -254,7 +254,7 @@ export default function Users() {
             </thead>
             <tbody>
               {list.map(u => {
-                const rankColor = RANK_COLORS[u.member_rank] || '#78350F'
+                const rankColor = RANK_COLORS[u.member_rank] || '#3E6541'
                 return (
                   <tr key={u.id}>
                     <td style={{ ...S.td, color: 'var(--text)', fontWeight: 600 }}>{u.nickname || '侠客'}</td>

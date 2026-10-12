@@ -117,7 +117,7 @@ export default function FoodTagRules() {
                   <td style={td}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => setEditing(r)} style={btnSm}>编辑</button>
-                      <button onClick={() => remove(r.tag_key)} style={{ ...btnSm, background: '#DC2626' }}>删除</button>
+                      <button onClick={() => remove(r.tag_key)} style={{ ...btnSm, background: '#3E6541' }}>删除</button>
                     </div>
                   </td>
                 </tr>

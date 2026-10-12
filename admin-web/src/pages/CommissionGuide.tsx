@@ -10,7 +10,7 @@ const card: React.CSSProperties = {
 const h2: React.CSSProperties = { fontSize: 16, color: 'var(--warning)', marginBottom: 14, fontWeight: 700 }
 const note: React.CSSProperties = {
   borderLeft: '3px solid var(--warning)', padding: '12px 16px', borderRadius: 8,
-  background: 'rgba(212,175,55,0.06)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 12,
+  background: 'rgba(100,144,100,0.06)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 12,
 }
 
 // 平台让利四块流向（SVG）
@@ -19,7 +19,7 @@ function FlowSvg() {
     <svg viewBox="0 0 940 360" style={{ width: '100%', height: 'auto', display: 'block' }} preserveAspectRatio="xMidYMid meet">
       <defs>
         <linearGradient id="poolGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#F0C75E" />
+          <stop offset="0%" stopColor="#9CC29C" />
           <stop offset="100%" stopColor="var(--primary)" />
         </linearGradient>
         <marker id="ah2" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
@@ -72,12 +72,12 @@ export default function CommissionGuide() {
         <div style={{
           display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, fontSize: 14,
           padding: 18, borderRadius: 12,
-          background: 'linear-gradient(135deg, rgba(194,65,12,0.12), rgba(212,175,55,0.08))',
-          border: '1px dashed rgba(212,175,55,0.4)',
+          background: 'linear-gradient(135deg, rgba(100,144,100,0.12), rgba(100,144,100,0.08))',
+          border: '1px dashed rgba(100,144,100,0.4)',
         }}>
-          <span style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', fontSize: 13 }}>订单全额（含健康豆）</span>
+          <span style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(100,144,100,0.12)', border: '1px solid rgba(100,144,100,0.3)', fontSize: 13 }}>订单全额（含健康豆）</span>
           <span>×</span>
-          <span style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)', fontSize: 13 }}>让利率 <b style={{ color: 'var(--warning)' }}>（门店 referral_rate，或商品 discount_rate 金额加权）</b></span>
+          <span style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(100,144,100,0.12)', border: '1px solid rgba(100,144,100,0.3)', fontSize: 13 }}>让利率 <b style={{ color: 'var(--warning)' }}>（门店 referral_rate，或商品 discount_rate 金额加权）</b></span>
           <span>=</span>
           <b style={{ color: 'var(--warning)' }}>平台让利</b>（佣金唯一钱袋）
         </div>

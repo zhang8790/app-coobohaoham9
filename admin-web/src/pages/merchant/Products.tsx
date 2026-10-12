@@ -1157,7 +1157,7 @@ export default function MerchantProducts() {
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={clearSelection} style={{ padding: '6px 14px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>取消选择</button>
             <button onClick={() => handleBatchStatus(true)} style={{ padding: '6px 14px', background: 'var(--success-strong)', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>批量上架</button>
-            <button onClick={() => handleBatchStatus(false)} style={{ padding: '6px 14px', background: 'rgba(245,158,11,0.9)', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>批量下架</button>
+            <button onClick={() => handleBatchStatus(false)} style={{ padding: '6px 14px', background: 'rgba(107,114,128,0.9)', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>批量下架</button>
             <button onClick={handleBatchDelete} style={{ padding: '6px 14px', background: 'var(--danger)', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>批量删除</button>
           </div>
         </div>
@@ -1206,7 +1206,7 @@ export default function MerchantProducts() {
               display: 'grid',
               gridTemplateColumns: '40px 80px 1fr 90px 90px 80px 80px 70px 70px 70px 70px 160px',
               padding: '12px 16px', alignItems: 'center',
-              background: selectedIds.includes(p.id) ? 'rgba(16,185,129,0.08)' : ((p.stock ?? 0) <= 0 ? 'rgba(220,38,38,0.07)' : 'transparent'),
+              background: selectedIds.includes(p.id) ? 'rgba(16,185,129,0.08)' : ((p.stock ?? 0) <= 0 ? 'rgba(107,114,128,0.06)' : 'transparent'),
               borderBottom: '1px solid var(--border)', fontSize: 13, color: 'var(--text-muted)',
             }}>
               <input type="checkbox" checked={selectedIds.includes(p.id)} onChange={() => toggleSelect(p.id)} style={{ width: 16, height: 16, cursor: 'pointer', justifySelf: 'center' }} />
@@ -1225,7 +1225,7 @@ export default function MerchantProducts() {
                       <span style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 9, padding: '1px 4px', borderRadius: 4 }}>图{p.sub_images.length}</span>
                     )}
                     {p.video_url && (
-                      <span style={{ background: 'rgba(239,68,68,0.8)', color: '#fff', fontSize: 9, padding: '1px 4px', borderRadius: 4 }}>视频</span>
+                      <span style={{ background: '#3E6541', color: '#fff', fontSize: 9, padding: '1px 4px', borderRadius: 4 }}>视频</span>
                     )}
                   </div>
                 )}
@@ -1248,7 +1248,7 @@ export default function MerchantProducts() {
                 {/* 详情图片数量指示 */}
                 {p.detail_images && p.detail_images.length > 0 && (
                   <div style={{ marginTop: 4 }}>
-                    <span style={{ background: 'rgba(99,102,241,0.2)', color: '#818CF8', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>
+                    <span style={{ background: 'rgba(100,144,100,0.2)', color: '#649064', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>
                       详情图 {p.detail_images.length} 张
                     </span>
                   </div>
@@ -1290,7 +1290,7 @@ export default function MerchantProducts() {
               <div style={{ textAlign: 'center' }}>
                 <span style={{
                   padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                  background: p.status === 'online' ? 'rgba(5,150,105,0.15)' : 'rgba(220,38,38,0.15)',
+                  background: p.status === 'online' ? 'rgba(5,150,105,0.15)' : 'rgba(107,114,128,0.10)',
                   color: p.status === 'online' ? 'var(--success-strong)' : 'var(--danger)',
                 }}>
                   {p.status === 'online' ? '上架中' : '已下架'}
@@ -1299,13 +1299,13 @@ export default function MerchantProducts() {
               {/* action */}
               <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                 <button onClick={() => openEdit(p)} style={{ padding: '4px 10px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>编辑</button>
-                <button onClick={() => setPreviewing(p)} style={{ padding: '4px 10px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 4, color: '#818CF8', cursor: 'pointer', fontSize: 12 }}>预览</button>
+                <button onClick={() => setPreviewing(p)} style={{ padding: '4px 10px', background: 'rgba(100,144,100,0.12)', border: '1px solid rgba(100,144,100,0.4)', borderRadius: 4, color: '#649064', cursor: 'pointer', fontSize: 12 }}>预览</button>
                 <button onClick={() => duplicateProduct(p)} style={{ padding: '4px 10px', background: 'var(--border)', border: '1px solid var(--border-soft)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>复制上架</button>
                 <button onClick={() => toggleStatus(p.id)} style={{
                   padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12,
-                  background: p.status === 'online' ? 'rgba(220,38,38,0.1)' : 'rgba(5,150,105,0.1)',
-                  border: `1px solid ${p.status === 'online' ? 'var(--danger)' : 'var(--success-strong)'}`,
-                  color: p.status === 'online' ? 'var(--danger)' : 'var(--success-strong)',
+                  background: p.status === 'online' ? 'rgba(107,114,128,0.10)' : 'rgba(100,144,100,0.12)',
+                  border: `1px solid ${p.status === 'online' ? 'var(--border-soft)' : 'var(--primary)'}`,
+                  color: p.status === 'online' ? 'var(--text-muted)' : 'var(--primary-strong)',
                 }}>
                   {p.status === 'online' ? '下架' : '上架'}
                 </button>
@@ -1616,7 +1616,7 @@ export default function MerchantProducts() {
                   <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>用户端显示让利标签（如"立减33%"）</span>
                   {Number(form.discount_rate) > 0 && (
                     <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, fontSize: 12,
-                      background: storeRefEnabled ? 'rgba(194,65,12,0.12)' : 'rgba(59,130,246,0.12)',
+                      background: storeRefEnabled ? 'rgba(100,144,100,0.12)' : 'rgba(107,114,128,0.12)',
                       border: `1px solid ${storeRefEnabled ? 'var(--primary)' : 'var(--info)'}`,
                       color: storeRefEnabled ? 'var(--primary)' : 'var(--info)' }}>
                       {storeRefEnabled
@@ -1775,7 +1775,7 @@ export default function MerchantProducts() {
                           const sel = it.aux.includes(a)
                           return (
                             <button key={a} type="button" onClick={() => setForm(f => ({ ...f, ingredients: f.ingredients.map(x => x.id === it.id ? { ...x, aux: sel ? x.aux.filter(y => y !== a) : [...x.aux, a] } : x) }))}
-                              style={{ padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 12, background: sel ? '#FDE68A' : 'var(--surface-2)', border: '1px solid #E5C07B', color: sel ? '#1F9D6B' : 'var(--text-muted)' }}>{a}</button>
+                              style={{ padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 12, background: sel ? '#EAF2EA' : 'var(--surface-2)', border: '1px solid #B9D6B9', color: sel ? '#1F9D6B' : 'var(--text-muted)' }}>{a}</button>
                           )
                         })}
                       </div>
@@ -1892,9 +1892,9 @@ export default function MerchantProducts() {
                 {liveSafety && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                     {([
-                      { c: 'var(--danger)', bg: 'rgba(220,38,38,0.1)', t: '🔴 过敏/禁忌', items: liveSafety.risks.red },
-                      { c: 'var(--warning)', bg: 'rgba(249,115,22,0.1)', t: '🟠 体质慎食', items: liveSafety.risks.orange },
-                      { c: 'var(--info)', bg: 'rgba(59,130,246,0.1)', t: '🔵 慢病适配', items: liveSafety.risks.blue },
+                      { c: 'var(--danger)', bg: 'rgba(100,144,100,0.10)', t: '🔴 过敏/禁忌', items: liveSafety.risks.red },
+                      { c: 'var(--warning)', bg: 'rgba(100,144,100,0.10)', t: '🟠 体质慎食', items: liveSafety.risks.orange },
+                      { c: 'var(--info)', bg: 'rgba(100,144,100,0.10)', t: '🔵 慢病适配', items: liveSafety.risks.blue },
                     ]).map(s => (
                       <div key={s.t} style={{ flex: 1, minWidth: 140, padding: '6px 10px', borderRadius: 8, background: s.bg, border: `1px solid ${s.c}` }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: s.c }}>{s.t}</div>
@@ -1942,17 +1942,17 @@ export default function MerchantProducts() {
                 {liveSafety && (
                   <div style={{ marginTop: 10 }}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      <div style={{ flex: 1, minWidth: 150, padding: '8px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.1)', border: '1px solid var(--danger)' }}>
+                      <div style={{ flex: 1, minWidth: 150, padding: '8px 10px', borderRadius: 8, background: 'rgba(100,144,100,0.10)', border: '1px solid var(--danger)' }}>
                         <span style={{ color: 'var(--danger)', fontSize: 12, fontWeight: 700 }}>🔴 过敏 / 禁忌</span>
                         <div style={{ marginTop: 4, color: 'var(--danger)', fontSize: 12 }}>{liveSafety.risks.red.length ? liveSafety.risks.red.join('、') : '无'}</div>
                       </div>
-                      <div style={{ flex: 1, minWidth: 150, padding: '8px 10px', borderRadius: 8, background: 'rgba(249,115,22,0.1)', border: '1px solid var(--warning)' }}>
+                      <div style={{ flex: 1, minWidth: 150, padding: '8px 10px', borderRadius: 8, background: 'rgba(100,144,100,0.10)', border: '1px solid var(--warning)' }}>
                         <span style={{ color: 'var(--warning)', fontSize: 12, fontWeight: 700 }}>🟠 体质慎食</span>
                         <div style={{ marginTop: 4, color: 'var(--status-orange)', fontSize: 12 }}>{liveSafety.risks.orange.length ? liveSafety.risks.orange.join('、') : '无'}</div>
                       </div>
-                      <div style={{ flex: 1, minWidth: 150, padding: '8px 10px', borderRadius: 8, background: 'rgba(59,130,246,0.1)', border: '1px solid var(--info)' }}>
+                      <div style={{ flex: 1, minWidth: 150, padding: '8px 10px', borderRadius: 8, background: 'rgba(100,144,100,0.10)', border: '1px solid var(--info)' }}>
                         <span style={{ color: 'var(--info)', fontSize: 12, fontWeight: 700 }}>🔵 慢病适配</span>
-                        <div style={{ marginTop: 4, color: '#1D4ED8', fontSize: 12 }}>{liveSafety.risks.blue.length ? liveSafety.risks.blue.join('、') : '无'}</div>
+                        <div style={{ marginTop: 4, color: '#3E6541', fontSize: 12 }}>{liveSafety.risks.blue.length ? liveSafety.risks.blue.join('、') : '无'}</div>
                       </div>
                     </div>
                     {liveSafety.note && (
@@ -2044,7 +2044,7 @@ export default function MerchantProducts() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                   {form.cautious_crowds.length ? form.cautious_crowds.map(c => (
                     <span key={c} onClick={() => toggleArr('cautious_crowds', c)} title="点击删除"
-                      style={{ padding: '4px 8px 4px 10px', background: 'var(--warning)', border: '1px solid var(--warning)', borderRadius: 999, fontSize: 12, color: '#FEF3C7', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      style={{ padding: '4px 8px 4px 10px', background: 'var(--warning)', border: '1px solid var(--warning)', borderRadius: 999, fontSize: 12, color: '#EAF2EA', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       {c}<span style={{ fontSize: 11, opacity: .85 }}>×</span>
                     </span>
                   )) : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>暂无</span>}
@@ -2052,7 +2052,7 @@ export default function MerchantProducts() {
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <input value={crowdDraft.cautious} onChange={e => setCrowdDraft(d => ({ ...d, cautious: e.target.value }))} placeholder="输入人群后点添加（多个用、或空格分隔）" style={{ flex: 1, padding: '6px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
                   <button type="button" disabled={!crowdDraft.cautious.trim()} onClick={() => { addCrowd('cautious_crowds', crowdDraft.cautious); setCrowdDraft(d => ({ ...d, cautious: '' })) }}
-                    style={{ padding: '6px 14px', background: crowdDraft.cautious.trim() ? 'var(--warning)' : 'var(--border-soft)', border: '1px solid var(--border-soft)', borderRadius: 8, color: crowdDraft.cautious.trim() ? '#FEF3C7' : 'var(--text-dim)', cursor: crowdDraft.cautious.trim() ? 'pointer' : 'not-allowed', fontSize: 13 }}>添加</button>
+                    style={{ padding: '6px 14px', background: crowdDraft.cautious.trim() ? 'var(--warning)' : 'var(--border-soft)', border: '1px solid var(--border-soft)', borderRadius: 8, color: crowdDraft.cautious.trim() ? '#EAF2EA' : 'var(--text-dim)', cursor: crowdDraft.cautious.trim() ? 'pointer' : 'not-allowed', fontSize: 13 }}>添加</button>
                 </div>
                 <textarea value={form.cautious_notes} onChange={e => setForm(f => ({ ...f, cautious_notes: e.target.value }))} placeholder="如：少量饮用、去辣减油" rows={2}
                   style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: hasMedicalClaim(form.cautious_notes) ? '1px solid var(--danger)' : '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
@@ -2063,7 +2063,7 @@ export default function MerchantProducts() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                   {form.forbidden_crowds.length ? form.forbidden_crowds.map(c => (
                     <span key={c} onClick={() => toggleArr('forbidden_crowds', c)} title="点击删除"
-                      style={{ padding: '4px 8px 4px 10px', background: '#7F1D1D', border: '1px solid var(--danger)', borderRadius: 999, fontSize: 12, color: '#FECACA', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      style={{ padding: '4px 8px 4px 10px', background: '#3E6541', border: '1px solid var(--danger)', borderRadius: 999, fontSize: 12, color: '#EAF2EA', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       {c}<span style={{ fontSize: 11, opacity: .85 }}>×</span>
                     </span>
                   )) : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>暂无</span>}
@@ -2071,7 +2071,7 @@ export default function MerchantProducts() {
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <input value={crowdDraft.forbidden} onChange={e => setCrowdDraft(d => ({ ...d, forbidden: e.target.value }))} placeholder="输入人群后点添加（多个用、或空格分隔）" style={{ flex: 1, padding: '6px 12px', background: 'var(--bg)', border: '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }} />
                   <button type="button" disabled={!crowdDraft.forbidden.trim()} onClick={() => { addCrowd('forbidden_crowds', crowdDraft.forbidden); setCrowdDraft(d => ({ ...d, forbidden: '' })) }}
-                    style={{ padding: '6px 14px', background: crowdDraft.forbidden.trim() ? 'var(--danger)' : 'var(--border-soft)', border: '1px solid var(--border-soft)', borderRadius: 8, color: crowdDraft.forbidden.trim() ? '#FECACA' : 'var(--text-dim)', cursor: crowdDraft.forbidden.trim() ? 'pointer' : 'not-allowed', fontSize: 13 }}>添加</button>
+                    style={{ padding: '6px 14px', background: crowdDraft.forbidden.trim() ? 'var(--danger)' : 'var(--border-soft)', border: '1px solid var(--border-soft)', borderRadius: 8, color: crowdDraft.forbidden.trim() ? '#EAF2EA' : 'var(--text-dim)', cursor: crowdDraft.forbidden.trim() ? 'pointer' : 'not-allowed', fontSize: 13 }}>添加</button>
                 </div>
                 <textarea value={form.forbidden_reasons} onChange={e => setForm(f => ({ ...f, forbidden_reasons: e.target.value }))} placeholder="如：特殊体质建议回避、建议少量尝试" rows={2}
                   style={{ width: '100%', marginTop: 6, padding: '8px 12px', background: 'var(--bg)', border: hasMedicalClaim(form.forbidden_reasons) ? '1px solid var(--danger)' : '1px solid var(--border-soft)', borderRadius: 8, color: 'var(--text)', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
@@ -2195,7 +2195,7 @@ export default function MerchantProducts() {
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
                   <span style={{ color: 'var(--danger)', fontSize: 22, fontWeight: 700 }}>¥{(previewing.price ?? 0).toLocaleString()}</span>
                   {previewing.original_price ? <span style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'line-through' }}>¥{previewing.original_price}</span> : null}
-                  {previewing.discount_rate ? <span style={{ color: 'var(--accent)', fontSize: 12, background: 'rgba(99,102,241,0.12)', padding: '2px 6px', borderRadius: 4 }}>让利 {previewing.discount_rate}%</span> : null}
+                  {previewing.discount_rate ? <span style={{ color: 'var(--accent)', fontSize: 12, background: 'rgba(100,144,100,0.12)', padding: '2px 6px', borderRadius: 4 }}>让利 {previewing.discount_rate}%</span> : null}
                 </div>
                 {(() => {
                   const g = previewing as any

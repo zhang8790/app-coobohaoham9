@@ -202,7 +202,7 @@ export default function FoodIngredients() {
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <button onClick={() => setEditing(row)} style={btnSm}>编辑</button>
                     <button onClick={() => toggleActive(row)} style={{ ...btnSm, background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{row.is_active ? '停用' : '启用'}</button>
-                    <button onClick={() => remove(row.id!)} style={{ ...btnSm, background: '#DC2626' }}>删除</button>
+                    <button onClick={() => remove(row.id!)} style={{ ...btnSm, background: '#3E6541' }}>删除</button>
                   </div>
                 </td>
               </tr>

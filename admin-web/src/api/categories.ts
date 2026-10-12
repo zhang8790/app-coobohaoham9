@@ -33,6 +33,7 @@ export async function createStoreCategory(input: {
   scope?: 'global' | 'store'
   parentId?: string | null
   iconUrl?: string | null
+  icon?: string | null
 }): Promise<StoreCategory | null> {
   const scope = input.scope ?? (input.storeId ? 'store' : 'global')
   const payload: Record<string, unknown> = {
@@ -44,6 +45,7 @@ export async function createStoreCategory(input: {
   // 仅在指定父级时携带 parent_id，避免迁移未执行时一级分类创建被 PGRST204 拒绝
   if (input.parentId) payload.parent_id = input.parentId
   if (typeof input.iconUrl !== 'undefined') payload.icon_url = input.iconUrl
+  if (typeof input.icon !== 'undefined') payload.icon = input.icon
   const { data, error } = await supabase.from('store_categories').insert(payload).select().single()
   if (error) { console.warn('[createStoreCategory]', error); return null }
   return data as StoreCategory

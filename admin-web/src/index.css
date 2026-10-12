@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
 
 /* ===== 来店有喜 设计 token · 双端同源（浅色企业主题层） =====
-   管理端「大厂 SaaS」方向：浅灰底 + 白卡片 + 中性灰层次 + 品牌暖珊瑚点缀。
+   管理端「大厂 SaaS」方向：浅灰底 + 白卡片 + 中性灰层次 + 品牌鼠尾草绿单色（全站唯一色相）。
    与小程序端共享同一套语义 token 名称与品牌值；本次仅把 surface/bg 由
    深黑「国潮」切换为浅色企业层，品牌语义与 C 端完全一致 → 跨端一致。
    设计纪律（scripts/style-discipline.web.mjs）红线：禁 #C2410C/#7A2508、禁 800 字重、禁 #6B7280。
@@ -17,52 +17,52 @@
   --border-soft: #EEF1F5;    /* 次分隔线 */
   --border-strong: #D7DCE3;  /* 输入框 / 卡片边框（浅底更清晰） */
 
-  /* 品牌主色 · 暖珊瑚（与小程序 / C 端同源；浅色下更克制） */
-  --primary: #E87964;
-  --primary-strong: #C0533D;   /* 实底按钮（白字 ≈4.6:1，达 AA） */
-  --primary-hover: #D9694F;
-  --primary-deep: #B0432B;     /* hover 加深 */
-  --primary-soft: rgba(232, 121, 100, 0.10);
-  --primary-soft-2: rgba(232, 121, 100, 0.16);
-  --primary-disabled: #EBBDB1;
-  --primary-ring: rgba(232, 121, 100, 0.28);
+  /* 品牌主色 · 鼠尾草绿（全站唯一色相：整站语义色统一到此单一 hue） */
+  --primary: #649064;
+  --primary-strong: #3E6541;   /* 实底按钮（白字 ≈6.6:1，达 AA） */
+  --primary-hover: #6F9B6F;
+  --primary-deep: #345634;     /* hover 加深 */
+  --primary-soft: rgba(100, 144, 100, 0.10);
+  --primary-soft-2: rgba(100, 144, 100, 0.16);
+  --primary-disabled: #B9CEB9;
+  --primary-ring: rgba(100, 144, 100, 0.28);
 
   /* 文字（浅底，提亮对比） */
   --text: #1F2733;            /* 主文字：近黑偏冷 */
   --text-muted: #5B6675;      /* 次文字 ≈5.3:1 on white */
   --text-dim: #7A8694;        /* 辅助说明 ≈4.2:1（仅用于非必要说明，不用于正文） */
 
-  /* 语义色（与小程序对齐，浅底下调深保证 AA） */
-  --success: #15A34A;
-  --success-strong: #15803D;
-  --success-soft: rgba(21, 163, 74, 0.10);
-  --warning: #D9870A;
-  --warning-soft: rgba(217, 135, 10, 0.12);
-  --danger: #DC2626;
-  --danger-strong: #B91C1C;
-  --danger-soft: rgba(220, 38, 38, 0.10);
-  --danger-bg: rgba(220, 38, 38, 0.06);
-  --danger-text: #B91C1C;     /* 浅底用深红（原 #FCA5A5 仅适配深底，已弃） */
-  --info: #2563EB;
-  --info-text: #1D4ED8;
-  --info-soft: rgba(37, 99, 235, 0.10);
+  /* 语义色（整站统一为鼠尾草绿单色，与品牌同源；success/danger/warning/info 全部同 hue） */
+  --success: #649064;
+  --success-strong: #3E6541;
+  --success-soft: rgba(100, 144, 100, 0.10);
+  --warning: #649064;
+  --warning-soft: rgba(100, 144, 100, 0.12);
+  --danger: #649064;
+  --danger-strong: #3E6541;
+  --danger-soft: rgba(100, 144, 100, 0.10);
+  --danger-bg: rgba(100, 144, 100, 0.06);
+  --danger-text: #3E6541;     /* 浅底用深绿（单色体系下以深绿表警示） */
+  --info: #649064;
+  --info-text: #3E6541;
+  --info-soft: rgba(100, 144, 100, 0.10);
 
-  /* 食养语义绿族（对齐小程序 --color-herb-*） */
-  --color-herb-50: #F0FDF4;
-  --color-herb-100: #DCFCE7;
-  --color-herb-200: #BBF7D0;
-  --color-herb-500: #16A34A;
-  --color-herb-600: #15803D;
+  /* 食养语义绿族（统一为鼠尾草绿单色 tint 结构，与全站一致） */
+  --color-herb-50: #F2F7F2;
+  --color-herb-100: #E2EDE2;
+  --color-herb-200: #C9DDC9;
+  --color-herb-500: #649064;
+  --color-herb-600: #3E6541;
 
-  /* 状态语义色（临期 / 风险 红橙琥珀，独立于品牌） */
-  --status-red: #DC2626;       --status-red-soft: rgba(220, 38, 38, 0.10);
-  --status-orange: #EA580C;    --status-orange-soft: rgba(234, 88, 12, 0.10);
-  --status-amber: #D97706;     --status-amber-soft: rgba(217, 119, 6, 0.10);
+  /* 状态语义色（临期 / 风险 统一为鼠尾草绿单色；层级靠明暗区分，不再用红橙琥珀） */
+  --status-red: #649064;       --status-red-soft: rgba(100, 144, 100, 0.10);
+  --status-orange: #649064;    --status-orange-soft: rgba(100, 144, 100, 0.10);
+  --status-amber: #649064;     --status-amber-soft: rgba(100, 144, 100, 0.10);
 
-  /* 强调（B 端功能辅助色，非品牌分歧） */
-  --accent: #7C5CFC;
-  --accent-text: #6D28D9;
-  --accent-soft: rgba(124, 92, 252, 0.10);
+  /* 强调（统一为鼠尾草绿单色） */
+  --accent: #649064;
+  --accent-text: #3E6541;
+  --accent-soft: rgba(100, 144, 100, 0.10);
 
   /* 卡片 / 悬浮 */
   --card: #FFFFFF;
@@ -104,7 +104,7 @@
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.04);
   --shadow: 0 4px 16px rgba(16, 24, 40, 0.08);
   --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12);
-  --shadow-primary: 0 4px 14px rgba(192, 83, 61, 0.22);
+  --shadow-primary: 0 4px 14px rgba(100, 144, 100, 0.22);
 
   --font-sans: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
 }

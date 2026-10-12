@@ -223,14 +223,14 @@ export default function MerchantBarcodeMaker() {
             {noCodeCount > 0 && (
               <div style={{
                 marginTop: 16, padding: '12px 14px', borderRadius: 8,
-                background: 'var(--warning-soft, #FEF3C7)', border: '1px solid var(--warning, #D97706)',
+                background: 'var(--warning-soft, #E2EDE2)', border: '1px solid var(--warning, #649064)',
               }}>
-                <p style={{ color: '#92400E', fontSize: 13, margin: 0, lineHeight: 1.7 }}>
+                <p style={{ color: '#3E6541', fontSize: 13, margin: 0, lineHeight: 1.7 }}>
                   本店还有 <b>{noCodeCount}</b> 个商品没有店内码（扫码收银/扫码上架会扫不出来）。
                 </p>
                 <button onClick={handleBatchFill} disabled={busy !== null} style={{
                   marginTop: 10, padding: '8px 16px', border: 'none', borderRadius: 6,
-                  background: '#D97706', color: '#fff', fontSize: 13, fontWeight: 600,
+                  background: '#3E6541', color: '#fff', fontSize: 13, fontWeight: 600,
                   cursor: busy ? 'not-allowed' : 'pointer',
                 }}>{busy === 'batch' ? '补码中…' : '批量补店内码'}</button>
               </div>
@@ -292,7 +292,7 @@ export default function MerchantBarcodeMaker() {
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
                         <button onClick={() => handlePrint(row.barcode)} disabled={busy !== null} style={{
-                          padding: '8px 14px', border: 'none', borderRadius: 6, background: '#FF8C42',
+                          padding: '8px 14px', border: 'none', borderRadius: 6, background: '#3E6541',
                           color: '#fff', fontSize: 13, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer',
                         }}>打印</button>
                       </div>

@@ -20,6 +20,10 @@ export default function Categories() {
   const [newName, setNewName] = useState('')
   const [newSort, setNewSort] = useState(99)
   const [newParent, setNewParent] = useState('')
+  // 新建分类时一并上传图标（图片 icon_url 或 emoji icon）
+  const [newIconUrl, setNewIconUrl] = useState('')
+  const [newEmoji, setNewEmoji] = useState('')
+  const newIconFileRef = useRef<HTMLInputElement>(null)
   // 内联快捷新增子类（某一级行展开的输入框）
   const [addingChildFor, setAddingChildFor] = useState<string | null>(null)
   const [childName, setChildName] = useState('')
@@ -52,11 +56,14 @@ export default function Categories() {
     const created = await createStoreCategory({
       storeId: null, name: newName.trim(), sortOrder: newSort, scope: 'global',
       parentId: newParent || null,
+      iconUrl: newIconUrl || undefined,
+      icon: newEmoji || undefined,
     })
     setBusy(false)
     if (!created) { alert('创建失败：若新增二级分类，请先在本机执行迁移 20260927_add_category_parent.sql'); return }
     if (newParent) setCollapsed(s => ({ ...s, [newParent]: false }))
     setNewName(''); setNewSort(99)
+    setNewIconUrl(''); setNewEmoji('')
     load()
   }
 
@@ -137,6 +144,20 @@ export default function Categories() {
       const url = await uploadCategoryIcon(file)
       setPendingIconUrl(url)
       setPendingEmoji('') // 图片优先，清除 emoji 文本
+    } catch {
+      alert('图标上传失败，请重试')
+    } finally {
+      setBusy(false)
+    }
+  }
+  const handleNewIconFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setBusy(true)
+    try {
+      const url = await uploadCategoryIcon(file)
+      setNewIconUrl(url)
+      setNewEmoji('') // 图片优先，清除 emoji 文本
     } catch {
       alert('图标上传失败，请重试')
     } finally {
@@ -299,6 +320,36 @@ export default function Categories() {
       {/* 新增 */}
       <div style={S.card}>
         <p style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600, marginBottom: 12 }}>新增分类</p>
+        {/* 新建时一并上传图标：图片优先，否则 emoji 回退 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              onClick={() => newIconFileRef.current?.click()}
+              style={{
+                width: 56, height: 56, borderRadius: 14, border: '1px dashed var(--primary)',
+                background: newIconUrl ? `url(${newIconUrl}) center/cover` : 'var(--bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', flexShrink: 0, overflow: 'hidden',
+              }}
+            >
+              {!newIconUrl && '上传图标'}
+            </div>
+            <input ref={newIconFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleNewIconFile} />
+            <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+              {newIconUrl ? '已选图片，新建后生效' : '可选：上传自定义图标（PNG/JPG，建议 1:1 方形）；不选则用 emoji 回退'}
+            </div>
+            {newIconUrl && (
+              <button onClick={() => { setNewIconUrl(''); setNewEmoji('') }} style={S.btn('var(--border-soft)')}>清除</button>
+            )}
+          </div>
+          {!newIconUrl && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 340 }}>
+              {PRESET_EMOJIS.map(e => (
+                <button key={e} onClick={() => { setNewEmoji(e); setNewIconUrl('') }} style={{ fontSize: 18, lineHeight: 1, padding: '2px 4px', background: newEmoji === e ? 'var(--primary-soft)' : 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' }}>{e}</button>
+              ))}
+            </div>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <input
             value={newName}

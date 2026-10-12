@@ -137,7 +137,7 @@ export default function Login() {
                 onChange={e => setPassword(e.target.value)} placeholder="请输入密码"
                 style={inputBase} onFocus={focusHandler} onBlur={blurHandler} />
             </Field>
-            {err && <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.18)', borderRadius: 'var(--radius-md)', color: 'var(--danger-text)', fontSize: 13 }}>{err}</div>}
+            {err && <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid rgba(100,144,100,0.18)', borderRadius: 'var(--radius-md)', color: 'var(--danger-text)', fontSize: 13 }}>{err}</div>}
             <PrimaryButton type="submit" loading={loading} fullWidth>{loading ? '登 录 中 ...' : '登 录'}</PrimaryButton>
           </form>
         )}
@@ -174,7 +174,7 @@ export default function Login() {
                 </button>
               </div>
             </Field>
-            {err && <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.18)', borderRadius: 'var(--radius-md)', color: 'var(--danger-text)', fontSize: 13 }}>{err}</div>}
+            {err && <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid rgba(100,144,100,0.18)', borderRadius: 'var(--radius-md)', color: 'var(--danger-text)', fontSize: 13 }}>{err}</div>}
             <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>提示：若点击「获取验证码」提示短信服务未配置，请改用「密码登录」（手机号 + 密码）。</p>
             <PrimaryButton type="submit" loading={loading} fullWidth>{loading ? '登 录 中 ...' : '登 录'}</PrimaryButton>
           </form>
@@ -194,7 +194,7 @@ export default function Login() {
                 onChange={e => setEmailPassword(e.target.value)} placeholder="请输入密码"
                 style={inputBase} onFocus={focusHandler} onBlur={blurHandler} />
             </Field>
-            {err && <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.18)', borderRadius: 'var(--radius-md)', color: 'var(--danger-text)', fontSize: 13 }}>{err}</div>}
+            {err && <div style={{ padding: '10px 14px', background: 'var(--danger-soft)', border: '1px solid rgba(100,144,100,0.18)', borderRadius: 'var(--radius-md)', color: 'var(--danger-text)', fontSize: 13 }}>{err}</div>}
             <PrimaryButton type="submit" loading={loading} fullWidth>{loading ? '登 录 中 ...' : '登 录'}</PrimaryButton>
           </form>
         )}

@@ -187,7 +187,7 @@ export default function Ledgers() {
       <div>
         <h1 style={{ color: C.text, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>资产流水中心</h1>
         <p style={{ color: C.dim, fontSize: 14 }}>买家健康豆 / 历史健康豆 / 佣金 / 健康豆 — 全平台逐笔明细，与用户端同源</p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 12px', borderRadius: 8, background: isPrivileged ? 'var(--success-soft)' : 'var(--danger-soft)', border: `1px solid ${isPrivileged ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 12px', borderRadius: 8, background: isPrivileged ? 'var(--success-soft)' : 'var(--danger-soft)', border: `1px solid ${isPrivileged ? 'rgba(16,185,129,0.3)' : 'rgba(107,114,128,0.3)'}` }}>
           <span style={{ fontSize: 13, color: isPrivileged ? C.green : C.red }}>
             {isPrivileged ? '✅ 已以管理员身份登录，可读取全平台流水' : '⚠️ 当前非管理员登录，部分流水可能无法读取'}
           </span>

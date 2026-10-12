@@ -132,7 +132,7 @@ export default function SelfStores() {
               由总部直接管理，本就不绑定个人账号，无需告警。
               正常新申请在总后台审核通过时会自动把门店 owner 设为申请人，整条链路不需要手动绑定。 */}
           {!loading && list.some(r => !r.owner_id && !r.is_platform) && (
-            <div style={{ background: 'rgba(217,119,6,0.10)', border: `1px solid ${C.gold}`, borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: 'rgba(100,144,100,0.10)', border: `1px solid ${C.gold}`, borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
               <NavIcon name="alert" size={16} style={{ color: C.gold, flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ color: C.text, fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
@@ -184,7 +184,7 @@ export default function SelfStores() {
                       <td style={tdStyle}>
                         <button onClick={() => updateSelfStore(r.id, { is_platform: !r.is_platform }).then(() => load())}
                           style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                            background: r.is_platform ? 'rgba(194,65,12,0.15)' : 'transparent',
+                            background: r.is_platform ? 'rgba(100,144,100,0.15)' : 'transparent',
                             color: r.is_platform ? C.accent : C.sub, borderColor: r.is_platform ? C.accent : C.border }}>
                           {r.is_platform ? '自营' : '非自营'}
                         </button>
@@ -419,7 +419,7 @@ function BindManagerModal({ storeId, storeName, current, onClose, onDone }: {
               当前店长：{current.nickname}{current.phone ? `（${current.phone}）` : ''}
             </span>
             <button type="button" onClick={unbind} disabled={busy}
-              style={{ ...miniBtn, marginLeft: 'auto', color: '#DC2626' }}>解绑</button>
+              style={{ ...miniBtn, marginLeft: 'auto', color: '#3E6541' }}>解绑</button>
           </div>
         )}
 
@@ -922,12 +922,12 @@ function ProductFormModal({ isEdit, form, setForm, storeReferralEnabled, onCance
         <Field label="商品让利% (0~100，按利润高低设)">
           <input type="number" min={0} max={100} value={form.discount_rate_pct} onChange={e => setForm({ ...form, discount_rate_pct: Number(e.target.value) })} style={inputStyle} placeholder="5" />
           {storeReferralEnabled && form.discount_rate_pct > 0 && (
-            <p style={{ margin: '8px 0 0', padding: '8px 10px', background: 'rgba(194,65,12,0.12)', border: `1px solid ${C.accent}`, borderRadius: 8, color: C.accent, fontSize: 12 }}>
+            <p style={{ margin: '8px 0 0', padding: '8px 10px', background: 'rgba(100,144,100,0.12)', border: `1px solid ${C.accent}`, borderRadius: 8, color: C.accent, fontSize: 12 }}>
               提示：本店已开启「整体让利」，商品让利 {form.discount_rate_pct}% 将与门店默认让利率按金额加权合并计算，不会叠加放大。
             </p>
           )}
           {!storeReferralEnabled && form.discount_rate_pct > 0 && (
-            <p style={{ margin: '8px 0 0', padding: '8px 10px', background: 'rgba(59,130,246,0.12)', border: `1px solid ${C.blue}`, borderRadius: 8, color: C.blue, fontSize: 12 }}>
+            <p style={{ margin: '8px 0 0', padding: '8px 10px', background: 'rgba(100,144,100,0.12)', border: `1px solid ${C.blue}`, borderRadius: 8, color: C.blue, fontSize: 12 }}>
               提示：本店「整体让利」已关闭，该商品让利 {form.discount_rate_pct}% 为唯一让利来源（无商品让利则该单让利为 0）。
             </p>
           )}
