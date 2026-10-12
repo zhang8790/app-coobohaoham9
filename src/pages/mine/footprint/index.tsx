@@ -69,7 +69,8 @@ function FootprintPage() {
                         <LazyImage
                           src={p.main_image || p.image_url || ''}
                           mode="aspectFill"
-                          style={{ width: '128rpx', height: '128rpx' }} />
+                          width="128rpx"
+                          height="128rpx" />
                       </View>
                       <View className="flex-1">
                         <Text className="text-xl font-bold text-foreground line-clamp-1">{p.name}</Text>

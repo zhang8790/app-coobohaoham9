@@ -148,7 +148,7 @@ export default function ResetPasswordPage() {
                     <Input
                       className="flex-1 text-xl text-foreground bg-transparent outline-none"
                       placeholder="请输入手机号"
-                      type="tel"
+                      type="text"
                       value={phone}
                       onInput={(e) => { const ev = e as any; setPhone(ev.detail?.value ?? ev.target?.value ?? '') }} />
                   </View>
@@ -160,7 +160,7 @@ export default function ResetPasswordPage() {
                       className="flex-1 text-xl text-foreground bg-transparent outline-none"
                       placeholder="请输入验证码"
                       type="number"
-                      maxLength={6}
+                      maxlength={6}
                       value={code}
                       onInput={(e) => { const ev = e as any; setCode(ev.detail?.value ?? ev.target?.value ?? '') }} />
                     <View
@@ -192,7 +192,7 @@ export default function ResetPasswordPage() {
                     <Input
                       className="flex-1 text-xl text-foreground bg-transparent outline-none"
                       placeholder="请输入新密码（至少 6 位）"
-                      type={pwdVisible ? 'text' : 'password'}
+                      password={!pwdVisible}
                       value={newPwd}
                       onInput={(e) => { const ev = e as any; setNewPwd(ev.detail?.value ?? ev.target?.value ?? '') }} />
                     <View onClick={() => setPwdVisible(v => !v)}>
@@ -205,7 +205,7 @@ export default function ResetPasswordPage() {
                   <Input
                     className="w-full text-xl text-foreground bg-transparent outline-none"
                     placeholder="请再次输入新密码"
-                    type={pwdVisible ? 'text' : 'password'}
+                    password={!pwdVisible}
                     value={confirmPwd}
                     onInput={(e) => { const ev = e as any; setConfirmPwd(ev.detail?.value ?? ev.target?.value ?? '') }} />
                 </View>

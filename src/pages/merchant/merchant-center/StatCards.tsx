@@ -36,7 +36,8 @@ export default function StatCards({ stats }: { stats: Stats }) {
             style={{
               flex: 1,
               alignItems: 'center',
-              paddingVertical: '4px',
+              paddingTop: '4px',
+              paddingBottom: '4px',
               borderLeftWidth: idx === 0 ? 0 : '1px',
               borderLeftColor: 'rgba(148,163,184,0.18)',
             }}>

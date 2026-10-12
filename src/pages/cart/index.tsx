@@ -213,7 +213,7 @@ function CartPage() {
  onClick={() => toggleItem(item.id, !item.selected)}>
  {item.selected && <Icon name="check" size={12} className="text-white" />}
  </View>
- <Image src={item.products?.main_image || item.products?.image_url || ''} mode="aspectFill"
+ <Image src={item.products?.main_image || item.products?.image_url || ''} mode="aspectFill" lazyLoad
  style={{ width: '72px', height: '72px', borderRadius: '8px', flexShrink: 0 }}
  onClick={() => Taro.navigateTo({ url: `/pages/product/index?id=${item.product_id}` })} />
  <View className="flex-1">

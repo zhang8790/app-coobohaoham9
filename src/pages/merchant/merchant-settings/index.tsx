@@ -26,7 +26,7 @@ import Announcement from './Announcement'
 // 建店时写入的地址占位符：商家不填真地址就一直在，禁止原样保存回去
 const ADDRESS_PLACEHOLDER = '待补充'
 
-interface StoreForm {
+export interface StoreForm {
   name: string
   description: string
   address: string

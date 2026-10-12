@@ -56,7 +56,7 @@ export default function GiftSections({ product }: { product: Product }) {
  {materials.length > 0 && (
  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: craft ? 8 : 0 }}>
  {materials.map((m, i) => (
- <Text key={i} style={{ fontSize: '24rpx', color: '#8A6B22', background: '#FBF1DA', paddingVertical: '3px', paddingHorizontal: '10px', borderRadius: '999px', marginRight: 6, marginBottom: 6, display: 'block' }}>
+ <Text key={i} style={{ fontSize: '24rpx', color: '#8A6B22', background: '#FBF1DA', paddingTop: '3px', paddingBottom: '3px', paddingLeft: '10px', paddingRight: '10px', borderRadius: '999px', marginRight: 6, marginBottom: 6, display: 'block' }}>
  {m}
  </Text>
  ))}

@@ -139,6 +139,22 @@ export const CONSTITUTION_TYPES: Record<string, ConstitutionType> = {
     bodyStates: [],
     recommendStage: '调',
   },
+  tebing: {
+    key: 'tebing',
+    name: '特禀质',
+    emoji: '🌼',
+    color: '#15803D',
+    colorLight: '#F0FDF4',
+    description: '容易对花粉、尘螨、某些食物或药物产生敏感反应，常有鼻塞、喷嚏、皮肤起疹等表现',
+    characteristics: ['对花粉尘螨等容易敏感', '吃某些食物后皮肤起疹或不适', '换季或接触异味容易鼻塞喷嚏', '皮肤偏敏感、容易瘙痒'],
+    recommendNature: ['平性', '微温', '温热'],
+    avoidNature: ['大寒', '寒凉'],
+    recommendFoods: ['lianou', 'bailuobo', 'doufu', 'nangua', 'yinmi'],
+    avoidFoods: [],
+    healthGoals: ['日常防护', '温和养护'],
+    bodyStates: [],
+    recommendStage: '固',
+  },
   pinghe: {
     key: 'pinghe',
     name: '平和质',
@@ -194,7 +210,7 @@ export const TEST_QUESTIONS: TestQuestion[] = [
     options: [
       { label: '手脚温暖，基本不怕冷', value: 0, effect: {} },
       { label: '偶尔怕冷，手脚偏凉', value: 1, effect: { yangxu: 2, qixu: 1 } },
-      { label: '经常手脚冰凉', value: 2, effect: { yangxu: 3, qixu: 2 } },
+      { label: '经常手脚冰凉', value: 2, effect: { yangxu: 3, qixu: 2, tebing: 1 } },
       { label: '一年四季都怕冷，夏天也凉', value: 3, effect: { yangxu: 4, xueyu: 1 } },
     ],
   },
@@ -216,7 +232,7 @@ export const TEST_QUESTIONS: TestQuestion[] = [
     options: [
       { label: '胃口好，消化正常', value: 0, effect: {} },
       { label: '偶尔腹胀、容易累', value: 1, effect: { qixu: 2, tanshi: 1 } },
-      { label: '经常腹胀、食欲不振', value: 2, effect: { qixu: 2, tanshi: 3 } },
+      { label: '经常腹胀、食欲不振', value: 2, effect: { qixu: 2, tanshi: 3, tebing: 1 } },
       { label: '吃点就胀，大便偏黏', value: 3, effect: { tanshi: 4, qixu: 1 } },
     ],
   },
@@ -270,7 +286,7 @@ export const DEEP_BODY_QUESTIONS: TestQuestion[] = [
       {
         label: '明显畏寒',
         value: 2,
-        effect: { yangxu: 3, qixu: 1, xueyu: 1 },
+        effect: { yangxu: 3, qixu: 1, xueyu: 1, tebing: 1 },
         hint: '手足常年不温，需多添衣被，食生冷后易腹部发凉或腹泻',
         reading: '提示阳气偏弱、温煦之力明显不足',
       },
@@ -330,7 +346,7 @@ export const DEEP_BODY_QUESTIONS: TestQuestion[] = [
       {
         label: '气短懒言',
         value: 2,
-        effect: { qixu: 4, yangxu: 1 },
+        effect: { qixu: 4, yangxu: 1, tebing: 1 },
         hint: '常感气不够用、说话声音偏轻，活动稍多即气喘',
         reading: '提示气偏不足、鼓动乏力',
       },
@@ -530,6 +546,7 @@ export const TENDENCY_PHRASE: Record<string, string> = {
   shire: '湿与热偏盛',
   xueyu: '气血运行偏滞',
   qiyu: '气机不畅、情志偏郁',
+  tebing: '禀质偏弱、易生敏感',
   pinghe: '整体较为均衡',
 }
 

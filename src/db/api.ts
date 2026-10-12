@@ -587,6 +587,7 @@ export async function createStoreCategory(input: {
   scope?: 'global' | 'store'
   parentId?: string | null
   iconUrl?: string | null
+  icon?: string | null
 }): Promise<StoreCategory | null> {
   const scope = input.scope ?? (input.storeId ? 'store' : 'global')
   const payload: Record<string, unknown> = {
@@ -598,6 +599,7 @@ export async function createStoreCategory(input: {
   // 仅在指定父级时携带 parent_id，避免迁移未执行时一级分类创建被 PGRST204 拒绝
   if (input.parentId) payload.parent_id = input.parentId
   if (typeof input.iconUrl !== 'undefined') payload.icon_url = input.iconUrl
+  if (typeof input.icon !== 'undefined') payload.icon = input.icon
   const { data, error } = await supabase.from('store_categories').insert(payload).select().single()
   if (error) { console.warn('[createStoreCategory]', error); return null }
   clearRequestCache() // 写后失效分类 5min 缓存，新建分类立即可见
@@ -750,12 +752,12 @@ export async function getNearbyProducts(
   try {
     // 跨境链路无内置超时：用 withTimeout 把 RPC 收敛到 10s 失败快返（沿用 return [] 契约）
     const rpcRes = await withTimeout(
-      supabase.rpc('get_nearby_products', {
+      Promise.resolve(supabase.rpc('get_nearby_products', {
         p_lat: lat,
         p_lng: lng,
         p_limit: limit * 3, // 多取一些，过滤后再截断
         p_category: category || null,
-      }),
+      })),
       10000,
       '附近商品加载超时',
     ).catch((e: unknown) => ({
@@ -1148,8 +1150,24 @@ export async function createOrderV2(params: {
 
     // P0 修复：价格防伪——下单前回查 products 目录价，弃用客户端传入的 price，杜绝压价下单资损
     const dbProductIds = [...new Set(params.items.map(i => i.product_id).filter(Boolean))]
-    const { data: dbProducts, error: dbProdErr } = await supabase
-      .from('products').select('id, price, is_active').in('id', dbProductIds)
+    // 临期特惠批次
+    const reqBatchIds = params.items.map(i => (i as any).batch_id).filter(Boolean) as string[]
+    // 纯健康豆且计划用量>0 时才需查余额；用计划用量(而非精确 tbUsed)作并行触发条件，避免依赖后续 catalogTotal 计算
+    const needBalanceQuery = params.pay_mode === 'pure_gold' && (params.tb_used ?? 0) > 0
+    // 性能优化：目录价 / 临期价 / 健康豆余额 三个独立 RPC 并行查询（原串行 await 多耗约 2 个 RTT，纯豆支付体感明显变慢）
+    const [prodRes, expRes, profRes] = await Promise.all([
+      supabase.from('products').select('id, price, is_active').in('id', dbProductIds),
+      reqBatchIds.length > 0
+        ? supabase.from('v_near_expiry_products').select('batch_id, price, effective_price').in('batch_id', reqBatchIds)
+        : Promise.resolve({ data: null, error: null }),
+      needBalanceQuery
+        ? supabase.from('profiles').select('tb_balance').eq('id', user.id).single()
+            .then((r: any) => ({ data: r.data, error: r.error }))
+            .catch((e: any) => ({ data: null, error: e }))
+        : Promise.resolve({ data: null, error: null }),
+    ]) as [any, any, any]
+    const dbProducts = prodRes.data
+    const dbProdErr = prodRes.error
     if (dbProdErr) {
       console.error('[createOrderV2] 商品目录查询失败:', dbProdErr)
       Taro.showToast({ title: '商品目录校验失败，禁止下单', icon: 'none' }); return null
@@ -1159,13 +1177,10 @@ export async function createOrderV2(params: {
 
     // 临期特惠：服务端按 v_near_expiry_products 自动套用折扣价（防资损——以 DB auto_discount_rate 为准，不信任客户端单价）。
     // 仅当带 batch_id 且视图确认存在真实折扣（effective_price < 目录价）时才覆盖，杜绝客户端伪造单价压价。
-    const reqBatchIds = params.items.map(i => (i as any).batch_id).filter(Boolean) as string[]
     const expiryPriceMap = new Map<string, number>()
     if (reqBatchIds.length > 0) {
-      const { data: expRows, error: expErr } = await supabase
-        .from('v_near_expiry_products')
-        .select('batch_id, price, effective_price')
-        .in('batch_id', reqBatchIds)
+      const expRows = expRes.data
+      const expErr = expRes.error
       if (expErr) {
         console.warn('[createOrderV2] 临期视图查询失败，回退目录价', expErr)
       } else {
@@ -1204,39 +1219,37 @@ export async function createOrderV2(params: {
     tbUsed = Math.max(0, tbUsed)
     // 健康豆处理：记录下单前余额，订单失败时用于回滚
     let originalBalance = 0
-    if (params.pay_mode === 'pure_gold' && tbUsed) {
-      try {
-        const { data: profile, error: profileErr } = await supabase.from('profiles').select('tb_balance').eq('id', user.id).single()
-        originalBalance = profile?.tb_balance ?? 0
-        if (profileErr) {
-          console.error('[createOrderV2] 查询健康豆失败，阻断下单', profileErr)
-          Taro.showToast({ title: '查询健康豆失败，请重试', icon: 'none' }); return null
-        }
-        else if (!profile || profile.tb_balance < tbUsed) {
-          Taro.showToast({ title: '健康豆余额不足', icon: 'none' }); return null
+    // 余额已在上方 Promise.all 并行查询（needBalanceQuery 时 profRes 即 profile 结果）；此处直接消费，省去二次 RPC（原串行查询是纯豆支付慢的主因之一）
+    if (needBalanceQuery && tbUsed > 0) {
+      const profile = (profRes as any)?.data
+      const profileErr = (profRes as any)?.error
+      originalBalance = profile?.tb_balance ?? 0
+      if (profileErr) {
+        console.error('[createOrderV2] 查询健康豆失败，阻断下单', profileErr)
+        Taro.showToast({ title: '查询健康豆失败，请重试', icon: 'none' }); return null
+      }
+      else if (!profile || profile.tb_balance < tbUsed) {
+        Taro.showToast({ title: '健康豆余额不足', icon: 'none' }); return null
+      } else {
+        const { error: deductErr } = await supabase.from('profiles').update({ tb_balance: profile.tb_balance - tbUsed }).eq('id', user.id)
+        if (deductErr) {
+          // P0 修复：健康豆扣减失败必须阻断下单（避免"未扣豆但显示已扣"）
+          console.error('[createOrderV2] 健康豆扣减失败，阻断下单', deductErr)
+          Taro.showToast({ title: `健康豆扣减失败: ${deductErr.message}`, icon: 'none', duration: 4000 }); return null
         } else {
-          const { error: deductErr } = await supabase.from('profiles').update({ tb_balance: profile.tb_balance - tbUsed }).eq('id', user.id)
-          if (deductErr) {
-            // P0 修复：健康豆扣减失败必须阻断下单（避免"未扣豆但显示已扣"）
-            console.error('[createOrderV2] 健康豆扣减失败，阻断下单', deductErr)
-            Taro.showToast({ title: `健康豆扣减失败: ${deductErr.message}`, icon: 'none', duration: 4000 }); return null
-          } else {
-            // 非阻塞写健康豆流水（下单消费抵扣）；表缺失(404)也不影响主流程
-            supabase.from('tongbao_logs').insert({
-              user_id: user.id,
-              order_id: null,
-              type: 'purchase_spend',
-              delta: -tbUsed,
-              balance_after: (profile.tb_balance ?? 0) - tbUsed,
-              remark: '下单消费抵扣健康豆'}).then(() => {}).catch((e: any) => {
-              if (e?.code === '42P01' || (e as any)?.status === 404) {
-                console.warn('[tongbao_logs] 表不存在(00096未执行)，流水暂不记录')
-              }
-            })
-          }
+          // 非阻塞写健康豆流水（下单消费抵扣）；表缺失(404)也不影响主流程
+          supabase.from('tongbao_logs').insert({
+            user_id: user.id,
+            order_id: null,
+            type: 'purchase_spend',
+            delta: -tbUsed,
+            balance_after: (profile.tb_balance ?? 0) - tbUsed,
+            remark: '下单消费抵扣健康豆'}).then(() => {}).catch((e: any) => {
+            if (e?.code === '42P01' || (e as any)?.status === 404) {
+              console.warn('[tongbao_logs] 表不存在(00096未执行)，流水暂不记录')
+            }
+          })
         }
-      } catch (e) {
-        console.warn('[createOrderV2] 健康豆操作异常，跳过', e)
       }
     }
 
@@ -2057,8 +2070,9 @@ export async function getPlatformMetrics(): Promise<{
   try {
     const { data, error } = await supabase.rpc('get_platform_metrics')
     if (!error && data) {
-      const d = data as any
-      return {
+      // supabase.rpc 对 TABLE 返回类型返回数组，取首行；兼容旧版直接返回对象的情形
+      const d = (Array.isArray(data) ? data[0] : data) as any
+      if (d) return {
         total_cv: Number(d.total_cv) || 0,
         gmv_total: Number(d.gmv_total) || 0,
         new_users_month: Number(d.new_users_month) || 0,
@@ -4009,7 +4023,7 @@ export async function getMerchantMessages(storeId: string, userId: string): Prom
 // 不让任一数据源失败拖垮整个消息聚合（公告/订单/佣金须独立聚合）。
 async function safeSelect<T = any>(builder: any): Promise<T[]> {
   try {
-    const { data, error } = await withTimeout(builder, 8000, '查询超时')
+    const { data, error } = await withTimeout(Promise.resolve(builder), 8000, '查询超时')
     if (error) { console.error('[getMerchantMessages]', error); return [] }
     return (data as T[]) || []
   } catch (e) { console.error('[getMerchantMessages] 查询异常', e); return [] }

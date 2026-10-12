@@ -11,6 +11,7 @@
  */
 
 import { CONSTITUTION_TYPES } from '@/utils/constitution-test'
+import { safeGoal } from '@/utils/compliance/shield'
 import type { IngredientEntry } from '@/utils/shiyang-dictionary'
 import { ALLERGY_OPTIONS } from './profile-map'
 
@@ -108,7 +109,7 @@ export function buildHealthShortfalls(inputTags: string[] = [], allergies: strin
       emoji: c.emoji,
       severity: c.key === 'pinghe' ? 'low' : 'mid',
       desc:
-        `短板方向：${c.healthGoals.length ? c.healthGoals.join('、') : c.description}` +
+        `短板方向：${c.healthGoals.length ? c.healthGoals.map(safeGoal).join('、') : c.description}` +
         `；需留意性味：${c.avoidNature.length ? c.avoidNature.join('、') : '无明显禁忌'}`,
       harmLevelMax: harmTh.max,
       harmLevelMin: harmTh.min,

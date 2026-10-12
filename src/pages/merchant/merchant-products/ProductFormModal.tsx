@@ -11,6 +11,7 @@ import { COOKING_METHODS, AUX_OPTIONS, NATURE_COLOR, type ProductFormController 
 import { getProductCareInfo } from '@/utils/product-care'
 import { HEALTH_TAGS, NATURE_SCALE } from '@/utils/food-therapy/types'
 import { FIT_CROWD_OPTIONS } from '@/utils/food-therapy/product-therapy'
+import type { TherapyWarning } from '@/utils/food-therapy/product-therapy'
 import { calcMargin } from './types'
 import { FOOD_CATEGORIES } from '@/lib/food-engine/wordTables'
 import type { Product, StoreCategory } from '@/db/types'
@@ -127,7 +128,7 @@ marginTop: 'auto',
  background: '#FFF',
  borderTopLeftRadius: '24px',
  borderTopRightRadius: '24px',
- paddingHorizontal: '20px',
+ paddingLeft: '20px', paddingRight: '20px',
  paddingTop: '20px',
  maxHeight: '90vh',
  }}>
@@ -181,7 +182,6 @@ marginTop: 'auto',
    bounces
    showScrollbar
    style={{ flex: 1, minHeight: 0, maxHeight: '72vh' }}
-   contentContainerStyle={{ paddingBottom: '24px' }}
  >
 
  {/* ===== 第 1 步：基本信息 ===== */}
@@ -197,7 +197,7 @@ marginTop: 'auto',
             <View key={i} style={{ width: '64px', height: '64px', borderRadius: '8px', overflow: 'hidden', border: i === 0 ? '2px solid hsl(var(--primary))' : '1px solid #EEE', position: 'relative' }}>
               <Image src={img} mode="aspectFill" style={S.fullFill} />
               {i === 0 && (
-                <View style={{ position: 'absolute', left: 0, bottom: 0, background: 'hsl(var(--primary))', paddingVertical: 1, paddingHorizontal: 4 }}>
+                <View style={{ position: 'absolute', left: 0, bottom: 0, background: 'hsl(var(--primary))', paddingTop: 1, paddingBottom: 1, paddingLeft: 4, paddingRight: 4 }}>
                   <Text style={{ color: '#FFF', fontSize: '18rpx' }}>封面</Text>
                 </View>
               )}
@@ -209,7 +209,7 @@ marginTop: 'auto',
               {i !== 0 && (
                 <View
                   onClick={() => controller.handleSetMain(i)}
-                  style={{ position: 'absolute', bottom: 0, right: 0, background: 'rgba(0,0,0,0.55)', paddingVertical: 1, paddingHorizontal: 3 }}>
+                  style={{ position: 'absolute', bottom: 0, right: 0, background: 'rgba(0,0,0,0.55)', paddingTop: 1, paddingBottom: 1, paddingLeft: 3, paddingRight: 3 }}>
                   <Text style={{ color: '#FFF', fontSize: '18rpx' }}>设封面</Text>
                 </View>
               )}
@@ -512,7 +512,7 @@ marginTop: 'auto',
  fontSize: '28rpx', color: '#B45309', padding: '0 10px', boxSizing: 'border-box',
  }}
  placeholder="如: 15 表示让利15%（最高30%）"
- placeholderStyle={{ color: 'var(--muted-foreground)' }}
+ placeholderStyle="color: var(--muted-foreground)"
  type="digit"
  value={controller.form.discount_rate}
  onInput={(e: any) => controller.setForm(f => ({ ...f, discount_rate: e.detail?.value ?? '' }))}
@@ -818,7 +818,7 @@ background: sel ? 'hsl(var(--primary))' : '#FFF',
  {/* 三色预警：红=过敏 / 橙=慎食 / 蓝=慢病适配 */}
  {controller.therapyReport.warnings.length > 0 && (
  <View style={{ marginBottom: '8px' }}>
- {controller.therapyReport.warnings.map((w, i) => {
+ {controller.therapyReport.warnings.map((w: TherapyWarning, i: number) => {
  const tone = w.level === 'red'
  ? { bg: '#FDECEC', border: '#F5C2C2', fg: '#C0392B' }
  : w.level === 'orange'
@@ -1049,8 +1049,8 @@ background: sel ? 'hsl(var(--primary))' : '#FFF',
 
  {/* 底部操作条：固定在弹窗底部（不随内容滚动），任何时候都能取消/翻步/保存；适配iPhone安全区 */}
  <View style={{
-   marginHorizontal: '-20px',
-   paddingHorizontal: '20px',
+   marginLeft: '-20px', marginRight: '-20px',
+   paddingLeft: '20px', paddingRight: '20px',
    paddingTop: '12px',
    paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
    borderTop: '1px solid #F2EEEA',

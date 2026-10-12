@@ -409,6 +409,7 @@ export let mockMerchantApps: MerchantApplication[] = [
     contact_name: '测试掌柜',
     contact_phone: '13800138000',
     business_type: '餐饮',
+    address: null,
     description: '本地开发测试门店',
     status: 'approved',
     reject_reason: null,

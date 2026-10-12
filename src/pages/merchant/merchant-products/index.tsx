@@ -32,6 +32,7 @@ function MerchantProductsPage() {
   const [showCatModal, setShowCatModal] = useState(false)
   const [newCatName, setNewCatName] = useState('')
   const [newCatParent, setNewCatParent] = useState('')
+  const [newCatIconUrl, setNewCatIconUrl] = useState('')
   const [editingCatId, setEditingCatId] = useState<string | null>(null)
   const [editingCatName, setEditingCatName] = useState('')
   // 分类管理 / 批量分析 的提交态（表单保存态在 useProductForm 内，互不干扰）
@@ -227,11 +228,12 @@ function MerchantProductsPage() {
     const name = newCatName.trim()
     if (!name) { Taro.showToast({ title: '请输入分类名称', icon: 'none' }); return }
     setSaving(true)
-    const created = await createStoreCategory({ storeId: store.id, name, parentId: newCatParent || null })
+    const created = await createStoreCategory({ storeId: store.id, name, parentId: newCatParent || null, iconUrl: newCatIconUrl || undefined })
     setSaving(false)
     if (!created) { Taro.showToast({ title: newCatParent ? '创建二级分类失败：请确认总部已部署二级分类迁移' : '创建失败，请重试', icon: 'none' }); return }
     setNewCatName('')
     setNewCatParent('')
+    setNewCatIconUrl('')
     Taro.showToast({ title: '已新建分类', icon: 'success' })
     await loadCategories()
   }
@@ -259,6 +261,16 @@ function MerchantProductsPage() {
     } catch { Taro.showToast({ title: '上传失败', icon: 'none' }) }
   }
 
+  // 新建分类时一并上传图标：选图 → category-icons 桶 → 暂存到 newCatIconUrl，随新建一起写库
+  const handlePickNewIcon = async () => {
+    try {
+      const url = await uploadImage({ bucket: 'category-icons' })
+      if (!url || typeof url !== 'string') { Taro.showToast({ title: '上传失败', icon: 'none' }); return }
+      setNewCatIconUrl(url)
+      Taro.showToast({ title: '图标已选，新建后生效', icon: 'success' })
+    } catch { Taro.showToast({ title: '上传失败', icon: 'none' }) }
+  }
+
   const handleDeleteCategory = (cat: StoreCategory) => {
     Taro.showModal({
       title: '删除分类',
@@ -278,7 +290,7 @@ function MerchantProductsPage() {
     })
   }
 
-  const handleMoveCategory = async (cat: StoreCategory, dir: -1 | 1) => {
+  const handleMoveCategory = async (cat: StoreCategory, dir: number) => {
     const sorted = [...categories].sort((a, b) => a.sort_order - b.sort_order)
     const idx = sorted.findIndex(c => c.id === cat.id)
     const swapIdx = idx + dir
@@ -440,6 +452,8 @@ function MerchantProductsPage() {
           setNewCatName={setNewCatName}
           newCatParent={newCatParent}
           setNewCatParent={setNewCatParent}
+          newCatIconUrl={newCatIconUrl}
+          onPickNewIcon={handlePickNewIcon}
           editingCatId={editingCatId}
           setEditingCatId={setEditingCatId}
           editingCatName={editingCatName}

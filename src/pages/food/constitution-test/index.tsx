@@ -50,7 +50,7 @@ const POSTER_INSIGHT: Record<string, string> = {
 }
 
 export default function ConstitutionTestPage() {
-  const { refreshHealthProfile } = useFoodTherapy()
+  const { refreshHealthProfile = () => {} } = (useFoodTherapy() ?? {}) as { refreshHealthProfile?: () => void }
   const [step, setStep] = useState<Step>('intro')
  const [currentQ, setCurrentQ] = useState(0)
  const [answers, setAnswers] = useState<number[]>(() => DEEP_BODY_QUESTIONS.map(() => -1))
@@ -175,7 +175,7 @@ export default function ConstitutionTestPage() {
  useShareAppMessage(() => ({ title: shareTitle, path: '/pages/food/constitution-test/index' }))
  useShareTimeline(() => ({ title: shareTitle }))
  useDidShow(() => {
- Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
+ Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] } as unknown as Parameters<typeof Taro.showShareMenu>[0])
  })
 
  return (

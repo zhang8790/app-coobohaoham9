@@ -24,11 +24,15 @@ export default function PaymentActionBar(props: PaymentActionBarProps) {
  className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t-2 border-border px-4 pt-3 flex flex-col gap-3"
  style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
  <View
+ hoverClass="opacity-80"
+ hoverStartTime={20}
+ hoverStayTime={120}
  className={`w-full flex items-center justify-center leading-none rounded-2xl ${productCheck.loading || productCheck.invalid.length > 0 || (!repayMode && (minOrderErrors.length > 0 || deliveryRadiusErrors.length > 0)) ? 'bg-muted opacity-50' : (paying ? 'bg-primary/50' : 'bg-primary')}`}
  onClick={handlePay}>
  <View className="py-4 text-2xl font-bold text-white">{payBtnText}</View>
  </View>
  <View
+ hoverClass="opacity-70"
  className="w-full flex items-center justify-center leading-none rounded-2xl border-2 border-border bg-card"
  onClick={handleCancel}>
  <View className="py-4 text-xl text-muted-foreground">取消支付</View>

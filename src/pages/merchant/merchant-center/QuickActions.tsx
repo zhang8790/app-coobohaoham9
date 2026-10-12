@@ -24,7 +24,8 @@ export default function QuickActions({ onAdd, onScan, onBatchAnalyze }: Props) {
         <View
           className="flex flex-row items-center justify-center"
           style={{
-            paddingVertical: '16px',
+            paddingTop: '16px',
+            paddingBottom: '16px',
             background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-strong)))',
             boxShadow: '0 6px 16px hsl(var(--primary) / 0.28)',
           }}>

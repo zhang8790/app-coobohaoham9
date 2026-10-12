@@ -39,8 +39,7 @@ function FavoritesPage() {
         <View className="flex flex-col items-center py-20 gap-4">
           <View className="text-muted-foreground/30"><Icon name="heart" size={56} /></View>
           <Text className="text-xl text-muted-foreground">暂无收藏，去逛逛吧</Text>
-          <View type="button"
-            className="flex items-center justify-center leading-none rounded-2xl bg-primary"
+          <View            className="flex items-center justify-center leading-none rounded-2xl bg-primary"
             onClick={() => Taro.switchTab({ url: '/pages/index/index' })}>
             <View className="py-3 px-8 text-xl font-bold text-white">去逛逛</View>
           </View>
@@ -59,9 +58,9 @@ function FavoritesPage() {
                     <LazyImage
                       src={p.main_image || p.image_url || ''}
                       mode="aspectFill"
-                      style={{ width: '100%', height: '320rpx' }} />
-                    <View type="button"
-                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center"
+                      width="100%"
+                      height="320rpx" />
+                    <View                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center"
                       onClick={e => { e.stopPropagation(); handleRemove(fav) }}>
                       {removingId === fav.id
                         ? <Icon name="loading" size={20} className="text-primary animate-spin" />

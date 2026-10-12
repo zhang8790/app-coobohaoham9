@@ -211,7 +211,7 @@ export async function updateProductFoodFields(
 export async function resolveFoodAdditivesByText(text: string): Promise<{ additives: FoodAdditive[]; matchedNames: string[] }> {
   const names = matchAdditiveKeys(text)
   if (!names.length) return { additives: [], matchedNames: [] }
-  const { data, error } = await supabase.from('food_additives').select('*').in('name', names)
+  const { data, error } = await supabase.from('food_additives').select('*').in('name', names).eq('status', 'active')
   if (error) {
     console.error('[resolveFoodAdditivesByText] 查询失败:', error.message)
     return { additives: [], matchedNames: names }

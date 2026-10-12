@@ -1,5 +1,5 @@
 // @title P3 门店联动：流动车管理弹窗（纯展示，写库逻辑在页面）
-import { View, Text, Button, Input } from '@tarojs/components'
+import { View, Text, Button, Input, ScrollView } from '@tarojs/components'
 import type { MerchantVehicle } from './VehiclesCard'
 import Icon from '@/components/Icon'
 
@@ -32,6 +32,14 @@ export default function VehicleManageModal({ visible, vehicles, vehicleName, veh
               <Icon name="close" size={18} />
             </View>
           </View>
+
+          {/* 可滚动内容区：ScrollView 自管手势，真机 catchMove 下不再滚不动 */}
+          <ScrollView
+            scrollY
+            enhanced
+            showScrollbar
+            style={{ flex: 1, minHeight: 0, maxHeight: '60vh' }}
+          >
 
           {/* 列表 + 启停 */}
           <View className="flex flex-col gap-2 mb-4">
@@ -74,6 +82,7 @@ export default function VehicleManageModal({ visible, vehicles, vehicleName, veh
               </View>
             </Button>
           </View>
+          </ScrollView>
         </View>
       </View>
     )

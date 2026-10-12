@@ -45,7 +45,7 @@ export function scoreFoodTherapy(input: FoodTherapyInput, rule: FitRule, weights
   const prio = rule.priorityHealthTags as string[]
   const banT = rule.banHealthTags as string[]
 
-  const matched = tags.filter((t) => prio.includes(t))
+  const matched = tags.filter((t) => prio.includes(t)) as HealthTag[]
   if (matched.length) {
     const detail: string[] = []
     let bonus = 0

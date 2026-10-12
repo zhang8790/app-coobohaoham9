@@ -1,7 +1,7 @@
 /**
  * @file Taro application entry file
  */
-import { View } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import { useDidShow } from '@tarojs/taro'
 import type { PropsWithChildren } from 'react'
 import { Component, type ReactNode } from 'react'

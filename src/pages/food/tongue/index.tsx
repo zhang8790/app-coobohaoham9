@@ -133,7 +133,7 @@ function ChainStrip({ combined }: { combined: CombinedAssessment }) {
             </View>
           )
           const arrow = i < steps.length - 1 ? (
-            <Text key={`a${i}`} style={{ alignSelf: 'center', color: '#C9C0B4', fontSize: 14, paddingHorizontal: 2 }}>
+            <Text key={`a${i}`} style={{ alignSelf: 'center', color: '#C9C0B4', fontSize: 14, paddingLeft: 2, paddingRight: 2 }}>
               ›
             </Text>
           ) : null
@@ -207,7 +207,7 @@ export default function TonguePage() {
       setLoadingRecs(true)
       try {
         const all = await getProducts({ limit: 40 })
-        const { good: g, caution: c } = buildProductMatch(all, comb)
+        const { good: g, caution: c } = buildProductMatch(all, { ...comb, picked: [] })
         setProducts(all)
         setGood(g.slice(0, 6))
         setCaution(c.slice(0, 3))
@@ -359,7 +359,7 @@ export default function TonguePage() {
   }))
   useShareTimeline(() => ({ title: shareTitle }))
   useDidShow(() => {
-    Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
+    Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] } as unknown as Parameters<typeof Taro.showShareMenu>[0])
     try {
       // 拍照留档返回：本地读取舌面（正面）+ 舌下（反面）两张，跳到逐项对照自检。
       // 纯本地、不联网、不经任何视觉识别 —— 用户看自己的照片逐项勾选特征。
@@ -466,7 +466,7 @@ export default function TonguePage() {
           </View>
 
           <Button
-            onClick={openCameraGuide}
+            onClick={() => openCameraGuide()}
             className="mt-5 rounded-full"
             style={S.primaryFill}
           >

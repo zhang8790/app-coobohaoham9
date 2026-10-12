@@ -36,7 +36,7 @@ export default function StoreInfoCard({ store, storeCount, onViewStore, onShowQr
             <View
               style={{
                 flexDirection: 'row', alignItems: 'center', gap: '4px',
-                paddingHorizontal: '10px', paddingVertical: '3px',
+                paddingLeft: '10px', paddingRight: '10px', paddingTop: '3px', paddingBottom: '3px',
                 borderRadius: '9999px',
                 background: 'rgba(255,255,255,0.22)',
               }}>
@@ -70,7 +70,7 @@ export default function StoreInfoCard({ store, storeCount, onViewStore, onShowQr
         className="!m-0 !p-0 !bg-transparent !border !border-white/40 !rounded-2xl !leading-none"
         style={{ marginTop: '16px' }}
         onClick={onViewStore}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '6px', paddingVertical: '10px' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '6px', paddingTop: '10px', paddingBottom: '10px' }}>
           <Icon name="store" size={18} className="text-white" />
           <Text style={{ fontSize: '26rpx', color: '#FFFFFF', fontWeight: '600' }}>查看门店主页</Text>
         </View>

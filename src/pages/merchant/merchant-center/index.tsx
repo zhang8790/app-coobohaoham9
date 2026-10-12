@@ -488,7 +488,7 @@ function MerchantCenterPage() {
         visible={showStoreSwitch}
         stores={stores}
         currentStore={store}
-        onSwitch={(s) => { setCurrentMerchantStore(authUser.id, s.id, s); setStore(s); setShowStoreSwitch(false) }}
+        onSwitch={(s) => { if (!authUser) return; setCurrentMerchantStore(authUser.id, s.id, s); setStore(s); setShowStoreSwitch(false) }}
         onClose={() => setShowStoreSwitch(false)}
       />
 

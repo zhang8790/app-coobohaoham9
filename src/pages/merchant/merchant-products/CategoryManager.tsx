@@ -1,5 +1,5 @@
 // @title 商品分类管理抽屉（商家端）— 从 merchant-products 主页面抽离
-import { View, Text, Input, Picker, ScrollView } from '@tarojs/components'
+import { View, Text, Input, Picker, ScrollView, Image } from '@tarojs/components'
 import type { StoreCategory } from '@/db/types'
 import Icon from '@/components/Icon'
 import CategoryIcon from '@/components/CategoryIcon'
@@ -16,6 +16,8 @@ type Props = {
  setNewCatName: (v: string) => void
  newCatParent: string
  setNewCatParent: (v: string) => void
+ newCatIconUrl: string
+ onPickNewIcon: () => void
  editingCatId: string | null
  setEditingCatId: (v: string | null) => void
  editingCatName: string
@@ -30,7 +32,7 @@ type Props = {
 
 export default function CategoryManager({
  visible, categories, newCatName, setNewCatName,
- newCatParent, setNewCatParent,
+ newCatParent, setNewCatParent, newCatIconUrl, onPickNewIcon,
  editingCatId, setEditingCatId, editingCatName, setEditingCatName,
  onClose, onAddCategory, onMoveCategory, onSaveRename, onDeleteCategory, onPickIcon,
 }: Props) {
@@ -48,7 +50,7 @@ export default function CategoryManager({
  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.55)' }}
  onClick={onClose} catchMove>
  <View
- style={{ marginTop: 'auto', width: '100%', background: '#FFF', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', paddingHorizontal: '20px', paddingTop: '20px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
+ style={{ marginTop: 'auto', width: '100%', background: '#FFF', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', paddingLeft: '20px', paddingRight: '20px', paddingTop: '20px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
  onClick={(e: any) => e.stopPropagation()}>
  {/* 标题 */}
  <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
@@ -65,20 +67,22 @@ export default function CategoryManager({
    bounces
    showScrollbar
    style={{ flex: 1, minHeight: 0, maxHeight: '66vh' }}
-   contentContainerStyle={{ paddingBottom: 'calc(32px + env(safe-area-inset-bottom))' }}
  >
 
- {/* 新建分类 */}
- <View style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
- <Input
- value={newCatName}
- onInput={(e: any) => setNewCatName(e.detail?.value ?? '')}
- placeholder="输入新分类名称"
- style={{ flex: 1, height: '42px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', padding: '0 12px', boxSizing: 'border-box' }} />
- <View onClick={onAddCategory} style={{ padding: '0 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', background: 'linear-gradient(135deg, #333333, hsl(var(--primary)))' }}>
- <Text style={{ fontSize: '28rpx', color: '#FFF', fontWeight: 'bold' }}>新建</Text>
- </View>
- </View>
+{/* 新建分类（含图标上传：选图随新建一起写库） */}
+<View style={{ display: 'flex', gap: '8px', marginBottom: '14px', alignItems: 'center' }}>
+<View onClick={onPickNewIcon} style={{ width: '44px', height: '44px', borderRadius: '12px', borderWidth: '1px', borderStyle: 'dashed', borderColor: '#DDD', background: '#FBF7EF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+{newCatIconUrl ? <Image src={newCatIconUrl} style={{ width: '36px', height: '36px', borderRadius: '8px' }} /> : <Text style={{ fontSize: '22rpx', color: '#BBB' }}>+ 图标</Text>}
+</View>
+<Input
+value={newCatName}
+onInput={(e: any) => setNewCatName(e.detail?.value ?? '')}
+placeholder="输入新分类名称"
+style={{ flex: 1, height: '42px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', padding: '0 12px', boxSizing: 'border-box' }} />
+<View onClick={onAddCategory} style={{ padding: '0 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', background: 'linear-gradient(135deg, #333333, hsl(var(--primary)))' }}>
+<Text style={{ fontSize: '28rpx', color: '#FFF', fontWeight: 'bold' }}>新建</Text>
+</View>
+</View>
  {/* 父级选择器：选一级 → 新建为它的二级；留空 → 新建一级 */}
  <View style={{ marginBottom: '14px' }}>
  <Picker

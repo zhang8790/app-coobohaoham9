@@ -12,7 +12,7 @@ import type { Product, Store } from '@/db/types'
 const S = {
   fieldGap: { marginBottom: '14px' },
   labelStrongBlock: { fontSize: '28rpx', color: '#333', fontWeight: '600', marginBottom: '6px', display: 'block' },
-  inputRow: { height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' },
+  inputRow: { height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', display: 'flex', alignItems: 'center', paddingLeft: '14px', paddingRight: '14px' },
   inputFull: { width: '100%', height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #EEE', fontSize: '28rpx', color: '#333', padding: '0 14px', boxSizing: 'border-box' },
 } as const
 
@@ -60,8 +60,10 @@ function MerchantBatchPage() {
 
  const productNames = products.map((p) => p.name)
 
- const handleSave = async () => {
- if (!store) return
+  const handleSave = async () => {
+    if (saving) return
+    if (!store) return
+    setSaving(true)
  if (selIdx < 0) { Taro.showToast({ title: '请选择商品', icon: 'none' }); return }
  if (!expireAt) { Taro.showToast({ title: '请选择过期日期', icon: 'none' }); return }
  const n = parseInt(qty, 10)
@@ -75,7 +77,6 @@ function MerchantBatchPage() {
  return
  }
 
- setSaving(true)
  try {
  const payload: any = {
  product_id: products[selIdx].id,
@@ -163,7 +164,7 @@ function MerchantBatchPage() {
  <View style={S.fieldGap}>
  <Text style={S.labelStrongBlock}>过期日期 *（保质期）</Text>
  <Picker mode="date" value={expireAt} onChange={(e: any) => setExpireAt(e.detail.value)}>
- <View style={{ height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #E0E0E0', display: 'flex', alignItems: 'center', paddingHorizontal: '14px' }}>
+ <View style={{ height: '44px', borderRadius: '10px', background: '#FBF7EF', border: '1.5px solid #E0E0E0', display: 'flex', alignItems: 'center', paddingLeft: '14px', paddingRight: '14px' }}>
  <Text style={{ fontSize: '30rpx', color: expireAt ? '#B45309' : '#BBB' }}>{expireAt || '请选择过期日期'}</Text>
  </View>
  </Picker>

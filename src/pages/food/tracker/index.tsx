@@ -119,12 +119,12 @@ export default function FoodTracker() {
  {(expiringCount > 0 || expiredCount > 0) && (
  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
  {expiredCount > 0 && (
- <View style={{ background: 'rgba(239,68,68,0.3)', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10 }}>
+ <View style={{ background: 'rgba(239,68,68,0.3)', borderRadius: 8, paddingTop: 4, paddingBottom: 4, paddingLeft: 10, paddingRight: 10 }}>
  <Text style={{ fontSize: '24rpx', color: '#fff', fontWeight: '600' }}> {expiredCount}件已过期</Text>
  </View>
  )}
  {expiringCount > 0 && (
- <View style={{ background: 'rgba(249,115,22,0.3)', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10 }}>
+ <View style={{ background: 'rgba(249,115,22,0.3)', borderRadius: 8, paddingTop: 4, paddingBottom: 4, paddingLeft: 10, paddingRight: 10 }}>
  <Text style={{ fontSize: '24rpx', color: '#fff', fontWeight: '600' }}> {expiringCount}件临期</Text>
  </View>
  )}
@@ -169,7 +169,7 @@ export default function FoodTracker() {
  <Text style={{
  fontSize: '22rpx', fontWeight: '700', color: STATUS_COLORS[item.status].fg,
  background: STATUS_COLORS[item.status].bg, borderRadius: 8,
- paddingVertical: 4, paddingHorizontal: 10,
+ paddingTop: 4, paddingBottom: 4, paddingLeft: 10, paddingRight: 10,
  }}>
  {STATUS_COLORS[item.status].label}
  </Text>

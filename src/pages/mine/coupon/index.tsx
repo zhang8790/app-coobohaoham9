@@ -94,7 +94,7 @@ function CouponPage() {
  <Text className="text-xl text-muted-foreground">暂无可领取的优惠券</Text>
  </View>
  ) : claimable.map(c => {
- const expired = c.end_date ? new Date(c.end_date) < now : false
+ const expired = c.expired_at ? new Date(c.expired_at) < now : false
  return (
  <View key={c.id} className="mb-3 rounded-2xl overflow-hidden border border-primary/30">
  <View className="flex">
@@ -107,7 +107,7 @@ function CouponPage() {
  <View className="flex-1 px-4 py-4 bg-card flex flex-col justify-between">
  <Text className="text-xl font-bold text-foreground line-clamp-1">{c.title}</Text>
  <View className="flex items-center justify-between mt-2">
- <Text className="text-base text-muted-foreground">{formatExpire(c.end_date)}</Text>
+ <Text className="text-base text-muted-foreground">{formatExpire(c.expired_at)}</Text>
  <View
  className="flex items-center justify-center leading-none rounded-xl bg-primary"
  onClick={() => handleClaim(c)}>

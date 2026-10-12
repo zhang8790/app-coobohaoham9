@@ -87,7 +87,7 @@ function MerchantExpiryPage() {
       if (error) throw error
       Taro.showToast({ title: '已保存', icon: 'success' })
       // 本地同步
-      setList(prev => prev.map(e => e.batch_id === batchId ? { ...e, auto_discount_rate: rate, decided_by: 'merchant_manual', discount_stage: stage } : e))
+      setList(prev => prev.map(e => e.batch_id === batchId ? { ...e, auto_discount_rate: rate, decided_by: 'merchant_manual' as unknown as StoreNearExpiry['decided_by'], discount_stage: stage as StoreNearExpiry['discount_stage'] } : e))
     } catch (err) {
       console.error('[MerchantExpiry] 保存失败:', err)
       Taro.showToast({ title: '保存失败', icon: 'none' })
@@ -167,7 +167,7 @@ function MerchantExpiryPage() {
                           <Text className="text-lg font-bold" style={{ color: stageColor }}>¥{eff.toFixed(2)}</Text>
                         </View>
                         <View className="flex items-center gap-2 mt-1">
-                          <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, background: stageColor }}>
+                          <View style={{ paddingLeft: 6, paddingRight: 6, paddingTop: 2, paddingBottom: 2, borderRadius: 4, background: stageColor }}>
                             <Text className="text-xs text-white font-bold">{STAGE_LABEL[e.discount_stage] || e.discount_stage}</Text>
                           </View>
                           <Text className="text-sm text-muted-foreground">剩 {e.days_left} 天</Text>

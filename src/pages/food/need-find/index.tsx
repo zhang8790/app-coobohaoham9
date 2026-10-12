@@ -302,7 +302,7 @@ export default function NeedFindPage() {
  </View>
  <View className="nf-header-meta">
  <Text className="nf-meta-item"> 为「{targetName}」筛选</Text>
- <Text className="nf-meta-item"> {currentStore?.name || '门店'}</Text>
+ <Text className="nf-meta-item"> {currentStore?.store_name || '门店'}</Text>
  </View>
  {need.note ? <Text className="nf-note">ⓘ {need.note}</Text> : null}
  {!hasHealthProfile ? (

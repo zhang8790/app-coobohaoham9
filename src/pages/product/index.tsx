@@ -47,7 +47,7 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
  <View className="mb-3">
  <View
  onClick={() => setOpen((v) => !v)}
- style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: '4px', paddingHorizontal: '2px', background: open ? 'var(--color-herb-50)' : 'transparent', borderRadius: '8px' }}
+ style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: '4px', paddingBottom: '4px', paddingLeft: '2px', paddingRight: '2px', background: open ? 'var(--color-herb-50)' : 'transparent', borderRadius: '8px' }}
  >
  <Text className="text-base font-bold text-foreground" style={S.block}>{title}</Text>
  <Text style={{ fontSize: '26rpx', color: 'var(--muted-foreground)' }}>{open ? '收起 ' : '展开 '}</Text>
@@ -71,7 +71,7 @@ function TagRow({ label, tags, highlight }: { label: string; tags: string[]; hig
        fontSize: '24rpx',
        color: hit ? '#FFFFFF' : 'var(--color-herb-600)',
        background: hit ? 'hsl(var(--primary-deep))' : 'var(--color-herb-200)',
-       paddingVertical: '6rpx', paddingHorizontal: '16rpx', borderRadius: '999px', marginRight: 12, marginBottom: 12,
+       paddingTop: '6rpx', paddingBottom: '6rpx', paddingLeft: '16rpx', paddingRight: '16rpx', borderRadius: '999px', marginRight: 12, marginBottom: 12,
       }}>{hit ? `★${c}` : c}</Text>
      )
     })}
@@ -650,7 +650,7 @@ const showTherapy = isTherapyEnabled(product)
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                           <Text style={{ fontSize: '28rpx', fontWeight: '700', color: 'hsl(var(--primary-deep))', display: 'block' }}>这口吃得安心吗</Text>
                           {NATURE_FEELING[therapyReport.overall_nature_code] ? (
-                            <Text style={{ fontSize: '24rpx', color: 'hsl(var(--primary-deep))', background: 'hsl(var(--primary-soft-deep))', paddingVertical: '2px', paddingHorizontal: '8px', borderRadius: '999px' }}>食用体感 · {NATURE_FEELING[therapyReport.overall_nature_code]}</Text>
+                            <Text style={{ fontSize: '24rpx', color: 'hsl(var(--primary-deep))', background: 'hsl(var(--primary-soft-deep))', paddingTop: '2px', paddingBottom: '2px', paddingLeft: '8px', paddingRight: '8px', borderRadius: '999px' }}>食用体感 · {NATURE_FEELING[therapyReport.overall_nature_code]}</Text>
                           ) : null}
                         </View>
                         <Text style={{ fontSize: '34rpx', fontWeight: '700', color: 'hsl(var(--primary-deep))', display: 'block', lineHeight: '1.4', marginTop: 6 }}>{buildTherapyHeadline(therapyReport).main}</Text>

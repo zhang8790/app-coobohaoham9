@@ -1,6 +1,6 @@
 {
   "include": ["./src", "./types"],
-  "exclude": ["./src/**/*.test.ts", "./src/**/*.spec.ts", "./src/client/supabase.ts"],
+  "exclude": ["./src/**/*.test.ts", "./src/**/*.spec.ts", "./src/client/supabase.ts", "./src/scripts"],
   "compilerOptions": {
     "jsx": "react-jsx",
     "moduleResolution": "bundler",

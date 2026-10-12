@@ -555,12 +555,12 @@ export default function StoreHomePage() {
                         {tr && (
                           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: '8rpx', marginBottom: '12rpx' }}>
                             {tr.overall_nature_code ? (
-                              <View style={{ backgroundColor: '#F1ECE4', borderRadius: '12rpx', paddingVertical: '2rpx', paddingHorizontal: '12rpx' }}>
+                              <View style={{ backgroundColor: '#F1ECE4', borderRadius: '12rpx', paddingTop: '2rpx', paddingBottom: '2rpx', paddingLeft: '12rpx', paddingRight: '12rpx' }}>
                                 <Text style={{ fontSize: '20rpx', color: '#666666' }}>{NATURE_FEELING[tr.overall_nature_code] || tr.overall_nature_code}</Text>
                               </View>
                             ) : null}
                             {tr.fit_people ? (
-                              <View style={{ backgroundColor: '#DCFCE7', borderRadius: '12rpx', paddingVertical: '2rpx', paddingHorizontal: '12rpx' }}>
+                              <View style={{ backgroundColor: '#DCFCE7', borderRadius: '12rpx', paddingTop: '2rpx', paddingBottom: '2rpx', paddingLeft: '12rpx', paddingRight: '12rpx' }}>
                                 <Text style={{ fontSize: '20rpx', color: '#15803D' }} numberOfLines={1}>{tr.fit_people.split(/[、,，]/)[0]}</Text>
                               </View>
                             ) : null}

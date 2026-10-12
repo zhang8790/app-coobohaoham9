@@ -156,8 +156,8 @@ export default function BindPhonePage() {
                 <Input
                   className="flex-1 text-xl text-foreground bg-transparent outline-none"
                   placeholder="请输入手机号"
-                  type="tel"
-                  maxLength={11}
+                  type="text"
+                  maxlength={11}
                   disabled={otpSent}
                   value={phone}
                   onInput={(e) => { const ev = e as any; setPhone(ev.detail?.value ?? ev.target?.value ?? '') }} />
@@ -171,7 +171,7 @@ export default function BindPhonePage() {
                   className="flex-1 text-xl text-foreground bg-transparent outline-none"
                   placeholder="请输入验证码"
                   type="number"
-                  maxLength={6}
+                  maxlength={6}
                   value={code}
                   onInput={(e) => { const ev = e as any; setCode(ev.detail?.value ?? ev.target?.value ?? '') }} />
                 <View

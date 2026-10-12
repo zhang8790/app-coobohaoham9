@@ -36,6 +36,9 @@ function WithdrawPage() {
  const [storeId, setStoreId] = useState<string | undefined>()
  const [records, setRecords] = useState<Withdrawal[]>([])
  const [loading, setLoading] = useState(true)
+ const [wdPage, setWdPage] = useState(0)
+ const [wdHasMore, setWdHasMore] = useState(false)
+ const [wdLoadingMore, setWdLoadingMore] = useState(false)
  const [submitting, setSubmitting] = useState(false)
 
  // 申请表单状态
@@ -75,27 +78,31 @@ function WithdrawPage() {
  setStoreId(sid)
  ownerId = sid
  ownerType = 'store'
- const [sett, wds] = await Promise.all([
- sid ? getMerchantSettlement(sid) : Promise.resolve(null),
- sid ? (async () => {
- const { data } = await supabase
- .from('withdrawals').select('*').eq('store_id', sid).eq('kind', 'settlement')
- .order('created_at', { ascending: false })
- return (data ?? []) as Withdrawal[]
- })() : Promise.resolve([]),
- ])
- setMerchantBalance(Number(sett?.merchant_balance ?? 0))
- setRecords(wds)
+  const sett = sid ? await getMerchantSettlement(sid) : null
+  let wds: Withdrawal[] = []
+  if (sid) {
+  const { data } = await supabase
+  .from('withdrawals').select('*').eq('store_id', sid).eq('kind', 'settlement')
+  .order('created_at', { ascending: false })
+  .range(0, 19)
+  wds = (data ?? []) as Withdrawal[]
+  }
+  setMerchantBalance(Number(sett?.merchant_balance ?? 0))
+  setRecords(wds)
+  setWdPage(0)
+  setWdHasMore(wds.length === 20)
  } else {
- const { data: { user } } = await getLocalUser()
- const [bal, store, recs] = await Promise.all([
- getMyBalance(), getMerchantStore(), getMyWithdrawals(),
- ])
- setBalance(bal.commission_balance)
- setStoreId(store?.id)
- setRecords(recs)
- ownerId = user?.id
- ownerType = 'user'
+    const { data: { user } } = await getLocalUser()
+    const [bal, store, recs] = await Promise.all([
+      getMyBalance(), getMerchantStore(), getMyWithdrawals(0, 20),
+    ])
+    setBalance(bal.commission_balance)
+    setStoreId(store?.id)
+    setRecords(recs)
+    setWdPage(0)
+    setWdHasMore(recs.length === 20)
+    ownerId = user?.id
+    ownerType = 'user'
  }
 
  // 拉取已保存收款账户，自动带出默认/首个（绑定一次，免二次填写）
@@ -115,9 +122,36 @@ function WithdrawPage() {
  setSavedAccounts([])
  }
  setLoading(false)
- }, [mode, router, storeId, applyAccount])
+  }, [mode, router, storeId, applyAccount])
 
- useEffect(() => { load() }, [load])
+  // 提现记录分页加载更多（解决超 20 条记录看不到的资金可见性 bug）
+  const loadMore = useCallback(async () => {
+  if (wdLoadingMore || !wdHasMore) return
+  const nextPage = wdPage + 1
+  setWdLoadingMore(true)
+  try {
+  if (mode === 'settlement') {
+  const sid = router?.params?.storeId || storeId
+  if (!sid) return
+  const { data } = await supabase
+  .from('withdrawals').select('*').eq('store_id', sid).eq('kind', 'settlement')
+  .order('created_at', { ascending: false })
+  .range(nextPage * 20, (nextPage + 1) * 20 - 1)
+  const rows = (data ?? []) as Withdrawal[]
+  setRecords(prev => [...prev, ...rows])
+  setWdHasMore(rows.length === 20)
+  } else {
+  const recs = await getMyWithdrawals(nextPage, 20)
+  setRecords(prev => [...prev, ...recs])
+  setWdHasMore(recs.length === 20)
+  }
+  setWdPage(nextPage)
+  } finally {
+  setWdLoadingMore(false)
+  }
+  }, [wdLoadingMore, wdHasMore, wdPage, mode, router, storeId])
+
+  useEffect(() => { load() }, [load])
 
  // 导航栏标题随模式切换
  useEffect(() => {
@@ -265,7 +299,7 @@ function WithdrawPage() {
  placeholder="0.00"
  value={amount}
  onInput={e => { const ev = e as any; setAmount(ev.detail?.value ?? ev.target?.value ?? '') }} />
- <Button type="button"
+ <Button
  className="flex items-center justify-center leading-none rounded-lg bg-muted"
  onClick={() => setAmount(availableYuan)}>
  <View className="px-3 py-1 text-xl text-primary font-bold">全部</View>
@@ -445,7 +479,7 @@ function WithdrawPage() {
  </View>
 
  {/* 提交按钮 */}
- <Button type="button"
+ <Button
  className={`w-full flex items-center justify-center leading-none rounded-2xl ${submitting ? 'bg-primary/50' : 'bg-primary'}`}
  onClick={handleSubmit}>
  <View className="py-4 text-base font-bold text-white">{submitting ? '提交中…' : '立即申请提现'}</View>
@@ -493,14 +527,20 @@ function WithdrawPage() {
  <Text className="text-xl text-red-500">拒绝原因：{r.reject_reason}</Text>
  </View>
  )}
- <Text className="text-base text-muted-foreground mt-2">
- {new Date(r.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })}
- </Text>
- </View>
- ))
- )}
- </View>
- )}
+          <Text className="text-base text-muted-foreground mt-2">
+            {new Date(r.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+          </Text>
+          </View>
+          ))
+          )}
+          {wdHasMore && (
+            <View className="mt-3 py-3 flex items-center justify-center"
+              onClick={() => { if (!wdLoadingMore) loadMore() }}>
+              <Text className="text-base text-muted-foreground">{wdLoadingMore ? '加载中…' : '加载更多提现记录'}</Text>
+            </View>
+          )}
+          </View>
+          )}
  </View>
  </RouteGuard>)
 }

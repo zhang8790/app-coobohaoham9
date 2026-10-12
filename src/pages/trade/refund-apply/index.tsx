@@ -126,7 +126,7 @@ function RefundApplyPage() {
  {existingRefund.refund_amount && (
  <Text className="text-base text-muted-foreground mt-1">退款金额：¥{Number(existingRefund.refund_amount).toFixed(2)}</Text>
  )}
- <Button type="button"
+ <Button
  className="mt-8 px-10 py-3 rounded-2xl bg-primary text-white text-base font-bold"
  onClick={() => Taro.navigateBack()}>
  返回订单
@@ -146,7 +146,7 @@ function RefundApplyPage() {
       <View className="fab-edge-icon"></View>
       <Text className="text-2xl font-bold text-foreground text-center mb-2">该订单暂不支持退款</Text>
       <Text className="text-base text-muted-foreground text-center">当前订单状态（{(order as any).status}）不在可退款范围内</Text>
-      <Button type="button"
+      <Button
         className="mt-8 px-10 py-3 rounded-2xl bg-primary text-white text-base font-bold"
         onClick={() => Taro.navigateBack()}>
         返回订单
@@ -224,7 +224,7 @@ function RefundApplyPage() {
  placeholder="请描述退款原因，帮助我们更好地处理..."
  value={description}
  onInput={(e) => { const ev = e as any; setDescription(ev.detail?.value ?? ev.target?.value ?? '') }}
- maxLength={200} />
+ maxlength={200} />
  </View>
  <Text className="text-base text-muted-foreground text-right mt-1">{description.length}/200</Text>
  </View>
@@ -247,7 +247,7 @@ function RefundApplyPage() {
  {/* 底部提交 */}
  <View className="fixed bottom-0 left-0 right-0 bg-card border-t-2 border-border px-4 py-3"
  style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}>
- <Button type="button"
+ <Button
  className={`w-full flex items-center justify-center leading-none rounded-2xl ${submitting || !selectedReason ? 'bg-primary/50' : 'bg-primary'}`}
  onClick={handleSubmit}>
  <View className="py-4 text-base font-bold text-white">

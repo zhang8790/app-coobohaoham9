@@ -2,6 +2,7 @@
 // 以精确保留原 DOM 顺序：搜索 → 筛选 → children(新增/扫码/条码/批量) → 列表
 import type { ReactNode } from 'react'
 import { View, Text, Image, Input } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import Icon from '@/components/Icon'
 import { calcMargin } from './types'
 import type { Product, StoreCategory } from '@/db/types'
@@ -44,7 +45,7 @@ export default function ProductList({
         <View style={{
           height: '40px', borderRadius: '12px',
           background: '#FAF6F1', border: '1px solid #E8DDD4',
-          display: 'flex', alignItems: 'center', paddingHorizontal: '14px',
+          display: 'flex', alignItems: 'center', paddingLeft: '14px', paddingRight: '14px',
         }}>
           <Input
             style={{ width: '100%', fontSize: '28rpx', color: '#333' }}
@@ -84,7 +85,7 @@ export default function ProductList({
         </View>
       ) : (
         products.map(p => {
-          const margin = calcMargin(p.price, p.cost_price)
+          const margin = calcMargin(p.price, p.cost_price ?? undefined)
           return (
             <View key={p.id} style={{ margin: '10px 14px 0', borderRadius: '16px', background: '#FFF', border: '1px solid #F2F2F2', overflow: 'hidden' }}>
               <View style={{ display: 'flex', gap: '12px', padding: '12px' }}>

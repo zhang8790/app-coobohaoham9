@@ -45,7 +45,7 @@ export const TONGUE_QUESTIONS: TongueQuestion[] = [
     options: [
       { label: '正常大小（常见）', effect: {} },
       { label: '胖大（伸舌抵齿）', hint: '舌体胖嫩、两边抵到牙齿', effect: { qixu: 3, yangxu: 2, tanshi: 2 } },
-      { label: '瘦薄娇小', hint: '舌体偏瘦、薄而小', effect: { yinxu: 3, qixu: 1 } },
+      { label: '瘦薄娇小', hint: '舌体偏瘦、薄而小', effect: { yinxu: 3, qixu: 1, tebing: 1 } },
     ],
   },
   {
@@ -54,7 +54,7 @@ export const TONGUE_QUESTIONS: TongueQuestion[] = [
     tip: '在自然光下观察舌体本身（不是舌苔）的颜色',
     options: [
       { label: '淡红 / 粉红（常见）', effect: {} },
-      { label: '偏淡白（颜色发浅）', hint: '舌体颜色比常人浅', effect: { yangxu: 3, qixu: 1 } },
+      { label: '偏淡白（颜色发浅）', hint: '舌体颜色比常人浅', effect: { yangxu: 3, qixu: 1, tebing: 1 } },
       { label: '偏红（比常人红）', hint: '舌体红赤', effect: { yinxu: 2, shire: 2 } },
       { label: '暗红 / 绛红', hint: '深红偏暗', effect: { shire: 2, xueyu: 2 } },
       { label: '青紫 / 暗紫', hint: '舌色发青发紫', effect: { xueyu: 3, yangxu: 1 } },

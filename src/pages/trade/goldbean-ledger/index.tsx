@@ -96,13 +96,9 @@ function TongbaoLedgerPage() {
   const incomeTotal = useMemo(() => items.filter(it => it.delta > 0).reduce((s, it) => s + it.delta, 0), [items])
   const expenseTotal = useMemo(() => items.filter(it => it.delta < 0).reduce((s, it) => s + it.delta, 0), [items])
 
-  const onScrollToLower = () => {
-    if (!loading && hasMore) load(false)
-  }
-
   return (
     <RouteGuard>
-      <View className="min-h-screen bg-background" onScrollToLower={onScrollToLower}>
+      <View className="min-h-screen bg-background">
         {/* 顶部汇总 */}
         <View className="mx-4 mt-3 rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)))' }}>
           <View className="px-4 pt-5 pb-3">
@@ -177,7 +173,7 @@ function TongbaoLedgerPage() {
               })}
               {hasMore && (
                 <View className="flex justify-center py-4">
-                  <Button type="button" className="text-muted-foreground text-base" onClick={() => load(false)}>
+                  <Button className="text-muted-foreground text-base" onClick={() => load(false)}>
                     {loading ? '加载中…' : '加载更多'}
                   </Button>
                 </View>

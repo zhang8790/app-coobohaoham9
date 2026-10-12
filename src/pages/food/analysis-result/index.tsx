@@ -15,7 +15,8 @@ import {
   type HomologyResult,
   SAFE_LEVEL_META,
 } from '@/db/food-safety'
-import { getProducts, getProductById, type Product } from '@/db/api'
+import { getProducts, getProductById } from '@/db/api'
+import type { Product } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { FOOD_SCAN_DISCLAIMER, shieldCopy } from '@/utils/compliance/shield'
 import SectionTitle from '@/components/SectionTitle'
@@ -62,10 +63,12 @@ interface RenderReport {
  safe_level_code: SafeLevelCode | string
  main_conclusion?: { general: string; children: string; fit_people: string; unfit_people: string; audience_advice?: AudienceAdvice[] | null } | null
  health_shortboard_tip?: string
- additive_list?: Array<{ name: string; level: string; type: string; desc: string }>
+ additive_list?: Array<{ name: string; level: string; risk_tier?: string; type: string; desc: string }>
  crowd_tips?: string[]
  parsed_ingredients?: string[]
  matched_additives?: string[]
+ catalog_insight?: CatalogInsight
+ homology?: HomologyResult
 }
 
 function normalize(row: FoodAnalysisReport): RenderReport {
@@ -192,7 +195,7 @@ export default function AnalysisResult() {
  <Text style={{ fontSize: '26rpx', color: '#6F675C', marginTop: 6, lineHeight: '22px', display: 'block' }}>可前往「配料识别」手动录入或拍照识别配料，即时生成评估报告。</Text>
  <View style={{
  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 14,
- paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#15803D', borderStyle: 'dashed',
+ paddingTop: 12, paddingBottom: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#15803D', borderStyle: 'dashed',
  background: 'rgba(22,163,74,0.05)',
  }} onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}>
  <Text style={S.fontsize_28rpx_fontweight_700_color_15803d}>去配料识别页分析</Text>
@@ -202,7 +205,7 @@ export default function AnalysisResult() {
  )
  }
 
- const meta = (report.safe_level_code && LEVEL_META[report.safe_level_code]) ? LEVEL_META[report.safe_level_code] : NEUTRAL_META
+ const meta = (report.safe_level_code && LEVEL_META[report.safe_level_code as SafeLevelCode]) ? LEVEL_META[report.safe_level_code as SafeLevelCode] : NEUTRAL_META
  const deg = scoreToDeg(meta.score)
  const crowdLabels = (report.crowd_tips || [])
  .map((c) => tipsMap[c]?.label || c)
@@ -264,7 +267,7 @@ export default function AnalysisResult() {
  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
  <Text style={{
  fontSize: '22rpx', fontWeight: '700', color: sm.fg,
- background: sm.chipBg, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 7, marginRight: 6,
+ background: sm.chipBg, borderRadius: 6, paddingTop: 2, paddingBottom: 2, paddingLeft: 7, paddingRight: 7, marginRight: 6,
  }}>{sm.tag}</Text>
  <Text style={{ fontSize: '28rpx', fontWeight: '700', color: sm.fg }}>{adv.label}</Text>
  </View>
@@ -306,7 +309,7 @@ export default function AnalysisResult() {
  { label: '增稠剂', active: false }, { label: '乳化剂', active: false },
  ].map((item) => (
  <View key={item.label} style={{
- borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10,
+ borderRadius: 8, paddingTop: 4, paddingBottom: 4, paddingLeft: 10, paddingRight: 10,
  background: item.active ? 'rgba(212,165,55,0.12)' : '#F7F3E9',
  borderWidth: 1, borderColor: item.active ? '#8A6B22' : 'rgba(0,0,0,0.06)',
  }}>
@@ -322,7 +325,7 @@ export default function AnalysisResult() {
  </Text>
  <View style={{
  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12,
- paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#15803D', borderStyle: 'dashed',
+ paddingTop: 12, paddingBottom: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#15803D', borderStyle: 'dashed',
  background: 'rgba(22,163,74,0.05)',
  }}
  onClick={() => Taro.navigateTo({ url: '/pages/food/food-match/index' })}
@@ -354,14 +357,14 @@ export default function AnalysisResult() {
  {a.risk_tier && RISK_TIER[a.risk_tier] ? (
  <Text style={{
  fontSize: '20rpx', fontWeight: '700', color: RISK_TIER[a.risk_tier].color,
- background: RISK_TIER[a.risk_tier].bg, borderRadius: 6, paddingVertical: 3, paddingHorizontal: 7,
+ background: RISK_TIER[a.risk_tier].bg, borderRadius: 6, paddingTop: 3, paddingBottom: 3, paddingLeft: 7, paddingRight: 7,
  }}>
  {RISK_TIER[a.risk_tier].label}
  </Text>
  ) : null}
  <Text style={{
  fontSize: '22rpx', fontWeight: '600', color: lv.color, background: lv.bg,
- borderRadius: 6, paddingVertical: 3, paddingHorizontal: 8,
+ borderRadius: 6, paddingTop: 3, paddingBottom: 3, paddingLeft: 8, paddingRight: 8,
  }}>
  {lv.label}
  </Text>
@@ -434,7 +437,7 @@ export default function AnalysisResult() {
  </View>
  </View>
  <View style={{
- background: meta.bg, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12,
+ background: meta.bg, borderRadius: 8, paddingTop: 6, paddingBottom: 6, paddingLeft: 12, paddingRight: 12,
  borderWidth: 1, borderColor: meta.border, flexShrink: 0,
  }}>
  <Text style={{ fontSize: '24rpx', fontWeight: '700', color: meta.fg }}>去看看</Text>
@@ -449,7 +452,7 @@ export default function AnalysisResult() {
  <SectionTitle accent="herb" title="对比其他产品" subtitle="再扫一款商品，对比配料安全差异" />
  <View style={{
  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
- paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#8A6B22',
+ paddingTop: 14, paddingBottom: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#8A6B22',
  borderStyle: 'dashed', background: 'rgba(212,165,55,0.04)',
  }}
  onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index' })}
@@ -460,7 +463,7 @@ export default function AnalysisResult() {
  </View>
 
  <View style={{ height: 24 }} />
- <View style={{ paddingHorizontal: 24, paddingBottom: 20 }}>
+ <View style={{ paddingLeft: 24, paddingRight: 24, paddingBottom: 20 }}>
  <Text style={{ textAlign: 'center', fontSize: '22rpx', color: '#6F675C', lineHeight: '18px' }}>
  数据来源：食品配料安全库（基于 GB 2760 等国家标准的添加剂安全评级）与食养资料库
  </Text>
@@ -528,8 +531,8 @@ const tagStyle: React.CSSProperties = {
  color: 'hsl(var(--primary-strong))',
  background: 'rgba(94,122,79,0.08)',
  borderRadius: 8,
- paddingVertical: 4,
- paddingHorizontal: 10,
+  paddingTop: 4, paddingBottom: 4,
+  paddingLeft: 10, paddingRight: 10,
  marginRight: 8,
  marginBottom: 8,
 }
@@ -539,8 +542,8 @@ const chipStyle: React.CSSProperties = {
   color: '#4A443D',
   background: '#F4EFE8',
   borderRadius: 8,
-  paddingVertical: 4,
-  paddingHorizontal: 10,
+  paddingTop: 4, paddingBottom: 4,
+  paddingLeft: 10, paddingRight: 10,
   marginRight: 8,
   marginBottom: 8,
 }
@@ -550,8 +553,8 @@ const homoChipStyle: React.CSSProperties = {
   color: '#15803d',
   background: 'rgba(22,163,74,0.10)',
   borderRadius: 8,
-  paddingVertical: 4,
-  paddingHorizontal: 10,
+  paddingTop: 4, paddingBottom: 4,
+  paddingLeft: 10, paddingRight: 10,
   marginRight: 8,
   marginBottom: 8,
 }
@@ -559,8 +562,8 @@ const homoChipStyle: React.CSSProperties = {
 const recItemStyle: React.CSSProperties = {
  flexDirection: 'row',
  alignItems: 'center',
- paddingVertical: 12,
- borderTopWidth: 1,
+  paddingTop: 12, paddingBottom: 12,
+  borderTopWidth: 1,
  borderTopColor: 'rgba(0,0,0,0.05)',
  marginTop: 6,
 }

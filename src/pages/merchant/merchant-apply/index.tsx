@@ -1,7 +1,7 @@
 // @title 自营门店
 import { useState, useCallback, useEffect } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { View, Text, Input, Button } from '@tarojs/components'
+import { View, Text, Input, Button, type InputProps } from '@tarojs/components'
 import { getMyMerchantApplication, submitMerchantApplication } from '@/db/api'
 import type { MerchantApplication } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
@@ -103,14 +103,14 @@ function MerchantApplyPage() {
             <Text className="text-2xl font-bold text-primary">已通过</Text>
             <Text className="text-xl text-muted-foreground text-center">您的自营门店申请已通过，可前往「我的—自营门店」进入管理后台。</Text>
             <Text className="text-base text-muted-foreground text-center">网页版管理后台请使用门店手机号+邀请码登录，邀请码请向总部运营索取。</Text>
-            <Button type="button"
+            <Button
               className="!flex items-center justify-center leading-none rounded-2xl !bg-primary !border-none"
               onClick={() => Taro.switchTab({ url: '/pages/user/index' })}>
               <View className="py-3 px-8 text-xl text-white font-bold">前往管理后台</View>
             </Button>
             {/* 兜底通道：若门店已由总部/网页端先建好（本账号还不是 owner），
                 凭门店邀请码即可把当前微信身份绑到该店，直接进管理中心。 */}
-            <Button type="button"
+            <Button
               className="!flex items-center justify-center leading-none rounded-2xl !bg-card !border-2 !border-primary"
               onClick={() => Taro.navigateTo({ url: NAV.merchantBind.url! })}>
               <View className="py-3 px-8 text-xl text-primary font-bold">门店已有？输邀请码绑定</View>
@@ -122,14 +122,14 @@ function MerchantApplyPage() {
             <Icon name="close-circle" size={80} className="text-destructive" />
             <Text className="text-2xl font-bold text-destructive">审核未通过</Text>
             <Text className="text-xl text-muted-foreground text-center">原因：{existing.reject_reason || '申请信息不符合要求'}</Text>
-            <Button type="button"
+            <Button
               className="!flex items-center justify-center leading-none rounded-2xl !bg-primary !border-none"
               onClick={() => setExisting(null)}>
               <View className="py-3 px-8 text-xl text-white font-bold">重新申请</View>
             </Button>
           </>
         )}
-        <Button type="button"
+        <Button
           className="!flex items-center justify-center leading-none rounded-2xl !bg-card !border-2 !border-border"
           onClick={() => Taro.navigateBack()}>
           <View className="py-3 px-8 text-xl text-foreground">返回</View>
@@ -179,7 +179,7 @@ function MerchantApplyPage() {
             <Text className="text-base text-muted-foreground">我已阅读并同意<Text className="text-primary">《自营门店运营规范》</Text></Text>
           </View>
         </View>
-        <Button type="button"
+        <Button
           className={`w-full flex items-center justify-center leading-none rounded-2xl ${submitting ? 'bg-primary/50' : 'bg-primary'}`}
           onClick={handleSubmit}>
           <View className="py-4 text-2xl font-bold text-white">
@@ -204,8 +204,8 @@ function InputField({ label, required, placeholder, value, onChange, type = 'tex
           className="w-full text-xl text-foreground bg-transparent outline-none"
           placeholder={placeholder}
           value={value}
-          type={type}
-          maxLength={maxLength}
+          type={type as keyof InputProps.Type}
+          maxlength={maxLength}
           onInput={(e) => { const ev = e as any; onChange(ev.detail?.value ?? ev.target?.value ?? '') }} />
       </View>
     </View>

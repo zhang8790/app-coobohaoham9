@@ -1,5 +1,5 @@
 // @title Phase 4 门店切换弹层（纯展示，写库逻辑在页面）
-import { View, Text } from '@tarojs/components'
+import { View, Text, ScrollView } from '@tarojs/components'
 import type { Store } from '@/db/types'
 import Icon from '@/components/Icon'
 
@@ -28,7 +28,13 @@ export default function StoreSwitchSheet({ visible, stores, currentStore, onSwit
               <Icon name="close" size={18} />
             </View>
           </View>
-          <View className="flex flex-col gap-2" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          {/* ScrollView 自管滚动手势：真机 catchMove 下 overflowY 会滚不动，必须用 scroll-view */}
+          <ScrollView
+            scrollY
+            enhanced
+            showScrollbar
+            style={{ maxHeight: '60vh' }}
+          >
             {stores.map(s => (
               <View key={s.id}
                 className={`flex items-center justify-between px-4 py-3 rounded-2xl border ${s.id === currentStore?.id ? 'border-primary bg-primary/5' : 'border-border bg-background'}`}
@@ -44,7 +50,7 @@ export default function StoreSwitchSheet({ visible, stores, currentStore, onSwit
                 )}
               </View>
             ))}
-          </View>
+          </ScrollView>
         </View>
       </View>
     )

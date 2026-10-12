@@ -29,18 +29,15 @@ jobs:
   # ---------------------------------------------------------------------------
   # ① 微信小程序（Taro/React, src/）：类型检查 + 全套 lint
   # ---------------------------------------------------------------------------
-  # ⚠️【观察期 / 非阻断】说明（重要）：
-  #   本项目 Taro weapp 构建 = babel 转译、从不跑 tsc，导致 src/ 长期累积了大量类型错误。
-  #   截至接入 CI 时统计：约 145 个类型错误（绝大多数为 Taro/@tarojs API 类型严格度 +
-  #   src/utils/knowledge-fragments.ts 系统性问题，运行时安全），另有若干「未声明值引用」
-  #   类真·运行时 bug（已在本次接入时修复：getProductById 漏引、prepareShare 作用域、
-  #   StoreNearExpiry 漏引、constitution-test 箭头用 arguments、food-scan discoverFragment
-  #   漏取 store action、analysis-result normalize 缺失）。
-  #   若此处直接设为硬门禁，会【永远红、阻断所有合并】。故先设为观察期（不阻断），
-  #   待历史类型债务清理完毕后，将下方两步的 `|| true` 去掉、改为阻断（即对齐标准 §7）。
-  #   推荐清理顺序：knowledge-fragments.ts → 各 admin/* 页 Button type 误用 → supabase 响应类型。
+  # ✅【已阻断】说明：
+  #   历史类型债务（原约 170 个，含 scripts 13 个已排除出生产门禁）已于 2026-10-12 全量清理：
+  #   由 4 个并行 worker 按目录聚类清零，修复以「正确类型 / Taro 合法属性」为主，
+  #   顺手修正若干本就运行错误的逻辑（Input type/maxlength、coupon end_date→expired_at、
+  #   need-find currentStore.store_name、password 字段遮罩等），未使用 as any / @ts-ignore。
+  #   下方类型检查步骤现为硬门禁：tsgo 非零错误即 exit 1，阻断合并（对齐 code-review-standards §7）。
+  #   lint 步骤仍观察期（scripts/runLint.sh || true），后续单独评估转阻断。
   miniapp:
-    name: 微信小程序 (tsgo 类型检查 + lint) [观察期/非阻断]
+    name: 微信小程序 (tsgo 类型检查 + lint) [类型检查阻断]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,19 +54,16 @@ jobs:
       - name: 安装依赖（保留 postinstall：esbuild 二进制需原生 postinstall；weapp-tw patch 已验证在 CI 上下文安全 exit 0）
         run: pnpm install --frozen-lockfile --config.minimumReleaseAge=0
 
-      - name: 类型检查（tsgo，覆盖 src + types）— 观察期/非阻断
+      - name: 类型检查（tsgo，覆盖 src + types）— 阻断 ✅
         run: |
-          set +e
-          npx tsgo -p tsconfig.check.json | tee /tmp/tsgo.log || true
+          npx tsgo -p tsconfig.check.json | tee /tmp/tsgo.log
           COUNT=$(grep -c "error TS" /tmp/tsgo.log || true)
-          echo "ℹ️ 小程序类型错误数（观察期，不阻断）：${COUNT}"
-          echo "ℹ️ 保留项分类（均为 Taro 类型精度问题 + 历史类型债务，运行时全部安全，已逐类核实）："
-          echo "   - TS2322 type=\"button\"：Taro 组件不接受 HTML 习惯 type，运行时忽略，无碍"
-          echo "   - TS2353 paddingHorizontal/V：RN 样式属性，Taro 编译期合法，Web CSSProperties 类型误报"
-          echo "   - TS2339 字段缺失/supabase unknown：类型定义落后运行时数据（含 supabase-js 泛型推断过严），运行时真实存在"
-          echo "   - TS2345 参数不兼容：部分 Taro API / 真实 string|null 收窄"
-          echo "ℹ️ 真 bug（值引用未定义、模块路径错、null/any、类型转换、decided_by 逻辑、knowledge-fragments 29 处）已清零。"
-          echo "ℹ️ 清理历史债务后，请将本步骤改为阻断（去掉 || true），对齐 code-review-standards §7。"
+          echo "小程序类型错误数：${COUNT}"
+          if [ "${COUNT}" -gt 0 ]; then
+            echo "::error::小程序类型检查未通过（${COUNT} 处），详见上方 tsgo 输出"
+            exit 1
+          fi
+          echo "✅ 小程序类型检查通过（0 错误），对齐 code-review-standards §7"
 
       - name: 全套 lint（scss/biome/tsgo/navigation/iconpath/authprovider/oxlint）— 观察期/非阻断
         run: bash scripts/runLint.sh || true

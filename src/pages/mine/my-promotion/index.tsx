@@ -20,6 +20,7 @@ interface RankProgress {
 
 interface CommSummary {
   total_pending: number; total_settled: number; total_count: number
+  total_earned: number
   l1_count: number; l2_count: number
 }
 
@@ -130,7 +131,7 @@ function MyPromotionPage() {
         })
       } else {
         // 兜底空数据
-        setCommSummary({ total_pending: 0, total_settled: 0, total_count: 0, l1_count: 0, l2_count: 0 })
+        setCommSummary({ total_pending: 0, total_settled: 0, total_count: 0, total_earned: 0, l1_count: 0, l2_count: 0 })
       }
 
       // 团队数据

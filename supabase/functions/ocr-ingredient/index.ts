@@ -13,6 +13,7 @@
 // try/catch 兜底（异常带错误体，便于排查）。C 端游客可触发，故不强制鉴权。
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { dbRiskToBand } from '../_shared/additive-risk.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -121,6 +122,7 @@ async function matchAdditives(
   const { data: adds } = await supabase
     .from('food_additives')
     .select('id,name,risk_level,category')
+    .eq('status', 'active')
   const list = (adds || []) as Additive[]
   const byName = new Map<string, Additive>()
   const idMap = new Map<string, Additive>()
@@ -141,21 +143,15 @@ async function matchAdditives(
   const hitLevels: string[] = []
   const riskFlags: string[] = []
 
-  // DB food_additives 已迁移 L1-L4；规范化为 white/yellow/black 以兼容评级逻辑
-  const normalizeRisk = (r?: string | null): string => {
-    if (!r) return 'white'
-    const s = String(r).toUpperCase()
-    if (s === 'L4' || s === 'BLACK') return 'black'
-    if (s === 'L3' || s === 'YELLOW') return 'yellow'
-    return 'white'
-  }
+  // 规范化为 white/yellow/black：委托 _shared/additive-risk.ts（唯一事实源）
+  const normalizeRisk = (r?: string | null): string => dbRiskToBand(r)
 
   for (const c of candidates) {
     let hit: Additive | undefined = byName.get(c)
     // 包含关系（如「山梨酸钾」命中「山梨酸钾防腐剂」或反之）
     if (!hit) {
       for (const a of list) {
-        if (c.includes(a.name) || a.name.includes(c)) {
+        if (c.includes(a.name) || (c.length >= 3 && a.name.includes(c))) {
           hit = a
           break
         }

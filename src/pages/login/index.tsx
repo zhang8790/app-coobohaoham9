@@ -203,7 +203,7 @@ export default function LoginPage() {
                     <Input
                       className="flex-1 text-xl text-foreground bg-transparent outline-none"
                       placeholder="请输入手机号"
-                      type="tel"
+                      type="text"
                       value={phone}
                       onInput={(e) => { const ev = e as any; setPhone(ev.detail?.value ?? ev.target?.value ?? '') }} />
                   </View>
@@ -223,10 +223,10 @@ export default function LoginPage() {
                 <View className="border-2 border-input rounded-xl px-4 py-3 bg-card mb-4">
                   <Input
                     className="w-full text-2xl text-foreground bg-transparent outline-none text-center tracking-widest"
-                    placeholder="请输入验证码"
-                    type="number"
-                    maxLength={6}
-                    value={code}
+                      placeholder="请输入验证码"
+                      type="number"
+                      maxlength={6}
+                      value={code}
                     onInput={(e) => { const ev = e as any; setCode(ev.detail?.value ?? ev.target?.value ?? '') }} />
                 </View>
 
@@ -291,7 +291,7 @@ export default function LoginPage() {
                 <Input
                   className="w-full text-xl text-foreground bg-transparent outline-none"
                   placeholder="请输入密码"
-                  type="password"
+                  password
                   value={password}
                   onInput={(e) => { const ev = e as any; setPassword(ev.detail?.value ?? ev.target?.value ?? '') }} />
               </View>

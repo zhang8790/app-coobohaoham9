@@ -104,13 +104,11 @@ export default function ScanResultPage() {
       <Icon name="barcode-off" size={60} className="text-muted-foreground/40" />
       <Text className="text-2xl font-bold text-foreground">未识别到商品</Text>
       <Text className="text-base text-muted-foreground text-center break-all">扫码内容：{code || '（空）'}</Text>
-      <Button type="button"
-        className="mt-2 px-10 py-3 rounded-2xl bg-primary flex items-center justify-center"
+      <Button        className="mt-2 px-10 py-3 rounded-2xl bg-primary flex items-center justify-center"
         onClick={rescan}>
         <Text className="text-xl font-bold text-white">重新扫码</Text>
       </Button>
-      <Button type="button"
-        className="px-10 py-3 rounded-2xl bg-card border-2 border-border flex items-center justify-center"
+      <Button        className="px-10 py-3 rounded-2xl bg-card border-2 border-border flex items-center justify-center"
         onClick={() => Taro.navigateBack().catch(() => Taro.switchTab({ url: '/pages/index/index' }))}>
         <Text className="text-xl font-bold text-foreground">返回</Text>
       </Button>
@@ -191,15 +189,13 @@ export default function ScanResultPage() {
             </View>
           )}
         </View>
-        <Button type="button"
-          className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-primary bg-card"
+        <Button          className="flex-1 flex items-center justify-center leading-none rounded-2xl border-2 border-primary bg-card"
           onClick={handleAddCart} disabled={inactive}>
           <View className="py-4 text-xl font-bold text-primary">
             {added ? '已加入 ✓' : (adding ? '加入中...' : '收入购物车')}
           </View>
         </Button>
-        <Button type="button"
-          className="flex-1 flex items-center justify-center leading-none rounded-2xl bg-primary"
+        <Button          className="flex-1 flex items-center justify-center leading-none rounded-2xl bg-primary"
           onClick={handleBuyNow} disabled={inactive}>
           <View className="py-4 text-xl font-bold text-white">立即购买</View>
         </Button>

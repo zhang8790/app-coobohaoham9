@@ -502,7 +502,7 @@ const handleBuyNow = (p: Product) => {
  <View className="consult-checkout-items-inner">
  {cartItems.map((i) => (
  <View key={i.id} className="consult-checkout-item">
- <Image src={i.products?.main_image || i.products?.image_url || ''} mode="aspectFill" className="consult-checkout-item-img" />
+ <Image src={i.products?.main_image || i.products?.image_url || ''} mode="aspectFill" lazyLoad className="consult-checkout-item-img" />
  <View className="consult-checkout-item-info">
  <Text className="consult-checkout-item-name" numberOfLines={1}>{i.products?.name}</Text>
  <Text className="consult-checkout-item-meta">¥{computePrice(i, cartEff).toFixed(2)} × {i.quantity}</Text>

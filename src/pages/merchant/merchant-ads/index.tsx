@@ -1,6 +1,6 @@
 // @title 广告投放 / 营销活动（自营门店中心 · 与网页版一一对应）
 import { useState, useEffect } from 'react'
-import { View, Text, Input, Button, Picker } from '@tarojs/components'
+import { View, Text, Input, Button, Picker, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { getMerchantStore, getMerchantCampaigns, createCampaign, updateCampaignStatus } from '@/db/api'
 import type { MarketingCampaign, CampaignStatus } from '@/db/types'
@@ -227,7 +227,7 @@ function MerchantAdsPage() {
       {/* 新建活动弹窗 */}
       {showCreate && (
         <View className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowCreate(false)} catchMove>
-          <View className="w-full bg-card rounded-t-3xl px-4 pt-5 pb-8" onClick={e => e.stopPropagation()}>
+          <View className="w-full bg-card rounded-t-3xl px-4 pt-5 pb-8 flex flex-col" style={{ maxHeight: '88vh' }} onClick={e => e.stopPropagation()}>
             <View className="flex flex-row items-center justify-between mb-4">
               <Text className="text-xl font-bold text-foreground">新建营销活动</Text>
               <Button className="!p-0 !bg-transparent !border-none" onClick={() => setShowCreate(false)}>
@@ -235,6 +235,7 @@ function MerchantAdsPage() {
               </Button>
             </View>
 
+            <ScrollView scrollY enhanced showScrollbar style={{ flex: 1, minHeight: 0, marginTop: '12px' }}>
             <View className="mb-3">
               <Text className="text-base text-foreground" style={S.mb4}>活动名称 *</Text>
               <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" value={form.campaign_name}
@@ -288,17 +289,18 @@ function MerchantAdsPage() {
             <View className="flex flex-row mb-4">
               <View className="flex-1" style={S.mr12}>
                 <Text className="text-base text-foreground" style={S.mb4}>开始日期</Text>
-                <Picker mode="date" onChange={e => updateForm({ start_date: e.detail.value })}>
+                <Picker mode="date" value={form.start_date || ''} onChange={e => updateForm({ start_date: e.detail.value })}>
                   <View className="border-2 border-input rounded-xl px-3 py-2 text-base">{form.start_date || <Text className="text-muted-foreground">选择日期</Text>}</View>
                 </Picker>
               </View>
               <View className="flex-1">
                 <Text className="text-base text-foreground" style={S.mb4}>结束日期</Text>
-                <Picker mode="date" onChange={e => updateForm({ end_date: e.detail.value })}>
+                <Picker mode="date" value={form.end_date || ''} onChange={e => updateForm({ end_date: e.detail.value })}>
                   <View className="border-2 border-input rounded-xl px-3 py-2 text-base">{form.end_date || <Text className="text-muted-foreground">选择日期</Text>}</View>
                 </Picker>
               </View>
             </View>
+            </ScrollView>
 
             <Button className="!w-full !m-0 !p-0 !bg-primary !border-none !rounded-2xl !leading-none" disabled={submitting} onClick={handleCreate}>
               <View className="py-4 text-base font-bold text-white">{submitting ? '提交中…' : '创建'}</View>

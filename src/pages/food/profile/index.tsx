@@ -23,7 +23,7 @@ import {
 } from '@/utils/food-therapy/tongue-history'
 import { buildProductMatch, type MatchedProduct } from '@/utils/food-therapy/product-match'
 import { getProducts } from '@/db/api'
-import { FOOD_THERAPY_DISCLAIMER } from '@/utils/compliance/shield'
+import { FOOD_THERAPY_DISCLAIMER, safeGoal } from '@/utils/compliance/shield'
 import type { Product } from '@/db/types'
 import TrendChart from '@/components/food/TrendChart'
 import Icon from '@/components/Icon'
@@ -88,7 +88,7 @@ export default function FoodProfilePage() {
     )
     getProducts({ limit: 40 })
       .then((all: Product[]) => {
-        const { good: g, caution: c } = buildProductMatch(all, analysis)
+        const { good: g, caution: c } = buildProductMatch(all, { ...analysis, picked: [] })
         setGood(g.slice(0, 6))
         setCaution(c.slice(0, 3))
       })
@@ -142,9 +142,9 @@ export default function FoodProfilePage() {
 
   // 食养方向：体质健康目标 + 身体状态，去重合并
   const directionSet = new Set<string>([
-    ...(primary.healthGoals || []),
+    ...(primary.healthGoals || []).map(safeGoal),
     ...(primary.bodyStates || []),
-    ...(secondary?.healthGoals || []),
+    ...(secondary?.healthGoals || []).map(safeGoal),
     ...(secondary?.bodyStates || []),
   ])
 

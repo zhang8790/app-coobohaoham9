@@ -38,6 +38,7 @@ export default function PaymentOptions(props: PaymentOptionsProps) {
  const isSel = serviceType === key
  return (
  <View key={key}
+ hoverClass="bg-primary/10"
  className={`flex-1 flex flex-col items-center gap-1 py-4 ${i < arr.length - 1 ? 'border-r border-border' : ''} ${isSel ? 'bg-primary/5' : ''}`}
  onClick={() => { if (repayMode) return; setServiceType(key) }}>
  <View className={`${m.icon} text-3xl ${isSel ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -116,6 +117,7 @@ export default function PaymentOptions(props: PaymentOptionsProps) {
  </View>
  {payModes.map(m => (
  <View key={m.key}
+ hoverClass="bg-primary/10"
  className={`flex items-center gap-4 px-4 py-4 border-b border-border last:border-0 ${m.disabled ? 'opacity-40' : ''} ${payMode === m.key ? 'bg-primary/5' : ''}`}
  onClick={() => {
  if (repayMode) return // 重付模式：支付方式为订单锁定，不可切换

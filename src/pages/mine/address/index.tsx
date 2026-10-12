@@ -149,7 +149,7 @@ function AddressPage() {
     if (!/^1\d{10}$/.test(form.phone)) { Taro.showToast({ title: '请填写正确的手机号', icon: 'none' }); return }
     if (!form.detail.trim()) { Taro.showToast({ title: '请填写详细地址', icon: 'none' }); return }
     setSaving(true)
-    await saveAddress({ id: editId ?? undefined, ...form })
+    await saveAddress({ id: editId ?? undefined, ...form, lat: form.lat ?? undefined, lng: form.lng ?? undefined })
     setSaving(false)
     Taro.showToast({ title: editId ? '修改成功' : '添加成功', icon: 'success' })
     setShowForm(false)

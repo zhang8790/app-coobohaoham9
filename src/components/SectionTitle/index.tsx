@@ -71,7 +71,6 @@ export default function SectionTitle({
         <Text
           style={actionStyle}
           className="flex-shrink-0 ml-2"
-          hoverClass="none"
           onClick={action.onClick}
         >{action.label}</Text>
       ) : null}

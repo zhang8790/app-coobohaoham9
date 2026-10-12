@@ -6,7 +6,7 @@ import { getOrders, submitReviews } from '@/db/api'
 import Icon from '@/components/Icon'
 import type { Order } from '@/db/types'
 import { RouteGuard } from '@/components/RouteGuard'
-import { MOOD_CATEGORIES, MOOD_TAGS_ALL } from '@/utils/mood-tags'
+import { MOOD_CATEGORIES, MOOD_TAGS, MOOD_TAGS_ALL, type MoodTag } from '@/utils/mood-tags'
 
 interface ReviewItem {
   order_item_id: string
@@ -125,7 +125,7 @@ function ReviewPage() {
             <View className="flex items-center gap-3 mb-4">
               <View className="w-16 h-16 rounded-xl bg-muted overflow-hidden flex-shrink-0">
                 {rev.product_image
-                  ? <Image src={rev.product_image} mode="aspectFill" style={{ width: '128rpx', height: '128rpx' }} />
+                  ? <Image src={rev.product_image} mode="aspectFill" lazyLoad style={{ width: '128rpx', height: '128rpx' }} />
                   : <View className="w-full h-full flex items-center justify-center">
                       <View className="text-muted-foreground/40"><Icon name="box" size={24} /></View>
                     </View>}
@@ -173,7 +173,7 @@ function ReviewPage() {
                     }`}
                     onClick={() => setActiveMoodCategory(cat)}>
                     <Text className={`text-sm ${activeMoodCategory === cat ? 'text-primary font-bold' : 'text-foreground'}`}>
-                      {MOOD_CATEGORIES[cat as keyof typeof MOOD_CATEGORIES].icon} {cat}
+                      {MOOD_CATEGORIES[cat as keyof typeof MOOD_CATEGORIES]}
                     </Text>
                   </View>
                 ))}
@@ -181,9 +181,7 @@ function ReviewPage() {
 
               {/* 情绪标签选择 */}
               <View className="flex gap-2 flex-wrap">
-                {(MOOD_CATEGORIES[activeMoodCategory as keyof typeof MOOD_CATEGORIES]?.tags || []).map((tagZh: any) => {
-                  const tag = MOOD_TAGS_ALL.find(t => t.zh === tagZh)
-                  if (!tag) return null
+                {(MOOD_TAGS[activeMoodCategory] ?? []).map((tag: MoodTag) => {
                   const selected = rev.mood_tags.includes(tag.zh)
                   return (
                     <View key={tag.zh}

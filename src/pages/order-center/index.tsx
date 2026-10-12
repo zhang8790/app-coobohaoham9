@@ -122,7 +122,7 @@ function OrderCenterPage() {
               {order.order_items?.map(item => (
                 <View key={item.id} className="flex items-center gap-3 px-4 py-3 border-b border-border last:border-0">
                   {item.product_image && (
-                    <Image src={item.product_image} mode="aspectFill" style={{ width: '60px', height: '60px', borderRadius: '8px', flexShrink: 0 }} />
+                    <Image src={item.product_image} mode="aspectFill" lazyLoad style={{ width: '60px', height: '60px', borderRadius: '8px', flexShrink: 0 }} />
                   )}
                   <View className="flex-1">
                     <Text className="text-base text-foreground font-bold line-clamp-1">{item.product_name}</Text>

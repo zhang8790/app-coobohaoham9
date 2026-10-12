@@ -260,7 +260,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     base_effect: row.base_effect, caution_crowds: row.caution_crowds,
     allergens: row.allergens || [], chronic_tags: row.chronic_tags || [],
     neutralize: row.neutralize, ratio: 50, cooking: '清炒', aux: [],
-    is_homology: row.is_homology ?? null,
+    is_homology: (row as FoodIngredientRow & { is_homology?: boolean | null }).is_homology ?? null,
   })
 
   // 食养系统化：未手填食材时，按商品名匹配食材字典推导（如「西瓜」→西瓜、「椰子」→椰子），
@@ -673,7 +673,7 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     Taro.showLoading({ title: '上传中...' })
     try {
       const url = await uploadImage()
-      if (url) setDishImageUrl(url)
+      if (url) setDishImageUrl(Array.isArray(url) ? (url[0] ?? '') : url)
       else Taro.showToast({ title: '上传失败', icon: 'none' })
     } catch (e) {
       Taro.showToast({ title: '操作失败' })
@@ -835,7 +835,6 @@ export function useProductForm(store: Store | null, opts: { onSaved: () => void 
     pickDishImage, runSmartAnalyze, handleIdentifyIngredients,
     onGenerateBarcode, onPrintBarcode,
     toggleIngredient, toggleArrayField, dictRowToItem,
-    foodCategories,
     templateName, setTemplateName,
     duplicateProduct, saveAsTemplate, loadTemplate,
   }

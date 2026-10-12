@@ -7,7 +7,8 @@ import {
  callFoodMatch,
  type FoodTagRule,
 } from '@/db/food-safety'
-import { getProducts, type Product } from '@/db/api'
+import { getProducts } from '@/db/api'
+import type { Product } from '@/db/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLocation } from '@/contexts/LocationContext'
 import { supabase } from '@/client/supabase'
@@ -112,7 +113,7 @@ export default function FoodMatch() {
  const on = selected.includes(r.tag_key)
  return (
  <View key={r.tag_key} onClick={() => toggle(r.tag_key)} style={{
- borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14, marginRight: 8, marginBottom: 8,
+ borderRadius: 10, paddingTop: 8, paddingBottom: 8, paddingLeft: 14, paddingRight: 14, marginRight: 8, marginBottom: 8,
  background: on ? 'hsl(var(--primary))' : '#F4EFE8', borderWidth: 1, borderColor: on ? 'hsl(var(--primary))' : 'rgba(0,0,0,0.06)',
  }}>
  <Text style={{ fontSize: '26rpx', fontWeight: on ? '700' : '500', color: on ? '#fff' : '#3F3A34' }}>{r.label}</Text>
@@ -143,14 +144,14 @@ export default function FoodMatch() {
  <View key={it.product_id} style={{ ...itemCard, borderLeftColor: m.fg }}>
  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
  {p?.image_url || p?.main_image ? (
- <Image src={p.image_url || p.main_image} style={{ width: 64, height: 64, borderRadius: 10, flexShrink: 0 }} mode="aspectFill" />
+ <Image src={p.image_url || p.main_image || ''} style={{ width: 64, height: 64, borderRadius: 10, flexShrink: 0 }} mode="aspectFill" />
  ) : null}
  <View style={{ flex: 1, marginLeft: 12 }}>
  <Text style={{ fontSize: '28rpx', fontWeight: '600', color: '#2A2A2A', lineHeight: '20px' }} numberOfLines={2}>
  {i + 1}. {p?.name || '商品'}
  </Text>
  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
- <View style={{ background: m.bg, borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8, marginRight: 8 }}>
+ <View style={{ background: m.bg, borderRadius: 8, paddingTop: 3, paddingBottom: 3, paddingLeft: 8, paddingRight: 8, marginRight: 8 }}>
  <Text style={{ fontSize: '24rpx', fontWeight: '700', color: m.fg }}>{m.label} {it.score}分</Text>
  </View>
  {it.safe_level ? <Text style={{ fontSize: '22rpx', color: '#6F675C' }}>{it.safe_level}</Text> : null}
@@ -186,10 +187,10 @@ const card: React.CSSProperties = {
  background: '#fff', borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
 }
 // 分区标题已统一改用全局 SectionTitle（珊瑚竖线 DNA）
-const btnPrimary: React.CSSProperties = { background: 'hsl(var(--primary))', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20 }
-const btnGhost: React.CSSProperties = { background: '#fff', borderWidth: 1, borderColor: 'hsl(var(--primary))', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 20 }
-const btnMini: React.CSSProperties = { background: 'rgba(94,122,79,0.08)', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12, flexShrink: 0 }
+const btnPrimary: React.CSSProperties = { background: 'hsl(var(--primary))', borderRadius: 10, paddingTop: 10, paddingBottom: 10, paddingLeft: 20, paddingRight: 20 }
+const btnGhost: React.CSSProperties = { background: '#fff', borderWidth: 1, borderColor: 'hsl(var(--primary))', borderRadius: 10, paddingTop: 10, paddingBottom: 10, paddingLeft: 20, paddingRight: 20 }
+const btnMini: React.CSSProperties = { background: 'rgba(94,122,79,0.08)', borderRadius: 8, paddingTop: 6, paddingBottom: 6, paddingLeft: 12, paddingRight: 12, flexShrink: 0 }
 const itemCard: React.CSSProperties = {
- flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)', marginTop: 6,
+ flexDirection: 'row', alignItems: 'center', paddingTop: 12, paddingBottom: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)', marginTop: 6,
  borderLeftWidth: 3, borderLeftColor: 'hsl(var(--primary))', paddingLeft: 10,
 }

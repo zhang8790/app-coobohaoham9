@@ -171,7 +171,7 @@ export function AuthProvider({children}: {children: ReactNode}) {
       // 注册成功后沿用推荐关系绑定（与验证码登录链路一致）
       try {
         const { convertPendingReferral } = await import('@/db/api')
-        await convertPendingReferral()
+        await convertPendingReferral(user?.id ?? '')
       } catch (e) {
         console.warn('[Auth] 推荐关系绑定跳过:', e)
       }

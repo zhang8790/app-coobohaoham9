@@ -1,7 +1,7 @@
 // @title 优惠券管理（商家端 - 真实数据）
 import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { View, Text, Input, Button, Picker } from '@tarojs/components'
+import { View, Text, Input, Button, Picker, ScrollView } from '@tarojs/components'
 import { getMerchantStore, merchantRedeemCoupon } from '@/db/api'
 import { supabase } from '@/client/supabase'
 import { RouteGuard } from '@/components/RouteGuard'
@@ -30,6 +30,7 @@ function MerchantCouponsPage() {
   const updateForm = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }))
   const [redeemCode, setRedeemCode] = useState('')
   const [redeeming, setRedeeming] = useState(false)
+  const [creating, setCreating] = useState(false)
 
   // 只查本店「模板券」(user_id IS NULL)，用户领取的实例不混入管理列表
   const loadCoupons = async (sid: string) => {
@@ -50,29 +51,37 @@ function MerchantCouponsPage() {
   }, [])
 
   const handleCreate = async () => {
+    if (creating) return
     if (!store) return Taro.showToast({ title: '请先完善门店', icon: 'none' })
     if (!form.title.trim()) return Taro.showToast({ title: '请输入名称', icon: 'none' })
     if (!form.start_date || !form.end_date) return Taro.showToast({ title: '请选择日期', icon: 'none' })
-    const code = 'CP' + Date.now().toString(36).toUpperCase().slice(-6)
-    // user_id 不传 → NULL（模板券），由用户端认领生成实例
-    const { error } = await supabase.from('coupons').insert({
-      store_id: store.id,
-      code,
-      title: form.title,
-      discount_type: form.discount_type,
-      discount_value: Number(form.discount_value) || 0,
-      min_amount: Number(form.min_amount) || 0,
-      total: Number(form.total) || 0,
-      claimed_count: 0,
-      status: 'active',
-      start_date: form.start_date,
-      end_date: form.end_date,
-    })
-    if (error) return Taro.showToast({ title: '创建失败', icon: 'none' })
-    await loadCoupons(store.id)
-    setShowForm(false)
-    setForm({ title: '', discount_type: 'amount', discount_value: '', min_amount: '', total: '', start_date: '', end_date: '' })
-    Taro.showToast({ title: '创建成功', icon: 'success' })
+    setCreating(true)
+    try {
+      const code = 'CP' + Date.now().toString(36).toUpperCase().slice(-6)
+      // user_id 不传 → NULL（模板券），由用户端认领生成实例
+      const { error } = await supabase.from('coupons').insert({
+        store_id: store.id,
+        code,
+        title: form.title,
+        discount_type: form.discount_type,
+        discount_value: Number(form.discount_value) || 0,
+        min_amount: Number(form.min_amount) || 0,
+        total: Number(form.total) || 0,
+        claimed_count: 0,
+        status: 'active',
+        start_date: form.start_date,
+        end_date: form.end_date,
+      })
+      if (error) { Taro.showToast({ title: '创建失败', icon: 'none' }); return }
+      await loadCoupons(store.id)
+      setShowForm(false)
+      setForm({ title: '', discount_type: 'amount', discount_value: '', min_amount: '', total: '', start_date: '', end_date: '' })
+      Taro.showToast({ title: '创建成功', icon: 'success' })
+    } catch (e) {
+      Taro.showToast({ title: '创建失败', icon: 'none' })
+    } finally {
+      setCreating(false)
+    }
   }
 
   const toggleStatus = async (c: MCoupon) => {
@@ -176,13 +185,15 @@ function MerchantCouponsPage() {
 
       {showForm && (
         <View className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setShowForm(false)} catchMove>
-          <View className="w-full bg-card rounded-t-3xl px-4 pt-5 pb-8" onClick={e => e.stopPropagation()}>
+          <View className="w-full bg-card rounded-t-3xl px-4 pt-5 pb-8 flex flex-col" style={{ maxHeight: '88vh' }} onClick={e => e.stopPropagation()}>
             <View className="flex items-center justify-between mb-4">
               <Text className="text-xl font-bold text-foreground">创建优惠券</Text>
               <Button className="!p-0 !bg-transparent !border-none" onClick={() => setShowForm(false)}>
                 <Icon name="close" size={24} className="text-muted-foreground" />
               </Button>
             </View>
+
+            <ScrollView scrollY enhanced showScrollbar style={{ flex: 1, minHeight: 0, marginTop: '12px' }}>
             <View className="mb-3">
               <Text className="text-base text-foreground mb-1">优惠券名称</Text>
               <Input className="border-2 border-input rounded-xl px-3 py-2 text-base w-full" value={form.title} onInput={e => updateForm({ title: e.detail.value })} placeholder="如：新客立减5元" />
@@ -219,19 +230,21 @@ function MerchantCouponsPage() {
             <View className="flex gap-3 mb-3">
               <View className="flex-1">
                 <Text className="text-base text-foreground mb-1">开始日期</Text>
-                <Picker mode="date" onChange={e => updateForm({ start_date: e.detail.value })}>
+                <Picker mode="date" value={form.start_date || ''} onChange={e => updateForm({ start_date: e.detail.value })}>
                   <View className="border-2 border-input rounded-xl px-3 py-2 text-base">{form.start_date || <Text className="text-muted-foreground">选择日期</Text>}</View>
                 </Picker>
               </View>
               <View className="flex-1">
                 <Text className="text-base text-foreground mb-1">结束日期</Text>
-                <Picker mode="date" onChange={e => updateForm({ end_date: e.detail.value })}>
+                <Picker mode="date" value={form.end_date || ''} onChange={e => updateForm({ end_date: e.detail.value })}>
                   <View className="border-2 border-input rounded-xl px-3 py-2 text-base">{form.end_date || <Text className="text-muted-foreground">选择日期</Text>}</View>
                 </Picker>
               </View>
             </View>
-            <Button className="!w-full !m-0 !p-0 !bg-primary !border-none !rounded-2xl !leading-none" onClick={handleCreate}>
-              <View className="py-4 text-base font-bold text-white">创建</View>
+            </ScrollView>
+
+            <Button className="!w-full !m-0 !p-0 !bg-primary !border-none !rounded-2xl !leading-none" disabled={creating} onClick={handleCreate}>
+              <View className="py-4 text-base font-bold text-white">{creating ? '创建中…' : '创建'}</View>
             </Button>
           </View>
         </View>

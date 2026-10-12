@@ -135,7 +135,7 @@ export default function ProductGridCard({
   {/* 规格（净含量）：电商卡「图 · 名+规格 · 价」三件套之一。
   零食决策的核心疑问是「这个价买到多少」，规格必须紧跟标题。无规格的商品不占位。 */}
   {spec ? (
-    <View style={{ marginTop: 4, alignSelf: 'flex-start', background: 'hsl(var(--muted))', borderRadius: 6, paddingVertical: 3, paddingHorizontal: 6 }}>
+    <View style={{ marginTop: 4, alignSelf: 'flex-start', background: 'hsl(var(--muted))', borderRadius: 6, paddingTop: 3, paddingBottom: 3, paddingLeft: 6, paddingRight: 6 }}>
       <Text className="text-[11px] leading-none" style={{ color: 'hsl(var(--muted-foreground))' }}>{spec}</Text>
     </View>
   ) : null}
@@ -146,11 +146,11 @@ export default function ProductGridCard({
  {/* 安全评级色标徽章（来自配料安全分析） */}
  {safeLevelCode && (
  <Text className="px-1.5 py-0.5 rounded-full text-xs font-bold" style={{
- background: SAFE_COLORS[safeLevelCode]?.bg || '#F4EFE8',
- color: SAFE_COLORS[safeLevelCode]?.fg || '#999999',
+ background: SAFE_COLORS[safeLevelCode as keyof typeof SAFE_COLORS]?.bg || '#F4EFE8',
+ color: SAFE_COLORS[safeLevelCode as keyof typeof SAFE_COLORS]?.fg || '#999999',
  borderWidth: 1,
- borderColor: SAFE_COLORS[safeLevelCode]?.border || 'transparent',
- }}>{SAFE_COLORS[safeLevelCode]?.label || safeLevelCode}</Text>
+ borderColor: SAFE_COLORS[safeLevelCode as keyof typeof SAFE_COLORS]?.border || 'transparent',
+ }}>{SAFE_COLORS[safeLevelCode as keyof typeof SAFE_COLORS]?.label || safeLevelCode}</Text>
  )}
  {/* 0添加数量标签 */}
  {cleanAdditiveCount != null && cleanAdditiveCount > 0 && (

@@ -94,7 +94,7 @@ export default function FoodScanPage() {
 const scored = list
 .map((p) => ({ p, care: isTherapyEnabled(p) ? getProductCareInfo(p) : null }))
 .filter((x) => x.care && x.care.careScore >= 60 && x.care.tier !== 'avoid')
- .sort((a, b) => b.care.careScore - a.care.careScore)
+ .sort((a, b) => (b.care?.careScore ?? 0) - (a.care?.careScore ?? 0))
  .slice(0, 8)
  .map((x) => x.p)
  setRecommend(scored)
