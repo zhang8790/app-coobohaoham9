@@ -18,6 +18,7 @@
 // 合规铁律：全程"食养/膳食调理"参考，绝不输出诊断/治疗/疗效承诺。
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { dbRiskToSeverity } from '../_shared/additive-risk.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,13 +33,9 @@ function json(body: any, status = 200, headers = corsHeaders) {
 }
 
 // 风险等级映射：DB 的 L1-L4 → 标准 JSON 的 safe/limit/high_risk
-//   L1 纯天然无风险 / L2 常规合规   → safe
-//   L3 敏感人群控量                → limit
-//   L4 老幼弱尽量少吃（原 black）   → high_risk
+//   委托 _shared/additive-risk.ts（唯一事实源），避免与 ocr-ingredient 漂移。
 function toLevel(risk: string | null): 'safe' | 'limit' | 'high_risk' {
-  if (risk === 'L4' || risk === 'black') return 'high_risk'
-  if (risk === 'L3' || risk === 'yellow') return 'limit'
-  return 'safe' // L1 / L2 / white
+  return dbRiskToSeverity(risk)
 }
 
 // 清洗：按中英文标点/空白拆分，过滤纯数字与过短串（复用 ocr-ingredient 的解析逻辑）
@@ -181,10 +178,24 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 过敏原匹配（候选包含过敏原名）
+    // 过敏原匹配：DB 仅存标准名（乳制品/小麦/坚果…），但配料表常写 乳/奶/面筋/腰果 等，
+    // 纯 includes(标准名) 会漏报：牛奶/乳粉 不命中「乳制品」、面筋 不命中「小麦」、腰果 不命中「坚果」、
+    // 黄豆/豆浆/豆腐 不命中「大豆」。保守策略：候选含「标准名或任一同义词片段」即告警
+    // （过敏原安全优先，宁可误报不漏报）。
+    const ALLERGEN_SYNONYMS: Record<string, string[]> = {
+      '乳制品': ['乳', '奶', '牛乳', '乳粉', '乳清', '乳糖', '奶酪', '黄油', '奶油', '酸奶', '炼乳', '芝士', '干酪'],
+      '大豆':   ['黄豆', '豆粕', '大豆蛋白', '大豆分离蛋白', '豆浆', '豆奶', '豆腐', '味噌', '纳豆', '毛豆'],
+      '花生':   ['落花生', '花生酱', '花生油', '花生米'],
+      '小麦':   ['面筋', '麸质', '谷蛋白', '小麦粉', '全麦', '麦麸'],
+      '坚果':   ['腰果', '杏仁', '核桃', '榛子', '巴旦木', '开心果', '碧根果', '夏威夷果', '松子'],
+      '芝麻':   ['芝麻酱', '白芝麻', '黑芝麻', '麻酱'],
+      '虾':     ['虾仁', '虾肉', '龙虾', '基围虾', '虾米'],
+      '蟹':     ['蟹肉', '蟹黄', '梭子蟹', '蟹棒'],
+    }
     const allergenListOut: any[] = []
     for (const al of allergenList) {
-      if (candidates.some((c) => c.includes(al.name))) {
+      const tokens = [al.name, ...(ALLERGEN_SYNONYMS[al.name] || [])]
+      if (candidates.some((c) => tokens.some((t) => c.includes(t)))) {
         allergenListOut.push({ key: al.key, name: al.name, crowd_code: al.crowd_code })
         crowdCodes.add(al.crowd_code)
       }

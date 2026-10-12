@@ -13,6 +13,7 @@ import {
   type AudienceAdvice,
   type CatalogInsight,
   type HomologyResult,
+  SAFE_LEVEL_META,
 } from '@/db/food-safety'
 import { getProducts, getProductById, type Product } from '@/db/api'
 import { useAuth } from '@/contexts/AuthContext'
@@ -28,13 +29,8 @@ const S = {
   textalign_center_fontsize_22rpx_color_6f675c_lineheight_18px_margintop_4: { textAlign: 'center', fontSize: '22rpx', color: '#6F675C', lineHeight: '18px', marginTop: 4 },
 } as const
 
-// 4 档评级 → 分数 + 主题色
-const LEVEL_META: Record<string, { score: number; label: string; bg: string; fg: string; border: string; ring: string }> = {
- A_preferred: { score: 92, label: 'A 优选', bg: 'rgba(34,197,94,0.10)', fg: '#15803D', border: 'rgba(34,197,94,0.35)', ring: '#22c55e' },
- A_limit: { score: 78, label: 'A 含限量', bg: 'rgba(132,204,22,0.10)', fg: '#65a30d', border: 'rgba(132,204,22,0.35)', ring: '#84cc16' },
- B_caution: { score: 55, label: 'B 慎选', bg: 'rgba(249,115,22,0.10)', fg: '#B45309', border: 'rgba(249,115,22,0.35)', ring: '#B45309' },
- C_avoid: { score: 28, label: 'C 不推荐', bg: 'rgba(239,68,68,0.10)', fg: '#dc2626', border: 'rgba(239,68,68,0.35)', ring: '#ef4444' },
-}
+// 4 档评级 → 分数 + 主题色（唯一事实源：与 food-scan / ProductGridCard 共用 SAFE_LEVEL_META）
+const LEVEL_META = SAFE_LEVEL_META
 
 // 无评级数据时的中性兜底：避免空 safe_level_code 被 || 误判成绿色「优选」
 const NEUTRAL_META = { score: 0, label: '待评估', bg: 'rgba(111,103,92,0.08)', fg: '#6F675C', border: 'rgba(111,103,92,0.30)', ring: '#D8D0C4' }

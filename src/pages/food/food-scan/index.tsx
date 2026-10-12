@@ -7,6 +7,7 @@ import { getProducts } from '@/db/api'
 import { supabase, callEdgeFunction } from '@/client/supabase'
 import { matchIngredientKeys, resolveIngredientEntries, filterShiyangByIngredientList } from '@/utils/ingredient-analysis'
 import { normalizeAdditiveRisk } from '@/utils/additive-dictionary'
+import { computeSafeLevelCode, SAFE_LEVEL_META } from '@/db/food-safety'
 import type { IngredientEntry } from '@/utils/shiyang-dictionary'
 import FoodSafetyPanel from '@/components/FoodSafetyPanel'
 import ComprehensiveSafetyReport from '@/components/ComprehensiveSafetyReport'
@@ -105,15 +106,17 @@ const scored = list
  return () => { alive = false }
  }, [analyzed, userProfile])
 
- // 安全评级汇总：命中配料风险等级 → S(全白) / A(含黄) / C(含黑)
- // 注意：food_additives 库风险码已迁移为 L1-L4（迁移 00224），DB 取回的是 L4 而非 'black'，
- // 必须用 normalizeAdditiveRisk 归一后判等，否则 L4 会被漏判、误显「配料较安全/绿」。
- const grade = useMemo(() => {
- if (!additives.length) return null
- if (additives.some((a) => normalizeAdditiveRisk(a.risk_level) === 'black')) return { g: 'C', label: 'C不推荐', color: '#DC2626' }
- if (additives.some((a) => normalizeAdditiveRisk(a.risk_level) === 'yellow')) return { g: 'A', label: 'A含限量成分', color: '#B45309' }
- return { g: 'S', label: 'A优选', color: '#15803D' }
- }, [additives])
+// 安全评级汇总：与 ingredient-analyze 服务端同一套 4 档阈值（黑→C_avoid；黄≥3→B_caution；黄≥1→A_limit；否则 A_preferred）。
+// 此前本地只用 S/A/C 三档，会把 3+ 限量误显成「A含限量」，与完整报告「B慎选」矛盾；统一到 SAFE_LEVEL_META。
+// 注意：food_additives 库风险码已迁移为 L1-L4（迁移 00224），必须经 normalizeAdditiveRisk 归一到 white/yellow/black。
+const grade = useMemo(() => {
+  if (!additives.length) return null
+  const black = additives.filter((a) => normalizeAdditiveRisk(a.risk_level) === 'black').length
+  const yellow = additives.filter((a) => normalizeAdditiveRisk(a.risk_level) === 'yellow').length
+  const code = computeSafeLevelCode(black, yellow)
+  const meta = SAFE_LEVEL_META[code]
+  return { code, label: meta.label, color: meta.fg, score: meta.score }
+}, [additives])
 
  // P4 结论层：把评级/年龄/过敏聚合为「能买吗 / 能给孩子吃吗 / 适合谁」的直接判断
  const conclusion = useMemo(() => {

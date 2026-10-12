@@ -7,6 +7,7 @@ import AddToCartButton from '@/components/AddToCartButton'
 import { type ProductCareInfo, careLevel } from '@/utils/product-care'
 import type { FitTier } from '@/utils/food-therapy/types'
 import { type ProductTherapyReport, NATURE_FEELING } from '@/utils/food-therapy/product-therapy'
+import { SAFE_LEVEL_META } from '@/db/food-safety'
 
 export interface ProductGridCardProps {
  id: string
@@ -263,13 +264,8 @@ function hasNegativeTag(t: string): boolean {
  return NEGATIVE_TAG_TOKENS.some((tok) => t.includes(tok))
 }
 
-// 安全评级色标（与 analysis-result 页同源，小字徽章渲染）
-const SAFE_COLORS: Record<string, { label: string; bg: string; fg: string; border: string }> = {
- A_preferred: { label: 'A优选', bg: 'rgba(34,197,94,0.10)', fg: '#15803D', border: 'rgba(34,197,94,0.35)' },
- A_limit: { label: 'A限量', bg: 'rgba(132,204,22,0.10)', fg: '#65a30d', border: 'rgba(132,204,22,0.35)' },
- B_caution: { label: 'B慎选', bg: 'rgba(249,115,22,0.10)', fg: '#B45309', border: 'rgba(249,115,22,0.35)' },
- C_avoid: { label: 'C不推荐', bg: 'rgba(239,68,68,0.10)', fg: '#dc2626', border: 'rgba(239,68,68,0.35)' },
-}
+// 安全评级色标（唯一事实源：与 analysis-result / food-scan 共用 SAFE_LEVEL_META）
+const SAFE_COLORS = SAFE_LEVEL_META
 
 // 关怀度进度条（游戏化：分数越高越被「悉心照看」）
 function CareBar({ score }: { score: number }) {

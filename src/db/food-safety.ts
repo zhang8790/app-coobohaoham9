@@ -46,6 +46,25 @@ const _tagRulesCache: CacheBox<FoodTagRule> = { data: [], ts: 0 }
 // 4 档安全评级 code（与 ingredient-analyze EF / ingredient_ocr_tasks.safety_level 一致）
 export type SafeLevelCode = 'A_preferred' | 'A_limit' | 'B_caution' | 'C_avoid'
 
+// 4 档安全评级 → 展示元数据（唯一事实源，C 端 food-scan / analysis-result / ProductGridCard 共用，
+// 消除三处重复 LEVEL_META/SAFE_COLORS 漂移导致的跨页评级矛盾）。
+export const SAFE_LEVEL_META: Record<SafeLevelCode, { label: string; score: number; bg: string; fg: string; border: string; ring: string }> = {
+  A_preferred: { label: 'A 优选', score: 92, bg: 'rgba(34,197,94,0.10)', fg: '#15803D', border: 'rgba(34,197,94,0.35)', ring: '#22c55e' },
+  A_limit: { label: 'A 含限量', score: 78, bg: 'rgba(132,204,22,0.10)', fg: '#65a30d', border: 'rgba(132,204,22,0.35)', ring: '#84cc16' },
+  B_caution: { label: 'B 慎选', score: 55, bg: 'rgba(249,115,22,0.10)', fg: '#B45309', border: 'rgba(249,115,22,0.35)', ring: '#B45309' },
+  C_avoid: { label: 'C 不推荐', score: 28, bg: 'rgba(239,68,68,0.10)', fg: '#dc2626', border: 'rgba(239,68,68,0.35)', ring: '#ef4444' },
+}
+
+// 由「黑/黄」风险计数推导 4 档（阈值与 ingredient-analyze 服务端完全一致：
+// 黑(高风险的添加剂)>0 → C_avoid；黄(限量)≥3 → B_caution；黄≥1 → A_limit；否则 A_preferred）。
+// 此前 food-scan 本地只用 S/A/C 三档，会把 3+ 限量误显成「A含限量」，与完整报告「B慎选」矛盾 —— 统一到这里。
+export function computeSafeLevelCode(blackCount: number, yellowCount: number): SafeLevelCode {
+  if (blackCount > 0) return 'C_avoid'
+  if (yellowCount >= 3) return 'B_caution'
+  if (yellowCount >= 1) return 'A_limit'
+  return 'A_preferred'
+}
+
 // 人群 severity 分级（负向四级语义；信任度核心）
 export type CrowdSeverity = 'ok' | 'caution' | 'advise_against' | 'forbidden'
 
