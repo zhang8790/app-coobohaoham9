@@ -192,6 +192,7 @@ export async function handleCreateOrder(req: Request, deps?: CreateOrderDeps): P
           status: order.status,
           store_id: storeId,
           total_amount: storeAmount,
+          tb_used: orderPayload.tb_used as number,
         })
       }
 
@@ -277,6 +278,7 @@ export async function handleCreateOrder(req: Request, deps?: CreateOrderDeps): P
           id: firstOrder.id, 
           order_no: firstOrder.order_no, 
           status: firstOrder.status,
+          total_amount: firstOrder.total_amount,
           parent_order_no: parentOrderNo,
         },
         orders: createdOrders, // 所有子订单

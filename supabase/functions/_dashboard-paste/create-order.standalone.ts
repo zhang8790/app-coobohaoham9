@@ -66,8 +66,8 @@ function computeWeightedRate(
     const pid = String(it.product_id ?? '')
     const rawRate = rateMap[pid]
     const pRate =
-      typeof rawRate === 'number' && rawRate > 0
-        ? rawRate / 100 // discount_rate 为整数%（如 9 表示 9%）
+      typeof rawRate === 'number'
+        ? rawRate / 100 // discount_rate 为整数%（如 9 表示 9%）；显式 0 即 0%，不再回落门店率
         : storeFallback
     totalAmt += amt
     weightedSum += amt * pRate

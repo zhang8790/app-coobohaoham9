@@ -126,10 +126,10 @@ jobs:
           deno-version: v2.x
 
       - name: 单元测试（纯函数 money/commission）— 硬门禁
-        run: deno test --allow-none supabase/functions/_shared/money.test.ts supabase/functions/_shared/commission.test.ts
+        run: deno test supabase/functions/_shared/money.test.ts supabase/functions/_shared/commission.test.ts
 
       - name: 集成测试（flow，注入内存 Mock，--no-check 跳过 supabase-js 泛型误报）— 硬门禁
-        run: deno test --no-check --allow-none supabase/functions/_shared/flow.test.ts
+        run: deno test --no-check --allow-env supabase/functions/_shared/flow.test.ts
 
       - name: deno check 所有函数（含 ../_shared 相对引用）— 观察期/非阻断
         run: |
