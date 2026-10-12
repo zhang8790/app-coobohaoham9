@@ -105,17 +105,18 @@ jobs:
         run: npm run build   # = tsc -b && vite build
 
   # ---------------------------------------------------------------------------
-  # ③ Supabase Edge Functions（Deno/TS）：逐函数 deno check
+  # ③ Supabase Edge Functions（Deno/TS）：deno test 硬门禁 + deno check 观察
   # ---------------------------------------------------------------------------
-  # ⚠️【观察期 / 非阻断】说明：
-  #   仓库原无 deno.json，deno check 对 `npm:` 依赖（wechatpay-axios-plugin 等 7 个函数）
-  #   会直接报错。已新增根 deno.json（nodeModulesDir:"none" + 声明 2 个 npm 依赖）修复解析，
-  #   使 deno check 可运行。试跑即发现真实类型错误：merchant-payout 的 `new Wechatpay(...)`
-  #   因包的 d.ts 导出为 namespace 而非可构造默认导出，报 TS2351（双通道分账核心函数）。
-  #   为不阻断合并，本步骤当前为观察期（仅报告、不退出非 0）。待 merchant-payout 等真实
-  #   类型错误修复、且确认 deno.json 不影响 Supabase 部署后，去掉 `exit 0` 改为阻断。
+  # 设计口径：
+  #   - 硬门禁（阻断合并）：deno test 运行 _shared 单测。
+  #       · money.test.ts / commission.test.ts 纯函数，完整类型检查（G2：此前 CI 从不跑 test）。
+  #       · flow.test.ts 是真实 EF 集成测试（注入内存 Mock Supabase），用 --no-check 跳过
+  #         @supabase/supabase-js 在 deno 下的 type 'never' 误报，仍跑真实断言。
+  #   - 观察期（仅报告）：deno check 逐函数。@supabase/supabase-js 泛型 'never' 误报在 deno 下
+  #     无法干净消除，且 Supabase 部署走 esbuild 不类型检查、运行时无碍；待根因
+  #     （deno.json compilerOptions 或 supabase-js 升级）修复后，deno check 亦转阻断。
   edge-functions:
-    name: Edge Functions (deno check) [观察期/非阻断]
+    name: Edge Functions (deno test 硬门禁 + deno check 观察)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -123,6 +124,12 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - name: 单元测试（纯函数 money/commission）— 硬门禁
+        run: deno test --allow-none supabase/functions/_shared/money.test.ts supabase/functions/_shared/commission.test.ts
+
+      - name: 集成测试（flow，注入内存 Mock，--no-check 跳过 supabase-js 泛型误报）— 硬门禁
+        run: deno test --no-check --allow-none supabase/functions/_shared/flow.test.ts
 
       - name: deno check 所有函数（含 ../_shared 相对引用）— 观察期/非阻断
         run: |
@@ -138,11 +145,8 @@ jobs:
             echo "::endgroup::"
           done
           if [ "$FAIL" -ne 0 ]; then
-            echo "⚠️ 有 $FAIL 个 Edge Function 存在类型错误（观察期，不阻断）。"
-            echo "   其中 merchant-payout 的 Wechatpay 构造 TS2351 已修复（deno 对该 CJS 包默认导入"
-            echo "   误解析为命名空间类型，运行时 esbuild 默认导入即 class，已探针验证可构造）。"
-            echo "   其余多为 deno 对 @supabase/supabase-js 泛型推断过严产生的 type 'never' 误报——"
-            echo "   Supabase 部署走 esbuild 剥离类型、不类型检查，运行时无碍。清理后请改为阻断。"
+            echo "⚠️ 有 $FAIL 个 Edge Function 存在类型错误（观察期，不阻断）：多为 @supabase/supabase-js"
+            echo "   泛型 'never' 误报，Supabase 部署走 esbuild 不类型检查，运行时无碍；根因修复后转阻断。"
           else
             echo "✅ 全部 Edge Function 类型检查通过"
           fi
@@ -219,4 +223,40 @@ jobs:
           echo ""
           echo "ℹ️ 提示性扫描不阻断 CI；硬门禁（禁旧词 / 人工智能 / 大模型）已通过即放行。"
           echo "（注意：「微信服务商分账」为微信支付官方产品名，合法使用，不在扫描范围。）"
+          exit 0
+
+  # ---------------------------------------------------------------------------
+  # ⑤ 依赖漏洞审计（pnpm audit）— 观察期（仅报告，不阻断）
+  # ---------------------------------------------------------------------------
+  # 口径：引入期先以「可见性」运行，避免对既有依赖存量漏洞直接阻断合并；
+  #   首次运行确认无 high/critical 后，将下端 `|| true` 去掉改为阻断（对齐安全门禁）。
+  security-audit:
+    name: 依赖漏洞审计 (pnpm audit) [观察期/仅报告]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile --config.minimumReleaseAge=0
+
+      - name: 安全审计（high/critical 报告）— 观察期/仅报告
+        run: |
+          set +e
+          echo "== pnpm audit（high/critical，观察期不阻断）=="
+          pnpm audit --audit-level=high
+          CODE=$?
+          if [ "$CODE" -ne 0 ]; then
+            echo "⚠️ 存在 high/critical 级依赖漏洞（观察期，不阻断）；triage 后去掉 || true 转阻断。"
+          else
+            echo "✅ 无 high/critical 级依赖漏洞"
+          fi
           exit 0
