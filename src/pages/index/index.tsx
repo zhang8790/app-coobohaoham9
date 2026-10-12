@@ -711,9 +711,13 @@ onClick={() => Taro.navigateTo({ url: '/pages/food/food-scan/index?auto=1' })}
             </View>
             <View style={{ padding: '8px 9px 11px' }}>
               <Text style={{ fontSize: '28rpx', fontWeight: 700, color: 'hsl(var(--foreground))', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</Text>
-              {chipTxt ? (
-                <Text style={{ fontSize: '22rpx', color: 'hsl(var(--primary))', background: 'hsl(var(--primary-soft))', borderRadius: 8, padding: '2px 7px', marginTop: 6, display: 'inline-block' }}>{chipTxt}</Text>
-              ) : null}
+              {/* 固定预留标签行高度：无标签的商品也占位，保证横滑楼层所有卡片等高
+                  （此前无标签卡比有标签卡矮一截 → 「为你甄选」卡片大小不一致） */}
+              <View style={{ height: 22, marginTop: 6 }}>
+                {chipTxt ? (
+                  <Text style={{ fontSize: '22rpx', color: 'hsl(var(--primary))', background: 'hsl(var(--primary-soft))', borderRadius: 8, padding: '2px 7px', display: 'inline-block' }}>{chipTxt}</Text>
+                ) : null}
+              </View>
             </View>
           </View>
         )
